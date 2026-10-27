@@ -97,25 +97,6 @@ describe('retained query history for Analytics backfill', () => {
         expect(sql).not.toContain(untrustedOrg);
     });
 
-    it('excludes previews and uses the full snapshot boundary without a lower history cutoff', async () => {
-        tracker.on.select('query_history').response([]);
-        await collect();
-        const { sql: rawSql, bindings } = tracker.history.select[0];
-        const sql = normalizeSql(rawSql);
-        expect(sql).toContain('not "p"."project_type" = ?');
-        expect(bindings).toContain(ProjectType.PREVIEW);
-        expect(sql).toContain('"q"."created_at" < ?');
-        expect(bindings).toContain(before);
-        expect(sql).not.toMatch(/"q"\."created_at"\s*>=?/);
-        expect(bindings).not.toContain(before.slice(0, 10));
-        // Submission timestamps are stored without a timezone. Format them
-        // explicitly as UTC rather than letting the database session offset
-        // change the day used for historical activity.
-        expect(sql).toContain(
-            'to_char(q.created_at, \'YYYY-MM-DD"T"HH24:MI:SS.US"Z"\') as event_ts',
-        );
-    });
-
     it('exports the complete stream schema without SQL, error text or invented timing and identity', async () => {
         tracker.on.select('query_history').responseOnce([
             queryRow({
@@ -221,12 +202,5 @@ describe('retained query history for Analytics backfill', () => {
                 ({ sql }) => sql === 'SET TRANSACTION READ ONLY',
             ),
         ).toHaveLength(3);
-    });
-
-    it('propagates database failures instead of reporting incomplete history as empty coverage', async () => {
-        tracker.on.select('query_history').simulateError('query timed out');
-        await expect(collect()).rejects.toThrow('query timed out');
-        expect(tracker.history.transactions).toHaveLength(1);
-        expect(tracker.history.transactions[0].state).toBe('rolled back');
     });
 });

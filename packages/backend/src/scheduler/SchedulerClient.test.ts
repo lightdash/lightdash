@@ -172,7 +172,7 @@ describe('query history backfill scheduling', () => {
         expect(graphileAddJob).not.toHaveBeenCalled();
     });
 
-    it('allows manual retry of a failed job in the serial compaction queue', async () => {
+    it('allows manual retry of a failed job on a separate serial queue from daily compaction', async () => {
         const { client } = clientWithJob({
             locked_at: null,
             attempts: 1,
@@ -184,7 +184,7 @@ describe('query history backfill scheduling', () => {
             SCHEDULER_TASKS.BACKFILL_USAGE_QUERY_HISTORY,
             traceProperties,
             {
-                queueName: 'usage-events-compaction',
+                queueName: 'usage-history-backfill',
                 jobKey: `usage-query-history:${ORG_UUID}`,
                 jobKeyMode: 'replace',
                 maxAttempts: 1,

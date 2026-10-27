@@ -23,7 +23,7 @@ export const useAnalyticsProject = () => {
     });
 };
 
-export const useAnalyticsHistoryBackfill = (enabled: boolean) => {
+export const useAnalyticsHistoryBackfill = () => {
     const lightdashApi = useLightdashApi();
     const { data: organization } = useOrganization();
     return useQuery<AnalyticsHistoryBackfillStatus, ApiError>({
@@ -36,7 +36,7 @@ export const useAnalyticsHistoryBackfill = (enabled: boolean) => {
                 url: '/org/analytics-project/backfill',
                 method: 'GET',
             }),
-        enabled: enabled && !!organization?.organizationUuid,
+        enabled: !!organization?.organizationUuid,
         retry: false,
         staleTime: 30_000,
         refetchInterval: (data) => (data?.running ? 2000 : false),

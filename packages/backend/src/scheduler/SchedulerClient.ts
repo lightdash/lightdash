@@ -1814,12 +1814,12 @@ export class SchedulerClient {
         )
             return;
         const graphileClient = await this.graphileUtils;
-        // Same queue as compaction: a single writer touches this org's usage files.
+        // Serialize backfills on one low-priority worker without locking nightly compaction.
         await graphileClient.addJob(
             SCHEDULER_TASKS.BACKFILL_USAGE_QUERY_HISTORY,
             payload,
             {
-                queueName: 'usage-events-compaction',
+                queueName: 'usage-history-backfill',
                 jobKey: `usage-query-history:${payload.organizationUuid}`,
                 jobKeyMode: 'replace',
                 maxAttempts: 1,

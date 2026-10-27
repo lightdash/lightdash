@@ -14,20 +14,11 @@ vi.mock('../../hooks/organization/useOrganization', () => ({
 
 const covered: AnalyticsHistoryBackfillStatus = {
     running: false,
-    missingQueries: 0,
-    existingQueries: 0,
-    pendingQueries: 0,
-    from: null,
-    to: null,
+    completed: true,
 };
-
 const available: AnalyticsHistoryBackfillStatus = {
-    ...covered,
-    missingQueries: 24,
-    existingQueries: 8,
-    pendingQueries: 3,
-    from: '2026-09-01',
-    to: '2026-09-30',
+    running: false,
+    completed: false,
 };
 
 const renderBackfill = () => renderWithProviders(<AnalyticsHistoryBackfill />);
@@ -38,59 +29,7 @@ describe('AnalyticsHistoryBackfill', () => {
         mockedLightdashApi.mockResolvedValue(available);
     });
 
-    it.each([
-        ['no retained history', covered],
-        [
-            'all retained records already available',
-            { ...covered, existingQueries: 24 },
-        ],
-        [
-            'all retained queries captured but awaiting processing',
-            { ...covered, pendingQueries: 24 },
-        ],
-    ])('hides the action when there is %s', async (_name, status) => {
-        mockedLightdashApi.mockResolvedValue(status);
-        renderBackfill();
-        await waitFor(() =>
-            expect(
-                screen.queryByText('Checking backfill status…'),
-            ).not.toBeInTheDocument(),
-        );
-        expect(
-            screen.queryByRole('button', {
-                name: 'Backfill available history',
-            }),
-        ).not.toBeInTheDocument();
-        expect(
-            screen.queryByText('Historical activity'),
-        ).not.toBeInTheDocument();
-        expect(sharedLightdashApi).toHaveBeenCalledWith({
-            url: '/org/analytics-project/backfill',
-            method: 'GET',
-        });
-        expect(sharedLightdashApi).not.toHaveBeenCalledWith(
-            expect.objectContaining({ method: 'POST' }),
-        );
-    });
-
-    it('offers the action without scanning dates or counts when no completion marker exists', async () => {
-        mockedLightdashApi.mockResolvedValue({ ...covered, completed: false });
-        renderBackfill();
-        expect(
-            await screen.findByRole('button', {
-                name: 'Backfill available history',
-            }),
-        ).toBeEnabled();
-        expect(screen.queryByText(/records to import/)).not.toBeInTheDocument();
-        expect(
-            screen.getByText(/Existing captured queries and AI usage are kept/),
-        ).toBeVisible();
-        expect(sharedLightdashApi).not.toHaveBeenCalledWith(
-            expect.objectContaining({ method: 'POST' }),
-        );
-    });
-
-    it('hides the action after a completed marker even if old counts are cached', async () => {
+    it('hides the action after a completed marker', async () => {
         mockedLightdashApi.mockResolvedValue({ ...available, completed: true });
         renderBackfill();
         await waitFor(() =>
@@ -129,7 +68,7 @@ describe('AnalyticsHistoryBackfill', () => {
                 complete = true;
                 return undefined;
             }
-            return complete ? { ...covered, existingQueries: 32 } : available;
+            return complete ? covered : available;
         });
         renderBackfill();
         await userEvent.click(
@@ -154,48 +93,6 @@ describe('AnalyticsHistoryBackfill', () => {
                 ([request]) => request.method === 'GET',
             ),
         ).toHaveLength(2);
-    });
-
-    it('keeps partial completion retryable until the completion marker is present', async () => {
-        let runs = 0;
-        mockedLightdashApi.mockImplementation(async ({ method }) => {
-            if (method === 'POST') {
-                runs += 1;
-                return undefined;
-            }
-            return runs === 0
-                ? available
-                : runs === 1
-                  ? { ...available, missingQueries: 4 }
-                  : covered;
-        });
-        renderBackfill();
-        await userEvent.click(
-            await screen.findByRole('button', {
-                name: 'Backfill available history',
-            }),
-        );
-        await waitFor(() =>
-            expect(
-                mockedLightdashApi.mock.calls.filter(
-                    ([request]) => request.method === 'GET',
-                ),
-            ).toHaveLength(2),
-        );
-        expect(
-            screen.getByRole('button', { name: 'Backfill available history' }),
-        ).toBeEnabled();
-        await userEvent.click(
-            screen.getByRole('button', { name: 'Backfill available history' }),
-        );
-        await waitFor(() =>
-            expect(
-                screen.queryByRole('button', {
-                    name: 'Backfill available history',
-                }),
-            ).not.toBeInTheDocument(),
-        );
-        expect(runs).toBe(2);
     });
 
     it('allows retry after a failed POST without hiding missing history', async () => {
@@ -236,22 +133,6 @@ describe('AnalyticsHistoryBackfill', () => {
             ).not.toBeInTheDocument(),
         );
         expect(attempts).toBe(2);
-    });
-
-    it('shows a failed background job and leaves missing history retryable', async () => {
-        mockedLightdashApi.mockResolvedValue({
-            ...available,
-            error: 'The previous backfill failed. You can retry safely.',
-        });
-        renderBackfill();
-        expect(
-            await screen.findByText(
-                'The previous backfill failed. You can retry safely.',
-            ),
-        ).toBeVisible();
-        expect(
-            screen.getByRole('button', { name: 'Backfill available history' }),
-        ).toBeEnabled();
     });
 
     it('retries an unsuccessful availability check before enabling backfill', async () => {

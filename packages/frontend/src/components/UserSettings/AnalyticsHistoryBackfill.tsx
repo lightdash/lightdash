@@ -7,7 +7,7 @@ import Callout from '../common/Callout';
 import { SettingsCard } from '../common/Settings/SettingsCard';
 
 const AnalyticsHistoryBackfill = () => {
-    const status = useAnalyticsHistoryBackfill(true);
+    const status = useAnalyticsHistoryBackfill();
     const backfill = useBackfillAnalyticsHistory();
     if (status.isLoading)
         return (
@@ -15,11 +15,8 @@ const AnalyticsHistoryBackfill = () => {
                 Checking backfill status…
             </Text>
         );
-    // Legacy responses used exact counts; new responses use one durable completion signal.
-    const completed =
-        status.data?.completed ??
-        (status.data?.missingRecords ?? status.data?.missingQueries) === 0;
-    if (status.isSuccess && !status.data.running && completed) return null;
+    if (status.isSuccess && !status.data.running && status.data.completed)
+        return null;
     return (
         <SettingsCard>
             <Stack gap="md">

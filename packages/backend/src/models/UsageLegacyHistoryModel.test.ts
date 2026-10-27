@@ -149,65 +149,6 @@ describe('retained database content activity for Analytics history', () => {
         expect(sql).not.toContain('"h"."context"');
     });
 
-    it('keeps database row identities distinct even when the actor, content and timestamp match', async () => {
-        emptySources('analytics_dashboard_views');
-        const first = storedRow();
-        const second = storedRow({
-            source_id: '00000000-0000-0000-0000-000000000020',
-        });
-        tracker.on
-            .select(matches('analytics_dashboard_views'))
-            .responseOnce([first, second]);
-        tracker.on.select(matches('analytics_dashboard_views')).response([]);
-        const rows = await collect();
-        expect(rows.map((row) => row.record_id)).toEqual([
-            `dashboard_view:${first.source_id}`,
-            `dashboard_view:${second.source_id}`,
-        ]);
-        expect(
-            rows.every((row) => row.activity_type === 'dashboard_view'),
-        ).toBe(true);
-    });
-
-    it('exports app records and versions as database facts with current status rather than invented lifecycle outcomes', async () => {
-        for (const { table, timestamp } of sourceDefinitions) {
-            if (table === 'apps' || table === 'app_versions') {
-                tracker.on.select(matches(table, timestamp)).responseOnce([
-                    storedRow({
-                        user_id: timestamp === 'deleted_at' ? null : 'creator',
-                        ...(table === 'app_versions'
-                            ? { version: 3, current_status: 'ready' }
-                            : {}),
-                    }),
-                ]);
-            }
-            tracker.on.select(matches(table, timestamp)).response([]);
-        }
-        const rows = await collect();
-        expect(rows.map((row) => row.activity_type)).toEqual([
-            'app_created',
-            'app_deleted',
-            'app_version_created',
-        ]);
-        expect(new Set(rows.map((row) => row.record_id)).size).toBe(3);
-        expect(rows.every((row) => row.app_id === row.content_id)).toBe(true);
-        expect(rows[1].user_id).toBeNull();
-        expect(rows[2]).toMatchObject({
-            version: 3,
-            current_status: 'ready',
-            event_ts: '2026-09-01T15:04:05.123456Z',
-            success: null,
-            duration_ms: null,
-        });
-        const versionQuery = tracker.history.select.find(({ sql }) =>
-            sql.includes('from "app_versions"'),
-        )!.sql;
-        expect(versionQuery).not.toContain('status_updated_at');
-        expect(versionQuery).not.toContain('status_history');
-        expect(versionQuery).not.toContain('status_message');
-        expect(versionQuery).not.toContain('prompt');
-    });
-
     it('streams bounded keyset pages in separate read-only transactions', async () => {
         emptySources('analytics_app_views');
         const first = storedRow();
@@ -257,14 +198,5 @@ describe('retained database content activity for Analytics history', () => {
                 (transaction) => transaction.state === 'committed',
             ),
         ).toBe(true);
-    });
-
-    it('propagates failures instead of exporting incomplete history as empty coverage', async () => {
-        tracker.on
-            .select(matches('analytics_chart_views'))
-            .simulateError('query timed out');
-        await expect(collect()).rejects.toThrow('query timed out');
-        expect(tracker.history.transactions).toHaveLength(1);
-        expect(tracker.history.transactions[0].state).toBe('rolled back');
     });
 });

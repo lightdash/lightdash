@@ -2380,10 +2380,10 @@ export class SchedulerWorker extends SchedulerTask {
                     },
                 });
                 if (!flag.enabled) throw new Error('Analytics is not enabled');
-                await new UsageHistoryBackfill(
-                    usageEvents.s3,
+                await new UsageHistoryBackfill(usageEvents.s3).run(
+                    payload.organizationUuid,
                     this.usageHistoryModel,
-                ).run(payload.organizationUuid, this.usageDimensionsModel);
+                );
             },
             [SCHEDULER_TASKS.MANAGED_AGENT_HEARTBEAT]: async () => {
                 // EE-only: implemented in CommercialSchedulerWorker

@@ -1,4 +1,3 @@
-import type { UsageDimensionsModel } from '../../models/UsageDimensionsModel';
 import {
     UsageHistoryBackfill,
     usageHistoryCompletionKey,
@@ -33,20 +32,12 @@ describe('usage history completion signal', () => {
         getAiUsageJsonLines: vi.fn(),
         getActivityJsonLines: vi.fn(),
     };
-    const result = {
-        running: false,
-        missingQueries: 0,
-        existingQueries: 0,
-        pendingQueries: 0,
-        from: null,
-        to: null,
-    };
-    const importer = () => new UsageHistoryBackfill(storage, history);
+    const importer = () => new UsageHistoryBackfill(storage);
     beforeEach(() => {
         vi.clearAllMocks();
         storageCalls.headObject.mockResolvedValue({});
         storageCalls.putObject.mockResolvedValue({});
-        storageCalls.run.mockReset().mockResolvedValue(result);
+        storageCalls.run.mockReset().mockResolvedValue(undefined);
     });
 
     it('uses one org-scoped HEAD with no history reads', async () => {
@@ -82,16 +73,14 @@ describe('usage history completion signal', () => {
         await expect(importer().isComplete('../other-org')).rejects.toThrow(
             'Invalid organization',
         );
-        await expect(
-            importer().run('../other-org', {} as UsageDimensionsModel),
-        ).rejects.toThrow('Invalid organization');
+        await expect(importer().run('../other-org', history)).rejects.toThrow(
+            'Invalid organization',
+        );
         expect(storageCalls.headObject).not.toHaveBeenCalled();
         expect(storageCalls.putObject).not.toHaveBeenCalled();
     });
     it('writes one marker only after all three sources finish, even with no history', async () => {
-        await expect(
-            importer().run(org, {} as UsageDimensionsModel),
-        ).resolves.toMatchObject({ missingRecords: 0 });
+        await expect(importer().run(org, history)).resolves.toBeUndefined();
         expect(storageCalls.run).toHaveBeenCalledTimes(3);
         expect(storageCalls.putObject).toHaveBeenCalledExactlyOnceWith(
             expect.objectContaining({
@@ -106,27 +95,21 @@ describe('usage history completion signal', () => {
     });
     it('does not mark partial completion and can retry all sources', async () => {
         storageCalls.run
-            .mockResolvedValueOnce(result)
+            .mockResolvedValueOnce(undefined)
             .mockRejectedValueOnce(new Error('source failed'));
-        await expect(
-            importer().run(org, {} as UsageDimensionsModel),
-        ).rejects.toThrow('source failed');
+        await expect(importer().run(org, history)).rejects.toThrow(
+            'source failed',
+        );
         expect(storageCalls.putObject).not.toHaveBeenCalled();
-        await importer().run(org, {} as UsageDimensionsModel);
+        await importer().run(org, history);
         expect(storageCalls.putObject).toHaveBeenCalledOnce();
     });
     it('fails the job if publishing its completion signal fails', async () => {
         storageCalls.putObject.mockRejectedValue(
             new Error('storage unavailable'),
         );
-        await expect(
-            importer().run(org, {} as UsageDimensionsModel),
-        ).rejects.toThrow('storage unavailable');
-    });
-    it('keeps explicit reruns available without using the marker to skip reconciliation', async () => {
-        await importer().run(org, {} as UsageDimensionsModel);
-        await importer().run(org, {} as UsageDimensionsModel);
-        expect(storageCalls.run).toHaveBeenCalledTimes(6);
-        expect(storageCalls.headObject).not.toHaveBeenCalled();
+        await expect(importer().run(org, history)).rejects.toThrow(
+            'storage unavailable',
+        );
     });
 });

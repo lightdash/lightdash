@@ -27,11 +27,7 @@ const project: NonNullable<AnalyticsProjectStatus['project']> = {
 
 const coveredHistory: AnalyticsHistoryBackfillStatus = {
     running: false,
-    missingQueries: 0,
-    existingQueries: 0,
-    pendingQueries: 0,
-    from: null,
-    to: null,
+    completed: true,
 };
 
 const mockPanelApi = (

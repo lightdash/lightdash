@@ -18,22 +18,6 @@ export type EnsureAnalyticsProjectResult = {
 
 export type AnalyticsHistoryBackfillStatus = {
     running: boolean;
-    /** Current backfill version completed; counts are not scanned by Settings. */
-    completed?: boolean;
-    missingQueries: number;
-    existingQueries: number;
-    pendingQueries: number;
-    from: string | null;
-    to: string | null;
-    /** Totals across every recoverable source; query fields remain compatible. */
-    missingRecords?: number;
-    existingRecords?: number;
-    pendingRecords?: number;
-    sources?: {
-        name: string;
-        missing: number;
-        existing: number;
-        pending: number;
-    }[];
+    completed: boolean;
     error?: string;
 };

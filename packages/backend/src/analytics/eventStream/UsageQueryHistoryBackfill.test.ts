@@ -4,7 +4,6 @@ import { tmpdir } from 'os';
 import path from 'path';
 import { gzipSync } from 'zlib';
 import { UsageAdditionalHistoryModel } from '../../models/UsageAdditionalHistoryModel';
-import type { UsageDimensionsModel } from '../../models/UsageDimensionsModel';
 import { UsageHistoryModel } from '../../models/UsageHistoryModel';
 import { UsageLegacyHistoryModel } from '../../models/UsageLegacyHistoryModel';
 import { UsageQueryHistoryModel } from '../../models/UsageQueryHistoryModel';
@@ -34,6 +33,8 @@ vi.mock('../../clients/Aws/S3BaseClient', () => ({
     S3BaseClient: class {
         protected s3 = {
             listObjectsV2: async ({ Prefix }: { Prefix: string }) => {
+                if (Prefix.startsWith('events/raw/'))
+                    throw new Error('Backfill must not read raw files');
                 if (transport.failListing)
                     throw new Error('private storage credentials');
                 return {
@@ -101,14 +102,6 @@ vi.mock('@lightdash/warehouses', async () => {
         },
     };
 });
-vi.mock('./UsageDimensionsRefresher', () => ({
-    UsageDimensionsRefresher: class {
-        async run() {
-            return { refreshed: 5, failed: 0 };
-        }
-    },
-}));
-
 describe('usage history backfill reconciliation', () => {
     const org = '00000000-0000-4000-8000-000000000001';
     const pendingDate = new Date(Date.now() - 86400000)
@@ -137,12 +130,6 @@ describe('usage history backfill reconciliation', () => {
                 for (const value of rows) yield `${JSON.stringify(value)}\n`;
             },
         });
-    const dimensions = {
-        async *getOrganizations() {
-            yield { organization_id: 1, organization_uuid: org };
-        },
-        async *getJsonLines() {},
-    } as unknown as UsageDimensionsModel;
     const sql = async (statement: string) => {
         const instance = await DuckDBInstance.create(':memory:', {
             threads: '1',
@@ -209,21 +196,17 @@ describe('usage history backfill reconciliation', () => {
         await rm(transport.directory, { recursive: true, force: true });
     });
 
-    it('skips captured and pending identities, and repeated execution never appends duplicates', async () => {
-        await expect(backfill().inspect(org)).resolves.toMatchObject({
-            missingQueries: 1,
-            existingQueries: 1,
-            pendingQueries: 1,
-        });
-        await backfill().run(org, dimensions);
-        expect(await historyRows()).toEqual([{ query_id: 'missing' }]);
-        await expect(backfill().inspect(org)).resolves.toMatchObject({
-            missingQueries: 0,
-            existingQueries: 2,
-            pendingQueries: 1,
-        });
-        await backfill().run(org, dimensions);
-        expect(await historyRows()).toEqual([{ query_id: 'missing' }]);
+    it('skips captured identities, ignores raw files and never appends duplicates on retry', async () => {
+        await backfill().run(org);
+        expect(await historyRows()).toEqual([
+            { query_id: 'missing' },
+            { query_id: 'pending' },
+        ]);
+        await backfill().run(org);
+        expect(await historyRows()).toEqual([
+            { query_id: 'missing' },
+            { query_id: 'pending' },
+        ]);
         expect(transport.uploads).toBe(1);
     });
 
@@ -257,68 +240,19 @@ describe('usage history backfill reconciliation', () => {
             { ...row('older-gap'), event_ts: '2026-08-15T10:00:00Z' },
             { ...row('same-day-gap'), event_ts: '2026-09-15T10:00:00Z' },
         ];
-        await expect(backfill().inspect(org)).resolves.toMatchObject({
-            missingQueries: 2,
-            existingQueries: 3,
-            pendingQueries: 0,
-            from: '2026-08-15',
-            to: '2026-09-15',
-        });
-        await backfill().run(org, dimensions);
+        await backfill().run(org);
         const expected = [
             { query_id: 'older-gap' },
             { query_id: 'same-day-gap' },
         ];
         expect(await historyRows()).toEqual(expected);
-        await expect(backfill().inspect(org)).resolves.toMatchObject({
-            missingQueries: 0,
-            existingQueries: 5,
-            pendingQueries: 0,
-            from: null,
-            to: null,
-        });
-        await backfill().run(org, dimensions);
+        await backfill().run(org);
         expect(await historyRows()).toEqual(expected);
         expect(transport.uploads).toBe(1);
     });
 
-    it('passes a full run-start timestamp and includes completed queries from today', async () => {
-        const now = new Date('2026-10-26T12:34:56.789Z');
-        vi.useFakeTimers({ toFake: ['Date'] });
-        vi.setSystemTime(now);
-        const today = {
-            ...row('today-completed'),
-            event_ts: '2026-10-26T08:00:00Z',
-        };
-        const getJsonLines = vi.fn(async function* retainedHistory(
-            _org: string,
-            before: string,
-        ) {
-            if (new Date(today.event_ts) < new Date(before)) {
-                yield `${JSON.stringify(today)}\n`;
-            }
-        });
-        const importer = new UsageQueryHistoryBackfill(storage, {
-            getJsonLines,
-        });
-        await expect(importer.inspect(org)).resolves.toMatchObject({
-            missingQueries: 1,
-            from: '2026-10-26',
-            to: '2026-10-26',
-        });
-        expect(getJsonLines).toHaveBeenCalledExactlyOnceWith(
-            org,
-            now.toISOString(),
-        );
-        await new UsageQueryHistoryBackfill(storage, { getJsonLines }).run(
-            org,
-            dimensions,
-        );
-        expect(await historyRows()).toEqual([{ query_id: 'today-completed' }]);
-    });
-
     it('preserves history after DB retention and tolerates an older additive schema on incremental rerun', async () => {
-        await backfill().run(org, dimensions);
+        await backfill().run(org);
         const filename = path.join(
             transport.directory,
             queryHistoryBackfillKey(org),
@@ -329,19 +263,16 @@ describe('usage history backfill reconciliation', () => {
         );
         await writeFile(filename, await readFile(previous));
         rows = [row('new')];
-        await backfill().run(org, dimensions);
+        await backfill().run(org);
         expect(await historyRows()).toEqual([
             { query_id: 'missing' },
             { query_id: 'new' },
+            { query_id: 'pending' },
         ]);
-        await expect(backfill().inspect(org)).resolves.toMatchObject({
-            missingQueries: 0,
-            existingQueries: 1,
-        });
     });
 
     it('keeps existing published data after upload failure and supports safe retry', async () => {
-        await backfill().run(org, dimensions);
+        await backfill().run(org);
         const filename = path.join(
             transport.directory,
             queryHistoryBackfillKey(org),
@@ -349,66 +280,28 @@ describe('usage history backfill reconciliation', () => {
         const before = await readFile(filename);
         rows.push(row('new'));
         transport.failUpload = true;
-        await expect(backfill().run(org, dimensions)).rejects.toThrow(
+        await expect(backfill().run(org)).rejects.toThrow(
             'Unable to check or import retained analytics history',
         );
         expect(await readFile(filename)).toEqual(before);
         transport.failUpload = false;
-        await backfill().run(org, dimensions);
+        await backfill().run(org);
         expect(await historyRows()).toEqual([
             { query_id: 'missing' },
             { query_id: 'new' },
+            { query_id: 'pending' },
         ]);
-    });
-
-    it("imports raw history outside the processing window while skipping yesterday's pending capture", async () => {
-        const oldDate = new Date(Date.now() - 8 * 86400000)
-            .toISOString()
-            .slice(0, 10);
-        const oldRaw = `events/raw/org_id=${org}/stream=query_events/dt=${oldDate}/old.jsonl.gz`;
-        await mkdir(path.dirname(path.join(transport.directory, oldRaw)), {
-            recursive: true,
-        });
-        await writeFile(
-            path.join(transport.directory, oldRaw),
-            gzipSync(JSON.stringify(row('old', 'query.completed'))),
-        );
-        transport.keys.add(oldRaw);
-        rows = [row('old'), row('pending')];
-
-        await expect(backfill().inspect(org)).resolves.toMatchObject({
-            missingQueries: 1,
-            existingQueries: 0,
-            pendingQueries: 1,
-        });
-        await backfill().run(org, dimensions);
-        expect(await historyRows()).toEqual([{ query_id: 'old' }]);
-        await expect(backfill().inspect(org)).resolves.toMatchObject({
-            missingQueries: 0,
-            existingQueries: 1,
-            pendingQueries: 1,
-        });
-        expect(transport.uploads).toBe(1);
     });
 
     it('does not publish a history file when the retained database history is empty', async () => {
         rows = [];
-        const empty = {
-            running: false,
-            missingQueries: 0,
-            existingQueries: 0,
-            pendingQueries: 0,
-            from: null,
-            to: null,
-        };
-        await expect(backfill().inspect(org)).resolves.toEqual(empty);
-        await expect(backfill().run(org, dimensions)).resolves.toEqual(empty);
+        await backfill().run(org);
         expect(transport.uploads).toBe(0);
         expect(transport.keys.has(queryHistoryBackfillKey(org))).toBe(false);
     });
 
     it('rejects malformed organization identifiers before reading any history', async () => {
-        await expect(backfill().inspect('-'.repeat(36))).rejects.toThrow(
+        await expect(backfill().run('-'.repeat(36))).rejects.toThrow(
             'Invalid organization',
         );
         expect(transport.uploads).toBe(0);
@@ -416,7 +309,7 @@ describe('usage history backfill reconciliation', () => {
 
     it('fails closed on storage errors and does not publish or expose provider details', async () => {
         transport.failListing = true;
-        await expect(backfill().inspect(org)).rejects.toThrow(
+        await expect(backfill().run(org)).rejects.toThrow(
             'Unable to check or import retained analytics history',
         );
         expect(transport.uploads).toBe(0);
@@ -449,11 +342,9 @@ describe('usage history backfill reconciliation', () => {
             /* This fixture has no additional facts. */
         });
         try {
-            const importer = new UsageHistoryBackfill(
-                storage,
-                new UsageHistoryModel({} as never),
-            );
-            await expect(importer.run(org, dimensions)).rejects.toThrow(
+            const importer = new UsageHistoryBackfill(storage);
+            const history = new UsageHistoryModel({} as never);
+            await expect(importer.run(org, history)).rejects.toThrow(
                 'Unable to check or import retained analytics history',
             );
             expect(transport.uploads).toBe(2);
@@ -473,12 +364,8 @@ describe('usage history backfill reconciliation', () => {
                 ),
             );
             fail = false;
-            await expect(importer.inspect(org)).resolves.toMatchObject({
-                missingRecords: 1,
-                existingRecords: 2,
-            });
             transport.failMarker = true;
-            await expect(importer.run(org, dimensions)).rejects.toThrow(
+            await expect(importer.run(org, history)).rejects.toThrow(
                 'marker unavailable',
             );
             expect(transport.uploads).toBe(3);
@@ -486,7 +373,7 @@ describe('usage history backfill reconciliation', () => {
                 false,
             );
             transport.failMarker = false;
-            await importer.run(org, dimensions);
+            await importer.run(org, history);
             expect(transport.uploads).toBe(3);
             expect(transport.keys.has(usageHistoryCompletionKey(org))).toBe(
                 true,
@@ -507,17 +394,13 @@ describe('usage history backfill reconciliation', () => {
                     ),
                 ),
             ).toEqual(aiBytes);
-            await expect(importer.inspect(org)).resolves.toMatchObject({
-                missingRecords: 0,
-                existingRecords: 3,
-            });
         } finally {
             transport.failMarker = false;
             vi.restoreAllMocks();
         }
     });
 
-    it('reconciles AI ledger events by their shared event ID across captured, pending and imported data', async () => {
+    it('reconciles AI ledger events by their shared event ID across captured and imported data', async () => {
         const source = usageHistorySources[1];
         const ai = (id: string) => ({
             org_id: org,
@@ -556,12 +439,7 @@ describe('usage history backfill reconciliation', () => {
                 },
                 source,
             );
-        await expect(importer().inspect(org)).resolves.toMatchObject({
-            missingQueries: 1,
-            existingQueries: 1,
-            pendingQueries: 1,
-        });
-        await importer().run(org, dimensions);
+        await importer().run(org);
         const filename = path.join(
             transport.directory,
             usageHistoryKey(org, 'ai_usage'),
@@ -576,9 +454,14 @@ describe('usage history backfill reconciliation', () => {
                 total_tokens: 50n,
                 history_origin: 'database',
             },
+            {
+                event_id: 'pending',
+                total_tokens: 50n,
+                history_origin: 'database',
+            },
         ]);
         const bytes = await readFile(filename);
-        await importer().run(org, dimensions);
+        await importer().run(org);
         expect(await readFile(filename)).toEqual(bytes);
         expect(transport.uploads).toBe(1);
     });
@@ -607,37 +490,25 @@ describe('usage history backfill reconciliation', () => {
                 },
                 source,
             );
-        await importer().run(org, dimensions);
+        await importer().run(org);
         const filename = path.join(
             transport.directory,
             usageHistoryKey(org, 'historical_activity'),
         );
         const bytes = await readFile(filename);
-        await importer().run(org, dimensions);
+        await importer().run(org);
         expect(await readFile(filename)).toEqual(bytes);
         expect(transport.uploads).toBe(1);
         rows = [
             fact('view-1'),
             { ...fact('view-2'), current_status: 'updated' },
         ];
-        await expect(importer().inspect(org)).resolves.toMatchObject({
-            missingQueries: 1,
-            existingQueries: 1,
-        });
-        await importer().run(org, dimensions);
-        await expect(importer().inspect(org)).resolves.toMatchObject({
-            missingQueries: 0,
-            existingQueries: 2,
-        });
+        await importer().run(org);
         rows = [
             { ...fact('view-2'), current_status: 'updated' },
             fact('view-3'),
         ];
-        await expect(importer().inspect(org)).resolves.toMatchObject({
-            missingQueries: 1,
-            existingQueries: 1,
-        });
-        await importer().run(org, dimensions);
+        await importer().run(org);
         expect(
             await sql(
                 `SELECT record_id, current_status FROM read_parquet('${filename}', hive_partitioning=false) ORDER BY record_id`,
@@ -647,10 +518,6 @@ describe('usage history backfill reconciliation', () => {
             { record_id: 'view-2', current_status: 'updated' },
             { record_id: 'view-3', current_status: null },
         ]);
-        await expect(importer().inspect(org)).resolves.toMatchObject({
-            missingQueries: 0,
-            existingQueries: 2,
-        });
         expect(transport.keys.has(queryHistoryBackfillKey(org))).toBe(false);
     });
 });

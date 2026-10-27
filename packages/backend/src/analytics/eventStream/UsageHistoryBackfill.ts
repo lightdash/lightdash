@@ -1,7 +1,5 @@
-import type { AnalyticsHistoryBackfillStatus } from '@lightdash/common';
 import { S3BaseClient } from '../../clients/Aws/S3BaseClient';
 import type { S3Config } from '../../config/parseConfig';
-import type { UsageDimensionsModel } from '../../models/UsageDimensionsModel';
 import type { UsageHistoryModel } from '../../models/UsageHistoryModel';
 import { usageHistorySources } from './usageHistorySources';
 import { UsageQueryHistoryBackfill } from './UsageQueryHistoryBackfill';
@@ -20,14 +18,11 @@ export const usageHistoryCompletionKey = (org: string) => {
 /** One queued operation, processing sources serially. Partial success is durable;
  * a retry reconciles each source without republishing duplicate rows. */
 export class UsageHistoryBackfill extends S3BaseClient {
-    constructor(
-        private readonly storage: Omit<S3Config, 'expirationTime'>,
-        private readonly history: Pick<
-            UsageHistoryModel,
-            'getQueryJsonLines' | 'getAiUsageJsonLines' | 'getActivityJsonLines'
-        >,
-    ) {
+    private readonly storage: Omit<S3Config, 'expirationTime'>;
+
+    constructor(storage: Omit<S3Config, 'expirationTime'>) {
         super(storage);
+        this.storage = storage;
     }
 
     async isComplete(org: string): Promise<boolean> {
@@ -50,77 +45,32 @@ export class UsageHistoryBackfill extends S3BaseClient {
         }
     }
 
-    private async process(
+    async run(
         org: string,
-        dimensions?: UsageDimensionsModel,
-    ): Promise<AnalyticsHistoryBackfillStatus> {
+        history: Pick<
+            UsageHistoryModel,
+            'getQueryJsonLines' | 'getAiUsageJsonLines' | 'getActivityJsonLines'
+        >,
+    ): Promise<void> {
+        const Key = usageHistoryCompletionKey(org);
         const models = [
-            { getJsonLines: this.history.getQueryJsonLines.bind(this.history) },
+            { getJsonLines: history.getQueryJsonLines.bind(history) },
             {
-                getJsonLines: this.history.getAiUsageJsonLines.bind(
-                    this.history,
-                ),
+                getJsonLines: history.getAiUsageJsonLines.bind(history),
             },
             {
-                getJsonLines: this.history.getActivityJsonLines.bind(
-                    this.history,
-                ),
+                getJsonLines: history.getActivityJsonLines.bind(history),
             },
         ];
-        const results: AnalyticsHistoryBackfillStatus[] = [];
-        let refreshed = false;
-        for (const [index, source] of usageHistorySources.entries()) {
-            const importer = new UsageQueryHistoryBackfill(
-                this.storage,
-                models[index],
-                source,
-            );
-            // eslint-disable-next-line no-await-in-loop
-            const result = await (dimensions
-                ? importer.run(org, refreshed ? undefined : dimensions)
-                : importer.inspect(org));
-            if (result.missingQueries > 0) refreshed = true;
-            results.push(result);
-        }
-        return {
-            ...results[0],
-            missingRecords: results.reduce(
-                (sum, result) => sum + result.missingQueries,
-                0,
-            ),
-            existingRecords: results.reduce(
-                (sum, result) => sum + result.existingQueries,
-                0,
-            ),
-            pendingRecords: results.reduce(
-                (sum, result) => sum + result.pendingQueries,
-                0,
-            ),
-            from:
-                results.flatMap(({ from }) => (from ? [from] : [])).sort()[0] ??
-                null,
-            to:
-                results
-                    .flatMap(({ to }) => (to ? [to] : []))
-                    .sort()
-                    .at(-1) ?? null,
-            sources: results.map((result, index) => ({
-                name: usageHistorySources[index].name,
-                missing: result.missingQueries,
-                existing: result.existingQueries,
-                pending: result.pendingQueries,
-            })),
-        };
-    }
-
-    async inspect(org: string) {
-        return this.process(org);
-    }
-
-    async run(org: string, dimensions: UsageDimensionsModel) {
-        const Key = usageHistoryCompletionKey(org);
         try {
-            const result = await this.process(org, dimensions);
+            for (const [index, source] of usageHistorySources.entries()) {
+                // eslint-disable-next-line no-await-in-loop
+                await new UsageQueryHistoryBackfill(
+                    this.storage,
+                    models[index],
+                    source,
+                ).run(org);
+            }
             // Publish only after every source succeeds, including empty/no-op runs.
             await this.s3!.putObject(
                 {
@@ -133,7 +83,6 @@ export class UsageHistoryBackfill extends S3BaseClient {
                 },
                 { abortSignal: AbortSignal.timeout(10_000) },
             );
-            return result;
         } finally {
             this.s3?.destroy();
         }

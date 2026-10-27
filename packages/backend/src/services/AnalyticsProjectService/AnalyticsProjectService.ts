@@ -23,7 +23,6 @@ import { type DashboardModel } from '../../models/DashboardModel/DashboardModel'
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { type SavedChartModel } from '../../models/SavedChartModel';
 import { type SpaceModel } from '../../models/SpaceModel';
-import type { UsageHistoryModel } from '../../models/UsageHistoryModel';
 import { UserModel } from '../../models/UserModel';
 import type { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
@@ -36,10 +35,6 @@ import { ProjectService } from '../ProjectService/ProjectService';
 
 type Dependencies = {
     lightdashConfig: Pick<LightdashConfig, 'usageEvents'>;
-    usageHistoryModel: Pick<
-        UsageHistoryModel,
-        'getQueryJsonLines' | 'getAiUsageJsonLines' | 'getActivityJsonLines'
-    >;
     schedulerClient: Pick<
         SchedulerClient,
         'getUsageHistoryBackfillJob' | 'scheduleUsageHistoryBackfill'
@@ -130,17 +125,10 @@ export class AnalyticsProjectService extends BaseService {
             !job.failed &&
             (await new UsageHistoryBackfill(
                 this.dependencies.lightdashConfig.usageEvents.s3!,
-                this.dependencies.usageHistoryModel,
             ).isComplete(org));
         return {
             running: job.running,
             completed,
-            // Retain the original API fields; exact coverage is only computed by the worker.
-            missingQueries: 0,
-            existingQueries: 0,
-            pendingQueries: 0,
-            from: null,
-            to: null,
             ...(job.failed
                 ? {
                       error: 'The previous backfill failed. You can retry safely.',
@@ -252,8 +240,7 @@ export class AnalyticsProjectService extends BaseService {
             this.dependencies.lightdashConfig.usageEvents.s3
         ) {
             try {
-                // Provisioning has already queued initial raw-event processing.
-                // This uses the same serial queue and fills retained DB gaps next.
+                // Independent of the initial processing job queued by provisioning.
                 await this.dependencies.schedulerClient.scheduleUsageHistoryBackfill(
                     {
                         organizationUuid: user.organizationUuid,

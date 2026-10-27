@@ -1,5 +1,4 @@
 import { Upload } from '@aws-sdk/lib-storage';
-import { type AnalyticsHistoryBackfillStatus } from '@lightdash/common';
 import { DuckdbWarehouseClient } from '@lightdash/warehouses';
 import { createReadStream, createWriteStream } from 'fs';
 import { mkdtemp, readFile, rm, stat } from 'fs/promises';
@@ -10,16 +9,13 @@ import { pipeline } from 'stream/promises';
 import { S3BaseClient } from '../../clients/Aws/S3BaseClient';
 import type { S3Config } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
-import type { UsageDimensionsModel } from '../../models/UsageDimensionsModel';
 import type { UsageQueryHistoryModel } from '../../models/UsageQueryHistoryModel';
 import { getDuckdbRuntimeConfig } from '../../utils/duckdb/getDuckdbRuntimeConfig';
-import { UsageDimensionsRefresher } from './UsageDimensionsRefresher';
 import {
     usageHistoryKey,
     usageHistorySources,
     type UsageHistorySource,
 } from './usageHistorySources';
-import { usageProcessingStartDate } from './usageProcessingWindow';
 
 const literal = (value: string) => `'${value.replace(/'/g, "''")}'`;
 const sameIdentity = (identity: string[], left: string, right: string) =>
@@ -65,11 +61,7 @@ export class UsageQueryHistoryBackfill extends S3BaseClient {
         return keys;
     }
 
-    private async process(
-        org: string,
-        publish: boolean,
-        dimensions?: UsageDimensionsModel,
-    ): Promise<AnalyticsHistoryBackfillStatus> {
+    async run(org: string): Promise<void> {
         if (
             !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(
                 org,
@@ -116,30 +108,10 @@ export class UsageQueryHistoryBackfill extends S3BaseClient {
                 ),
                 createWriteStream(input, { mode: 0o600 }),
             );
-            if ((await stat(input)).size === 0)
-                return {
-                    running: false,
-                    missingQueries: 0,
-                    existingQueries: 0,
-                    pendingQueries: 0,
-                    from: null,
-                    to: null,
-                };
+            if ((await stat(input)).size === 0) return;
             phase = 'read storage';
-            // Read raw before compacted: compaction publishes before deleting raw.
-            const raw = (
-                streamName === 'historical_activity'
-                    ? []
-                    : await this.keys(
-                          `events/raw/org_id=${org}/stream=${streamName}/`,
-                      )
-            ).filter((key) => {
-                const match =
-                    /\/dt=(\d{4}-\d{2}-\d{2})\/[^/]+\.jsonl\.gz$/.exec(key);
-                // Older raw files are outside nightly processing. Import their
-                // retained DB fallback; a later captured row still takes precedence.
-                return match && match[1] >= usageProcessingStartDate(now);
-            });
+            // Read published files only. Daily compaction owns raw files and
+            // dimensions; later captured identities override these fallbacks.
             const prefix = `events/compacted/org_id=${org}/`;
             const compacted = (await this.keys(prefix)).filter(
                 (key) =>
@@ -155,7 +127,6 @@ export class UsageQueryHistoryBackfill extends S3BaseClient {
                     )
                     .join(',');
             const empty = `SELECT ${columns.map(({ name, type }) => `NULL::${type} AS ${name}`).join(',')} WHERE false`;
-            const emptyIds = `SELECT ${keyColumns.map((key) => `NULL::VARCHAR ${key}`).join(',')} WHERE false`;
             const existing = compacted.length
                 ? `SELECT * FROM read_parquet([${files(compacted)}], union_by_name=true, hive_partitioning=false) UNION ALL BY NAME ${empty}`
                 : empty;
@@ -168,41 +139,21 @@ export class UsageQueryHistoryBackfill extends S3BaseClient {
                       'e',
                   )
                 : matches('h', 'e');
-            const pending = raw.length
-                ? `SELECT ${keyColumns.join(',')} FROM read_json([${files(raw)}], format='newline_delimited', columns={${keyColumns.map((key) => `${key}:'VARCHAR'`).join(',')}}, compression='gzip', hive_partitioning=false)`
-                : emptyIds;
             const defs = columns
                 .map(({ name, type }) => `${name}:'${type}'`)
                 .join(',');
             const source = `SELECT * FROM read_json(${literal(input)}, format='newline_delimited', columns={${defs}})`;
-            const missing = `SELECT h.* FROM history h WHERE NOT EXISTS (SELECT 1 FROM existing e WHERE ${sameExisting}) AND NOT EXISTS (SELECT 1 FROM pending p WHERE ${matches('h', 'p')})`;
-            const ctes = `WITH history AS (${source}), existing AS (${existing}), pending AS (${pending}), missing AS (${missing})`;
+            const missing = `SELECT h.* FROM history h WHERE NOT EXISTS (SELECT 1 FROM existing e WHERE ${sameExisting})`;
+            const ctes = `WITH history AS (${source}), existing AS (${existing}), missing AS (${missing})`;
             phase = 'reconcile history';
-            const statsFile = path.join(directory, 'counts.json');
+            const check = path.join(directory, 'missing.json');
             await duckdb.runSqlWithMetrics(
-                `COPY (${ctes} SELECT (SELECT COUNT(*) FROM missing) missingQueries, (SELECT COUNT(*) FROM history h WHERE EXISTS (SELECT 1 FROM existing e WHERE ${sameExisting})) existingQueries, (SELECT COUNT(*) FROM history h WHERE NOT EXISTS (SELECT 1 FROM existing e WHERE ${sameExisting}) AND EXISTS (SELECT 1 FROM pending p WHERE ${matches('h', 'p')})) pendingQueries, (SELECT CAST(MIN(event_ts) AS DATE)::VARCHAR FROM missing) "from", (SELECT CAST(MAX(event_ts) AS DATE)::VARCHAR FROM missing) "to") TO ${literal(statsFile)} (FORMAT JSON, ARRAY true)`,
+                `COPY (${ctes} SELECT EXISTS (SELECT 1 FROM missing) AS missing) TO ${literal(check)} (FORMAT JSON, ARRAY true)`,
             );
-            const [counts] = JSON.parse(
-                await readFile(statsFile, 'utf8'),
-            ) as Omit<AnalyticsHistoryBackfillStatus, 'running'>[];
-            if (publish && counts.missingQueries > 0) {
-                phase = 'refresh metadata';
-                if (dimensions) {
-                    const refreshed = await new UsageDimensionsRefresher(
-                        this.storage,
-                        {
-                            getOrganizations: () =>
-                                dimensions.getOrganizations(org),
-                            getJsonLines:
-                                dimensions.getJsonLines.bind(dimensions),
-                        },
-                        duckdb,
-                    ).run();
-                    if (refreshed.failed)
-                        throw new Error(
-                            'Could not refresh current content metadata',
-                        );
-                }
+            const [result] = JSON.parse(await readFile(check, 'utf8')) as {
+                missing: boolean;
+            }[];
+            if (result.missing) {
                 const previous = compacted.includes(historyKey)
                     ? `SELECT ${columns.map(({ name }) => name).join(',')} FROM (SELECT * FROM read_parquet([${files([historyKey])}], hive_partitioning=false) UNION ALL BY NAME ${empty})`
                     : empty;
@@ -228,7 +179,6 @@ export class UsageQueryHistoryBackfill extends S3BaseClient {
                     body.destroy();
                 }
             }
-            return { ...counts, running: false };
         } catch {
             // Never log provider messages, which can include signed credentials.
             Logger.error('Analytics history backfill failed', {
@@ -244,15 +194,5 @@ export class UsageQueryHistoryBackfill extends S3BaseClient {
             this.s3?.destroy();
             await rm(directory, { recursive: true, force: true });
         }
-    }
-
-    async inspect(org: string): Promise<AnalyticsHistoryBackfillStatus> {
-        return this.process(org, false);
-    }
-    async run(
-        org: string,
-        dimensions?: UsageDimensionsModel,
-    ): Promise<AnalyticsHistoryBackfillStatus> {
-        return this.process(org, true, dimensions);
     }
 }

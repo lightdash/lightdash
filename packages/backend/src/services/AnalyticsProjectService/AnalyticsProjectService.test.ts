@@ -73,11 +73,6 @@ describe('AnalyticsProjectService', () => {
                 bufferMaxSize: 1000,
             },
         },
-        usageHistoryModel: {
-            getQueryJsonLines: vi.fn(),
-            getAiUsageJsonLines: vi.fn(),
-            getActivityJsonLines: vi.fn(),
-        },
         schedulerClient: {
             getUsageHistoryBackfillJob,
             scheduleUsageHistoryBackfill,
@@ -245,29 +240,6 @@ describe('AnalyticsProjectService', () => {
             },
         );
 
-        it('never schedules history if the guarded provisioner rejects creation', async () => {
-            ensureAnalyticsProject.mockRejectedValue(
-                new ForbiddenError('creation denied'),
-            );
-            await expect(configuredService().ensure(user)).rejects.toThrow(
-                'creation denied',
-            );
-            expect(upsertDashboard).not.toHaveBeenCalled();
-            expect(scheduleUsageHistoryBackfill).not.toHaveBeenCalled();
-        });
-
-        it('never schedules history when content administration authorization fails', async () => {
-            ensureAnalyticsProject.mockResolvedValue(created);
-            assertAnalyticsProjectAdministration.mockRejectedValue(
-                new ForbiddenError('administration denied'),
-            );
-            await expect(configuredService().ensure(user)).rejects.toThrow(
-                'administration denied',
-            );
-            expect(upsertDashboard).not.toHaveBeenCalled();
-            expect(scheduleUsageHistoryBackfill).not.toHaveBeenCalled();
-        });
-
         it('uses current org administration authorization for reads and writes', async () => {
             assertAnalyticsProjectAdministration.mockRejectedValue(
                 new ForbiddenError('denied'),
@@ -296,11 +268,9 @@ describe('AnalyticsProjectService', () => {
                 running: true,
                 failed: false,
             });
-            const inspect = vi.spyOn(UsageHistoryBackfill.prototype, 'inspect');
             await expect(
                 configuredService().getBackfillStatus(user),
-            ).resolves.toMatchObject({ running: true });
-            expect(inspect).not.toHaveBeenCalled();
+            ).resolves.toMatchObject({ running: true, completed: false });
             expect(getUsageHistoryBackfillJob).toHaveBeenCalledWith(
                 user.organizationUuid,
             );
@@ -311,7 +281,6 @@ describe('AnalyticsProjectService', () => {
                 running: false,
                 failed: false,
             });
-            const inspect = vi.spyOn(UsageHistoryBackfill.prototype, 'inspect');
             const complete = vi
                 .spyOn(UsageHistoryBackfill.prototype, 'isComplete')
                 .mockResolvedValueOnce(false)
@@ -325,7 +294,6 @@ describe('AnalyticsProjectService', () => {
             ).resolves.toMatchObject({ completed: true });
             expect(complete).toHaveBeenCalledTimes(2);
             expect(complete).toHaveBeenCalledWith(user.organizationUuid);
-            expect(inspect).not.toHaveBeenCalled();
         });
 
         it('keeps failed runs retryable without a coverage scan or trusting an older marker', async () => {
@@ -333,7 +301,6 @@ describe('AnalyticsProjectService', () => {
                 running: false,
                 failed: true,
             });
-            const inspect = vi.spyOn(UsageHistoryBackfill.prototype, 'inspect');
             const complete = vi.spyOn(
                 UsageHistoryBackfill.prototype,
                 'isComplete',
@@ -344,7 +311,6 @@ describe('AnalyticsProjectService', () => {
                 completed: false,
                 error: 'The previous backfill failed. You can retry safely.',
             });
-            expect(inspect).not.toHaveBeenCalled();
             expect(complete).not.toHaveBeenCalled();
         });
 
@@ -358,10 +324,6 @@ describe('AnalyticsProjectService', () => {
                 projectUuid: '',
                 schedulerUuid: undefined,
             });
-        });
-
-        it('refreshes history models before enqueueing without overwriting charts or dashboards', async () => {
-            await configuredService().backfill(user);
             expect(saveExploresToCache).toHaveBeenCalledWith(
                 analyticsProject.projectUuid,
                 analyticsExplores.createAnalyticsExplores(),

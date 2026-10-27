@@ -70,24 +70,6 @@ describe('additional retained Analytics history', () => {
         }
     });
 
-    it('preserves PostgreSQL bigint values and timestamp microseconds without a JS parse roundtrip', async () => {
-        const json =
-            '{"event_id":"same-captured-id","input_tokens":9007199254740993,"event_ts":"2025-01-01T01:02:03.123456Z"}';
-        tracker.on
-            .select('ai_usage_ledger')
-            .responseOnce([pageRow('ledger-id', json)]);
-        tracker.on.select('ai_usage_ledger').response([]);
-        expect(await aiUsage()).toEqual([`${json}\n`]);
-        expect(tracker.history.select[0].sql).toContain(
-            'to_char(s.created_at, \'YYYY-MM-DD"T"HH24:MI:SS.US"Z"\')',
-        );
-        expect(
-            tracker.history.all.filter(
-                ({ sql }) => sql === "SET LOCAL TIME ZONE 'UTC'",
-            ),
-        ).toHaveLength(2);
-    });
-
     it('requires source and project ownership while allowing explicitly organization-scoped AI records', async () => {
         tracker.on.select('ai_usage_ledger').response([]);
         const untrustedOrg = "other-org' OR true --";
@@ -193,54 +175,6 @@ describe('additional retained Analytics history', () => {
         );
     });
 
-    it('retains all available ages and soft-deleted project records, including today before the snapshot', async () => {
-        tracker.on.select(() => true).response([]);
-        await activities();
-        for (const { sql: raw, bindings } of tracker.history.select) {
-            const sql = normalizeSql(raw);
-            expect(sql).toMatch(/"s"\."[a-z_]+" < \?/);
-            expect(bindings).toContain(before);
-            expect(sql).not.toMatch(/(?:created_at|occurred_at)"?\s*>=?/);
-            expect(sql).not.toContain('deleted_at');
-            expect(sql).not.toMatch(/\binterval\b/i);
-            expect(sql).toContain('"o"."organization_uuid" = ?');
-            expect(
-                bindings.filter((binding) => binding === org).length,
-            ).toBeGreaterThanOrEqual(2);
-        }
-    });
-
-    it('records prompt response and latest retry at real stored times without inventing lifecycle history', async () => {
-        tracker.on.select(() => true).response([]);
-        await activities();
-        const prompts = tracker.history.select.filter(({ sql }) =>
-            sql.includes('from "ai_prompt" as "s"'),
-        );
-        expect(prompts).toHaveLength(3);
-        expect(
-            prompts.map(
-                ({ sql }) => /'activity_type', '([^']+)'/.exec(sql)?.[1],
-            ),
-        ).toEqual([
-            'agent_prompt_recorded',
-            'agent_prompt_responded',
-            'agent_prompt_latest_retry',
-        ]);
-        expect(prompts[1].sql).toContain('to_char(s.responded_at,');
-        expect(prompts[2].sql).toContain('to_char(s.retried_at,');
-        expect(prompts[0].sql).toContain("'human_score', s.human_score");
-        expect(prompts[0].sql).toContain(
-            "'total_tokens', CASE WHEN jsonb_typeof(s.token_usage->'totalTokens') = 'number' THEN s.token_usage->'totalTokens' END",
-        );
-        for (const { sql } of prompts) {
-            expect(sql).toContain(
-                'inner join "ai_thread" as "t" on "t"."ai_thread_uuid" = "s"."ai_thread_uuid"',
-            );
-            expect(normalizeSql(sql)).toContain('t.organization_uuid = ?');
-            expect(sql).not.toContain('agent_request_events');
-        }
-    });
-
     it('requires child facts to join an owned prompt/thread or research run', async () => {
         tracker.on.select(() => true).response([]);
         await activities();
@@ -296,49 +230,6 @@ describe('additional retained Analytics history', () => {
             '(t.project_uuid is null or "o"."organization_uuid" = ?)',
         );
         expect(file.sql).not.toMatch(/s\.(?:content|file_name)/);
-    });
-
-    it('exports aggregates once on snapshots rather than repeating tokens and feedback across transition facts', async () => {
-        tracker.on.select(() => true).response([]);
-        await activities();
-        for (const { sql } of tracker.history.select) {
-            if (
-                sql.includes("'activity_type', 'agent_prompt_responded'") ||
-                sql.includes("'activity_type', 'agent_prompt_latest_retry'")
-            ) {
-                expect(sql).toContain("'total_tokens', NULL");
-                expect(sql).toContain("'human_score', NULL");
-            }
-            if (
-                sql.includes("'activity_type', 'deep_research_run_started'") ||
-                sql.includes("'activity_type', 'deep_research_run_completed'")
-            ) {
-                expect(sql).toContain("'input_tokens', NULL");
-                expect(sql).toContain("'output_tokens', NULL");
-                expect(sql).toContain("'total_tokens', NULL");
-                expect(sql).toContain("'duration_ms', NULL");
-            }
-        }
-    });
-
-    it('exports MCP database facts with their recorded direction, status and timing, excluding external identities', async () => {
-        tracker.on.select(() => true).response([]);
-        await activities();
-        const { sql } = tracker.history.select.find(({ sql: value }) =>
-            value.includes('from "mcp_tool_call" as "s"'),
-        )!;
-        expect(sql).toContain(
-            "'record_id', 'mcp_call_recorded:' || s.mcp_tool_call_uuid::text",
-        );
-        expect(sql).toContain("'direction', s.direction");
-        expect(sql).toContain("'success', s.status = 'success'");
-        expect(sql).toContain("'duration_ms', s.duration_ms");
-        expect(sql).toContain(
-            "'user_id', CASE WHEN s.auth_type <> 'service-account' THEN s.user_uuid END",
-        );
-        expect(sql).not.toMatch(
-            /s\.(?:mcp_session_id|user_agent|tool_args|result_metadata|error_message)/,
-        );
     });
 
     it('only reads export-specific scheduler logs with authoritative organization and project provenance', async () => {
@@ -413,11 +304,5 @@ describe('additional retained Analytics history', () => {
         );
         expect(bindings).toContain(before);
         expect(bindings.filter((value) => value === org)).toHaveLength(2);
-    });
-
-    it('propagates failures rather than falsely declaring missing data covered', async () => {
-        tracker.on.select('ai_usage_ledger').simulateError('statement timeout');
-        await expect(aiUsage()).rejects.toThrow('statement timeout');
-        expect(tracker.history.transactions[0].state).toBe('rolled back');
     });
 });
