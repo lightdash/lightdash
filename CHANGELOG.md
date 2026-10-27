@@ -1,3 +1,10 @@
+# [3.67.0](https://github.com/lightdash/lightdash/compare/3.66.0...3.67.0) (2026-10-27)
+
+
+### Features
+
+* **dashboards:** track sections and the docked filter editor ([#31630](https://github.com/lightdash/lightdash/issues/31630)) ([dfa3a8d](https://github.com/lightdash/lightdash/commit/dfa3a8dc4d282a37fa63330a7275994500f88cc4))
+
 # [3.66.0](https://github.com/lightdash/lightdash/compare/3.65.2...3.66.0) (2026-10-27)
 
 
