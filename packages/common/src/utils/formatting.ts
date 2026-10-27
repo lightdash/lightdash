@@ -43,7 +43,7 @@ import {
 import { TimeFrames } from '../types/timeFrames';
 import assertUnreachable from './assertUnreachable';
 import { evaluateConditionalFormatExpression } from './conditionalFormatExpressions';
-import { getItemType, isNumericItem } from './item';
+import { getItemType, isDateItem, isNumericItem } from './item';
 
 dayjs.extend(dayjsTimezone);
 
@@ -709,8 +709,22 @@ export function getCustomFormat(
                 }),
         };
 
-        // Only get custom format from legacy if there are any legacy format options or if the item is numeric
-        if (Object.keys(legacyFormat).length > 0 || isNumericItem(item)) {
+        // A non-enum format string on a date field is a date pattern
+        // (e.g. dd-mm-yyyy); the legacy converter only knows numeric formats.
+        if (
+            (isField(item) || isAdditionalMetric(item)) &&
+            isDateItem(item) &&
+            typeof legacyFormat.format === 'string' &&
+            !isFormat(legacyFormat.format)
+        ) {
+            base = {
+                type: CustomFormatType.CUSTOM,
+                custom: legacyFormat.format,
+            };
+        } else if (
+            Object.keys(legacyFormat).length > 0 ||
+            isNumericItem(item)
+        ) {
             base = getCustomFormatFromLegacy(legacyFormat);
         }
     }

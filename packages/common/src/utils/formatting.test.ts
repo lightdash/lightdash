@@ -28,6 +28,7 @@ import {
     formatTemporalCellForSpreadsheet,
     formatTimestamp,
     formatValueWithExpression,
+    getCustomFormat,
     getCustomFormatFromLegacy,
     getEffectiveSeparator,
     getFieldFormatOverrideProps,
@@ -213,6 +214,54 @@ describe('Formatting', () => {
                 type: TableCalculationType.TIMESTAMP,
             } as TableCalculation;
             expect(getFormatterTimezone(tsTableCalc, tsString, tz)).toEqual(tz);
+        });
+    });
+
+    describe('getCustomFormat for fields with a YAML format', () => {
+        test('a date dimension with a date pattern opens as a custom date format', () => {
+            expect(
+                getCustomFormat({
+                    ...dimension,
+                    type: DimensionType.DATE,
+                    format: 'dd-mm-yyyy',
+                }),
+            ).toEqual({
+                type: CustomFormatType.CUSTOM,
+                custom: 'dd-mm-yyyy',
+            });
+        });
+
+        test('a timestamp metric with a date pattern opens as a custom date format', () => {
+            expect(
+                getCustomFormat({
+                    ...metric,
+                    type: MetricType.TIMESTAMP,
+                    format: 'yyyy-mm-dd hh:mm',
+                }),
+            ).toEqual({
+                type: CustomFormatType.CUSTOM,
+                custom: 'yyyy-mm-dd hh:mm',
+            });
+        });
+
+        test('a numeric dimension with a non-enum format still maps to a number format', () => {
+            expect(
+                getCustomFormat({
+                    ...dimension,
+                    type: DimensionType.NUMBER,
+                    format: '#,##0.00',
+                }),
+            ).toEqual({ type: CustomFormatType.NUMBER });
+        });
+
+        test('a date dimension with a legacy enum format keeps the legacy mapping', () => {
+            expect(
+                getCustomFormat({
+                    ...dimension,
+                    type: DimensionType.DATE,
+                    format: Format.ID,
+                }),
+            ).toEqual({ type: CustomFormatType.ID });
         });
     });
 
