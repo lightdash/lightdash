@@ -76,9 +76,9 @@
     border-radius: var(--mantine-radius-xl);
 }
 
-/* Before the first section: a lighter, bracketed capsule (dashed outline,
-   a step darker than the section capsule's so the dashes read, no fill,
-   dimmed text) that starts one; under a dragged pill its outline
+/* Before the first section: a lighter, bracketed capsule (dashed outline
+   in Add filter's border colours, no fill, dimmed text) that starts one;
+   under a dragged pill its outline
    turns blue over a light blue tint, so nothing changes size */
 .newSectionGhost {
     flex: 0 0 auto;
@@ -87,7 +87,8 @@
     gap: 6px;
     height: 28px;
     padding: 0 var(--mantine-spacing-sm) 0 var(--mantine-spacing-xs);
-    border: 1px dashed var(--mantine-color-ldGray-4);
+    border: 1px dashed
+        light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-4));
     border-radius: var(--mantine-radius-xl);
     background-color: transparent;
     color: var(--mantine-color-dimmed);
@@ -100,7 +101,10 @@
 }
 
 .newSectionGhost:hover {
-    border-color: var(--mantine-color-ldGray-5);
+    border-color: light-dark(
+        var(--mantine-color-gray-4),
+        var(--mantine-color-dark-3)
+    );
     color: var(--mantine-color-text);
 }
 

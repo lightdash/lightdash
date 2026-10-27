@@ -1,5 +1,5 @@
 import { ActionIcon, Checkbox, Menu, Tooltip } from '@mantine/core';
-import { IconArrowBackUp, IconDots } from '@tabler/icons-react';
+import { IconDots, IconFolderMinus } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 
@@ -51,7 +51,7 @@ export const SectionMenu: FC<MenuProps> = ({
             </Menu.Item>
             <Menu.Divider />
             <Menu.Item
-                leftSection={<MantineIcon icon={IconArrowBackUp} size={14} />}
+                leftSection={<MantineIcon icon={IconFolderMinus} size={14} />}
                 onClick={onRemove}
             >
                 {hasMembers ? 'Remove, keep filters' : 'Remove section'}

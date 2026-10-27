@@ -1236,7 +1236,7 @@ the language map, as tab names are.
   `data-editable` drops the collapsed capsule's 10px right padding), two
   `sm` `xl`-radius icons, each with a tooltip of its name: `+` "Add filter
   to {name}" (`openNew(section.id)`) and `SectionMenu` named "{name} menu"
-  ("Collapsed by default", then one neutral item with a back arrow that
+  ("Collapsed by default", then one neutral item with a folder-minus icon (the mirror of Add section's folder-plus) that
   removes in one click: "Remove, keep filters" on a section with members
   (on any tab), "Remove section" on an empty one; never red, no trash can,
   nothing asks twice. The box is
@@ -1248,16 +1248,17 @@ the language map, as tab names are.
   section": a subtle `md` (28px, the pill line) `ActionIcon` with the
   folder-plus icon and its tooltip, right after "Add filter" (its
   `UnsectionTarget`) and before the capsules, shown once the dashboard has
-  a filter, hidden while a section is named and inert while a filter is
+  a section (with one filter and no section there is no section entry),
+  hidden while a section is named and inert while a filter is
   edited (`InertWhileEditing`). While the dashboard has no section and two
   or more filters (dimensions and metrics, the tip's reading), the "New
   section" capsule takes the icon's place instead (`NewSectionGhost`,
   `data-new-section`): an `UnstyledButton` drawn by `.newSectionGhost`,
   28px tall (44px in the shipped bar's narrow container, as its buttons),
-  `xl` radius, a 1px dashed `ldGray-4` outline (a step darker than the
-  section capsule's `ldGray-3`, so the dashes read), no fill, a 14px `+`
-  and "New section" in `xs` 500, dimmed (text colour and `ldGray-5`
-  outline on hover). A click starts the same naming as the icon; it is
+  `xl` radius, a 1px dashed outline in the default button's border colours
+  (`gray-3`/`dark-4`, as Add filter's dashed border), no fill, a 14px `+`
+  and "New section" in `xs` 500, dimmed (text colour and the button's
+  hover border on hover). A click starts the same naming as the icon; it is
   also a `useDroppable` (`NEW_SECTION_TARGET_ID`, disabled while a filter
   is edited, and a drop then writes nothing): a pill dropped on it starts
   the naming with that pill to move in (the selection, when it carries

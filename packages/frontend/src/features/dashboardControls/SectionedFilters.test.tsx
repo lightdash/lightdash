@@ -1339,12 +1339,16 @@ describe('SectionedFilters', () => {
             };
         });
 
-        it('shows right after Add filter once there is a filter', () => {
+        it('shows right after Add filter once there is a section', () => {
             const empty = renderSectioned([], 'tab-1', []);
             expect(addSection()).not.toBeInTheDocument();
             empty.unmount();
 
-            renderSectioned([rule('one', undefined)], 'tab-1', []);
+            const one = renderSectioned([rule('one', undefined)], 'tab-1', []);
+            expect(addSection()).not.toBeInTheDocument();
+            one.unmount();
+
+            renderSectioned([rule('one', undefined)], 'tab-1');
             const button = addSection();
             expect(button).toBeInTheDocument();
             expect(
@@ -1480,7 +1484,7 @@ describe('SectionedFilters', () => {
         it('replaces the folder icon right after Add filter while there are 2+ filters and no section', () => {
             const one = renderSectioned([rule('one', undefined)], 'tab-1', []);
             expect(ghost()).not.toBeInTheDocument();
-            expect(addSection()).toBeInTheDocument();
+            expect(addSection()).not.toBeInTheDocument();
             one.unmount();
 
             const sectioned = renderSectioned(twoLoose(), 'tab-1');
@@ -2059,7 +2063,7 @@ describe('SectionedFilters', () => {
 
         it('tracks a cancelled name as nothing', async () => {
             const user = userEvent.setup();
-            renderSectioned([rule('one', undefined)], 'tab-1', []);
+            renderSectioned([rule('one', undefined)], 'tab-1');
             await user.click(
                 screen.getByRole('button', { name: 'Add section' }),
             );

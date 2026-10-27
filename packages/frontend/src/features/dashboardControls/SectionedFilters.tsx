@@ -1066,31 +1066,29 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
                             />
                         </InertWhileEditing>
                     )}
-                    {naming === null &&
-                        !isGhostShown &&
-                        allRules.length > 0 && (
-                            <InertWhileEditing>
-                                <Tooltip label="Add section">
-                                    <ActionIcon
-                                        size="md"
-                                        radius="xl"
-                                        aria-label="Add section"
-                                        data-add-section
-                                        onClick={() =>
-                                            setNaming({
-                                                moveIds: selected,
-                                                source: 'add_section_icon',
-                                            })
-                                        }
-                                    >
-                                        <MantineIcon
-                                            icon={IconFolderPlus}
-                                            size={14}
-                                        />
-                                    </ActionIcon>
-                                </Tooltip>
-                            </InertWhileEditing>
-                        )}
+                    {naming === null && sections.length > 0 && (
+                        <InertWhileEditing>
+                            <Tooltip label="Add section">
+                                <ActionIcon
+                                    size="md"
+                                    radius="xl"
+                                    aria-label="Add section"
+                                    data-add-section
+                                    onClick={() =>
+                                        setNaming({
+                                            moveIds: selected,
+                                            source: 'add_section_icon',
+                                        })
+                                    }
+                                >
+                                    <MantineIcon
+                                        icon={IconFolderPlus}
+                                        size={14}
+                                    />
+                                </ActionIcon>
+                            </Tooltip>
+                        </InertWhileEditing>
+                    )}
                     {newSection}
                     {capsules}
                     {pills}
