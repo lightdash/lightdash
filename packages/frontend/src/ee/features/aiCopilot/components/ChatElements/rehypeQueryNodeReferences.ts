@@ -18,7 +18,8 @@ export type QueryNodeReferenceIndices = Readonly<Record<string, number>>;
 export const getQueryNodeReferenceIndices = (
     markdown: string,
 ): QueryNodeReferenceIndices => {
-    const indices: Record<string, number> = {};
+    // Null prototype: a node named `__proto__` must become an own property too
+    const indices: Record<string, number> = Object.create(null);
     for (const match of markdown.matchAll(QUERY_NODE_MARKDOWN_LINK)) {
         const nodeId = match[1];
         if (!Object.hasOwn(indices, nodeId))

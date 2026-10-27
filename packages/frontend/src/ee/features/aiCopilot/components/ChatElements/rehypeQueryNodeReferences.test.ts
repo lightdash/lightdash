@@ -61,6 +61,16 @@ describe('rehypeQueryNodeReferences', () => {
         expect(indices).toEqual({ revenue: 1, orders: 2 });
     });
 
+    it('treats prototype names as ordinary node ids', () => {
+        expect(
+            process([
+                '#query-node-__proto__',
+                '#query-node-constructor',
+                '#query-node-__proto__',
+            ]).map((properties) => properties['data-reference-index']),
+        ).toEqual([1, 2, 1]);
+    });
+
     it.each([
         '#query-node-',
         '#query-node-1abc',
