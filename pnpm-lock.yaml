@@ -106,6 +106,7 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
+  connect-session-knex@5.0.0>knex: 2.5.1
   react-is: 19.3.0
   linkifyjs: 4.3.2
   axios: 1.18.0
@@ -137,7 +138,7 @@ overrides:
   ajv@>=8.0.0 <8.18.0: 8.18.0
   postcss@<8.5.10: 8.5.23
 
-packageExtensionsChecksum: sha256-dssFMdNh289VAmJNNfz2Un2yyQ65P87lDvF3ZdZoc94=
+packageExtensionsChecksum: sha256-gmxw0e7pkqpT8MR6Z3qxKwKNWZPNzpYJNWCIv5jjcps=
 
 pnpmfileChecksum: sha256-o1QtWIlgEjjL8bDSRr9nQwG/oM2WttnwQNHJevp/IMg=
 
@@ -459,8 +460,8 @@ importers:
         specifier: 0.1.1
         version: 0.1.1
       connect-session-knex:
-        specifier: 3.0.1
-        version: 3.0.1(pg@8.13.1)(supports-color@5.5.0)
+        specifier: 5.0.0
+        version: 5.0.0(@types/express-session@1.18.0)(express-session@1.18.1(supports-color@5.5.0))(pg@8.13.1)(supports-color@5.5.0)
       cookie-signature:
         specifier: 1.2.2
         version: 1.2.2
@@ -739,8 +740,8 @@ importers:
         specifier: 4.17.14
         version: 4.17.14
       '@types/express-session':
-        specifier: 1.17.4
-        version: 1.17.4
+        specifier: 1.18.0
+        version: 1.18.0
       '@types/fs-extra':
         specifier: 9.0.13
         version: 9.0.13
@@ -7374,8 +7375,8 @@ packages:
   '@types/express-serve-static-core@4.17.22':
     resolution: {integrity: sha512-WdqmrUsRS4ootGha6tVwk/IVHM1iorU8tGehftQD2NWiPniw/sm7xdJOIlXLwqdInL9wBw/p7oO8vaYEF3NDmA==}
 
-  '@types/express-session@1.17.4':
-    resolution: {integrity: sha512-7cNlSI8+oOBUHTfPXMwDxF/Lchx5aJ3ho7+p9jJZYVg9dVDJFh3qdMXmJtRsysnvS+C6x46k9DRYmrmCkE+MVg==}
+  '@types/express-session@1.18.0':
+    resolution: {integrity: sha512-27JdDRgor6PoYlURY+Y5kCakqp5ulC0kmf7y+QwaY+hv9jEFuQOThgkjyA53RP3jmKuBsH5GR6qEfFmvb8mwOA==}
 
   '@types/express@4.17.14':
     resolution: {integrity: sha512-TEbt+vaPFQ+xpxFLFssxUDXj5cWCxZJjIcB7Yg0k0GMHGtgtQgpvx/MUQUeAkNbA9AAGrwkAsoeItdTgS7FMyg==}
@@ -9106,9 +9107,15 @@ packages:
     resolution: {integrity: sha512-2rcfELQt/ZMP+SM/pG8PyhJRaLKp+6Hk2IUBNkEit09X+vwn3QsAL3ZbYtxUn7NVPzbMTSLRDhqe0B/eh30RYA==}
     engines: {node: '>= 0.4.0'}
 
-  connect-session-knex@3.0.1:
-    resolution: {integrity: sha512-w+sNn/mdEmAGCfw90hyXlC0QixGvkfzTs9hZpDWLnzdyI3BQqnWUxZshWJlYNeZza45OrTxT+yqe3epNMPbs2Q==}
-    engines: {node: '>=8'}
+  connect-session-knex@5.0.0:
+    resolution: {integrity: sha512-LNmgZriKjmZPkPDsB8rspdqdrsQ+aAoSXFDJA3/1OQxt3nlAWzUNghhTsFAiY95Pcp/tTS18n8rRwiBCDBIz5g==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      '@types/express-session': ^1.18.0
+      express-session: ^1.18.0
+    peerDependenciesMeta:
+      '@types/express-session':
+        optional: true
 
   consola@3.4.2:
     resolution: {integrity: sha512-5IKcdX0nnYavi6G7TtOhwkYzyjfJlatbjMjuLSfE2kYT5pMDOilZ4OvMhi637CcDICTmz3wARPoyhqyX1Y+XvA==}
@@ -23231,7 +23238,7 @@ snapshots:
       '@types/qs': 6.14.0
       '@types/range-parser': 1.2.3
 
-  '@types/express-session@1.17.4':
+  '@types/express-session@1.18.0':
     dependencies:
       '@types/express': 4.17.14
 
@@ -25418,10 +25425,12 @@ snapshots:
 
   connect-flash@0.1.1: {}
 
-  connect-session-knex@3.0.1(pg@8.13.1)(supports-color@5.5.0):
+  connect-session-knex@5.0.0(@types/express-session@1.18.0)(express-session@1.18.1(supports-color@5.5.0))(pg@8.13.1)(supports-color@5.5.0):
     dependencies:
-      bluebird: 3.7.2
+      express-session: 1.18.1(supports-color@5.5.0)
       knex: 2.5.1(pg@8.13.1)(supports-color@5.5.0)
+    optionalDependencies:
+      '@types/express-session': 1.18.0
     transitivePeerDependencies:
       - better-sqlite3
       - mysql
