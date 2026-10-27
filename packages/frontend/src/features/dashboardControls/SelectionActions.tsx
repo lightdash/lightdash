@@ -1,8 +1,7 @@
 import { type DashboardControlSection } from '@lightdash/common';
-import { Button, Menu, Text, type MenuProps } from '@mantine/core';
+import { Button, Menu, Text } from '@mantine/core';
 import { IconFolderPlus } from '@tabler/icons-react';
-import { type FC } from 'react';
-import { ConfirmDeleteButton } from '../../components/common/ConfirmDeleteButton';
+import { useState, type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 
@@ -17,23 +16,22 @@ export type SelectionActionsProps = {
     onRemove: () => void;
 };
 
-// "Move to" and the two-click "Remove" over selected filters, in the rail's
-// footer and on the bar's selection bar
-export const SelectionActions: FC<
-    SelectionActionsProps & { menuPosition: MenuProps['position'] }
-> = ({
+// "Move to" and the two-click "Remove" over selected filters, on the bar's
+// selection bar
+export const SelectionActions: FC<SelectionActionsProps> = ({
     count,
     sections,
     onMove,
     onMoveToNewSection,
     onRemove,
-    menuPosition,
 }) => {
     const getUiString = useUiStrings();
+    // The first click arms "Remove", the second removes; Escape or leaving disarms
+    const [isRemoveArmed, setIsRemoveArmed] = useState(false);
     return (
         <>
             {/* Focus must stay on the name input New section opens */}
-            <Menu position={menuPosition} returnFocus={false}>
+            <Menu position="top" returnFocus={false}>
                 <Menu.Target>
                     <Button
                         variant="subtle"
@@ -47,7 +45,6 @@ export const SelectionActions: FC<
                 </Menu.Target>
                 <Menu.Dropdown>
                     <Menu.Item
-                        fz="xs"
                         leftSection={
                             <MantineIcon icon={IconFolderPlus} size={14} />
                         }
@@ -59,7 +56,6 @@ export const SelectionActions: FC<
                     {sections.map((section) => (
                         <Menu.Item
                             key={section.id}
-                            fz="xs"
                             onClick={() => onMove(section.id)}
                         >
                             {section.name ||
@@ -70,26 +66,35 @@ export const SelectionActions: FC<
                         </Menu.Item>
                     ))}
                     {sections.length > 0 && <Menu.Divider />}
-                    <Menu.Item fz="xs" onClick={() => onMove(null)}>
+                    <Menu.Item onClick={() => onMove(null)}>
                         No section
                     </Menu.Item>
                 </Menu.Dropdown>
             </Menu>
-            <ConfirmDeleteButton
-                size="sm"
-                w="auto"
-                px="xs"
-                fz="xs"
-                data-own-escape
-                aria-label="Remove"
-                tooltip={`Click again to remove ${count} ${
-                    count === 1 ? 'filter' : 'filters'
-                }`}
+            <Button
+                variant="subtle"
+                color="red"
+                size="xs"
+                flex="0 0 auto"
                 disabled={count === 0}
-                onConfirm={onRemove}
+                aria-pressed={isRemoveArmed}
+                data-own-escape={isRemoveArmed || undefined}
+                onBlur={() => setIsRemoveArmed(false)}
+                onMouseLeave={() => setIsRemoveArmed(false)}
+                onKeyDown={(event) => {
+                    if (event.key !== 'Escape' || !isRemoveArmed) return;
+                    event.preventDefault();
+                    setIsRemoveArmed(false);
+                }}
+                onClick={() => {
+                    if (isRemoveArmed) onRemove();
+                    else setIsRemoveArmed(true);
+                }}
             >
-                Remove
-            </ConfirmDeleteButton>
+                {isRemoveArmed
+                    ? `Remove ${count} ${count === 1 ? 'filter' : 'filters'}`
+                    : 'Remove'}
+            </Button>
         </>
     );
 };

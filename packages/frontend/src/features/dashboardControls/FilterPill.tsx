@@ -5,7 +5,9 @@ import {
 } from '@lightdash/common';
 import { Box, Tooltip } from '@mantine/core';
 import { useOs } from '@mantine/hooks';
-import { memo, type FC } from 'react';
+import { IconCheck } from '@tabler/icons-react';
+import { memo, type FC, type MouseEvent } from 'react';
+import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import useTracking from '../../providers/Tracking/useTracking';
@@ -16,6 +18,7 @@ import {
 } from '../dashboardFilters/ActiveFilters/filterLock';
 import { FilterPillButton } from '../dashboardFilters/ActiveFilters/FilterPillButton';
 import { useBarSelection } from './barSelection';
+import { ChangedDot } from './ChangedDot';
 import classes from './FilterPills.module.css';
 import { replaceFilterRule } from './sidebarState';
 import { useControlsSidebarSelector } from './useControlsSidebar';
@@ -34,7 +37,9 @@ type Props = {
     isDisabled: boolean;
     /** A new control that has no label yet. */
     isDraft: boolean;
-    /** While open the pill is only a click target: no grip, lock or X. */
+    /** Edit mode: the rule differs from the saved dashboard. */
+    isChanged: boolean;
+    /** While a filter is edited the pill has no grip or lock. */
     isSidebarOpen: boolean;
     activeTabUuid: string | undefined;
     hasTabs: boolean;
@@ -52,6 +57,7 @@ export const FilterPill: FC<Props> = memo(
         isSelected,
         isDisabled,
         isDraft,
+        isChanged,
         isSidebarOpen,
         activeTabUuid,
         hasTabs,
@@ -61,7 +67,6 @@ export const FilterPill: FC<Props> = memo(
         const { track } = useTracking();
         const getUiString = useUiStrings();
         const open = useControlsSidebarSelector((c) => c.open);
-        const close = useControlsSidebarSelector((c) => c.close);
         const removeFilterById = useControlsSidebarSelector(
             (c) => c.removeFilterById,
         );
@@ -100,6 +105,19 @@ export const FilterPill: FC<Props> = memo(
             setHaveFiltersChanged(true);
         };
 
+        // On an editor's sectioned bar a modified click picks the pill and a
+        // plain one ends the selection before it opens the filter
+        const handleClick = (event: MouseEvent<HTMLButtonElement>) => {
+            if (isSelectable) {
+                if (event.metaKey || event.ctrlKey || event.shiftKey) {
+                    selection.pick(filter.id, event.shiftKey);
+                    return;
+                }
+                selection.clear();
+            }
+            open(filter.id);
+        };
+
         return (
             <Tooltip
                 fz="xs"
@@ -112,36 +130,7 @@ export const FilterPill: FC<Props> = memo(
                         : `Click to edit · ${os === 'macos' ? '⌘' : 'Ctrl'} click to select`
                 }
             >
-                <Box
-                    className={classes.pill}
-                    // Capture, so a modified click never reaches the pill's open
-                    onClickCapture={
-                        isSelectable
-                            ? (event) => {
-                                  if (
-                                      !(event.target instanceof Element) ||
-                                      event.target
-                                          .closest('button')
-                                          ?.getAttribute(
-                                              'data-controls-pill',
-                                          ) !== filter.id
-                                  )
-                                      return;
-                                  if (
-                                      event.metaKey ||
-                                      event.ctrlKey ||
-                                      event.shiftKey
-                                  ) {
-                                      event.preventDefault();
-                                      event.stopPropagation();
-                                      selection.pick(filter.id, event.shiftKey);
-                                      return;
-                                  }
-                                  selection.clear();
-                              }
-                            : undefined
-                    }
-                >
+                <Box className={classes.pill}>
                     <FilterPillButton
                         field={field}
                         filterRule={filter}
@@ -159,14 +148,10 @@ export const FilterPill: FC<Props> = memo(
                             toggleLock();
                         }}
                         readOnlyLockLabel={null}
-                        onRemove={
-                            isSidebarOpen
-                                ? null
-                                : (e) => {
-                                      e.stopPropagation();
-                                      removeFilterById(filter.id);
-                                  }
-                        }
+                        onRemove={(e) => {
+                            e.stopPropagation();
+                            removeFilterById(filter.id);
+                        }}
                         removeLabel={getUiString('filters.rail.removeFilter')}
                         // One tooltip at a time: the hint takes the pill's
                         isTablesTooltipDisabled={isSelected || isSelectable}
@@ -181,8 +166,14 @@ export const FilterPill: FC<Props> = memo(
                         ]
                             .filter(Boolean)
                             .join(' ')}
-                        onClick={() => (isSelected ? close() : open(filter.id))}
+                        fieldIconOverride={
+                            isPicked ? (
+                                <MantineIcon icon={IconCheck} size="sm" />
+                            ) : undefined
+                        }
+                        onClick={handleClick}
                     />
+                    {isChanged && <ChangedDot isCorner />}
                 </Box>
             </Tooltip>
         );

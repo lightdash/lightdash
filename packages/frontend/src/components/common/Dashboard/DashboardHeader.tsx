@@ -745,7 +745,6 @@ const DashboardHeader = memo(
                                     disabled={!hasDashboardChanged}
                                     loading={isSaving}
                                     onClick={onSaveDashboard}
-                                    data-dashboard-edit-action
                                     // Walkthrough marker for manage:Dashboard:
                                     // a new dashboard with a saved chart on
                                     // it, then saved. The name is typed (the
@@ -770,7 +769,6 @@ const DashboardHeader = memo(
                             size="xs"
                             disabled={isSaving}
                             onClick={onCancel}
-                            data-dashboard-edit-action
                         >
                             Cancel
                         </Button>

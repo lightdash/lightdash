@@ -32,21 +32,18 @@
 }
 
 /* A pill from elsewhere is over the capsule: the drop line after its last
-   pill (or its label), in the capsule's own padding, so nothing moves */
-.capsule[data-over]::after {
+   pill (or its count), just before the "+" and "...", in the gap, so
+   nothing moves */
+.capsule[data-over] > .actions::before {
     content: '';
     position: absolute;
-    top: 6px;
-    bottom: 6px;
-    right: 1px;
+    top: 0;
+    bottom: 0;
+    left: -4px;
     width: 2px;
     border-radius: 1px;
     background-color: var(--mantine-color-blue-4);
     pointer-events: none;
-}
-
-.capsule[data-collapsed]:not([data-editable])[data-over]::after {
-    right: 4px;
 }
 
 /* Over the first button: the rail's ring, since nothing there can carry a line */
@@ -82,40 +79,51 @@
     cursor: pointer;
 }
 
-/* An editor's name: its own button, renamed in place */
+/* An editor's head: the chevron, the name and its dot, and the handle a
+   pointer drags the capsule by */
+.head {
+    touch-action: none;
+}
+
+/* The name renames on a click: a text cursor, the button's own metrics */
 .name {
-    display: inline-flex;
-    align-items: center;
-    height: 28px;
-    padding: 0 6px;
-    border-radius: var(--mantine-radius-xl);
     cursor: text;
 }
 
-.name:hover {
-    background-color: var(--mantine-color-default-hover);
-}
-
-.nameInput {
-    width: 14ch;
-}
-
-/* The same size as the name it replaces */
+/* The rename input at the name's weight; its size is `xs`'s */
 .nameInputField {
-    height: 28px;
-    min-height: 28px;
-    padding: 0 6px;
-    font-size: var(--mantine-font-size-sm);
     font-weight: 600;
     border-radius: var(--mantine-radius-xl);
 }
 
-.actions {
-    flex: 0 0 auto;
+/* A dragged capsule stays in place, faded; another one under it draws the
+   2px line on the side it would land, in the bar's gap */
+.capsule[data-dragging] {
+    opacity: 0.3;
 }
 
-.addSection {
-    border-style: dashed;
+.capsule[data-section-drop]::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    border-radius: 1px;
+    background-color: var(--mantine-color-blue-4);
+    pointer-events: none;
+}
+
+.capsule[data-section-drop='before']::before {
+    left: -4px;
+}
+
+.capsule[data-section-drop='after']::before {
+    right: -4px;
+}
+
+.actions {
+    position: relative;
+    flex: 0 0 auto;
 }
 
 /* Expanded, the pills arrive one after the other, up to eight */

@@ -9,14 +9,22 @@
     border-width: 1px;
 }
 
-/* Picked on the sectioned bar to move or remove: the drag's blue, filled */
+/* Picked on the sectioned bar to move or remove: solid blue with white
+   text, a check in place of the field icon, never mistaken for the edited
+   pill's ring or a hover */
 .pill > .pickedPill.pickedPill[aria-pressed='true']:not(:disabled) {
-    background-color: var(--mantine-color-blue-light);
-    border-color: var(--mantine-color-blue-5);
+    --mantine-color-dimmed: color-mix(
+        in srgb,
+        var(--mantine-color-white) 75%,
+        transparent
+    );
+    background-color: var(--mantine-color-blue-filled);
+    border-color: var(--mantine-color-blue-filled);
+    color: var(--mantine-color-white);
 }
 
 .pill > .pickedPill.pickedPill[aria-pressed='true']:not(:disabled):hover {
-    background-color: var(--mantine-color-blue-light-hover);
+    background-color: var(--mantine-color-blue-filled-hover);
 }
 
 .draftPill {
@@ -26,4 +34,34 @@
 /* The bar's drag: the overlay carries the copy, the source stays put */
 .barDraggable[data-dragging] {
     opacity: 0.3;
+}
+
+/* Inert while a filter is edited: the bar's group, the capsule actions and
+   the dashboard header share this one rule */
+.inert[inert] :is(button, a) {
+    opacity: 0.4;
+}
+
+/* `ChangedDot`: blue, the state colour, never the warning yellow */
+.changedDot {
+    flex: 0 0 auto;
+    width: var(--mantine-spacing-xs);
+    height: var(--mantine-spacing-xs);
+    border-radius: 50%;
+    background-color: var(--mantine-color-blue-filled);
+    pointer-events: none;
+}
+
+.changedDot[data-corner] {
+    position: absolute;
+    top: 0;
+    right: 0;
+    transform: translate(25%, -25%);
+}
+
+/* The caret joined between "Add filter" and the eye: dashed as they are, its
+   sides drawn by the dividers */
+.addMore.addMore {
+    border-style: dashed;
+    border-inline-width: 0;
 }

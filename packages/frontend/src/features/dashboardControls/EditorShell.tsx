@@ -1,97 +1,19 @@
-import { useDroppable } from '@dnd-kit/core';
-import {
-    ActionIcon,
-    Badge,
-    Box,
-    Button,
-    Group,
-    Menu,
-    Paper,
-    Stack,
-    Switch,
-    Text,
-    Title,
-    Tooltip,
-    VisuallyHidden,
-} from '@mantine/core';
-import { IconDots, IconListCheck, IconX } from '@tabler/icons-react';
+import { Paper } from '@mantine/core';
 import { useRef, type FC, type ReactNode } from 'react';
-import MantineIcon from '../../components/common/MantineIcon';
-import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import classes from './ControlSidebar.module.css';
 import { useRailContractClasses } from './railContractClasses';
-import { UNSECTIONED_TARGET_ID } from './sections';
-import {
-    SelectionActions,
-    type SelectionActionsProps,
-} from './SelectionActions';
 import { useRailTop } from './useRailTop';
 
-export type SelectMode = SelectionActionsProps & { onExit: () => void };
-
-type Props = {
-    /** The dashboard's filters, listed in the rail. */
-    filterCount: number;
-    onClose: () => void;
-    /** While a section header is dragged: it cannot leave a section. */
-    isUnsectionTargetDisabled: boolean;
-    /** A row or header is dragged: Escape cancels the drag, not the rail. */
-    isDragging: boolean;
-    /** Set while the filter cannot be kept: the footer offers only this. */
-    onCancel: (() => void) | null;
-    /**
-     * Editors only. `disabledReason` while a new filter has no field yet:
-     * the item stays, disabled, with the reason as its tooltip.
-     */
-    selectFilters: {
-        onSelect: () => void;
-        disabledReason: string | null;
-    } | null;
-    /** Editors only: while filters are being selected. */
-    selectMode: SelectMode | null;
-    footerStatus: string | null;
-    /** Editors only: whether viewers may add their own filters, and its setter. */
-    viewerAdd: {
-        isEnabled: boolean;
-        onChange: (isEnabled: boolean) => void;
-    } | null;
+// The rail: a card next to the grid, stuck under the tabs and filter bar. Its
+// content is keyed by the edited filter; the card itself stays
+export const EditorShell: FC<{
+    /** The header's name, which names the rail. */
+    labelId: string;
     children: ReactNode;
-};
-
-const selectedLabel = (count: number) => `${count} selected`;
-
-// The rail: a card next to the grid, stuck under the tabs and filter bar
-export const EditorShell: FC<Props> = ({
-    filterCount,
-    onClose,
-    isUnsectionTargetDisabled,
-    isDragging,
-    onCancel,
-    selectFilters,
-    selectMode,
-    footerStatus,
-    viewerAdd,
-    children,
-}) => {
+}> = ({ labelId, children }) => {
     const ref = useRef<HTMLDivElement>(null);
     useRailTop(ref);
-    const getUiString = useUiStrings();
     const contractClasses = useRailContractClasses();
-    // A row dropped on the header leaves its section
-    const { setNodeRef: setDropRef, isOver } = useDroppable({
-        id: UNSECTIONED_TARGET_ID,
-        disabled: isUnsectionTargetDisabled,
-    });
-    const selectItem = selectFilters && (
-        <Menu.Item
-            fz="xs"
-            leftSection={<MantineIcon icon={IconListCheck} size={14} />}
-            disabled={selectFilters.disabledReason !== null}
-            onClick={selectFilters.onSelect}
-        >
-            Select filters
-        </Menu.Item>
-    );
     return (
         <Paper
             ref={ref}
@@ -100,193 +22,11 @@ export const EditorShell: FC<Props> = ({
                     ? `${contractClasses.rail} ${classes.root}`
                     : classes.root
             }
+            role="region"
+            aria-labelledby={labelId}
             data-controls-editor
-            data-controls-dragging={isDragging || undefined}
-            // Escape leaves select mode, not the rail; a menu and an armed
-            // remove keep their own
-            data-own-escape={selectMode !== null || undefined}
-            onKeyDown={(event) => {
-                if (selectMode === null || event.key !== 'Escape') return;
-                if (
-                    event.target instanceof Element &&
-                    event.target.closest('[role="menu"], [data-own-escape]') !==
-                        event.currentTarget
-                )
-                    return;
-                event.preventDefault();
-                selectMode.onExit();
-            }}
         >
-            <Group
-                ref={setDropRef}
-                justify="space-between"
-                wrap="nowrap"
-                px="md"
-                py="xs"
-                className={classes.header}
-                data-over={isOver || undefined}
-            >
-                <Group gap="xs" wrap="nowrap">
-                    <Title order={5}>{getUiString('filters.rail.title')}</Title>
-                    {selectMode ? (
-                        <Badge size="sm">
-                            {selectedLabel(selectMode.count)}
-                        </Badge>
-                    ) : (
-                        filterCount > 0 && (
-                            <Badge size="sm">
-                                {filterCount}
-                                <VisuallyHidden>
-                                    {` ${getUiString(
-                                        filterCount === 1
-                                            ? 'filters.summary.filterSingular'
-                                            : 'filters.summary.filterPlural',
-                                    )}`}
-                                </VisuallyHidden>
-                            </Badge>
-                        )
-                    )}
-                </Group>
-                <Group gap={4} wrap="nowrap">
-                    {/* Editors only, and not while selecting */}
-                    {selectFilters && (
-                        <Menu position="bottom-end" returnFocus={false}>
-                            <Menu.Target>
-                                <Tooltip
-                                    label={getUiString('filters.rail.more')}
-                                >
-                                    <ActionIcon
-                                        size="sm"
-                                        variant="subtle"
-                                        color="gray"
-                                        aria-label={getUiString(
-                                            'filters.rail.more',
-                                        )}
-                                    >
-                                        <MantineIcon icon={IconDots} />
-                                    </ActionIcon>
-                                </Tooltip>
-                            </Menu.Target>
-                            <Menu.Dropdown>
-                                {/* A disabled item takes no pointer: the
-                                    box around it carries the tooltip */}
-                                {selectFilters.disabledReason ? (
-                                    <Tooltip
-                                        label={selectFilters.disabledReason}
-                                        position="left"
-                                    >
-                                        <Box>{selectItem}</Box>
-                                    </Tooltip>
-                                ) : (
-                                    selectItem
-                                )}
-                            </Menu.Dropdown>
-                        </Menu>
-                    )}
-                    <Tooltip
-                        label={
-                            selectMode
-                                ? 'Stop selecting'
-                                : getUiString('filters.rail.close')
-                        }
-                    >
-                        <ActionIcon
-                            size="sm"
-                            variant="subtle"
-                            color="gray"
-                            aria-label={
-                                selectMode
-                                    ? 'Stop selecting'
-                                    : getUiString('filters.rail.close')
-                            }
-                            onClick={selectMode ? selectMode.onExit : onClose}
-                        >
-                            <MantineIcon icon={IconX} />
-                        </ActionIcon>
-                    </Tooltip>
-                </Group>
-            </Group>
-
-            <Box className={classes.body}>{children}</Box>
-
-            <Stack gap="xs" p="sm" className={classes.footer}>
-                {footerStatus !== null && !onCancel && !selectMode && (
-                    <Text
-                        key={footerStatus}
-                        fz="xs"
-                        c="dimmed"
-                        className={classes.footerStatus}
-                    >
-                        {footerStatus}
-                    </Text>
-                )}
-                <Group justify="space-between" gap="xs" wrap="nowrap">
-                    {selectMode ? (
-                        <>
-                            <Button
-                                variant="subtle"
-                                color="gray"
-                                size="xs"
-                                mr="auto"
-                                onClick={selectMode.onExit}
-                            >
-                                {getUiString('filters.actions.cancel')}
-                            </Button>
-                            <SelectionActions
-                                {...selectMode}
-                                menuPosition="top-end"
-                            />
-                        </>
-                    ) : onCancel ? (
-                        <>
-                            <Text
-                                key={footerStatus}
-                                fz="xs"
-                                c="dimmed"
-                                className={classes.footerStatus}
-                            >
-                                {footerStatus}
-                            </Text>
-                            <Button
-                                variant="subtle"
-                                color="gray"
-                                size="xs"
-                                flex="0 0 auto"
-                                data-controls-cancel-name
-                                onClick={onCancel}
-                            >
-                                {getUiString('filters.actions.cancel')}
-                            </Button>
-                        </>
-                    ) : (
-                        <>
-                            {viewerAdd && (
-                                <Switch
-                                    size="xs"
-                                    label="Viewers can add filters"
-                                    classNames={{
-                                        label: classes.footerSwitchLabel,
-                                    }}
-                                    checked={viewerAdd.isEnabled}
-                                    onChange={(event) =>
-                                        viewerAdd.onChange(
-                                            event.currentTarget.checked,
-                                        )
-                                    }
-                                />
-                            )}
-                            <Button
-                                size="xs"
-                                ml="auto"
-                                className={classes.done}
-                                onClick={onClose}
-                            >
-                                {getUiString('filters.rail.done')}
-                            </Button>
-                        </>
-                    )}
-                </Group>
-            </Stack>
+            {children}
         </Paper>
     );
 };

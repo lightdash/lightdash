@@ -1,17 +1,11 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { type ComponentProps } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type DashboardHeader from '../../components/common/Dashboard/DashboardHeader';
 import { DashboardHeaderGuard } from './DashboardHeaderGuard';
 
-const calls = vi.hoisted(() => ({ current: [] as string[] }));
 const mockSidebar = vi.hoisted(() => ({
-    current: {
-        isSidebarOpen: true,
-        isViewer: false,
-        close: () => calls.current.push('close'),
-        discard: () => calls.current.push('discard'),
-    },
+    current: { isSidebarOpen: true, isViewer: false },
 }));
 
 vi.mock('./useControlsSidebar', () => ({
@@ -29,35 +23,21 @@ vi.mock('../../components/common/Dashboard/DashboardHeader', () => ({
             <a href="#title">Title</a>
             <div>
                 <button>Add tile</button>
-                <div>
-                    <button
-                        data-dashboard-edit-action
-                        onClick={onSaveDashboard}
-                    >
-                        Save changes
-                    </button>
-                </div>
-                <button data-dashboard-edit-action onClick={onCancel}>
-                    Cancel
-                </button>
+                <button onClick={onSaveDashboard}>Save changes</button>
+                <button onClick={onCancel}>Cancel</button>
             </div>
         </header>
     ),
 }));
 
 const headerProps = {
-    onSaveDashboard: () => calls.current.push('save'),
-    onCancel: () => calls.current.push('cancel'),
+    onSaveDashboard: vi.fn(),
+    onCancel: vi.fn(),
 } as unknown as ComponentProps<typeof DashboardHeader>;
 
 describe('DashboardHeaderGuard', () => {
     beforeEach(() => {
-        calls.current = [];
-        mockSidebar.current = {
-            ...mockSidebar.current,
-            isSidebarOpen: true,
-            isViewer: false,
-        };
+        mockSidebar.current = { isSidebarOpen: true, isViewer: false };
     });
 
     const isLocked = (name: string) =>
@@ -65,13 +45,13 @@ describe('DashboardHeaderGuard', () => {
             .getByRole('button', { name, hidden: true })
             .closest('[inert]') !== null;
 
-    it('locks every header action but Save and Cancel while the editor is open', () => {
+    it('locks the whole header, Save and Cancel included, while a filter is edited', () => {
         render(<DashboardHeaderGuard {...headerProps} />);
 
         expect(isLocked('Add tile')).toBe(true);
         expect(screen.getByText('Title').closest('[inert]')).not.toBeNull();
-        expect(isLocked('Save changes')).toBe(false);
-        expect(isLocked('Cancel')).toBe(false);
+        expect(isLocked('Save changes')).toBe(true);
+        expect(isLocked('Cancel')).toBe(true);
     });
 
     it('unlocks the header once the editor closes', () => {
@@ -80,18 +60,6 @@ describe('DashboardHeaderGuard', () => {
         rerender(<DashboardHeaderGuard {...headerProps} />);
 
         expect(document.querySelector('[inert]')).toBeNull();
-    });
-
-    it('closes the editor as Done does, then saves', () => {
-        render(<DashboardHeaderGuard {...headerProps} />);
-        fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
-        expect(calls.current).toEqual(['close', 'save']);
-    });
-
-    it('drops what the editor wrote, then cancels as shipped', () => {
-        render(<DashboardHeaderGuard {...headerProps} />);
-        fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-        expect(calls.current).toEqual(['discard', 'cancel']);
     });
 
     it('never locks the header while a viewer edits their filters', () => {

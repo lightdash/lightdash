@@ -2,7 +2,7 @@ import { type DashboardFilterRule } from '@lightdash/common';
 import { Button, Divider, Group, Popover, Text, Tooltip } from '@mantine/core';
 import { useDisclosure, useId } from '@mantine/hooks';
 import { IconEye, IconEyeOff, IconRotate2 } from '@tabler/icons-react';
-import { useCallback, useMemo, type FC } from 'react';
+import { useCallback, useMemo, type FC, type ReactNode } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
@@ -33,10 +33,8 @@ type Props = {
      * hide it entirely. Defaults to the app's "edit mode" copy.
      */
     unsavedFiltersTooltip?: string | null;
-    /** The trigger's text (default: the "Add filter" ui string). */
-    label?: string;
-    /** Leaves out the edit-mode eye that hides "Add filter" from viewers (default false). */
-    isVisibilityToggleHidden?: boolean;
+    /** Edit mode only: joined between the trigger and the eye (default none). */
+    attachedSlot?: ReactNode;
 };
 
 const AddFilterButton: FC<Props> = ({
@@ -50,8 +48,7 @@ const AddFilterButton: FC<Props> = ({
     triggerClassName,
     dropdownClassName,
     unsavedFiltersTooltip,
-    label,
-    isVisibilityToggleHidden = false,
+    attachedSlot,
 }) => {
     const popoverId = useId();
     const getUiString = useUiStrings();
@@ -113,8 +110,7 @@ const AddFilterButton: FC<Props> = ({
     );
 
     const showResetFiltersButton = !isEditMode && haveFiltersChanged;
-    const hasVisibilityToggle = isEditMode && !isVisibilityToggleHidden;
-    const hasAttachedButton = showResetFiltersButton || hasVisibilityToggle;
+    const hasAttachedButton = showResetFiltersButton || isEditMode;
 
     const tooltipLabel =
         unsavedFiltersTooltip === undefined ? (
@@ -213,7 +209,7 @@ const AddFilterButton: FC<Props> = ({
                                     : onPopoverOpen(popoverId)
                             }
                         >
-                            {label ?? getUiString('filters.addFilter')}
+                            {getUiString('filters.addFilter')}
                         </Button>
                     </Tooltip>
                 </Popover.Target>
@@ -243,7 +239,9 @@ const AddFilterButton: FC<Props> = ({
                 </Popover.Dropdown>
             </Popover>
 
-            {hasVisibilityToggle && (
+            {isEditMode && attachedSlot}
+
+            {isEditMode && (
                 <>
                     <Divider orientation="vertical" />
 

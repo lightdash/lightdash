@@ -3,9 +3,14 @@
     display: contents;
 }
 
-/* Dim the locked controls, not the header: it is sticky and has to stay
-   opaque. Save and Cancel are never inert, so they keep their look */
-.guard [inert]:is(button, a),
-.guard [inert] :is(button, a) {
-    opacity: 0.4;
+/* Apply in the rail is the one filled button while a filter is edited:
+   Save reads as a default button until then */
+.guard[inert]
+    :global(.mantine-Button-root):is(
+        [data-variant='filled'],
+        :not([data-variant])
+    ) {
+    background-color: var(--mantine-color-default);
+    color: var(--mantine-color-default-color);
+    border: 1px solid var(--mantine-color-default-border);
 }

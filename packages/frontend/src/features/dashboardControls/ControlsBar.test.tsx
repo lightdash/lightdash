@@ -8,6 +8,7 @@ import {
 import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
 import { renderWithProviders as renderWithAppProviders } from '../../testing/testUtils';
 import { DashboardFiltersBar } from '../dashboardFilters/DashboardFiltersBar';
+import type * as AddControlModule from './AddControl';
 import { ControlsBar } from './ControlsBar';
 
 const mockDashboardContext = vi.hoisted(() => ({
@@ -21,7 +22,7 @@ const renderWithProviders = (ui: ReactElement) =>
         </DashboardStoreTestProvider>,
     );
 const mockCompact = vi.hoisted(() => ({ current: false }));
-const mockSidebar = vi.hoisted(() => ({ current: { isRailOpen: false } }));
+const mockSidebar = vi.hoisted(() => ({ current: { isSidebarOpen: false } }));
 
 vi.mock('../../providers/Dashboard/useDashboardContext', () => ({
     default: vi.fn((selector) => selector(mockDashboardContext.current)),
@@ -55,11 +56,9 @@ vi.mock('./useControlsSidebar', () => ({
     ) => selector(mockSidebar.current),
 }));
 
-vi.mock('./AddControl', () => ({
+vi.mock('./AddControl', async (importOriginal) => ({
+    ...(await importOriginal<typeof AddControlModule>()),
     AddControl: () => <button>Add</button>,
-}));
-vi.mock('./EditingStrip', () => ({
-    EditingStrip: () => <div data-testid="editing-strip" />,
 }));
 vi.mock('./FilterPills', () => ({
     FilterPills: () => <div data-testid="filter-pills" />,
@@ -97,7 +96,7 @@ const baseProps: ComponentProps<typeof ControlsBar> = {
 describe('ControlsBar', () => {
     beforeEach(() => {
         mockCompact.current = false;
-        mockSidebar.current = { isRailOpen: false };
+        mockSidebar.current = { isSidebarOpen: false };
         mockDashboardContext.current = {
             isAddFilterDisabled: false,
             setIsDateZoomDisabled: vi.fn(),
@@ -173,24 +172,13 @@ describe('ControlsBar', () => {
         );
     });
 
-    it('shows the editing strip in view mode while the rail is open', () => {
-        mockSidebar.current = { isRailOpen: true };
-        renderWithProviders(<ControlsBar {...baseProps} />);
-        expect(screen.getByTestId('editing-strip')).toBeInTheDocument();
-        expect(screen.queryByTestId('filter-pills')).not.toBeInTheDocument();
-    });
-
-    it('renders Add, the pills and the Required button in edit mode', () => {
+    it('renders the sectioned bar in edit mode with no sections yet, so its caret can add the first', () => {
         renderWithProviders(<ControlsBar {...baseProps} isEditMode />);
 
-        expect(
+        expect(screen.getByTestId('sectioned-filters')).toContainElement(
             screen.getByRole('button', { name: 'Required' }),
-        ).toBeInTheDocument();
-        expect(screen.getByTestId('filter-pills')).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Add' })).toBeInTheDocument();
-        expect(
-            screen.queryByRole('button', { name: 'Add filter' }),
-        ).not.toBeInTheDocument();
+        );
+        expect(screen.queryByTestId('filter-pills')).not.toBeInTheDocument();
         expect(
             screen.getByRole('button', {
                 name: 'Toggle date zoom visibility for viewers',
@@ -201,33 +189,15 @@ describe('ControlsBar', () => {
         ).not.toBeInTheDocument();
     });
 
-    it('shows the editing strip only while the rail is open', () => {
-        const { rerender } = renderWithProviders(
-            <ControlsBar {...baseProps} isEditMode />,
-        );
-        expect(screen.queryByTestId('editing-strip')).not.toBeInTheDocument();
-
-        mockSidebar.current = { isRailOpen: true };
-        rerender(
-            <DashboardStoreTestProvider store={createDashboardTestStore()}>
-                <ControlsBar {...baseProps} isEditMode />
-            </DashboardStoreTestProvider>,
-        );
-        expect(screen.getByTestId('editing-strip')).toBeInTheDocument();
-        expect(screen.getByTestId('date-zoom')).toBeInTheDocument();
-    });
-
-    it('folds Add, the pills and the Required button away while the rail is open', () => {
-        mockSidebar.current = { isRailOpen: true };
+    it('keeps the bar and Required while a filter is edited, Required inert', () => {
+        mockSidebar.current = { isSidebarOpen: true };
         renderWithProviders(<ControlsBar {...baseProps} isEditMode />);
 
+        expect(screen.getByTestId('sectioned-filters')).toBeInTheDocument();
         expect(
-            screen.queryByRole('button', { name: 'Required' }),
-        ).not.toBeInTheDocument();
-        expect(screen.queryByTestId('filter-pills')).not.toBeInTheDocument();
-        expect(
-            screen.queryByRole('button', { name: 'Add' }),
-        ).not.toBeInTheDocument();
+            screen.getByRole('button', { name: 'Required' }).closest('[inert]'),
+        ).not.toBeNull();
+        expect(screen.getByTestId('date-zoom')).toBeInTheDocument();
     });
 
     it('keeps the walkthrough anchors of the shipped bar in edit mode', () => {
@@ -238,7 +208,7 @@ describe('ControlsBar', () => {
         // No attribute values here: the walkthrough scanner reads them as steps
         expect(
             container.querySelector('[data-tour-scope][data-tour-look]'),
-        ).toContainElement(screen.getByTestId('filter-pills'));
+        ).toContainElement(screen.getByTestId('sectioned-filters'));
     });
 
     it('leaves the shipped bar as it is when it is given no filter area', () => {
@@ -281,12 +251,12 @@ describe('ControlsBar', () => {
         ).toBeInTheDocument();
     });
 
-    it('shows the bar in place on compact viewports while the rail is open', () => {
+    it('shows the bar in place on compact viewports while a filter is edited', () => {
         mockCompact.current = true;
-        mockSidebar.current = { isRailOpen: true };
+        mockSidebar.current = { isSidebarOpen: true };
         renderWithProviders(<ControlsBar {...baseProps} />);
 
-        expect(screen.getByTestId('editing-strip')).toBeInTheDocument();
+        expect(screen.getByTestId('filter-pills')).toBeInTheDocument();
         expect(
             screen.queryByRole('button', { name: 'Filters and parameters' }),
         ).not.toBeInTheDocument();

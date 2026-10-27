@@ -49,7 +49,6 @@ import {
     canTileTakeFilter,
     isTargetOnRow,
     isTileFieldKnown,
-    isTileOnFilter,
     setTileField,
     toSqlColumnTarget,
     type SqlColumn,
@@ -68,7 +67,6 @@ import {
 } from './tileSelector';
 import { useControlsSidebarSelector } from './useControlsSidebar';
 import { useFieldTileActions, type TileScope } from './useFieldTileActions';
-import { useHoveredFilterRule } from './useHoveredFilterRule';
 import { focusLabelInput } from './useLabelDraft';
 import { usePortalTargets } from './usePortalTargets';
 import { useScrollToHighlightedTile } from './useScrollToHighlightedTile';
@@ -210,10 +208,7 @@ const TileOverlay = memo<TileOverlayProps>(
                     data-highlighted={highlight ?? undefined}
                     data-wave={wave}
                     title={getUiString('filters.tileCard.unreachable')}
-                >
-                    {/* Lit when a hovered rail row's filter is on the tile */}
-                    <Box className={classes.ring} aria-hidden />
-                </div>
+                />
             );
         }
 
@@ -375,67 +370,8 @@ export const TileOverlays: FC = () => {
     // The tile cards' lists, as an embed's stylesheet targets them
     return (
         <DropdownClass className={contractClasses?.filterDropdown ?? null}>
-            {isEditing ? <EditedTileOverlays /> : <HoveredFilterReach />}
+            {isEditing && <EditedTileOverlays />}
         </DropdownClass>
-    );
-};
-
-// Nothing is edited: the tiles on this tab that the hovered rail row's filter
-// is on get the active field's ring, with no veil, card or lock
-const HoveredFilterReach: FC = () => {
-    const hoveredRule = useHoveredFilterRule();
-    const dashboardTiles = useDashboardSelector(selectDashboardTiles);
-    const activeTab = useDashboardSelector(selectActiveTab);
-    const dashboardTabs = useDashboardSelector(selectDashboardTabs);
-    const fieldsByTile = useDashboardContext(
-        (c) => c.filterableFieldsByTileUuid,
-    );
-    const sqlColumnsByTile = useSqlColumnsByTile(hoveredRule);
-    const tileUuids = useMemo(() => {
-        if (hoveredRule === null) return NO_FIELD_IDS;
-        const all = dashboardTiles ?? [];
-        const tiles =
-            activeTab && dashboardTabs.length > 0
-                ? getTilesOnTab(all, dashboardTabs, activeTab.uuid)
-                : all;
-        return tiles
-            .filter((tile) =>
-                isTileOnFilter(
-                    hoveredRule,
-                    tile,
-                    fieldsByTile,
-                    sqlColumnsByTile,
-                ),
-            )
-            .map((tile) => tile.uuid);
-    }, [
-        hoveredRule,
-        dashboardTiles,
-        activeTab,
-        dashboardTabs,
-        fieldsByTile,
-        sqlColumnsByTile,
-    ]);
-    const targets = usePortalTargets(
-        tileUuids,
-        getTileSelector,
-        tileUuids.length > 0,
-        false,
-    );
-    return (
-        <>
-            {tileUuids.map((tileUuid) => {
-                const element = targets[tileUuid];
-                if (!element) return null;
-                return createPortal(
-                    <Box className={classes.reach} aria-hidden>
-                        <Box className={classes.ring} />
-                    </Box>,
-                    element,
-                    tileUuid,
-                );
-            })}
-        </>
     );
 };
 
@@ -471,9 +407,6 @@ const EditedTileOverlays: FC = () => {
         [dimensionsMap, metricsMap],
     );
     const sqlColumnsByTile = useSqlColumnsByTile(editingRule);
-    // A hovered rail row shows where its filter is, over the edited one's look
-    const hoveredRule = useHoveredFilterRule();
-    const hoveredSqlColumnsByTile = useSqlColumnsByTile(hoveredRule);
     const isActive = editingRule !== null;
     const fieldTileActions = useFieldTileActions(sqlColumnsByTile);
     const [followUp, setFollowUp] = useState<FollowUp | null>(null);
@@ -815,25 +748,15 @@ const EditedTileOverlays: FC = () => {
                     isOnTheControl &&
                     !isDataAppTile &&
                     isTargetOnRow(editingRule, tileTarget, rowId);
-                const highlight: TileHighlight | null =
-                    hoveredRule !== null
-                        ? isTileOnFilter(
-                              hoveredRule,
-                              tile,
-                              fieldsByTile,
-                              hoveredSqlColumnsByTile,
-                          )
-                            ? 'mapped'
-                            : null
-                        : !isReachable
-                          ? null
-                          : !isOnTheControl
-                            ? 'available'
-                            : activeFieldId === null
-                              ? 'filtered'
-                              : isOnRow(activeFieldId)
-                                ? 'mapped'
-                                : 'other';
+                const highlight: TileHighlight | null = !isReachable
+                    ? null
+                    : !isOnTheControl
+                      ? 'available'
+                      : activeFieldId === null
+                        ? 'filtered'
+                        : isOnRow(activeFieldId)
+                          ? 'mapped'
+                          : 'other';
                 return createPortal(
                     <TileOverlay
                         tileUuid={tile.uuid}
