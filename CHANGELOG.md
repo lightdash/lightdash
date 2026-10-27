@@ -1,3 +1,10 @@
+# [3.68.0](https://github.com/lightdash/lightdash/compare/3.67.0...3.68.0) (2026-10-27)
+
+
+### Features
+
+* backfill retained Analytics history ([#31585](https://github.com/lightdash/lightdash/issues/31585)) ([8f9e847](https://github.com/lightdash/lightdash/commit/8f9e847d946f194f12b2ab68947c607825f7b489))
+
 # [3.67.0](https://github.com/lightdash/lightdash/compare/3.66.0...3.67.0) (2026-10-27)
 
 

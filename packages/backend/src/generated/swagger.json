@@ -56287,6 +56287,7 @@
                     "cleanExpiredPreviews",
                     "ingestProjectContext",
                     "compactUsageEvents",
+                    "backfillUsageQueryHistory",
                     "pollEmailWhitelabelVerification",
                     "cleanWarehouseConnectCodes",
                     "cleanAgentConnectionApprovalRequests",
@@ -67793,6 +67794,35 @@
                 "required": ["projectUuid"],
                 "type": "object"
             },
+            "AnalyticsHistoryBackfillStatus": {
+                "properties": {
+                    "error": {
+                        "type": "string"
+                    },
+                    "completed": {
+                        "type": "boolean"
+                    },
+                    "running": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["completed", "running"],
+                "type": "object"
+            },
+            "ApiSuccess_AnalyticsHistoryBackfillStatus_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AnalyticsHistoryBackfillStatus"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "AnalyticsProjectStatus": {
                 "properties": {
                     "project": {
@@ -73929,7 +73959,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.67.0",
+        "version": "3.68.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -112330,6 +112360,66 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/org/analytics-project/backfill": {
+            "get": {
+                "operationId": "GetAnalyticsHistoryBackfillStatus",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccess_AnalyticsHistoryBackfillStatus_"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "summary": "Check Analytics history backfill completion",
+                "tags": ["Analytics project"],
+                "security": [],
+                "parameters": []
+            },
+            "post": {
+                "operationId": "BackfillAnalyticsHistory",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "summary": "Backfill retained Analytics history",
+                "tags": ["Analytics project"],
+                "security": [],
+                "parameters": []
             }
         },
         "/api/v1/org/analytics-project": {
