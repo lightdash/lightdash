@@ -347,6 +347,7 @@ const nodeStatusesResponse = (
                   statuses: statuses.map(({ error, ...status }) => ({
                       ...status,
                       error: error ?? null,
+                      totalRowCount: null,
                   })),
               }
             : undefined) as unknown as typeof sharedLightdashApi);
