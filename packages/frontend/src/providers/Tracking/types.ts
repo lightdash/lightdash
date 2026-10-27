@@ -630,14 +630,12 @@ type AiAgentResponseEventProperties = {
 
 type AiAgentResponseFeedbackClickedEvent = {
     name: EventName.AI_AGENT_RESPONSE_FEEDBACK_CLICKED;
-    properties: AiAgentResponseEventProperties & {
-        rating: 'up' | 'down';
-        hasComment: boolean;
-    };
+    properties: AiAgentResponseEventProperties & { rating: 'up' | 'down' };
 };
 
 type AiAgentResponseActionEvent = {
     name:
+        | EventName.AI_AGENT_RESPONSE_FEEDBACK_COMMENT_SUBMITTED
         | EventName.AI_AGENT_RESPONSE_COPIED
         | EventName.AI_AGENT_RESPONSE_ADD_TO_EVALS_CLICKED
         | EventName.AI_AGENT_RESPONSE_DEBUG_OPENED;

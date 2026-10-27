@@ -226,6 +226,7 @@ export enum EventName {
     AI_DEEP_RESEARCH_REPORT_ENGAGED = 'ai_deep_research.report_engaged',
     AI_AGENT_BATTLE_STARTED = 'ai_agent_battle.started',
     AI_AGENT_RESPONSE_FEEDBACK_CLICKED = 'ai_agent_response.feedback_clicked',
+    AI_AGENT_RESPONSE_FEEDBACK_COMMENT_SUBMITTED = 'ai_agent_response.feedback_comment_submitted',
     AI_AGENT_RESPONSE_COPIED = 'ai_agent_response.copied',
     AI_AGENT_RESPONSE_ADD_TO_EVALS_CLICKED = 'ai_agent_response.add_to_evals_clicked',
     AI_AGENT_RESPONSE_DEBUG_OPENED = 'ai_agent_response.debug_opened',

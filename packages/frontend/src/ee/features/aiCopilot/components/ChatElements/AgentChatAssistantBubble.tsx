@@ -685,12 +685,8 @@ const AssistantBubbleContent: FC<{
                                 isLive={isStreaming}
                                 reasoning={{
                                     texts: toReasoningTexts(
-                                        !isStreaming
-                                            ? message.reasoning
-                                            : undefined,
-                                        isStreaming
-                                            ? streamingState?.reasoning
-                                            : undefined,
+                                        message.reasoning,
+                                        streamingState?.reasoning,
                                     ),
                                     isLive: isStreaming,
                                 }}
@@ -770,9 +766,11 @@ const AssistantBubbleContent: FC<{
                             reasoning={{
                                 texts: toReasoningTexts(
                                     message.reasoning,
-                                    undefined,
+                                    shouldUseStreamParts
+                                        ? streamingState?.reasoning
+                                        : undefined,
                                 ),
-                                isLive: false,
+                                isLive: isStreaming,
                             }}
                         />
                         {messageContent.length > 0 ? (
@@ -969,11 +967,7 @@ export const AssistantBubble: FC<Props> = memo(
             if (!upVoted) {
                 track({
                     name: EventName.AI_AGENT_RESPONSE_FEEDBACK_CLICKED,
-                    properties: {
-                        ...responseEventProperties,
-                        rating: 'up',
-                        hasComment: false,
-                    },
+                    properties: { ...responseEventProperties, rating: 'up' },
                 });
             }
         }, [
@@ -995,27 +989,33 @@ export const AssistantBubble: FC<Props> = memo(
                     messageUuid: message.uuid,
                     humanScore: -1,
                 });
+                track({
+                    name: EventName.AI_AGENT_RESPONSE_FEEDBACK_CLICKED,
+                    properties: { ...responseEventProperties, rating: 'down' },
+                });
                 openPopover();
             }
-        }, [updateFeedbackMutation, message.uuid, downVoted, openPopover]);
+        }, [
+            updateFeedbackMutation,
+            message.uuid,
+            downVoted,
+            openPopover,
+            track,
+            responseEventProperties,
+        ]);
 
         const handleSubmitFeedback = useCallback(() => {
-            const hasComment = feedbackText.trim().length !== 0;
-            if (hasComment) {
+            if (feedbackText.trim().length !== 0) {
                 updateFeedbackMutation.mutate({
                     messageUuid: message.uuid,
                     humanScore: -1,
                     humanFeedback: feedbackText.trim(),
                 });
+                track({
+                    name: EventName.AI_AGENT_RESPONSE_FEEDBACK_COMMENT_SUBMITTED,
+                    properties: responseEventProperties,
+                });
             }
-            track({
-                name: EventName.AI_AGENT_RESPONSE_FEEDBACK_CLICKED,
-                properties: {
-                    ...responseEventProperties,
-                    rating: 'down',
-                    hasComment,
-                },
-            });
             closePopover();
             setFeedbackText('');
         }, [
