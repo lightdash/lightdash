@@ -454,6 +454,15 @@ export const formatCompiledQueryLog = (
         styles.title(`\n— Query against explore '${entry.exploreName}'`),
         ...fields.map((line) => styles.secondary(`  ${line}`)),
         ...entry.compilationErrors.map((error) => styles.warning(`  ${error}`)),
+        ...(entry.runtimeOnlyTransformations.length > 0
+            ? [
+                  styles.warning(
+                      `  Note: this query also applies ${entry.runtimeOnlyTransformations.join(
+                          ' and ',
+                      )} at run time, which the SQL below does not include.`,
+                  ),
+              ]
+            : []),
         sql,
     ].join('\n');
 };

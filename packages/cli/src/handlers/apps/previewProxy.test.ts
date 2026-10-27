@@ -407,6 +407,8 @@ describe('startPreviewProxy', () => {
                     metrics: ['orders_total'],
                 },
                 parameters: { region: 'EU' },
+                usePreAggregateCache: false,
+                pivotConfiguration: { indexColumn: [] },
             };
             const res = await runMetricQuery(body);
             expect(res.status).toBe(200);
@@ -429,6 +431,8 @@ describe('startPreviewProxy', () => {
             expect(JSON.parse(compileRequests[0].body)).toEqual({
                 ...body.query,
                 parameters: body.parameters,
+                usePreAggregateCache: false,
+                pivotConfiguration: { indexColumn: [] },
             });
             expect(compileRequests[0].headers.authorization).toBe(
                 AUTHORIZATION,
@@ -441,8 +445,43 @@ describe('startPreviewProxy', () => {
                     metrics: ['orders_total'],
                     compiledSql: 'SELECT 1',
                     compilationErrors: [],
+                    runtimeOnlyTransformations: [],
                 },
             ]);
+        });
+
+        it('flags date zoom and dashboard filters as runtime-only', async () => {
+            await runMetricQuery({
+                query: { exploreName: 'orders', dimensions: [], metrics: [] },
+                dateZoom: { granularity: 'month' },
+                dashboardFilters: {
+                    dimensions: [{ id: 'f1' }],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+            });
+            await waitForEntries(1);
+
+            expect(entries).toHaveLength(1);
+            expect(entries[0].runtimeOnlyTransformations).toEqual([
+                'date zoom',
+                'dashboard filters',
+            ]);
+        });
+
+        it('does not flag empty dashboard filters', async () => {
+            await runMetricQuery({
+                query: { exploreName: 'orders', dimensions: [], metrics: [] },
+                dashboardFilters: {
+                    dimensions: [],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+            });
+            await waitForEntries(1);
+
+            expect(entries).toHaveLength(1);
+            expect(entries[0].runtimeOnlyTransformations).toEqual([]);
         });
 
         it('reports a null SQL entry when compilation fails upstream', async () => {
@@ -464,6 +503,7 @@ describe('startPreviewProxy', () => {
                     metrics: [],
                     compiledSql: null,
                     compilationErrors: [],
+                    runtimeOnlyTransformations: [],
                 },
             ]);
         });

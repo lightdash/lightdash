@@ -74,6 +74,9 @@ export type CompiledQueryLogEntry = {
     metrics: string[];
     compiledSql: string | null;
     compilationErrors: string[];
+    // Execution-time transformations the compile endpoint cannot apply
+    // (e.g. date zoom, dashboard filters) — the printed SQL excludes them.
+    runtimeOnlyTransformations: string[];
 };
 
 const sendJsonError = (
@@ -221,15 +224,27 @@ export const startPreviewProxy = (args: {
         if (report === undefined) return;
         const parsed = parseJson(requestBody);
         if (typeof parsed !== 'object' || parsed === null) return;
-        const { query, parameters } = parsed as {
+        const {
+            query,
+            parameters,
+            usePreAggregateCache,
+            pivotConfiguration,
+            dateZoom,
+            dashboardFilters,
+        } = parsed as {
             query?: unknown;
             parameters?: unknown;
+            usePreAggregateCache?: unknown;
+            pivotConfiguration?: unknown;
+            dateZoom?: unknown;
+            dashboardFilters?: unknown;
         };
         if (typeof query !== 'object' || query === null) return;
         const metricQuery = query as {
             exploreName?: unknown;
             dimensions?: unknown;
             metrics?: unknown;
+            dateZoom?: unknown;
         };
         if (typeof metricQuery.exploreName !== 'string') return;
         const toStrings = (value: unknown): string[] =>
@@ -238,16 +253,36 @@ export const startPreviewProxy = (args: {
                       (item): item is string => typeof item === 'string',
                   )
                 : [];
+        // compileQuery cannot apply these execution-time transformations, so
+        // the printed SQL would silently diverge — disclose them instead.
+        const hasDashboardFilters =
+            typeof dashboardFilters === 'object' &&
+            dashboardFilters !== null &&
+            Object.values(dashboardFilters).some(
+                (group) => Array.isArray(group) && group.length > 0,
+            );
+        const runtimeOnlyTransformations = [
+            ...(dateZoom !== undefined || metricQuery.dateZoom !== undefined
+                ? ['date zoom']
+                : []),
+            ...(hasDashboardFilters ? ['dashboard filters'] : []),
+        ];
         const entry: CompiledQueryLogEntry = {
             exploreName: metricQuery.exploreName,
             dimensions: toStrings(metricQuery.dimensions),
             metrics: toStrings(metricQuery.metrics),
             compiledSql: null,
             compilationErrors: [],
+            runtimeOnlyTransformations,
         };
         const compiled = await postUpstreamJson(
             `/api/v1/projects/${encodeURIComponent(args.projectUuid)}/explores/${encodeURIComponent(metricQuery.exploreName)}/compileQuery`,
-            JSON.stringify({ ...query, parameters }),
+            JSON.stringify({
+                ...query,
+                parameters,
+                usePreAggregateCache,
+                pivotConfiguration,
+            }),
         );
         if (typeof compiled === 'object' && compiled !== null) {
             const { results } = compiled as { results?: unknown };
