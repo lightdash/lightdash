@@ -4,6 +4,7 @@ import {
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
+    countSectionChanges,
     groupRulesBySection,
     moveRuleToSection,
     moveRulesToSection,
@@ -37,6 +38,22 @@ const sections = [
 const ids = (dashboardFilters: DashboardFilters) => ({
     dimensions: dashboardFilters.dimensions.map((r) => r.id),
     metrics: dashboardFilters.metrics.map((r) => r.id),
+});
+
+describe('countSectionChanges', () => {
+    it('counts rules whose section changed, a dangling id being none', () => {
+        const before = filters([rule('d1', 'gone'), rule('d2'), rule('d3')]);
+        // d1 normalised out of its dangling section, d3 into a
+        const after = filters([rule('d2'), rule('d1'), rule('d3', 'a')]);
+        expect(countSectionChanges(before, after, sections)).toBe(1);
+        expect(
+            countSectionChanges(
+                before,
+                filters([rule('d2'), rule('d1'), rule('d3')]),
+                sections,
+            ),
+        ).toBe(0);
+    });
 });
 
 describe('groupRulesBySection', () => {

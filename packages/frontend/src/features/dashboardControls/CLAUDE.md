@@ -1356,21 +1356,26 @@ never a filter or section name, label, value or field id.
   edited pill's own click `apply`, the mode change effect `mode_change`. The
   internal `close` and `discard` track nothing, and a stale edit (its rule
   gone) tracks no close.
+  An `opened` can stay unpaired, by design: no `closed` is sent when the edit
+  goes stale (its rule removed from outside) or the page unmounts mid-edit.
 - `dashboard_filter_editor.switch_answered`: `resolvePending` (`apply`,
   `discard`) and `dismiss` with a pending question (`withdrawn`).
 - `dashboard_filters.moved`: for the edited filter, in the internal `close()`
-  (Apply, Create, a switch that applies, the mode change) when its section
-  differs from the snapshot's; `method` is `sectionChangedBy` on the edit
-  (`drag` from `moveEditedFilter`, `editor_section_select` from
+  (Apply, Create, a switch that applies, the mode change) when its shown
+  section differs from the snapshot's; `method` is `sectionChangedBy` on the
+  edit (`drag` from `moveEditedFilter`, `editor_section_select` from
   `updateFilter`), so previews and Cancel track nothing and a new filter is
   no move. On the bar, `SectionedFilters` tracks its own writes with
   `countSectionChanges` (`sections.ts`), so a reorder is none: a drag
   (`drag`, `whileEditing` when another filter is open) and the selection
-  bar's Move to and a named section's moved pills (`selection_bar`).
+  bar's Move to, to a section or No section (`selection_bar`). Both compare
+  the shown section: a dangling `sectionId` is none, so dropping such a rule
+  among the unsectioned (which drops the id) is a reorder.
 - `dashboard_section.created`: `NewSection`'s commit in `SectionedFilters`,
   with `source` (`add_section_icon`, or `selection_bar` / `move_to_menu` from
   `SelectionActions`), `filtersMoved` and `wasTipShown` (`useSectionsTip`,
-  the tip's own reading).
+  the tip's own reading). It is the only event for that action: the picked
+  pills it moves send no `dashboard_filters.moved`.
 - `dashboard_sections_tip.dismissed`: the tip's X.
 - `dashboard_section.toggled`: a viewer's capsule fold in `SectionedFilters`;
   `filtersCount` is the section's members there.

@@ -29,24 +29,6 @@ const listRules = (filters: DashboardFilters): SectionRule[] =>
     );
 
 /** Unsectioned rules first (a dangling section id counts), then each section in order */
-// Dimensions and metrics, as the tracking events count filters
-export const countFilters = (filters: DashboardFilters): number =>
-    filters.dimensions.length + filters.metrics.length;
-
-// Rules present in both whose `sectionId` differs: a reorder counts none
-export const countSectionChanges = (
-    before: DashboardFilters,
-    after: DashboardFilters,
-): number => {
-    const sectionOf = new Map(
-        listRules(before).map(({ rule }) => [rule.id, rule.sectionId]),
-    );
-    return listRules(after).filter(
-        ({ rule }) =>
-            sectionOf.has(rule.id) && sectionOf.get(rule.id) !== rule.sectionId,
-    ).length;
-};
-
 export const groupRulesBySection = (
     filters: DashboardFilters,
     sections: DashboardControlSection[],
@@ -87,6 +69,29 @@ export const isRuleInSection = (
         );
     }
     return rule.sectionId === sectionId;
+};
+
+// Dimensions and metrics, as the tracking events count filters
+export const countFilters = (filters: DashboardFilters): number =>
+    filters.dimensions.length + filters.metrics.length;
+
+// Rules present in both whose shown section differs (a dangling id is none):
+// a reorder counts none
+export const countSectionChanges = (
+    before: DashboardFilters,
+    after: DashboardFilters,
+    sections: DashboardControlSection[],
+): number => {
+    const sectionOf = (rule: DashboardFilterRule) =>
+        isRuleInSection(rule, null, sections) ? null : rule.sectionId;
+    const beforeById = new Map(
+        listRules(before).map(({ rule }) => [rule.id, sectionOf(rule)]),
+    );
+    return listRules(after).filter(
+        ({ rule }) =>
+            beforeById.has(rule.id) &&
+            beforeById.get(rule.id) !== sectionOf(rule),
+    ).length;
 };
 
 const withSection = (

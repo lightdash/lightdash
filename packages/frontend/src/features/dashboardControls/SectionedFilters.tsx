@@ -17,7 +17,6 @@ import {
     type DashboardControlSection,
     type DashboardFilterableField,
     type DashboardFilterRule,
-    type DashboardFilters,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -792,7 +791,8 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
                               naming.moveIds,
                               section.id,
                               [section, ...sections],
-                              'selection_bar',
+                              // The creation is the event, with filtersMoved
+                              null,
                           )
                         : 0;
                 track({
@@ -857,11 +857,7 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
     const sectionOfRule = (rule: DashboardFilterRule) =>
         isRuleInSection(rule, null, sections) ? null : (rule.sectionId ?? null);
     // A bar write that changed sections, tracked with how many filters moved
-    const trackMoved = (
-        moved: DashboardFilters,
-        method: DashboardFiltersMovedMethod,
-    ) => {
-        const count = countSectionChanges(dashboardFilters, moved);
+    const trackMoved = (count: number, method: DashboardFiltersMovedMethod) => {
         if (count > 0)
             track({
                 name: EventName.DASHBOARD_FILTERS_MOVED,
@@ -872,16 +868,15 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
                     whileEditing: isEditing,
                 },
             });
-        return count;
     };
     // Pills into a section (null: out of theirs), in display order; the
     // selection ends and the first moved pill takes focus, else "Add filter".
-    // Returns how many changed section
+    // Returns how many changed section; a null method tracks no move
     const moveToSection = (
         ids: string[],
         sectionId: string | null,
         knownSections: DashboardControlSection[],
-        method: DashboardFiltersMovedMethod,
+        method: DashboardFiltersMovedMethod | null,
     ) => {
         const moved = moveRulesToSection(
             dashboardFilters,
@@ -897,7 +892,13 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
         if (moved === dashboardFilters) return 0;
         setDashboardFilters(moved);
         setHaveFiltersChanged(true);
-        return trackMoved(moved, method);
+        const count = countSectionChanges(
+            dashboardFilters,
+            moved,
+            knownSections,
+        );
+        if (method !== null) trackMoved(count, method);
+        return count;
     };
     const moveSelected = (
         sectionId: string | null,
@@ -972,7 +973,10 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
         if (selected.includes(activeId)) clearSelection();
         setDashboardFilters(moved);
         setHaveFiltersChanged(true);
-        trackMoved(moved, 'drag');
+        trackMoved(
+            countSectionChanges(dashboardFilters, moved, sections),
+            'drag',
+        );
     };
     const dragged = allRules.find(({ rule }) => rule.id === draggedId);
     const draggedSection = sections.find(({ id }) => id === draggedId);

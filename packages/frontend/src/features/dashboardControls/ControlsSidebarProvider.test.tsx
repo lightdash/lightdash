@@ -907,6 +907,11 @@ describe('ControlsSidebarProvider', () => {
 
         it("tracks the Section select's move once applied, never on preview or Cancel", () => {
             const { result } = setup();
+            act(() => {
+                currentStore.dispatch(
+                    dashboardEditActions.syncControlSections(sections),
+                );
+            });
             act(() => result.current.open('a'));
             act(() =>
                 result.current.updateFilter({
@@ -939,8 +944,31 @@ describe('ControlsSidebarProvider', () => {
             ]);
         });
 
+        it("tracks no move for the edited pill's dangling section dropped among the unsectioned", () => {
+            saved.filters = {
+                ...initialFilters,
+                dimensions: [
+                    { ...rule('a', ['1']), sectionId: 'gone' },
+                    rule('b', ['2']),
+                ],
+            };
+            const { result } = setup();
+            act(() => result.current.open('a'));
+            act(() =>
+                result.current.moveEditedFilter({ ruleId: 'b' }, sections),
+            );
+            expect(latest.filters.dimensions[1].sectionId).toBeUndefined();
+            act(() => result.current.close());
+            expect(tracksOf(EventName.DASHBOARD_FILTERS_MOVED)).toEqual([]);
+        });
+
         it("tracks the edited pill's drag as a move once applied, and a reorder as none", () => {
             const { result } = setup();
+            act(() => {
+                currentStore.dispatch(
+                    dashboardEditActions.syncControlSections(sections),
+                );
+            });
             act(() => result.current.open('a'));
             act(() =>
                 result.current.moveEditedFilter({ ruleId: 'b' }, sections),

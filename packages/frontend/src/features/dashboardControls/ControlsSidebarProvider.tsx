@@ -1225,16 +1225,22 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
                 },
             });
         }
-        // A section change made in the edit counts once it is applied
+        // A section change made in the edit counts once it is applied; a
+        // dangling section id shows as none
         const savedRule = findFilterRule(
             snapshot.dashboardFilters,
             current.state.filterId,
         );
+        const shownSection = ({ sectionId }: DashboardFilterRule) =>
+            sectionId !== undefined &&
+            current.controlSectionIds.includes(sectionId)
+                ? sectionId
+                : null;
         if (
             !current.state.isNew &&
             !current.state.isViewer &&
             savedRule !== null &&
-            savedRule.sectionId !== rule.sectionId
+            shownSection(savedRule) !== shownSection(rule)
         ) {
             current.track({
                 name: EventName.DASHBOARD_FILTERS_MOVED,

@@ -1851,17 +1851,8 @@ describe('SectionedFilters', () => {
                     },
                 },
             ]);
-            expect(tracksOf(EventName.DASHBOARD_FILTERS_MOVED)).toEqual([
-                {
-                    name: EventName.DASHBOARD_FILTERS_MOVED,
-                    properties: {
-                        ...base,
-                        method: 'selection_bar',
-                        count: 2,
-                        whileEditing: false,
-                    },
-                },
-            ]);
+            // The creation is the one event: its moves are in filtersMoved
+            expect(tracksOf(EventName.DASHBOARD_FILTERS_MOVED)).toEqual([]);
 
             mockTrack.mockClear();
             fireEvent.click(screen.getByText('pill three'), { metaKey: true });
@@ -1903,6 +1894,36 @@ describe('SectionedFilters', () => {
                     whileEditing: false,
                 },
             });
+        });
+
+        it("tracks the selection bar's No section as a move", async () => {
+            const user = userEvent.setup();
+            renderSectioned(rules(), 'tab-1');
+            fireEvent.click(screen.getByText('pill one'), { metaKey: true });
+            await user.click(
+                await screen.findByRole('button', { name: 'Move to' }),
+            );
+            await user.click(
+                screen.getByRole('menuitem', { name: 'No section' }),
+            );
+            expect(tracksOf(EventName.DASHBOARD_FILTERS_MOVED)).toEqual([
+                expect.objectContaining({
+                    properties: expect.objectContaining({
+                        method: 'selection_bar',
+                        count: 1,
+                    }),
+                }),
+            ]);
+        });
+
+        it('tracks no move for a pill with a dangling section reordered among the unsectioned', () => {
+            renderSectioned(
+                [rule('gone', 'deleted'), rule('loose', undefined)],
+                'tab-1',
+            );
+            act(() => mockDragEnd.handlers[0](dragEvent('gone', 'loose')));
+            expect(setDashboardFilters).toHaveBeenCalledTimes(1);
+            expect(mockTrack).not.toHaveBeenCalled();
         });
 
         it('tracks a drag into another section, never a reorder or the edited pill', () => {
