@@ -362,6 +362,7 @@
         "aiAgent.modelSelector.agentDefault": "აგენტის ნაგულისხმევი",
         "aiAgent.composer.loadingResult": "შედეგები იტვირთება...",
         "aiAgent.composer.resultError": "ამ შედეგის ჩატვირთვა ვერ მოხერხდა",
+        "aiAgent.queryReference.open": "გახსენი მოთხოვნა {nodeId}",
         "aiAgent.composer.nodeStatus.pending": "რიგშია",
         "aiAgent.composer.nodeStatus.awaitingApproval": "ელოდება დადასტურებას",
         "aiAgent.composer.nodeStatus.running": "მიმდინარეობს",

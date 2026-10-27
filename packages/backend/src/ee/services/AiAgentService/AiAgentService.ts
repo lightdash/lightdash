@@ -631,6 +631,7 @@ import {
     expandMetricsWithPopAdditionalMetrics,
     populateCustomMetricsSQL,
 } from '../ai/utils/populateCustomMetricsSQL';
+import { stripQueryNodeReferences } from '../ai/utils/queryNodeReference';
 import { renderEcharts } from '../ai/utils/renderEcharts';
 import { getSlackArtifactCardVersions } from '../ai/utils/slackArtifactImages';
 import {
@@ -19562,7 +19563,9 @@ Use your existing tools to inspect them when relevant to the user's question (re
             });
             const blocksFinishedAt = Date.now();
             const visibleResponse = stripSlackVisualizationSelection(response);
-            const slackResponse = stripMemoryCitations(visibleResponse);
+            const slackResponse = stripQueryNodeReferences(
+                stripMemoryCitations(visibleResponse),
+            );
             const slackifiedMarkdown = slackifyMarkdown(slackResponse).replace(
                 /\\\n/g,
                 '\n',

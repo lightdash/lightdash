@@ -65,6 +65,8 @@ type Props = {
     /** Writes terminal node edits back; null when they stay on screen only. */
     onSaveVizConfig: ((vizConfig: AllVizChartConfig) => void) | null;
     onClose: (() => void) | null;
+    /** Node shown on open when it is in the pipeline; the terminal node otherwise. */
+    initialDisplayedNodeId?: string;
 };
 
 const getResultsUrl = ({
@@ -116,12 +118,18 @@ export const AiComposerArtifactPanel: FC<Props> = ({
     onRerun,
     onSaveVizConfig,
     onClose,
+    initialDisplayedNodeId,
 }) => {
     const isEmbed = useIsEmbedded();
     const identityFlag = useServerFeatureFlag(FeatureFlags.AgentIdentity);
     const identityEnabled = identityFlag.data?.enabled === true;
     const [displayedNodeId, setDisplayedNodeId] = useState(
-        config.terminalNodeId,
+        initialDisplayedNodeId !== undefined &&
+            config.queries.some(
+                (query) => query.nodeId === initialDisplayedNodeId,
+            )
+            ? initialDisplayedNodeId
+            : config.terminalNodeId,
     );
     const isTerminalDisplayed = displayedNodeId === config.terminalNodeId;
     const nodeQueryUuids = run?.nodeQueryUuids ?? null;

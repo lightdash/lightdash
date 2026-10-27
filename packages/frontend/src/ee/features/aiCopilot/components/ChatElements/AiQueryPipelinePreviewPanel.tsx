@@ -20,20 +20,24 @@ type Props = {
 /** A message's pipeline in the composer panel, as a read-only table. */
 export const AiQueryPipelinePreviewPanel: FC<Props> = ({ pipelinePreview }) => {
     const dispatch = useAiAgentStoreDispatch();
-    const { projectUuid, agentUuid, threadUuid, messageUuid, queryUuid } =
+    const { projectUuid, agentUuid, threadUuid, messageUuid, nodeId } =
         pipelinePreview;
+    const messageRef = { projectUuid, agentUuid, threadUuid, messageUuid };
     const pipelines = useAiAgentMessageQueryPipelines({
-        projectUuid,
-        agentUuid,
-        threadUuid,
-        messageUuid,
+        ...messageRef,
         enabled: true,
     });
-    const pipeline = pipelines.data?.find(
-        (candidate) => candidate.queryUuid === queryUuid,
-    );
+    // A reused node sits in several pipelines; prefer the one it ends
+    const pipeline =
+        pipelines.data?.find(
+            (candidate) => candidate.terminalNodeId === nodeId,
+        ) ??
+        pipelines.data?.find((candidate) =>
+            candidate.nodes.some((node) => node.nodeId === nodeId),
+        );
     const run = useAiAgentMessageQueryPipelineVizQuery({
-        ...pipelinePreview,
+        ...messageRef,
+        queryUuid: pipeline?.queryUuid ?? '',
         enabled: pipeline !== undefined,
     });
     const config = useMemo<AiComposerChartArtifactConfigV1 | null>(
@@ -63,14 +67,15 @@ export const AiQueryPipelinePreviewPanel: FC<Props> = ({ pipelinePreview }) => {
     }
     return (
         <AiComposerArtifactPanel
-            key={queryUuid}
+            key={`${pipeline.queryUuid}:${nodeId}`}
+            initialDisplayedNodeId={nodeId}
             projectUuid={projectUuid}
             agentUuid={agentUuid}
             source={{
                 kind: 'messageQuery',
                 threadUuid,
                 messageUuid,
-                queryUuid,
+                queryUuid: pipeline.queryUuid,
             }}
             title={pipeline.title}
             description={null}

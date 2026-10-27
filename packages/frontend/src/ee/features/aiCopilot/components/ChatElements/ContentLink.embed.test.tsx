@@ -60,6 +60,7 @@ const renderEmbedLink = (
                         message={message}
                         projectUuid="project-1"
                         agentUuid="agent-1"
+                        hasPreviewPane
                     >
                         Reference
                     </ContentLink>

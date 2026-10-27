@@ -503,6 +503,7 @@ export const DEFAULT_UI_STRINGS = {
     'aiAgent.composer.loadingResult': 'Loading results...',
     'aiAgent.composer.resultError': 'This result could not be loaded',
     'aiAgent.composer.emptyResult': 'No rows returned',
+    'aiAgent.queryReference.open': 'Open query {nodeId}',
     'aiAgent.composer.nodeStatus.pending': 'Queued',
     'aiAgent.composer.nodeStatus.awaitingApproval': 'Awaiting approval',
     'aiAgent.composer.nodeStatus.running': 'Running',

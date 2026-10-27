@@ -69,10 +69,13 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
 export const TOOL_COMPOSER_QUERIES_DESCRIPTION =
     getToolComposerQueriesDescription({ enablePythonNodes: false });
 
+/** Regex source of a composer node id; the web app and Slack output match references against it. */
+export const COMPOSER_NODE_ID_PATTERN = '[a-zA-Z_][a-zA-Z0-9_]{0,62}';
+
 const nodeIdSchema = z
     .string()
     .regex(
-        /^[a-zA-Z_][a-zA-Z0-9_]{0,62}$/,
+        new RegExp(`^${COMPOSER_NODE_ID_PATTERN}$`),
         'Node ids use letters, digits and underscores, starting with a letter or underscore',
     )
     .describe('Names this node so other nodes can read its result.');
