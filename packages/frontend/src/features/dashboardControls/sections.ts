@@ -250,6 +250,9 @@ export const UNSECTIONED_TARGET_ID = 'unsectioned-target';
 /** The droppable id of the bar's space outside every capsule and pill */
 export const BAR_SPACE_TARGET_ID = 'bar-space-target';
 
+/** The droppable id of the bar's New section capsule */
+export const NEW_SECTION_TARGET_ID = 'new-section-target';
+
 /** Screen reader wording for a drag; dnd-kit only knows the ids */
 export const getDragAnnouncements = (
     nameOf: (id: string) => string,
