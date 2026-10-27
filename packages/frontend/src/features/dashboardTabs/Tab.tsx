@@ -53,7 +53,7 @@ const DraggableTab: FC<DraggableTabProps> = ({
             draggableId={tab.uuid}
             index={idx}
             // With no grip the tab, a button, is the handle
-            disableInteractiveElementBlocking={hasQuietActions}
+            disableInteractiveElementBlocking={isEditMode && hasQuietActions}
         >
             {(provided, snapshot) => (
                 <div

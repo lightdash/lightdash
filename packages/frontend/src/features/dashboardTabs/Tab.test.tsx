@@ -112,6 +112,14 @@ describe('DraggableTab', () => {
         );
     });
 
+    it('never lets a quiet tab start a drag outside edit mode', () => {
+        renderTab({ isEditMode: false, hasQuietActions: true });
+
+        expect(
+            draggableProps.last?.disableInteractiveElementBlocking,
+        ).toBeFalsy();
+    });
+
     it('flag-off guard: keeps the shipped interactive element blocking', () => {
         renderTab({ isEditMode: true });
 
