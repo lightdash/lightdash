@@ -4,11 +4,7 @@ import {
     type DashboardFilterRule,
     type ResultColumn,
 } from '@lightdash/common';
-import {
-    type Dispatch,
-    type MutableRefObject,
-    type SetStateAction,
-} from 'react';
+import { type MutableRefObject } from 'react';
 import {
     createContext,
     useContext,
@@ -100,9 +96,6 @@ export type ControlsSidebarContextValue = {
     clearHighlightedField: () => void;
     hoveredFieldId: string | null;
     setHoveredFieldId: (fieldId: string | null) => void;
-    /** The pill hovered or focused on an editor's bar while no filter is edited. */
-    hoveredFilterId: string | null;
-    setHoveredFilterId: Dispatch<SetStateAction<string | null>>;
     /** Which pill's filter marked the tiles on hover; stable for the provider's life. */
     tileHoverOwner: MutableRefObject<string | null>;
     /** The hovered field wins over the clicked one. */

@@ -2705,10 +2705,11 @@ describe('ControlsSidebarProvider', () => {
                 ),
             );
         const initial = callbacks();
-        expect(Object.keys(initial)).toHaveLength(23);
+        expect(Object.keys(initial)).toHaveLength(22);
         expect(initial).toHaveProperty('updateOtherFilters');
         expect(initial).toHaveProperty('moveEditedFilter');
-        expect(initial).toHaveProperty('setHoveredFilterId');
+        // A pill hover marks tiles only; nothing in the sidebar follows it
+        expect(initial).not.toHaveProperty('setHoveredFilterId');
         expect(initial).toHaveProperty('removeLastField');
         expect(initial).toHaveProperty('addFirstSqlColumn');
         expect(initial).toHaveProperty('clearHighlightedField');
@@ -2719,7 +2720,6 @@ describe('ControlsSidebarProvider', () => {
         act(() => result.current.updateFilter(rule('a', ['9'])));
         act(() => result.current.updateOtherFilters([rule('b', ['8'])]));
         act(() => result.current.setHoveredFieldId('orders_a'));
-        act(() => result.current.setHoveredFilterId('b'));
         act(() => result.current.moveEditedFilter({ ruleId: 'b' }, []));
         act(() => result.current.setHighlightedFieldId('orders_a'));
         act(() => result.current.clearHighlightedField());

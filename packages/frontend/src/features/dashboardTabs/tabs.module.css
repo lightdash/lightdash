@@ -33,6 +33,56 @@
 }
 
 .list {
+    /* Quiet tabs: no grip, the whole tab drags. One trailing slot holds the
+       menu and the tab count in a single grid cell, as wide as the widest
+       count, so nothing in it ever changes the tab's width. The draggable
+       wrapper carries the attribute: its hover and focus reveal the menu */
+    [data-quiet-actions] {
+        cursor: grab;
+
+        &[data-dragging] {
+            cursor: grabbing;
+        }
+
+        [role='tab'] {
+            cursor: inherit;
+            /* Under the shipped cap the name truncates first. The floor fits
+               the padding and the slot: the 20px menu or a count up to "10/10" */
+            min-width: calc(
+                2 * var(--mantine-spacing-sm) + var(--mantine-spacing-xs) +
+                    max(20px, 5ch)
+            );
+
+            &:hover {
+                background-color: var(--mantine-color-default-hover);
+            }
+
+            > [data-position='right'] {
+                display: inline-grid;
+                place-items: center;
+
+                > * {
+                    grid-area: 1 / 1;
+                }
+            }
+        }
+
+        /* The menu shows on the active tab, on a hovered or focused one, and
+           while its own menu is open (the pointer or focus is then in the
+           portalled dropdown) */
+        &:not(:hover, :focus-within)
+            [role='tab']:not([data-active])
+            > [data-position='right']
+            > [aria-haspopup='menu']:not([aria-expanded='true']) {
+            visibility: hidden;
+        }
+
+        /* While a filter is open the tab count locks the menu out (inert) */
+        [role='tab'] > [data-position='right'] > [inert] {
+            visibility: hidden;
+        }
+    }
+
     &::before {
         border-bottom: 0;
     }

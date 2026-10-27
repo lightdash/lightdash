@@ -423,7 +423,6 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
     );
     const [undo, setUndo] = useState<ApplyUndo | null>(null);
     const [hoveredFieldId, setHoveredFieldId] = useState<string | null>(null);
-    const [hoveredFilterId, setHoveredFilterId] = useState<string | null>(null);
     // The filter whose pill marked the tiles: only that pill clears them
     const tileHoverOwner = useRef<string | null>(null);
     const [waiting, setWaiting] = useState<Waiting | null>(null);
@@ -1479,8 +1478,6 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
             clearHighlightedField,
             hoveredFieldId,
             setHoveredFieldId,
-            hoveredFilterId,
-            setHoveredFilterId,
             tileHoverOwner,
             activeFieldId: hoveredFieldId ?? clickedFieldId,
             updateFilter,
@@ -1525,7 +1522,6 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
             clickedFieldId,
             clearHighlightedField,
             hoveredFieldId,
-            hoveredFilterId,
             updateFilter,
             applyWithUndo,
             undoApply,

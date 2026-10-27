@@ -12,7 +12,7 @@ import {
 import { screen, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type ReactElement } from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { type SqlChartTileMetadata } from '../../providers/Dashboard/types';
 import {
     createDashboardTestStore,
@@ -22,6 +22,9 @@ import {
 import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
 import { renderWithProviders as renderWithAppProviders } from '../../testing/testUtils';
 import { TabCounts } from './TabCounts';
+import type * as PortalTargets from './usePortalTargets';
+
+type PortalTargetsModule = typeof PortalTargets;
 
 const tileStatus = { current: { sqlChartTilesMetadata: {} } };
 
@@ -34,6 +37,13 @@ const mockDashboardContext = vi.hoisted(() => ({
 const mockContainers = vi.hoisted(() => ({
     current: {} as Record<string, Element>,
 }));
+const mockPortal = vi.hoisted(() => ({
+    isReal: false,
+    last: null as null | {
+        getSelector: (key: string) => string;
+        lockSiblings: boolean;
+    },
+}));
 
 vi.mock('./useControlsSidebar', () => ({
     useControlsSidebar: () => mockSidebar.current,
@@ -44,14 +54,32 @@ vi.mock('./useControlsSidebar', () => ({
 vi.mock('../../providers/Dashboard/useDashboardContext', () => ({
     default: vi.fn((selector) => selector(mockDashboardContext.current)),
 }));
-vi.mock('./usePortalTargets', () => ({
-    usePortalTargets: (keys: string[], _: unknown, enabled: boolean) =>
-        enabled
-            ? Object.fromEntries(
-                  keys.map((key) => [key, mockContainers.current[key]]),
-              )
-            : {},
-}));
+vi.mock('./usePortalTargets', async () => {
+    const actual =
+        await vi.importActual<PortalTargetsModule>('./usePortalTargets');
+    return {
+        usePortalTargets: (
+            keys: string[],
+            getSelector: (key: string) => string,
+            enabled: boolean,
+            lockSiblings: boolean,
+        ) => {
+            if (mockPortal.isReal)
+                return actual.usePortalTargets(
+                    keys,
+                    getSelector,
+                    enabled,
+                    lockSiblings,
+                );
+            mockPortal.last = { getSelector, lockSiblings };
+            return enabled
+                ? Object.fromEntries(
+                      keys.map((key) => [key, mockContainers.current[key]]),
+                  )
+                : {};
+        },
+    };
+});
 
 const dimension = (name: string, label: string): FilterableDimension => ({
     fieldType: FieldType.DIMENSION,
@@ -90,14 +118,19 @@ const setSidebar = (overrides: Record<string, unknown> = {}) => {
     mockSidebar.current = {
         editingRule: rule(),
         isPlaceholder: false,
+        isViewer: false,
         activeFieldId: null,
-        hoveredFilterId: null,
         ...overrides,
     };
 };
 
+// The fraction as seen; screen readers get the "x of y" label instead
 const badgeText = (tabUuid: string) =>
-    mockContainers.current[tabUuid].textContent;
+    mockContainers.current[tabUuid].querySelector('[aria-hidden="true"]')
+        ?.textContent ?? '';
+
+const waitForTooltip = () =>
+    act(() => new Promise((resolve) => setTimeout(resolve, 150)));
 
 const isBadgeReached = (tabUuid: string) =>
     mockContainers.current[tabUuid]
@@ -114,7 +147,7 @@ const badge = (tabUuid: string) => {
 };
 
 const isBadgeBlue = (tabUuid: string) =>
-    badge(tabUuid).style.getPropertyValue('--badge-color').includes('blue');
+    badge(tabUuid).style.color.includes('blue');
 
 // Seeds the store's SQL chart metadata from `tileStatus` at render time
 const renderWithProviders = (ui: ReactElement) => {
@@ -188,11 +221,11 @@ describe('TabCounts', () => {
     it('counts the filtered tiles out of every tile on each tab', async () => {
         renderWithProviders(<TabCounts />);
 
-        expect(badgeText('tab-1')).toBe('2 of 3');
-        expect(badgeText('tab-2')).toBe('0 of 1');
-        expect(badgeText('tab-empty')).toBe('');
+        expect(badgeText('tab-1')).toBe('2/3');
+        expect(badgeText('tab-2')).toBe('0/1');
+        expect(badgeText('tab-empty')).toBe('0/0');
 
-        await userEvent.hover(screen.getByText('2 of 3'));
+        await userEvent.hover(screen.getByText('2/3'));
         expect(
             await screen.findByText(
                 '2 of 3 tiles on this tab are filtered by this filter',
@@ -221,7 +254,7 @@ describe('TabCounts', () => {
         });
         renderWithProviders(<TabCounts />);
 
-        expect(badgeText('tab-1')).toBe('0 of 1');
+        expect(badgeText('tab-1')).toBe('0/1');
         expect(isBadgeReached('tab-1')).toBe('false');
         expect(isBadgeReached('tab-2')).toBe('true');
     });
@@ -271,10 +304,10 @@ describe('TabCounts', () => {
         });
         renderWithProviders(<TabCounts />);
 
-        expect(badgeText('tab-1')).toBe('0 of 1');
-        expect(badgeText('tab-2')).toBe('1 of 1');
+        expect(badgeText('tab-1')).toBe('0/1');
+        expect(badgeText('tab-2')).toBe('1/1');
 
-        await userEvent.hover(screen.getByText('1 of 1'));
+        await userEvent.hover(screen.getByText('1/1'));
         expect(
             await screen.findByText(
                 '1 of 1 tile on this tab is filtered by Region',
@@ -301,7 +334,7 @@ describe('TabCounts', () => {
         });
         renderWithProviders(<TabCounts />);
 
-        await userEvent.hover(screen.getByText('1 of 1'));
+        await userEvent.hover(screen.getByText('1/1'));
         expect(
             await screen.findByText(
                 '1 of 1 tile on this tab is filtered by Revenue',
@@ -330,7 +363,7 @@ describe('TabCounts', () => {
         });
         renderWithProviders(<TabCounts />);
 
-        await userEvent.hover(screen.getByText('1 of 1'));
+        await userEvent.hover(screen.getByText('1/1'));
         expect(
             await screen.findByText(
                 '1 of 1 tile on this tab is filtered by orders_status',
@@ -349,8 +382,8 @@ describe('TabCounts', () => {
         };
         renderWithProviders(<TabCounts />);
 
-        expect(badgeText('tab-1')).toBe('2 of 3');
-        expect(badgeText('tab-2')).toBe('');
+        expect(badgeText('tab-1')).toBe('2/3');
+        expect(badgeText('tab-2')).toBe('0/0');
     });
 
     it('counts a data app tile while it is on', () => {
@@ -365,14 +398,14 @@ describe('TabCounts', () => {
         };
         withApp();
         const { unmount } = renderWithProviders(<TabCounts />);
-        expect(badgeText('tab-2')).toBe('1 of 2');
+        expect(badgeText('tab-2')).toBe('1/2');
         unmount();
 
         setSidebar({
             editingRule: rule({ tileTargets: { 'tile-app': false } }),
         });
         renderWithProviders(<TabCounts />);
-        expect(badgeText('tab-2')).toBe('0 of 2');
+        expect(badgeText('tab-2')).toBe('0/2');
     });
 
     it('never counts a data app tile as a tile on the active field', () => {
@@ -386,10 +419,10 @@ describe('TabCounts', () => {
         setSidebar({ activeFieldId: 'orders_status' });
         renderWithProviders(<TabCounts />);
 
-        expect(badgeText('tab-1')).toBe('1 of 1');
+        expect(badgeText('tab-1')).toBe('1/1');
     });
 
-    it('renders nothing for a placeholder', () => {
+    it('shows no count for a placeholder, but keeps its width', () => {
         setSidebar({
             editingRule: rule({ target: { fieldId: '', tableName: '' } }),
             isPlaceholder: true,
@@ -397,67 +430,198 @@ describe('TabCounts', () => {
         renderWithProviders(<TabCounts />);
 
         TAB_UUIDS.forEach((tabUuid) => expect(badgeText(tabUuid)).toBe(''));
+        expect(badge('tab-1')).toHaveAttribute('data-reserve', '3/3');
     });
 
-    it('renders nothing when no control is edited', () => {
+    it('shows a full reach as a whole fraction', () => {
+        setSidebar({
+            editingRule: rule({
+                target: { fieldId: 'orders_region', tableName: 'orders' },
+            }),
+        });
+        renderWithProviders(<TabCounts />);
+
+        expect(badgeText('tab-2')).toBe('1/1');
+    });
+
+    // Every count fits the width of every tile on its tab, so no count reflows the tabs
+    it('reserves the width of every tile on the tab, whatever is active', () => {
+        const { rerender } = renderWithProviders(<TabCounts />);
+        expect(badge('tab-1')).toHaveAttribute('data-reserve', '3/3');
+        expect(badge('tab-2')).toHaveAttribute('data-reserve', '1/1');
+        expect(badge('tab-empty')).toHaveAttribute('data-reserve', '0/0');
+
+        setSidebar({ activeFieldId: 'orders_region' });
+        rerender(<TabCounts />);
+        expect(badgeText('tab-1')).toBe('0/1');
+        expect(badge('tab-1')).toHaveAttribute('data-reserve', '3/3');
+    });
+
+    // Edit mode keeps every count's space, so opening a filter reflows no tab
+    it('keeps an empty, reserved slot on every tab in edit mode while no filter is open', async () => {
         setSidebar({ editingRule: null });
         renderWithProviders(<TabCounts />);
 
-        TAB_UUIDS.forEach((tabUuid) => expect(badgeText(tabUuid)).toBe(''));
+        TAB_UUIDS.forEach((tabUuid) => {
+            expect(badgeText(tabUuid)).toBe('');
+            expect(mockContainers.current[tabUuid].textContent).toBe('');
+        });
+        expect(badge('tab-1')).toHaveAttribute('data-reserve', '3/3');
+        expect(badge('tab-empty')).toHaveAttribute('data-reserve', '0/0');
+
+        await userEvent.hover(badge('tab-1'));
+        await waitForTooltip();
+        expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
     });
 
-    describe("a hovered pill's filter while none is edited", () => {
-        beforeEach(() => {
-            mockDashboardContext.current = {
-                ...mockDashboardContext.current,
-                dashboardFilters: {
-                    dimensions: [rule({ id: 'hovered' })],
-                    metrics: [],
-                    tableCalculations: [],
-                },
-            };
+    it("renders nothing on a viewer's dashboard while no filter is open", () => {
+        setSidebar({ editingRule: null, isViewer: true });
+        renderWithProviders(<TabCounts />);
+
+        TAB_UUIDS.forEach((tabUuid) =>
+            expect(mockContainers.current[tabUuid].childElementCount).toBe(0),
+        );
+    });
+
+    it("adds no slot for a viewer's new filter until a field is picked", () => {
+        setSidebar({
+            editingRule: rule({ target: { fieldId: '', tableName: '' } }),
+            isPlaceholder: true,
+            isViewer: true,
         });
+        renderWithProviders(<TabCounts />);
 
-        it('shows its counts as the editor does at rest', () => {
-            setSidebar({
-                editingRule: null,
-                hoveredFilterId: 'hovered',
-                activeFieldId: 'orders_region',
-            });
-            renderWithProviders(<TabCounts />);
+        TAB_UUIDS.forEach((tabUuid) =>
+            expect(mockContainers.current[tabUuid].childElementCount).toBe(0),
+        );
+    });
 
-            expect(badgeText('tab-1')).toBe('2 of 3');
-            expect(badgeText('tab-2')).toBe('0 of 1');
-            expect(isBadgeReached('tab-1')).toBe('true');
-            expect(badge('tab-1')).toHaveAttribute(
-                'data-field-active',
-                'false',
+    // An editor's tab keeps the shipped width cap, so a long name still truncates
+    it("keeps the tab's width cap in edit mode only", () => {
+        const { unmount } = renderWithProviders(<TabCounts />);
+        expect(badge('tab-1')).toHaveAttribute('data-capped');
+        unmount();
+
+        setSidebar({ isViewer: true });
+        renderWithProviders(<TabCounts />);
+        expect(badge('tab-1')).not.toHaveAttribute('data-capped');
+    });
+
+    describe("an editor's slot, shared with the tab menu", () => {
+        it("goes into the tab's trailing section in edit mode, the tab itself for a viewer", () => {
+            renderWithProviders(<TabCounts hasTabSlots />);
+            expect(mockPortal.last?.getSelector('tab-1')).toContain(
+                "> [data-position='right']",
             );
-            expect(isBadgeBlue('tab-1')).toBe(false);
+            expect(badge('tab-1')).toHaveAttribute('data-controls-overlay');
+
+            setSidebar({ isViewer: true });
+            renderWithProviders(<TabCounts hasTabSlots />);
+            expect(mockPortal.last?.getSelector('tab-1')).not.toContain(
+                'data-position',
+            );
         });
 
-        it('clears once the hover ends', () => {
-            setSidebar({ editingRule: null, hoveredFilterId: 'hovered' });
-            const { rerender } = renderWithProviders(<TabCounts />);
-            expect(badgeText('tab-1')).toBe('2 of 3');
+        // Locking makes the menu beside the count inert: hidden and out of the tab order
+        it('takes the menu out while a filter is open, and gives it back at rest', () => {
+            const { rerender } = renderWithProviders(<TabCounts hasTabSlots />);
+            expect(mockPortal.last?.lockSiblings).toBe(true);
 
-            setSidebar({ editingRule: null, hoveredFilterId: null });
-            rerender(<TabCounts />);
-            TAB_UUIDS.forEach((tabUuid) => expect(badgeText(tabUuid)).toBe(''));
+            setSidebar({ editingRule: null });
+            rerender(<TabCounts hasTabSlots />);
+            expect(mockPortal.last?.lockSiblings).toBe(false);
         });
 
-        it('never shows while a filter is edited', () => {
+        it('takes the menu out for a new filter too', () => {
             setSidebar({
-                editingRule: rule({
-                    target: { fieldId: 'orders_region', tableName: 'orders' },
-                }),
-                hoveredFilterId: 'hovered',
+                editingRule: rule({ target: { fieldId: '', tableName: '' } }),
+                isPlaceholder: true,
             });
+            renderWithProviders(<TabCounts hasTabSlots />);
+            expect(mockPortal.last?.lockSiblings).toBe(true);
+        });
+
+        it("never locks a viewer's tabs", () => {
+            setSidebar({ isViewer: true });
+            renderWithProviders(<TabCounts hasTabSlots />);
+            expect(mockPortal.last?.lockSiblings).toBe(false);
+        });
+    });
+
+    // The real target lookup, against the tabs each host renders
+    describe('real tab markup', () => {
+        beforeEach(() => {
+            mockPortal.isReal = true;
+            document.body.innerHTML = '';
+        });
+        afterEach(() => {
+            mockPortal.isReal = false;
+        });
+
+        // Mantine's ids are "<tabsId>-tab-<value>"
+        const tabMarkup = (withSlot: boolean) =>
+            TAB_UUIDS.map(
+                (uuid) =>
+                    `<div data-quiet-actions><button role="tab" id="t-tab-${uuid}"><span class="mantine-Tabs-tabLabel">${uuid}</span>${
+                        withSlot
+                            ? '<span data-position="right"><span role="button" aria-haspopup="menu">menu</span></span>'
+                            : ''
+                    }</button></div>`,
+            ).join('');
+        const embedMarkup = () =>
+            TAB_UUIDS.map(
+                (uuid) =>
+                    `<button role="tab" id="t-tab-${uuid}"><span>${uuid}</span></button>`,
+            ).join('');
+        const mount = (html: string) => {
+            const list = document.createElement('div');
+            list.setAttribute('role', 'tablist');
+            list.innerHTML = html;
+            document.body.appendChild(list);
+        };
+        const tab = (uuid: string) =>
+            document.getElementById(`t-tab-${uuid}`) as HTMLElement;
+
+        it("puts an embed editor's count in the tab node, which has no slot", () => {
+            mount(embedMarkup());
             renderWithProviders(<TabCounts />);
 
-            expect(badgeText('tab-1')).toBe('1 of 3');
-            expect(badgeText('tab-2')).toBe('1 of 1');
+            const count = tab('tab-1').querySelector('[data-reserve]');
+            expect(count?.parentElement).toBe(tab('tab-1'));
+            expect(count).toHaveAttribute('data-capped');
+            expect(count?.textContent).toContain('2/3');
+            expect(tab('tab-1').querySelector('[inert]')).toBeNull();
         });
+
+        it("puts the app editor's count beside the menu, and locks the menu while a filter is open", () => {
+            mount(tabMarkup(true));
+            renderWithProviders(<TabCounts hasTabSlots />);
+
+            const slot = tab('tab-1').querySelector('[data-position="right"]');
+            expect(slot?.querySelector('[data-reserve]')).not.toBeNull();
+            expect(
+                slot?.querySelector('[aria-haspopup="menu"]'),
+            ).toHaveAttribute('inert');
+            expect(
+                tab('tab-1').querySelector('.mantine-Tabs-tabLabel'),
+            ).not.toHaveAttribute('inert');
+        });
+    });
+
+    it('labels the fraction for screen readers in words', () => {
+        renderWithProviders(<TabCounts />);
+
+        expect(badgeText('tab-1')).toBe('2/3');
+        expect(mockContainers.current['tab-1'].textContent).toContain('2 of 3');
+    });
+
+    it('shows no tooltip on a tab with no tile', async () => {
+        renderWithProviders(<TabCounts />);
+
+        expect(badgeText('tab-empty')).toBe('0/0');
+        await userEvent.hover(badge('tab-empty'));
+        await waitForTooltip();
+        expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
     });
 
     describe('the active tab past the strip', () => {
@@ -494,6 +658,35 @@ describe('TabCounts', () => {
             expect(tab.scrollIntoView).not.toHaveBeenCalled();
             expect(scrollTo).not.toHaveBeenCalled();
             scrollTo.mockRestore();
+        });
+
+        it('scrolls to the active tab at rest in edit mode', () => {
+            const { list } = clipTab();
+            setSidebar({ editingRule: null });
+            renderWithProviders(<TabCounts />);
+
+            expect(list.scrollLeft).toBe(100);
+        });
+
+        it('never scrolls again when an editor switches filters', () => {
+            const { list } = clipTab();
+            const { rerender } = renderWithProviders(<TabCounts />);
+            list.scrollLeft = 0;
+            setSidebar({ editingRule: rule({ id: 'other' }) });
+            rerender(<TabCounts />);
+
+            expect(list.scrollLeft).toBe(0);
+        });
+
+        it("scrolls when a viewer's filter widens the tabs", () => {
+            const { list } = clipTab();
+            setSidebar({ editingRule: null, isViewer: true });
+            const { rerender } = renderWithProviders(<TabCounts />);
+            expect(list.scrollLeft).toBe(0);
+
+            setSidebar({ isViewer: true });
+            rerender(<TabCounts />);
+            expect(list.scrollLeft).toBe(100);
         });
 
         it('scrolls once while the edited filter stays', () => {

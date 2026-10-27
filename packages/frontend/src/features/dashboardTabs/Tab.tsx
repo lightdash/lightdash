@@ -25,6 +25,8 @@ type DraggableTabProps = {
     handleDeleteTab: (tabUuid: string) => void;
     handleDuplicateTab: (tabUuid: string) => void;
     handleToggleTabHidden: (tabUuid: string) => void;
+    /** In edit mode: no grip (the tab drags), and one trailing slot whose menu shows on the active, hovered or focused tab. */
+    hasQuietActions?: boolean;
 };
 
 const DraggableTab: FC<DraggableTabProps> = ({
@@ -38,16 +40,33 @@ const DraggableTab: FC<DraggableTabProps> = ({
     handleDuplicateTab,
     handleToggleTabHidden,
     setDeletingTab,
+    hasQuietActions = false,
 }) => {
-    const { ref, isTruncated } = useIsTruncated('span');
+    // The grip is the tab's first span in edit mode: a quiet tab reads its label
+    const { ref, isTruncated } = useIsTruncated(
+        hasQuietActions ? '.mantine-Tabs-tabLabel' : 'span',
+    );
 
     return (
-        <Draggable key={tab.uuid} draggableId={tab.uuid} index={idx}>
-            {(provided) => (
+        <Draggable
+            key={tab.uuid}
+            draggableId={tab.uuid}
+            index={idx}
+            // With no grip the tab, a button, is the handle
+            disableInteractiveElementBlocking={isEditMode && hasQuietActions}
+        >
+            {(provided, snapshot) => (
                 <div
                     ref={provided.innerRef}
                     {...provided.draggableProps}
                     {...provided.dragHandleProps}
+                    // On the wrapper: it is the tab's first focus stop
+                    data-quiet-actions={
+                        (isEditMode && hasQuietActions) || undefined
+                    }
+                    data-dragging={
+                        (hasQuietActions && snapshot.isDragging) || undefined
+                    }
                 >
                     <Tooltip
                         label={tab.name}
@@ -72,7 +91,8 @@ const DraggableTab: FC<DraggableTabProps> = ({
                                 },
                             }}
                             leftSection={
-                                isEditMode ? (
+                                // A quiet tab is its own handle: no grip
+                                isEditMode && !hasQuietActions ? (
                                     <ActionIcon
                                         {...provided.dragHandleProps}
                                         size="xs"

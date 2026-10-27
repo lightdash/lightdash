@@ -400,6 +400,7 @@ export const DEFAULT_UI_STRINGS = {
     'filters.rail.fieldCount.singular': '{count} field',
     'filters.rail.fieldCount.plural': '{count} fields',
     'filters.rail.countOf': '{applied} of {total}',
+    'filters.rail.tabFraction': '{applied}/{total}',
     'filters.rail.searchFields': 'Search fields',
     'filters.rail.startHint':
         'Select the field to filter tiles by, or pick one on a tile.',

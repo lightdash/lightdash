@@ -1,26 +1,46 @@
-/* Counts swap with no fade: every badge changes at once while rows are
-   hovered. Tabular figures keep them from jittering */
+/* Counts swap with no fade: they change as rows are hovered. Tabular figures
+   keep them from jittering */
 .count {
     --controls-ease: ease-in-out;
     --controls-duration-state: 0.15s;
 
+    display: inline-grid;
     flex-shrink: 0;
     margin-inline-start: var(--mantine-spacing-xs);
-    text-transform: none;
     font-variant-numeric: tabular-nums;
+    white-space: nowrap;
     animation: fadeIn var(--controls-duration-state) var(--controls-ease);
+
+    /* The widest count the tab can show holds the space, unseen, so a count
+       that changes never reflows the tabs */
+    &::before {
+        content: attr(data-reserve);
+        visibility: hidden;
+        grid-area: 1 / 1;
+    }
+
+    > * {
+        grid-area: 1 / 1;
+    }
 }
 
-/* A tab with a count keeps its natural width, so the strip scrolls instead of
-   squeezing the name. In the app the tab sits in a draggable wrapper */
-[role='tablist'] > :has(> [role='tab'] > .count) {
+/* In an editor's slot the tab section's own gap spaces it from the name */
+[data-position='right'] > .count {
+    margin-inline-start: 0;
+}
+
+/* A viewer's tab with a count keeps its natural width, so the strip scrolls
+   instead of squeezing the name. An editor's (`data-capped`) keeps the
+   shipped cap: the name truncates and the count never shrinks. In the app the
+   tab sits in a draggable wrapper */
+[role='tablist'] > :has(> [role='tab'] > .count:not([data-capped])) {
     flex-shrink: 0;
 }
 
 /* An embed's tab has no wrapper. The shipped tab caps its width at a share
    of the viewport, which leaves a narrow screen one letter of the name
    beside the count; its inline cap reads this variable first */
-[role='tab']:has(> .count) {
+[role='tab']:has(> .count:not([data-capped])) {
     --dashboard-tab-max-width: none;
     flex-shrink: 0;
 }
