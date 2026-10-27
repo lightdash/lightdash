@@ -280,6 +280,28 @@ describe('AzureSandboxExecChannel', () => {
         });
     });
 
+    describe('detached drain after exit', () => {
+        it('keeps draining a full chunk past the deadline once the exit code has landed', async () => {
+            const full = 'x'.repeat(4 * 1024 * 1024);
+            fetchMock
+                .mockResolvedValueOnce(execJson({})) // start
+                .mockResolvedValueOnce(tickResponse('0', full)) // exit + full chunk
+                .mockResolvedValueOnce(tickResponse('0', 'tail')) // drained
+                .mockResolvedValue(execJson({}));
+
+            const result = await makeChannel({
+                detachedThresholdMs: 10,
+                pollIntervalMs: 40,
+            }).commands.run('cmd', { timeoutMs: 60 });
+
+            expect(result.stdout).toBe(`${full}tail`);
+            expect(result.exitCode).toBe(0);
+            expect(requestBodies().some((body) => body.includes('kill'))).toBe(
+                false,
+            );
+        });
+    });
+
     describe('output limits', () => {
         it('caps buffered output inside the sandbox and rejects output over maxOutputBytes', async () => {
             fetchMock.mockResolvedValue(

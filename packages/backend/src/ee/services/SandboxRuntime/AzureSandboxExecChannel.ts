@@ -420,10 +420,13 @@ export class AzureSandboxExecChannel {
         let stdout = '';
         let stderr = '';
         let consecutiveFailures = 0;
+        // Once the exit code has landed the process is gone; the deadline no
+        // longer applies while remaining output is drained.
+        let exitObserved = false;
 
         for (;;) {
             const elapsedMs = Date.now() - startedAt;
-            if (elapsedMs >= options.timeoutMs) {
+            if (!exitObserved && elapsedMs >= options.timeoutMs) {
                 // Best-effort stop; without it the process would outlive the
                 // timeout exactly like the gateway-504 case this replaces.
                 // eslint-disable-next-line no-await-in-loop
@@ -477,6 +480,7 @@ export class AzureSandboxExecChannel {
                 await this.killDetachedProcessGroup(runDir);
                 throw new SandboxOutputLimitError(options.maxOutputBytes);
             }
+            if (tick.exitCode !== null) exitObserved = true;
             outOffset += tick.out.length;
             errOffset += tick.err.length;
             const outText = outDecoder.write(tick.out);
