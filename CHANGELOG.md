@@ -1,3 +1,10 @@
+# [3.69.0](https://github.com/lightdash/lightdash/compare/3.68.7...3.69.0) (2026-10-27)
+
+
+### Features
+
+* **ai-agent:** inline query node references in composer answers ([#31646](https://github.com/lightdash/lightdash/issues/31646)) ([908677c](https://github.com/lightdash/lightdash/commit/908677c873b69ea0c8791c2ae629496d1e5e5339))
+
 ## [3.68.7](https://github.com/lightdash/lightdash/compare/3.68.6...3.68.7) (2026-10-27)
 
 
