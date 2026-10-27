@@ -1,3 +1,10 @@
+## [3.73.1](https://github.com/lightdash/lightdash/compare/3.73.0...3.73.1) (2026-10-27)
+
+
+### Bug Fixes
+
+* preserve Trino transport failure diagnostics ([#31682](https://github.com/lightdash/lightdash/issues/31682)) ([0551e2f](https://github.com/lightdash/lightdash/commit/0551e2f44de4ff41d758dcd0d0d23723b438ae7f))
+
 # [3.73.0](https://github.com/lightdash/lightdash/compare/3.72.0...3.73.0) (2026-10-27)
 
 
