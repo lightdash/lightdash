@@ -145,8 +145,7 @@ const getPendingActionModalConfig = (
     }
 };
 
-const MANAGED_BY_CODE_LABEL =
-    'Managed by Content as Code. Change it in your repository and upload it again.';
+const MANAGED_BY_CODE_LABEL = 'Managed by Content as Code';
 
 type FileRowProps = {
     icon: typeof IconFileText;
@@ -199,11 +198,7 @@ const FileRow = ({
                         </Tooltip>
                     )}
                     {managed && (
-                        <Tooltip
-                            label={MANAGED_BY_CODE_LABEL}
-                            multiline
-                            w={260}
-                        >
+                        <Tooltip label={MANAGED_BY_CODE_LABEL}>
                             <MantineIcon
                                 icon={IconCode}
                                 color="dimmed"
@@ -676,14 +671,6 @@ export const AiAgentKnowledgeFilesSection = ({
                                                         selectedDocument.managedByContentAsCode
                                                             ? MANAGED_BY_CODE_LABEL
                                                             : 'Delete document'
-                                                    }
-                                                    multiline={
-                                                        selectedDocument.managedByContentAsCode
-                                                    }
-                                                    w={
-                                                        selectedDocument.managedByContentAsCode
-                                                            ? 260
-                                                            : undefined
                                                     }
                                                 >
                                                     <ActionIcon

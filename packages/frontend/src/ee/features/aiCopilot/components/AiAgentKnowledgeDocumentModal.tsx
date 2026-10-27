@@ -140,9 +140,7 @@ const LoadedDocumentModal = ({
                             Download
                         </Button>
                         <Tooltip
-                            label="Managed by Content as Code. Change it in your repository and upload it again."
-                            multiline
-                            w={260}
+                            label="Managed by Content as Code"
                             disabled={!document.managedByContentAsCode}
                         >
                             <Button
