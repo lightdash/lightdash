@@ -145,8 +145,8 @@
                 }
             }
         },
-        "oauth-credential-minting-refused-cli-login-needs-3-57": {
-            "reason": "OAuth bearer tokens are now limited to their granted scopes on every request. They can no longer create personal access tokens, service accounts, SCIM tokens or OAuth clients. Browser login with lightdash login in CLI versions before 3.57.0 fails with \"Failed to create PAT: 403 Forbidden\". Upgrade the CLI to 3.57.0 or later, or log in with lightdash login --token followed by a personal access token. Existing personal access tokens keep working. Token and email logins are unchanged. There is no database change and no required stop.",
+        "oauth-credential-minting-refused-cli-browser-login-needs-personal-oauth": {
+            "reason": "OAuth bearer tokens are now limited to their granted scopes on every request. They can no longer create personal access tokens, service accounts, SCIM tokens or OAuth clients. Browser login with lightdash login in CLI releases that still create a personal access token from the OAuth token fails with \"Failed to create PAT: 403 Forbidden\". Upgrade the CLI to a release that includes personal OAuth login, or log in with lightdash login --token followed by a personal access token. Existing personal access tokens keep working. Token and email logins are unchanged. There is no database change and no required stop.",
             "requiredStop": false
         }
     }
