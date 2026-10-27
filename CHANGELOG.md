@@ -1,3 +1,15 @@
+## [3.69.1](https://github.com/lightdash/lightdash/compare/3.69.0...3.69.1) (2026-10-27)
+
+
+### Bug Fixes
+
+* open date formatting controls for date dimensions with a YAML format ([#31655](https://github.com/lightdash/lightdash/issues/31655)) ([c918c6a](https://github.com/lightdash/lightdash/commit/c918c6adc09de6f3bc20557e11b970f9237b8fbb))
+
+
+### Reverts
+
+* inline query node references in composer answers ([#31646](https://github.com/lightdash/lightdash/issues/31646)) ([#31662](https://github.com/lightdash/lightdash/issues/31662)) ([de96c80](https://github.com/lightdash/lightdash/commit/de96c800360a6a29d184cc8c5032672bf7ccca32))
+
 # [3.69.0](https://github.com/lightdash/lightdash/compare/3.68.7...3.69.0) (2026-10-27)
 
 
