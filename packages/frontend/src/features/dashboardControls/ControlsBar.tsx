@@ -8,6 +8,7 @@ import FilterRequirementsButton from '../dashboardFilters/FilterRequirements/Fil
 import { AddControl, InertWhileEditing } from './AddControl';
 import { FilterPills } from './FilterPills';
 import { SectionedFilters } from './SectionedFilters';
+import { SectionsTip } from './SectionsTip';
 import { useControlsSidebarSelector } from './useControlsSidebar';
 
 type Props = Omit<
@@ -28,24 +29,27 @@ export const ControlsBar: FC<Props> = (props) => {
         </InertWhileEditing>
     );
     return (
-        <DashboardFiltersBar
-            {...props}
-            // The rail is on the page: a drawer over it would hide it
-            isCompactDrawerSuppressed={isSidebarOpen}
-            filterArea={
-                // An editor's bar is always sectioned: its caret adds the first section
-                hasSections || props.isEditMode ? (
-                    <SectionedFilters activeTabUuid={props.activeTabUuid}>
-                        {requirements}
-                    </SectionedFilters>
-                ) : (
-                    <>
-                        <AddControl />
-                        <FilterPills activeTabUuid={props.activeTabUuid} />
-                        {requirements}
-                    </>
-                )
-            }
-        />
+        <>
+            {props.isEditMode && <SectionsTip />}
+            <DashboardFiltersBar
+                {...props}
+                // The rail is on the page: a drawer over it would hide it
+                isCompactDrawerSuppressed={isSidebarOpen}
+                filterArea={
+                    // An editor's bar is always sectioned: its selection starts the first section
+                    hasSections || props.isEditMode ? (
+                        <SectionedFilters activeTabUuid={props.activeTabUuid}>
+                            {requirements}
+                        </SectionedFilters>
+                    ) : (
+                        <>
+                            <AddControl />
+                            <FilterPills activeTabUuid={props.activeTabUuid} />
+                            {requirements}
+                        </>
+                    )
+                }
+            />
+        </>
     );
 };

@@ -1,7 +1,5 @@
-import { Box, Button, Divider, Menu, Tooltip } from '@mantine/core';
-import { IconChevronDown } from '@tabler/icons-react';
+import { Box } from '@mantine/core';
 import { type FC, type ReactNode } from 'react';
-import MantineIcon from '../../components/common/MantineIcon';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import AddFilterButton from '../dashboardFilters/AddFilterButton';
 import classes from './FilterPills.module.css';
@@ -31,38 +29,7 @@ type Props = {
     triggerClassName?: string;
     /** The viewer bar's tooltip (default: the shipped app wording). */
     unsavedFiltersTooltip?: string;
-    /** An editor's sectioned bar: the caret menu's "Add section" (default none). */
-    onAddSection?: () => void;
 };
-
-// Joined between "Add filter" and the eye: a caret opening "Add section"
-const AddMoreMenu: FC<{ onAddSection: () => void }> = ({ onAddSection }) => (
-    <>
-        <Divider orientation="vertical" />
-        {/* Focus goes to the new section's name input */}
-        <Menu position="bottom-start" returnFocus={false}>
-            <Menu.Target>
-                <Tooltip label="More ways to add">
-                    {/* The middle of the joined group: square, as the shipped
-                        trigger and eye are on their joined sides */}
-                    <Button
-                        size="xs"
-                        variant="default"
-                        radius={0}
-                        className={classes.addMore}
-                        aria-label="More ways to add"
-                        data-controls-add-more
-                    >
-                        <MantineIcon icon={IconChevronDown} />
-                    </Button>
-                </Tooltip>
-            </Menu.Target>
-            <Menu.Dropdown>
-                <Menu.Item onClick={onAddSection}>Add section</Menu.Item>
-            </Menu.Dropdown>
-        </Menu>
-    </>
-);
 
 // The bar's shipped "Add filter" button, which starts a new filter in the
 // rail. An editor's carries the shipped eye that hides it from viewers; a
@@ -71,7 +38,6 @@ const AddMoreMenu: FC<{ onAddSection: () => void }> = ({ onAddSection }) => (
 export const AddControl: FC<Props> = ({
     triggerClassName,
     unsavedFiltersTooltip,
-    onAddSection,
 }) => {
     const openNew = useControlsSidebarSelector((c) => c.openNew);
     const canAddFilters = useControlsSidebarSelector((c) => c.canAddFilters);
@@ -86,11 +52,6 @@ export const AddControl: FC<Props> = ({
                 isEditMode={!isViewer}
                 triggerClassName={triggerClassName}
                 unsavedFiltersTooltip={unsavedFiltersTooltip}
-                attachedSlot={
-                    onAddSection !== undefined && !isViewer ? (
-                        <AddMoreMenu onAddSection={onAddSection} />
-                    ) : undefined
-                }
                 activeTabUuid={undefined}
                 openPopoverId={undefined}
                 onPopoverOpen={() => openNew()}

@@ -55,8 +55,6 @@ behaviour. All but the first are in `features/dashboardFilters/`.
 - `dashboardTabs/Tab.tsx` and the embed's tabs in `EmbedDashboard.tsx`: the
   inline `maw` reads `--dashboard-tab-max-width` first, falling back to
   today's share of the viewport. Nothing sets it outside the tab counts.
-- `AddFilterButton`: `attachedSlot` (default none), rendered in edit mode
-  between the trigger and the eye, so the caret joins the shipped group.
 - `DashboardFiltersBar`: `filterArea`, which replaces the shipped filters and
   the requirements button (default: both, as today), and
   `isCompactDrawerSuppressed` (default false): on a narrow screen the bar is
@@ -134,8 +132,10 @@ In `FilterConfiguration/`:
 - `ControlsBar` is the shipped `DashboardFiltersBar` with its openings,
   `filterArea`: the slot that replaces `DashboardFilters` and the
   requirements button. In edit mode it is always `SectionedFilters` (sections
-  or not, so the caret can add the first one) followed by the shipped
-  requirements button; in view mode `AddControl` and `FilterPills` only, as
+  or not, so a selection can start the first one) followed by the shipped
+  requirements button, and `SectionsTip` renders before the shipped bar as
+  its full-width first row (`ControlsBar` returns both, so the bar's own
+  layout is untouched); in view mode `AddControl` and `FilterPills` only, as
   the shipped view bar has no requirements button, or `SectionedFilters`
   once the dashboard has sections (see "Sections"). The
   bar is the list of filters: it stays on screen while a filter is edited,
@@ -147,7 +147,7 @@ In `FilterConfiguration/`:
   a `display: contents` box carrying `inert`; `.inert` in
   `FilterPills.module.css` is the one dimming rule, shared with the capsule
   actions and the header guard)
-  wraps the "Add filter" group (caret and eye included) and the
+  wraps the "Add filter" group (eye included) and the
   requirements button; each capsule's name, + and menu carry `inert`
   themselves.
   Dragging and the multi-select are off. The pills stay live (see
@@ -156,12 +156,7 @@ In `FilterConfiguration/`:
 - `AddControl` is the shipped `AddFilterButton`: the dashed button with its
   disabled and loading states, no icon, always "Add filter" (`openNew`). On
   an editor's bar it carries the shipped eye ("Toggle filter visibility for
-  viewers"), which writes `setIsAddFilterDisabled` as shipped. Given
-  `onAddSection` (the sectioned bar passes it, for an editor only) it joins
-  a caret between the two through `attachedSlot`: a `Divider`, then an `xs`
-  `default` `Button` with a chevron ("More ways to add",
-  `data-controls-add-more`, radius 0, `.addMore` dashed with no side borders,
-  the dividers drawing them) opening a `Menu` with one item, "Add section".
+  viewers"), which writes `setIsAddFilterDisabled` as shipped.
   On a viewer's
   bar it is the shipped view-mode button, with the reset-all button attached
   once filters changed (`resetDashboardFilters`), and nothing but that reset
@@ -1153,17 +1148,29 @@ the language map, as tab names are.
   `isCollapsedByDefault`, a toggle saves the opposite; remove dispatches
   `removeControlSection` and, with members, one `setDashboardFilters` over
   `removeSectionFromRules` plus `setHaveFiltersChanged(true)`; focus then
-  goes to the caret by "Add filter"). "Add
-  section" in the caret's menu by "Add filter" puts `NewSection` after the
-  last capsule: a capsule holding a focused, empty `SectionNameInput`
-  ("Section name"); Enter or blur with a name dispatches `addControlSection`
-  (a new uuid, appended last), Escape or an empty name drops it. There is no
-  standalone "Add section" button. Focus returns to the name button after a
-  rename (`useRefocusAfter`), and to the caret (`[data-controls-add-more]`)
-  once `NewSection` unmounts, both only when focus fell to `body`, so a blur
-  by click keeps where it went. While a filter is edited the name and the
-  `.actions` group carry `inert` (the group dimmed by the shared `.inert`
-  rule) and the caret is inert with "Add filter"; the chevron still folds.
+  goes to "Add filter"). A section starts from a selection only: "Move to
+  new section" on the selection bar (or "New section" in its "Move to")
+  puts `NewSection` after the last capsule: a capsule holding a focused,
+  empty `SectionNameInput` ("Section name"); Enter or blur with a name
+  dispatches `addControlSection` (a new uuid, appended last) and moves the
+  selection in, Escape or an empty name drops it. There is no standalone
+  "Add section" button and no menu on "Add filter", so with fewer than two
+  filters there is no way in. Focus returns to the name button after a
+  rename (`useRefocusAfter`), and to "Add filter" once `NewSection`
+  unmounts, both only when focus fell to `body`, so a blur by click keeps
+  where it went. While a filter is edited the name and the `.actions` group
+  carry `inert` (the group dimmed by the shared `.inert` rule); the chevron
+  still folds.
+- `SectionsTip` teaches that gesture: an editor's first row above the bar
+  (`px="lg"` as the bar), a dimmed bulb, `xs` dimmed "Tip: ⌘ click filters
+  to select them, then Move to new section to put them in a section."
+  ("Ctrl" off mac, `useOs`, as the pill's tooltip) and an X ("Dismiss
+  tip"). It shows while the dashboard has no section and at least two
+  filters (dimensions and metrics) and has not been dismissed; the
+  dismissal is Mantine's `useLocalStorage`
+  (`dashboard-controls-sections-tip-dismissed`, per browser; it swallows a
+  blocked storage, so the tip shows again). The first section hides it,
+  derived from the store. Editor-only and literal.
   A capsule whose section differs from the saved dashboard
   (`dashboard.config.controlSections`: not there, another name, or another
   way to start, read through `isCollapsedByDefault` so no key and its
@@ -1231,7 +1238,9 @@ the language map, as tab names are.
   (`isSelectable` is off), so one Escape does one thing. While something is
   picked and nothing is edited, `SelectionBar` floats where the field bar does (`useBarHost.ts`, moved out of `FieldTilesBar`, and
   the `.bar` surface from `FieldTilesBar`): "{n} selected", a dimmed `sm`
-  "Shift click for a range", then `SelectionActions` ("Move to": "New
+  "Shift click for a range", then `SelectionActions` ("Move to new
+  section", an `xs` `light` `Button` with a folder icon that starts the
+  same naming as the menu's "New section"; "Move to": "New
   section" first, then each section with a dimmed "· n" member count, then
   "No section" under a divider; and "Remove", an `xs` subtle red `Button`
   like "Move to", whose first click arms it to read "Remove n filters" and
