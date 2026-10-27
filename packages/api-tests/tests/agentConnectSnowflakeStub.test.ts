@@ -340,29 +340,34 @@ describe.skipIf(!stubUrl)(
             });
         });
 
-        it('offers an agent connection on consent only to an unconnected person', async () => {
-            const { client } = await loginWithPermissions('member', [
-                { role: 'admin', projectUuid: projectUuid! },
-            ]);
-            people.push(client);
-            const access = await client.get<Body<AiAccessForUser>>(
-                `/api/v2/projects/${projectUuid}/ai-access/me`,
-            );
-            expect(access.body.results.refusal?.reason).toBe(
-                AiAccessRefusalReason.NEEDS_SIGN_IN,
-            );
-            const authorizePath =
-                '/api/v1/oauth/authorize?client_id=lightdash-cli&redirect_uri=http%3A%2F%2Flocalhost%3A4321%2Fcallback&response_type=code&state=s&scope=read&code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM&code_challenge_method=S256';
-            const refusedPage = await client.get<string>(authorizePath);
-            expect(refusedPage.status).toBe(200);
-            expect(refusedPage.body).toContain('Connect your warehouse agent');
-            expect(refusedPage.body).toContain(
-                '/api/v1/login/snowflake-ai?redirect&#x3D;',
-            );
-            const connectedPage = await person!.get<string>(authorizePath);
-            expect(connectedPage.status).toBe(200);
-            expect(connectedPage.body).not.toContain('warehouse agent');
-        });
+        it.each(['read', 'mcp:read', 'mcp:write'])(
+            'omits the agent connection on consent for scope %s',
+            async (scope) => {
+                const { client } = await loginWithPermissions('member', [
+                    { role: 'admin', projectUuid: projectUuid! },
+                ]);
+                people.push(client);
+                const access = await client.get<Body<AiAccessForUser>>(
+                    `/api/v2/projects/${projectUuid}/ai-access/me`,
+                );
+                expect(access.body.results.refusal?.reason).toBe(
+                    AiAccessRefusalReason.NEEDS_SIGN_IN,
+                );
+                const authorizePath = `/api/v1/oauth/authorize?client_id=lightdash-cli&redirect_uri=http%3A%2F%2Flocalhost%3A4321%2Fcallback&response_type=code&state=s&scope=${encodeURIComponent(scope)}&code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM&code_challenge_method=S256`;
+                const refusedPage = await client.get<string>(authorizePath);
+                expect(refusedPage.status).toBe(200);
+                expect(refusedPage.body).not.toContain('warehouse agent');
+                expect(refusedPage.body).not.toContain(
+                    '/api/v1/login/snowflake-ai',
+                );
+                expect(refusedPage.body).toContain(
+                    'name="approve" value="true"',
+                );
+                const connectedPage = await person!.get<string>(authorizePath);
+                expect(connectedPage.status).toBe(200);
+                expect(connectedPage.body).not.toContain('warehouse agent');
+            },
+        );
 
         it('refreshes successfully after the stored grant deadline', async () => {
             const { client } = await loginWithPermissions('member', [

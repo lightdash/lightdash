@@ -163,19 +163,6 @@ const OAUTH_REDIRECT_TEMPLATE = `
 `;
 
 // OAuth authorization page template
-export const getAgentConnectErrorMessage = (code: string): string => {
-    switch (code) {
-        case 'not_agent_session':
-            return 'Your Snowflake sign-in is not an agent session. Ask your Snowflake admin to set IS_AGENTIC = TRUE on the security integration used for agents.';
-        case 'no_refresh_token':
-            return 'Snowflake did not return a refresh token. Try again.';
-        case 'license_required':
-            return 'An enterprise licence is required.';
-        default:
-            return 'The sign-in did not complete. Try again.';
-    }
-};
-
 const OAUTH_AUTHORIZE_TEMPLATE = `
 <html>
     <head>
@@ -332,15 +319,7 @@ const OAUTH_AUTHORIZE_TEMPLATE = `
                 padding-top: 16px;
                 border-top: 1px solid #e9ecef;
             }
-{{#if agentConnect}}            .oauth-agent-connect {
-                padding: 12px 14px;
-                margin-top: 20px;
-            }
-            .oauth-agent-connect-error {
-                color: #c92a2a;
-                font-size: 12px;
-            }
-{{/if}}        </style>
+        </style>
     </head>
     <body>
         <div class="stack">
@@ -394,15 +373,6 @@ const OAUTH_AUTHORIZE_TEMPLATE = `
                     {{/each}}
                 </div>
 
-{{#if agentConnect}}                <div class="oauth-account oauth-agent-connect">
-                    <div class="oauth-account-name">Connect your warehouse agent</div>
-                    <p class="oauth-scope-desc">{{agentConnect.message}}</p>
-                    <a class="oauth-btn deny" href="{{agentConnect.url}}">Connect your warehouse agent</a>
-                    {{#if agentConnect.errorMessage}}
-                    <p class="oauth-agent-connect-error" role="alert">{{agentConnect.errorMessage}}</p>
-                    {{/if}}
-                </div>
-{{/if}}
                 {{#each hiddenInputs}}
                 <input type="hidden" name="{{name}}" value="{{value}}" />
                 {{/each}}
@@ -479,11 +449,6 @@ export interface OAuthAuthorizeParams {
     /** Where "Switch account" sends the user after logging out */
     loginUrl: string;
     hiddenInputs: OAuthHiddenInput[];
-    agentConnect: {
-        url: string;
-        reason: 'needs_sign_in' | 'sign_in_expired';
-        error: string | null;
-    } | null;
 }
 
 export interface OAuthRedirectParams {
@@ -635,18 +600,6 @@ export const generateOAuthAuthorizePage = (
         styles: oauthPageStyles,
         logo: LIGHTDASH_LOGO_SVG,
         ...params,
-        agentConnect: params.agentConnect
-            ? {
-                  ...params.agentConnect,
-                  message:
-                      params.agentConnect.reason === 'sign_in_expired'
-                          ? 'Your agent sign-in expired. Connect your agent again now, or authorise and connect later from the link your agent shows you.'
-                          : 'Your organisation requires an agent sign-in. Connect once now, or authorise and connect later from the link your agent shows you.',
-                  errorMessage: params.agentConnect.error
-                      ? getAgentConnectErrorMessage(params.agentConnect.error)
-                      : null,
-              }
-            : null,
         user: {
             ...params.user,
             initials: getUserInitials(params.user),

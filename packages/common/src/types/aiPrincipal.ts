@@ -103,8 +103,6 @@ export enum AgentIdentityConnectEntryPoint {
     MY_AGENT_CONNECTIONS = 'my_agent_connections',
     MCP_CONNECT_LINK = 'mcp_connect_link',
     CLI = 'cli',
-    MCP_CONSENT = 'mcp_consent',
-    OAUTH_CONSENT = 'oauth_consent',
     SLACK_LINK = 'slack_link',
     UNKNOWN = 'unknown',
 }
