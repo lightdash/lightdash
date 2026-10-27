@@ -24,7 +24,7 @@ import {
 } from '@mantine/core';
 import {
     IconAlertTriangle,
-    IconEditOff,
+    IconCode,
     IconEye,
     IconFileText,
     IconFolderOpen,
@@ -145,11 +145,15 @@ const getPendingActionModalConfig = (
     }
 };
 
+const MANAGED_BY_CODE_LABEL =
+    'Managed by Content as Code. Change it in your repository and upload it again.';
+
 type FileRowProps = {
     icon: typeof IconFileText;
     name: string;
     meta: ReactNode;
     warning: boolean;
+    managed: boolean;
     selected: boolean;
     onSelect: () => void;
 };
@@ -159,6 +163,7 @@ const FileRow = ({
     name,
     meta,
     warning,
+    managed,
     selected,
     onSelect,
 }: FileRowProps) => (
@@ -188,6 +193,20 @@ const FileRow = ({
                             <MantineIcon
                                 icon={IconAlertTriangle}
                                 color="orange"
+                                size="sm"
+                                className={styles.fileIcon}
+                            />
+                        </Tooltip>
+                    )}
+                    {managed && (
+                        <Tooltip
+                            label={MANAGED_BY_CODE_LABEL}
+                            multiline
+                            w={260}
+                        >
+                            <MantineIcon
+                                icon={IconCode}
+                                color="dimmed"
                                 size="sm"
                                 className={styles.fileIcon}
                             />
@@ -513,6 +532,7 @@ export const AiAgentKnowledgeFilesSection = ({
                                                 icon={IconFileText}
                                                 name={pending.name}
                                                 warning={false}
+                                                managed={false}
                                                 selected={
                                                     pending.tempId ===
                                                     effectiveSelectedId
@@ -548,6 +568,9 @@ export const AiAgentKnowledgeFilesSection = ({
                                                 }
                                                 name={doc.name}
                                                 warning={needsAttention(doc)}
+                                                managed={
+                                                    doc.managedByContentAsCode
+                                                }
                                                 selected={
                                                     doc.uuid ===
                                                     effectiveSelectedId
@@ -648,52 +671,53 @@ export const AiAgentKnowledgeFilesSection = ({
                                                 >
                                                     Preview
                                                 </Button>
-                                                {selectedDocument.managedByContentAsCode ? (
-                                                    <Tooltip
-                                                        label="Managed by Content as Code. Change it in your repository and upload it again."
-                                                        multiline
-                                                        w={260}
+                                                <Tooltip
+                                                    label={
+                                                        selectedDocument.managedByContentAsCode
+                                                            ? MANAGED_BY_CODE_LABEL
+                                                            : 'Delete document'
+                                                    }
+                                                    multiline={
+                                                        selectedDocument.managedByContentAsCode
+                                                    }
+                                                    w={
+                                                        selectedDocument.managedByContentAsCode
+                                                            ? 260
+                                                            : undefined
+                                                    }
+                                                >
+                                                    <ActionIcon
+                                                        variant="default"
+                                                        size="input-xs"
+                                                        aria-label="Delete document"
+                                                        // data-disabled keeps hover events so the tooltip can say why
+                                                        data-disabled={
+                                                            selectedDocument.managedByContentAsCode ||
+                                                            undefined
+                                                        }
+                                                        loading={
+                                                            deleteDocument.isLoading &&
+                                                            deleteDocument.variables ===
+                                                                selectedDocument.uuid
+                                                        }
+                                                        onClick={() => {
+                                                            if (
+                                                                selectedDocument.managedByContentAsCode
+                                                            )
+                                                                return;
+                                                            setPendingAction({
+                                                                type: 'delete',
+                                                                document:
+                                                                    selectedDocument,
+                                                            });
+                                                        }}
                                                     >
-                                                        <Box
-                                                            component="span"
-                                                            aria-label="Managed by Content as Code"
-                                                        >
-                                                            <MantineIcon
-                                                                icon={
-                                                                    IconEditOff
-                                                                }
-                                                                color="ldGray.5"
-                                                            />
-                                                        </Box>
-                                                    </Tooltip>
-                                                ) : (
-                                                    <Tooltip label="Delete document">
-                                                        <ActionIcon
-                                                            variant="default"
-                                                            size="input-xs"
-                                                            aria-label="Delete document"
-                                                            loading={
-                                                                deleteDocument.isLoading &&
-                                                                deleteDocument.variables ===
-                                                                    selectedDocument.uuid
-                                                            }
-                                                            onClick={() =>
-                                                                setPendingAction(
-                                                                    {
-                                                                        type: 'delete',
-                                                                        document:
-                                                                            selectedDocument,
-                                                                    },
-                                                                )
-                                                            }
-                                                        >
-                                                            <MantineIcon
-                                                                icon={IconTrash}
-                                                                color="red"
-                                                            />
-                                                        </ActionIcon>
-                                                    </Tooltip>
-                                                )}
+                                                        <MantineIcon
+                                                            icon={IconTrash}
+                                                            color="red"
+                                                        />
+                                                    </ActionIcon>
+                                                </Tooltip>
                                             </Group>
                                         )}
                                     </Group>

@@ -14,6 +14,7 @@ import {
     Text,
     Textarea,
     TextInput,
+    Tooltip,
     useMantineColorScheme,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
@@ -138,15 +139,27 @@ const LoadedDocumentModal = ({
                         >
                             Download
                         </Button>
-                        {!document.managedByContentAsCode && (
+                        <Tooltip
+                            label="Managed by Content as Code. Change it in your repository and upload it again."
+                            multiline
+                            w={260}
+                            disabled={!document.managedByContentAsCode}
+                        >
                             <Button
                                 size="xs"
                                 leftSection={<MantineIcon icon={IconEdit} />}
-                                onClick={() => setMode('edit')}
+                                // data-disabled keeps hover events so the tooltip can say why
+                                data-disabled={
+                                    document.managedByContentAsCode || undefined
+                                }
+                                onClick={() => {
+                                    if (document.managedByContentAsCode) return;
+                                    setMode('edit');
+                                }}
                             >
                                 Edit
                             </Button>
-                        )}
+                        </Tooltip>
                     </Group>
                 );
             case 'edit':
