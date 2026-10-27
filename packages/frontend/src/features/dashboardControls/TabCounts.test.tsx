@@ -88,6 +88,7 @@ const rule = (
 
 const setSidebar = (overrides: Record<string, unknown> = {}) => {
     mockSidebar.current = {
+        editingZoom: null,
         editingRule: rule(),
         isPlaceholder: false,
         activeFieldId: null,

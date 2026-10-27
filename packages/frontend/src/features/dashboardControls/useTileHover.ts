@@ -10,11 +10,16 @@ import {
     type MouseEvent,
     type SetStateAction,
 } from 'react';
-import { selectDashboardTiles, useDashboardStore } from '../dashboard/store';
+import {
+    selectDashboardTiles,
+    useDashboardDateZoomConfig,
+    useDashboardStore,
+} from '../dashboard/store';
 import { getMissingTileFieldId, getTileField } from './peers';
 import { getTileSelector } from './tileSelector';
 import { useControlsSidebarSelector } from './useControlsSidebar';
 import { getSqlColumnsByTile } from './useSqlColumnsByTile';
+import { getZoomTileUuids } from './zoomState';
 
 // Set on the grid items of the tiles a hovered pill's filter is on
 const TILE_HOVER_ATTRIBUTE = 'data-controls-hovered';
@@ -118,4 +123,66 @@ export const useTileHover = (
             clear();
         },
     };
+};
+
+// The zoom pills are the shipped ones, rendered in a list: one hook hands each
+// its handlers. Marks the tiles in the zoom, as a filter pill marks its tiles
+export const useZoomTileHover = (isEnabled: boolean) => {
+    const config = useDashboardDateZoomConfig();
+    const setHoveredFilterId = useControlsSidebarSelector(
+        (c) => c.setHoveredFilterId,
+    );
+    const owner = useControlsSidebarSelector((c) => c.tileHoverOwner);
+    // The zoom this hook marked, until it clears
+    const marked = useRef<string | null>(null);
+    const isPressed = useRef(false);
+
+    useEffect(
+        () => () => {
+            if (marked.current === null) return;
+            const controlUuid = marked.current;
+            marked.current = null;
+            release(controlUuid, owner, setHoveredFilterId);
+        },
+        [isEnabled, owner, setHoveredFilterId],
+    );
+
+    const clear = (controlUuid: string) => {
+        if (marked.current !== controlUuid) return;
+        marked.current = null;
+        release(controlUuid, owner, setHoveredFilterId);
+    };
+
+    const mark = (controlUuid: string) => {
+        if (!isEnabled) return;
+        clearTiles();
+        getZoomTileUuids(config, controlUuid).forEach((tileUuid) =>
+            document
+                .querySelectorAll(getTileSelector(tileUuid))
+                .forEach((element) =>
+                    element.setAttribute(TILE_HOVER_ATTRIBUTE, ''),
+                ),
+        );
+        marked.current = controlUuid;
+        owner.current = controlUuid;
+        setHoveredFilterId(controlUuid);
+    };
+
+    return (controlUuid: string) => ({
+        onMouseEnter: (event: MouseEvent) => {
+            if (event.buttons === 0) mark(controlUuid);
+        },
+        onMouseLeave: () => clear(controlUuid),
+        onFocus: () => {
+            if (!isPressed.current) mark(controlUuid);
+        },
+        onBlur: () => {
+            isPressed.current = false;
+            clear(controlUuid);
+        },
+        onPointerDown: () => {
+            isPressed.current = true;
+            clear(controlUuid);
+        },
+    });
 };

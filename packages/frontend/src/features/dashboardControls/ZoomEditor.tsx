@@ -2,17 +2,19 @@ import { type DateZoomControl } from '@lightdash/common';
 import {
     Badge,
     Box,
+    Button,
     Group,
     Select,
     Stack,
     Text,
     TextInput,
 } from '@mantine/core';
-import { IconCalendar } from '@tabler/icons-react';
+import { IconCalendar, IconPlus } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import {
+    selectActiveTab,
     selectDashboardTabs,
     useDashboardDateZoomConfig,
     useDashboardSelector,
@@ -27,16 +29,44 @@ import { RemoveZoomButton } from './RemoveZoomButton';
 import { useControlsSidebarSelector } from './useControlsSidebar';
 import { useFocusLabelOnMount, useLabelDraft } from './useLabelDraft';
 import {
+    addZoomTiles,
     DEFAULT_ZOOM_NAME,
     getZoomTileUuids,
     replaceZoomControl,
 } from './zoomState';
 
-// The zoom's tiles, each with the field it is zoomed on. Changed on the tiles
+// The zoom's tiles, each with the field it is zoomed on. Changed on the tiles,
+// or all at once for the tab in view
 const ZoomTiles: FC<{ control: DateZoomControl }> = ({ control }) => {
     const config = useDashboardDateZoomConfig();
     const dashboardTabs = useDashboardSelector(selectDashboardTabs);
+    const activeTab = useDashboardSelector(selectActiveTab);
+    const updateDateZoomConfig = useControlsSidebarSelector(
+        (c) => c.updateDateZoomConfig,
+    );
     const eligibleTiles = useEligibleZoomTiles(config, control.uuid);
+    // Tiles of the tab in view that no zoom has yet: a chart on its first
+    // date field, a param-only tile on the parameter
+    const addable = eligibleTiles.filter(
+        ({ tile }) =>
+            config.tileTargets[tile.uuid] === undefined &&
+            (dashboardTabs.length === 0 ||
+                getEffectiveTabUuid(tile, dashboardTabs) === activeTab?.uuid),
+    );
+    const addAll = () =>
+        updateDateZoomConfig(
+            addZoomTiles(
+                config,
+                control.uuid,
+                addable.map(({ tile, zoomableFields }) => ({
+                    tileUuid: tile.uuid,
+                    field: {
+                        fieldId: zoomableFields[0]?.fieldId ?? null,
+                        tableName: zoomableFields[0]?.tableName ?? null,
+                    },
+                })),
+            ),
+        );
     const tiles = eligibleTiles.filter(
         ({ tile }) =>
             config.tileTargets[tile.uuid]?.controlUuid === control.uuid,
@@ -77,6 +107,17 @@ const ZoomTiles: FC<{ control: DateZoomControl }> = ({ control }) => {
                     ? 'No tiles yet. Pick a date field on a tile, or switch a parameter tile on.'
                     : "Change a tile's date field on the tile itself."}
             </Text>
+            <Button
+                variant="subtle"
+                size="xs"
+                leftSection={<MantineIcon icon={IconPlus} />}
+                disabled={addable.length === 0}
+                onClick={addAll}
+            >
+                {dashboardTabs.length > 0
+                    ? 'Add every tile on this tab'
+                    : 'Add every tile'}
+            </Button>
         </Stack>
     );
 };

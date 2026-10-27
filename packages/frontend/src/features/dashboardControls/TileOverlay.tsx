@@ -71,6 +71,7 @@ import { focusLabelInput } from './useLabelDraft';
 import { usePortalTargets } from './usePortalTargets';
 import { useScrollToHighlightedTile } from './useScrollToHighlightedTile';
 import { useSqlColumnsByTile } from './useSqlColumnsByTile';
+import { ZoomTileOverlays } from './ZoomTileOverlays';
 
 const NO_COLUMNS: SqlColumn[] = [];
 const NO_FIELD_IDS: string[] = [];
@@ -366,11 +367,18 @@ const TileOverlay = memo<TileOverlayProps>(
 // Mounted while a control is edited, so what it remembers ends with the editor
 export const TileOverlays: FC = () => {
     const isEditing = useControlsSidebarSelector((c) => c.editingRule !== null);
+    const isZoomEditing = useControlsSidebarSelector(
+        (c) => c.editingZoom !== null,
+    );
     const contractClasses = useRailContractClasses();
     // The tile cards' lists, as an embed's stylesheet targets them
     return (
         <DropdownClass className={contractClasses?.filterDropdown ?? null}>
-            {isEditing && <EditedTileOverlays />}
+            {isZoomEditing ? (
+                <ZoomTileOverlays />
+            ) : (
+                isEditing && <EditedTileOverlays />
+            )}
         </DropdownClass>
     );
 };
