@@ -25,4 +25,9 @@ optional job, table and row-count fields. Rows, SQL, filenames, URLs and errors
 are excluded.
 The existing capture/access flags and org-scoped compaction apply. Existing
 analytics projects need a provisioning refresh to add the model; new data
-appears after closed-day compaction. There is no historical backfill.
+appears after closed-day compaction. Historical backfill does not recreate these
+native export lifecycle events or add them to Export Events totals. It can
+recover retained download audit requests and export-job records into the separate
+**Historical Activity** Explore. Those records do not establish a complete
+start/completion/error sequence or prove delivery. See
+[historical backfill coverage](history-backfill.md).

@@ -14,8 +14,11 @@ For current role requirements, project-list visibility and support guidance, see
 [managed analytics project access](access.md). A standard project type does not
 remove the analytics-specific organization-management check.
 
-For the Settings action that recovers retained database queries, see
-[retained query history](history-backfill.md).
+For the automatic import on project creation and the Settings action for
+existing projects, see [historical backfill](history-backfill.md). It recovers
+retained query history and AI usage into their event datasets, plus legacy
+views, app, conversation, tool and export facts in a separate Historical Activity
+Explore. It does not reconstruct every past event or historical People summaries.
 
 ## Current implementation versus rollout intent
 
@@ -44,6 +47,10 @@ Backend event projections
 Postgres charts, dashboards and organization members
   → same daily job: paged reads → temporary JSONL → Parquet
   → overwrite one current object per organization and dimension
+
+Retained Postgres query history, AI usage ledger and allowlisted activity records
+  → one background backfill → history=<stream>/history.parquet
+  → immediately queryable; no additional nightly compaction required
 
 Signed-in org admin
   → create-or-get endpoint → fixed system explores stored in the app database
