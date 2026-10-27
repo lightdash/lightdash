@@ -101,7 +101,6 @@
 a .hoverCard:hover,
 .hoverCard.clickable:hover {
     box-shadow: var(--mantine-shadow-heavy);
-    transform: translateY(-1px);
 }
 
 .listCard {
@@ -201,13 +200,11 @@ a .hoverCard:hover,
 
 .ctaBanner[data-theme].clickable:hover {
     box-shadow: var(--mantine-shadow-heavy);
-    transform: translateY(-1px);
     text-decoration: none;
 }
 
 .ctaBanner[data-bg='none'].clickable:hover {
     box-shadow: none;
-    transform: none;
 }
 
 .ctaBody {
@@ -241,7 +238,6 @@ a .hoverCard:hover,
     background-color: var(--cta-fg, var(--mantine-color-text));
     color: var(--cta-bg, light-dark(#fff, var(--mantine-color-ldGray-9)));
     box-shadow: 0 1px 2px rgb(0 0 0 / 12%);
-    transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .ctaButton[data-fill='button'] {
@@ -250,10 +246,6 @@ a .hoverCard:hover,
     background-blend-mode: var(--cta-btn-bg-blend, normal);
     background-size: var(--cta-btn-bg-size, auto);
     color: var(--cta-btn-fg, light-dark(#fff, var(--mantine-color-ldGray-9)));
-}
-
-.ctaBanner[data-theme].clickable:hover .ctaButton {
-    transform: scale(1.03);
 }
 
 /* Theme picker swatches in the build panel — same paint vars as the banner. */
@@ -305,7 +297,6 @@ a .hoverCard:hover,
 
 .resTile.clickable:hover {
     box-shadow: var(--mantine-shadow-heavy);
-    transform: translateY(-1px);
     text-decoration: none;
     color: inherit;
 }
@@ -442,7 +433,6 @@ a .hoverCard:hover,
 
 .favPill:hover {
     box-shadow: var(--mantine-shadow-heavy);
-    transform: translateY(-1px);
     text-decoration: none;
 }
 
@@ -568,14 +558,24 @@ a .hoverCard:hover,
 .sortableTile {
     display: grid;
     cursor: grab;
-    transition: opacity 0.12s ease-in-out;
+    transition: opacity 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.sortableTile:focus-visible {
+    outline: 2px solid var(--mantine-primary-color-filled);
+    outline-offset: 2px;
+    border-radius: 10px;
 }
 
 .sortableTile[data-dragging='true'] {
-    opacity: 0.4;
+    opacity: 0.45;
+}
+
+.dragOverlay {
+    display: grid;
+    height: 100%;
     cursor: grabbing;
-    position: relative;
-    z-index: 1;
+    filter: drop-shadow(0 16px 26px rgb(20 25 35 / 28%));
 }
 
 .addContentTile {
@@ -700,7 +700,6 @@ a .hoverCard:hover,
 
 .mediaCard.clickable:hover {
     box-shadow: var(--mantine-shadow-heavy);
-    transform: translateY(-2px);
     text-decoration: none;
     color: inherit;
 }
@@ -725,11 +724,6 @@ a .hoverCard:hover,
     object-fit: cover;
     display: block;
     animation: resFadeIn 0.2s ease-out;
-    transition: transform 0.25s ease;
-}
-
-.mediaCard.clickable:hover .resThumb img {
-    transform: scale(1.03);
 }
 
 /* Quiet duotone tile: a muted per-kind wash with a small bare favicon —
@@ -933,15 +927,8 @@ a .hoverCard:hover,
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .mediaCard,
-    .resThumb img {
+    .mediaCard {
         transition: none;
-    }
-    .mediaCard.clickable:hover {
-        transform: none;
-    }
-    .mediaCard.clickable:hover .resThumb img {
-        transform: none;
     }
     .resThumb img,
     .skeletonBlock,
