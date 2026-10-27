@@ -468,54 +468,55 @@ const BlockCard: FC<BlockCardProps> = ({
                 transition,
             }}
         >
-            <Group gap={4} mb="xs" justify="space-between" wrap="nowrap">
+            {!definition.hasHeader && (
                 <div
                     className={classes.blockDragArea}
-                    {...attributes}
                     {...listeners}
-                    aria-label={`Drag ${definition.label} block`}
+                    aria-hidden
                 >
-                    {!(
-                        'title' in block.config &&
-                        block.config.title === definition.label
-                    ) && (
-                        <span className={classes.blockTypeLabel}>
-                            {definition.label}
-                        </span>
-                    )}
+                    <MantineIcon
+                        icon={definition.icon}
+                        size={14}
+                        color="ldGray.5"
+                    />
                 </div>
-                <Group gap={2} className={classes.blockActions} wrap="nowrap">
-                    <Tooltip label="Drag to move">
-                        <span className={classes.blockHandle} {...listeners}>
-                            <MantineIcon
-                                icon={IconGripVertical}
-                                color="dimmed"
-                            />
-                        </span>
-                    </Tooltip>
-                    <Tooltip label="Move up">
-                        <ActionIcon disabled={!canUp} onClick={onUp}>
-                            <MantineIcon icon={IconArrowUp} />
+            )}
+            <Group gap={2} className={classes.blockActions} wrap="nowrap">
+                <span className={classes.blockTypeLabel}>
+                    {definition.label}
+                </span>
+                <Tooltip label="Drag to move">
+                    <span
+                        className={classes.blockHandle}
+                        {...attributes}
+                        {...listeners}
+                        aria-label={`Drag ${definition.label} block`}
+                    >
+                        <MantineIcon icon={IconGripVertical} color="dimmed" />
+                    </span>
+                </Tooltip>
+                <Tooltip label="Move up">
+                    <ActionIcon disabled={!canUp} onClick={onUp}>
+                        <MantineIcon icon={IconArrowUp} />
+                    </ActionIcon>
+                </Tooltip>
+                <Tooltip label="Move down">
+                    <ActionIcon disabled={!canDown} onClick={onDown}>
+                        <MantineIcon icon={IconArrowDown} />
+                    </ActionIcon>
+                </Tooltip>
+                {!definition.singleton && (
+                    <Tooltip label="Duplicate">
+                        <ActionIcon onClick={onDuplicate}>
+                            <MantineIcon icon={IconCopy} />
                         </ActionIcon>
                     </Tooltip>
-                    <Tooltip label="Move down">
-                        <ActionIcon disabled={!canDown} onClick={onDown}>
-                            <MantineIcon icon={IconArrowDown} />
-                        </ActionIcon>
-                    </Tooltip>
-                    {!definition.singleton && (
-                        <Tooltip label="Duplicate">
-                            <ActionIcon onClick={onDuplicate}>
-                                <MantineIcon icon={IconCopy} />
-                            </ActionIcon>
-                        </Tooltip>
-                    )}
-                    <Tooltip label="Remove">
-                        <ActionIcon color="red" onClick={onRemove}>
-                            <MantineIcon icon={IconTrash} />
-                        </ActionIcon>
-                    </Tooltip>
-                </Group>
+                )}
+                <Tooltip label="Remove">
+                    <ActionIcon color="red" onClick={onRemove}>
+                        <MantineIcon icon={IconTrash} />
+                    </ActionIcon>
+                </Tooltip>
             </Group>
             <Build
                 block={block}

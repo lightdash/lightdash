@@ -45,6 +45,8 @@ export type BlockDefinition = {
     singleton?: boolean;
     /** Renders per-viewer content, so admin previews show a placeholder. */
     personal?: boolean;
+    /** Draws its own icon and title, so the editor chrome doesn't repeat them. */
+    hasHeader?: boolean;
     create: () => HomepageBlock;
     View: FC<BlockComponentProps>;
     Build: FC<BuildComponentProps>;
@@ -114,6 +116,7 @@ export const blockLibrary: BlockDefinition[] = [
     },
     {
         type: 'metrics',
+        hasHeader: true,
         label: 'Metrics',
         description: 'KPI cards from the metrics catalog, with deltas.',
         icon: IconChartDots,
@@ -128,6 +131,7 @@ export const blockLibrary: BlockDefinition[] = [
     },
     {
         type: 'collection',
+        hasHeader: true,
         label: 'Collection',
         description:
             'A curated set of dashboards, charts, spaces, and data apps.',
@@ -142,6 +146,7 @@ export const blockLibrary: BlockDefinition[] = [
     },
     {
         type: 'resources',
+        hasHeader: true,
         label: 'Resources',
         description:
             'Rich cards for data apps, Claude artifacts, YouTube, docs and links.',
@@ -156,6 +161,7 @@ export const blockLibrary: BlockDefinition[] = [
     },
     {
         type: 'announcements',
+        hasHeader: true,
         label: 'Announcements',
         description: 'Updates from the data team, newest first.',
         icon: IconSpeakerphone,
@@ -170,6 +176,7 @@ export const blockLibrary: BlockDefinition[] = [
     },
     {
         type: 'favorites',
+        hasHeader: true,
         label: 'Favorites',
         description: 'Each viewer’s starred content, only visible to them.',
         icon: IconStar,
@@ -184,6 +191,7 @@ export const blockLibrary: BlockDefinition[] = [
     },
     {
         type: 'recent',
+        hasHeader: true,
         label: 'Recently viewed',
         description: 'Each viewer’s recently opened charts and dashboards.',
         icon: IconClock,

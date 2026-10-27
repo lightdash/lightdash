@@ -206,19 +206,22 @@
     pointer-events: none;
 }
 
+/* The type name only shows with the block's actions; at rest the icon is enough. */
 .blockTypeLabel {
+    padding: 0 6px 0 4px;
     font-size: 12px;
     font-weight: 500;
-    color: var(--mantine-color-ldGray-5);
+    color: var(--mantine-color-ldGray-6);
+    white-space: nowrap;
 }
 
 .blockDragArea {
-    display: inline-flex;
+    display: flex;
     align-items: center;
-    gap: 6px;
+    width: fit-content;
+    margin-bottom: 8px;
     cursor: grab;
     touch-action: none;
-    min-width: 0;
 }
 
 .blockDragArea:active {
@@ -244,14 +247,26 @@
     cursor: grabbing;
 }
 
+/* Floats on the block's top edge so blocks with their own header start flush. */
 .blockActions {
+    position: absolute;
+    top: -20px;
+    right: 12px;
+    z-index: 3;
+    padding: 2px;
+    border: 1px solid var(--mantine-color-ldGray-2);
+    border-radius: 8px;
+    background: var(--mantine-color-body);
+    box-shadow: var(--mantine-shadow-sm);
     opacity: 0;
+    pointer-events: none;
     transition: opacity 0.12s ease-in-out;
 }
 
 .blockChrome:hover .blockActions,
 .blockChrome:focus-within .blockActions {
     opacity: 1;
+    pointer-events: auto;
 }
 
 /* Drop affordances live outside the tiered row containers, so they carry the
