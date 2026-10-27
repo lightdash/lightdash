@@ -60,6 +60,7 @@ export const CompiledSql: FC<{
     query: SemanticLayerSourceQuery;
     projectUuid: string;
 }> = ({ query, projectUuid }) => {
+    const getUiString = useUiStrings();
     const metricQuery = useMemo(
         () => metricQueryOfSemanticNode(query),
         [query],
@@ -80,7 +81,9 @@ export const CompiledSql: FC<{
     if (error) {
         return (
             <InlineErrorState
-                message="Could not compile this query."
+                message={getUiString(
+                    'aiAgent.composer.semanticNode.compileError',
+                )}
                 onRetry={() => void refetch()}
             />
         );
@@ -89,7 +92,7 @@ export const CompiledSql: FC<{
         <Group gap="xs" p="sm">
             <Loader size="xs" color="ldGray.6" />
             <Text fz="xs" c="dimmed">
-                Compiling query…
+                {getUiString('aiAgent.composer.semanticNode.compiling')}
             </Text>
         </Group>
     );
@@ -173,8 +176,12 @@ const SemanticQuery: FC<{
     );
     return (
         <Box>
-            <Group justify="space-between" className={styles.queryHeader}>
-                <Group gap={6} wrap="nowrap" miw={0}>
+            <Group
+                justify="space-between"
+                wrap="nowrap"
+                className={styles.queryHeader}
+            >
+                <Group gap="xs" wrap="nowrap" miw={0}>
                     <MantineIcon icon={IconTable} size={14} color="ldGray.5" />
                     <Text fz="xs" fw={500} truncate>
                         {exploreLabel}

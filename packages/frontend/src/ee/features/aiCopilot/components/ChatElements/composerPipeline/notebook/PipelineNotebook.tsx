@@ -83,7 +83,7 @@ const CellStatus: FC<{
                 <MantineIcon
                     icon={nodeTypeIcon(query)}
                     size={14}
-                    stroke={1.6}
+                    stroke={1.5}
                     aria-hidden
                 />
             )}
@@ -148,34 +148,38 @@ const NotebookCell: FC<CellProps> = ({
             : [];
     const exploreLabel = getUiString('aiAgent.composer.node.exploreFromHere');
     const addToChatLabel = getUiString('aiAgent.composer.node.addToChat');
+    const toggleLabel = getUiString(
+        open
+            ? 'aiAgent.composer.node.collapse'
+            : 'aiAgent.composer.node.expand',
+    );
+    const compiledSqlQuery = canViewSql ? semanticQuery : null;
 
     return (
-        <Stack gap={6} data-node-id={node.nodeId}>
+        <Stack gap="xs" data-node-id={node.nodeId}>
             <Group gap="xs" wrap="nowrap" align="flex-start">
-                <ActionIcon
-                    size="sm"
-                    className={styles.cellToggle}
-                    aria-label={getUiString(
-                        open
-                            ? 'aiAgent.composer.node.collapse'
-                            : 'aiAgent.composer.node.expand',
-                    )}
-                    aria-expanded={open}
-                    onClick={onToggle}
-                >
-                    <MantineIcon
-                        icon={IconChevronRight}
-                        size={12}
-                        className={clsx(
-                            styles.chevron,
-                            open && styles.chevronOpen,
-                        )}
-                    />
-                </ActionIcon>
+                <Tooltip label={toggleLabel}>
+                    <ActionIcon
+                        size="sm"
+                        className={styles.cellToggle}
+                        aria-label={toggleLabel}
+                        aria-expanded={open}
+                        onClick={onToggle}
+                    >
+                        <MantineIcon
+                            icon={IconChevronRight}
+                            size={12}
+                            className={clsx(
+                                styles.chevron,
+                                open && styles.chevronOpen,
+                            )}
+                        />
+                    </ActionIcon>
+                </Tooltip>
                 <CellStatus query={node.query} status={status} />
-                <Stack gap={2} flex={1} miw={0}>
-                    <Group gap={6} wrap="nowrap" miw={0}>
-                        <Text fz="sm" fw={500} lh="20px" truncate>
+                <Stack gap="xxs" flex={1} miw={0}>
+                    <Group gap="xs" wrap="nowrap" miw={0}>
+                        <Text fz="sm" fw={500} truncate>
                             {node.title}
                         </Text>
                         {node.isTerminal && (
@@ -192,7 +196,7 @@ const NotebookCell: FC<CellProps> = ({
                         </Text>
                     )}
                 </Stack>
-                <Group gap={2} wrap="nowrap">
+                <Group gap="xxs" wrap="nowrap">
                     {onAddToChat && !inChat && (
                         <Tooltip label={addToChatLabel}>
                             <ActionIcon
@@ -220,7 +224,7 @@ const NotebookCell: FC<CellProps> = ({
                 </Group>
             </Group>
             <Collapse expanded={open}>
-                <Stack gap={6}>
+                <Stack gap="xs">
                     <Box className={styles.cellFrame} data-flash={flashing}>
                         {showQuery && (
                             <NodeQuery
@@ -234,7 +238,11 @@ const NotebookCell: FC<CellProps> = ({
                             </Box>
                         )}
                         {waiting && (
-                            <Text className={styles.cellFooter}>
+                            <Text
+                                fz="xs"
+                                c="dimmed"
+                                className={styles.cellFooter}
+                            >
                                 {getUiString(
                                     status.status === 'running'
                                         ? 'aiAgent.composer.node.running'
@@ -247,17 +255,18 @@ const NotebookCell: FC<CellProps> = ({
                                 {renderNodeResult(node.nodeId)}
                             </LazyResult>
                         )}
-                        {(facts.length > 0 ||
-                            (semanticQuery && canViewSql)) && (
+                        {(facts.length > 0 || compiledSqlQuery) && (
                             <Group
                                 justify="space-between"
                                 wrap="nowrap"
+                                fz="xs"
+                                c="dimmed"
                                 className={styles.cellFooter}
                             >
                                 <Text inherit className={styles.facts}>
                                     {facts.join(' · ')}
                                 </Text>
-                                {semanticQuery && canViewSql && (
+                                {compiledSqlQuery && (
                                     <CompiledSqlToggle
                                         open={sqlOpen}
                                         onToggle={() => setSqlOpen((v) => !v)}
@@ -265,17 +274,15 @@ const NotebookCell: FC<CellProps> = ({
                                 )}
                             </Group>
                         )}
-                        {semanticQuery && canViewSql && sqlOpen && (
-                            <Box className={styles.cellSql}>
-                                <CompiledSql
-                                    query={semanticQuery}
-                                    projectUuid={projectUuid}
-                                />
-                            </Box>
+                        {compiledSqlQuery && sqlOpen && (
+                            <CompiledSql
+                                query={compiledSqlQuery}
+                                projectUuid={projectUuid}
+                            />
                         )}
                     </Box>
                     {references.length > 0 && (
-                        <Group gap={4} pl={2}>
+                        <Group gap="xs" pl="xxs">
                             <MantineIcon
                                 icon={IconHash}
                                 size={13}
@@ -295,7 +302,7 @@ const NotebookCell: FC<CellProps> = ({
                                     <MantineIcon
                                         icon={nodeTypeIcon(reference.query)}
                                         size={12}
-                                        stroke={1.6}
+                                        stroke={1.5}
                                     />
                                     {reference.title}
                                 </UnstyledButton>

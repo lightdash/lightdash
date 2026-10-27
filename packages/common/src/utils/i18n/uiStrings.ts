@@ -526,6 +526,9 @@ export const DEFAULT_UI_STRINGS = {
     'aiAgent.composer.node.running': 'Running…',
     'aiAgent.composer.node.queued': 'Queued, waiting on the steps it reads',
     'aiAgent.composer.semanticNode.compiledSql': 'Compiled SQL',
+    'aiAgent.composer.semanticNode.compiling': 'Compiling query…',
+    'aiAgent.composer.semanticNode.compileError':
+        'Could not compile this query.',
     'aiAgent.composer.semanticNode.view': 'View metric query',
     'aiAgent.composer.semanticNode.hide': 'Hide metric query',
     'aiAgent.composer.semanticNode.viewSql': 'View SQL',
