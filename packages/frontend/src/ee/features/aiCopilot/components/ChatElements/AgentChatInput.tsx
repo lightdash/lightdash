@@ -98,7 +98,10 @@ import {
     type ThreadElementReference,
 } from '../../store/aiAgentThreadElementRefsSlice';
 import { isAiAgentThreadStreamActive } from '../../store/aiAgentThreadStreamSlice';
-import { setElementPickerEnabled } from '../../store/aiArtifactSlice';
+import {
+    selectPreviewForThreads,
+    setElementPickerEnabled,
+} from '../../store/aiArtifactSlice';
 import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
@@ -607,8 +610,16 @@ export const AgentChatInput = ({
     );
     const isMinimalMode = !showModelSelector && !showAgentSelector;
 
+    const selectThreadPreview = useMemo(
+        () => selectPreviewForThreads(threadUuid ? [threadUuid] : []),
+        [threadUuid],
+    );
+    const isArtifactPanelOpen =
+        useAiAgentStoreSelector(selectThreadPreview) !== null;
+
     const { emptyStateMode, postResponseMode } = getAgentSuggestionModes({
         disabled: disabledProp,
+        isArtifactPanelOpen,
         isMinimalMode,
         loading,
         messageCount,

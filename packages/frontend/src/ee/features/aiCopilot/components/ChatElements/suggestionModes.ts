@@ -1,5 +1,6 @@
 type AgentSuggestionModeArgs = {
     disabled: boolean;
+    isArtifactPanelOpen: boolean;
     isMinimalMode: boolean;
     loading: boolean;
     messageCount: number;
@@ -10,6 +11,7 @@ type AgentSuggestionModeArgs = {
 
 export const getAgentSuggestionModes = ({
     disabled,
+    isArtifactPanelOpen,
     isMinimalMode,
     loading,
     messageCount,
@@ -27,6 +29,7 @@ export const getAgentSuggestionModes = ({
             !loading &&
             !!threadUuid &&
             !!latestAssistantMessageUuid &&
+            !isArtifactPanelOpen &&
             canFetchSuggestions,
     };
 };
