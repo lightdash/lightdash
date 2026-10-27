@@ -4,8 +4,7 @@ import {
     useDashboardSelector,
 } from '../dashboard/store';
 import { DashboardFiltersBar } from '../dashboardFilters/DashboardFiltersBar';
-import FilterRequirementsButton from '../dashboardFilters/FilterRequirements/FilterRequirementsButton';
-import { AddControl, InertWhileEditing } from './AddControl';
+import { AddControl } from './AddControl';
 import { FilterPills } from './FilterPills';
 import { SectionedFilters } from './SectionedFilters';
 import { SectionsTip } from './SectionsTip';
@@ -23,11 +22,6 @@ export const ControlsBar: FC<Props> = (props) => {
     const hasSections = useDashboardSelector(
         (state) => selectControlSections(state).length > 0,
     );
-    const requirements = props.isEditMode && (
-        <InertWhileEditing>
-            <FilterRequirementsButton />
-        </InertWhileEditing>
-    );
     return (
         <>
             {props.isEditMode && <SectionsTip />}
@@ -38,14 +32,11 @@ export const ControlsBar: FC<Props> = (props) => {
                 filterArea={
                     // An editor's bar is always sectioned: its selection starts the first section
                     hasSections || props.isEditMode ? (
-                        <SectionedFilters activeTabUuid={props.activeTabUuid}>
-                            {requirements}
-                        </SectionedFilters>
+                        <SectionedFilters activeTabUuid={props.activeTabUuid} />
                     ) : (
                         <>
                             <AddControl />
                             <FilterPills activeTabUuid={props.activeTabUuid} />
-                            {requirements}
                         </>
                     )
                 }

@@ -2,7 +2,7 @@ import { type DashboardFilterRule } from '@lightdash/common';
 import { Button, Divider, Group, Popover, Text, Tooltip } from '@mantine/core';
 import { useDisclosure, useId } from '@mantine/hooks';
 import { IconEye, IconEyeOff, IconRotate2 } from '@tabler/icons-react';
-import { useCallback, useMemo, type FC } from 'react';
+import { useCallback, useMemo, type FC, type ReactNode } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
@@ -33,6 +33,8 @@ type Props = {
      * hide it entirely. Defaults to the app's "edit mode" copy.
      */
     unsavedFiltersTooltip?: string | null;
+    /** Shown in place of the edit-mode eye (default: the eye). */
+    editModeAction?: ReactNode;
 };
 
 const AddFilterButton: FC<Props> = ({
@@ -46,6 +48,7 @@ const AddFilterButton: FC<Props> = ({
     triggerClassName,
     dropdownClassName,
     unsavedFiltersTooltip,
+    editModeAction,
 }) => {
     const popoverId = useId();
     const getUiString = useUiStrings();
@@ -240,39 +243,43 @@ const AddFilterButton: FC<Props> = ({
                 <>
                     <Divider orientation="vertical" />
 
-                    <Tooltip
-                        label={
-                            isAddFilterDisabled
-                                ? 'Hidden from viewers. Click to show.'
-                                : 'Visible to viewers. Click to hide.'
-                        }
-                    >
-                        <Button
-                            aria-label="Toggle filter visibility for viewers"
-                            size="xs"
-                            variant="default"
-                            color="gray"
-                            onClick={() =>
-                                setIsAddFilterDisabled(!isAddFilterDisabled)
+                    {editModeAction ?? (
+                        <Tooltip
+                            label={
+                                isAddFilterDisabled
+                                    ? 'Hidden from viewers. Click to show.'
+                                    : 'Visible to viewers. Click to hide.'
                             }
-                            styles={{
-                                root: {
-                                    borderLeft: '0px',
-                                    borderStartStartRadius: '0px',
-                                    borderEndStartRadius: '0px',
-                                    borderStartEndRadius: '100px',
-                                    borderEndEndRadius: '100px',
-                                    borderStyle: 'dashed',
-                                },
-                            }}
                         >
-                            <MantineIcon
-                                icon={
-                                    isAddFilterDisabled ? IconEyeOff : IconEye
+                            <Button
+                                aria-label="Toggle filter visibility for viewers"
+                                size="xs"
+                                variant="default"
+                                color="gray"
+                                onClick={() =>
+                                    setIsAddFilterDisabled(!isAddFilterDisabled)
                                 }
-                            />
-                        </Button>
-                    </Tooltip>
+                                styles={{
+                                    root: {
+                                        borderLeft: '0px',
+                                        borderStartStartRadius: '0px',
+                                        borderEndStartRadius: '0px',
+                                        borderStartEndRadius: '100px',
+                                        borderEndEndRadius: '100px',
+                                        borderStyle: 'dashed',
+                                    },
+                                }}
+                            >
+                                <MantineIcon
+                                    icon={
+                                        isAddFilterDisabled
+                                            ? IconEyeOff
+                                            : IconEye
+                                    }
+                                />
+                            </Button>
+                        </Tooltip>
+                    )}
                 </>
             )}
 

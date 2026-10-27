@@ -2,7 +2,8 @@
    per line, 8px between lines (the bar itself aligns to the top) */
 .flow {
     display: flex;
-    flex: 1 1 auto;
+    /* A zero basis keeps the flow on the funnel's line and wraps inside it */
+    flex: 1 1 0;
     flex-wrap: wrap;
     align-items: center;
     gap: 8px 6px;

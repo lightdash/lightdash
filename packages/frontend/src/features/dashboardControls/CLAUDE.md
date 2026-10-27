@@ -62,6 +62,15 @@ behaviour. All but the first are in `features/dashboardFilters/`.
   the drawer is closed (state adjusted during render, no effect). `ControlsBar`
   sets it while the rail is open, so a viewer's rail is never under the
   drawer.
+- `AddFilterButton`: `editModeAction` (default: the shipped eye), shown in
+  the eye's place in edit mode, after the same divider. `AddControl` passes
+  `FilterBarMenu` there.
+- `FilterRequirements/FilterRequirementsButton`: `renderTarget` (default:
+  the shipped "Filter rules" button), given `{ open, close, isOpen,
+  requirementCount }` (`close` discards staged edits, as the button's
+  second click) and rendered as its `Popover.Target`, so the popover
+  anchors there. It must take a ref. `FilterBarMenu` passes its "..."
+  trigger, in a `Box`.
 - `ActiveFilters/`: `FilterRuleLabel`, `FilterPillSkeletons`, `TemporaryFilters`, `UnresolvedFilter`,
   `useFilterTabPlacement`, `filterLabels`, `filterLock` and `filterOrder`,
   moved out of `index.tsx` and `Filter.tsx`. `FilterPillButton` is the
@@ -132,23 +141,27 @@ In `FilterConfiguration/`:
 - `ControlsBar` is the shipped `DashboardFiltersBar` with its openings,
   `filterArea`: the slot that replaces `DashboardFilters` and the
   requirements button. In edit mode it is always `SectionedFilters` (sections
-  or not, so a selection can start the first one) followed by the shipped
-  requirements button, and `SectionsTip` renders before the shipped bar as
+  or not, so a selection can start the first one), with no requirements
+  button: "Filter rules" opens from the "..." on "Add filter" (see
+  `AddControl`), and `SectionsTip` renders before the shipped bar as
   its full-width first row (`ControlsBar` returns both, so the bar's own
   layout is untouched); in view mode `AddControl` and `FilterPills` only, as
   the shipped view bar has no requirements button, or `SectionedFilters`
   once the dashboard has sections (see "Sections"). The
   bar is the list of filters: it stays on screen while a filter is edited,
   and `isCompactDrawerSuppressed` is set then, so a narrow screen shows it in
-  place rather than behind its drawer. Separators, parameters, date zoom,
+  place rather than behind its drawer. `SectionedFilters`' `.flow` is one
+  flex item beside the shipped funnel with a zero basis (`flex: 1 1 0`), so
+  it stays on the funnel's line and wraps inside itself rather than
+  dropping below it and leaving the funnel alone. Separators, parameters, date zoom,
   the hide button and the `data-tour-*` anchors are the shipped bar's own.
 - While a filter is edited (`isSidebarOpen`) the bar's controls that would
   start something else are inert: `InertWhileEditing` (in `AddControl.tsx`,
   a `display: contents` box carrying `inert`; `.inert` in
   `FilterPills.module.css` is the one dimming rule, shared with the capsule
   actions and the header guard)
-  wraps the "Add filter" group (eye included) and the
-  requirements button; each capsule's name, + and menu carry `inert`
+  wraps the "Add filter" group ("..." included) and "Add section"; each
+  capsule's name, + and menu carry `inert`
   themselves.
   The multi-select is off; the sectioned bar's pills still drag (see
   "Sections"). The pills stay live (see
@@ -156,8 +169,25 @@ In `FilterConfiguration/`:
   fold.
 - `AddControl` is the shipped `AddFilterButton`: the dashed button with its
   disabled and loading states, no icon, always "Add filter" (`openNew`). On
-  an editor's bar it carries the shipped eye ("Toggle filter visibility for
-  viewers"), which writes `setIsAddFilterDisabled` as shipped.
+  an editor's bar the shipped eye is replaced (`editModeAction`) by
+  `FilterBarMenu`: a dashed "..." joined to it, drawn as the eye was
+  (`.joinedMenuTrigger` in `FilterPills.module.css`), named and tooltipped
+  "Filter bar settings", opening a Mantine `Menu` of two items:
+  "Viewers can add filters", a checkbox item that keeps the menu open (as
+  the section menu's "Collapsed by default"), checked while
+  `isAddFilterDisabled` is off and writing `setIsAddFilterDisabled` as the
+  eye did; then, under a divider, "Filter rules", which toggles the shipped
+  requirements popover and carries the shipped button's yellow count badge
+  while the dashboard has rules; the "..." then shows a yellow corner dot
+  (`.rulesDot`, `ChangedDot`'s shape in the badge's yellow) named "{n}
+  filter rule(s)". The menu is not portalled (`withinPortal={false}`): the
+  popover anchors on its `Box`, so clicks in the menu are inside the
+  popover's target and never discard its staged edits. That popover is the shipped
+  `FilterRequirementsButton` rendered around the "..." (`renderTarget`), so
+  it anchors to it and opens through the same `open` as the shipped button
+  (`useFilterBarPopovers()` when the page provides it, else its own state),
+  and "Edit rule →" still reaches it. All of it is inside the "Add filter"
+  group, so `InertWhileEditing` covers it.
   On a viewer's
   bar it is the shipped view-mode button, with the reset-all button attached
   once filters changed (`resetDashboardFilters`), and nothing but that reset
@@ -533,7 +563,7 @@ In `FilterConfiguration/`:
   `filters.rail.create`), Apply disabled while the filter has no field
   (`isPlaceholder`) and marked `data-controls-apply` for the provider's
   focus. No status line and no switch: the default-value hint sits under
-  the value, and the viewers setting is the eye on "Add filter". With a
+  the value, and the viewers setting is in the "..." menu on "Add filter". With a
   `pendingRule` the footer is the switch question: a dimmed `role="status"`
   line "Apply before opening {filter}?" ("Create before opening {filter}?"
   for a new filter; `filters.rail.applyBeforeOpening` /
@@ -650,8 +680,8 @@ In `FilterConfiguration/`:
     `disabledReason`). Switching either off is always allowed.
   - "Edit rule →" shows for a filter that shares a rule, when
     `useFilterBarPopovers()` is there. It applies and closes the editor,
-    then opens the bar's "Filter rules", whose button is inert while a
-    filter is edited.
+    then opens the bar's "Filter rules" popover (anchored on the "..." of
+    "Add filter", which is inert while a filter is edited).
 - One edit is refused: the one that would leave a locked, required filter
   with no value, which the shipped Apply refuses too
   (`isLockedRequiredMissingValue`). That covers emptying the value and an
@@ -1086,7 +1116,8 @@ the language map, as tab names are.
 
 - State: `controlSections` and `haveControlSectionsChanged` in the store's
   `edit` slice (`syncControlSections` seeds from the saved config unless
-  edits are staged, from `DashboardProvider` and the page's Cancel; `add`,
+  edits are staged, from `DashboardProvider` and the page's Cancel; `add`
+  (appends), `prependControlSection` (the bar's: puts it first),
   `rename`, `remove`, `moveControlSection` and `setControlSectionCollapsed`
   mark the change; every reducer spreads the section, so `collapsed`
   survives a rename, and the language map's `mergeExisting` overlays only
@@ -1099,8 +1130,8 @@ the language map, as tab names are.
   `moveRuleToSection`, `removeSectionFromRules`.
 - Bar, in both modes: with `selectControlSections` non-empty,
   `ControlsBar` renders `SectionedFilters` in place of `AddControl`
-  + `FilterPills` (in edit mode `FilterRequirementsButton` follows it, as
-  it follows the flat pills). It is `AddControl`, one capsule per section
+  + `FilterPills`. It is `AddControl` (in edit mode then "Add section", or
+  the new section's name input, in one slot), one capsule per section
   in `controlSections` order that has a saved member visible on this tab,
   then `FilterPills sectionId={null}` (the unsectioned saved pills and the
   viewer's own pills, which are never in a section); the sections are
@@ -1174,16 +1205,17 @@ the language map, as tab names are.
   goes to "Add filter"). A section starts from "Move to new section" on
   the selection bar (or "New section" in its "Move to"), or from "Add
   section": a subtle `md` (28px, the pill line) `ActionIcon` with the
-  folder-plus icon and its tooltip, last in the flow after the unsectioned
-  pills and before the requirements button, shown once the dashboard has a
-  filter, hidden while a section is named and inert while a filter is
-  edited (`InertWhileEditing`). Each puts `NewSection` where it was
-  started: in the button's place for "Add section", after the last capsule
-  for the selection bar. It is a capsule holding a focused, empty `SectionNameInput` ("Section
-  name"); Enter or blur with a name dispatches `addControlSection` (a new
-  uuid, appended last) and moves the picked pills in ("Add section" with
+  folder-plus icon and its tooltip, right after "Add filter" (its
+  `UnsectionTarget`) and before the capsules, shown once the dashboard has
+  a filter, hidden while a section is named and inert while a filter is
+  edited (`InertWhileEditing`). The bar ends on the unsectioned pills:
+  nothing follows them. Every way of starting a section puts `NewSection`
+  in that one slot, in the button's place, where the section lands. It is
+  a capsule holding a focused, empty `SectionNameInput` ("Section
+  name"); Enter or blur with a name dispatches `prependControlSection` (a
+  new uuid, first of the sections) and moves the picked pills in ("Add section" with
   nothing picked makes an empty section), Escape or an empty name drops
-  it. There is no menu on "Add filter". Focus returns to the name button
+  it. The "..." on "Add filter" starts no section. Focus returns to the name button
   after a rename (`useRefocusAfter`), and to "Add filter" once `NewSection`
   unmounts (to "Add section" after a cancelled name it started), both only
   when focus fell to `body`, so a blur by click keeps where it went. While a filter is edited the name and the `.actions` group

@@ -1,5 +1,7 @@
 import { FilterOperator, type DashboardFilters } from '@lightdash/common';
-import { fireEvent, screen } from '@testing-library/react';
+import { MantineProvider } from '@mantine/core';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { type ReactElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { type SqlChartTileMetadata } from '../../providers/Dashboard/types';
@@ -103,7 +105,7 @@ describe('AddControl', () => {
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
 
-    it('is "Add filter" with the shipped eye, which hides it from viewers, and opens a new one', () => {
+    it('is "Add filter", which opens a new one, with a menu in place of the shipped eye', () => {
         mockFilters.current = {
             dimensions: [
                 {
@@ -119,24 +121,160 @@ describe('AddControl', () => {
         };
         renderWithProviders(<AddControl />);
         expect(add().querySelector('svg')).toBeNull();
-        fireEvent.click(
-            screen.getByRole('button', {
+        expect(
+            screen.queryByRole('button', {
                 name: 'Toggle filter visibility for viewers',
             }),
-        );
-        expect(setIsAddFilterDisabled).toHaveBeenCalledWith(true);
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Filter rules' }),
+        ).not.toBeInTheDocument();
         fireEvent.click(add());
         expect(mockSidebar.current.openNew).toHaveBeenCalledTimes(1);
     });
 
-    it('is the trigger joined to the eye, with no caret between them', () => {
+    it('is the trigger joined to the menu, with no caret between them', () => {
         const { container } = renderWithProviders(<AddControl />);
         const group = container.querySelector('[data-filter-actions]');
         const buttons = [...(group?.querySelectorAll('button') ?? [])];
         expect(buttons.map((b) => b.getAttribute('aria-label'))).toEqual([
             null,
-            'Toggle filter visibility for viewers',
+            'Filter bar settings',
         ]);
+    });
+
+    it('lets viewers add filters from a checkbox that keeps the menu open', async () => {
+        renderWithProviders(<AddControl />);
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Filter bar settings' }),
+        );
+        const item = await screen.findByRole('menuitem', {
+            name: 'Viewers can add filters',
+        });
+        expect(screen.getByRole('checkbox')).toBeChecked();
+
+        fireEvent.click(item);
+
+        expect(setIsAddFilterDisabled).toHaveBeenCalledWith(true);
+        expect(
+            screen.getByRole('menuitem', { name: 'Viewers can add filters' }),
+        ).toBeInTheDocument();
+    });
+
+    it('shows the box unchecked while viewers cannot add filters', async () => {
+        mockDashboardContext.current.isAddFilterDisabled = true;
+        renderWithProviders(<AddControl />);
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Filter bar settings' }),
+        );
+        fireEvent.click(
+            await screen.findByRole('menuitem', {
+                name: 'Viewers can add filters',
+            }),
+        );
+        expect(setIsAddFilterDisabled).toHaveBeenCalledWith(false);
+    });
+
+    it('opens the shipped filter rules from the menu', async () => {
+        renderWithProviders(<AddControl />);
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Filter bar settings' }),
+        );
+        fireEvent.click(
+            await screen.findByRole('menuitem', { name: 'Filter rules' }),
+        );
+        expect(
+            await screen.findByText(
+                "Dashboard won't load until all rules are met.",
+            ),
+        ).toBeInTheDocument();
+    });
+
+    describe('with filter rules', () => {
+        beforeEach(() => {
+            mockFilters.current = {
+                dimensions: [
+                    {
+                        id: 'f1',
+                        target: { fieldId: 'a', tableName: 't' },
+                        operator: FilterOperator.EQUALS,
+                        values: [],
+                        disabled: true,
+                        required: true,
+                        label: undefined,
+                    },
+                ],
+                metrics: [],
+                tableCalculations: [],
+            };
+        });
+
+        it('marks the "..." and counts them on the menu item, as the shipped button did', async () => {
+            renderWithProviders(<AddControl />);
+            expect(
+                screen.getByRole('img', { name: '1 filter rule' }),
+            ).toBeInTheDocument();
+            fireEvent.click(
+                screen.getByRole('button', { name: 'Filter bar settings' }),
+            );
+            expect(
+                await screen.findByRole('menuitem', { name: 'Filter rules 1' }),
+            ).toBeInTheDocument();
+        });
+
+        it('keeps staged rule edits while the menu is used, and toggles the rules from it', async () => {
+            // The test env renders no portals; the bug needs the menu's
+            renderWithProviders(
+                <MantineProvider env="default">
+                    <AddControl />
+                </MantineProvider>,
+            );
+            const settings = () =>
+                screen.getByRole('button', {
+                    name: 'Filter bar settings',
+                    hidden: true,
+                });
+            const note = () =>
+                screen.getByLabelText<HTMLTextAreaElement>('Note for viewers');
+            await userEvent.click(settings());
+            await userEvent.click(
+                await screen.findByRole('menuitem', { name: /Filter rules/ }),
+            );
+            await userEvent.type(
+                await screen.findByLabelText('Note for viewers'),
+                'Pick a region',
+            );
+
+            await userEvent.click(settings());
+            await userEvent.click(
+                await screen.findByRole('menuitem', {
+                    name: 'Viewers can add filters',
+                    hidden: true,
+                }),
+            );
+
+            expect(setIsAddFilterDisabled).toHaveBeenCalledWith(true);
+            expect(note().value).toBe('Pick a region');
+
+            await userEvent.click(
+                screen.getByRole('menuitem', {
+                    name: /Filter rules/,
+                    hidden: true,
+                }),
+            );
+            await waitFor(() =>
+                expect(
+                    screen.queryByLabelText('Note for viewers'),
+                ).not.toBeInTheDocument(),
+            );
+        });
+    });
+
+    it('shows no rules mark while there are none', () => {
+        renderWithProviders(<AddControl />);
+        expect(
+            screen.queryByRole('img', { name: /filter rule/ }),
+        ).not.toBeInTheDocument();
     });
 
     describe('for a viewer', () => {
@@ -144,12 +282,15 @@ describe('AddControl', () => {
             mockSidebar.current.isViewer = true;
         });
 
-        it('is the shipped view mode button on the bar: no eye, opens the rail', () => {
+        it('is the shipped view mode button on the bar: no eye or menu, opens the rail', () => {
             renderWithProviders(<AddControl />);
             expect(
                 screen.queryByRole('button', {
                     name: 'Toggle filter visibility for viewers',
                 }),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.queryByRole('button', { name: 'Filter bar settings' }),
             ).not.toBeInTheDocument();
             fireEvent.click(add());
             expect(mockSidebar.current.openNew).toHaveBeenCalledTimes(1);
@@ -188,6 +329,15 @@ describe('AddControl', () => {
                 </DashboardStoreTestProvider>,
             );
             expect(add().closest('[inert]')).not.toBeNull();
+            if (!isViewer)
+                expect(
+                    screen
+                        .getByRole('button', {
+                            name: 'Filter bar settings',
+                            hidden: true,
+                        })
+                        .closest('[inert]'),
+                ).not.toBeNull();
         },
     );
 
