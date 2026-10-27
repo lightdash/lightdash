@@ -1,3 +1,10 @@
+## [3.73.3](https://github.com/lightdash/lightdash/compare/3.73.2...3.73.3) (2026-10-27)
+
+
+### Bug Fixes
+
+* harden agent identity policy changes across modes ([#31633](https://github.com/lightdash/lightdash/issues/31633)) ([e4aee36](https://github.com/lightdash/lightdash/commit/e4aee362e5015b4355ca3cb1d07e7b73b2ec6b6c))
+
 ## [3.73.2](https://github.com/lightdash/lightdash/compare/3.73.1...3.73.2) (2026-10-27)
 
 
