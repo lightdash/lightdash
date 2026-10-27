@@ -1148,6 +1148,23 @@ describe('SpacePermissionService', () => {
         const projectUuid = 'project-uuid';
         const organizationUuid = 'org-uuid';
 
+        test('throws NotFoundError when the space has no inheritance chain', async () => {
+            mockPermissionModel.getInheritanceChains.mockResolvedValue({});
+
+            await expect(
+                service.getInheritedPermissionsToCopy('missing-space'),
+            ).rejects.toEqual(
+                new NotFoundError('Space missing-space not found'),
+            );
+
+            expect(
+                mockPermissionModel.getInheritanceChains,
+            ).toHaveBeenCalledWith(['missing-space']);
+            expect(
+                mockPermissionModel.getDirectSpaceAccess,
+            ).not.toHaveBeenCalled();
+        });
+
         test('returns user and group entries from ancestor spaces', async () => {
             const childSpaceUuid = 'child-space';
             const parentSpaceUuid = 'parent-space';

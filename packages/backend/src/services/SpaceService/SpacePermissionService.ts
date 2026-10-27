@@ -1129,10 +1129,11 @@ export class SpacePermissionService extends BaseService {
             [spaceUuid],
         );
 
-        if (!chainEntry) {
+        const entry = chainEntry[spaceUuid];
+        if (!entry) {
             throw new NotFoundError(`Space ${spaceUuid} not found`);
         }
-        const { chain } = chainEntry[spaceUuid];
+        const { chain } = entry;
         const ancestorUuids = chain
             .map((item) => item.spaceUuid)
             .filter((uuid) => uuid !== spaceUuid);
