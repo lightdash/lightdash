@@ -142,7 +142,6 @@ type CapsuleActions = {
     onMove: (delta: -1 | 1) => void;
     onRename: (name: string) => void;
     onAddFilter: () => void;
-    onToggleCollapsedByDefault: () => void;
     onRemove: () => void;
 };
 
@@ -369,13 +368,6 @@ const SectionCapsule: FC<CapsuleProps> = ({
                     <SectionMenu
                         label={`${section.name} menu`}
                         hasMembers={rules.length > 0}
-                        isCollapsedByDefault={isCollapsedByDefault(
-                            section,
-                            rules.length,
-                        )}
-                        onToggleCollapsedByDefault={
-                            actions.onToggleCollapsedByDefault
-                        }
                         onRemove={actions.onRemove}
                     />
                 </Group>
@@ -520,6 +512,12 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
     const onPopoverClose = useCallback(() => setOpenPopoverId(undefined), []);
     const getUiString = useUiStrings();
     const isViewer = useControlsSidebarSelector((c) => c.isViewer);
+    // A viewer's flips last for one visit: a mode change starts from the saved state
+    const [flipsMode, setFlipsMode] = useState(isViewer);
+    if (flipsMode !== isViewer) {
+        setFlipsMode(isViewer);
+        setFlippedIds(new Set());
+    }
     const isEditing = useControlsSidebarSelector((c) => c.isSidebarOpen);
     const editingFilterId = useControlsSidebarSelector(
         (c) => c.editing?.filterId ?? null,
@@ -653,8 +651,10 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
                       : [{ section, rules, visibleRules }];
               },
           );
+    // An editor sees the saved way to start; only a viewer's flips are local
     const isOpen = (section: DashboardControlSection, total: number) =>
-        !isCollapsedByDefault(section, total) !== flippedIds.has(section.id);
+        !isCollapsedByDefault(section, total) !==
+        (isViewer && flippedIds.has(section.id));
     // A popover in a collapsed or hidden section is closed with it
     const sectionOfOpenPopover = groupRulesBySection(
         dashboardFilters,
@@ -771,21 +771,28 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
             isChanged={isChanged}
             isOpen={isOpen(section, rules.length)}
             onToggle={() => {
-                // A viewer's fold only; an editor's is not tracked
-                if (isViewer) {
-                    track({
-                        name: EventName.DASHBOARD_SECTION_TOGGLED,
-                        properties: {
-                            dashboardUuid,
-                            filtersCount: rules.length,
-                            expanded: !isOpen(section, rules.length),
-                            collapsedByDefault: isCollapsedByDefault(
-                                section,
-                                rules.length,
-                            ),
-                        },
-                    });
+                // An editor's fold is the saved way to start, made explicit
+                if (!isViewer) {
+                    dispatch(
+                        dashboardEditActions.setControlSectionCollapsed({
+                            id: section.id,
+                            collapsed: isOpen(section, rules.length),
+                        }),
+                    );
+                    return;
                 }
+                track({
+                    name: EventName.DASHBOARD_SECTION_TOGGLED,
+                    properties: {
+                        dashboardUuid,
+                        filtersCount: rules.length,
+                        expanded: !isOpen(section, rules.length),
+                        collapsedByDefault: isCollapsedByDefault(
+                            section,
+                            rules.length,
+                        ),
+                    },
+                });
                 toggle(section.id);
             }}
             activeTabUuid={activeTabUuid}
@@ -812,19 +819,6 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
                                   }),
                               ),
                           onAddFilter: () => openNew(section.id),
-                          // Saved either way, so unticked means open
-                          onToggleCollapsedByDefault: () =>
-                              dispatch(
-                                  dashboardEditActions.setControlSectionCollapsed(
-                                      {
-                                          id: section.id,
-                                          collapsed: !isCollapsedByDefault(
-                                              section,
-                                              rules.length,
-                                          ),
-                                      },
-                                  ),
-                              ),
                           onRemove: () => {
                               // The menu leaves with its capsule
                               focusAfter.current = [ADD_FILTER_SELECTOR];

@@ -228,7 +228,7 @@ In `FilterConfiguration/`:
   (`.joinedMenuTrigger` in `FilterPills.module.css`), named and tooltipped
   "Filter bar settings", opening a Mantine `Menu` of two items:
   "Viewers can add filters", a checkbox item that keeps the menu open (as
-  the section menu's "Collapsed by default"), checked while
+  the date zoom menu's), checked while
   `isAddFilterDisabled` is off and writing `setIsAddFilterDisabled` as the
   eye did; then, under a divider, "Filter rules", which toggles the shipped
   requirements popover and carries the shipped button's yellow count badge
@@ -1213,8 +1213,8 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
 
 A section is a named, ordered set of controls; never "group" (that is
 `requiredGroupId`). Saved on `DashboardConfig`: `controlSections` (`{ id,
-name, collapsed? }[]`, display order; `collapsed` is the editor's choice that
-the section starts folded, absent for today's behaviour) and
+name, collapsed? }[]`, display order; `collapsed` is how the section starts,
+written by an editor's chevron, absent until then: the size rule below) and
 `parameterSections` (parameter name to section id). Membership on the control: `DashboardFilterRule.sectionId` and
 `DateZoomControl.sectionId`. Controls with no section, or a `sectionId` with
 no matching section, are unsectioned and render first on the bar, before
@@ -1276,12 +1276,15 @@ the language map, as tab names are.
   (`selectSavedFilterOverrides`), else, and always for an editor (their
   values are the defaults), `formatSectionCount` ("N filters");
   `filters.sectionSummary` stays in the registry unused. The bar's own gap
-  separates capsules. A section starts as `section.collapsed` says; with no
-  saved choice, one with more than `COLLAPSED_BY_DEFAULT_ABOVE` (6) members
-  in all, on any tab, starts collapsed, the rest open; the state is local,
-  keyed by section id
-  (`flippedIds`: the ids whose state differs from that default), nothing
-  saved and nothing in the URL. The shared popover id is dropped while its
+  separates capsules. A section starts as `isCollapsedByDefault` says: an
+  explicit `section.collapsed` wins; with none, one with more than
+  `COLLAPSED_BY_DEFAULT_ABOVE` (6) members in all, on any tab, starts
+  collapsed, the rest open. An editor's bar always shows that saved state,
+  and the editor's chevron writes it (see below). A viewer's fold is local,
+  keyed by section id (`flippedIds`: the ids whose state differs from that
+  default), nothing saved and nothing in the URL; it lasts one visit, and a
+  mode change empties it (adjusted in render), so view mode after Save
+  starts from what was saved. The shared popover id is dropped while its
   pill's section is collapsed or off the tab. `FilterPills` threads
   `sectionId` (`undefined`: every saved rule, the default; `null`; a
   string) and a shared `popover` state to
@@ -1294,8 +1297,13 @@ the language map, as tab names are.
   null for a viewer, whose capsule is unchanged): the head (`.head`) is the
   chevron (an `ActionIcon` `size="sm"`, the theme's 24px, named
   by `filters.rail.collapseSection` / `expandSection` with the same
-  tooltip, `aria-expanded`, the fold summary's `aria-describedby`; it only
-  folds) and the name, a `Button size="xs"` subtle at `xs` 600 with 6px
+  tooltip, `aria-expanded`, the fold summary's `aria-describedby`). Its fold
+  is the section's saved way to start: a click dispatches
+  `setControlSectionCollapsed` with the opposite of what shows, always an
+  explicit value, so a size-folded section gets `collapsed: false` once
+  opened. It marks the dashboard changed (`haveControlSectionsChanged`), so
+  Save keeps it and Cancel's `syncControlSections` puts it back; what the
+  editor sees is what viewers get. Then the name, a `Button size="xs"` subtle at `xs` 600 with 6px
   side padding (`.name`: the text cursor and `--button-padding-x-xs`),
   which turns into `SectionNameInput` (`SectionNameInput.tsx`, `TextInput
   size="xs"`) in place, as wide as its text: `.nameSizer` is a one-cell
@@ -1331,11 +1339,10 @@ the language map, as tab names are.
   `data-editable` drops the collapsed capsule's 10px right padding), two
   `sm` `xl`-radius icons, each with a tooltip of its name: `+` "Add filter
   to {name}" (`openNew(section.id)`) and `SectionMenu` named "{name} menu"
-  ("Collapsed by default", then one neutral item with a folder-minus icon that
+  (one neutral item with a folder-minus icon that
   removes in one click: "Remove, keep filters" on a section with members
   (on any tab), "Remove section" on an empty one; never red, no trash can,
-  nothing asks twice. The box is
-  `isCollapsedByDefault`, a toggle saves the opposite; remove dispatches
+  nothing asks twice. Remove dispatches
   `removeControlSection` and, with members, one `setDashboardFilters` over
   `removeSectionFromRules` plus `setHaveFiltersChanged(true)`; focus then
   goes to "Add filter"). A section starts from "Move to new section" on
@@ -1377,6 +1384,8 @@ the language map, as tab names are.
     keeps where focus went.
   While a filter is edited the name and the `.actions` group carry `inert`
   (the group dimmed by the shared `.inert` rule); the chevron still folds.
+  The rail has no section headers and no fold of its own: the capsule's
+  chevron is the one fold control.
 - `SectionsTip` teaches that gesture: an editor's first row above the bar
   (`px="lg"` as the bar), a dimmed bulb, `xs` dimmed "Tip: ⌘ click filters
   to select them, then Move to new section to group them." ("Ctrl" off
