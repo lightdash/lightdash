@@ -48,6 +48,20 @@ export const MODEL_PRESETS: {
 } = {
     openai: [
         {
+            name: 'gpt-6.1-sol',
+            provider: 'openai',
+            modelId: 'gpt-6.1-sol',
+            displayName: 'GPT-6.1 Sol',
+            description: 'Frontier model for complex professional work',
+            contextWindowTokens: 1050000,
+            supportsReasoning: true,
+            callOptions: {},
+            providerOptions: {
+                // strictJsonSchema: provider default is true
+                parallelToolCalls: false,
+            },
+        },
+        {
             name: 'gpt-6-sol',
             provider: 'openai',
             modelId: 'gpt-6-sol',
@@ -55,6 +69,8 @@ export const MODEL_PRESETS: {
             description: 'Frontier model for complex professional work',
             contextWindowTokens: 1050000,
             supportsReasoning: true,
+            deprecated: true,
+            supersededBy: 'gpt-6.1-sol',
             callOptions: {},
             providerOptions: {
                 // strictJsonSchema: provider default is true
