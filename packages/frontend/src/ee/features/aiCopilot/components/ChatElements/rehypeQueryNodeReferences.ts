@@ -10,17 +10,19 @@ const QUERY_NODE_MARKDOWN_LINK = new RegExp(
     'g',
 );
 
-export type QueryNodeReferenceIndices = ReadonlyMap<string, number>;
+/** Plain record: Streamdown keys its plugin cache by JSON.stringify of the options. */
+export type QueryNodeReferenceIndices = Readonly<Record<string, number>>;
 
 /** Numbers nodes by first appearance across the whole message; Streamdown
  *  renders each Markdown block on its own, so a per-tree count would restart. */
 export const getQueryNodeReferenceIndices = (
     markdown: string,
 ): QueryNodeReferenceIndices => {
-    const indices = new Map<string, number>();
+    const indices: Record<string, number> = {};
     for (const match of markdown.matchAll(QUERY_NODE_MARKDOWN_LINK)) {
         const nodeId = match[1];
-        if (!indices.has(nodeId)) indices.set(nodeId, indices.size + 1);
+        if (!Object.hasOwn(indices, nodeId))
+            indices[nodeId] = Object.keys(indices).length + 1;
     }
     return indices;
 };
@@ -38,7 +40,9 @@ export const rehypeQueryNodeReferences =
                     : null;
             if (!nodeId) return;
 
-            const index = indices.get(nodeId);
+            const index = Object.hasOwn(indices, nodeId)
+                ? indices[nodeId]
+                : undefined;
             node.properties = {
                 ...node.properties,
                 'data-content-type': 'query-node-link',
