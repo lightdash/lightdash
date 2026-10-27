@@ -63,6 +63,7 @@ import { MAX_HEXBIN_POINTS } from './hexbin/hexbinUtils';
 import MapContextMenu from './MapContextMenu';
 import MapLegend from './MapLegend';
 import MapTileLayer from './MapTileLayer';
+import { useMapResetKey } from './useMapResetKey';
 
 const HexbinLayer = lazy(() => import('./hexbin/HexbinLayer'));
 
@@ -518,6 +519,7 @@ type SimpleMapProps = {
 const SimpleMap: FC<SimpleMapProps> = memo(
     ({ onScreenshotReady, onScreenshotError, ...props }) => {
         const { leafletMapRef } = useVisualizationServices();
+        const mapResetKey = useMapResetKey();
         const visualizationConfig = useVisualizationConfig();
         const {
             isLoading,
@@ -1125,6 +1127,7 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                     }
                 >
                     <MapContainer
+                        key={mapResetKey}
                         center={[
                             effectiveExtent?.lat ?? 20,
                             effectiveExtent?.lng ?? 0,
@@ -1329,6 +1332,7 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                     }
                 >
                     <MapContainer
+                        key={mapResetKey}
                         center={[
                             effectiveExtent?.lat ?? 20,
                             effectiveExtent?.lng ?? 0,
