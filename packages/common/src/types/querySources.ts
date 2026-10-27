@@ -324,6 +324,8 @@ export type SourceQueryStatus = {
     queryUuid: UUID;
     status: QueryHistoryStatus;
     error: string | null;
+    /** Rows the query returned; null while unknown, e.g. before it finishes. */
+    totalRowCount: number | null;
 };
 
 export type ApiGetSourceQueryStatusResults = {

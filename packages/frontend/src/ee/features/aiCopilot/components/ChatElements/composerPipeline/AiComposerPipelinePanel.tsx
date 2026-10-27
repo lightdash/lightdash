@@ -321,10 +321,23 @@ const QueryCode: FC<{ query: SourceQuery; projectUuid: string }> = ({
 
 const ViewResultsButton: FC<{
     nodeTitle: string;
+    /** Null while the row count is unknown or the query is still running. */
+    totalRowCount: number | null;
     displayed: boolean;
     onClick: () => void;
-}> = ({ nodeTitle, displayed, onClick }) => {
+}> = ({ nodeTitle, totalRowCount, displayed, onClick }) => {
     const getUiString = useUiStrings();
+    const label =
+        totalRowCount === null
+            ? getUiString('aiAgent.composer.node.viewResults')
+            : interpolateUiString(
+                  getUiString(
+                      totalRowCount === 1
+                          ? 'aiAgent.composer.node.viewResultsCount.singular'
+                          : 'aiAgent.composer.node.viewResultsCount.plural',
+                  ),
+                  { count: totalRowCount.toLocaleString() },
+              );
     return (
         <UnstyledButton
             className={styles.queryToggle}
@@ -336,7 +349,7 @@ const ViewResultsButton: FC<{
             )}
         >
             <MantineIcon icon={IconTable} size={11} stroke={1.6} />
-            {getUiString('aiAgent.composer.node.viewResults')}
+            {label}
         </UnstyledButton>
     );
 };
@@ -385,6 +398,11 @@ const PipelineNodeRow: FC<
                 {displayable && (
                     <ViewResultsButton
                         nodeTitle={node.title}
+                        totalRowCount={
+                            nodeStatus?.status === 'success'
+                                ? nodeStatus.totalRowCount
+                                : null
+                        }
                         displayed={displayed}
                         onClick={() => onDisplayNode(node.nodeId)}
                     />
