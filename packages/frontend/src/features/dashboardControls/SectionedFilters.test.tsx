@@ -98,17 +98,9 @@ vi.mock('@dnd-kit/core', async (importOriginal) => {
 // draggable, as the real pass does in the bar's drag context
 vi.mock('./AddControl', async (importOriginal) => ({
     ...(await importOriginal<typeof AddControlModule>()),
-    // The caret is the real AddControl's; here it starts naming at once
-    AddControl: ({ onAddSection }: { onAddSection?: () => void }) => (
+    AddControl: () => (
         <div data-filter-actions>
             <button data-dashboard-filter-control>Add</button>
-            {onAddSection && (
-                <button
-                    aria-label="More ways to add"
-                    data-controls-add-more
-                    onClick={onAddSection}
-                />
-            )}
         </div>
     ),
 }));
@@ -943,7 +935,7 @@ describe('SectionedFilters', () => {
             expect(bar()).not.toBeInTheDocument();
         });
 
-        it('names a new section on the bar and moves the selection in on commit', async () => {
+        it('names a new section on the bar and moves the selection in on commit, from Move to or its own button', async () => {
             const user = userEvent.setup();
             const { store } = renderSectioned(rules(), 'tab-1');
             fireEvent.click(pillOf('loose'), { metaKey: true });
@@ -961,9 +953,8 @@ describe('SectionedFilters', () => {
             expect(setDashboardFilters).not.toHaveBeenCalled();
             expect(pickedIds()).toEqual(['loose']);
 
-            await user.click(screen.getByRole('button', { name: 'Move to' }));
             await user.click(
-                screen.getByRole('menuitem', { name: 'New section' }),
+                screen.getByRole('button', { name: 'Move to new section' }),
             );
             await user.type(
                 screen.getByRole('textbox', { name: 'Section name' }),
@@ -1065,6 +1056,56 @@ describe('SectionedFilters', () => {
             expect(pickedIds()).toEqual([]);
             expect(bar()).not.toBeInTheDocument();
             mockSidebar.current = { isViewer: false, isSidebarOpen: false };
+        });
+
+        it('adds a section last from a selection, and drops it on Escape or an empty name', async () => {
+            const { store } = renderSectioned([rule('one', 'a')], 'tab-1');
+            const user = userEvent.setup();
+            const addFilter = () => screen.getByRole('button', { name: 'Add' });
+            // A cancelled name keeps the selection, so it is picked once
+            fireEvent.click(screen.getByText('pill one'), { metaKey: true });
+            const moveToNewSection = async () => {
+                await user.click(
+                    await screen.findByRole('button', {
+                        name: 'Move to new section',
+                    }),
+                );
+            };
+            // No standalone button and no caret: a selection starts it
+            expect(
+                screen.queryByRole('button', { name: 'Add section' }),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.queryByRole('button', { name: 'More ways to add' }),
+            ).not.toBeInTheDocument();
+
+            await moveToNewSection();
+            const input = screen.getByRole('textbox', { name: 'Section name' });
+            expect(input).toHaveFocus();
+            expect(input).toHaveAttribute('placeholder', 'Section name');
+            await user.type(input, 'Late{Escape}');
+            expect(sectionsOf(store)).toHaveLength(3);
+            expect(addFilter()).toHaveFocus();
+
+            await moveToNewSection();
+            await user.keyboard('{Enter}');
+            expect(sectionsOf(store)).toHaveLength(3);
+            expect(addFilter()).toHaveFocus();
+
+            await moveToNewSection();
+            await user.keyboard('Late{Enter}');
+            const added = sectionsOf(store).at(-1);
+            expect(sectionsOf(store).map((s) => s.name)).toEqual([
+                'Dates',
+                'Regions',
+                'Empty',
+                'Late',
+            ]);
+            expect(
+                (
+                    setDashboardFilters.mock.calls[0][0] as DashboardFilters
+                ).dimensions.map((r) => [r.id, r.sectionId]),
+            ).toEqual([['one', added?.id]]);
         });
     });
 
@@ -1227,7 +1268,7 @@ describe('SectionedFilters', () => {
             mockDroppable.current = null;
         });
 
-        it('hands focus to the caret by Add filter once a section is removed', async () => {
+        it('hands focus to Add filter once a section is removed', async () => {
             const user = userEvent.setup();
             renderSectioned([rule('one', 'a')], 'tab-1');
             await user.click(
@@ -1240,9 +1281,7 @@ describe('SectionedFilters', () => {
             await user.click(
                 screen.getByRole('menuitem', { name: /^Remove section ·/ }),
             );
-            expect(
-                screen.getByRole('button', { name: 'More ways to add' }),
-            ).toHaveFocus();
+            expect(screen.getByRole('button', { name: 'Add' })).toHaveFocus();
         });
 
         it('leaves no dot once the saved way to start is put back', () => {
@@ -1344,40 +1383,6 @@ describe('SectionedFilters', () => {
                 ['three', 'b'],
             ]);
             expect(setHaveFiltersChanged).toHaveBeenCalledWith(true);
-        });
-
-        it('adds a section last on Enter and drops it on Escape or an empty name', async () => {
-            const { store } = renderSectioned([rule('one', 'a')], 'tab-1');
-            const user = userEvent.setup();
-            const addSection = () =>
-                screen.getByRole('button', { name: 'More ways to add' });
-            // No standalone button: the caret by "Add filter" starts it
-            expect(
-                screen.queryByRole('button', { name: 'Add section' }),
-            ).not.toBeInTheDocument();
-
-            await user.click(addSection());
-            const input = screen.getByRole('textbox', { name: 'Section name' });
-            expect(input).toHaveFocus();
-            expect(input).toHaveAttribute('placeholder', 'Section name');
-            await user.type(input, 'Late{Escape}');
-            expect(sectionsOf(store)).toHaveLength(3);
-            expect(addSection()).toHaveFocus();
-
-            await user.click(addSection());
-            await user.keyboard('{Enter}');
-            expect(sectionsOf(store)).toHaveLength(3);
-            expect(addSection()).toHaveFocus();
-
-            await user.click(addSection());
-            await user.keyboard('Late{Enter}');
-            expect(sectionsOf(store).map((s) => s.name)).toEqual([
-                'Dates',
-                'Regions',
-                'Empty',
-                'Late',
-            ]);
-            expect(addSection()).toHaveFocus();
         });
 
         it("gives a viewer's bar none of these controls", () => {

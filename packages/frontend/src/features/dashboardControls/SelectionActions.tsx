@@ -16,8 +16,8 @@ export type SelectionActionsProps = {
     onRemove: () => void;
 };
 
-// "Move to" and the two-click "Remove" over selected filters, on the bar's
-// selection bar
+// "Move to new section", "Move to" and the two-click "Remove" over selected
+// filters, on the bar's selection bar
 export const SelectionActions: FC<SelectionActionsProps> = ({
     count,
     sections,
@@ -30,6 +30,16 @@ export const SelectionActions: FC<SelectionActionsProps> = ({
     const [isRemoveArmed, setIsRemoveArmed] = useState(false);
     return (
         <>
+            <Button
+                variant="light"
+                size="xs"
+                flex="0 0 auto"
+                leftSection={<MantineIcon icon={IconFolderPlus} size={14} />}
+                disabled={count === 0}
+                onClick={onMoveToNewSection}
+            >
+                Move to new section
+            </Button>
             {/* Focus must stay on the name input New section opens */}
             <Menu position="top" returnFocus={false}>
                 <Menu.Target>

@@ -2,7 +2,7 @@ import { type DashboardFilterRule } from '@lightdash/common';
 import { Button, Divider, Group, Popover, Text, Tooltip } from '@mantine/core';
 import { useDisclosure, useId } from '@mantine/hooks';
 import { IconEye, IconEyeOff, IconRotate2 } from '@tabler/icons-react';
-import { useCallback, useMemo, type FC, type ReactNode } from 'react';
+import { useCallback, useMemo, type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
@@ -33,8 +33,6 @@ type Props = {
      * hide it entirely. Defaults to the app's "edit mode" copy.
      */
     unsavedFiltersTooltip?: string | null;
-    /** Edit mode only: joined between the trigger and the eye (default none). */
-    attachedSlot?: ReactNode;
 };
 
 const AddFilterButton: FC<Props> = ({
@@ -48,7 +46,6 @@ const AddFilterButton: FC<Props> = ({
     triggerClassName,
     dropdownClassName,
     unsavedFiltersTooltip,
-    attachedSlot,
 }) => {
     const popoverId = useId();
     const getUiString = useUiStrings();
@@ -238,8 +235,6 @@ const AddFilterButton: FC<Props> = ({
                     )}
                 </Popover.Dropdown>
             </Popover>
-
-            {isEditMode && attachedSlot}
 
             {isEditMode && (
                 <>

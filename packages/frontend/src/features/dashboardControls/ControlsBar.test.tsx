@@ -1,3 +1,4 @@
+import { FilterOperator } from '@lightdash/common';
 import { screen } from '@testing-library/react';
 import { type ComponentProps, type ReactElement, type ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -172,7 +173,7 @@ describe('ControlsBar', () => {
         );
     });
 
-    it('renders the sectioned bar in edit mode with no sections yet, so its caret can add the first', () => {
+    it('renders the sectioned bar in edit mode with no sections yet, so a selection can start the first', () => {
         renderWithProviders(<ControlsBar {...baseProps} isEditMode />);
 
         expect(screen.getByTestId('sectioned-filters')).toContainElement(
@@ -188,6 +189,40 @@ describe('ControlsBar', () => {
             screen.queryByRole('button', { name: 'Hide' }),
         ).not.toBeInTheDocument();
     });
+
+    it.each([true, false])(
+        'shows the sections tip above the bar in edit mode only (%s)',
+        (isEditMode) => {
+            const rule = (id: string) => ({
+                id,
+                label: undefined,
+                operator: FilterOperator.EQUALS,
+                target: { fieldId: id, tableName: 'orders' },
+            });
+            renderWithAppProviders(
+                <DashboardStoreTestProvider
+                    store={createDashboardTestStore({
+                        dashboardFilters: {
+                            dimensions: [rule('a'), rule('b')],
+                            metrics: [],
+                            tableCalculations: [],
+                        },
+                    })}
+                >
+                    <ControlsBar {...baseProps} isEditMode={isEditMode} />
+                </DashboardStoreTestProvider>,
+            );
+            const tip = screen.queryByRole('note');
+            if (!isEditMode) {
+                expect(tip).toBeNull();
+                return;
+            }
+            expect(tip).toHaveTextContent('Move to new section');
+            expect(
+                tip?.compareDocumentPosition(screen.getByTestId('date-zoom')),
+            ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+        },
+    );
 
     it('keeps the bar and Required while a filter is edited, Required inert', () => {
         mockSidebar.current = { isSidebarOpen: true };

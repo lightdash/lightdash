@@ -58,10 +58,3 @@
     right: 0;
     transform: translate(25%, -25%);
 }
-
-/* The caret joined between "Add filter" and the eye: dashed as they are, its
-   sides drawn by the dividers */
-.addMore.addMore {
-    border-style: dashed;
-    border-inline-width: 0;
-}

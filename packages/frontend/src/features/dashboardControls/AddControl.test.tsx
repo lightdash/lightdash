@@ -1,6 +1,5 @@
 import { FilterOperator, type DashboardFilters } from '@lightdash/common';
 import { fireEvent, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { type ReactElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { type SqlChartTileMetadata } from '../../providers/Dashboard/types';
@@ -130,59 +129,14 @@ describe('AddControl', () => {
         expect(mockSidebar.current.openNew).toHaveBeenCalledTimes(1);
     });
 
-    describe('the caret by "Add filter"', () => {
-        const caret = () =>
-            screen.getByRole('button', { name: 'More ways to add' });
-
-        it('joins the group between the trigger and the eye, and opens "Add section"', async () => {
-            const onAddSection = vi.fn();
-            const { container } = renderWithProviders(
-                <AddControl onAddSection={onAddSection} />,
-            );
-            const group = container.querySelector('[data-filter-actions]');
-            const buttons = [...(group?.querySelectorAll('button') ?? [])];
-            expect(buttons.map((b) => b.getAttribute('aria-label'))).toEqual([
-                null,
-                'More ways to add',
-                'Toggle filter visibility for viewers',
-            ]);
-            expect(buttons[0]).toBe(add());
-            expect(caret()).toHaveAttribute('data-size', 'xs');
-
-            await userEvent.click(caret());
-            await userEvent.click(
-                await screen.findByRole('menuitem', { name: 'Add section' }),
-            );
-            expect(onAddSection).toHaveBeenCalledTimes(1);
-            expect(mockSidebar.current.openNew).not.toHaveBeenCalled();
-        });
-
-        it('is not there without a handler, nor for a viewer', () => {
-            const { unmount } = renderWithProviders(<AddControl />);
-            expect(
-                screen.queryByRole('button', { name: 'More ways to add' }),
-            ).not.toBeInTheDocument();
-            unmount();
-
-            mockSidebar.current.isViewer = true;
-            renderWithProviders(<AddControl onAddSection={vi.fn()} />);
-            expect(
-                screen.queryByRole('button', { name: 'More ways to add' }),
-            ).not.toBeInTheDocument();
-        });
-
-        it('is inert with the rest of the group while a filter is edited', () => {
-            mockSidebar.current.isSidebarOpen = true;
-            renderWithProviders(<AddControl onAddSection={vi.fn()} />);
-            expect(
-                screen
-                    .getByRole('button', {
-                        name: 'More ways to add',
-                        hidden: true,
-                    })
-                    .closest('[inert]'),
-            ).not.toBeNull();
-        });
+    it('is the trigger joined to the eye, with no caret between them', () => {
+        const { container } = renderWithProviders(<AddControl />);
+        const group = container.querySelector('[data-filter-actions]');
+        const buttons = [...(group?.querySelectorAll('button') ?? [])];
+        expect(buttons.map((b) => b.getAttribute('aria-label'))).toEqual([
+            null,
+            'Toggle filter visibility for viewers',
+        ]);
     });
 
     describe('for a viewer', () => {

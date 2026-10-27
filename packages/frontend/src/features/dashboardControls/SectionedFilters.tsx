@@ -114,7 +114,6 @@ const underPointerFor: CollisionDetection = (args) =>
             : args,
     );
 
-const ADD_MORE_SELECTOR = '[data-controls-add-more]';
 const ADD_FILTER_SELECTOR =
     '[data-filter-actions] > button[data-dashboard-filter-control]';
 const pillSelector = (id: string) => `[data-controls-pill="${id}"]`;
@@ -388,7 +387,7 @@ const SectionCapsule: FC<CapsuleProps> = ({
 };
 
 // A new section named in place, after the last capsule. Started from the
-// caret by "Add filter"; focus goes back to that caret once it is settled
+// selection bar; focus goes back to "Add filter" once it is settled
 const NewSection: FC<{
     onAdd: (name: string) => void;
     onCancel: () => void;
@@ -397,9 +396,7 @@ const NewSection: FC<{
         () => () => {
             const active = document.activeElement;
             if (active !== null && active !== document.body) return;
-            document
-                .querySelector<HTMLElement>('[data-controls-add-more]')
-                ?.focus();
+            document.querySelector<HTMLElement>(ADD_FILTER_SELECTOR)?.focus();
         },
         [],
     );
@@ -704,7 +701,7 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid, children }) => {
                               ),
                           onRemove: () => {
                               // The menu leaves with its capsule
-                              focusAfter.current = [ADD_MORE_SELECTOR];
+                              focusAfter.current = [ADD_FILTER_SELECTOR];
                               dispatch(
                                   dashboardEditActions.removeControlSection(
                                       section.id,
@@ -869,9 +866,7 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid, children }) => {
             >
                 <Box className={classes.flow}>
                     <UnsectionTarget>
-                        <AddControl
-                            onAddSection={() => setNaming({ moveIds: [] })}
-                        />
+                        <AddControl />
                     </UnsectionTarget>
                     {capsules}
                     {naming !== null && (
