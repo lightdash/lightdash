@@ -721,7 +721,7 @@ describe('composer displayed node', () => {
         expandPipeline();
         fireEvent.click(
             screen.getByRole('button', {
-                name: 'View result of Average amount',
+                name: 'View results of Average amount',
             }),
         );
         expect(
@@ -762,7 +762,7 @@ describe('composer displayed node', () => {
         expandPipeline();
         fireEvent.click(
             screen.getByRole('button', {
-                name: 'View result of Average amount',
+                name: 'View results of Average amount',
             }),
         );
         expect(screen.getAllByText('Average amount')).toHaveLength(2);
@@ -781,7 +781,7 @@ describe('composer displayed node', () => {
         renderComposer({ data: undefined, isLoading: true });
         expandPipeline();
         expect(
-            screen.queryAllByRole('button', { name: /^View result of / }),
+            screen.queryAllByRole('button', { name: /^View results of / }),
         ).toHaveLength(0);
         expect(screen.getByText('Average amount')).toBeInTheDocument();
         expect(screen.queryByRole('columnheader')).not.toBeInTheDocument();
@@ -837,7 +837,7 @@ describe('composer displayed node', () => {
         ).toBeVisible();
         fireEvent.click(
             screen.getByRole('button', {
-                name: 'View result of Average amount',
+                name: 'View results of Average amount',
             }),
         );
         expect(
@@ -925,7 +925,7 @@ describe('composer per-node viz switcher', () => {
     };
     const display = (title: string) =>
         fireEvent.click(
-            screen.getByRole('button', { name: `View result of ${title}` }),
+            screen.getByRole('button', { name: `View results of ${title}` }),
         );
     it.skip('opens each displayed node as a table and remembers each choice', async () => {
         renderComposer();

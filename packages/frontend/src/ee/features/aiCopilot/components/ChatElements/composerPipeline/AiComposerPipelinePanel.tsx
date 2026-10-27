@@ -183,13 +183,14 @@ const SemanticNodeSummary: FC<{
         [query],
     );
     const getUiString = useUiStrings();
+    const exploreLabel = explore?.label ?? friendlyName(query.exploreName);
     const parts = [
         getUiString(
             open
                 ? 'aiAgent.composer.semanticNode.hide'
                 : 'aiAgent.composer.semanticNode.view',
         ),
-        explore?.label ?? friendlyName(query.exploreName),
+        exploreLabel,
     ];
     return (
         <>
@@ -203,6 +204,7 @@ const SemanticNodeSummary: FC<{
             >
                 <Box className={styles.summaryBody}>
                     <SemanticNodeDetails
+                        exploreLabel={exploreLabel}
                         metricQuery={metricQuery}
                         fieldsMap={fieldsMap}
                         parameters={query.parameters ?? {}}
@@ -317,7 +319,7 @@ const QueryCode: FC<{ query: SourceQuery; projectUuid: string }> = ({
     );
 };
 
-const ViewResultButton: FC<{
+const ViewResultsButton: FC<{
     nodeTitle: string;
     displayed: boolean;
     onClick: () => void;
@@ -329,12 +331,12 @@ const ViewResultButton: FC<{
             onClick={onClick}
             aria-pressed={displayed}
             aria-label={interpolateUiString(
-                getUiString('aiAgent.composer.node.viewResultOf'),
+                getUiString('aiAgent.composer.node.viewResultsOf'),
                 { node: nodeTitle },
             )}
         >
             <MantineIcon icon={IconTable} size={11} stroke={1.6} />
-            {getUiString('aiAgent.composer.node.viewResult')}
+            {getUiString('aiAgent.composer.node.viewResults')}
         </UnstyledButton>
     );
 };
@@ -381,7 +383,7 @@ const PipelineNodeRow: FC<
             )}
             <Box className={styles.details}>
                 {displayable && (
-                    <ViewResultButton
+                    <ViewResultsButton
                         nodeTitle={node.title}
                         displayed={displayed}
                         onClick={() => onDisplayNode(node.nodeId)}

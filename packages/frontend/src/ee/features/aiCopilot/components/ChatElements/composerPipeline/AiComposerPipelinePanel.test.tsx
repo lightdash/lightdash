@@ -192,7 +192,7 @@ describe('AiComposerPipelinePanel list mode', () => {
         expect(onDisplayNode).not.toHaveBeenCalled();
         fireEvent.click(
             within(row).getByRole('button', {
-                name: 'View result of Average amount',
+                name: 'View results of Average amount',
             }),
         );
         expect(onDisplayNode).toHaveBeenCalledWith('amounts');
@@ -209,12 +209,12 @@ describe('AiComposerPipelinePanel list mode', () => {
         ).toHaveAttribute('data-displayed', 'true');
         expect(
             screen.getByRole('button', {
-                name: 'View result of Average amount',
+                name: 'View results of Average amount',
             }),
         ).toHaveAttribute('aria-pressed', 'true');
         expect(
             screen.queryByRole('button', {
-                name: 'View result of Orders by status',
+                name: 'View results of Orders by status',
             }),
         ).not.toBeInTheDocument();
         expect(screen.getByText('Orders by status')).toBeInTheDocument();
