@@ -1,3 +1,15 @@
+# [3.71.0](https://github.com/lightdash/lightdash/compare/3.70.0...3.71.0) (2026-10-27)
+
+
+### Bug Fixes
+
+* map charts render again after switching back to a dashboard tab ([#31679](https://github.com/lightdash/lightdash/issues/31679)) ([58779bb](https://github.com/lightdash/lightdash/commit/58779bbf5de7f02a579a0316f7b49f1520d055fd))
+
+
+### Features
+
+* **cli:** show compiled SQL for each query in apps preview with --show-sql ([#31669](https://github.com/lightdash/lightdash/issues/31669)) ([152a13f](https://github.com/lightdash/lightdash/commit/152a13fac584ad9112d8c5df491b4f1887c5e80f))
+
 # [3.70.0](https://github.com/lightdash/lightdash/compare/3.69.3...3.70.0) (2026-10-27)
 
 
