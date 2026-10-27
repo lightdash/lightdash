@@ -111,11 +111,14 @@ dashboards.
 
 ## Not included
 
-No SQL, conversation/reasoning text, tool arguments/results, file contents,
+No SQL, AI prompts, replies or reasoning text, tool arguments/results, file contents,
 export destinations, arbitrary JSON or external identities are exported. Query
 error messages are included; error text from other activity sources is not.
 A file or artifact record can be included without its contents. Ownership joins
 scope every source to the authorized organization.
+
+Conversation activity means metadata such as IDs, timestamps and outcomes, not
+message contents. Captured analytics events also exclude AI prompts and replies.
 
 The import also excludes:
 

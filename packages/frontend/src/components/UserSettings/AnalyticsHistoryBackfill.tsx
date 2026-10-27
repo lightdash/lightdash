@@ -23,19 +23,19 @@ const AnalyticsHistoryBackfill = () => {
                 <Title order={5}>Historical activity</Title>
                 <Stack gap="xs">
                     <Text fz="sm" c="dimmed">
-                        Includes: retained queries, AI token usage, and
-                        historical views, apps, conversations, tools and export
-                        records.
+                        Includes: retained queries, AI token usage, and activity
+                        records for views, apps, AI conversations, tools and
+                        exports.
                     </Text>
                     <Text fz="sm" c="dimmed">
-                        Not included: conversation text, historical People
+                        Not included: AI prompts and replies, historical People
                         activity summaries, or records no longer stored.
                     </Text>
                 </Stack>
                 <Text fz="xs" c="dimmed">
-                    Queries and AI usage update existing Analytics datasets.
+                    Queries and AI usage appear in their existing datasets.
                     Other records appear in Historical activity. Existing
-                    captured queries and AI usage are kept.
+                    captured data is kept.
                 </Text>
                 {(status.isError || backfill.isError || status.data?.error) && (
                     <Callout
