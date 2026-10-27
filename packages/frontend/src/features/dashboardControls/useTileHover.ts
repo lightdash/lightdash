@@ -1,10 +1,20 @@
-import { type DashboardFilterRule } from '@lightdash/common';
-import { useEffect, useRef, type MouseEvent } from 'react';
-import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
-import { selectDashboardTiles, useDashboardSelector } from '../dashboard/store';
+import {
+    type DashboardFilterableField,
+    type DashboardFilterRule,
+} from '@lightdash/common';
+import {
+    useEffect,
+    useRef,
+    type Dispatch,
+    type MutableRefObject,
+    type MouseEvent,
+    type SetStateAction,
+} from 'react';
+import { selectDashboardTiles, useDashboardStore } from '../dashboard/store';
 import { getMissingTileFieldId, getTileField } from './peers';
 import { getTileSelector } from './tileSelector';
-import { useSqlColumnsByTile } from './useSqlColumnsByTile';
+import { useControlsSidebarSelector } from './useControlsSidebar';
+import { getSqlColumnsByTile } from './useSqlColumnsByTile';
 
 // Set on the grid items of the tiles a hovered pill's filter is on
 const TILE_HOVER_ATTRIBUTE = 'data-controls-hovered';
@@ -14,14 +24,34 @@ const clearTiles = () =>
         .querySelectorAll(`[${TILE_HOVER_ATTRIBUTE}]`)
         .forEach((element) => element.removeAttribute(TILE_HOVER_ATTRIBUTE));
 
-// Marks the tiles on the filter while its pill is hovered or keyboard-focused.
-// An attribute on the grid items, so no tile re-renders
-export const useTileHover = (rule: DashboardFilterRule, isEnabled: boolean) => {
-    const tiles = useDashboardSelector(selectDashboardTiles);
-    const fieldsByTile = useDashboardContext(
-        (c) => c.filterableFieldsByTileUuid,
+// Only the pill that made the marks takes them away
+const release = (
+    filterId: string,
+    owner: MutableRefObject<string | null>,
+    setHoveredFilterId: Dispatch<SetStateAction<string | null>>,
+) => {
+    if (owner.current !== filterId) return;
+    owner.current = null;
+    clearTiles();
+    setHoveredFilterId((id) => (id === filterId ? null : id));
+};
+
+// Marks the tiles on the filter while its pill is hovered or keyboard-focused,
+// and names it as hovered for the tab badges. An attribute on the grid items,
+// so no tile re-renders; tiles and fields are read on mark, so no pill does
+export const useTileHover = (
+    rule: DashboardFilterRule,
+    isEnabled: boolean,
+    getFieldsByTile: () =>
+        | Record<string, DashboardFilterableField[]>
+        | undefined,
+) => {
+    const store = useDashboardStore();
+    const setHoveredFilterId = useControlsSidebarSelector(
+        (c) => c.setHoveredFilterId,
     );
-    const sqlColumnsByTile = useSqlColumnsByTile(rule);
+    const owner = useControlsSidebarSelector((c) => c.tileHoverOwner);
+    const filterId = rule.id;
     const isMarking = useRef(false);
     // A press focuses the pill too, and may start a drag: that marks nothing
     const isPressed = useRef(false);
@@ -29,23 +59,25 @@ export const useTileHover = (rule: DashboardFilterRule, isEnabled: boolean) => {
     const clear = () => {
         if (!isMarking.current) return;
         isMarking.current = false;
-        clearTiles();
+        release(filterId, owner, setHoveredFilterId);
     };
 
     useEffect(
         () => () => {
-            if (isMarking.current) {
-                isMarking.current = false;
-                clearTiles();
-            }
+            if (!isMarking.current) return;
+            isMarking.current = false;
+            release(filterId, owner, setHoveredFilterId);
         },
-        [isEnabled],
+        [isEnabled, filterId, owner, setHoveredFilterId],
     );
 
     const mark = () => {
         if (!isEnabled) return;
         clearTiles();
-        (tiles ?? [])
+        const state = store.getState();
+        const fieldsByTile = getFieldsByTile();
+        const sqlColumnsByTile = getSqlColumnsByTile(rule, state);
+        (selectDashboardTiles(state) ?? [])
             .filter(
                 (tile) =>
                     getTileField(rule, tile, fieldsByTile, sqlColumnsByTile) !==
@@ -65,6 +97,8 @@ export const useTileHover = (rule: DashboardFilterRule, isEnabled: boolean) => {
                     ),
             );
         isMarking.current = true;
+        owner.current = filterId;
+        setHoveredFilterId(filterId);
     };
 
     return {

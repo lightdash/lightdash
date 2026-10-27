@@ -34,9 +34,16 @@ const pillsProps = vi.hoisted(() => ({
     current: [] as { sectionId: string | null | undefined }[],
 }));
 const mockSidebar = vi.hoisted(() => ({
-    current: { isViewer: false, isSidebarOpen: false },
+    current: { isViewer: false, isSidebarOpen: false } as {
+        isViewer: boolean;
+        isSidebarOpen: boolean;
+        editing?: { filterId: string } | null;
+    },
 }));
 const mockOpenNew = vi.hoisted(() => vi.fn());
+const mockMoveEditedFilter = vi.hoisted(() => vi.fn());
+// Whether each draggable, by id, was last rendered disabled
+const mockDraggableDisabled = vi.hoisted(() => new Map<unknown, boolean>());
 const mockDragEnd = vi.hoisted(() => ({
     handlers: [] as ((event: DragEndEvent) => void)[],
 }));
@@ -58,9 +65,17 @@ vi.mock('../../providers/Dashboard/useDashboardContext', () => ({
 vi.mock('./useControlsSidebar', () => ({
     useControlsSidebarSelector: (
         selector: (
-            value: typeof mockSidebar.current & { openNew: typeof mockOpenNew },
+            value: typeof mockSidebar.current & {
+                openNew: typeof mockOpenNew;
+                moveEditedFilter: typeof mockMoveEditedFilter;
+            },
         ) => unknown,
-    ) => selector({ ...mockSidebar.current, openNew: mockOpenNew }),
+    ) =>
+        selector({
+            ...mockSidebar.current,
+            openNew: mockOpenNew,
+            moveEditedFilter: mockMoveEditedFilter,
+        }),
 }));
 // The drag gesture is dnd-kit's; the drop handler is captured
 vi.mock('@dnd-kit/core', async (importOriginal) => {
@@ -70,6 +85,10 @@ vi.mock('@dnd-kit/core', async (importOriginal) => {
         DndContext: (props: Parameters<typeof actual.DndContext>[0]) => {
             if (props.onDragEnd) mockDragEnd.handlers.push(props.onDragEnd);
             return <actual.DndContext {...props} />;
+        },
+        useDraggable: (args: Parameters<typeof actual.useDraggable>[0]) => {
+            mockDraggableDisabled.set(args.id, args.disabled ?? false);
+            return actual.useDraggable(args);
         },
         useDroppable: (args: Parameters<typeof actual.useDroppable>[0]) => {
             const real = actual.useDroppable(args);
@@ -745,6 +764,53 @@ describe('SectionedFilters', () => {
             const ids = sectionIdsOf(setDashboardFilters.mock.calls[0][0]);
             expect(ids.at(-1)).toEqual(['two', 'a']);
             expect(ids.every(([, section]) => section === 'a')).toBe(true);
+        });
+
+        it('moves the edited filter through the editor while it is edited', () => {
+            mockSidebar.current = {
+                isViewer: false,
+                isSidebarOpen: true,
+                editing: { filterId: 'one' },
+            };
+            renderSectioned([rule('one', 'a'), rule('two', 'b')], 'tab-1');
+            act(() => {
+                mockDragEnd.handlers[0](dragEvent('one', 'b'));
+                mockDragEnd.handlers[0](dragEvent('one', 'two'));
+            });
+            expect(mockMoveEditedFilter.mock.calls).toEqual([
+                [{ sectionId: 'b' }, expect.any(Array)],
+                [{ ruleId: 'two' }, expect.any(Array)],
+            ]);
+            expect(setDashboardFilters).not.toHaveBeenCalled();
+        });
+
+        it('moves another filter as the bar does while one is edited', () => {
+            mockSidebar.current = {
+                isViewer: false,
+                isSidebarOpen: true,
+                editing: { filterId: 'one' },
+            };
+            renderSectioned([rule('one', 'a'), rule('two', 'b')], 'tab-1');
+            act(() =>
+                mockDragEnd.handlers[0](dragEvent('two', 'unsectioned-target')),
+            );
+            expect(sectionIdsOf(setDashboardFilters.mock.calls[0][0])).toEqual([
+                ['one', 'a'],
+                ['two', null],
+            ]);
+            expect(setHaveFiltersChanged).toHaveBeenCalledWith(true);
+            expect(mockMoveEditedFilter).not.toHaveBeenCalled();
+        });
+
+        it("keeps the capsules' drag off while a filter is edited", () => {
+            mockSidebar.current = { isViewer: false, isSidebarOpen: true };
+            const { switchTab } = renderSectioned([rule('one', 'a')], 'tab-1');
+            expect(mockDraggableDisabled.get('a')).toBe(true);
+            expect(mockDraggableDisabled.get('one')).toBe(false);
+
+            mockSidebar.current = { isViewer: false, isSidebarOpen: false };
+            switchTab('tab-1');
+            expect(mockDraggableDisabled.get('a')).toBe(false);
         });
 
         it('drops a pill on a pill: it takes that place and section', () => {

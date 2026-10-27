@@ -93,10 +93,13 @@ const findRule = (
  * section and, within its own list, that rule's place; on a section, it
  * joins that section after its last member of the same kind.
  */
+// A pill's drop: on another pill (its section and place) or a section (null: none)
+export type RuleDropTarget = { ruleId: string } | { sectionId: string | null };
+
 export const moveRuleToSection = (
     filters: DashboardFilters,
     activeId: string,
-    over: { ruleId: string } | { sectionId: string | null },
+    over: RuleDropTarget,
     sections: DashboardControlSection[],
 ): DashboardFilters => {
     const active = findRule(filters, activeId);

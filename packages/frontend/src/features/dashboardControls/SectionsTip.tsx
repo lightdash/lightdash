@@ -30,7 +30,7 @@ export const SectionsTip: FC = () => {
         <Group gap="xs" wrap="nowrap" px="lg" pb="xxs" role="note">
             <MantineIcon icon={IconBulb} color="dimmed" />
             <Text size="xs" c="dimmed" flex={1}>
-                {`Tip: ${os === 'macos' ? '⌘' : 'Ctrl'} click filters to select them, then Move to new section to put them in a section.`}
+                {`Tip: ${os === 'macos' ? '⌘' : 'Ctrl'} click filters to select them, then Move to new section to group them.`}
             </Text>
             <Tooltip label="Dismiss tip">
                 <ActionIcon

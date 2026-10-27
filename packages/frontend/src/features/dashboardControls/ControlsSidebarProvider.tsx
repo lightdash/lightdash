@@ -4,6 +4,7 @@ import {
     FilterOperator,
     isMetric,
     type Dashboard,
+    type DashboardControlSection,
     type DashboardFilterableField,
     type DashboardFilterRule,
     type DashboardFilters,
@@ -62,6 +63,7 @@ import {
     RailContractClasses,
     type RailContractClassNames,
 } from './railContractClasses';
+import { moveRuleToSection, type RuleDropTarget } from './sections';
 import {
     canKeepFilterRule,
     findFilterRule,
@@ -69,6 +71,7 @@ import {
     haveOtherFilterRulesChanged,
     isDefaultValueIncomplete,
     isFilterRuleDirty,
+    isFilterRuleMoved,
     PLACEHOLDER_TARGET,
     removeFilterRule,
     replaceFilterRule,
@@ -159,6 +162,40 @@ type SidebarState = {
     } | null;
     // Other filters the editor itself wrote since this control was opened
     touchedFilterIds: string[];
+    // The bar's drag moved the edited rule, so Discard puts back its place too
+    isMoved: boolean;
+};
+
+// What Apply or Cancel would decide: a new filter with no field yet has
+// nothing to lose
+const isEditUnapplied = (
+    state: SidebarState,
+    isPlaceholder: boolean,
+    dashboardFilters: DashboardFilters,
+    toSaved: (rule: DashboardFilterRule) => DashboardFilterRule,
+): boolean => {
+    if (isPlaceholder) return !state.isNew;
+    const { snapshot, filterId, touchedFilterIds, isMoved } = state;
+    return (
+        isFilterRuleDirty(
+            snapshot.dashboardFilters,
+            dashboardFilters,
+            filterId,
+            toSaved,
+        ) ||
+        haveOtherFilterRulesChanged(
+            snapshot.dashboardFilters,
+            dashboardFilters,
+            touchedFilterIds,
+            toSaved,
+        ) ||
+        (isMoved &&
+            isFilterRuleMoved(
+                snapshot.dashboardFilters,
+                dashboardFilters,
+                filterId,
+            ))
+    );
 };
 
 const createPlaceholder = (
@@ -369,6 +406,9 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
     );
     const [undo, setUndo] = useState<ApplyUndo | null>(null);
     const [hoveredFieldId, setHoveredFieldId] = useState<string | null>(null);
+    const [hoveredFilterId, setHoveredFilterId] = useState<string | null>(null);
+    // The filter whose pill marked the tiles: only that pill clears them
+    const tileHoverOwner = useRef<string | null>(null);
     const [waiting, setWaiting] = useState<Waiting | null>(null);
 
     const rendered: Latest = {
@@ -553,6 +593,7 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
                     haveFiltersChanged: current.haveFiltersChanged,
                 },
                 touchedFilterIds: [],
+                isMoved: false,
             });
         },
         [writeState, writePending, writePlaceholder, writeUndo],
@@ -581,6 +622,7 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
                     haveFiltersChanged: current.haveFiltersChanged,
                 },
                 touchedFilterIds: [],
+                isMoved: false,
             });
         },
         [writeState, writePending, writePlaceholder, writeUndo],
@@ -886,6 +928,28 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         [writeState, writeFilters, writeFiltersChanged, writeUndo],
     );
 
+    // The bar's drag of the edited filter: an edit like its Section select,
+    // so Discard puts back its section and its place
+    const moveEditedFilter = useCallback(
+        (over: RuleDropTarget, sections: DashboardControlSection[]) => {
+            const { state: editingState, dashboardFilters: filters } =
+                latest.current;
+            if (editingState === null) return;
+            const moved = moveRuleToSection(
+                filters,
+                editingState.filterId,
+                over,
+                sections,
+            );
+            if (moved === filters) return;
+            writeUndo(null);
+            writeState({ ...editingState, isMoved: true });
+            writeFilters(() => moved);
+            writeFiltersChanged(true);
+        },
+        [writeState, writeFilters, writeFiltersChanged, writeUndo],
+    );
+
     const addWaitingField = useCallback((fieldId: string) => {
         if (latest.current.state === null) return;
         const { filterId } = latest.current.state;
@@ -960,10 +1024,15 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         const { state: editingState } = latest.current;
         if (editingState === null) return;
         rememberFocusReturn();
-        const { snapshot, filterId, touchedFilterIds } = editingState;
+        const { snapshot, filterId, touchedFilterIds, isMoved } = editingState;
         writeFilters((filters) =>
             restoreFilterRules(
-                restoreFilterRule(filters, snapshot.dashboardFilters, filterId),
+                restoreFilterRule(
+                    // Out first, so it goes back in at the snapshot's place
+                    isMoved ? removeFilterRule(filters, filterId) : filters,
+                    snapshot.dashboardFilters,
+                    filterId,
+                ),
                 snapshot.dashboardFilters,
                 touchedFilterIds,
             ),
@@ -1105,28 +1174,17 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         [close, openPlaceholder, writePlaceholder],
     );
 
-    // What Apply or Cancel would decide: a new filter with no field yet has
-    // nothing to lose, as the context's `isDirty` reads it
+    // The context's `isDirty`, read from `latest`
     const hasUnappliedChanges = useCallback(() => {
         const current = latest.current;
         const { state: editingState, placeholder: editingPlaceholder } =
             current;
         if (editingState === null) return false;
-        if (editingPlaceholder !== null) return !editingState.isNew;
-        const { snapshot, filterId, touchedFilterIds } = editingState;
-        return (
-            isFilterRuleDirty(
-                snapshot.dashboardFilters,
-                current.dashboardFilters,
-                filterId,
-                toSavedNow,
-            ) ||
-            haveOtherFilterRulesChanged(
-                snapshot.dashboardFilters,
-                current.dashboardFilters,
-                touchedFilterIds,
-                toSavedNow,
-            )
+        return isEditUnapplied(
+            editingState,
+            editingPlaceholder !== null,
+            current.dashboardFilters,
+            toSavedNow,
         );
     }, [toSavedNow]);
 
@@ -1273,32 +1331,28 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
             clearHighlightedField,
             hoveredFieldId,
             setHoveredFieldId,
+            hoveredFilterId,
+            setHoveredFilterId,
+            tileHoverOwner,
             activeFieldId: hoveredFieldId ?? clickedFieldId,
             updateFilter,
             applyWithUndo,
             undoApply,
             fieldUndo,
             updateOtherFilters,
+            moveEditedFilter,
             removeFilterById,
             discard,
             close,
             // A new filter with no field yet has nothing to lose
             isDirty:
                 state !== null &&
-                (isPlaceholder
-                    ? !state.isNew
-                    : isFilterRuleDirty(
-                          state.snapshot.dashboardFilters,
-                          dashboardFilters,
-                          state.filterId,
-                          toSavedRule,
-                      ) ||
-                      haveOtherFilterRulesChanged(
-                          state.snapshot.dashboardFilters,
-                          dashboardFilters,
-                          state.touchedFilterIds,
-                          toSavedRule,
-                      )),
+                isEditUnapplied(
+                    state,
+                    isPlaceholder,
+                    dashboardFilters,
+                    toSavedRule,
+                ),
         }),
         [
             state,
@@ -1323,12 +1377,14 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
             clickedFieldId,
             clearHighlightedField,
             hoveredFieldId,
+            hoveredFilterId,
             updateFilter,
             applyWithUndo,
             undoApply,
             fieldUndo,
             selectField,
             updateOtherFilters,
+            moveEditedFilter,
             removeFilterById,
             discard,
             close,

@@ -65,7 +65,7 @@ describe('SectionsTip', () => {
     it('teaches the gesture with ⌘ on a Mac and Ctrl elsewhere', () => {
         renderTip(2);
         expect(tip()).toHaveTextContent(
-            'Tip: ⌘ click filters to select them, then Move to new section to put them in a section.',
+            'Tip: ⌘ click filters to select them, then Move to new section to group them.',
         );
     });
 
