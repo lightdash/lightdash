@@ -8,8 +8,20 @@
     justify-content: center;
 }
 
+/* Controls sit on the title's line without making the header taller. */
 .sectionHeaderActions {
-    margin-left: auto;
+    display: flex;
+    align-items: center;
+    margin: -4px 0 -4px auto;
+}
+
+.layoutToggle {
+    color: var(--mantine-color-ldGray-5);
+}
+
+.layoutToggle[data-active='true'] {
+    color: var(--mantine-color-ldDark-9);
+    background: var(--mantine-color-ldGray-1);
 }
 
 .sectionTitle {
