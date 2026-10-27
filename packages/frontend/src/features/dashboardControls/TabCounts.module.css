@@ -24,6 +24,11 @@
     }
 }
 
+/* In an editor's slot the tab section's own gap spaces it from the name */
+[data-position='right'] > .count {
+    margin-inline-start: 0;
+}
+
 /* A viewer's tab with a count keeps its natural width, so the strip scrolls
    instead of squeezing the name. An editor's (`data-capped`) keeps the
    shipped cap: the name truncates and the count never shrinks. In the app the

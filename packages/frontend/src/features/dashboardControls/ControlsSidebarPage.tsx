@@ -14,7 +14,7 @@ export const ControlsSidebarPage: FC<Props> = (props) => (
         <Page {...props} />
         <TileOverlays />
         <LinkPrompts />
-        <TabCounts />
+        <TabCounts hasTabSlots />
         <FieldTilesBar />
     </ControlsSidebarProvider>
 );

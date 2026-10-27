@@ -62,16 +62,20 @@ behaviour. All but the first are in `features/dashboardFilters/`.
   inline `maw` reads `--dashboard-tab-max-width` first, falling back to
   today's share of the viewport. Nothing sets it outside the tab counts.
 - `dashboardTabs/Tab.tsx`: `hasQuietActions` (default false). In edit mode
-  it puts `data-quiet-actions` on the tab's draggable wrapper (the tab's
-  first focus stop, outside `Tabs.Tab`), and `tabs.module.css` hides the
-  drag grip, and the ⋮ menu on every tab but the active one, with
-  `visibility` until the wrapper is hovered or holds focus
-  (`:focus-within`), so the keyboard reaches both; it reads truncation
-  from the tab's label (`.mantine-Tabs-tabLabel`), since the grip is the
-  tab's first span;
-  an open menu keeps its button shown (`aria-expanded`). Both keep their
-  space, so showing them moves no tab, and the whole tab still drags. The
-  menu is ordered last, after a tab count portalled into the tab.
+  the tab has no grip: the whole tab is the drag handle, as it already was
+  (the wrapper spreads `dragHandleProps`). It puts `data-quiet-actions` on
+  that draggable wrapper (the tab's first focus stop, outside `Tabs.Tab`)
+  and `data-dragging` while it drags, and reads truncation from the tab's
+  label (`.mantine-Tabs-tabLabel`). `tabs.module.css` gives a quiet tab the
+  grab cursor (grabbing while dragged), the `default-hover` fill on hover,
+  and one trailing slot: the tab's right section as a single grid cell
+  holding the ⋮ menu and the tab count, as wide as the widest count. The ⋮
+  is `visibility: hidden` except on the active tab and while the wrapper
+  is hovered or holds focus (`:focus-within`, so the keyboard reaches it);
+  an open menu keeps it shown (`aria-expanded`, excluded from the hide
+  rule, since the pointer or focus is then in the portalled dropdown). While a filter is open the
+  count locks it out (`inert`, hidden on every tab, the active one
+  included). Nothing in the slot changes the tab's width.
 - `DashboardFiltersBar`: `filterArea`, which replaces the shipped filters and
   the requirements button (default: both, as today), and
   `isCompactDrawerSuppressed` (default false): on a narrow screen the bar is
@@ -979,7 +983,8 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
 - An editor's tab keeps the shipped width cap: the count carries
   `data-capped`, so the name truncates (with the shipped truncation
   tooltip) and the count never shrinks. A floor on the quiet tab
-  (`tabs.module.css`: padding, grip, menu and a count of up to "10/10")
+  (`tabs.module.css`: padding and the slot, the 20px menu or a count of up
+  to "10/10")
   keeps the count unclipped when the cap is narrower, so on a narrow screen
   or with many tabs the strip scrolls. A viewer's tab with a count keeps its
   natural width instead (`TabCounts.module.css` sets
@@ -992,7 +997,7 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
   to another filter, not a tab with no tile. In edit mode the empty slots
   are there whenever `TabCounts` is mounted on a dashboard with tabs, so
   opening and closing the rail reflow no tab either; an editor's tab is at
-  most the slot and the hidden grip and menu wider than a viewer's. A
+  most the slot wider than a viewer's. A
   viewer's tabs (`isViewer`) get the slots only once their filter has a
   field (none for a new filter still picking one), so they are not wider at
   rest; that widens them once. `TabCounts` scrolls the tab strip, and only
@@ -1081,7 +1086,13 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
     on every other tile) and one stable `onFollowUp`, so the memo holds.
 - `TileOverlays` portals a veil and a "This tile is filtered on" card into each
   `[data-tile-uuid]` grid item on the active tab; `TabCounts` portals a
-  count into each tab node. Both resolve targets with `usePortalTargets`.
+  count into each tab: in the app an editor's goes into the tab's slot (its
+  right section, beside the ⋮; `ControlsSidebarPage` passes
+  `hasTabSlots`), and everywhere else into the tab node: a viewer's, and an
+  embed editor's, whose plain tabs have no right section. Both resolve
+  targets with `usePortalTargets`; while an app editor's filter is open (a
+  placeholder too) `TabCounts` passes `lockSiblings`, and the count carries
+  `data-controls-overlay`, so the ⋮ beside it is `inert`.
   Counts show only while a filter is edited, never for a hovered pill: a
   dimmed `xs` fraction after the tab name on every tab, "5/6", "6/6",
   "0/4", "0/0" on a tab with no tile (`filters.rail.tabFraction`). The

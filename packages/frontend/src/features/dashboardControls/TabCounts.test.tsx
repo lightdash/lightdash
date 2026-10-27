@@ -12,7 +12,7 @@ import {
 import { screen, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type ReactElement } from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { type SqlChartTileMetadata } from '../../providers/Dashboard/types';
 import {
     createDashboardTestStore,
@@ -22,6 +22,9 @@ import {
 import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
 import { renderWithProviders as renderWithAppProviders } from '../../testing/testUtils';
 import { TabCounts } from './TabCounts';
+import type * as PortalTargets from './usePortalTargets';
+
+type PortalTargetsModule = typeof PortalTargets;
 
 const tileStatus = { current: { sqlChartTilesMetadata: {} } };
 
@@ -34,6 +37,13 @@ const mockDashboardContext = vi.hoisted(() => ({
 const mockContainers = vi.hoisted(() => ({
     current: {} as Record<string, Element>,
 }));
+const mockPortal = vi.hoisted(() => ({
+    isReal: false,
+    last: null as null | {
+        getSelector: (key: string) => string;
+        lockSiblings: boolean;
+    },
+}));
 
 vi.mock('./useControlsSidebar', () => ({
     useControlsSidebar: () => mockSidebar.current,
@@ -44,14 +54,32 @@ vi.mock('./useControlsSidebar', () => ({
 vi.mock('../../providers/Dashboard/useDashboardContext', () => ({
     default: vi.fn((selector) => selector(mockDashboardContext.current)),
 }));
-vi.mock('./usePortalTargets', () => ({
-    usePortalTargets: (keys: string[], _: unknown, enabled: boolean) =>
-        enabled
-            ? Object.fromEntries(
-                  keys.map((key) => [key, mockContainers.current[key]]),
-              )
-            : {},
-}));
+vi.mock('./usePortalTargets', async () => {
+    const actual =
+        await vi.importActual<PortalTargetsModule>('./usePortalTargets');
+    return {
+        usePortalTargets: (
+            keys: string[],
+            getSelector: (key: string) => string,
+            enabled: boolean,
+            lockSiblings: boolean,
+        ) => {
+            if (mockPortal.isReal)
+                return actual.usePortalTargets(
+                    keys,
+                    getSelector,
+                    enabled,
+                    lockSiblings,
+                );
+            mockPortal.last = { getSelector, lockSiblings };
+            return enabled
+                ? Object.fromEntries(
+                      keys.map((key) => [key, mockContainers.current[key]]),
+                  )
+                : {};
+        },
+    };
+});
 
 const dimension = (name: string, label: string): FilterableDimension => ({
     fieldType: FieldType.DIMENSION,
@@ -477,6 +505,107 @@ describe('TabCounts', () => {
         setSidebar({ isViewer: true });
         renderWithProviders(<TabCounts />);
         expect(badge('tab-1')).not.toHaveAttribute('data-capped');
+    });
+
+    describe("an editor's slot, shared with the tab menu", () => {
+        it("goes into the tab's trailing section in edit mode, the tab itself for a viewer", () => {
+            renderWithProviders(<TabCounts hasTabSlots />);
+            expect(mockPortal.last?.getSelector('tab-1')).toContain(
+                "> [data-position='right']",
+            );
+            expect(badge('tab-1')).toHaveAttribute('data-controls-overlay');
+
+            setSidebar({ isViewer: true });
+            renderWithProviders(<TabCounts hasTabSlots />);
+            expect(mockPortal.last?.getSelector('tab-1')).not.toContain(
+                'data-position',
+            );
+        });
+
+        // Locking makes the menu beside the count inert: hidden and out of the tab order
+        it('takes the menu out while a filter is open, and gives it back at rest', () => {
+            const { rerender } = renderWithProviders(<TabCounts hasTabSlots />);
+            expect(mockPortal.last?.lockSiblings).toBe(true);
+
+            setSidebar({ editingRule: null });
+            rerender(<TabCounts hasTabSlots />);
+            expect(mockPortal.last?.lockSiblings).toBe(false);
+        });
+
+        it('takes the menu out for a new filter too', () => {
+            setSidebar({
+                editingRule: rule({ target: { fieldId: '', tableName: '' } }),
+                isPlaceholder: true,
+            });
+            renderWithProviders(<TabCounts hasTabSlots />);
+            expect(mockPortal.last?.lockSiblings).toBe(true);
+        });
+
+        it("never locks a viewer's tabs", () => {
+            setSidebar({ isViewer: true });
+            renderWithProviders(<TabCounts hasTabSlots />);
+            expect(mockPortal.last?.lockSiblings).toBe(false);
+        });
+    });
+
+    // The real target lookup, against the tabs each host renders
+    describe('real tab markup', () => {
+        beforeEach(() => {
+            mockPortal.isReal = true;
+            document.body.innerHTML = '';
+        });
+        afterEach(() => {
+            mockPortal.isReal = false;
+        });
+
+        // Mantine's ids are "<tabsId>-tab-<value>"
+        const tabMarkup = (withSlot: boolean) =>
+            TAB_UUIDS.map(
+                (uuid) =>
+                    `<div data-quiet-actions><button role="tab" id="t-tab-${uuid}"><span class="mantine-Tabs-tabLabel">${uuid}</span>${
+                        withSlot
+                            ? '<span data-position="right"><span role="button" aria-haspopup="menu">menu</span></span>'
+                            : ''
+                    }</button></div>`,
+            ).join('');
+        const embedMarkup = () =>
+            TAB_UUIDS.map(
+                (uuid) =>
+                    `<button role="tab" id="t-tab-${uuid}"><span>${uuid}</span></button>`,
+            ).join('');
+        const mount = (html: string) => {
+            const list = document.createElement('div');
+            list.setAttribute('role', 'tablist');
+            list.innerHTML = html;
+            document.body.appendChild(list);
+        };
+        const tab = (uuid: string) =>
+            document.getElementById(`t-tab-${uuid}`) as HTMLElement;
+
+        it("puts an embed editor's count in the tab node, which has no slot", () => {
+            mount(embedMarkup());
+            renderWithProviders(<TabCounts />);
+
+            const count = tab('tab-1').querySelector('[data-reserve]');
+            expect(count?.parentElement).toBe(tab('tab-1'));
+            expect(count).toHaveAttribute('data-capped');
+            expect(count?.textContent).toContain('2/3');
+            expect(tab('tab-1').querySelector('[inert]')).toBeNull();
+        });
+
+        it("puts the app editor's count beside the menu, and locks the menu while a filter is open", () => {
+            mount(tabMarkup(true));
+            renderWithProviders(<TabCounts hasTabSlots />);
+
+            const slot = tab('tab-1').querySelector('[data-position="right"]');
+            expect(slot?.querySelector('[data-reserve]')).not.toBeNull();
+            expect(
+                slot?.querySelector('[aria-haspopup="menu"]'),
+            ).toHaveAttribute('inert');
+            expect(
+                tab('tab-1').querySelector('.mantine-Tabs-tabLabel'),
+            ).not.toHaveAttribute('inert');
+        });
     });
 
     it('labels the fraction for screen readers in words', () => {

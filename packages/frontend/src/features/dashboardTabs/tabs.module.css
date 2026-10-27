@@ -33,35 +33,53 @@
 }
 
 .list {
-    /* Quiet tabs: grip and menu keep their space, so showing them moves nothing.
-       The draggable wrapper carries the attribute: its focus reveals them too */
+    /* Quiet tabs: no grip, the whole tab drags. One trailing slot holds the
+       menu and the tab count in a single grid cell, as wide as the widest
+       count, so nothing in it ever changes the tab's width. The draggable
+       wrapper carries the attribute: its hover and focus reveal the menu */
     [data-quiet-actions] {
-        /* Under the shipped cap the name truncates first. The floor fits the
-           padding, the grip and menu (20px ActionIcons and their xs gap) and a
-           tab count of up to two-digit totals ("10/10"), so on a narrow screen
-           the strip scrolls rather than clipping the count */
+        cursor: grab;
+
+        &[data-dragging] {
+            cursor: grabbing;
+        }
+
         [role='tab'] {
+            cursor: inherit;
+            /* Under the shipped cap the name truncates first. The floor fits
+               the padding and the slot: the 20px menu or a count up to "10/10" */
             min-width: calc(
-                2 * var(--mantine-spacing-sm) + 2 *
-                    (20px + var(--mantine-spacing-xs)) +
-                    var(--mantine-spacing-xs) + 5ch
+                2 * var(--mantine-spacing-sm) + var(--mantine-spacing-xs) +
+                    max(20px, 5ch)
             );
-        }
 
-        /* The menu goes last, after a tab count portalled into the tab */
-        [role='tab'] > [data-position='right'] {
-            order: 1;
-        }
+            &:hover {
+                background-color: var(--mantine-color-default-hover);
+            }
 
-        &:not(:hover, :focus-within) [role='tab'] {
-            > [data-position='left'],
-            &:not([data-active]) > [data-position='right'] {
-                visibility: hidden;
+            > [data-position='right'] {
+                display: inline-grid;
+                place-items: center;
+
+                > * {
+                    grid-area: 1 / 1;
+                }
             }
         }
 
-        [aria-expanded='true'] {
-            visibility: visible;
+        /* The menu shows on the active tab, on a hovered or focused one, and
+           while its own menu is open (the pointer or focus is then in the
+           portalled dropdown) */
+        &:not(:hover, :focus-within)
+            [role='tab']:not([data-active])
+            > [data-position='right']
+            > [aria-haspopup='menu']:not([aria-expanded='true']) {
+            visibility: hidden;
+        }
+
+        /* While a filter is open the tab count locks the menu out (inert) */
+        [role='tab'] > [data-position='right'] > [inert] {
+            visibility: hidden;
         }
     }
 

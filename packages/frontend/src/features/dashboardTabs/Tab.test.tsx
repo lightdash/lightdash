@@ -73,6 +73,24 @@ describe('DraggableTab', () => {
         expect(wrapper).toHaveAttribute('tabindex', '0');
     });
 
+    it('renders no grip when quiet: the whole tab is the handle', () => {
+        renderTab({ isEditMode: true, hasQuietActions: true });
+
+        const tab = screen.getByRole('tab');
+        expect(tab.querySelector("[data-position='left']")).toBeNull();
+        expect(
+            tab.querySelector("[data-position='right'] [aria-haspopup='menu']"),
+        ).not.toBeNull();
+    });
+
+    it('flag-off guard: keeps the shipped grip without the prop', () => {
+        renderTab({ isEditMode: true });
+
+        expect(
+            screen.getByRole('tab').querySelector("[data-position='left']"),
+        ).not.toBeNull();
+    });
+
     it('marks nothing outside edit mode, where there is no grip or menu', () => {
         renderTab({ isEditMode: false, hasQuietActions: true });
 

@@ -25,7 +25,7 @@ type DraggableTabProps = {
     handleDeleteTab: (tabUuid: string) => void;
     handleDuplicateTab: (tabUuid: string) => void;
     handleToggleTabHidden: (tabUuid: string) => void;
-    /** In edit mode, show the grip and menu only on hover or focus (the active tab keeps its menu). */
+    /** In edit mode: no grip (the tab drags), and one trailing slot whose menu shows on the active, hovered or focused tab. */
     hasQuietActions?: boolean;
 };
 
@@ -49,7 +49,7 @@ const DraggableTab: FC<DraggableTabProps> = ({
 
     return (
         <Draggable key={tab.uuid} draggableId={tab.uuid} index={idx}>
-            {(provided) => (
+            {(provided, snapshot) => (
                 <div
                     ref={provided.innerRef}
                     {...provided.draggableProps}
@@ -57,6 +57,9 @@ const DraggableTab: FC<DraggableTabProps> = ({
                     // On the wrapper: it is the tab's first focus stop
                     data-quiet-actions={
                         (isEditMode && hasQuietActions) || undefined
+                    }
+                    data-dragging={
+                        (hasQuietActions && snapshot.isDragging) || undefined
                     }
                 >
                     <Tooltip
@@ -82,7 +85,8 @@ const DraggableTab: FC<DraggableTabProps> = ({
                                 },
                             }}
                             leftSection={
-                                isEditMode ? (
+                                // A quiet tab is its own handle: no grip
+                                isEditMode && !hasQuietActions ? (
                                     <ActionIcon
                                         {...provided.dragHandleProps}
                                         size="xs"

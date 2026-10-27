@@ -26,6 +26,9 @@ import { useSqlColumnsByTile } from './useSqlColumnsByTile';
 // Mantine renders each tab with id "<tabsId>-tab-<value>"; value is the tab uuid
 const getTabSelector = (tabUuid: string) =>
     `[role="tab"][id$="-tab-${tabUuid}"]`;
+// An editor's quiet tab has one trailing slot, shared with its menu
+const getTabSlotSelector = (tabUuid: string) =>
+    `${getTabSelector(tabUuid)} > [data-position='right']`;
 
 // Horizontal only: the page, an embed's container and its host keep their scroll
 const scrollTabIntoList = (tab: Element) => {
@@ -43,7 +46,12 @@ const scrollTabIntoList = (tab: Element) => {
     }
 };
 
-export const TabCounts: FC = () => {
+type Props = {
+    /** The app's quiet tabs: an editor's count shares each tab's trailing slot with its menu. */
+    hasTabSlots?: boolean;
+};
+
+export const TabCounts: FC<Props> = ({ hasTabSlots = false }) => {
     const getUiString = useUiStrings();
     const editingRule = useControlsSidebarSelector((c) => c.editingRule);
     const isPlaceholder = useControlsSidebarSelector((c) => c.isPlaceholder);
@@ -68,11 +76,14 @@ export const TabCounts: FC = () => {
     const isEnabled =
         dashboardTabs.length > 0 &&
         (!isViewer || (rule !== null && !isPlaceholder));
+    // An embed editor's plain tabs have no slot: the count goes in the tab
+    const isInSlot = hasTabSlots && !isViewer;
     const targets = usePortalTargets(
         tabUuids,
-        getTabSelector,
+        isInSlot ? getTabSlotSelector : getTabSelector,
         isEnabled,
-        false,
+        // A filter open: the menu beside each count is inert
+        isInSlot && rule !== null,
     );
 
     const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
@@ -81,7 +92,10 @@ export const TabCounts: FC = () => {
     // The slots widen the tabs past a narrow screen: keep the active one seen.
     // Only the slots arriving or another tab moves it; a filter switch never does
     useEffect(() => {
-        if (activeTabElement) scrollTabIntoList(activeTabElement);
+        if (activeTabElement)
+            scrollTabIntoList(
+                activeTabElement.closest('[role="tab"]') ?? activeTabElement,
+            );
     }, [activeTabElement]);
 
     const counts = useMemo(() => {
@@ -184,6 +198,7 @@ export const TabCounts: FC = () => {
                             data-field-active={isFieldActive}
                             data-reserve={reserves[tab.uuid]}
                             data-capped={!isViewer || undefined}
+                            data-controls-overlay={isInSlot || undefined}
                             className={classes.count}
                         >
                             {countValues && (
