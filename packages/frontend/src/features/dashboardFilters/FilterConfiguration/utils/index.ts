@@ -367,6 +367,8 @@ export const getFilterRuleWithRequired = (
     filterRule: DashboardFilterRule,
     originalFilterRule: DashboardFilterRule | undefined,
     checked: boolean,
+    // Off puts back this saved rule's default when it had one, else clears
+    savedDefaultRule?: DashboardFilterRule,
 ): DashboardFilterRule => {
     // Toggling on restores the saved rule membership if there is one,
     // otherwise it creates a one-member rule; off removes it from its rule.
@@ -388,8 +390,21 @@ export const getFilterRuleWithRequired = (
               requiredGroupId: undefined,
           };
 
-    return checked
-        ? newFilter
+    if (checked) return newFilter;
+
+    const hasSavedDefault =
+        !!savedDefaultRule &&
+        !savedDefaultRule.required &&
+        !savedDefaultRule.requiredGroupId &&
+        savedDefaultRule.operator === filterRule.operator;
+
+    return savedDefaultRule && hasSavedDefault
+        ? {
+              ...newFilter,
+              values: savedDefaultRule.values,
+              settings: savedDefaultRule.settings,
+              disabled: savedDefaultRule.disabled,
+          }
         : getFilterRuleWithDefaultValue(filterType, field, newFilter, null);
 };
 

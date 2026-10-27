@@ -141,6 +141,11 @@ In `FilterConfiguration/`:
 - `utils`: `getDefaultField`, `getUniqueSqlColumns`,
   `getSqlColumnFilterType` and `getFilterRuleWithDisabledState`, moved out of
   `index.tsx`.
+- `utils`: `getFilterRuleWithRequired` takes `savedDefaultRule` (default
+  none: switching off clears the values, as today). Switching off then puts
+  back that rule's `values`, `settings` and `disabled` when it was neither
+  required nor in a rule and has the same operator; otherwise it clears.
+  Only the rail passes it.
 
 ## Bar and page
 
@@ -745,7 +750,13 @@ In `FilterConfiguration/`:
   - The switch is the shipped `getFilterRuleWithRequired`: on, a filter
     saved in a shared rule goes back into it, valueless, any other becomes
     required on its own and keeps its value as a temporary one; off, the
-    filter leaves its rule and loses its values, as in the shipped form.
+    filter leaves its rule and gets its saved default back (the rail passes
+    the saved rule as `savedDefaultRule`), so on then off is a no-op and a
+    value typed while required is dropped. A filter saved as required, in a
+    rule, new, or with another operator loses its values, as in the shipped
+    form.
+  - The lock switch, switched on, locks the tabs the filter was saved
+    locked on, else the tab in view, so off then on is a no-op.
   - Every write goes through the shipped disabled rule, like every edit of
     `FilterValueSettings`. The other filter an alternative adds goes through
     `onChangeOtherFilterRule`, which is the provider's `updateOtherFilters`,
