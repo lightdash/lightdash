@@ -1348,22 +1348,27 @@ export const AssistantBubble: FC<Props> = memo(
                                 decision={message.jevDecision}
                             />
                         )}
-                        <MessageTimingIndicator
-                            responseTiming={message.responseTiming}
-                            isWinner={battle.isWinner}
-                            tokens={
-                                battle.isBattle && message.tokenUsage
-                                    ? {
-                                          agent: message.tokenUsage.totalTokens,
-                                          jev:
-                                              (message.tokenUsage
-                                                  .decisionInputTokens ?? 0) +
-                                              (message.tokenUsage
-                                                  .decisionOutputTokens ?? 0),
-                                      }
-                                    : null
-                            }
-                        />
+                        {canViewDebugInfo && (
+                            <MessageTimingIndicator
+                                responseTiming={message.responseTiming}
+                                isWinner={battle.isWinner}
+                                tokens={
+                                    battle.isBattle && message.tokenUsage
+                                        ? {
+                                              agent: message.tokenUsage
+                                                  .totalTokens,
+                                              jev:
+                                                  (message.tokenUsage
+                                                      .decisionInputTokens ??
+                                                      0) +
+                                                  (message.tokenUsage
+                                                      .decisionOutputTokens ??
+                                                      0),
+                                          }
+                                        : null
+                                }
+                            />
+                        )}
                     </Group>
                 )}
 
