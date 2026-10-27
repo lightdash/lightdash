@@ -1,6 +1,9 @@
+import { subject } from '@casl/ability';
 import {
     closestCenter,
     DndContext,
+    DragOverlay,
+    KeyboardSensor,
     PointerSensor,
     useSensor,
     useSensors,
@@ -9,6 +12,7 @@ import {
 import {
     rectSortingStrategy,
     SortableContext,
+    sortableKeyboardCoordinates,
     useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -48,7 +52,7 @@ import {
     IconPlus,
     IconSearch,
 } from '@tabler/icons-react';
-import { useMemo, useRef, useState, type FC } from 'react';
+import { useMemo, useRef, useState, type FC, type ReactNode } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import MantineModal from '../../../../components/common/MantineModal';
 import { NumberInput } from '../../../../components/common/NumberInput';
@@ -57,11 +61,15 @@ import {
     ResourceIcon,
 } from '../../../../components/common/ResourceIcon';
 import SpaceSelector from '../../../../components/common/SpaceSelector/SpaceSelector';
-import { usePinnedItems } from '../../../../hooks/pinning/usePinnedItems';
+import {
+    usePinnedItems,
+    useReorder,
+} from '../../../../hooks/pinning/usePinnedItems';
 import { useInfiniteContent } from '../../../../hooks/useContent';
 import { useProject } from '../../../../hooks/useProject';
 import { useSpaceSummaries } from '../../../../hooks/useSpaces';
-import { reorderCollectionItems } from '../configOps';
+import useApp from '../../../../providers/App/useApp';
+import { reorderCollectionItems, reorderPinnedItems } from '../configOps';
 import layoutClasses from '../homepageLayout.module.css';
 import { useCollectionItems } from '../hooks/useCollectionContent';
 import { useCollectionSourceContent } from '../hooks/useCollectionSourceContent';
@@ -608,13 +616,18 @@ export const CollectionBlockView: FC<BlockComponentProps> = ({
     );
 };
 
+const SORT_TRANSITION = {
+    duration: 180,
+    easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+};
+
 // Whole tile is the drag surface: build-mode tiles aren't links, and the 5px
 // activation distance keeps the remove button clickable.
 const SortableTile: FC<{
     content: SummaryContent;
     projectUuid: string;
     layout: HomepageContentLayout;
-    onRemove: () => void;
+    onRemove?: () => void;
 }> = ({ content, projectUuid, layout, onRemove }) => {
     const {
         attributes,
@@ -623,7 +636,7 @@ const SortableTile: FC<{
         transform,
         transition,
         isDragging,
-    } = useSortable({ id: content.uuid });
+    } = useSortable({ id: content.uuid, transition: SORT_TRANSITION });
     const wrapperClass =
         layout === 'list'
             ? classes.sortableTile
@@ -639,12 +652,18 @@ const SortableTile: FC<{
             }}
             {...attributes}
             {...listeners}
+            // Keys pressed on the remove button must not pick the tile up.
+            onKeyDown={(event) => {
+                if (event.target === event.currentTarget)
+                    listeners?.onKeyDown?.(event);
+            }}
         >
             <ContentCard
                 content={content}
                 projectUuid={projectUuid}
                 variant={layout === 'list' ? 'compact' : 'tile'}
                 onRemove={onRemove}
+                isSortable
             />
         </div>
     );
@@ -668,7 +687,7 @@ const SOURCE_OPTIONS: {
     {
         value: 'pinned',
         label: 'Pinned',
-        hint: "Follows the project's pin list — new pins appear here.",
+        hint: "Follows the project's pin list, so new pins appear here.",
     },
     {
         value: 'favorites',
@@ -706,9 +725,14 @@ const CONTENT_TYPE_OPTIONS: {
 const CollectionSourceControls: FC<{
     config: HomepageCollectionBlock['config'];
     onChange: (config: HomepageCollectionBlock['config']) => void;
-}> = ({ config, onChange }) => {
+    canReorderPins: boolean;
+}> = ({ config, onChange, canReorderPins }) => {
     const source = collectionSourceOf(config);
-    const hint = SOURCE_OPTIONS.find((o) => o.value === source)?.hint;
+    const sourceHint = SOURCE_OPTIONS.find((o) => o.value === source)?.hint;
+    const hint =
+        source === 'pinned' && canReorderPins
+            ? `${sourceHint} Drag to reorder; changes save right away.`
+            : sourceHint;
     return (
         <Stack gap={6}>
             <Group gap="xs" align="flex-end" wrap="nowrap">
@@ -764,7 +788,7 @@ const CollectionSourceControls: FC<{
                                 key={value}
                                 value={value}
                                 size="xs"
-                                variant="light"
+                                variant="outline"
                             >
                                 {label}
                             </Chip>
@@ -777,7 +801,7 @@ const CollectionSourceControls: FC<{
                 {source !== 'verified' && (
                     <Chip
                         size="xs"
-                        variant="light"
+                        variant="outline"
                         color="green"
                         checked={config.verifiedOnly === true}
                         onChange={(checked) =>
@@ -792,6 +816,114 @@ const CollectionSourceControls: FC<{
     );
 };
 
+const SortableContentGrid: FC<{
+    layout: HomepageContentLayout;
+    itemSpan: number | null;
+    contents: SummaryContent[];
+    projectUuid: string;
+    onMove: (activeUuid: string, overUuid: string) => void;
+    onRemove?: (uuid: string) => void;
+    trailing?: ReactNode;
+}> = ({
+    layout,
+    itemSpan,
+    contents,
+    projectUuid,
+    onMove,
+    onRemove,
+    trailing,
+}) => {
+    const [activeId, setActiveId] = useState<string | null>(null);
+    const sensors = useSensors(
+        useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+        useSensor(KeyboardSensor, {
+            coordinateGetter: sortableKeyboardCoordinates,
+        }),
+    );
+    const activeContent = contents.find((content) => content.uuid === activeId);
+    const tiles = contents.map((content) => (
+        <SortableTile
+            key={content.uuid}
+            content={content}
+            projectUuid={projectUuid}
+            layout={layout}
+            onRemove={onRemove ? () => onRemove(content.uuid) : undefined}
+        />
+    ));
+    return (
+        <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={({ active }) => setActiveId(String(active.id))}
+            onDragCancel={() => setActiveId(null)}
+            onDragEnd={({ active, over }: DragEndEvent) => {
+                setActiveId(null);
+                if (over && active.id !== over.id)
+                    onMove(String(active.id), String(over.id));
+            }}
+        >
+            <SortableContext
+                items={contents.map((content) => content.uuid)}
+                strategy={rectSortingStrategy}
+            >
+                {layout === 'list' ? (
+                    <div className={classes.resTileGrid}>
+                        {tiles}
+                        {trailing}
+                    </div>
+                ) : (
+                    <PageGrid itemSpan={itemSpan} elastic>
+                        {tiles}
+                        {trailing && <PageGridItem>{trailing}</PageGridItem>}
+                    </PageGrid>
+                )}
+            </SortableContext>
+            <DragOverlay>
+                {activeContent ? (
+                    <div className={classes.dragOverlay}>
+                        <ContentCard
+                            content={activeContent}
+                            projectUuid={projectUuid}
+                            variant={layout === 'list' ? 'compact' : 'tile'}
+                            isSortable
+                        />
+                    </div>
+                ) : null}
+            </DragOverlay>
+        </DndContext>
+    );
+};
+
+// Pin order is project state, not homepage draft state, so a drop saves at once.
+const useCanManagePins = (projectUuid: string): boolean => {
+    const { user } = useApp();
+    return (
+        user.data?.ability?.can(
+            'manage',
+            subject('PinnedItems', {
+                organizationUuid: user.data?.organizationUuid,
+                projectUuid,
+            }),
+        ) ?? false
+    );
+};
+
+const usePinReorder = (projectUuid: string) => {
+    const canManage = useCanManagePins(projectUuid);
+    const { data: project } = useProject(projectUuid);
+    const { data: pinnedItems, refetch } = usePinnedItems(
+        projectUuid,
+        project?.pinnedListUuid,
+    );
+    const { mutate } = useReorder(projectUuid, project?.pinnedListUuid ?? '');
+    if (!canManage || !pinnedItems) return null;
+    return (activeUuid: string, overUuid: string) =>
+        mutate(reorderPinnedItems(pinnedItems, activeUuid, overUuid), {
+            // The mutation writes the new order to the cache up front.
+            onError: () => void refetch(),
+        });
+};
+
 // The editor shows what the rule resolves to *for the editing admin*, which is
 // the honest preview for project-wide sources. Per-viewer sources say so
 // instead of implying everyone sees the admin's favourites.
@@ -804,7 +936,10 @@ const DynamicSourcePreview: FC<{
         projectUuid,
         config,
     );
-    const isPersonal = isPersonalCollectionSource(collectionSourceOf(config));
+    const source = collectionSourceOf(config);
+    const isPersonal = isPersonalCollectionSource(source);
+    const movePin = usePinReorder(projectUuid);
+    const onMovePin = source === 'pinned' ? movePin : null;
     if (isLoading) {
         return <SkeletonGrid itemSpan={itemSpan} />;
     }
@@ -815,6 +950,14 @@ const DynamicSourcePreview: FC<{
                     Nothing matches this rule yet. The block won't render until
                     it does.
                 </div>
+            ) : onMovePin ? (
+                <SortableContentGrid
+                    layout={collectionLayoutOf(config)}
+                    itemSpan={itemSpan}
+                    contents={items}
+                    projectUuid={projectUuid}
+                    onMove={onMovePin}
+                />
             ) : (
                 <CollectionContentGrid
                     layout={collectionLayoutOf(config)}
@@ -823,11 +966,12 @@ const DynamicSourcePreview: FC<{
                     projectUuid={projectUuid}
                 />
             )}
-            <div className={classes.buildHint}>
-                {isPersonal
-                    ? 'Showing your own items as a sample — every viewer sees their own.'
-                    : 'Updates on its own as the project changes.'}
-            </div>
+            {isPersonal && (
+                <div className={classes.buildHint}>
+                    Showing your own items as a sample. Every viewer sees their
+                    own.
+                </div>
+            )}
         </Stack>
     );
 };
@@ -839,9 +983,7 @@ export const CollectionBlockBuild: FC<BuildComponentProps> = ({
     onChange,
 }) => {
     const [isPickerOpen, setIsPickerOpen] = useState(false);
-    const sensors = useSensors(
-        useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    );
+    const canManagePins = useCanManagePins(projectUuid);
     const { data: contents } = useCollectionItems(
         projectUuid,
         block.type === 'collection' ? block.config.items : [],
@@ -903,6 +1045,7 @@ export const CollectionBlockBuild: FC<BuildComponentProps> = ({
             <CollectionSourceControls
                 config={block.config}
                 onChange={(config) => onChange({ ...block, config })}
+                canReorderPins={canManagePins}
             />
             {source !== 'manual' ? (
                 <DynamicSourcePreview
@@ -911,81 +1054,36 @@ export const CollectionBlockBuild: FC<BuildComponentProps> = ({
                     itemSpan={itemSpan ?? null}
                 />
             ) : (
-                <DndContext
-                    sensors={sensors}
-                    collisionDetection={closestCenter}
-                    onDragEnd={(event: DragEndEvent) => {
-                        const { active, over } = event;
-                        if (!over || active.id === over.id) return;
+                <SortableContentGrid
+                    layout={layout}
+                    itemSpan={itemSpan ?? null}
+                    contents={contents ?? []}
+                    projectUuid={projectUuid}
+                    onRemove={removeItem}
+                    onMove={(activeUuid, overUuid) =>
                         onChange({
                             ...block,
                             config: {
                                 ...block.config,
                                 items: reorderCollectionItems(
                                     block.config.items,
-                                    String(active.id),
-                                    String(over.id),
+                                    activeUuid,
+                                    overUuid,
                                 ),
                             },
-                        });
-                    }}
-                >
-                    <SortableContext
-                        items={(contents ?? []).map((content) => content.uuid)}
-                        strategy={rectSortingStrategy}
-                    >
-                        {layout === 'list' ? (
-                            <div className={classes.resTileGrid}>
-                                {(contents ?? []).map((content) => (
-                                    <SortableTile
-                                        key={content.uuid}
-                                        content={content}
-                                        projectUuid={projectUuid}
-                                        layout={layout}
-                                        onRemove={() =>
-                                            removeItem(content.uuid)
-                                        }
-                                    />
-                                ))}
-                                <button
-                                    type="button"
-                                    className={classes.addContentTile}
-                                    onClick={() => setIsPickerOpen(true)}
-                                >
-                                    <MantineIcon icon={IconPlus} size={14} />
-                                    Add content
-                                </button>
-                            </div>
-                        ) : (
-                            <PageGrid itemSpan={itemSpan ?? null} elastic>
-                                {(contents ?? []).map((content) => (
-                                    <SortableTile
-                                        key={content.uuid}
-                                        content={content}
-                                        projectUuid={projectUuid}
-                                        layout={layout}
-                                        onRemove={() =>
-                                            removeItem(content.uuid)
-                                        }
-                                    />
-                                ))}
-                                <PageGridItem>
-                                    <button
-                                        type="button"
-                                        className={classes.addContentTile}
-                                        onClick={() => setIsPickerOpen(true)}
-                                    >
-                                        <MantineIcon
-                                            icon={IconPlus}
-                                            size={14}
-                                        />
-                                        Add content
-                                    </button>
-                                </PageGridItem>
-                            </PageGrid>
-                        )}
-                    </SortableContext>
-                </DndContext>
+                        })
+                    }
+                    trailing={
+                        <button
+                            type="button"
+                            className={classes.addContentTile}
+                            onClick={() => setIsPickerOpen(true)}
+                        >
+                            <MantineIcon icon={IconPlus} size={14} />
+                            Add content
+                        </button>
+                    }
+                />
             )}
             {source === 'manual' &&
                 block.config.items.length === 0 &&

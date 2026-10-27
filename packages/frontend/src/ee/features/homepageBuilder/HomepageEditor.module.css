@@ -116,10 +116,8 @@
 }
 
 .railTitle {
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
+    font-size: 12px;
+    font-weight: 500;
     color: var(--mantine-color-ldGray-6);
     padding: 0 4px 10px;
 }
@@ -203,10 +201,8 @@
 }
 
 .blockTypeLabel {
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
+    font-size: 12px;
+    font-weight: 500;
     color: var(--mantine-color-ldGray-5);
 }
 
@@ -226,10 +222,20 @@
 .blockHandle {
     display: inline-flex;
     align-items: center;
-    opacity: 0;
-    transition: opacity 0.12s ease-in-out;
-    border-radius: 5px;
-    padding: 2px;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    cursor: grab;
+    touch-action: none;
+}
+
+.blockHandle:hover {
+    background: var(--mantine-color-ldGray-1);
+}
+
+.blockHandle:active {
+    cursor: grabbing;
 }
 
 .blockActions {
@@ -237,8 +243,6 @@
     transition: opacity 0.12s ease-in-out;
 }
 
-.blockChrome:hover .blockHandle,
-.blockChrome:focus-within .blockHandle,
 .blockChrome:hover .blockActions,
 .blockChrome:focus-within .blockActions {
     opacity: 1;
@@ -421,7 +425,7 @@
 .gapAddBtn:hover {
     color: var(--mantine-color-ldGray-9);
     border-color: var(--mantine-color-ldGray-5);
-    box-shadow: var(--mantine-shadow-heavy);
+    box-shadow: var(--mantine-shadow-sm);
 }
 
 .endZone {
