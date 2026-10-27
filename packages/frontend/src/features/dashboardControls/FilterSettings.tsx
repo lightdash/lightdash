@@ -3,11 +3,9 @@ import {
     type DashboardFilterableField,
     type DashboardFilterRule,
 } from '@lightdash/common';
-import { Box, Text, UnstyledButton } from '@mantine/core';
-import { IconChevronRight } from '@tabler/icons-react';
+import { Box, Text } from '@mantine/core';
 import { useMemo, type FC, type ReactNode } from 'react';
 import FiltersProvider from '../../components/common/Filters/FiltersProvider';
-import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
@@ -29,6 +27,7 @@ import { useDashboardFilterField } from '../dashboardFilters/FilterRequirements/
 import { useFilterBarPopovers } from '../dashboardFilters/FilterRequirements/useFilterBarPopovers';
 import { getDashboardFilterRuleLabel } from '../dashboardFilters/FilterRequirements/utils';
 import classes from './ControlSidebar.module.css';
+import { Disclosure } from './Disclosure';
 import { DropdownClass } from './DropdownClass';
 import { FilterValueSettings } from './FilterValueSettings';
 import { useRailContractClasses } from './railContractClasses';
@@ -81,51 +80,6 @@ const useRulesSummary = (rule: DashboardFilterRule) => {
         required: getRequiredSummary(isRuleRequired(rule), alternativeLabels),
     };
 };
-
-type DisclosureProps = {
-    section: ControlsSidebarSection;
-    label: string;
-    summary: ReactNode;
-    isOpen: boolean;
-    onToggle: (section: ControlsSidebarSection) => void;
-    children: ReactNode;
-};
-
-const Disclosure: FC<DisclosureProps> = ({
-    section,
-    label,
-    summary,
-    isOpen,
-    onToggle,
-    children,
-}) => (
-    <>
-        <UnstyledButton
-            className={classes.disclosure}
-            aria-expanded={isOpen}
-            onClick={() => onToggle(section)}
-        >
-            <Text fz="xs" fw={500} c="dimmed">
-                {label}
-            </Text>
-            <Text
-                fz="xs"
-                c="dimmed"
-                truncate
-                className={classes.disclosureSummary}
-            >
-                {summary}
-            </Text>
-            <MantineIcon
-                icon={IconChevronRight}
-                size={12}
-                color="dimmed"
-                className={classes.chevron}
-            />
-        </UnstyledButton>
-        {isOpen && <Box className={classes.panel}>{children}</Box>}
-    </>
-);
 
 type Props = {
     rule: DashboardFilterRule;

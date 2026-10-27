@@ -1,12 +1,11 @@
 import {
-    interpolateUiString,
+    assertUnreachable,
     type DashboardFilterableField,
     type DashboardFilterRule,
 } from '@lightdash/common';
 import {
     Badge,
     Box,
-    Button,
     Group,
     Select,
     Stack,
@@ -25,6 +24,7 @@ import {
     useDashboardSelector,
 } from '../dashboard/store';
 import classes from './ControlSidebar.module.css';
+import { EditorFooter } from './EditorFooter';
 import { EditorShell } from './EditorShell';
 import { FieldsAndTiles } from './FieldsAndTiles';
 import { FilterSettings } from './FilterSettings';
@@ -35,6 +35,7 @@ import { useAppliedTileCount } from './useAppliedTileCount';
 import { useControlsSidebarSelector } from './useControlsSidebar';
 import { useFilterRuleField } from './useFilterRuleField';
 import { useFocusLabelOnMount, useLabelDraft } from './useLabelDraft';
+import { ZoomEditor } from './ZoomEditor';
 
 const FilterTypeIcon: FC<{ field: DashboardFilterableField | null }> = ({
     field,
@@ -49,17 +50,6 @@ const FilterTypeIcon: FC<{ field: DashboardFilterableField | null }> = ({
             className={classes.typeIcon}
         />
     );
-
-// What the bar shows for a filter: its label, else its field's or column's name
-const useFilterName = (rule: DashboardFilterRule | null): string | null => {
-    const field = useFilterRuleField(rule);
-    if (rule === null) return null;
-    return (
-        rule.label ??
-        field?.label ??
-        (rule.target.isSqlColumn ? rule.target.fieldId : null)
-    );
-};
 
 const NO_SECTION = 'none';
 
@@ -95,75 +85,6 @@ const SectionSelect: FC<{ rule: DashboardFilterRule }> = ({ rule }) => {
                 );
             }}
         />
-    );
-};
-
-// Cancel and Apply, or, after a click on another pill with changes unapplied,
-// the question that pill asked
-const Footer: FC = () => {
-    const isNew = useControlsSidebarSelector((c) => c.isNew);
-    const isPlaceholder = useControlsSidebarSelector((c) => c.isPlaceholder);
-    const pendingRule = useControlsSidebarSelector((c) => c.pendingRule);
-    const resolvePending = useControlsSidebarSelector((c) => c.resolvePending);
-    const discard = useControlsSidebarSelector((c) => c.discard);
-    const close = useControlsSidebarSelector((c) => c.close);
-    const getUiString = useUiStrings();
-    const pendingName = useFilterName(pendingRule);
-    const applyLabel = getUiString(
-        isNew ? 'filters.rail.create' : 'filters.apply',
-    );
-    // The same button in both states, so focus stays on it
-    const apply = (
-        <Button
-            size="xs"
-            className={classes.apply}
-            data-controls-apply
-            disabled={isPlaceholder}
-            onClick={pendingRule === null ? close : () => resolvePending(true)}
-        >
-            {applyLabel}
-        </Button>
-    );
-    return (
-        <Stack gap="xs" p="sm" className={classes.footer}>
-            {pendingRule !== null && (
-                <Text
-                    fz="xs"
-                    c="dimmed"
-                    role="status"
-                    className={classes.footerStatus}
-                >
-                    {interpolateUiString(
-                        getUiString(
-                            isNew
-                                ? 'filters.rail.createBeforeOpening'
-                                : 'filters.rail.applyBeforeOpening',
-                        ),
-                        {
-                            filter:
-                                pendingName ??
-                                getUiString('filters.rail.filterName'),
-                        },
-                    )}
-                </Text>
-            )}
-            <Group justify="flex-end" gap="xs" wrap="nowrap">
-                {pendingRule === null ? (
-                    <Button variant="default" size="xs" onClick={discard}>
-                        {getUiString('filters.actions.cancel')}
-                    </Button>
-                ) : (
-                    <Button
-                        variant="default"
-                        size="xs"
-                        onClick={() => resolvePending(false)}
-                    >
-                        {getUiString('filters.rail.discard')}
-                    </Button>
-                )}
-                {apply}
-            </Group>
-        </Stack>
     );
 };
 
@@ -316,7 +237,7 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule, labelId }) => {
                     )}
                 </Stack>
             </Box>
-            <Footer />
+            <EditorFooter isApplyDisabled={isPlaceholder} hint={null} />
         </>
     );
 };
@@ -324,18 +245,38 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule, labelId }) => {
 /** For the dashboard grid's row, which holds the rail next to the grid. */
 export const CONTROLS_RAIL_LAYOUT = classes.layout;
 
-// On screen only while a filter is edited: one filter at a time, finished
-// with Cancel or Apply
+// On screen only while a control is edited: one filter or date zoom at a
+// time, finished with Cancel or Apply
 export const ControlSidebar: FC = () => {
-    const filterId = useControlsSidebarSelector((c) =>
-        c.isSidebarOpen ? (c.editing?.filterId ?? null) : null,
+    const editing = useControlsSidebarSelector((c) =>
+        c.isSidebarOpen ? c.editing : null,
     );
     const editingRule = useControlsSidebarSelector((c) => c.editingRule);
+    const editingZoom = useControlsSidebarSelector((c) => c.editingZoom);
     const labelId = useId();
-    if (filterId === null || editingRule === null) return null;
-    return (
-        <EditorShell labelId={labelId}>
-            <FilterEditor key={filterId} rule={editingRule} labelId={labelId} />
-        </EditorShell>
-    );
+    if (editing === null) return null;
+    switch (editing.kind) {
+        case 'filter':
+            return editingRule === null ? null : (
+                <EditorShell labelId={labelId}>
+                    <FilterEditor
+                        key={editing.filterId}
+                        rule={editingRule}
+                        labelId={labelId}
+                    />
+                </EditorShell>
+            );
+        case 'dateZoom':
+            return editingZoom === null ? null : (
+                <EditorShell labelId={labelId}>
+                    <ZoomEditor
+                        key={editing.controlUuid}
+                        control={editingZoom}
+                        labelId={labelId}
+                    />
+                </EditorShell>
+            );
+        default:
+            return assertUnreachable(editing, 'Unknown edited control');
+    }
 };

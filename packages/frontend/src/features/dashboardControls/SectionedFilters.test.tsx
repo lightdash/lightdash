@@ -36,7 +36,7 @@ const mockSidebar = vi.hoisted(() => ({
     current: { isViewer: false, isSidebarOpen: false } as {
         isViewer: boolean;
         isSidebarOpen: boolean;
-        editing?: { filterId: string } | null;
+        editing?: { kind: 'filter'; filterId: string } | null;
     },
 }));
 const mockOpenNew = vi.hoisted(() => vi.fn());
@@ -852,7 +852,7 @@ describe('SectionedFilters', () => {
             mockSidebar.current = {
                 isViewer: false,
                 isSidebarOpen: true,
-                editing: { filterId: 'one' },
+                editing: { kind: 'filter', filterId: 'one' },
             };
             renderSectioned([rule('one', 'a'), rule('two', 'b')], 'tab-1');
             act(() =>
@@ -868,7 +868,7 @@ describe('SectionedFilters', () => {
             mockSidebar.current = {
                 isViewer: false,
                 isSidebarOpen: true,
-                editing: { filterId: 'one' },
+                editing: { kind: 'filter', filterId: 'one' },
             };
             renderSectioned([rule('one', 'a'), rule('two', 'b')], 'tab-1');
             act(() => {
@@ -886,7 +886,7 @@ describe('SectionedFilters', () => {
             mockSidebar.current = {
                 isViewer: false,
                 isSidebarOpen: true,
-                editing: { filterId: 'one' },
+                editing: { kind: 'filter', filterId: 'one' },
             };
             renderSectioned([rule('one', 'a'), rule('two', 'b')], 'tab-1');
             act(() =>

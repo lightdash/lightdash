@@ -92,8 +92,8 @@ export const FilterPills: FC<Props> = ({
     triggerClassName,
     dropdownClassName,
 }) => {
-    const editingFilterId = useControlsSidebarSelector(
-        (c) => c.editing?.filterId ?? null,
+    const editingFilterId = useControlsSidebarSelector((c) =>
+        c.editing?.kind === 'filter' ? c.editing.filterId : null,
     );
     const isSidebarOpen = useControlsSidebarSelector((c) => c.isSidebarOpen);
     const isNew = useControlsSidebarSelector((c) => c.isNew);

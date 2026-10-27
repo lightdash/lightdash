@@ -18,6 +18,7 @@ import {
     type DashboardStore,
 } from '../dashboard/store';
 import { ControlsSidebarProvider } from './ControlsSidebarProvider';
+import { getEditedControlId } from './editedControl';
 import {
     useControlsSidebar,
     type ControlsSidebarContextValue,
@@ -209,14 +210,17 @@ describe('dismissing in the controls editor', () => {
 
             escape(apply());
             expect(value().pendingRule).toBeNull();
-            expect(value().editing).toEqual({ filterId: 'a' });
+            expect(value().editing).toEqual({ kind: 'filter', filterId: 'a' });
             expect(apply()).toHaveFocus();
         });
 
         it('lets the label commit before it closes', () => {
             escape(label());
             // Blurred while the editor was still open on the filter
-            expect(onLabelBlur).toHaveBeenCalledWith({ filterId: 'a' });
+            expect(onLabelBlur).toHaveBeenCalledWith({
+                kind: 'filter',
+                filterId: 'a',
+            });
         });
 
         it('clears a clicked field first and closes on the next press', () => {
@@ -414,7 +418,7 @@ describe('dismissing in the controls editor', () => {
                     hidden: false,
                 }),
             );
-            const newId = value().editing?.filterId;
+            const newId = getEditedControlId(value().editing);
             fireEvent.click(apply());
 
             expect(pill(newId ?? '')).toHaveFocus();
@@ -447,7 +451,7 @@ describe('dismissing in the controls editor', () => {
         it('goes to Apply when the edited pill is clicked with changes, and the edit stays', () => {
             act(() => value().updateFilter({ ...rule('a'), values: ['9'] }));
             fireEvent.click(pill('a'));
-            expect(value().editing).toEqual({ filterId: 'a' });
+            expect(value().editing).toEqual({ kind: 'filter', filterId: 'a' });
             expect(apply()).toHaveFocus();
         });
 
@@ -459,7 +463,7 @@ describe('dismissing in the controls editor', () => {
 
         it('is not moved when a clean edit switches to another filter', () => {
             fireEvent.click(pill('b'));
-            expect(value().editing).toEqual({ filterId: 'b' });
+            expect(value().editing).toEqual({ kind: 'filter', filterId: 'b' });
             expect(label()).toHaveFocus();
         });
     });

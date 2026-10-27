@@ -2,6 +2,8 @@ import {
     type DashboardControlSection,
     type DashboardFilterableField,
     type DashboardFilterRule,
+    type DateZoomConfig,
+    type DateZoomControl,
     type ResultColumn,
 } from '@lightdash/common';
 import {
@@ -14,6 +16,7 @@ import {
     useContext,
     useContextSelector,
 } from 'use-context-selector';
+import { type EditedControl } from './editedControl';
 import { type RuleDropTarget } from './sections';
 
 /** The disclosure open under the edited filter's default value. */
@@ -31,8 +34,8 @@ export type FieldApply = {
 };
 
 export type ControlsSidebarContextValue = {
-    /** The filter control being edited, or null when the sidebar is closed. */
-    editing: { filterId: string } | null;
+    /** The control being edited, or null when the sidebar is closed. */
+    editing: EditedControl | null;
     /**
      * Outside edit mode: the editor writes the viewer's own temporary
      * filters only; saved filters keep the bar's shipped popover.
@@ -45,9 +48,11 @@ export type ControlsSidebarContextValue = {
     /** The edited control has no mapping yet, so it cannot be kept. */
     isPlaceholder: boolean;
     editingRule: DashboardFilterRule | null;
+    /** The date zoom being edited, as the dashboard holds it now. */
+    editingZoom: DateZoomControl | null;
     /**
-     * A filter is being edited, so the rail is on screen: false as soon as
-     * the edited filter is no longer in the dashboard.
+     * A control is being edited, so the rail is on screen: false as soon as
+     * the edited filter or zoom is no longer in the dashboard.
      */
     isSidebarOpen: boolean;
     /**
@@ -55,7 +60,9 @@ export type ControlsSidebarContextValue = {
      * Apply or Discard before opening it. Null otherwise.
      */
     pendingRule: DashboardFilterRule | null;
-    /** Applies (true) or discards (false) the edit, then opens the pending filter. */
+    /** As `pendingRule`, for a date zoom pill. */
+    pendingZoom: DateZoomControl | null;
+    /** Applies (true) or discards (false) the edit, then opens the pending control. */
     resolvePending: (isApply: boolean) => void;
     /** Null when both are closed, as they are each time a filter opens. */
     activeSection: ControlsSidebarSection | null;
@@ -68,6 +75,14 @@ export type ControlsSidebarContextValue = {
     open: (filterId: string) => void;
     /** A new filter (a placeholder until its first field), in a section when one is given. */
     openNew: (sectionId?: string) => void;
+    /** A date zoom pill's click, switching as `open` does; edit mode only. */
+    openZoom: (controlUuid: string) => void;
+    /** Adds a date zoom with no tiles and opens it; edit mode only. */
+    openNewZoom: () => void;
+    /** Writes the dashboard's date zoom config while a zoom is edited. */
+    updateDateZoomConfig: (next: DateZoomConfig) => void;
+    /** Removes the edited zoom and its tiles and ends the edit; never a new one. */
+    removeZoom: () => void;
     /** Turns the placeholder into a filter control on the given field. */
     addFirstField: (field: DashboardFilterableField) => void;
     /**
@@ -100,7 +115,7 @@ export type ControlsSidebarContextValue = {
     clearHighlightedField: () => void;
     hoveredFieldId: string | null;
     setHoveredFieldId: (fieldId: string | null) => void;
-    /** The pill hovered or focused on an editor's bar while no filter is edited. */
+    /** The pill hovered or focused on an editor's bar while nothing is edited: a filter id or a zoom uuid. */
     hoveredFilterId: string | null;
     setHoveredFilterId: Dispatch<SetStateAction<string | null>>;
     /** Which pill's filter marked the tiles on hover; stable for the provider's life. */
@@ -143,15 +158,16 @@ export type ControlsSidebarContextValue = {
     /**
      * Cancel: puts the edited filter back as it was when it was opened, or
      * removes it when it was new, undoes the editor's own writes to other
-     * filters and closes the rail.
+     * filters and closes the rail. A zoom goes back with its tiles.
      */
     discard: () => void;
     /**
      * Apply: closes the rail and keeps the edits; saving stays with the
-     * dashboard's own Save. A control with no field is discarded.
+     * dashboard's own Save. A control with no field is discarded, and a zoom
+     * left with no tiles removed.
      */
     close: () => void;
-    /** Apply or Cancel would change something; a new filter with no field yet would not. */
+    /** Apply or Cancel would change something; a new filter with no field, or zoom with no tile, would not. */
     isDirty: boolean;
     /** Tiles added since the dashboard was last saved. */
     newTileUuids: string[];

@@ -471,8 +471,8 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
     const getUiString = useUiStrings();
     const isViewer = useControlsSidebarSelector((c) => c.isViewer);
     const isEditing = useControlsSidebarSelector((c) => c.isSidebarOpen);
-    const editingFilterId = useControlsSidebarSelector(
-        (c) => c.editing?.filterId ?? null,
+    const editingFilterId = useControlsSidebarSelector((c) =>
+        c.editing?.kind === 'filter' ? c.editing.filterId : null,
     );
     const moveEditedFilter = useControlsSidebarSelector(
         (c) => c.moveEditedFilter,

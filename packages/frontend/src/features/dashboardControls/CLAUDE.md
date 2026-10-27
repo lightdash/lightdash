@@ -1,7 +1,8 @@
 # Dashboard controls
 
 Wording: a *control* is a *filter control* on the bar: it narrows data through
-fields. User-facing copy says *tile*, never *chart*.
+fields. A *date zoom* (`DashboardConfig.dateZoomConfig`) is the other control
+the rail edits; see "Date zooms". User-facing copy says *tile*, never *chart*.
 
 - **Flag**: `FeatureFlags.DashboardControls` (`dashboard-controls`), read with
   `useServerFeatureFlag`. Flag off means the dashboard behaves as today.
@@ -165,7 +166,7 @@ In `FilterConfiguration/`:
   themselves.
   The multi-select is off; the sectioned bar's pills still drag (see
   "Sections"). The pills stay live (see
-  "Switching filters" under the provider contract), and so does a capsule's
+  "Switching controls" under the provider contract), and so does a capsule's
   fold.
 - `AddControl` is the shipped `AddFilterButton`: the dashed button with its
   disabled and loading states, no icon, always "Add filter" (`openNew`). On
@@ -354,7 +355,12 @@ In `FilterConfiguration/`:
   then, but a caller may): it calls `close()` first, then opens the
   placeholder with a snapshot taken after that close. On a new control with
   no field yet it does nothing, whether or not a label was typed.
-- Switching filters: `open(id)` is a pill's click.
+- Switching controls: `open(id)` is a filter pill's click, `openZoom(uuid)`
+  a date zoom pill's (see "Date zooms"); both go through `switchTo`, so the
+  rules below hold between any two controls. The edited control is
+  `editing`, an `EditedControl` (`editedControl.ts`): `{ kind: 'filter',
+  filterId }` or `{ kind: 'dateZoom', controlUuid }`; `getEditedControlId`
+  reads either.
   - Nothing edited (or a stale edit whose rule something else removed):
     it opens the filter. A filter that is not in the edit's filters opens
     nothing (a viewer's saved filter keeps the bar's popover; a pill
@@ -365,13 +371,13 @@ In `FilterConfiguration/`:
   - Another pill with no unapplied changes: the edit is closed with
     `close()` and the other filter opens.
   - Another pill with unapplied changes: the edit stays and the provider
-    keeps the clicked id (`pendingFilterId`, through `latest` and
-    `writePending`), exposed as `pendingRule`. A pending id whose rule is
-    gone counts as none everywhere (`getPendingId`: `pendingRule`,
-    `resolvePending` and Escape), derived, never reset in an effect; focus
-    goes to Apply.
+    keeps the clicked control (`pending`, an `EditedControl`, through
+    `latest` and `writePending`), exposed as `pendingRule` or `pendingZoom`.
+    A pending control that is gone counts as none everywhere (`getPending`:
+    `pendingRule`, `pendingZoom`, `resolvePending` and Escape), derived,
+    never reset in an effect; focus goes to Apply.
     `resolvePending(isApply)` applies (`close()`) or discards (`discard()`)
-    the edit, then opens the pending filter. Escape withdraws the question
+    the edit, then opens the pending control. Escape withdraws the question
     (see "Dismissing"); any open, reset or new filter drops it.
   - "Unapplied changes" is `hasUnappliedChanges`, read from `latest`: what
     `isDirty` says, so a new filter with no field yet has none and is
@@ -558,7 +564,8 @@ In `FilterConfiguration/`:
   order (an unnamed one reads "Untitled section"); a pick is `updateFilter`
   with `sectionId` set, or the key dropped for "None", so it previews on the
   bar and Cancel puts it back. A dangling `sectionId` reads "None".
-- Footer: two buttons at the right, "Cancel" (`default`, `discard`) and
+- Footer (`EditorFooter`, shared with the zoom editor): two buttons at the
+  right, "Cancel" (`default`, `discard`) and
   "Apply" (filled, `close`; "Create" for a new filter,
   `filters.rail.create`), Apply disabled while the filter has no field
   (`isPlaceholder`) and marked `data-controls-apply` for the provider's
@@ -567,7 +574,8 @@ In `FilterConfiguration/`:
   `pendingRule` the footer is the switch question: a dimmed `role="status"`
   line "Apply before opening {filter}?" ("Create before opening {filter}?"
   for a new filter; `filters.rail.applyBeforeOpening` /
-  `createBeforeOpening`, `{filter}` the pending pill's name), "Discard"
+  `createBeforeOpening`, `{filter}` the pending pill's name, a zoom's
+  name for a zoom pill), "Discard"
   (`filters.rail.discard`, `resolvePending(false)`) in Cancel's place and
   the same Apply button (`resolvePending(true)`), so focus stays on it as
   the footer changes.
@@ -1336,6 +1344,72 @@ the language map, as tab names are.
   capsule, a pill (its section), the first button or the empty space moves all of them
   there through the same helper; dragging an unpicked pill moves it alone
   and keeps the selection. The strings are editor-only and literal.
+
+## Date zooms
+
+A date zoom is one of the dashboard's named zooms
+(`DashboardConfig.dateZoomConfig`: `controls` and one `tileTargets` entry
+per tile; the saved shape and its resolution in `common/src/utils/dateZoom.ts`
+are unchanged). The "Default zoom" pill stays the shipped one. Zooms are the
+dashboard's: only an editor opens one, a viewer keeps the shipped pills and
+their grain menu.
+
+- Provider: a zoom edit is its own state (`ZoomEditState`: uuid, `isNew`, a
+  `ZoomSnapshot` of the config and its "changed" flag), never beside a
+  filter edit: opening either clears the other. `editingZoom` is the control
+  as the config holds it now, hidden once the mode has changed;
+  `isSidebarOpen` is on while it exists, so the rail, the header guard, the
+  inert bar controls and Escape treat a zoom as they treat a filter.
+  `openZoom` and `openNewZoom` do nothing for a viewer.
+- Opening a zoom clears its runtime grain (`setControlGranularity(uuid,
+  undefined)`): a viewer's pick survives into edit mode and wins in
+  `resolveTileDateZoom`, so without it the tiles would not preview the grain
+  being edited.
+- `openNewZoom()` is `openNew()`'s twin: whatever is edited is applied first,
+  and a new zoom with no tile yet stays as it is. The control goes into the
+  config at once, seeded as the shipped "Add date zoom" seeds one
+  (`createZoomControl`: "Date zoom", the default grain, else the first
+  enabled one, else month), so the tiles can join it. A stale new zoom (pruned
+  from the config by a tile or tab delete) does not count as one, so "Add
+  date zoom" still opens a new zoom.
+- Writes are live: `updateDateZoomConfig(next)` is the shipped
+  `setDateZoomConfig`, through the `latest` ref, and only while a zoom is
+  edited. Pure helpers are in `zoomState.ts`. The dashboard's Save is the
+  only save.
+- `close()` on a zoom is Apply (`applyZoomEdit`): a new zoom with no tile is
+  dropped as `discard()` drops it; an empty name is written back as "Date
+  zoom"; the edited zoom with no tiles is removed, and so is every other
+  zoom this edit emptied (a tile moved here was its last). `discard()` is
+  `restoreZoom`: the control as the snapshot holds it (out when new) and
+  every tile that was in it then or is now goes back to its snapshot entry,
+  so a tile moved here goes back to its zoom; every other write stays. Both
+  settle `hasDateZoomConfigChanged` back to the snapshot's when the config
+  equals the snapshot again, and send focus to the zoom's pill
+  (`data-controls-pill` carries its uuid), else "Add filter".
+- `isDirty` on a zoom (`isZoomEditUnapplied`): `discard()` would change the
+  config (`isZoomDirty`), except for a new zoom with no tile, which has
+  nothing to lose, so a switch drops it as it drops a new filter with no
+  field.
+- `removeZoom()` is an existing zoom's way out, as the X on an edited
+  filter's pill: tiles moved here during the edit go back to their zoom
+  first (`restoreZoom`), then the control and its tile entries leave the
+  draft (`removeZoomControl`) and the edit ends, focus going to "Add
+  filter".
+  Cancel cannot bring it back; the dashboard's Save or Cancel decides. A
+  new zoom has none: it leaves through Cancel.
+- Editor (`ZoomEditor`, keyed by the uuid in `EditorShell`, as a filter's
+  is): the header is the calendar icon, the name (an emptied one reads
+  "Date zoom") and the "Edited"/"New" badge. The body is the "Name" input
+  (`useLabelDraft`, trimmed; blur on an empty name sets "Date zoom", so
+  does Apply), a "Granularity" `Select` of the enabled grains
+  (`useGranularityOptions` in `dateZoom/hooks.ts`), and a "Tiles"
+  `Disclosure` (moved out of `FilterSettings`, "No tiles" or "N tiles")
+  listing its tiles with the field each is zoomed on ("Parameter" for a
+  param-only tile) and the tab, then, on an existing zoom, a subtle red
+  "Remove date zoom" (`RemoveZoomButton`, `removeZoom`). The footer is `EditorFooter`: Create is
+  disabled while a new zoom has no tile, with the dimmed line "Select a
+  tile to keep this zoom" above the buttons. Zoom copy is editor-only and
+  literal; the footer's are the filter keys.
 
 ## Motion
 

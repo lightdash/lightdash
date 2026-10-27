@@ -1,9 +1,11 @@
 import {
     DashboardTileTypes,
+    DateGranularity,
     type DashboardFilters,
     type DashboardFilterRule,
     type DashboardTab,
     type DashboardTile,
+    type DateZoomConfig,
 } from '@lightdash/common';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -108,14 +110,16 @@ const makeRule = (
 
 const setSidebar = (overrides: Partial<ControlsSidebarContextValue>) => {
     const value: ControlsSidebarContextValue = {
-        editing: { filterId: 'filter-1' },
+        editing: { kind: 'filter', filterId: 'filter-1' },
         isViewer: false,
         canAddFilters: true,
         isNew: true,
         isPlaceholder: false,
         editingRule: makeRule({}),
         isSidebarOpen: true,
+        editingZoom: null,
         pendingRule: null,
+        pendingZoom: null,
         resolvePending: vi.fn(),
         applyWithUndo: vi.fn(),
         undoApply: vi.fn(),
@@ -124,6 +128,10 @@ const setSidebar = (overrides: Partial<ControlsSidebarContextValue>) => {
         setActiveSection: vi.fn(),
         open: vi.fn(),
         openNew: vi.fn(),
+        openZoom: vi.fn(),
+        openNewZoom: vi.fn(),
+        updateDateZoomConfig: vi.fn(),
+        removeZoom: vi.fn(),
         addFirstField: vi.fn(),
         addFirstSqlColumn: vi.fn(),
         addFirstFieldOnTile: vi.fn(),
@@ -745,7 +753,7 @@ describe('ControlSidebar', () => {
 
             const second = setSidebar({
                 isNew: false,
-                editing: { filterId: 'filter-2' },
+                editing: { kind: 'filter', filterId: 'filter-2' },
                 editingRule: makeRule({ id: 'filter-2', label: 'Region' }),
             });
             rerender(<ControlSidebar />);
@@ -776,7 +784,7 @@ describe('ControlSidebar', () => {
         it('carries the class an embed gives the rail', () => {
             setSidebar({
                 isViewer: true,
-                editing: { filterId: 'own' },
+                editing: { kind: 'filter', filterId: 'own' },
                 editingRule: own,
             });
             const { container } = renderWithProviders(
@@ -800,7 +808,7 @@ describe('ControlSidebar', () => {
                 isViewer: true,
                 isNew: true,
                 isPlaceholder: true,
-                editing: { filterId: 'own' },
+                editing: { kind: 'filter', filterId: 'own' },
                 editingRule: {
                     ...own,
                     target: { fieldId: '', tableName: '' },
@@ -811,7 +819,7 @@ describe('ControlSidebar', () => {
                 isViewer: true,
                 isNew: true,
                 isPlaceholder: false,
-                editing: { filterId: 'own' },
+                editing: { kind: 'filter', filterId: 'own' },
                 editingRule: own,
             });
             rerender(<ControlSidebar />);
@@ -822,7 +830,7 @@ describe('ControlSidebar', () => {
             setSidebar({
                 isViewer: true,
                 isNew: false,
-                editing: { filterId: 'own' },
+                editing: { kind: 'filter', filterId: 'own' },
                 editingRule: own,
             });
             renderWithProviders(
@@ -839,7 +847,7 @@ describe('ControlSidebar', () => {
             const { close, discard } = setSidebar({
                 isViewer: true,
                 isNew: false,
-                editing: { filterId: 'own' },
+                editing: { kind: 'filter', filterId: 'own' },
                 editingRule: own,
             });
             renderWithProviders(
@@ -860,11 +868,147 @@ describe('ControlSidebar', () => {
             setSidebar({
                 isViewer: true,
                 isNew: true,
-                editing: { filterId: 'own' },
+                editing: { kind: 'filter', filterId: 'own' },
                 editingRule: own,
             });
             renderWithProviders(<ControlSidebar />);
             expect(button('Create')).toBeEnabled();
+        });
+    });
+
+    describe('a date zoom', () => {
+        const orderTrend = {
+            uuid: 'z1',
+            name: 'Order trend',
+            granularity: DateGranularity.MONTH,
+        };
+        const zoomConfig = (tileUuids: string[]): DateZoomConfig => ({
+            controls: [orderTrend],
+            tileTargets: Object.fromEntries(
+                tileUuids.map((uuid) => [
+                    uuid,
+                    {
+                        controlUuid: 'z1',
+                        fieldId: 'orders_date',
+                        tableName: 'orders',
+                    },
+                ]),
+            ),
+        });
+        const editZoom = (
+            tileUuids: string[],
+            overrides: Partial<ControlsSidebarContextValue> = {},
+        ) => {
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                dateZoomConfig: zoomConfig(tileUuids),
+            };
+            return setSidebar({
+                editing: { kind: 'dateZoom', controlUuid: 'z1' },
+                editingRule: null,
+                editingZoom: orderTrend,
+                isDirty: false,
+                isNew: false,
+                ...overrides,
+            });
+        };
+
+        it('docks the zoom with its name, grain and tiles', () => {
+            editZoom(['a']);
+            renderWithProviders(<ControlSidebar />);
+            expect(
+                screen.getByRole('region', { name: 'Order trend' }),
+            ).toBeVisible();
+            expect(screen.getByRole('textbox', { name: 'Name' })).toHaveValue(
+                'Order trend',
+            );
+            expect(screen.getAllByDisplayValue('Month')[0]).toBeVisible();
+            expect(button('Tiles 1 tile')).toBeVisible();
+            expect(button('Apply')).toBeEnabled();
+        });
+
+        it('keeps Create off until a new zoom has a tile', () => {
+            editZoom([], { isNew: true });
+            const { rerender } = renderWithProviders(<ControlSidebar />);
+            expect(button('Create')).toBeDisabled();
+            expect(
+                screen.getByText('Select a tile to keep this zoom'),
+            ).toBeVisible();
+
+            editZoom(['a'], { isNew: true });
+            rerender(<ControlSidebar />);
+            expect(button('Create')).toBeEnabled();
+            expect(
+                screen.queryByText('Select a tile to keep this zoom'),
+            ).not.toBeInTheDocument();
+        });
+
+        it('cancels and applies through the provider', () => {
+            const { discard, close } = editZoom(['a']);
+            renderWithProviders(<ControlSidebar />);
+            fireEvent.click(button('Apply'));
+            expect(close).toHaveBeenCalledTimes(1);
+            fireEvent.click(button('Cancel'));
+            expect(discard).toHaveBeenCalledTimes(1);
+        });
+
+        it('asks before opening another control, by its name', () => {
+            const { resolvePending } = editZoom(['a'], {
+                isDirty: true,
+                pendingZoom: {
+                    uuid: 'z2',
+                    name: 'Ship trend',
+                    granularity: DateGranularity.WEEK,
+                },
+            });
+            renderWithProviders(<ControlSidebar />);
+            expect(screen.getByRole('status')).toHaveTextContent(
+                'Apply before opening Ship trend?',
+            );
+            fireEvent.click(button('Discard'));
+            expect(resolvePending).toHaveBeenCalledWith(false);
+            fireEvent.click(button('Apply'));
+            expect(resolvePending).toHaveBeenCalledWith(true);
+        });
+
+        it('removes an existing zoom, and offers no removal on a new one', () => {
+            const { removeZoom } = editZoom(['a']);
+            const { rerender } = renderWithProviders(<ControlSidebar />);
+            fireEvent.click(button('Remove date zoom'));
+            expect(removeZoom).toHaveBeenCalledTimes(1);
+
+            editZoom([], { isNew: true });
+            rerender(<ControlSidebar />);
+            expect(
+                screen.queryByRole('button', { name: 'Remove date zoom' }),
+            ).not.toBeInTheDocument();
+        });
+
+        it('names a pending zoom with a blank name by the starting name', () => {
+            editZoom(['a'], {
+                isDirty: true,
+                pendingZoom: {
+                    uuid: 'z2',
+                    name: '  ',
+                    granularity: DateGranularity.WEEK,
+                },
+            });
+            renderWithProviders(<ControlSidebar />);
+            expect(screen.getByRole('status')).toHaveTextContent(
+                'Apply before opening Date zoom?',
+            );
+        });
+
+        it('writes the starting name back when the name is emptied', () => {
+            const { updateDateZoomConfig } = editZoom(['a']);
+            renderWithProviders(<ControlSidebar />);
+            const input = screen.getByRole('textbox', { name: 'Name' });
+            fireEvent.change(input, { target: { value: ' ' } });
+            fireEvent.blur(input);
+            expect(updateDateZoomConfig).toHaveBeenLastCalledWith({
+                ...zoomConfig(['a']),
+                controls: [{ ...orderTrend, name: 'Date zoom' }],
+            });
         });
     });
 });
