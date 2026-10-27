@@ -20411,15 +20411,8 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
                 "additionalProperties": false,
                 "properties": {
                   "description": {
-                    "anyOf": [
-                      {
-                        "type": "string",
-                      },
-                      {
-                        "type": "null",
-                      },
-                    ],
-                    "description": "One sentence on what this query does, only when the title is not enough. Null otherwise.",
+                    "description": "One sentence for a business user on what this node does to the data, adding to the title rather than repeating it, e.g. "Sums completed order revenue per month over the last year." Shown as the node's heading in the pipeline list.",
+                    "type": "string",
                   },
                   "dimensions": {
                     "description": "Dimension field ids to group by, from the explore's schema.",
@@ -20587,15 +20580,8 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
                 "additionalProperties": false,
                 "properties": {
                   "description": {
-                    "anyOf": [
-                      {
-                        "type": "string",
-                      },
-                      {
-                        "type": "null",
-                      },
-                    ],
-                    "description": "One sentence on what this query does, only when the title is not enough. Null otherwise.",
+                    "description": "One sentence for a business user on what this node does to the data, adding to the title rather than repeating it, e.g. "Sums completed order revenue per month over the last year." Shown as the node's heading in the pipeline list.",
+                    "type": "string",
                   },
                   "limit": {
                     "default": 500,
@@ -20635,15 +20621,8 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
                 "additionalProperties": false,
                 "properties": {
                   "description": {
-                    "anyOf": [
-                      {
-                        "type": "string",
-                      },
-                      {
-                        "type": "null",
-                      },
-                    ],
-                    "description": "One sentence on what this query does, only when the title is not enough. Null otherwise.",
+                    "description": "One sentence for a business user on what this node does to the data, adding to the title rather than repeating it, e.g. "Sums completed order revenue per month over the last year." Shown as the node's heading in the pipeline list.",
+                    "type": "string",
                   },
                   "limit": {
                     "default": 500,
@@ -20706,15 +20685,8 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
                 "additionalProperties": false,
                 "properties": {
                   "description": {
-                    "anyOf": [
-                      {
-                        "type": "string",
-                      },
-                      {
-                        "type": "null",
-                      },
-                    ],
-                    "description": "One sentence on what this query does, only when the title is not enough. Null otherwise.",
+                    "description": "One sentence for a business user on what this node does to the data, adding to the title rather than repeating it, e.g. "Sums completed order revenue per month over the last year." Shown as the node's heading in the pipeline list.",
+                    "type": "string",
                   },
                   "limit": {
                     "default": 500,

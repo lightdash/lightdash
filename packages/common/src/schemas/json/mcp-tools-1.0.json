@@ -4347,7 +4347,7 @@
                                 {
                                     "properties": {
                                         "description": {
-                                            "description": "One sentence on what this query does, only when the title is not enough. Null otherwise.",
+                                            "description": "One sentence for a business user on what this node does to the data, adding to the title rather than repeating it, e.g. \"Sums completed order revenue per month over the last year.\" Shown as the node's heading in the pipeline list.",
                                             "type": "string"
                                         },
                                         "dimensions": {
@@ -4470,6 +4470,7 @@
                                         "sourceType",
                                         "nodeId",
                                         "title",
+                                        "description",
                                         "exploreName",
                                         "dimensions",
                                         "metrics"
@@ -4479,7 +4480,7 @@
                                 {
                                     "properties": {
                                         "description": {
-                                            "description": "One sentence on what this query does, only when the title is not enough. Null otherwise.",
+                                            "description": "One sentence for a business user on what this node does to the data, adding to the title rather than repeating it, e.g. \"Sums completed order revenue per month over the last year.\" Shown as the node's heading in the pipeline list.",
                                             "type": "string"
                                         },
                                         "limit": {
@@ -4511,6 +4512,7 @@
                                         "sourceType",
                                         "nodeId",
                                         "title",
+                                        "description",
                                         "sql"
                                     ],
                                     "type": "object"
@@ -4518,7 +4520,7 @@
                                 {
                                     "properties": {
                                         "description": {
-                                            "description": "One sentence on what this query does, only when the title is not enough. Null otherwise.",
+                                            "description": "One sentence for a business user on what this node does to the data, adding to the title rather than repeating it, e.g. \"Sums completed order revenue per month over the last year.\" Shown as the node's heading in the pipeline list.",
                                             "type": "string"
                                         },
                                         "limit": {
@@ -4572,6 +4574,7 @@
                                         "sourceType",
                                         "nodeId",
                                         "title",
+                                        "description",
                                         "sql",
                                         "references"
                                     ],
@@ -4580,7 +4583,7 @@
                                 {
                                     "properties": {
                                         "description": {
-                                            "description": "One sentence on what this query does, only when the title is not enough. Null otherwise.",
+                                            "description": "One sentence for a business user on what this node does to the data, adding to the title rather than repeating it, e.g. \"Sums completed order revenue per month over the last year.\" Shown as the node's heading in the pipeline list.",
                                             "type": "string"
                                         },
                                         "limit": {
@@ -4632,6 +4635,7 @@
                                         "sourceType",
                                         "nodeId",
                                         "title",
+                                        "description",
                                         "sql",
                                         "tables"
                                     ],
