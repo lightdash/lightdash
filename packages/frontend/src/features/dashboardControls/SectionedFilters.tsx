@@ -869,7 +869,7 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
         ({ rules }) => rules,
     );
     // Until the first section, a capsule that says how to start one
-    const isGhostShown = sections.length === 0 && allRules.length >= 2;
+    const isGhostShown = sections.length === 0 && allRules.length > 0;
     const fieldOf = ({ rule, group }: SectionRule) =>
         getDashboardFilterField<DashboardFilterableField>(
             group === 'metrics'

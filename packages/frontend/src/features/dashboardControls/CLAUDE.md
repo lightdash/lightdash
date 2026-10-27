@@ -1248,10 +1248,10 @@ the language map, as tab names are.
   section": a subtle `md` (28px, the pill line) `ActionIcon` with the
   folder-plus icon and its tooltip, right after "Add filter" (its
   `UnsectionTarget`) and before the capsules, shown once the dashboard has
-  a section (with one filter and no section there is no section entry),
+  a section (before that the capsule below stands in for it),
   hidden while a section is named and inert while a filter is
-  edited (`InertWhileEditing`). While the dashboard has no section and two
-  or more filters (dimensions and metrics, the tip's reading), the "New
+  edited (`InertWhileEditing`). While the dashboard has no section and at
+  least one filter (dimensions and metrics), the "New
   section" capsule takes the icon's place instead (`NewSectionGhost`,
   `data-new-section`): an `UnstyledButton` drawn by `.newSectionGhost`,
   28px tall (44px in the shipped bar's narrow container, as its buttons),

@@ -1481,9 +1481,13 @@ describe('SectionedFilters', () => {
             };
         });
 
-        it('replaces the folder icon right after Add filter while there are 2+ filters and no section', () => {
-            const one = renderSectioned([rule('one', undefined)], 'tab-1', []);
+        it('replaces the folder icon right after Add filter from the first filter while there is no section', () => {
+            const empty = renderSectioned([], 'tab-1', []);
             expect(ghost()).not.toBeInTheDocument();
+            empty.unmount();
+
+            const one = renderSectioned([rule('one', undefined)], 'tab-1', []);
+            expect(ghost()).toBeInTheDocument();
             expect(addSection()).not.toBeInTheDocument();
             one.unmount();
 
