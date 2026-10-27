@@ -377,6 +377,8 @@ RUN if [ -n "${SENTRY_AUTH_TOKEN}" ] && [ -n "${SENTRY_ORG}" ] && [ -n "${SENTRY
     # Inject debug IDs into frontend artifacts \
     echo "Injecting debug IDs into frontend artifacts"; \
     sentry-cli sourcemaps inject ./packages/frontend/build/assets/; \
+    # Inject rewrites the .js files, so regenerate the precompressed copies browsers are actually served \
+    find ./packages/frontend/build/assets -name '*.js.gzip' | while read -r f; do gzip -9 -n -c "${f%.gzip}" > "$f"; done; \
     # Upload frontend sourcemaps \
     echo "Uploading frontend sourcemaps"; \
     sentry-cli sourcemaps upload --release "${SENTRY_RELEASE_VERSION}" \
