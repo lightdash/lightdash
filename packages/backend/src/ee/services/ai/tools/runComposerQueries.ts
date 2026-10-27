@@ -1,5 +1,6 @@
 import {
     buildComposerArtifactPipeline,
+    COMPOSER_QUERY_PREVIEW_ROW_LIMIT,
     createToolComposerQueriesArgsSchema,
     getSourceQueryResultReferences,
     getSqlApprovalSql,
@@ -95,8 +96,6 @@ type Dependencies = {
 };
 
 const toolDefinition = queryToolDefinition.for('agent');
-
-const PREVIEW_ROW_LIMIT = 50;
 
 const COMPOSER_SQL_APPROVAL_COPY: SqlApprovalCopy = {
     slackText: 'SQL execution',
@@ -543,7 +542,7 @@ export const getRunComposerQueries = ({
                         };
                     }
                     const previewRows = terminal.rows
-                        .slice(0, PREVIEW_ROW_LIMIT)
+                        .slice(0, COMPOSER_QUERY_PREVIEW_ROW_LIMIT)
                         .map((row) =>
                             columnReferences.reduce<Record<string, AnyType>>(
                                 (acc, col) => {
@@ -557,9 +556,10 @@ export const getRunComposerQueries = ({
                         header: true,
                         columns: columnReferences,
                     });
-                    const truncated = terminal.rowCount > PREVIEW_ROW_LIMIT;
+                    const truncated =
+                        terminal.rowCount > COMPOSER_QUERY_PREVIEW_ROW_LIMIT;
                     const truncatedNote = truncated
-                        ? `\n(Showing first ${PREVIEW_ROW_LIMIT} of ${terminal.rowCount} rows.)`
+                        ? `\n(Showing first ${COMPOSER_QUERY_PREVIEW_ROW_LIMIT} of ${terminal.rowCount} rows.)`
                         : '';
                     return {
                         result: `${resultSummary}${truncatedNote}\n${serializeData(

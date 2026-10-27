@@ -300,12 +300,12 @@ export const getVisualize = ({
                 });
 
                 const slackRenderInput =
-                    slackImage && run && run.terminal.rows.length > 0
+                    slackImage && run && run.terminal.rowCount > 0
                         ? toSlackRenderInput(version, {
                               artifactUuid: artifact.artifactUuid,
                               versionUuid: artifact.versionUuid,
                               queryUuid: run.terminal.queryUuid,
-                              rowLimit: run.terminal.rows.length,
+                              rowLimit: run.terminal.rowCount,
                           })
                         : null;
                 if (slackRenderInput && deferSlackVisualization) {

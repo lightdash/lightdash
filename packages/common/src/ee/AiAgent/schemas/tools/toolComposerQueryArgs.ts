@@ -39,6 +39,7 @@ export const isComposerQueryToolName = (
 
 export const DEFAULT_COMPOSER_QUERY_LIMIT = 500;
 export const DEFAULT_COMPOSER_QUERY_MAX_LIMIT = 5000;
+export const COMPOSER_QUERY_PREVIEW_ROW_LIMIT = 50;
 
 type ComposerQueriesDescriptionOptions = {
     enablePythonNodes: boolean;

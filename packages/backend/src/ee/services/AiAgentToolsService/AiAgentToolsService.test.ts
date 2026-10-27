@@ -8,6 +8,7 @@ import {
     AppVizBuildContext,
     CatalogType,
     ChartType,
+    COMPOSER_QUERY_PREVIEW_ROW_LIMIT,
     ContentType,
     DATA_APP_VIZ_TEMPLATE,
     DimensionType,
@@ -160,7 +161,6 @@ const makeService = ({
     savedChartModel = {},
     dashboardModel = {},
     maxQueryLimit = 500,
-    maxPageSize = 2500,
 }: {
     agentPermissionService?: Pick<
         import('../../../services/AgentPermissionService/AgentPermissionService').AgentPermissionService,
@@ -199,7 +199,6 @@ const makeService = ({
     savedChartModel?: Record<string, unknown>;
     dashboardModel?: Record<string, unknown>;
     maxQueryLimit?: number;
-    maxPageSize?: number;
 } = {}) =>
     new AiAgentToolsService({
         agentPermissionService,
@@ -216,7 +215,6 @@ const makeService = ({
         lightdashConfig: {
             siteUrl: 'https://lightdash.example',
             ai: { copilot: { maxQueryLimit } },
-            query: { maxPageSize },
         },
         projectModel: {
             findExploresFromCache: vi.fn(
@@ -3617,6 +3615,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
     const readyResults = {
         status: QueryHistoryStatus.READY,
         rows: [{ orders_total: { value: { raw: 42, formatted: '42' } } }],
+        totalResults: 1,
         columns: {
             orders_total: {
                 reference: 'orders_total',
@@ -3970,7 +3969,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
         ).rejects.toThrow(/"orders" \(relation does not exist\)/);
     });
 
-    it('returns every terminal row when the node limit exceeds the results page cap', async () => {
+    it('reads a preview page and takes the row count from the stored total when the node limit exceeds the results page cap', async () => {
         const totalRows = 3000;
         const getAsyncQueryResults = vi.fn(
             async ({ page, pageSize }: { page: number; pageSize: number }) => {
@@ -3980,20 +3979,17 @@ describe('AiAgentToolsService runComposerQueries', () => {
                     queryMaxLimit: 2500,
                     totalRowCount: totalRows,
                 });
-                const start = (page - 1) * pageSize;
-                const end = Math.min(start + pageSize, totalRows);
                 return {
                     ...readyResults,
-                    rows: Array.from({ length: end - start }, (_, i) => ({
-                        orders_total: { value: { raw: start + i } },
+                    rows: Array.from({ length: pageSize }, (_, i) => ({
+                        orders_total: { value: { raw: i } },
                     })),
-                    nextPage: end < totalRows ? page + 1 : undefined,
+                    totalResults: totalRows,
                 };
             },
         );
         const service = makeService({
             maxQueryLimit: 5000,
-            maxPageSize: 2500,
             querySourceService: {
                 executeSourceQueries: vi
                     .fn()
@@ -4014,9 +4010,9 @@ describe('AiAgentToolsService runComposerQueries', () => {
             });
 
         expect(result.terminal.rowCount).toBe(totalRows);
-        expect(result.terminal.rows.at(-1)).toEqual({
-            orders_total: totalRows - 1,
-        });
+        expect(result.terminal.rows).toHaveLength(
+            COMPOSER_QUERY_PREVIEW_ROW_LIMIT,
+        );
     });
 });
 

@@ -771,6 +771,7 @@ export type RunComposerQueriesFn = (args: {
     terminal: {
         queryUuid: string;
         columns: ResultColumns;
+        /** First COMPOSER_QUERY_PREVIEW_ROW_LIMIT rows; rowCount is the full count. */
         rows: Record<string, AnyType>[];
         rowCount: number;
     };
