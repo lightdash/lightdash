@@ -1,3 +1,10 @@
+# [3.72.0](https://github.com/lightdash/lightdash/compare/3.71.0...3.72.0) (2026-10-27)
+
+
+### Features
+
+* **homepage:** reorder pinned items from the homepage builder ([#31672](https://github.com/lightdash/lightdash/issues/31672)) ([2182523](https://github.com/lightdash/lightdash/commit/218252381b057d2e482a99b09c4841be3b5a92c8))
+
 # [3.71.0](https://github.com/lightdash/lightdash/compare/3.70.0...3.71.0) (2026-10-27)
 
 
