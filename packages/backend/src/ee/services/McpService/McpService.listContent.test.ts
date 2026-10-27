@@ -222,6 +222,7 @@ const makeMcpService = ({
                             appCount: space.appCount,
                             directAccess:
                                 space.userAccess?.hasDirectAccess === true,
+                            canEdit: space.userAccess?.hasDirectAccess === true,
                         })),
                         pagination: {
                             page,
@@ -246,6 +247,8 @@ const makeMcpService = ({
                                   childSpaceCount: item.childSpaceCount,
                                   appCount: item.appCount,
                                   directAccess:
+                                      item.access?.includes(userUuid) === true,
+                                  canEdit:
                                       item.access?.includes(userUuid) === true,
                               }
                             : {

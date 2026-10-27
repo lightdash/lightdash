@@ -123,6 +123,9 @@ const buildService = (overrides?: {
     };
     const service = new AiAgentService({
         aiAgentModel,
+        aiAgentToolsService: {
+            canAuthorContent: vi.fn().mockResolvedValue(true),
+        },
         projectModel,
         featureFlagService,
         analytics: { track: vi.fn() },

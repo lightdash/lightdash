@@ -249,6 +249,7 @@ export type FindContentSpaceResult = {
     childSpaceCount: number;
     appCount: number;
     directAccess: boolean;
+    canEdit: boolean;
     space: FindContentSpaceMetadata;
     verification: null;
 };
@@ -313,6 +314,7 @@ export type ListContentFn = (args: {
               childSpaceCount: number;
               appCount: number;
               directAccess: boolean;
+              canEdit: boolean;
           }
     >;
     pagination:

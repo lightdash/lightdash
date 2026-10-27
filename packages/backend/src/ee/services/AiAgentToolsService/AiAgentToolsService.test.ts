@@ -133,6 +133,9 @@ const makeService = ({
     spaceModel = {
         hasSpaceWithPathAndUuids: vi.fn().mockResolvedValue(true),
     },
+    spacePermissionService = {
+        getAccessibleSpaceUuids: vi.fn().mockResolvedValue([]),
+    },
     dashboardService = {},
     savedChartService = {},
     savedSqlService = {},
@@ -173,6 +176,7 @@ const makeService = ({
     searchFieldUniqueValues?: import('vitest').Mock;
     projectSpaces?: Array<{ uuid: string; path: string }>;
     spaceModel?: Record<string, unknown>;
+    spacePermissionService?: Record<string, unknown>;
     dashboardService?: Record<string, unknown>;
     savedChartService?: Record<string, unknown>;
     savedSqlService?: Record<string, unknown> | SavedSqlService;
@@ -256,6 +260,7 @@ const makeService = ({
         searchModel: {},
         searchService,
         spaceService: {},
+        spacePermissionService,
         spaceModel,
         dashboardService,
         savedChartService,
@@ -3020,7 +3025,7 @@ describe('AiAgentToolsService', () => {
                 projectUuid,
                 'orders-by-status',
                 expect.not.objectContaining({ connection: expect.anything() }),
-                { mode: 'create' },
+                { mode: 'create', authorization: 'space_access' },
             );
             expect(created).toMatchObject({
                 type: 'sql_chart',
@@ -3177,6 +3182,7 @@ describe('AiAgentToolsService', () => {
                 projectUuid,
                 'orders-by-status',
                 expect.objectContaining({ limit: 100 }),
+                { authorization: 'space_access' },
             );
             expect(edited).toMatchObject({
                 type: 'sql_chart',
@@ -3215,6 +3221,7 @@ describe('AiAgentToolsService', () => {
                 projectUuid,
                 'orders-by-status',
                 expect.objectContaining({ sql }),
+                { authorization: 'space_access' },
             );
         });
 
@@ -8035,5 +8042,137 @@ describe('AiAgentToolsService in a thread bound to a chart', () => {
             } as never),
         ).rejects.toThrow(ParameterError);
         expect(generateApp).not.toHaveBeenCalled();
+    });
+});
+
+describe('AiAgentToolsService canAuthorContent', () => {
+    // An Interactive Viewer: saves content only where a space grant allows it.
+    const spaceEditorRules = [
+        {
+            action: 'view',
+            subject: 'Project',
+            conditions: { organizationUuid, projectUuid },
+        },
+        {
+            action: 'manage',
+            subject: 'Dashboard',
+            conditions: {
+                projectUuid,
+                access: { $elemMatch: { userUuid, role: 'editor' } },
+            },
+        },
+        {
+            action: 'manage',
+            subject: 'SavedChart',
+            conditions: {
+                projectUuid,
+                access: { $elemMatch: { userUuid, role: 'editor' } },
+            },
+        },
+    ] as const;
+
+    const makeUser = (
+        rules: ConstructorParameters<typeof Ability<PossibleAbilities>>[0],
+    ): SessionUser =>
+        ({
+            ...defaultSessionUser,
+            userUuid,
+            organizationUuid,
+            ability: new Ability<PossibleAbilities>(rules),
+        }) as SessionUser;
+
+    const serviceWithEditableSpaces = (editableSpaceUuids: string[]) =>
+        makeService({
+            spaceModel: {
+                find: vi
+                    .fn()
+                    .mockResolvedValue([
+                        { uuid: 'space-a' },
+                        { uuid: 'space-b' },
+                    ]),
+            },
+            spacePermissionService: {
+                getAccessibleSpaceUuids: vi
+                    .fn()
+                    .mockResolvedValue(editableSpaceUuids),
+            },
+        });
+
+    it('follows space access in a project, not the project role', async () => {
+        const editorUser = makeUser([...spaceEditorRules]);
+        expect(
+            await serviceWithEditableSpaces(['space-b']).canAuthorContent({
+                user: editorUser,
+                projectUuid,
+            }),
+        ).toBe(true);
+        expect(
+            await serviceWithEditableSpaces([]).canAuthorContent({
+                user: editorUser,
+                projectUuid,
+            }),
+        ).toBe(false);
+    });
+
+    it('asks which spaces the user can save charts into', async () => {
+        const getAccessibleSpaceUuids = vi.fn().mockResolvedValue([]);
+        const editorUser = makeUser([...spaceEditorRules]);
+        await makeService({
+            spaceModel: { find: vi.fn().mockResolvedValue([{ uuid: 'a' }]) },
+            spacePermissionService: { getAccessibleSpaceUuids },
+        }).canAuthorContent({ user: editorUser, projectUuid });
+        expect(getAccessibleSpaceUuids).toHaveBeenCalledWith(
+            'create',
+            editorUser,
+            ['a'],
+            { subjectType: 'SavedChart' },
+        );
+    });
+
+    it('without a project, the role alone decides', async () => {
+        const find = vi.fn();
+        const service = makeService({ spaceModel: { find } });
+        expect(
+            await service.canAuthorContent({
+                user: makeUser([...spaceEditorRules]),
+                projectUuid: undefined,
+            }),
+        ).toBe(true);
+        expect(
+            await service.canAuthorContent({
+                user: makeUser([]),
+                projectUuid: undefined,
+            }),
+        ).toBe(false);
+        expect(find).not.toHaveBeenCalled();
+    });
+
+    it('answers no for a role that can never save content without listing spaces', async () => {
+        const find = vi.fn();
+        const service = makeService({ spaceModel: { find } });
+        expect(
+            await service.canAuthorContent({
+                user: makeUser([]),
+                projectUuid,
+            }),
+        ).toBe(false);
+        expect(find).not.toHaveBeenCalled();
+    });
+
+    it('counts saving into a space the user may create', async () => {
+        const editorUser = makeUser([
+            ...spaceEditorRules,
+            {
+                action: 'create',
+                subject: 'Space',
+                conditions: { organizationUuid, projectUuid },
+            },
+        ]);
+        expect(
+            await serviceWithEditableSpaces([]).canAuthorContent({
+                user: editorUser,
+                projectUuid,
+            }),
+        ).toBe(true);
     });
 });

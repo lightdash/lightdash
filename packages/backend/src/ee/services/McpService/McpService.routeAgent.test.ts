@@ -202,6 +202,7 @@ const makeMcpService = () => {
                         childSpaceCount: 0,
                         appCount: 0,
                         directAccess: true,
+                        canEdit: true,
                         agentUuid,
                     })),
                     pagination: {

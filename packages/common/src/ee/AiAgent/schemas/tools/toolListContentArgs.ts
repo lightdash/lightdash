@@ -38,6 +38,11 @@ const toolListContentSpaceItemSchema = z.object({
         .describe(
             'Whether the caller was granted access to this space directly.',
         ),
+    canEdit: z
+        .boolean()
+        .describe(
+            'Whether the caller can create and edit charts and dashboards in this space.',
+        ),
 });
 
 const toolListContentDocumentItemSchema = z.object({

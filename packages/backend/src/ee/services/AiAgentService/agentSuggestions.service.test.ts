@@ -79,6 +79,9 @@ function buildService() {
         },
         featureFlagService: { get: featureFlagGet },
         projectService: { getSpaces },
+        aiAgentToolsService: {
+            canAuthorContent: vi.fn().mockResolvedValue(false),
+        },
     } as unknown as ConstructorParameters<typeof AiAgentService>[0]);
     vi.spyOn(service, 'getAgent').mockResolvedValue({
         uuid: 'agent-1',

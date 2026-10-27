@@ -343,6 +343,45 @@ const registerContentAccessTests = (
         ).resolves.toMatchObject({ charts: [{ action: 'create' }] });
     });
 
+    const spaceOnlyRules: RawRuleOf<Ability<PossibleAbilities>>[] = [
+        {
+            subject: 'SavedChart',
+            action: 'create',
+            conditions: { projectUuid: PROJECT_UUID },
+        },
+    ];
+
+    it('lets agent surfaces create charts on space access alone', async () => {
+        const service = buildService();
+        prepareChartCreate(service);
+
+        await expect(
+            service.upsertChart(
+                makeUser(spaceOnlyRules),
+                PROJECT_UUID,
+                chartAsCode.slug,
+                chartAsCode,
+                { authorization: 'space_access' },
+            ),
+        ).resolves.toMatchObject({ charts: [{ action: 'create' }] });
+    });
+
+    it('still requires the content-as-code scope for uploads', async () => {
+        const service = buildService();
+        prepareChartCreate(service);
+
+        await expect(
+            service.upsertChart(
+                makeUser(spaceOnlyRules),
+                PROJECT_UUID,
+                chartAsCode.slug,
+                chartAsCode,
+            ),
+        ).rejects.toThrow(
+            'You don\'t have permission to upload content as code to this project (content slug "chart")',
+        );
+    });
+
     it('allows write-only callers to create formula table calculations', async () => {
         const service = buildService();
         prepareChartCreate(service);

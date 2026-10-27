@@ -54,6 +54,7 @@ import {
     toMcpCustomChartTypeVizSchema,
     UnexpectedServerError,
     UserAttributeValueMap,
+    UUID,
     WarehouseQueryError,
     type AgentSqlScope,
     type AgentToolName,
@@ -126,6 +127,7 @@ import { SavedChartService } from '../../../services/SavedChartsService/SavedCha
 import { SavedSqlService } from '../../../services/SavedSqlService/SavedSqlService';
 import { SearchService } from '../../../services/SearchService/SearchService';
 import { ShareService } from '../../../services/ShareService/ShareService';
+import { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
 import { SpaceService } from '../../../services/SpaceService/SpaceService';
 import { matchShareUrlNanoid } from '../../../services/UnfurlService/UnfurlService';
 import {
@@ -499,6 +501,7 @@ type AiAgentToolsServiceDependencies = {
     searchModel: SearchModel;
     searchService: SearchService;
     spaceService: SpaceService;
+    spacePermissionService: SpacePermissionService;
     spaceModel: SpaceModel;
     dashboardService: DashboardService;
     dashboardModel: DashboardModel;
@@ -564,6 +567,8 @@ export class AiAgentToolsService extends BaseService {
     private readonly searchService: SearchService;
 
     private readonly spaceService: SpaceService;
+
+    private readonly spacePermissionService: SpacePermissionService;
 
     private readonly spaceModel: SpaceModel;
 
@@ -679,6 +684,7 @@ export class AiAgentToolsService extends BaseService {
         searchModel,
         searchService,
         spaceService,
+        spacePermissionService,
         spaceModel,
         dashboardService,
         dashboardModel,
@@ -717,6 +723,7 @@ export class AiAgentToolsService extends BaseService {
         this.searchModel = searchModel;
         this.searchService = searchService;
         this.spaceService = spaceService;
+        this.spacePermissionService = spacePermissionService;
         this.spaceModel = spaceModel;
         this.dashboardService = dashboardService;
         this.dashboardModel = dashboardModel;
@@ -1983,6 +1990,10 @@ export class AiAgentToolsService extends BaseService {
                     },
                 );
 
+                const editableSpaceUuids = await this.getEditableSpaceUuids(
+                    context.user,
+                    spaces.map((space) => space.uuid),
+                );
                 // Spaces cannot be verified, so they are omitted from
                 // verified-only searches.
                 const spaceResults = (verifiedOnly ? [] : spaces)
@@ -2016,6 +2027,7 @@ export class AiAgentToolsService extends BaseService {
                             appCount: space.appCount,
                             directAccess:
                                 space.userAccess?.hasDirectAccess === true,
+                            canEdit: editableSpaceUuids.has(space.uuid),
                             space: AiAgentToolsService.getSpaceMetadata(
                                 space,
                                 spacesByPath,
@@ -2421,6 +2433,58 @@ export class AiAgentToolsService extends BaseService {
                   context.user,
                   context.projectUuid,
               );
+    }
+
+    /** Spaces the user can save charts into, as the app's save modal would list them. */
+    private async getEditableSpaceUuids(
+        user: SessionUser,
+        spaceUuids: string[],
+    ): Promise<Set<string>> {
+        if (spaceUuids.length === 0) {
+            return new Set();
+        }
+        return new Set(
+            await this.spacePermissionService.getAccessibleSpaceUuids(
+                'create',
+                user,
+                spaceUuids,
+                { subjectType: 'SavedChart' },
+            ),
+        );
+    }
+
+    /**
+     * Mirrors the app's save button, not the project role: with a project, a space the user can save into
+     * (or the right to create one) is enough; without one, only the role is known, as before a project is chosen.
+     */
+    async canAuthorContent(context: {
+        user: SessionUser;
+        projectUuid: UUID | undefined;
+    }): Promise<boolean> {
+        const { user, projectUuid } = context;
+        const { organizationUuid } = user;
+        const ability = this.createAuditedAbility(user);
+        const roleCanSaveContent =
+            organizationUuid !== undefined &&
+            (ability.can('create', 'SavedChart') ||
+                ability.can('create', 'Dashboard'));
+        if (!roleCanSaveContent || projectUuid === undefined) {
+            return roleCanSaveContent;
+        }
+        if (
+            ability.can(
+                'create',
+                subject('Space', { organizationUuid, projectUuid }),
+            )
+        ) {
+            return true;
+        }
+        const spaces = await this.spaceModel.find({ projectUuid });
+        const editableSpaceUuids = await this.getEditableSpaceUuids(
+            user,
+            spaces.map((space) => space.uuid),
+        );
+        return editableSpaceUuids.size > 0;
     }
 
     private async listDataAppThemes(
@@ -3570,7 +3634,7 @@ export class AiAgentToolsService extends BaseService {
                                 context.projectUuid,
                                 slug,
                                 patchedContent,
-                                { force: true },
+                                { force: true, authorization: 'space_access' },
                             );
                         uuid = promotionChanges.dashboards[0]?.data.uuid;
                         break;
@@ -3617,7 +3681,7 @@ export class AiAgentToolsService extends BaseService {
                                 context.projectUuid,
                                 slug,
                                 patchedContent,
-                                { force: true },
+                                { force: true, authorization: 'space_access' },
                             );
                         uuid = promotionChanges.charts[0]?.data.uuid;
                         break;
@@ -3757,7 +3821,10 @@ export class AiAgentToolsService extends BaseService {
                                 context.projectUuid,
                                 content.slug,
                                 content,
-                                { mode: 'create' },
+                                {
+                                    mode: 'create',
+                                    authorization: 'space_access',
+                                },
                             );
                         const finalSlug =
                             promotionChanges.dashboards[0]?.data.slug ??
@@ -3792,7 +3859,10 @@ export class AiAgentToolsService extends BaseService {
                                 context.projectUuid,
                                 content.slug,
                                 content,
-                                { mode: 'create' },
+                                {
+                                    mode: 'create',
+                                    authorization: 'space_access',
+                                },
                             );
                         const finalSlug =
                             promotionChanges.charts[0]?.data.slug ??
@@ -3872,6 +3942,7 @@ export class AiAgentToolsService extends BaseService {
             context.projectUuid,
             slug,
             patched,
+            { authorization: 'space_access' },
         );
         return promotionChanges.charts[0]?.data.uuid;
     }
@@ -3908,7 +3979,7 @@ export class AiAgentToolsService extends BaseService {
             context.projectUuid,
             content.slug,
             content,
-            { mode: 'create' },
+            { mode: 'create', authorization: 'space_access' },
         );
         const created = promotionChanges.charts[0]?.data;
         if (!created?.uuid) {
@@ -5713,6 +5784,9 @@ export class AiAgentToolsService extends BaseService {
             ),
         );
         const visibleSpaceUuids = new Set(spaces.map((space) => space.uuid));
+        const editableSpaceUuids = await this.getEditableSpaceUuids(user, [
+            ...visibleSpaceUuids,
+        ]);
         const items = spaces
             .filter(
                 (space) =>
@@ -5730,6 +5804,7 @@ export class AiAgentToolsService extends BaseService {
                     childSpaceCount: space.childSpaceCount,
                     appCount: space.appCount,
                     directAccess: space.userAccess?.hasDirectAccess === true,
+                    canEdit: editableSpaceUuids.has(space.uuid),
                 }),
             );
 
@@ -5783,6 +5858,12 @@ export class AiAgentToolsService extends BaseService {
         )
             ? (await this.projectModel.getSummary(projectUuid)).slug
             : projectUuid;
+        const editableSpaceUuids = await this.getEditableSpaceUuids(
+            user,
+            results.data.flatMap((item) =>
+                item.contentType === ContentType.SPACE ? [item.uuid] : [],
+            ),
+        );
 
         return {
             spaceSlug,
@@ -5816,6 +5897,7 @@ export class AiAgentToolsService extends BaseService {
                             childSpaceCount: item.childSpaceCount,
                             appCount: item.appCount,
                             directAccess: item.access.includes(user.userUuid),
+                            canEdit: editableSpaceUuids.has(item.uuid),
                         };
                     }
 

@@ -503,12 +503,7 @@ describe('trusted surface to persisted chart identity', () => {
             },
             'getPromptDecisionClient',
         ).mockResolvedValue(undefined);
-        vi.spyOn(
-            service as unknown as {
-                canCreateDashboardsInProject: () => Promise<boolean>;
-            },
-            'canCreateDashboardsInProject',
-        ).mockResolvedValue(true);
+        vi.spyOn(f.tools, 'canAuthorContent').mockResolvedValue(true);
         vi.spyOn(
             service as unknown as {
                 getAgentRuntimeMcpServers: () => Promise<[]>;

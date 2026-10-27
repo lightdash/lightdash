@@ -108,6 +108,7 @@ const toSpaceItem = (
     childSpaceCount: space.childSpaceCount,
     appCount: space.appCount,
     directAccess: space.directAccess,
+    canEdit: space.canEdit,
     space: toSpaceMetadata(space.space),
 });
 
@@ -379,6 +380,7 @@ const renderSpace = (space: ContentItemOf<'space'>) => (
         childSpaceCount={space.childSpaceCount}
         appCount={space.appCount}
         directAccess={space.directAccess}
+        canEdit={space.canEdit}
     >
         <name>{space.name}</name>
         {renderSpaceMetadata(space.space)}

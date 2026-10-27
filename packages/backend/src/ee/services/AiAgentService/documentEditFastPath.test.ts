@@ -95,11 +95,12 @@ const setup = ({
         },
         aiAgentToolsService: {
             createRuntime: vi.fn().mockReturnValue(runtime),
+            canAuthorContent: vi.fn().mockResolvedValue(authorized),
         },
     } as unknown as ConstructorParameters<typeof AiAgentService>[0]);
     const privateService = service as unknown as PrivateService;
     vi.spyOn(privateService, 'createAuditedAbility').mockReturnValue({
-        can: () => authorized,
+        can: () => true,
     });
     const stream = { pipeUIMessageStreamToResponse: vi.fn() };
     const respond = vi
@@ -133,7 +134,7 @@ describe('Document fast edit context', () => {
 
     test.each([
         { name: 'no pinned Document', pinnedDocumentSlug: null },
-        { name: 'no ContentAsCode access', authorized: false },
+        { name: 'no space the user can save in', authorized: false },
         {
             name: 'other content pinned to the prompt',
             promptContext: ['document', 'chart'],

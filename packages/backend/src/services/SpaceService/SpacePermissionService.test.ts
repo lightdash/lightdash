@@ -203,6 +203,78 @@ describe('SpacePermissionService', () => {
             ).resolves.toEqual([survivingSpaceUuid]);
         });
 
+        test('checks content access inside the space when asked for a content subject', async () => {
+            // An Interactive Viewer: no right over spaces, saves charts where granted editor.
+            const spaceEditor = {
+                userUuid: 'user-uuid',
+                ability: new Ability<PossibleAbilities>([
+                    {
+                        action: 'manage',
+                        subject: 'SavedChart',
+                        conditions: {
+                            projectUuid: 'allowed-project',
+                            access: {
+                                $elemMatch: {
+                                    userUuid: 'user-uuid',
+                                    role: SpaceMemberRole.EDITOR,
+                                },
+                            },
+                        },
+                    },
+                ]),
+            } as unknown as SessionUser;
+            mockPermissionModel.getDirectSpaceAccess.mockResolvedValue({
+                [survivingSpaceUuid]: [
+                    {
+                        userUuid: 'user-uuid',
+                        spaceUuid: survivingSpaceUuid,
+                        role: SpaceMemberRole.EDITOR,
+                        groupUuid: null,
+                        from: DirectSpaceAccessOrigin.USER_ACCESS,
+                    },
+                ],
+            });
+            mockPermissionModel.getProjectSpaceAccess.mockResolvedValue({
+                [survivingSpaceUuid]: [
+                    {
+                        userUuid: 'user-uuid',
+                        spaceUuid: survivingSpaceUuid,
+                        role: ProjectMemberRole.INTERACTIVE_VIEWER,
+                        roleUuid: null,
+                        extraRoleUuids: [],
+                        from: ProjectSpaceAccessOrigin.PROJECT_MEMBERSHIP,
+                    },
+                ],
+            });
+            mockPermissionModel.getOrganizationSpaceAccess.mockResolvedValue({
+                [survivingSpaceUuid]: [
+                    {
+                        userUuid: 'user-uuid',
+                        spaceUuid: survivingSpaceUuid,
+                        role: OrganizationMemberRole.MEMBER,
+                        roleUuid: null,
+                        extraRoleUuids: [],
+                    },
+                ],
+            });
+
+            await expect(
+                service.getAccessibleSpaceUuids(
+                    'create',
+                    spaceEditor,
+                    spaceUuids,
+                    { subjectType: 'SavedChart' },
+                ),
+            ).resolves.toEqual([survivingSpaceUuid]);
+            await expect(
+                service.getAccessibleSpaceUuids(
+                    'create',
+                    spaceEditor,
+                    spaceUuids,
+                ),
+            ).resolves.toEqual([]);
+        });
+
         test.each([
             { requestedSpaceUuids: [deletedSpaceUuid] },
             { requestedSpaceUuids: [survivingSpaceUuid, deletedSpaceUuid] },
