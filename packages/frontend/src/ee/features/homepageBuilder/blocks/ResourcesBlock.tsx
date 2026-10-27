@@ -699,34 +699,37 @@ export const ResourcesBlockBuild: FC<BuildComponentProps> = ({
                 </div>
             )}
 
-            <TextInput
-                size="sm"
-                placeholder="Paste a Claude artifact, YouTube, or any link…"
-                value={pasteValue}
-                onChange={(e) => setPasteValue(e.currentTarget.value)}
-                onPaste={handlePaste}
-                onKeyDown={handleKeyDown}
-                rightSection={
-                    <Tooltip label="Add link" openDelay={200}>
-                        <ActionIcon
-                            size="sm"
-                            aria-label="Add resource"
-                            onClick={() => startResolving(pasteValue)}
-                        >
-                            <MantineIcon icon={IconPlus} />
-                        </ActionIcon>
-                    </Tooltip>
-                }
-            />
-            <div className={classes.settingsRow}>
+            <Group gap="xs" wrap="nowrap">
+                <TextInput
+                    size="sm"
+                    flex={1}
+                    placeholder="Paste a Claude artifact, YouTube, or any link…"
+                    value={pasteValue}
+                    onChange={(e) => setPasteValue(e.currentTarget.value)}
+                    onPaste={handlePaste}
+                    onKeyDown={handleKeyDown}
+                    rightSection={
+                        <Tooltip label="Add link" openDelay={200}>
+                            <ActionIcon
+                                size="sm"
+                                aria-label="Add resource"
+                                onClick={() => startResolving(pasteValue)}
+                            >
+                                <MantineIcon icon={IconPlus} />
+                            </ActionIcon>
+                        </Tooltip>
+                    }
+                />
                 <Button
                     variant="default"
-                    size="xs"
+                    size="sm"
                     leftSection={<MantineIcon icon={IconAppWindow} />}
                     onClick={() => setIsAppPickerOpen(true)}
                 >
                     Add app
                 </Button>
+            </Group>
+            <div className={classes.settingsRow} data-block-settings>
                 {items.length > 0 && (
                     <Switch
                         size="xs"

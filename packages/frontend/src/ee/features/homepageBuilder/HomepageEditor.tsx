@@ -243,7 +243,12 @@ const LibraryCard: FC<{ definition: BlockDefinition; onAdd: () => void }> = ({
             data-tour-hint="Add the {value} block"
             data-tour-value={definition.label}
         >
-            <IconSquare icon={definition.icon} />
+            <MantineIcon
+                icon={definition.icon}
+                size={16}
+                color="ldGray.6"
+                className={classes.railCardIcon}
+            />
             <Box miw={0}>
                 <div className={classes.railCardLabel}>{definition.label}</div>
                 <div className={classes.railCardDesc}>
@@ -422,6 +427,8 @@ type BlockCardProps = {
     onRemove: () => void;
     onChange: (updated: HomepageBlock) => void;
     justPlaced: boolean;
+    isSelected: boolean;
+    onSelect: () => void;
     itemSpan: number | null;
     standalone: boolean;
 };
@@ -438,6 +445,8 @@ const BlockCard: FC<BlockCardProps> = ({
     onRemove,
     onChange,
     justPlaced,
+    isSelected,
+    onSelect,
     itemSpan,
     standalone,
 }) => {
@@ -461,26 +470,20 @@ const BlockCard: FC<BlockCardProps> = ({
         <div
             ref={setNodeRef}
             className={classes.blockChrome}
+            data-block-chrome
             data-dragging={isDragging}
             data-just-placed={justPlaced}
+            data-selected={isSelected}
+            onPointerDownCapture={onSelect}
+            // Tabbing in selects too; focus alone doesn't, since the Ask AI composer autofocuses.
+            onKeyUpCapture={(event) => {
+                if (event.key === 'Tab') onSelect();
+            }}
             style={{
                 transform: CSS.Translate.toString(transform),
                 transition,
             }}
         >
-            {!definition.hasHeader && (
-                <div
-                    className={classes.blockDragArea}
-                    {...listeners}
-                    aria-hidden
-                >
-                    <MantineIcon
-                        icon={definition.icon}
-                        size={14}
-                        color="ldGray.5"
-                    />
-                </div>
-            )}
             <Group gap={2} className={classes.blockActions} wrap="nowrap">
                 <span className={classes.blockTypeLabel}>
                     {definition.label}
@@ -605,6 +608,8 @@ export const HomepageEditor: FC<Props> = ({
     const [dropIndicator, setDropIndicator] = useState<DropTarget | null>(null);
     // Block just placed by a drop, for its entrance animation.
     const [justPlacedId, setJustPlacedId] = useState<string | null>(null);
+    // Only the selected block shows its settings; the rest read as published.
+    const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
 
     // Singleton blocks (e.g. metrics) drop out of the library once placed.
     const availableBlocks = useMemo(() => {
@@ -750,6 +755,7 @@ export const HomepageEditor: FC<Props> = ({
             });
             setDraft((prev) => dropNewBlock(prev, block, target));
             setJustPlacedId(block.id);
+            setSelectedBlockId(block.id);
             return;
         }
         const location = locateBlock(draft, source.blockId);
@@ -948,28 +954,38 @@ export const HomepageEditor: FC<Props> = ({
                             data-tour-docs="explore/homepage.mdx#build-a-homepage:li1"
                         >
                             <div className={classes.railTitle}>Blocks</div>
-                            <Stack gap={6}>
+                            <div className={classes.railHint}>
+                                Click to add, or drag onto the page.
+                            </div>
+                            <Stack gap={2}>
                                 {availableBlocks.map((definition) => (
                                     <LibraryCard
                                         key={definition.type}
                                         definition={definition}
-                                        onAdd={() =>
+                                        onAdd={() => {
+                                            const block = definition.create();
                                             setDraft((prev) =>
-                                                addBlock(
-                                                    prev,
-                                                    definition.create(),
-                                                ),
-                                            )
-                                        }
+                                                addBlock(prev, block),
+                                            );
+                                            setSelectedBlockId(block.id);
+                                        }}
                                     />
                                 ))}
                             </Stack>
-                            <div className={classes.railHint}>
-                                Click to add, or drag a block onto the page.
-                            </div>
                         </aside>
                     )}
-                    <div className={classes.canvas}>
+                    <div
+                        className={classes.canvas}
+                        onPointerDown={(event) => {
+                            // Portaled menus bubble here too; only real canvas clicks deselect.
+                            if (
+                                event.target instanceof Element &&
+                                event.currentTarget.contains(event.target) &&
+                                !event.target.closest('[data-block-chrome]')
+                            )
+                                setSelectedBlockId(null);
+                        }}
+                    >
                         <div className={classes.canvasInner}>
                             {isPreviewing ? (
                                 <PreviewPane
@@ -1009,6 +1025,9 @@ export const HomepageEditor: FC<Props> = ({
                                                                 rowIndex,
                                                             },
                                                         ),
+                                                    );
+                                                    setSelectedBlockId(
+                                                        block.id,
                                                     );
                                                 }}
                                             />
@@ -1125,6 +1144,15 @@ export const HomepageEditor: FC<Props> = ({
                                                                             justPlaced={
                                                                                 block.id ===
                                                                                 justPlacedId
+                                                                            }
+                                                                            isSelected={
+                                                                                block.id ===
+                                                                                selectedBlockId
+                                                                            }
+                                                                            onSelect={() =>
+                                                                                setSelectedBlockId(
+                                                                                    block.id,
+                                                                                )
                                                                             }
                                                                             projectUuid={
                                                                                 projectUuid

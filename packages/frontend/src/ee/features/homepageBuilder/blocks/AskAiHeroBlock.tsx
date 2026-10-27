@@ -88,7 +88,7 @@ export const HeroDensityControl: FC<{
     value: HomepageHeroDensity | undefined;
     onChange: (density: HomepageHeroDensity | undefined) => void;
 }> = ({ value, onChange }) => (
-    <div className={classes.settingsRow}>
+    <div className={classes.settingsRow} data-block-settings>
         <Text size="xs" fw={500}>
             Opening size
         </Text>

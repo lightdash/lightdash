@@ -1021,20 +1021,22 @@ export const AnnouncementsBlockBuild: FC<BuildComponentProps> = ({
                 />
             )}
             {announcements.length > 1 && (
-                <Switch
-                    size="xs"
-                    label="Collapse older announcements"
-                    checked={collapseAfterFirst}
-                    onChange={(e) =>
-                        onChange({
-                            ...block,
-                            config: {
-                                ...block.config,
-                                collapseAfterFirst: e.currentTarget.checked,
-                            },
-                        })
-                    }
-                />
+                <div data-block-settings>
+                    <Switch
+                        size="xs"
+                        label="Collapse older announcements"
+                        checked={collapseAfterFirst}
+                        onChange={(e) =>
+                            onChange({
+                                ...block,
+                                config: {
+                                    ...block.config,
+                                    collapseAfterFirst: e.currentTarget.checked,
+                                },
+                            })
+                        }
+                    />
+                </div>
             )}
             {(creating || editing !== null) && (
                 <AnnouncementFormModal

@@ -45,8 +45,6 @@ export type BlockDefinition = {
     singleton?: boolean;
     /** Renders per-viewer content, so admin previews show a placeholder. */
     personal?: boolean;
-    /** Draws its own icon and title, so the editor chrome doesn't repeat them. */
-    hasHeader?: boolean;
     create: () => HomepageBlock;
     View: FC<BlockComponentProps>;
     Build: FC<BuildComponentProps>;
@@ -56,7 +54,7 @@ export const blockLibrary: BlockDefinition[] = [
     {
         type: 'ask-ai-hero',
         label: 'Ask AI',
-        description: 'AI chat composer with live suggestions, and a greeting.',
+        description: 'Chat box with live suggestions.',
         icon: IconMessageChatbot,
         requiresAi: true,
         singleton: true,
@@ -71,7 +69,7 @@ export const blockLibrary: BlockDefinition[] = [
     {
         type: 'greeting',
         label: 'Greeting',
-        description: 'A time-of-day welcome, personalised per viewer.',
+        description: 'Time-of-day welcome per viewer.',
         icon: IconSun,
         create: () => ({
             id: uuidv4(),
@@ -86,8 +84,7 @@ export const blockLibrary: BlockDefinition[] = [
     {
         type: 'quick-actions',
         label: 'Quick actions',
-        description:
-            'Primary CTA cards that point each audience at its main action.',
+        description: 'Shortcut chips to common places.',
         icon: IconBolt,
         create: () => ({
             id: uuidv4(),
@@ -100,7 +97,7 @@ export const blockLibrary: BlockDefinition[] = [
     {
         type: 'cta',
         label: 'Call to action',
-        description: 'One brand-themed banner with a single button.',
+        description: 'One banner with a single button.',
         icon: IconRocket,
         singleton: true,
         create: () => ({
@@ -116,9 +113,8 @@ export const blockLibrary: BlockDefinition[] = [
     },
     {
         type: 'metrics',
-        hasHeader: true,
         label: 'Metrics',
-        description: 'KPI cards from the metrics catalog, with deltas.',
+        description: 'Headline numbers with trends.',
         icon: IconChartDots,
         singleton: true,
         create: () => ({
@@ -131,10 +127,8 @@ export const blockLibrary: BlockDefinition[] = [
     },
     {
         type: 'collection',
-        hasHeader: true,
         label: 'Collection',
-        description:
-            'A curated set of dashboards, charts, spaces, and data apps.',
+        description: 'Hand-picked or pinned content.',
         icon: IconLayoutGrid,
         create: () => ({
             id: uuidv4(),
@@ -146,10 +140,8 @@ export const blockLibrary: BlockDefinition[] = [
     },
     {
         type: 'resources',
-        hasHeader: true,
         label: 'Resources',
-        description:
-            'Rich cards for data apps, Claude artifacts, YouTube, docs and links.',
+        description: 'Apps, artifacts, videos and links.',
         icon: IconBook,
         create: () => ({
             id: uuidv4(),
@@ -161,9 +153,8 @@ export const blockLibrary: BlockDefinition[] = [
     },
     {
         type: 'announcements',
-        hasHeader: true,
         label: 'Announcements',
-        description: 'Updates from the data team, newest first.',
+        description: 'News from the data team.',
         icon: IconSpeakerphone,
         singleton: true,
         create: () => ({
@@ -176,9 +167,8 @@ export const blockLibrary: BlockDefinition[] = [
     },
     {
         type: 'favorites',
-        hasHeader: true,
         label: 'Favorites',
-        description: 'Each viewer’s starred content, only visible to them.',
+        description: 'Each viewer’s starred content.',
         icon: IconStar,
         personal: true,
         create: () => ({
@@ -191,9 +181,8 @@ export const blockLibrary: BlockDefinition[] = [
     },
     {
         type: 'recent',
-        hasHeader: true,
         label: 'Recently viewed',
-        description: 'Each viewer’s recently opened charts and dashboards.',
+        description: 'What each viewer opened last.',
         icon: IconClock,
         singleton: true,
         personal: true,
@@ -208,7 +197,7 @@ export const blockLibrary: BlockDefinition[] = [
     {
         type: 'markdown',
         label: 'Text / banner',
-        description: 'Markdown text, notes or a welcome banner.',
+        description: 'Notes, headings or a banner.',
         icon: IconMarkdown,
         create: () => ({
             id: uuidv4(),

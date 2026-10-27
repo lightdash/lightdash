@@ -347,7 +347,12 @@ export const CtaBlockBuild: FC<BuildComponentProps> = ({
             : config.target.type;
     return (
         <Stack gap="sm">
-            <Group gap="lg" align="center" className={classes.styleToolbar}>
+            <Group
+                gap="lg"
+                align="center"
+                className={classes.styleToolbar}
+                data-block-settings
+            >
                 <Group gap={8} wrap="nowrap">
                     <Text size="xs" c="dimmed">
                         Theme
@@ -409,77 +414,81 @@ export const CtaBlockBuild: FC<BuildComponentProps> = ({
                 projectUuid={projectUuid}
                 interactive={false}
             />
-            <Group gap="xs" align="flex-end" wrap="nowrap">
+            <Stack gap="sm" data-block-settings>
+                <Group gap="xs" align="flex-end" wrap="nowrap">
+                    <TextInput
+                        size="xs"
+                        label="Title"
+                        placeholder="Optional. Leave empty for a button-only banner"
+                        fw={600}
+                        flex={1}
+                        value={config.title ?? ''}
+                        onChange={(e) =>
+                            patch({ title: e.currentTarget.value || undefined })
+                        }
+                    />
+                </Group>
                 <TextInput
                     size="xs"
-                    label="Title"
-                    placeholder="Optional. Leave empty for a button-only banner"
-                    fw={600}
-                    flex={1}
-                    value={config.title ?? ''}
-                    onChange={(e) =>
-                        patch({ title: e.currentTarget.value || undefined })
-                    }
-                />
-            </Group>
-            <TextInput
-                size="xs"
-                label="Supporting line"
-                placeholder="Optional"
-                value={config.description ?? ''}
-                onChange={(e) =>
-                    patch({ description: e.currentTarget.value || undefined })
-                }
-            />
-            <Group gap="xs" align="flex-end" wrap="nowrap">
-                <TextInput
-                    size="xs"
-                    label="Button label"
-                    w={180}
-                    value={config.buttonLabel}
-                    onChange={(e) =>
-                        patch({ buttonLabel: e.currentTarget.value })
-                    }
-                />
-                <Select
-                    size="xs"
-                    label="Button leads to"
-                    flex={1}
-                    data={TARGET_OPTIONS}
-                    value={targetChoice}
-                    allowDeselect={false}
-                    onChange={(next) => {
-                        if (!next) return;
-                        patch({
-                            target:
-                                next === 'link'
-                                    ? { type: 'link', url: '' }
-                                    : {
-                                          type: next as Exclude<
-                                              TargetChoice,
-                                              'link'
-                                          >,
-                                      },
-                        });
-                    }}
-                />
-            </Group>
-            {config.target.type === 'link' && (
-                <TextInput
-                    size="xs"
-                    label="URL"
-                    placeholder="https://…"
-                    value={config.target.url}
+                    label="Supporting line"
+                    placeholder="Optional"
+                    value={config.description ?? ''}
                     onChange={(e) =>
                         patch({
-                            target: {
-                                type: 'link',
-                                url: e.currentTarget.value,
-                            },
+                            description: e.currentTarget.value || undefined,
                         })
                     }
                 />
-            )}
+                <Group gap="xs" align="flex-end" wrap="nowrap">
+                    <TextInput
+                        size="xs"
+                        label="Button label"
+                        w={180}
+                        value={config.buttonLabel}
+                        onChange={(e) =>
+                            patch({ buttonLabel: e.currentTarget.value })
+                        }
+                    />
+                    <Select
+                        size="xs"
+                        label="Button leads to"
+                        flex={1}
+                        data={TARGET_OPTIONS}
+                        value={targetChoice}
+                        allowDeselect={false}
+                        onChange={(next) => {
+                            if (!next) return;
+                            patch({
+                                target:
+                                    next === 'link'
+                                        ? { type: 'link', url: '' }
+                                        : {
+                                              type: next as Exclude<
+                                                  TargetChoice,
+                                                  'link'
+                                              >,
+                                          },
+                            });
+                        }}
+                    />
+                </Group>
+                {config.target.type === 'link' && (
+                    <TextInput
+                        size="xs"
+                        label="URL"
+                        placeholder="https://…"
+                        value={config.target.url}
+                        onChange={(e) =>
+                            patch({
+                                target: {
+                                    type: 'link',
+                                    url: e.currentTarget.value,
+                                },
+                            })
+                        }
+                    />
+                )}
+            </Stack>
         </Stack>
     );
 };
