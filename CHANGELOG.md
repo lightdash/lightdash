@@ -1,3 +1,10 @@
+## [3.68.3](https://github.com/lightdash/lightdash/compare/3.68.2...3.68.3) (2026-10-27)
+
+
+### Bug Fixes
+
+* steady the filter bar while editing sections ([#31641](https://github.com/lightdash/lightdash/issues/31641)) ([7c1041e](https://github.com/lightdash/lightdash/commit/7c1041e00e75a14358e37a4b951200643cec441f))
+
 ## [3.68.2](https://github.com/lightdash/lightdash/compare/3.68.1...3.68.2) (2026-10-27)
 
 
