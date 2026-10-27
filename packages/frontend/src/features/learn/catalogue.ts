@@ -5,6 +5,7 @@ import {
     ScopeGroup,
 } from '@lightdash/common';
 import { CURRICULUM } from '../scopeTours/curriculum';
+import { TOUR_RELEASED } from '../scopeTours/released';
 import { tourFor } from '../scopeTours/tourFor';
 import { ROLE_LABELS, ROLE_ORDER, SYSTEM_ROLE_SCOPES } from './access';
 import { codeLessonIndex, sitsWithCodeLessons } from './codeLessons';
@@ -306,6 +307,73 @@ export const upNextFor = (
     if (recommended) return { module: recommended, source: 'recommended' };
     if (resume) return { module: resume, source: 'resume' };
     return undefined;
+};
+
+/**
+ * The day a module was released: when its walkthrough first appeared in the
+ * generated tours, as scripts/scope-tours/released.ts records it from git.
+ * A lesson covering several scopes was released with the first of them.
+ * Null for a module with no walkthrough.
+ */
+export const releasedOn = (module: LearnModule): string | null => {
+    const days = module.scopes
+        .map((scope) =>
+            Object.prototype.hasOwnProperty.call(TOUR_RELEASED, scope)
+                ? TOUR_RELEASED[scope]
+                : undefined,
+        )
+        .filter((day): day is string => day !== undefined)
+        .sort();
+    return days[0] ?? null;
+};
+
+/**
+ * The most recently released walkthroughs the learner can do (they hold the
+ * feature), newest first; on the same day, in teaching order. Finished ones
+ * stay in, so the homepage can show them as complete. Empty when the learner
+ * holds none of the available walkthroughs.
+ */
+export const newestFor = (
+    held: Set<string>,
+    available: LearnModule[],
+    limit = 3,
+): LearnModule[] =>
+    available
+        .filter(
+            (module) =>
+                module.available &&
+                holds(held, module) &&
+                releasedOn(module) !== null,
+        )
+        .sort(
+            (a, b) =>
+                (releasedOn(b) ?? '').localeCompare(releasedOn(a) ?? '') ||
+                taughtAt(a) - taughtAt(b) ||
+                a.title.localeCompare(b.title),
+        )
+        .slice(0, limit);
+
+/** How long after the latest release a module still counts as new. */
+const NEW_WINDOW_DAYS = 30;
+
+/**
+ * Whether a module is new: released within 30 days of the most recent
+ * release in this build. Measured against the build, not today's date, so an
+ * instance that upgrades late still sees what the upgrade brought as new.
+ */
+export const isNewRelease = (
+    module: LearnModule,
+    available: LearnModule[],
+): boolean => {
+    const day = releasedOn(module);
+    const latest = available
+        .map(releasedOn)
+        .filter((d): d is string => d !== null)
+        .sort()
+        .at(-1);
+    if (!day || !latest) return false;
+    const gap = (Date.parse(latest) - Date.parse(day)) / 86_400_000;
+    return gap <= NEW_WINDOW_DAYS;
 };
 
 /**

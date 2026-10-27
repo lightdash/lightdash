@@ -8,6 +8,7 @@ import {
     buildLearnCatalogue,
     isComplete,
     isStarted,
+    newestFor,
     upNextFor,
     type LearnModule,
 } from './catalogue';
@@ -41,6 +42,8 @@ export type LearnUpNextState = {
               started: boolean;
           }
         | undefined;
+    /** The newest walkthroughs the learner can do, newest first (`newestFor`). */
+    newest: LearnModule[];
     /** Every walkthrough this instance runs, in the library's order. */
     walkthroughs: LearnModule[];
     /** Scopes the learner has finished and started, as the library reads them. */
@@ -90,6 +93,7 @@ export const useLearnUpNext = (): LearnUpNextState => {
                 ...next,
                 started: isStarted(started, next.module),
             },
+            newest: newestFor(held, available),
             walkthroughs: available,
             completed,
             started,

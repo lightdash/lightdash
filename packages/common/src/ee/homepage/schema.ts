@@ -192,6 +192,7 @@ const learnBlockSchema = z.object({
     config: z.object({
         title: z.string(),
         pinnedScopes: z.array(z.string()).optional(),
+        show: z.enum(['up-next', 'newest']).optional(),
     }),
 });
 

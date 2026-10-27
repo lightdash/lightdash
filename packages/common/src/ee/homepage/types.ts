@@ -255,6 +255,8 @@ export type HomepageRecentBlock = {
 /** The viewer's next Learn module, with their progress. Per viewer: it reads
  * the same recommendation the Learn library shows, and hides when the viewer
  * cannot use Learn. */
+export type HomepageLearnShow = 'up-next' | 'newest';
+
 export type HomepageLearnBlock = {
     id: string;
     type: 'learn';
@@ -264,6 +266,10 @@ export type HomepageLearnBlock = {
          * Learn module scope, in order. Optional so older configs load; a
          * scope the instance cannot run is skipped at render. */
         pinnedScopes?: string[];
+        /** What the card leads with: each viewer's next module (the
+         * default, also for older configs) or the most recently released
+         * modules the viewer can do. */
+        show?: HomepageLearnShow;
     };
 };
 

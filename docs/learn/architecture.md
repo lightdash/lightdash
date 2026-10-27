@@ -232,6 +232,18 @@ browser, because the learner walks straight to the new field and a cached list w
   state. When everything is done it says so and links to the library. It renders nothing for a viewer without
   `view:Learn`, before Learn is enabled, and on the training project or a copy. It is page content, not a
   navigation item.
+  The editor can switch the block to **Newest modules** (`config.show = 'newest'`): it then leads with the most
+  recently released module the viewer holds (`newestFor` in `catalogue.ts`), lists the next two under it, and
+  marks as New any released within 30 days of the latest release in the build. A viewer who holds none of them
+  gets Up next instead.
+- **Release days.** When a module was released is not curated by hand.
+  `scripts/scope-tours/released.ts`, run by `pnpm scope-tours:generate`, writes
+  `features/scopeTours/released.ts`: for each walkthrough in `SCOPE_TOURS`, the committer day of the oldest commit
+  that added its entry to `generated.ts` (`git log -G`). A recorded day is never recomputed, so CI's shallow
+  checkout regenerates the same file and the scope walkthrough check diffs it like `generated.ts`. A walkthrough
+  generated before its first commit gets the day it was first generated, which its author commits with it. A
+  scope that loses its walkthrough loses its day. A lesson covering several scopes takes the earliest of their
+  days (`releasedOn`).
 - **Library search.** `features/learn/search.ts` indexes module titles, blurbs, permission names, and every
   walkthrough step's title and body with the existing Fuse.js dependency. It ignores conversational filler,
   requires each remaining query word to match, and tolerates small typos. Available walkthroughs rank first;

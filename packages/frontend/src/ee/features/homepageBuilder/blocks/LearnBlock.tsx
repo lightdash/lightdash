@@ -1,5 +1,13 @@
-import { ProjectType } from '@lightdash/common';
-import { Button, MultiSelect, Progress, Stack } from '@mantine/core';
+import { ProjectType, type HomepageLearnShow } from '@lightdash/common';
+import {
+    Badge,
+    Button,
+    MultiSelect,
+    Progress,
+    SegmentedControl,
+    Stack,
+    Text,
+} from '@mantine/core';
 import { IconCircleCheck, IconSchool } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link } from 'react-router';
@@ -7,6 +15,7 @@ import MantineIcon from '../../../../components/common/MantineIcon';
 import {
     GROUP_LABELS,
     isComplete,
+    isNewRelease,
     isStarted,
     type LearnModule,
 } from '../../../../features/learn/catalogue';
@@ -69,76 +78,79 @@ const LibraryButton: FC<{
     );
 };
 
-/**
- * The card itself. `interactive` is false in the editor: the builder sees
- * their own next module as a sample, but starting a walkthrough from the
- * editor would leave the draft behind.
- */
 type StartProps = {
     start: (scope: string, source: 'homepage') => void;
     opening: string | null;
 };
 
-const LearnCard: FC<
+/** The button a module offers, from the learner's own state. */
+const startLabel = (done: boolean, started: boolean) =>
+    done ? 'Start again' : started ? 'Resume' : 'Start';
+
+const NewBadge: FC = () => (
+    <Badge size="xs" variant="light" color="indigo" radius="sm">
+        New
+    </Badge>
+);
+
+/**
+ * One module as the block's main card. `interactive` is false in the editor:
+ * the builder sees their own state as a sample, but starting a walkthrough
+ * from the editor would leave the draft behind.
+ */
+const ModuleCard: FC<
     {
+        module: LearnModule;
         state: LearnUpNextState;
         projectUuid: string;
         interactive: boolean;
+        isNew: boolean;
+        dataAttr: 'data-learn-recommended' | 'data-learn-newest';
     } & StartProps
-> = ({ state, projectUuid, interactive, start, opening }) => {
-    const libraryUrl = `/projects/${projectUuid}/learn`;
-    const { upNext, doneCount, total } = state;
-
-    if (!upNext) {
-        return (
-            <div className={styles.card} data-learn-finished>
-                <span className={styles.tile}>
-                    <MantineIcon icon={IconCircleCheck} size={20} />
-                </span>
-                <div className={styles.body}>
-                    <h3 className={styles.title}>
-                        You have finished every module
-                    </h3>
-                    <p className={styles.blurb}>
-                        Open Learn to go over a module again, or to try one
-                        outside your role.
-                    </p>
-                    <div className={styles.foot}>
-                        <ProgressLine doneCount={doneCount} total={total} />
-                        <LibraryButton
-                            to={libraryUrl}
-                            interactive={interactive}
-                            variant="default"
-                        />
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
-    const { module } = upNext;
+> = ({
+    module,
+    state,
+    projectUuid,
+    interactive,
+    isNew,
+    dataAttr,
+    start,
+    opening,
+}) => {
+    const done = isComplete(state.completed, module);
+    const started = isStarted(state.started, module);
     return (
         <div
             className={styles.card}
             style={groupVars(module.group)}
-            data-learn-recommended={module.scope}
+            {...{ [dataAttr]: module.scope }}
         >
             <span className={styles.tile}>
                 <MantineIcon icon={GROUP_ICONS[module.group]} size={20} />
             </span>
             <div className={styles.body}>
                 <span className={styles.overline}>
+                    {isNew && <NewBadge />}
                     {`${GROUP_LABELS[module.group]} · ${module.stepCount} steps`}
+                    {done && (
+                        <span className={styles.done}>
+                            <MantineIcon icon={IconCircleCheck} size={13} />
+                            Complete
+                        </span>
+                    )}
                 </span>
                 <h3 className={styles.title}>{module.title}</h3>
                 {module.blurb !== '' && (
                     <p className={styles.blurb}>{module.blurb}</p>
                 )}
                 <div className={styles.foot}>
-                    <ProgressLine doneCount={doneCount} total={total} />
+                    <ProgressLine
+                        doneCount={state.doneCount}
+                        total={state.total}
+                    />
                     <div className={styles.actions}>
                         <LibraryButton
-                            to={libraryUrl}
+                            to={`/projects/${projectUuid}/learn`}
                             interactive={interactive}
                             variant="subtle"
                         />
@@ -150,7 +162,7 @@ const LearnCard: FC<
                             loading={opening === module.scope}
                             onClick={() => start(module.scope, 'homepage')}
                         >
-                            {upNext.started ? 'Resume' : 'Start'}
+                            {startLabel(done, started)}
                         </Button>
                     </div>
                 </div>
@@ -158,6 +170,34 @@ const LearnCard: FC<
         </div>
     );
 };
+
+/** Every module finished: say so and point at the library. */
+const FinishedCard: FC<{
+    state: LearnUpNextState;
+    projectUuid: string;
+    interactive: boolean;
+}> = ({ state, projectUuid, interactive }) => (
+    <div className={styles.card} data-learn-finished>
+        <span className={styles.tile}>
+            <MantineIcon icon={IconCircleCheck} size={20} />
+        </span>
+        <div className={styles.body}>
+            <h3 className={styles.title}>You have finished every module</h3>
+            <p className={styles.blurb}>
+                Open Learn to go over a module again, or to try one outside your
+                role.
+            </p>
+            <div className={styles.foot}>
+                <ProgressLine doneCount={state.doneCount} total={state.total} />
+                <LibraryButton
+                    to={`/projects/${projectUuid}/learn`}
+                    interactive={interactive}
+                    variant="default"
+                />
+            </div>
+        </div>
+    </div>
+);
 
 /**
  * The walkthroughs the data team featured (CS-242), in their order, each with
@@ -173,17 +213,30 @@ const pinnedModules = (
         return module ? [module] : [];
     });
 
-const PinnedList: FC<
+/** A short list of modules under the main card, with a heading. */
+const ModuleList: FC<
     {
+        heading: string;
         modules: LearnModule[];
         state: LearnUpNextState;
         interactive: boolean;
+        isNew: (module: LearnModule) => boolean;
+        dataAttr: 'data-learn-pinned' | 'data-learn-also-new';
     } & StartProps
-> = ({ modules, state, interactive, start, opening }) => {
+> = ({
+    heading,
+    modules,
+    state,
+    interactive,
+    isNew,
+    dataAttr,
+    start,
+    opening,
+}) => {
     if (modules.length === 0) return null;
     return (
-        <div className={styles.pinned} data-learn-pinned>
-            <span className={styles.overline}>Picked by your data team</span>
+        <div className={styles.pinned} {...{ [dataAttr]: true }}>
+            <span className={styles.overline}>{heading}</span>
             <div className={classes.listCard}>
                 {modules.map((module) => {
                     const done = isComplete(state.completed, module);
@@ -204,6 +257,7 @@ const PinnedList: FC<
                             <div className={styles.body}>
                                 <span className={styles.pinnedTitle}>
                                     {module.title}
+                                    {isNew(module) && <NewBadge />}
                                 </span>
                                 <span className={styles.pinnedMeta}>
                                     {done ? (
@@ -226,11 +280,7 @@ const PinnedList: FC<
                                 loading={opening === module.scope}
                                 onClick={() => start(module.scope, 'homepage')}
                             >
-                                {done
-                                    ? 'Start again'
-                                    : started
-                                      ? 'Resume'
-                                      : 'Start'}
+                                {startLabel(done, started)}
                             </Button>
                         </div>
                     );
@@ -240,33 +290,81 @@ const PinnedList: FC<
     );
 };
 
-/** The recommendation and the featured walkthroughs, sharing one launcher. */
+/**
+ * The block's content, sharing one launcher. Up next leads with the
+ * library's recommendation. Newest leads with the most recently released
+ * module the viewer can do and lists the next newest under it; a viewer who
+ * holds none of them gets Up next instead. The featured walkthroughs follow,
+ * minus any module already shown.
+ */
 const LearnBody: FC<{
     state: LearnUpNextState;
     projectUuid: string;
+    show: HomepageLearnShow;
     pinnedScopes: string[] | undefined;
     interactive: boolean;
-}> = ({ state, projectUuid, pinnedScopes, interactive }) => {
+}> = ({ state, projectUuid, show, pinnedScopes, interactive }) => {
     const { start, opening } = useStartWalkthrough(state.trainingProjectUuid);
+    const startProps = { start, opening };
+    const isNew = (module: LearnModule) =>
+        isNewRelease(module, state.walkthroughs);
+    const newest = show === 'newest' ? state.newest : [];
+    const [hero, ...alsoNew] = newest;
+    const shown = new Set(
+        hero
+            ? newest.map((module) => module.scope)
+            : state.upNext
+              ? [state.upNext.module.scope]
+              : [],
+    );
     return (
         <Stack gap="sm">
-            <LearnCard
+            {hero ? (
+                <ModuleCard
+                    module={hero}
+                    state={state}
+                    projectUuid={projectUuid}
+                    interactive={interactive}
+                    isNew={isNew(hero)}
+                    dataAttr="data-learn-newest"
+                    {...startProps}
+                />
+            ) : state.upNext ? (
+                <ModuleCard
+                    module={state.upNext.module}
+                    state={state}
+                    projectUuid={projectUuid}
+                    interactive={interactive}
+                    isNew={false}
+                    dataAttr="data-learn-recommended"
+                    {...startProps}
+                />
+            ) : (
+                <FinishedCard
+                    state={state}
+                    projectUuid={projectUuid}
+                    interactive={interactive}
+                />
+            )}
+            <ModuleList
+                heading="Also new"
+                modules={alsoNew}
                 state={state}
-                projectUuid={projectUuid}
                 interactive={interactive}
-                start={start}
-                opening={opening}
+                isNew={isNew}
+                dataAttr="data-learn-also-new"
+                {...startProps}
             />
-            <PinnedList
-                // The recommendation is already the card above; it is not
-                // listed twice.
+            <ModuleList
+                heading="Picked by your data team"
                 modules={pinnedModules(state.walkthroughs, pinnedScopes).filter(
-                    (module) => module.scope !== state.upNext?.module.scope,
+                    (module) => !shown.has(module.scope),
                 )}
                 state={state}
                 interactive={interactive}
-                start={start}
-                opening={opening}
+                isNew={() => false}
+                dataAttr="data-learn-pinned"
+                {...startProps}
             />
         </Stack>
     );
@@ -309,14 +407,13 @@ export const LearnBlockView: FC<BlockComponentProps> = ({
     if (block.type !== 'learn' || hidden || !state.isSettled) return null;
     return (
         <Stack gap={0} data-homepage-block="learn">
-            <BlockHeader
-                icon={IconSchool}
-                title={block.config.title}
-                pill="Personal per viewer"
-            />
+            {/* "Personal per viewer" is for the editor; a viewer just sees
+                their own card. */}
+            <BlockHeader icon={IconSchool} title={block.config.title} />
             <LearnBody
                 state={state}
                 projectUuid={projectUuid}
+                show={block.config.show ?? 'up-next'}
                 pinnedScopes={block.config.pinnedScopes}
                 interactive
             />
@@ -344,6 +441,7 @@ export const LearnBlockBuild: FC<BuildComponentProps> = ({
     const state = useLearnUpNext();
     const hidden = useHiddenReason(state, projectUuid);
     if (block.type !== 'learn') return null;
+    const show = block.config.show ?? 'up-next';
     return (
         <Stack gap={0}>
             <BlockHeader
@@ -360,19 +458,45 @@ export const LearnBlockBuild: FC<BuildComponentProps> = ({
                     <LearnBody
                         state={state}
                         projectUuid={projectUuid}
+                        show={show}
                         pinnedScopes={block.config.pinnedScopes}
                         interactive={false}
                     />
                     <div className={classes.buildHint}>
-                        Showing your own progress as a sample. Every viewer sees
-                        their own next module, and the block hides for anyone
-                        who cannot use Learn.
+                        {show === 'newest'
+                            ? 'Showing the newest modules you can do, as a sample. Every viewer sees the newest ones they can do, or their next module if there are none, and the block hides for anyone who cannot use Learn.'
+                            : 'Showing your own progress as a sample. Every viewer sees their own next module, and the block hides for anyone who cannot use Learn.'}
                     </div>
+                    <Stack gap={4} mt="sm">
+                        <Text size="xs" fw={500}>
+                            Show
+                        </Text>
+                        <SegmentedControl
+                            size="xs"
+                            value={show}
+                            onChange={(next) =>
+                                onChange({
+                                    ...block,
+                                    config: {
+                                        ...block.config,
+                                        show: next as HomepageLearnShow,
+                                    },
+                                })
+                            }
+                            data={[
+                                {
+                                    value: 'up-next',
+                                    label: 'Up next for each viewer',
+                                },
+                                { value: 'newest', label: 'Newest modules' },
+                            ]}
+                        />
+                    </Stack>
                     <MultiSelect
                         mt="sm"
                         size="xs"
                         label="Featured walkthroughs"
-                        description="Optional. Listed under the recommendation, in this order, for everyone who sees the block."
+                        description="Optional. Listed under the main card, in this order, for everyone who sees the block."
                         placeholder="Search walkthroughs"
                         searchable
                         clearable

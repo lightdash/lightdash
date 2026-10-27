@@ -17,7 +17,9 @@ const {
     projectState,
     accessState,
     progressState,
+    releasedState,
 } = vi.hoisted(() => ({
+    releasedState: { days: {} as Record<string, string> },
     start: vi.fn(),
     reportEmpty: vi.fn(),
     learnPermission: { granted: true },
@@ -89,6 +91,13 @@ vi.mock('../../../../features/learn/availability', () => ({
 
 vi.mock('../../../../features/learn/useStartWalkthrough', () => ({
     useStartWalkthrough: () => ({ start, opening: null }),
+}));
+
+// Release days are generated from git; fixed here for the Newest mode tests.
+vi.mock('../../../../features/scopeTours/released', () => ({
+    get TOUR_RELEASED() {
+        return releasedState.days;
+    },
 }));
 
 vi.mock('../hooks/useRuntimeEmptyBlocks', () => ({
@@ -311,7 +320,112 @@ describe('Featured walkthroughs', () => {
     });
 });
 
+describe('Newest modules', () => {
+    const newestBlock: HomepageLearnBlock = {
+        ...block,
+        config: { ...block.config, show: 'newest' },
+    };
+    const plain = walkthroughs.filter((m) => m.kind !== 'docs');
+    const [oldest, middle, newest, notHeld] = plain;
+
+    beforeEach(() => {
+        releasedState.days = {
+            [oldest.scope]: '2026-08-01',
+            [middle.scope]: '2026-10-01',
+            [newest.scope]: '2026-10-07',
+            [notHeld.scope]: '2026-10-20',
+        };
+    });
+
+    const renderNewest = () =>
+        render(
+            wrap(
+                <LearnBlockView
+                    block={newestBlock}
+                    projectUuid="p1"
+                    itemSpan={null}
+                />,
+            ),
+        );
+
+    it('leads with the newest module the viewer can do, then the next newest', async () => {
+        accessState.current = [oldest.scope, middle.scope, newest.scope];
+        progressState.current = {
+            completed: middle.scopes,
+            started: [newest.scope],
+            lastStarted: newest.scope,
+        };
+        renderNewest();
+        const hero = document.querySelector('[data-learn-newest]')!;
+        // The newest release overall is one the viewer does not hold.
+        expect(hero).toHaveAttribute('data-learn-newest', newest.scope);
+        expect(hero).toHaveTextContent('New');
+        expect(hero).toHaveTextContent(newest.title);
+        const alsoNew = Array.from(
+            document.querySelectorAll(
+                '[data-learn-also-new] [data-learn-module]',
+            ),
+        ).map((row) => row.getAttribute('data-learn-module'));
+        expect(alsoNew).toEqual([middle.scope, oldest.scope]);
+        expect(screen.getByText('Also new')).toBeInTheDocument();
+        // Per-viewer state: started, complete, not started.
+        expect(
+            screen.getByRole('button', { name: 'Resume' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'Start again' }),
+        ).toBeInTheDocument();
+        await userEvent.click(screen.getByRole('button', { name: 'Resume' }));
+        expect(start).toHaveBeenCalledWith(newest.scope, 'homepage');
+    });
+
+    it('marks only modules released close to the latest release as new', () => {
+        accessState.current = [oldest.scope, middle.scope, newest.scope];
+        renderNewest();
+        const row = (scope: string) =>
+            document.querySelector(
+                `[data-learn-also-new] [data-learn-module="${scope}"]`,
+            )!;
+        expect(row(middle.scope)).toHaveTextContent('New');
+        expect(row(oldest.scope)).not.toHaveTextContent('New');
+    });
+
+    it('falls back to the next module when the viewer holds none of them', () => {
+        accessState.current = [];
+        const { container } = renderNewest();
+        expect(container.querySelector('[data-learn-newest]')).toBeNull();
+        expect(recommendedScope(container)).toBeTruthy();
+        expect(document.querySelector('[data-learn-also-new]')).toBeNull();
+    });
+
+    it('does not show the editor-only label to viewers', () => {
+        accessState.current = [newest.scope];
+        renderNewest();
+        expect(screen.queryByText('Personal per viewer')).toBeNull();
+    });
+});
+
 describe('LearnBlockBuild', () => {
+    it('lets the editor switch to the newest modules', async () => {
+        const onChange = vi.fn();
+        render(
+            wrap(
+                <LearnBlockBuild
+                    block={block}
+                    projectUuid="p1"
+                    itemSpan={null}
+                    onChange={onChange}
+                />,
+            ),
+        );
+        expect(screen.getByText('Personal per viewer')).toBeInTheDocument();
+        await userEvent.click(screen.getByText('Newest modules'));
+        expect(onChange).toHaveBeenCalledWith({
+            ...block,
+            config: { ...block.config, show: 'newest' },
+        });
+    });
+
     it('shows the builder a sample that cannot start a walkthrough', () => {
         render(
             wrap(
