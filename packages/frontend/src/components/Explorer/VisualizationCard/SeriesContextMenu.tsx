@@ -172,7 +172,6 @@ export const SeriesContextMenu: FC<{
             onClose={onClose}
             closeOnItemClick
             closeOnEscape
-            radius={0}
             position="right-start"
             offset={{
                 mainAxis: 0,

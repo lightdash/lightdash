@@ -114,7 +114,6 @@ const BigNumberContextMenu: FC<
             position="bottom"
             closeOnItemClick
             closeOnEscape
-            radius={0}
             offset={-2}
         >
             <Menu.Target>{children}</Menu.Target>

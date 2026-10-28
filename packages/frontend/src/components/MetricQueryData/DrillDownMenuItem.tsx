@@ -93,7 +93,7 @@ const DrillDownMenuItem: FC<DrillDownMenuItemProps> = ({
             >
                 <>
                     Drill into{' '}
-                    <Text span fw="bold">
+                    <Text span fw={500}>
                         {value}
                     </Text>
                 </>
