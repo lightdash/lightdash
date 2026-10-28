@@ -1,29 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "3.88.0",
-  "previousVersion": "3.87.0",
-  "releaseDate": "2026-10-28T17:40:58.656Z",
+  "version": "3.89.0",
+  "previousVersion": "3.88.0",
+  "releaseDate": "2026-10-28T18:10:46.386Z",
   "migrations": {
-    "present": true,
-    "count": 1,
-    "coreCount": 1,
+    "present": false,
+    "count": 0,
+    "coreCount": 0,
     "eeCount": 0,
-    "files": [
-      {
-        "name": "20261026120000_add_oauth_session_expires_at.ts",
-        "edition": "core",
-        "tables": [
-          "oauth2_access_tokens",
-          "oauth2_authorization_codes",
-          "oauth2_refresh_tokens"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": false
-        }
-      }
-    ]
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,
@@ -35,8 +20,13 @@
       "breaking": false,
       "changes": [],
       "breakingCount": 0,
-      "advisories": [],
-      "advisoryCount": 0
+      "advisories": [
+        "GET /api/v1/aiAgents/admin/settings — removed the optional property `results/allOf[#/components/schemas/AiOrganizationSettings]/dataAppAutoAnalysisEnabled` from the response with the `200` status",
+        "PATCH /api/v1/aiAgents/admin/settings — removed the request property `dataAppAutoAnalysisEnabled`",
+        "PATCH /api/v1/aiAgents/admin/settings — removed the optional property `results/dataAppAutoAnalysisEnabled` from the response with the `200` status",
+        "GET /api/v1/aiAgents/settings — removed the optional property `results/dataAppAutoAnalysisEnabled` from the response with the `200` status"
+      ],
+      "advisoryCount": 4
     },
     "mcp": {
       "checked": true,

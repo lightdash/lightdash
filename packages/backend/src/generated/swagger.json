@@ -23227,18 +23227,10 @@
                 ],
                 "type": "object"
             },
-            "DataAppAutoAnalysis": {
-                "type": "string",
-                "enum": ["inherit", "on", "off"],
-                "description": "Whether an app analyses on load: its own choice, or the org default."
-            },
-            "ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--slug-string--views-number--currentThread-AppThread--versions-ApiAppVersionSummary-Array--hasMore-boolean--latestReadyVersion-number-or-null--latestReadyVersionUsesAiAnalysis-boolean-or-null--latestReadyVersionHasAnalyzableData-boolean-or-null--addAnalysisDismissed-boolean--registrySlug-string-or-null--icon-ChartTypeIcon-or-null--verification-ContentVerificationInfo-or-null--autoAnalysis-DataAppAutoAnalysis__": {
+            "ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--slug-string--views-number--currentThread-AppThread--versions-ApiAppVersionSummary-Array--hasMore-boolean--latestReadyVersion-number-or-null--latestReadyVersionUsesAiAnalysis-boolean-or-null--latestReadyVersionHasAnalyzableData-boolean-or-null--addAnalysisDismissed-boolean--registrySlug-string-or-null--icon-ChartTypeIcon-or-null--verification-ContentVerificationInfo-or-null__": {
                 "properties": {
                     "results": {
                         "properties": {
-                            "autoAnalysis": {
-                                "$ref": "#/components/schemas/DataAppAutoAnalysis"
-                            },
                             "verification": {
                                 "allOf": [
                                     {
@@ -23333,7 +23325,6 @@
                             }
                         },
                         "required": [
-                            "autoAnalysis",
                             "verification",
                             "icon",
                             "registrySlug",
@@ -23368,7 +23359,7 @@
                 "type": "object"
             },
             "ApiGetAppResponse": {
-                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--slug-string--views-number--currentThread-AppThread--versions-ApiAppVersionSummary-Array--hasMore-boolean--latestReadyVersion-number-or-null--latestReadyVersionUsesAiAnalysis-boolean-or-null--latestReadyVersionHasAnalyzableData-boolean-or-null--addAnalysisDismissed-boolean--registrySlug-string-or-null--icon-ChartTypeIcon-or-null--verification-ContentVerificationInfo-or-null--autoAnalysis-DataAppAutoAnalysis__"
+                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--slug-string--views-number--currentThread-AppThread--versions-ApiAppVersionSummary-Array--hasMore-boolean--latestReadyVersion-number-or-null--latestReadyVersionUsesAiAnalysis-boolean-or-null--latestReadyVersionHasAnalyzableData-boolean-or-null--addAnalysisDismissed-boolean--registrySlug-string-or-null--icon-ChartTypeIcon-or-null--verification-ContentVerificationInfo-or-null__"
             },
             "UuidOrSlug": {
                 "type": "string",
@@ -23586,13 +23577,10 @@
                 "required": ["status"],
                 "type": "object"
             },
-            "ApiSuccess__appUuid-string--name-string--description-string--icon-ChartTypeIcon-or-null--autoAnalysis-DataAppAutoAnalysis__": {
+            "ApiSuccess__appUuid-string--name-string--description-string--icon-ChartTypeIcon-or-null__": {
                 "properties": {
                     "results": {
                         "properties": {
-                            "autoAnalysis": {
-                                "$ref": "#/components/schemas/DataAppAutoAnalysis"
-                            },
                             "icon": {
                                 "allOf": [
                                     {
@@ -23611,13 +23599,7 @@
                                 "type": "string"
                             }
                         },
-                        "required": [
-                            "autoAnalysis",
-                            "icon",
-                            "description",
-                            "name",
-                            "appUuid"
-                        ],
+                        "required": ["icon", "description", "name", "appUuid"],
                         "type": "object"
                     },
                     "status": {
@@ -23630,13 +23612,10 @@
                 "type": "object"
             },
             "ApiUpdateAppResponse": {
-                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--name-string--description-string--icon-ChartTypeIcon-or-null--autoAnalysis-DataAppAutoAnalysis__"
+                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--name-string--description-string--icon-ChartTypeIcon-or-null__"
             },
             "ApiUpdateAppRequest": {
                 "properties": {
-                    "autoAnalysis": {
-                        "$ref": "#/components/schemas/DataAppAutoAnalysis"
-                    },
                     "icon": {
                         "allOf": [
                             {
@@ -45254,9 +45233,6 @@
                         "format": "double",
                         "nullable": true
                     },
-                    "dataAppAutoAnalysisEnabled": {
-                        "type": "boolean"
-                    },
                     "dataAppContinueInAskAiEnabled": {
                         "type": "boolean"
                     },
@@ -50669,9 +50645,6 @@
                     "dataAppAnalysisLimits": {
                         "$ref": "#/components/schemas/DataAppAnalysisLimits"
                     },
-                    "dataAppAutoAnalysisEnabled": {
-                        "type": "boolean"
-                    },
                     "dataAppContinueInAskAiEnabled": {
                         "type": "boolean"
                     },
@@ -50941,9 +50914,6 @@
                     },
                     "dataAppAnalysisLimits": {
                         "$ref": "#/components/schemas/DataAppAnalysisLimits"
-                    },
-                    "dataAppAutoAnalysisEnabled": {
-                        "type": "boolean"
                     },
                     "dataAppContinueInAskAiEnabled": {
                         "type": "boolean"
@@ -74297,7 +74267,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.88.0",
+        "version": "3.89.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"

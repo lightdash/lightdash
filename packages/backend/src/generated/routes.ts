@@ -21903,20 +21903,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DataAppAutoAnalysis: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'union',
-            subSchemas: [
-                { dataType: 'enum', enums: ['inherit'] },
-                { dataType: 'enum', enums: ['on'] },
-                { dataType: 'enum', enums: ['off'] },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--slug-string--views-number--currentThread-AppThread--versions-ApiAppVersionSummary-Array--hasMore-boolean--latestReadyVersion-number-or-null--latestReadyVersionUsesAiAnalysis-boolean-or-null--latestReadyVersionHasAnalyzableData-boolean-or-null--addAnalysisDismissed-boolean--registrySlug-string-or-null--icon-ChartTypeIcon-or-null--verification-ContentVerificationInfo-or-null--autoAnalysis-DataAppAutoAnalysis__':
+    'ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--slug-string--views-number--currentThread-AppThread--versions-ApiAppVersionSummary-Array--hasMore-boolean--latestReadyVersion-number-or-null--latestReadyVersionUsesAiAnalysis-boolean-or-null--latestReadyVersionHasAnalyzableData-boolean-or-null--addAnalysisDismissed-boolean--registrySlug-string-or-null--icon-ChartTypeIcon-or-null--verification-ContentVerificationInfo-or-null__':
         {
             dataType: 'refAlias',
             type: {
@@ -21925,10 +21912,6 @@ const models: TsoaRoute.Models = {
                     results: {
                         dataType: 'nestedObjectLiteral',
                         nestedProperties: {
-                            autoAnalysis: {
-                                ref: 'DataAppAutoAnalysis',
-                                required: true,
-                            },
                             verification: {
                                 dataType: 'union',
                                 subSchemas: [
@@ -22052,7 +22035,7 @@ const models: TsoaRoute.Models = {
     ApiGetAppResponse: {
         dataType: 'refAlias',
         type: {
-            ref: 'ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--slug-string--views-number--currentThread-AppThread--versions-ApiAppVersionSummary-Array--hasMore-boolean--latestReadyVersion-number-or-null--latestReadyVersionUsesAiAnalysis-boolean-or-null--latestReadyVersionHasAnalyzableData-boolean-or-null--addAnalysisDismissed-boolean--registrySlug-string-or-null--icon-ChartTypeIcon-or-null--verification-ContentVerificationInfo-or-null--autoAnalysis-DataAppAutoAnalysis__',
+            ref: 'ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--slug-string--views-number--currentThread-AppThread--versions-ApiAppVersionSummary-Array--hasMore-boolean--latestReadyVersion-number-or-null--latestReadyVersionUsesAiAnalysis-boolean-or-null--latestReadyVersionHasAnalyzableData-boolean-or-null--addAnalysisDismissed-boolean--registrySlug-string-or-null--icon-ChartTypeIcon-or-null--verification-ContentVerificationInfo-or-null__',
             validators: {},
         },
     },
@@ -22274,7 +22257,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'ApiSuccess__appUuid-string--name-string--description-string--icon-ChartTypeIcon-or-null--autoAnalysis-DataAppAutoAnalysis__':
+    'ApiSuccess__appUuid-string--name-string--description-string--icon-ChartTypeIcon-or-null__':
         {
             dataType: 'refAlias',
             type: {
@@ -22283,10 +22266,6 @@ const models: TsoaRoute.Models = {
                     results: {
                         dataType: 'nestedObjectLiteral',
                         nestedProperties: {
-                            autoAnalysis: {
-                                ref: 'DataAppAutoAnalysis',
-                                required: true,
-                            },
                             icon: {
                                 dataType: 'union',
                                 subSchemas: [
@@ -22310,7 +22289,7 @@ const models: TsoaRoute.Models = {
     ApiUpdateAppResponse: {
         dataType: 'refAlias',
         type: {
-            ref: 'ApiSuccess__appUuid-string--name-string--description-string--icon-ChartTypeIcon-or-null--autoAnalysis-DataAppAutoAnalysis__',
+            ref: 'ApiSuccess__appUuid-string--name-string--description-string--icon-ChartTypeIcon-or-null__',
             validators: {},
         },
     },
@@ -22320,7 +22299,6 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                autoAnalysis: { ref: 'DataAppAutoAnalysis' },
                 icon: {
                     dataType: 'union',
                     subSchemas: [
@@ -50073,7 +50051,6 @@ const models: TsoaRoute.Models = {
                         { dataType: 'enum', enums: [null] },
                     ],
                 },
-                dataAppAutoAnalysisEnabled: { dataType: 'boolean' },
                 dataAppContinueInAskAiEnabled: { dataType: 'boolean' },
                 dataAppRuntimeAiEnabled: { dataType: 'boolean' },
                 visibleDataAppModels: {
@@ -55820,7 +55797,6 @@ const models: TsoaRoute.Models = {
                     ],
                 },
                 dataAppAnalysisLimits: { ref: 'DataAppAnalysisLimits' },
-                dataAppAutoAnalysisEnabled: { dataType: 'boolean' },
                 dataAppContinueInAskAiEnabled: { dataType: 'boolean' },
                 dataAppRuntimeAiEnabled: { dataType: 'boolean' },
                 mcpAgentsEnabled: { dataType: 'boolean', required: true },
@@ -56085,7 +56061,6 @@ const models: TsoaRoute.Models = {
                     ],
                 },
                 dataAppAnalysisLimits: { ref: 'DataAppAnalysisLimits' },
-                dataAppAutoAnalysisEnabled: { dataType: 'boolean' },
                 dataAppContinueInAskAiEnabled: { dataType: 'boolean' },
                 dataAppRuntimeAiEnabled: { dataType: 'boolean' },
                 mcpAgentsEnabled: { dataType: 'boolean' },

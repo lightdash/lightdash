@@ -1,3 +1,10 @@
+# [3.89.0](https://github.com/lightdash/lightdash/compare/3.88.0...3.89.0) (2026-10-28)
+
+
+### Features
+
+* **data-apps:** remove "Analyse automatically on load" for AI analysis ([#31754](https://github.com/lightdash/lightdash/issues/31754)) ([a015ce1](https://github.com/lightdash/lightdash/commit/a015ce17590b158e4a1f75cac5e89f9eaf5d6c45))
+
 # [3.88.0](https://github.com/lightdash/lightdash/compare/3.87.0...3.88.0) (2026-10-28)
 
 
