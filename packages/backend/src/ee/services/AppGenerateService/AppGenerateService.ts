@@ -670,6 +670,8 @@ type RenderedModel = {
     // Field refs of model filters left out because their value is not a list.
     skippedFilterRefs: string[];
     hasSqlFilter: boolean;
+    // Visible fields carrying `urls` link patterns; drives the index marker.
+    urlFieldCount: number;
 };
 
 /**
@@ -12889,6 +12891,9 @@ export class AppGenerateService extends BaseService {
             defaultFilterCount: defaultFilters.length,
             skippedFilterRefs,
             hasSqlFilter: sqlFilter !== null,
+            urlFieldCount: [...metrics, ...dimensions].filter(
+                (f) => f.urls && f.urls.length > 0,
+            ).length,
         };
     }
 
@@ -13141,12 +13146,14 @@ export class AppGenerateService extends BaseService {
             'A `filters=` marker means the model declares model-level filters',
             '(required/default/sql_filter) that affect every query against it —',
             'read that model file before querying it.',
-            "A field's `urls:` entries are link patterns: render that field's",
-            'values as links built from the pattern. `${value.raw}` is the',
-            "cell's raw value; `${row.<model>.<field>.raw}` references another",
-            'field in the same row (include that field in the query).',
+            "A `urls=N` marker means N of the model's fields declare `urls:` —",
+            'link patterns whose values MUST render as links: `${value.raw}` is',
+            "the cell's raw value; `${row.<model>.<field>.raw}` references",
+            'another field in the same row (include that field in the query).',
+            'Check the marked model file before displaying any of its fields,',
+            'including fields queried through a join.',
             '',
-            'name  file  dims/metrics  joins  [filters]  description',
+            'name  file  dims/metrics  joins  [filters]  [urls]  description',
             '',
         ].join('\n');
 
@@ -13169,12 +13176,14 @@ export class AppGenerateService extends BaseService {
                 filterParts.length > 0
                     ? `  filters=${filterParts.join(',')}`
                     : '';
+            const urls =
+                model.urlFieldCount > 0 ? `  urls=${model.urlFieldCount}` : '';
             const description = model.description
                 ? `  ${model.description
                       .replace(/\s+/g, ' ')
                       .slice(0, AppGenerateService.INDEX_DESCRIPTION_MAX_LEN)}`
                 : '';
-            return `${model.name}  ${filename}  dims=${model.dimensionCount} metrics=${model.metricCount}  joins=${joins}${filters}${description}`;
+            return `${model.name}  ${filename}  dims=${model.dimensionCount} metrics=${model.metricCount}  joins=${joins}${filters}${urls}${description}`;
         };
 
         const compactLine = (entry: (typeof ranked)[number]): string =>

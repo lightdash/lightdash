@@ -665,7 +665,7 @@ Use `formatField` for cells so dates render `Jun 16, 2025` instead of `2025-06-1
 
 For the action-menu label and clipboard copy on a cell, the same helper applies — pass `format` so the per-field server format wins for currency/percent.
 
-**Before writing any table or value display, check each displayed field's model YAML for a `urls:` block.** A field with `urls` MUST render its values as links, not plain text — see [Field links — `urls`](#field-links--urls). This is not optional polish: dashboards render these links, and an app that drops them loses functionality the user already relies on.
+**Before writing any table or value display, check each displayed field's model YAML for a `urls:` block.** A field with `urls` MUST render its values as links, not plain text — see [Field links — `urls`](#field-links--urls). This applies to joined-table fields too: `customers.first_name` queried through `orders` is defined in `customers.yml`, so check the joined model's file (the index marks models whose fields carry links with `urls=…`). This is not optional polish: dashboards render these links, and an app that drops them loses functionality the user already relies on.
 
 ### Filters
 
@@ -1312,6 +1312,7 @@ The action-menu example above shows typical `drillDown()` usage. For the full AP
 | Mistake | Why it breaks | Fix |
 |---|---|---|
 | Guessing field names | API returns opaque errors | Read the dbt YAML first — always |
+| Rendering a `urls` field's values as plain text | Dashboards render those values as links; the app silently drops functionality the user relies on | Check every displayed field's model YAML — including joined models (`customers.first_name` lives in `customers.yml`) — for `urls:` and render links per [Field links — `urls`](#field-links--urls) |
 | `.metrics()` on a pre-aggregated model | Re-aggregates already-aggregated values → wrong numbers | If `wins` is a dimension in the YAML, use `.dimensions(['wins'])` |
 | `.metrics(['max_cumulative_points'])` instead of `.dimensions(['cumulative_points'])` | Aggregates per-row data into a single value — collapses line charts | Check YAML: is it under `columns[].name` (dimension) or `meta.metrics` (metric)? |
 | Unused dimensions in `.dimensions()` | Changes GROUP BY → wrong numbers | Only include dimensions you render or require for sorting; hidden sort fields stay selected but can be omitted from the UI |
