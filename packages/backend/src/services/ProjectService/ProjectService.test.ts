@@ -2669,6 +2669,31 @@ describe('ProjectService', () => {
             });
         });
 
+        test('reaps a job whose worker died mid-run before recovery', async () => {
+            vi.mocked(
+                jobModel.findStaleCreateProjectJobUuids,
+            ).mockResolvedValueOnce(['dead-job', 'queued-job']);
+            vi.mocked(
+                schedulerClient.hasCreateProjectWithCompileJob,
+            ).mockImplementation(async (jobUuid) => jobUuid === 'queued-job');
+            vi.mocked(
+                jobModel.findActiveCreateProjectJob,
+            ).mockResolvedValueOnce(null);
+
+            await service.getActiveCreateProjectJob(projectCreator);
+
+            const [, lockedAfter] = vi.mocked(
+                schedulerClient.hasCreateProjectWithCompileJob,
+            ).mock.calls[0];
+            expect(lockedAfter).toEqual(
+                vi.mocked(jobModel.findStaleCreateProjectJobUuids).mock
+                    .calls[0][0].updatedBefore,
+            );
+            expect(jobModel.markCreateProjectJobsAsError).toHaveBeenCalledWith([
+                'dead-job',
+            ]);
+        });
+
         test("returns null for recovery when only another user's job is active", async () => {
             vi.mocked(
                 jobModel.findActiveCreateProjectJob,
