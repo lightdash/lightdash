@@ -1,3 +1,10 @@
+## [3.76.1](https://github.com/lightdash/lightdash/compare/3.76.0...3.76.1) (2026-10-28)
+
+
+### Bug Fixes
+
+* support CSV and Excel exports for managed analytics ([#31694](https://github.com/lightdash/lightdash/issues/31694)) ([79c75df](https://github.com/lightdash/lightdash/commit/79c75dff73495ec0c65012fa398f7f1229e536e8))
+
 # [3.76.0](https://github.com/lightdash/lightdash/compare/3.75.2...3.76.0) (2026-10-28)
 
 
