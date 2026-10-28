@@ -376,7 +376,7 @@ jobs:
         id: node-version
         run: echo "version=$(tr -d '[:space:]' < .nvmrc)" >> "$GITHUB_OUTPUT"
 
-      - uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2.0.2
+      - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
         with:
           runtime: node@${{ steps.node-version.outputs.version }}
           cache: true
@@ -443,7 +443,7 @@ jobs:
           fetch-depth: 0
           filter: blob:none
 
-      - uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2.0.2
+      - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
         with:
           cache: true
           install: false
