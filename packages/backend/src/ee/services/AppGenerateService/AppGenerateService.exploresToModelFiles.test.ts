@@ -623,6 +623,9 @@ describe('AppGenerateService.exploresToModelFiles', () => {
         const index = indexOf(result.files);
         expect(index).toContain('`urls:`');
         expect(index).toMatch(/^orders {2}orders\.yml .* {2}urls=2/m);
+        expect((result as { urlModels?: unknown }).urlModels).toEqual([
+            { model: 'orders', fields: ['total_revenue', 'account_number'] },
+        ]);
     });
 
     it('drops malformed AI hints without failing YAML generation', () => {
