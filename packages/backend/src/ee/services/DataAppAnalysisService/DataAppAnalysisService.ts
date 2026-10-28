@@ -29,6 +29,7 @@ import {
     type DataAppAnalysisRecord,
     type DataAppAnalysisSource,
     type DataAppAnomaly,
+    type DataAppDetection,
     type DataAppDetectRequest,
     type DataAppDetectResult,
     type DataAppInvestigateJobPayload,
@@ -919,7 +920,7 @@ export class DataAppAnalysisService extends BaseService {
         projectUuid: string,
         locator: AnalysisTargetLocator,
         body: DataAppDetectRequest,
-    ): Promise<DataAppAnalysis> {
+    ): Promise<DataAppDetection> {
         const startedAt = Date.now();
         const meta = emptyOutcomeMeta(body.sources.length);
         const note = (patch: Partial<OutcomeMeta>) => {
@@ -968,7 +969,7 @@ export class DataAppAnalysisService extends BaseService {
         body: DataAppDetectRequest,
         note: (patch: Partial<OutcomeMeta>) => void,
     ): Promise<{
-        analysis: DataAppAnalysis;
+        analysis: DataAppDetection;
         outcome: Extract<DataAppAnalysisOutcome, 'ok' | 'cached'>;
     }> {
         DataAppAnalysisService.validateSources(body.sources);
@@ -1010,7 +1011,13 @@ export class DataAppAnalysisService extends BaseService {
                 contentHash,
             });
             if (reusable) {
-                return { analysis: reusable.analysis, outcome: 'cached' };
+                return {
+                    analysis: {
+                        ...reusable.analysis,
+                        investigations: reusable.investigations,
+                    },
+                    outcome: 'cached',
+                };
             }
         }
         const inFlightKey = [
@@ -1036,6 +1043,8 @@ export class DataAppAnalysisService extends BaseService {
                         ? remapQueryUuids(shared.analysis, mapping)
                         : {}),
                     sources: body.sources,
+                    // The joined run is fresh, so nothing investigated it yet.
+                    investigations: [],
                 },
                 outcome: 'cached',
             };
@@ -1073,7 +1082,10 @@ export class DataAppAnalysisService extends BaseService {
             inputTokens: done.usage.inputTokens,
             outputTokens: done.usage.outputTokens,
         });
-        return { analysis: done.analysis, outcome: 'ok' };
+        return {
+            analysis: { ...done.analysis, investigations: [] },
+            outcome: 'ok',
+        };
     }
 
     private async runDetect(args: {

@@ -125,8 +125,6 @@ export type DataAppAnalysis = DataAppDetectResult & {
     generatedAt: Date;
 };
 
-export type ApiDataAppDetectResponse = ApiSuccess<DataAppAnalysis>;
-
 export type DataAppInvestigateRequest = {
     anomalyId: string;
     agentUuid: string;
@@ -151,6 +149,16 @@ export type DataAppInvestigation = DataAppInvestigateResult & {
     target: AnalysisTargetRef;
     generatedAt: Date;
 };
+
+/**
+ * What detect returns: the analysis plus the viewer's own stored
+ * investigations of it — populated on a cache hit, empty on a fresh run.
+ */
+export type DataAppDetection = DataAppAnalysis & {
+    investigations: DataAppInvestigation[];
+};
+
+export type ApiDataAppDetectResponse = ApiSuccess<DataAppDetection>;
 
 /** Job that runs an investigation off the request path; poll by jobId. */
 export type DataAppInvestigateJobPayload = TraceTaskBase & {
