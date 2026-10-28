@@ -39,6 +39,7 @@ const analysis = (appUuid: string) => ({
     anomalies: [],
     limitations: [],
     dataAsOf: null,
+    investigations: [],
 });
 
 const render = (autoAnalyse = false) =>
@@ -271,6 +272,47 @@ describe('useDataAppAnalysis', () => {
             expect.anything(),
             expect.objectContaining({ force: true }),
         );
+    });
+
+    it('restores stored investigations when detect serves a cached analysis', async () => {
+        const cached = analysis('app-a');
+        vi.mocked(detectAnalysisAnomalies).mockResolvedValue({
+            ...cached,
+            investigations: [
+                {
+                    investigationId: 'inv-1',
+                    analysisId: cached.analysisId,
+                    target: {
+                        kind: 'app' as const,
+                        appUuid: 'app-a',
+                        appVersion: 1,
+                    },
+                    generatedAt: new Date(),
+                    explanation: 'because',
+                    anomaly: {
+                        id: 'anom-1',
+                        severity: 'high',
+                        text: 't',
+                        queryUuid: 'q-1',
+                        fieldId: 'orders_count',
+                        dimensionValues: {},
+                        expected: null,
+                        actual: '1',
+                    },
+                    agentUuid: 'agent-1',
+                    threadUuid: 'thread-1',
+                    queriesRun: 2,
+                    partial: false,
+                },
+            ],
+        });
+        const { result } = render();
+        await settle();
+        await act(async () => {
+            await result.current.analyse();
+        });
+        expect(result.current.state.status).toBe('ready');
+        expect(result.current.investigations['anom-1']?.status).toBe('ready');
     });
 
     it('stays idle on a lookup miss and does not force the first run', async () => {

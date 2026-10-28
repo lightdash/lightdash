@@ -176,13 +176,14 @@ export const useAnalysisCore = ({
                 investigations: {},
             }));
             try {
-                const analysis = await detectAnalysisAnomalies(lightdashApi, {
-                    projectUuid,
-                    target,
-                    sources: sourcesToAnalyse,
-                    instructions,
-                    force,
-                });
+                const { investigations, ...analysis } =
+                    await detectAnalysisAnomalies(lightdashApi, {
+                        projectUuid,
+                        target,
+                        sources: sourcesToAnalyse,
+                        instructions,
+                        force,
+                    });
                 if (run !== runRef.current) return;
                 patch(scope, (prev) => ({
                     ...prev,
@@ -190,6 +191,8 @@ export const useAnalysisCore = ({
                         sourcesToAnalyse,
                     )}|instr:${instructions ?? ''}`,
                     state: { status: 'ready', analysis, stale: false },
+                    // A cache hit carries the viewer's stored investigations.
+                    investigations: investigationsByAnomaly(investigations),
                 }));
             } catch (e) {
                 if (run !== runRef.current) return;
