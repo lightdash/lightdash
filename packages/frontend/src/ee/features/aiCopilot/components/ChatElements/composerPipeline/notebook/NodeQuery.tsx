@@ -16,6 +16,7 @@ import {
     Group,
     HoverCard,
     Loader,
+    ScrollArea,
     Text,
     Tooltip,
 } from '@mantine/core';
@@ -29,7 +30,7 @@ import { useMemo, type FC } from 'react';
 import CodeBlock from '../../../../../../../components/common/CodeBlock/CodeBlock';
 import InlineErrorState from '../../../../../../../components/common/InlineErrorState';
 import MantineIcon from '../../../../../../../components/common/MantineIcon';
-import { ItemDetailPreview } from '../../../../../../../components/Explorer/ExploreTree/TableTree/ItemDetailPreview';
+import { ItemDetailMarkdown } from '../../../../../../../components/Explorer/ExploreTree/TableTree/ItemDetailPreview';
 import { useCompiledSqlFromMetricQuery } from '../../../../../../../hooks/useCompiledSql';
 import { useExploreByProjectUuid } from '../../../../../../../hooks/useExplore';
 import { useUiStrings } from '../../../../../../providers/Embed/useUiStrings';
@@ -163,10 +164,9 @@ export const ExploreSource: FC<{
                 </Group>
             </HoverCard.Target>
             <HoverCard.Dropdown p="xs" miw={300} maw={400}>
-                <ItemDetailPreview
-                    onViewDescription={() => {}}
-                    description={description}
-                />
+                <ScrollArea.Autosize mah={300}>
+                    {description && <ItemDetailMarkdown source={description} />}
+                </ScrollArea.Autosize>
             </HoverCard.Dropdown>
         </HoverCard>
     );
