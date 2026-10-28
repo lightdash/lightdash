@@ -92,6 +92,7 @@ test.describe('Dashboard', () => {
         );
 
         const title = page.getByRole('link', { name });
+        await expect(title).toBeVisible({ timeout: 30_000 });
         await title.scrollIntoViewIfNeeded();
         const initial = await getTileTitleRects(page, name);
 

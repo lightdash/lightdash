@@ -499,12 +499,26 @@ const testCustomDimensions = async (page: Page, projectUuid: string) => {
     await expect(page.getByText('6 - 12')).toBeVisible();
 };
 
-const pickWarehouse = async (page: Page, warehouse: string) => {
+// The connection form mounts behind a check for an in-flight create-project job; on a slow
+// preview that check can swap the form out and back while the name is typed, so wait for it.
+const openManualProjectForm = async (
+    page: Page,
+    warehouse: string,
+    projectName: string,
+) => {
+    const activeJob = page.waitForResponse(
+        '**/api/v1/org/jobs/create-project/active',
+    );
     await page.goto(`/createProject`);
 
     await page.locator('[role="button"]', { hasText: warehouse }).click();
     await page.locator('[role="button"]', { hasText: 'Manually' }).click();
     await page.getByRole('button', { name: 'I’ve defined them!' }).click();
+
+    await activeJob;
+    const name = page.locator('[name="name"]');
+    await expect(name).toBeVisible();
+    await name.fill(projectName);
 };
 
 test.describe('Create projects', () => {
@@ -558,11 +572,11 @@ test.describe('Create projects', () => {
     });
 
     test('Should create a Postgres project', async ({ page, api }) => {
-        await pickWarehouse(page, 'PostgreSQL');
-
-        await page
-            .locator('[name="name"]')
-            .fill(warehouseConfig.postgresSQL.name);
+        await openManualProjectForm(
+            page,
+            'PostgreSQL',
+            warehouseConfig.postgresSQL.name,
+        );
         await configurePostgresWarehouse(page, warehouseConfig.postgresSQL);
 
         const projectUuid = await testCompile(page);
@@ -580,9 +594,11 @@ test.describe('Create projects', () => {
         // Amazon Redshift is based on PostgreSQL
         // So we can use our own PostgreSQL local instance to test the connection against Redshift
 
-        await pickWarehouse(page, 'Redshift');
-
-        await page.locator('[name="name"]').fill(warehouseConfig.redshift.name);
+        await openManualProjectForm(
+            page,
+            'Redshift',
+            warehouseConfig.redshift.name,
+        );
         await configurePostgresWarehouse(page, warehouseConfig.redshift);
 
         const projectUuid = await testCompile(page);
@@ -595,9 +611,11 @@ test.describe('Create projects', () => {
     });
     test('Should create a Bigquery project', async ({ page, api }) => {
         test.skip(!existsSync(BIGQUERY_KEY_FILE), 'needs BigQuery credentials');
-        await pickWarehouse(page, 'BigQuery');
-
-        await page.locator('[name="name"]').fill(warehouseConfig.bigQuery.name);
+        await openManualProjectForm(
+            page,
+            'BigQuery',
+            warehouseConfig.bigQuery.name,
+        );
         await configureBigqueryWarehouse(page, warehouseConfig.bigQuery);
 
         const projectUuid = await testCompile(page);
@@ -641,9 +659,7 @@ test.describe('Create projects', () => {
     });
     // note: we don't have a staging environment for Trino atm
     test.skip('Should create a Trino project', async ({ page, api }) => {
-        await pickWarehouse(page, 'Trino');
-
-        await page.locator('[name="name"]').fill(warehouseConfig.trino.name);
+        await openManualProjectForm(page, 'Trino', warehouseConfig.trino.name);
         await configureTrinoWarehouse(page, warehouseConfig.trino);
 
         const projectUuid = await testCompile(page);
@@ -678,11 +694,11 @@ test.describe('Create projects', () => {
         await testCustomDimensions(page, projectUuid);
     });
     test.skip('Should create a Databricks project', async ({ page, api }) => {
-        await pickWarehouse(page, 'Databricks');
-
-        await page
-            .locator('[name="name"]')
-            .fill(warehouseConfig.databricks.name);
+        await openManualProjectForm(
+            page,
+            'Databricks',
+            warehouseConfig.databricks.name,
+        );
         await configureDatabricksWarehouse(page, warehouseConfig.databricks);
 
         const projectUuid = await testCompile(page);
@@ -718,11 +734,11 @@ test.describe('Create projects', () => {
     });
 
     test('Should create a Snowflake project', async ({ page, api }) => {
-        await pickWarehouse(page, 'Snowflake');
-
-        await page
-            .locator('[name="name"]')
-            .fill(warehouseConfig.snowflake.name);
+        await openManualProjectForm(
+            page,
+            'Snowflake',
+            warehouseConfig.snowflake.name,
+        );
         await configureSnowflakeWarehouse(page, warehouseConfig.snowflake);
 
         const projectUuid = await testCompile(page);

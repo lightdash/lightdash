@@ -34,7 +34,7 @@ test.describe('Dashboard List', () => {
         );
         await expect(
             page.getByText(dashboardName, { exact: true }).first(),
-        ).toBeAttached();
+        ).toBeAttached({ timeout: 30_000 });
 
         await page.goto(`/projects/${SEED_PROJECT.project_uuid}/dashboards`);
         await page
