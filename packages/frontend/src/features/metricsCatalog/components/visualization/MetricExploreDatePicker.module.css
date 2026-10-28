@@ -32,7 +32,7 @@
 
 .presetButton:hover,
 .presetButton[data-selected] {
-    background-color: var(--mantine-color-ldGray-0);
+    background-color: var(--mantine-color-default-hover);
 }
 
 .toolbar {

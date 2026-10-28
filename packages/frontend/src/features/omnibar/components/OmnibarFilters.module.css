@@ -4,7 +4,7 @@
     margin-inline-end: 6px;
 }
 
-.filterSection[data-position='right'] {
+.filterSection.filterSection[data-position='right'] {
     margin-inline-start: 4px;
 }
 
