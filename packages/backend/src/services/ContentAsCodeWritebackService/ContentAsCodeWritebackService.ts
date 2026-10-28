@@ -19,6 +19,7 @@ import {
     overlayKeysForAsCodeField,
     ParameterError,
     PullRequestSource,
+    resolveContentAsCodeRepoPath,
     type ChartAsCode,
     type ContentAsCodeFileClassification,
     type ContentAsCodePullSummary,
@@ -320,15 +321,24 @@ export class ContentAsCodeWritebackService extends BaseService {
         repoPath: string,
         contentPath: string,
     ): Promise<string> {
-        return joinContentAsCodePath(
-            repoPath,
-            await this.resolveContentFilePath(
-                projectUuid,
-                contentType,
-                slug,
-                contentPath,
-            ),
+        const sourcePath = await this.resolveContentFilePath(
+            projectUuid,
+            contentType,
+            slug,
+            contentPath,
         );
+        try {
+            return resolveContentAsCodeRepoPath(repoPath, sourcePath);
+        } catch (error) {
+            // Uploaded from outside the repo: the conventional place applies
+            this.logger.warn(
+                `Content-as-code source path "${sourcePath}" for ${slug} is not in the repo; using the content path instead`,
+            );
+            return joinContentAsCodePath(
+                repoPath,
+                getContentAsCodeFilePath(contentPath, contentType, slug),
+            );
+        }
     }
 
     private async getContentPath(projectUuid: string): Promise<string> {

@@ -72,6 +72,7 @@ import {
     isSlackTarget,
     MAX_CONTENT_SLUG_LENGTH,
     normalizeContentAsCodePath,
+    normalizeContentAsCodeSourcePath,
     normalizeSavedMergeDefinition,
     NotFoundError,
     NotificationFrequency,
@@ -3472,7 +3473,7 @@ export class CoderService extends BaseService {
     private static sourceFilePath(filePath: string | undefined): string | null {
         if (filePath === undefined) return null;
         try {
-            const normalized = normalizeContentAsCodePath(filePath);
+            const normalized = normalizeContentAsCodeSourcePath(filePath);
             return normalized === '' ? null : normalized;
         } catch {
             return null;
