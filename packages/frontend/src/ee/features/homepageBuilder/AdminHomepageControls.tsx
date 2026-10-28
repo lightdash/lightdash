@@ -1,6 +1,14 @@
 import { subject } from '@casl/ability';
 import { type HomepageOpening } from '@lightdash/common';
-import { Box, Button, Group, Popover, Stack, Text } from '@mantine/core';
+import {
+    Box,
+    Button,
+    Group,
+    Popover,
+    Stack,
+    Text,
+    UnstyledButton,
+} from '@mantine/core';
 import {
     IconArrowBackUp,
     IconCheck,
@@ -139,8 +147,7 @@ const OpeningMenu: FC<{
                                             />
                                         </Box>
                                     </Box>
-                                    <button
-                                        type="button"
+                                    <UnstyledButton
                                         className={classes.autoRow}
                                         data-selected={current === null}
                                         disabled={updateSettings.isLoading}
@@ -168,7 +175,7 @@ const OpeningMenu: FC<{
                                                 size={12}
                                             />
                                         </span>
-                                    </button>
+                                    </UnstyledButton>
                                 </Stack>
                             </Popover.Dropdown>
                         </Popover>
