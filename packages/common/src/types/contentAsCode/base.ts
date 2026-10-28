@@ -49,7 +49,7 @@ export const resolveContentAsCodeRepoPath = (
         if (segment === '..') {
             if (segments.length === 0) {
                 throw new ParameterError(
-                    `Content file path "${sourcePath}" points outside the repository`,
+                    'Content file path points outside the repository',
                 );
             }
             segments.pop();
