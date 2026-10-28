@@ -22,6 +22,8 @@ export {
 } from './apiTransport';
 export { createPostMessageTransport } from './postMessageTransport';
 
+export { resolveColumnUrls, type ResolvedColumnUrl } from './columnUrls';
+
 // Feature manifest (also exported via the "./features" subpath for hosts)
 export {
     SDK_FEATURES,
@@ -43,6 +45,7 @@ export type {
     AiPromptResult,
     Column,
     ColumnType,
+    ColumnUrl,
     CustomDimension,
     DownloadResultsFileType,
     DownloadResultsLimit,

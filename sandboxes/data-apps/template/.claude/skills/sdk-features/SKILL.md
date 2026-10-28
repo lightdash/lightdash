@@ -165,6 +165,13 @@ order, `sortBy` describes result ordering, `totalColumnCount` exposes truncation
   `drillDown.open({ row, metric })` on selection. Either way Lightdash opens
   its drill dialog. Distinct from `drill-down`, which is the full-app query
   helper.
+- `field-links`: result columns carry the semantic layer's `urls` link
+  patterns (`column.urls`), and `resolveColumnUrls({ column, row, columns,
+  format })` resolves them per cell. In every cell renderer — hand-written
+  tables and generic column loops such as underlying-data dialogs — render
+  the value as a link when it returns entries, styled visibly as a link
+  (underline and/or link color). Full rules in the data-app skill's
+  "Field links — `urls`" section.
 - `url-state`: `useUrlState(...)` syncs a piece of app state into the page URL
   so views can be shared and restored.
 - `app-state`: `useAppState(key, default)` remembers a value per person;
