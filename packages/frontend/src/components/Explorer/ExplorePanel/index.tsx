@@ -286,26 +286,24 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                         (canMergeAnotherQuery || hasVirtualViewActions) && (
                             <Menu withArrow offset={-2}>
                                 <Menu.Target>
-                                    <ActionIcon
-                                        data-tour-anchor={
-                                            isVirtualView
-                                                ? 'virtual-view-actions'
-                                                : undefined
-                                        }
-                                        data-tour-hint={
-                                            isVirtualView
-                                                ? 'Open virtual view actions'
-                                                : undefined
-                                        }
-                                        aria-label={
-                                            isVirtualView
-                                                ? 'Virtual view actions'
-                                                : 'Query options'
-                                        }
-                                        variant="transparent"
-                                    >
-                                        <MantineIcon icon={IconDots} />
-                                    </ActionIcon>
+                                    {/* Two literal triggers: the tour generator reads anchors and hints from source. */}
+                                    {isVirtualView ? (
+                                        <ActionIcon
+                                            data-tour-anchor="virtual-view-actions"
+                                            data-tour-hint="Open virtual view actions"
+                                            aria-label="Virtual view actions"
+                                            variant="transparent"
+                                        >
+                                            <MantineIcon icon={IconDots} />
+                                        </ActionIcon>
+                                    ) : (
+                                        <ActionIcon
+                                            aria-label="Query options"
+                                            variant="transparent"
+                                        >
+                                            <MantineIcon icon={IconDots} />
+                                        </ActionIcon>
+                                    )}
                                 </Menu.Target>
                                 <Menu.Dropdown>
                                     {canMergeAnotherQuery && (
