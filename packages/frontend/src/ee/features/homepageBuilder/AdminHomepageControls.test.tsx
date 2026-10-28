@@ -12,8 +12,9 @@ vi.mock('../../../providers/Ability', () => ({
     Can: ({ children }: PropsWithChildren) => children,
 }));
 
-const { authoringEnabled, settings } = vi.hoisted(() => ({
+const { authoringEnabled, settings, mutate } = vi.hoisted(() => ({
     authoringEnabled: { current: true },
+    mutate: vi.fn(),
     settings: {
         current: { enabled: false, opening: null } as {
             enabled: boolean;
@@ -29,7 +30,7 @@ vi.mock('../../../hooks/useContentAuthoringEnabled', () => ({
 vi.mock('./hooks/useOrgHomepageSettings', () => ({
     useOrgHomepageSettings: () => ({ data: settings.current }),
     useUpdateOrgHomepageSettings: () => ({
-        mutate: vi.fn(),
+        mutate,
         isLoading: false,
     }),
 }));
@@ -57,6 +58,24 @@ describe('AdminHomepageControls', () => {
     beforeEach(() => {
         authoringEnabled.current = true;
         settings.current = { enabled: false, opening: null };
+        mutate.mockReset();
+    });
+
+    it('lets org admins change the opening without touching enablement', () => {
+        settings.current = { enabled: true, opening: 'ask-first' };
+        renderControls();
+
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Homepage opening' }),
+        );
+        fireEvent.click(
+            screen.getByRole('menuitem', { name: /Content first/ }),
+        );
+
+        expect(mutate).toHaveBeenCalledWith({
+            enabled: true,
+            opening: 'content-first',
+        });
     });
 
     it('only renders homepage curation controls', () => {

@@ -1,6 +1,13 @@
 import { subject } from '@casl/ability';
-import { Text } from '@mantine/core';
-import { IconArrowBackUp, IconEdit, IconPlus } from '@tabler/icons-react';
+import { type HomepageOpening } from '@lightdash/common';
+import { Menu, Text } from '@mantine/core';
+import {
+    IconArrowBackUp,
+    IconCheck,
+    IconEdit,
+    IconLayout,
+    IconPlus,
+} from '@tabler/icons-react';
 import { useEffect, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -17,6 +24,83 @@ type Props = {
     projectUuid: string;
     organizationUuid: string | undefined;
     showNewHomepage?: boolean;
+};
+
+const OPENING_OPTIONS: {
+    value: HomepageOpening | null;
+    label: string;
+    description: string;
+}[] = [
+    {
+        value: 'ask-first',
+        label: 'Ask first',
+        description: 'Opens on the Ask AI composer',
+    },
+    {
+        value: 'content-first',
+        label: 'Content first',
+        description: 'Opens on your content',
+    },
+    {
+        value: null,
+        label: 'Auto',
+        description: 'Ask first when AI is available',
+    },
+];
+
+// Org-wide opening choice. Always writes enabled: true because the control is
+// only reachable while the new homepage is on; writing the org's current
+// (possibly absent) value would create an explicit opt-out row.
+const OpeningMenu: FC<{ organizationUuid: string | undefined }> = ({
+    organizationUuid,
+}) => {
+    const settings = useOrgHomepageSettings();
+    const updateSettings = useUpdateOrgHomepageSettings();
+    const current = settings.data?.opening ?? null;
+
+    return (
+        <Can I="manage" this={subject('Organization', { organizationUuid })}>
+            <Menu position="bottom-end" width={240}>
+                <Menu.Target>
+                    <button
+                        type="button"
+                        className={classes.tbBtn}
+                        aria-label="Homepage opening"
+                    >
+                        <MantineIcon icon={IconLayout} size={15} />
+                        <span className={classes.tbBtnLabel} aria-hidden="true">
+                            Homepage opening
+                        </span>
+                    </button>
+                </Menu.Target>
+                <Menu.Dropdown>
+                    <Menu.Label>How every homepage opens</Menu.Label>
+                    {OPENING_OPTIONS.map((option) => (
+                        <Menu.Item
+                            key={option.label}
+                            disabled={updateSettings.isLoading}
+                            rightSection={
+                                option.value === current ? (
+                                    <MantineIcon icon={IconCheck} size={14} />
+                                ) : null
+                            }
+                            onClick={() =>
+                                updateSettings.mutate({
+                                    enabled: true,
+                                    opening: option.value,
+                                })
+                            }
+                        >
+                            <Text size="sm">{option.label}</Text>
+                            <Text size="xs" c="dimmed">
+                                {option.description}
+                            </Text>
+                        </Menu.Item>
+                    ))}
+                </Menu.Dropdown>
+            </Menu>
+        </Can>
+    );
 };
 
 // Quiet escape hatch for the opt-in flow: only offered when the org enabled
@@ -102,6 +186,7 @@ export const AdminHomepageControls: FC<Props> = ({
 
     return (
         <div className={classes.corner} data-page-scrolled={isPageScrolled}>
+            <OpeningMenu organizationUuid={organizationUuid} />
             <SwitchBackButton organizationUuid={organizationUuid} />
             <Can
                 I="manage"
