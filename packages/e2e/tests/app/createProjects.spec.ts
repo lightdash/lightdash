@@ -20,6 +20,9 @@ import {
     type Page,
 } from '../../support/test';
 
+// Traces record request bodies, and these tests type warehouse credentials
+test.use({ trace: 'off' });
+
 const BIGQUERY_KEY_FILE = join(PACKAGE_ROOT, 'fixtures/credentials.json');
 
 const warehouseConfig = {

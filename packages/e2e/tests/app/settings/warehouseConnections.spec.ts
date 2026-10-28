@@ -7,6 +7,9 @@ import {
     type Page,
 } from '../../../support/test';
 
+// Traces record request bodies, and these tests type warehouse credentials
+test.use({ trace: 'off' });
+
 const CREDENTIALS_NAME = 'Athena test';
 const UPDATED_CREDENTIALS_NAME = `${CREDENTIALS_NAME} updated`;
 
