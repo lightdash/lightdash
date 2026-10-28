@@ -27,3 +27,8 @@ Cypress.log = function name(opts, ...other) {
     // eslint-disable-next-line consistent-return
     return cypressLogOriginal(opts, ...other);
 };
+
+// First-run notices open as dialogs and make `findByRole('dialog')` ambiguous
+Cypress.on('window:before:load', (win) => {
+    win.localStorage.setItem('homepage-v2-default-notice-closed', 'true');
+});
