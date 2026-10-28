@@ -221,6 +221,7 @@ it.each([null, 'log', 'enforce'] as const)(
         vi.mocked(model.getClient).mockResolvedValue(codeClient);
         vi.spyOn(model, 'getAuthorizationCode').mockResolvedValue({
             authorizationCode: 'code',
+            sessionExpiresAt: null,
             expiresAt: new Date(Date.now() + 60000),
             redirectUri: 'https://example.test/callback',
             scope: ['write'],
@@ -264,6 +265,7 @@ it.each(['log', 'enforce'] as const)(
         vi.mocked(model.getClient).mockResolvedValue(codeClient);
         vi.spyOn(model, 'getAuthorizationCode').mockResolvedValue({
             authorizationCode: 'code',
+            sessionExpiresAt: null,
             expiresAt: new Date(Date.now() + 60000),
             redirectUri: 'https://example.test/callback',
             scope: ['write'],
@@ -487,6 +489,7 @@ describe('strict refresh token families', () => {
         refresh_token?: string;
         access_token?: string;
         family_uuid: string | null;
+        session_expires_at: Date | null;
         revoked_at: Date | null;
         expires_at: Date;
         resource: string | null;
@@ -509,6 +512,7 @@ describe('strict refresh token families', () => {
     ): StoredToken => ({
         refresh_token: refreshToken,
         family_uuid: familyUuid,
+        session_expires_at: null,
         revoked_at: null,
         expires_at: new Date(Date.now() + 86400000 * 14),
         resource: api,
@@ -659,6 +663,49 @@ describe('strict refresh token families', () => {
             return next;
         }) as typeof database.transaction);
     });
+
+    it.each([true, false])(
+        'inherits and clips a personal session across refreshes with strict mode %s',
+        async (strictMode) => {
+            strict = strictMode;
+            const sessionExpiresAt = new Date(Date.now() + 30000);
+            refreshRows.get('A')!.session_expires_at = sessionExpiresAt;
+            const child = await rotate('A');
+            const grandchild = await rotate(child.refreshToken!);
+            for (const token of [child, grandchild]) {
+                expect(token).toMatchObject({
+                    sessionExpiresAt,
+                    accessTokenExpiresAt: sessionExpiresAt,
+                    refreshTokenExpiresAt: sessionExpiresAt,
+                });
+                expect(refreshRows.get(token.refreshToken!)).toMatchObject({
+                    session_expires_at: sessionExpiresAt,
+                    expires_at: sessionExpiresAt,
+                });
+                expect(accessRows.get(token.accessToken)).toMatchObject({
+                    session_expires_at: sessionExpiresAt,
+                    expires_at: sessionExpiresAt,
+                });
+            }
+        },
+    );
+
+    it.each([true, false])(
+        'refuses an expired personal session before revokeToken or saveToken with strict mode %s',
+        async (strictMode) => {
+            strict = strictMode;
+            refreshRows.get('A')!.session_expires_at = new Date(Date.now() - 1);
+            const revoke = vi.spyOn(rotationModel, 'revokeToken');
+            const save = vi.spyOn(rotationModel, 'saveToken');
+            await expect(rotate('A')).rejects.toMatchObject({
+                name: 'invalid_grant',
+                message: 'Session expired. Log in again.',
+            });
+            expect(revoke).not.toHaveBeenCalled();
+            expect(save).not.toHaveBeenCalled();
+            expect(refreshRows.get('A')!.revoked_at).toBeNull();
+        },
+    );
 
     it('rejects a reused refresh token and revokes its family', async () => {
         const child = await rotate('A');
@@ -811,6 +858,7 @@ describe('strict refresh token families', () => {
             vi.mocked(rotationModel.getClient).mockResolvedValue(codeClient);
             vi.spyOn(rotationModel, 'getAuthorizationCode').mockResolvedValue({
                 authorizationCode: 'code',
+                sessionExpiresAt: null,
                 expiresAt: new Date(Date.now() + 60000),
                 redirectUri: 'https://example.test/callback',
                 scope: ['read'],
@@ -933,3 +981,47 @@ describe('bound agent refresh', () => {
         expect(model.revokeToken).not.toHaveBeenCalled();
     });
 });
+
+it.each([true, false])(
+    'carries a code session deadline into issued tokens with strict mode %s',
+    async (strict) => {
+        flags.get.mockResolvedValue({ enabled: strict });
+        const codeClient = {
+            ...client,
+            id: 'lightdash-cli',
+            grants: ['authorization_code'],
+        };
+        const sessionExpiresAt = new Date(Date.now() + 30000);
+        vi.mocked(model.getClient).mockResolvedValue(codeClient);
+        vi.spyOn(model, 'getAuthorizationCode').mockResolvedValue({
+            authorizationCode: 'code',
+            expiresAt: new Date(Date.now() + 60000),
+            sessionExpiresAt,
+            redirectUri: 'https://example.test/callback',
+            scope: ['read'],
+            codeChallenge: createHash('sha256')
+                .update('a'.repeat(43))
+                .digest('base64url'),
+            codeChallengeMethod: 'S256',
+            client: codeClient,
+            user,
+        });
+        vi.spyOn(model, 'revokeAuthorizationCode').mockResolvedValue(true);
+        const token = await service.token(
+            tokenRequest({
+                client_id: codeClient.id,
+                grant_type: 'authorization_code',
+                code: 'code',
+                code_verifier: 'a'.repeat(43),
+                redirect_uri: 'https://example.test/callback',
+            }),
+            new OAuth2Server.Response({}),
+        );
+        expect(token.sessionExpiresAt).toEqual(sessionExpiresAt);
+        expect(model.saveToken).toHaveBeenCalledWith(
+            expect.objectContaining({ sessionExpiresAt }),
+            codeClient,
+            user,
+        );
+    },
+);

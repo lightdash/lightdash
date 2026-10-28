@@ -7,17 +7,29 @@ import * as http from 'http';
 import fetch from 'node-fetch';
 import { generators, Issuer } from 'openid-client';
 import { URL } from 'url';
+import { validate as isUuid } from 'uuid';
 import { refuseAgentConnection } from '../credentials';
 import GlobalState from '../globalState';
+import { personalInstanceKey } from '../personalLogin/instanceKey';
+import { PersonalLoginStore } from '../personalLogin/store';
+import {
+    oauthHeaders,
+    parseTokenResponse,
+    tokenExpiry,
+} from '../personalLogin/tokenProvider';
 import * as styles from '../styles';
 import { openBrowser } from './login/oauth';
-import { generatePersonalAccessToken } from './login/pat';
 
 export const loginWithOauth = async (
     url: string,
     oauthPort?: number,
-): Promise<{ userUuid: string; organizationUuid: string; token: string }> => {
+): Promise<{
+    userUuid: string;
+    organizationUuid: string;
+    credential: 'personal_oauth';
+}> => {
     refuseAgentConnection(true);
+    const instanceUrl = personalInstanceKey(url);
     // Create a promise that will be resolved when we get the authorization code
     let resolveAuth: (value: { code: string; state: string }) => void;
     let rejectAuth: (reason: Error) => void;
@@ -144,11 +156,12 @@ export const loginWithOauth = async (
     const redirectUri = `http://localhost:${port}/callback`;
     GlobalState.debug(`> Starting CLI callback server on URI: ${redirectUri}`);
     // Create OAuth2 issuer and client using openid-client
-    const issuerUrl = new URL('/api/v1/oauth', url).href;
+    const issuerUrl = new URL(`${instanceUrl}/api/v1/oauth`).href;
     const issuer = new Issuer({
         issuer: issuerUrl,
-        authorization_endpoint: new URL('/api/v1/oauth/authorize', url).href,
-        token_endpoint: new URL('/api/v1/oauth/token', url).href,
+        authorization_endpoint: new URL(`${instanceUrl}/api/v1/oauth/authorize`)
+            .href,
+        token_endpoint: new URL(`${instanceUrl}/api/v1/oauth/token`).href,
     });
 
     const client = new issuer.Client({
@@ -186,12 +199,13 @@ export const loginWithOauth = async (
         GlobalState.debug(`> Getting token for authorization code`);
 
         // Exchange the authorization code for an access token manually (pure OAuth2)
-        const tokenUrl = new URL('/api/v1/oauth/token', url);
+        const tokenUrl = new URL(`${instanceUrl}/api/v1/oauth/token`);
+        const startedAt = Date.now();
         const tokenResponse = await fetch(tokenUrl.href, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
+            headers: oauthHeaders(),
+            redirect: 'error',
+            signal: AbortSignal.timeout(15_000),
             body: new URLSearchParams({
                 grant_type: 'authorization_code',
                 code,
@@ -202,39 +216,33 @@ export const loginWithOauth = async (
         });
 
         if (!tokenResponse.ok) {
-            const errorText = await tokenResponse.text();
             throw new AuthorizationError(
-                `Token exchange failed: ${tokenResponse.status} ${errorText}`,
+                `Token exchange failed: ${tokenResponse.status}`,
             );
         }
-        const tokenData = await tokenResponse.json();
-        const { access_token: accessToken } = tokenData;
-
-        if (!accessToken) {
+        let tokenData: unknown;
+        try {
+            tokenData = await tokenResponse.json();
+        } catch {
             throw new AuthorizationError(
-                'No access token received from OAuth server',
+                'The server returned an invalid token response. No login was saved.',
             );
         }
-
-        GlobalState.debug(`> Got OAuth access token`);
-        GlobalState.debug(`> Creating PAT for user`);
-
-        // Generate a new PAT from this access token
-        const pat = await generatePersonalAccessToken(
-            {
-                Authorization: `Bearer ${accessToken}`,
-            },
-            url,
-            8,
+        const token = parseTokenResponse(tokenData);
+        const expiry = tokenExpiry(
+            token,
+            startedAt,
+            tokenResponse.headers.get('date'),
+            null,
         );
-        GlobalState.debug(`> Got PAT`);
 
-        // Get user information using the PAT
-        const userInfoUrl = new URL('/api/v1/user', url);
+        const userInfoUrl = new URL(`${instanceUrl}/api/v1/user`);
         const userResponse = await fetch(userInfoUrl.href, {
             method: 'GET',
+            redirect: 'error',
+            signal: AbortSignal.timeout(15_000),
             headers: {
-                Authorization: `ApiKey ${pat}`,
+                Authorization: `Bearer ${token.access_token}`,
             },
         });
 
@@ -244,19 +252,52 @@ export const loginWithOauth = async (
             );
         }
 
-        const userData = await userResponse.json();
-        const { userUuid, organizationUuid, firstName, lastName, email } =
-            userData.results;
-
+        let userData: unknown;
+        try {
+            userData = await userResponse.json();
+        } catch {
+            throw new AuthorizationError(
+                'The server returned invalid user information. No login was saved.',
+            );
+        }
+        if (
+            typeof userData !== 'object' ||
+            userData === null ||
+            !('results' in userData) ||
+            typeof userData.results !== 'object' ||
+            userData.results === null ||
+            !('userUuid' in userData.results) ||
+            typeof userData.results.userUuid !== 'string' ||
+            !isUuid(userData.results.userUuid) ||
+            !('organizationUuid' in userData.results) ||
+            typeof userData.results.organizationUuid !== 'string' ||
+            !isUuid(userData.results.organizationUuid)
+        )
+            throw new AuthorizationError(
+                'The server returned invalid user information. No login was saved.',
+            );
+        const { userUuid, organizationUuid } = userData.results;
         GlobalState.debug(
-            `> Got user info for user ${firstName} ${lastName} (${email}): ${userUuid} in organization ${organizationUuid}`,
+            `> Got user info: ${userUuid} in organization ${organizationUuid}`,
         );
 
-        return {
-            userUuid,
+        await new PersonalLoginStore().save(instanceUrl, {
+            clientId: 'lightdash-cli',
+            personUuid: userUuid,
             organizationUuid,
-            token: pat,
-        };
+            tokens: {
+                accessToken: token.access_token,
+                refreshToken: token.refresh_token,
+                accessTokenIssuedAt: expiry.accessTokenIssuedAt,
+                accessTokenExpiresAt: expiry.accessTokenExpiresAt,
+                scopes: token.scope.split(' '),
+                generation: 1,
+                lastRefreshAttemptUuid: null,
+            },
+            sessionExpiresAt: expiry.sessionExpiresAt,
+            refreshState: { kind: 'idle' },
+        });
+        return { userUuid, organizationUuid, credential: 'personal_oauth' };
     } finally {
         // Clean up the server
         server.close();

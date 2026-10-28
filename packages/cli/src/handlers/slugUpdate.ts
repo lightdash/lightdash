@@ -1,5 +1,4 @@
 import {
-    AuthorizationError,
     ContentType,
     generateSlug,
     LightdashError,
@@ -11,7 +10,7 @@ import { promises as fs } from 'fs';
 import * as path from 'path';
 import { parseDocument, type Document } from 'yaml';
 import { getConfig } from '../config';
-import { refuseAgentConnection } from '../credentials';
+import { refuseAgentConnection, resolveCredential } from '../credentials';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
 import { getDownloadFolder } from './contentAsCodePaths';
@@ -533,11 +532,9 @@ export const slugUpdateHandler = async (
     await checkLightdashVersion();
 
     const config = await getConfig();
-    if (!config.context?.apiKey || !config.context.serverUrl) {
-        throw new AuthorizationError(
-            `Not logged in. Run 'lightdash login --help'`,
-        );
-    }
+    await resolveCredential(config);
+    if (!config.context?.serverUrl)
+        throw new Error("Not logged in. Run 'lightdash login --help'");
 
     const selection = await selectProject(config, options.project);
     if (!selection) {

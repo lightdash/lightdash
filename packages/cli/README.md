@@ -24,6 +24,18 @@ Commands:
 
 eg: `ligthdash test` Runs `dbt test`
 
+## Browser login
+
+`lightdash login <url>` saves OAuth access and refresh tokens for that instance.
+The personal session ends eight hours after login. Refresh does not extend it.
+Run `lightdash logout` to revoke the tokens and remove the saved login.
+Personal CLI logins follow PAT admission on REST. OAuth scopes, role checks
+and human-only admin guards still apply. They cannot call MCP because browser
+login does not request MCP scopes. See [admission by surface](../../docs/agent-identity/agent-permissions.md#personal-cli-admission-by-surface).
+
+A browser login cannot start `lightdash agent connect` or use `agent revoke
+--human`. First run `lightdash login <url> --token <personal access token>`.
+
 ## Agent connection
 
 ### Warehouse sign-in
@@ -250,6 +262,12 @@ LIGHTDASH_PROJECT=<target-project-uuid> lightdash deploy --non-interactive
 ```
 
 With no agent connection selected, credentials resolve in the usual order: command flags, then environment variables, then the config file written by `lightdash login`. So a `LIGHTDASH_API_KEY` left in your shell profile is used ahead of your saved login — `lightdash login` warns when this is the case, and `unset LIGHTDASH_API_KEY` restores the saved token.
+
+Personal logins accept HTTP and HTTPS instance URLs, including internal hosts. Browser login does not send an OAuth resource parameter.
+
+Browser login saves OAuth access and refresh tokens in `personal-logins.yaml` beside the CLI config, with file mode `0600`. Commands refresh access tokens as needed. The session lasts eight hours by default; after it expires, run `lightdash login` again. If a refresh does not complete, sign in again to avoid reusing a refresh token.
+
+Run `lightdash logout` to revoke the configured instance's browser session and remove the local login. If the server cannot be reached, the CLI keeps the login so you can retry. For a saved API key, logout removes the key locally; revoke a personal access token in your account settings. `--token` and `--email` logins continue to save an API key and replace any browser login for that instance.
 
 For a selected connection, see [Scoped CLI credentials](#scoped-cli-credentials)
 for credential selection and local program access.

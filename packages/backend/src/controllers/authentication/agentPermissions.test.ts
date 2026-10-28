@@ -8,9 +8,17 @@ import {
     OrganizationMemberRole,
     type PossibleAbilities,
 } from '@lightdash/common';
-import { type Request, type RequestHandler, type Response } from 'express';
+import express, {
+    type NextFunction,
+    type Request,
+    type RequestHandler,
+    type Response,
+} from 'express';
 import knex from 'knex';
 import { getTracker, MockClient } from 'knex-mock-client';
+import fetch from 'node-fetch';
+import { once } from 'node:events';
+import { type AddressInfo } from 'node:net';
 import passport from 'passport';
 import { fromServiceAccount, fromSession } from '../../auth/account/account';
 import { defaultSessionUser } from '../../auth/account/account.mock';
@@ -19,6 +27,7 @@ import { requireOAuthScopeOperation } from '../../auth/oauthScopes/unchecked';
 import { lightdashConfig } from '../../config/lightdashConfig';
 import { authenticateServiceAccount } from '../../ee/authentication';
 import { errorHandler } from '../../errors';
+import { RegisterRoutes } from '../../generated/routes';
 import { AgentCapabilityPolicyModel } from '../../models/AgentCapabilityPolicyModel';
 import {
     AgentPermissionService,
@@ -28,6 +37,8 @@ import {
     expectAdmissionSql,
     setupPermissionSql,
 } from '../../services/AgentPermissionService/agentPermissionSqlFixture';
+import { assertHumanManagedMutation } from '../../services/AgentPermissionService/assertHumanManagedMutation';
+import { ProjectService } from '../../services/ProjectService/ProjectService';
 import { type ServiceRepository } from '../../services/ServiceRepository';
 import { SpaceService } from '../../services/SpaceService/SpaceService';
 import { SpaceController } from '../spaceController';
@@ -38,8 +49,12 @@ import {
 
 vi.mock('passport', () => ({ default: { authenticate: vi.fn() } }));
 vi.mock('../../ee/authentication', () => ({
+    isScimAuthenticated: vi.fn(),
     authenticateServiceAccount: vi.fn(),
 }));
+
+const admissionDatabase = knex({ client: MockClient, dialect: 'pg' });
+const admissionTracker = getTracker();
 
 const restrictedCapabilities = [
     AgentCapability.ReadDiscover,
@@ -49,6 +64,7 @@ const restrictedCapabilities = [
 
 const setup = ({
     mode = 'managed',
+    clientId = 'client',
     operation = 'ProjectController_createDashboard',
     authentication = 'oauth',
     scopes = ['write'],
@@ -59,6 +75,7 @@ const setup = ({
     allowedCapabilities = null,
 }: {
     mode?: 'off' | 'legacy' | 'managed';
+    clientId?: string;
     operation?: string;
     authentication?: 'oauth' | 'pat' | 'session' | 'service-account';
     scopes?: string[];
@@ -159,7 +176,7 @@ const setup = ({
                     return {
                         accessToken: 'token',
                         scope: scopes,
-                        client: { id: 'client' },
+                        client: { id: clientId },
                         user,
                     };
                 },
@@ -224,6 +241,87 @@ describe.each([
     { name: 'OAuth-only', middleware: allowOauthAuthentication },
     { name: 'API-key OAuth', middleware: allowApiKeyAuthentication },
 ])('$name agent policy', ({ middleware }) => {
+    it.each(['off', 'legacy', 'managed'] as const)(
+        'treats a personal CLI login as a person using a tool in %s mode',
+        async (mode) => {
+            const { run, assertOperationWithRequest, getPolicy } = setup({
+                mode,
+                clientId: 'lightdash-cli',
+                allowedGroupUuids: ['other-group'],
+                allowedCapabilities: [],
+            });
+            await expect(run(middleware)).resolves.toBeUndefined();
+            expect(assertOperationWithRequest).not.toHaveBeenCalled();
+            expect(getPolicy).not.toHaveBeenCalled();
+        },
+    );
+    it.each(['legacy', 'managed'] as const)(
+        'still polices other OAuth clients in %s mode',
+        async (mode) => {
+            const { run } = setup({
+                mode,
+                clientId: 'other-client',
+                allowedGroupUuids: ['other-group'],
+                allowedCapabilities: [],
+            });
+            expect(await run(middleware)).toBeInstanceOf(AiAccessRefusedError);
+        },
+    );
+
+    it('keeps personal CLI logins out of human-only agent permission management', async () => {
+        const { request, run } = setup({ clientId: 'lightdash-cli' });
+        await expect(run(middleware)).resolves.toBeUndefined();
+        await expect(
+            request.services
+                .getAgentPermissionService()
+                .getPolicy(request.account!),
+        ).rejects.toThrow('Only a person can manage agent permissions');
+    });
+    it('keeps personal CLI logins out of human-only managed mutations', async () => {
+        const { request, run } = setup({ clientId: 'lightdash-cli' });
+        await expect(run(middleware)).resolves.toBeUndefined();
+        const get = vi
+            .spyOn(AgentCapabilityPolicyModel.prototype, 'get')
+            .mockResolvedValue({
+                mode: 'managed',
+                version: 1,
+                allowedCapabilities: null,
+                allowedGroupUuids: null,
+                systemRoleMatrix: agentSystemRoleMatrix([]),
+            });
+        try {
+            await expect(
+                assertHumanManagedMutation({
+                    organizationUuid:
+                        request.account!.organization.organizationUuid,
+                    ability: request.account!.user.ability,
+                    oauth: request.account!.authentication.type === 'oauth',
+                    database: admissionDatabase,
+                    featureFlagModel: {
+                        get: vi.fn().mockResolvedValue({ enabled: true }),
+                    },
+                }),
+            ).rejects.toBeInstanceOf(AiAccessRefusedError);
+        } finally {
+            get.mockRestore();
+        }
+    });
+    it('still checks OAuth scopes for a personal CLI login before skipping agent policy', async () => {
+        const { request, run, assertOperationWithRequest } = setup({
+            clientId: 'lightdash-cli',
+            scopes: ['read'],
+        });
+        request.route.stack = [
+            {
+                handle: requireOAuthScopeOperation(
+                    'DeployController.addDeployBatch',
+                ),
+            },
+        ];
+        expect(await run(middleware)).toBeInstanceOf(ForbiddenError);
+        expect(assertOperationWithRequest).not.toHaveBeenCalled();
+    });
+
     it('refuses content writes for a managed pilot and preserves typed 403 data', async () => {
         const { run, assertOperationWithRequest } = setup();
         const error = await run(middleware);
@@ -694,8 +792,6 @@ test.each([allowOauthAuthentication, allowApiKeyAuthentication])(
     },
 );
 
-const admissionDatabase = knex({ client: MockClient, dialect: 'pg' });
-const admissionTracker = getTracker();
 beforeEach(() => admissionTracker.reset());
 afterAll(async () => admissionDatabase.destroy());
 
@@ -844,4 +940,77 @@ test('bound REST retains every refusal and activity record in concurrent fan-out
         people: 0,
         membership: 1,
     });
+});
+
+it('refuses a personal CLI membership change through the registered controller middleware and service', async () => {
+    const h = setup({ clientId: 'lightdash-cli' });
+    const update = vi.fn();
+    const policy = vi
+        .spyOn(AgentCapabilityPolicyModel.prototype, 'get')
+        .mockResolvedValue({
+            mode: 'managed',
+            version: 1,
+            allowedCapabilities: null,
+            allowedGroupUuids: null,
+            systemRoleMatrix: agentSystemRoleMatrix([]),
+        });
+    const projectService = new ProjectService({
+        lightdashConfig,
+        groupsModel: { database: admissionDatabase },
+        featureFlagModel: { get: vi.fn().mockResolvedValue({ enabled: true }) },
+        projectModel: { updateProjectAccess: update },
+    } as unknown as ConstructorParameters<typeof ProjectService>[0]);
+    const app = express();
+    app.use(express.json());
+    app.use((req, _res, next) => {
+        req.services = {
+            ...h.request.services,
+            getProjectService: () => projectService,
+        } as ServiceRepository;
+        req.isAuthenticated = (() => false) as Request['isAuthenticated'];
+        next();
+    });
+    RegisterRoutes(app);
+    const failures: unknown[] = [];
+    app.use(
+        (error: Error, _req: Request, res: Response, _next: NextFunction) => {
+            failures.push(error);
+            res.status(errorHandler(error).statusCode).json({
+                error: 'refused',
+            });
+        },
+    );
+    const server = app.listen(0, '127.0.0.1');
+    try {
+        await once(server, 'listening');
+        const response = await fetch(
+            `http://127.0.0.1:${(server.address() as AddressInfo).port}/api/v1/projects/project/access/user`,
+            {
+                method: 'PATCH',
+                headers: {
+                    Authorization: 'Bearer token',
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ role: 'editor' }),
+            },
+        );
+        await response.arrayBuffer();
+        expect(response.status).toBe(403);
+        expect(failures).toEqual([
+            expect.objectContaining({
+                refusal: expect.objectContaining({
+                    reason: AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+                }),
+            }),
+        ]);
+        expect(policy).toHaveBeenCalledOnce();
+        expect(h.assertOperationWithRequest).not.toHaveBeenCalled();
+        expect(update).not.toHaveBeenCalled();
+    } finally {
+        policy.mockRestore();
+        server.closeAllConnections();
+        await new Promise<void>((resolve, reject) => {
+            server.close((error) => (error ? reject(error) : resolve()));
+        });
+    }
 });
