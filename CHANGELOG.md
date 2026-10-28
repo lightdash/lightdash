@@ -1,3 +1,10 @@
+# [3.93.0](https://github.com/lightdash/lightdash/compare/3.92.1...3.93.0) (2026-10-28)
+
+
+### Features
+
+* **homepage:** new homepage on by default for every organization ([#31753](https://github.com/lightdash/lightdash/issues/31753)) ([786aef2](https://github.com/lightdash/lightdash/commit/786aef23939982c2b309df8841b977ed6272f573))
+
 ## [3.92.1](https://github.com/lightdash/lightdash/compare/3.92.0...3.92.1) (2026-10-28)
 
 
