@@ -4,6 +4,7 @@ import {
     FeatureFlags,
     ProjectType,
     QueryExecutionContext,
+    QueryHistoryStatus,
     WarehouseTypes,
     type Account,
     type CreatePostgresCredentials,
@@ -16,6 +17,7 @@ import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { OrganizationWarehouseCredentialsModel } from '../../../models/OrganizationWarehouseCredentialsModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
+import { QueryHistoryModel } from '../../../models/QueryHistoryModel/QueryHistoryModel';
 import { RefreshTokenRotation } from '../../../models/RefreshTokenRotation/RefreshTokenRotation';
 import { UserWarehouseCredentialsModel } from '../../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseConnectionModel } from '../../../models/WarehouseConnectionModel/WarehouseConnectionModel';
@@ -34,6 +36,12 @@ vi.mock('@lightdash/warehouses', async (importOriginal) => ({
     ...(await importOriginal<typeof import('@lightdash/warehouses')>()),
     warehouseClientFromCredentials: vi.fn(),
 }));
+
+const fixtureHeader = {
+    baseline: '74945202a0',
+    agentResultIdentityCheckEnabled: true,
+    snowflakeRules: 'not covered',
+} as const;
 
 const shared: CreatePostgresCredentials = {
     type: WarehouseTypes.POSTGRES,
@@ -244,7 +252,7 @@ const credentialStores = [
     'organization_warehouse_credentials',
 ] as const;
 
-describe('golden warehouse credentials at main 74945202a0', () => {
+describe(`golden warehouse credentials at main ${fixtureHeader.baseline}, producer checks=${fixtureHeader.agentResultIdentityCheckEnabled}`, () => {
     let migrated: MigratedTestDatabase;
     let database: Knex;
     let encryptionUtil: EncryptionUtil;
@@ -278,6 +286,11 @@ describe('golden warehouse credentials at main 74945202a0', () => {
                 enabledFeatureFlags: new Set<string>(),
                 disabledFeatureFlags: new Set<string>(),
                 previewFeatureFlags: { enabled: false },
+                ai: {
+                    ...lightdashConfigMock.ai,
+                    agentResultIdentityCheckEnabled:
+                        fixtureHeader.agentResultIdentityCheckEnabled,
+                },
             };
             const projectModel = new ProjectModel({
                 database,
@@ -300,12 +313,14 @@ describe('golden warehouse credentials at main 74945202a0', () => {
                 database,
                 lightdashConfig: config,
             });
+            const queryHistoryModel = new QueryHistoryModel({ database });
             const aiAccessService = new AiAccessService({
                 lightdashConfig: config,
                 featureFlagModel,
                 projectModel,
                 userWarehouseCredentialsModel,
                 warehouseConnectionModel,
+                queryHistoryModel,
             } as never);
             const service = new ProjectService({
                 lightdashConfig: config,
@@ -478,6 +493,72 @@ describe('golden warehouse credentials at main 74945202a0', () => {
                 queryContext: requester.context,
             });
             expect(context.agentIdentity).toBeNull();
+            if (!enabled) {
+                const { queryUuid } = await queryHistoryModel.create(account, {
+                    organizationUuid,
+                    projectUuid,
+                    context: QueryExecutionContext.SQL_RUNNER,
+                    compiledSql: 'select 1',
+                    metricQuery: {
+                        exploreName: 'golden',
+                        dimensions: [],
+                        metrics: [],
+                        filters: {},
+                        sorts: [],
+                        limit: 1,
+                        tableCalculations: [],
+                    },
+                    fields: {},
+                    requestParameters: {
+                        sql: 'select 1',
+                        resultProducer: {
+                            version: 1,
+                            authMethod: 'session',
+                            warehouseConnectionUuid: null,
+                            agentIdentity: null,
+                            credentialOwner: {
+                                kind: 'person',
+                                userUuid:
+                                    '00000000-0000-4000-8000-000000000001',
+                                userWarehouseCredentialsUuid:
+                                    '00000000-0000-4000-8000-000000000002',
+                                identityFingerprint: 'other-person-identity',
+                            },
+                        },
+                    },
+                    usedParameters: null,
+                    cacheKey: 'golden-stored-result',
+                    pivotConfiguration: null,
+                    originalColumns: null,
+                });
+                await queryHistoryModel.update(
+                    queryUuid,
+                    projectUuid,
+                    { status: QueryHistoryStatus.READY },
+                    account,
+                );
+                const stored =
+                    await queryHistoryModel.getByQueryUuid(queryUuid);
+                if (!stored) throw new Error('Expected a stored query result');
+                expect(stored.status).toBe(QueryHistoryStatus.READY);
+                expect(
+                    stored.requestParameters.resultProducer?.credentialOwner,
+                ).not.toMatchObject({ userUuid });
+                await expect(
+                    aiAccessService.assertCanReadResultsForQueries(
+                        account,
+                        projectUuid,
+                        [{ queryHistory: stored, agentProducedOnly: false }],
+                    ),
+                ).resolves.toEqual(new Map());
+                await expect(
+                    aiAccessService.assertCanReadResults(
+                        account,
+                        projectUuid,
+                        stored,
+                    ),
+                ).resolves.toBeNull();
+            }
             const expected = outcomes[row[requester.column]];
             const stores = new Set<string>();
             const recordQuery = ({ sql }: { sql: string }) => {
