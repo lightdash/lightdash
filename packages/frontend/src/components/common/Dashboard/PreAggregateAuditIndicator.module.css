@@ -63,9 +63,6 @@
 .tabBlock {
     border-left: 2px solid var(--mantine-color-ldGray-2);
     transition: border-color 0.15s ease;
-    @mixin dark {
-        border-left-color: var(--mantine-color-ldDark-4);
-    }
 }
 
 .tabBlock[data-active] {

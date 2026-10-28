@@ -81,14 +81,6 @@
     margin-top: -1px;
 }
 
-/* Code runs full height and wraps; the notebook scrolls, not the cell. */
-.code :global(.mantine-CodeHighlight-code) {
-    font-size: var(--mantine-font-size-xs);
-    line-height: 1.5;
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
-}
-
 .toolbar {
     min-height: 36px;
     padding: 0 var(--mantine-spacing-xs) 0 var(--mantine-spacing-md);

@@ -5,12 +5,7 @@
 .searchInput {
     flex: 1;
 
-    @mixin light {
-        background-color: alpha(var(--mantine-color-gray-1), 0.3);
-    }
-    @mixin dark {
-        background-color: alpha(var(--mantine-color-dark-5), 0.3);
-    }
+    background-color: alpha(var(--mantine-color-ldGray-1), 0.3);
 
     --input-bd-focus: var(--mantine-color-ldGray-7);
     &:focus {
@@ -27,10 +22,6 @@
 .comboboxOption[data-combobox-selected] > div {
     background-color: var(--mantine-color-ldGray-0);
     color: inherit;
-
-    @mixin dark {
-        background-color: var(--mantine-color-dark-7);
-    }
 }
 
 .comboboxHeader {

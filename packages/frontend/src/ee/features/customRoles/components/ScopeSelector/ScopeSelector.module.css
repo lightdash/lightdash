@@ -14,21 +14,14 @@
     transition: background-color 150ms ease;
 
     &:hover {
-        @mixin light {
-            background-color: var(--mantine-color-gray-0);
-        }
-        @mixin dark {
-            background-color: var(--mantine-color-dark-6);
-        }
+        background-color: var(--mantine-color-ldGray-0);
     }
 
     &[data-active='true'] {
-        @mixin light {
-            background-color: var(--mantine-color-blue-0);
-        }
-        @mixin dark {
-            background-color: var(--mantine-color-blue-9);
-        }
+        background-color: light-dark(
+            var(--mantine-color-blue-0),
+            var(--mantine-color-blue-9)
+        );
     }
 }
 

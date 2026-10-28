@@ -67,13 +67,7 @@
     display: flex;
     justify-content: center;
     padding: var(--mantine-spacing-md);
-
-    @mixin light {
-        background-color: var(--mantine-color-ldGray-0);
-    }
-    @mixin dark {
-        background-color: var(--mantine-color-dark-8);
-    }
+    background-color: var(--ld-color-page);
 }
 
 /* The compose Panel fills the group; center the (height-capped) card
@@ -100,13 +94,7 @@
     flex-direction: column;
     height: 100%;
     view-transition-name: app-composer;
-
-    @mixin light {
-        background-color: var(--mantine-color-white);
-    }
-    @mixin dark {
-        background-color: var(--mantine-color-dark-7);
-    }
+    background-color: var(--mantine-color-body);
 }
 
 /* Cute springy expand when the centered composer morphs into the split
@@ -141,24 +129,12 @@
     padding: 5px 10px;
     border-radius: var(--mantine-radius-xl);
     cursor: default;
-
-    @mixin light {
-        color: var(--mantine-color-ldGray-9);
-        background-color: var(--mantine-color-ldGray-1);
-    }
-    @mixin dark {
-        color: var(--mantine-color-ldGray-8);
-        background-color: var(--mantine-color-ldDark-4);
-    }
+    color: var(--mantine-color-text);
+    background-color: var(--mantine-color-ldGray-1);
 }
 
 .startingFromLabel {
-    @mixin light {
-        color: var(--mantine-color-ldGray-7);
-    }
-    @mixin dark {
-        color: var(--mantine-color-ldGray-6);
-    }
+    color: var(--mantine-color-ldGray-7);
 }
 
 .chatPanelCompose {
@@ -177,19 +153,10 @@
     overflow: hidden auto;
     /* Reserve room for the window-chrome dots / back button row. */
     padding-top: 4px;
-
-    @mixin light {
-        border-color: var(--mantine-color-ldGray-2);
-        box-shadow:
-            0 1px 2px alpha(var(--mantine-color-black), 0.04),
-            0 12px 32px -12px alpha(var(--mantine-color-black), 0.12);
-    }
-    @mixin dark {
-        border-color: var(--mantine-color-dark-4);
-        box-shadow:
-            0 1px 2px alpha(var(--mantine-color-black), 0.2),
-            0 16px 40px -12px alpha(var(--mantine-color-black), 0.5);
-    }
+    border-color: var(--mantine-color-default-border);
+    box-shadow:
+        0 1px 2px alpha(var(--mantine-color-black), 0.04),
+        0 12px 32px -12px alpha(var(--mantine-color-black), 0.12);
 }
 
 /* Three traffic-light dots, echoing the data-app (window) icon. */
@@ -202,19 +169,10 @@
     height: 8px;
     border-radius: 50%;
     z-index: 1;
-
-    @mixin light {
-        background-color: var(--mantine-color-ldGray-3);
-        box-shadow:
-            14px 0 0 var(--mantine-color-ldGray-3),
-            28px 0 0 var(--mantine-color-ldGray-3);
-    }
-    @mixin dark {
-        background-color: var(--mantine-color-dark-3);
-        box-shadow:
-            14px 0 0 var(--mantine-color-dark-3),
-            28px 0 0 var(--mantine-color-dark-3);
-    }
+    background-color: var(--mantine-color-ldGray-3);
+    box-shadow:
+        14px 0 0 var(--mantine-color-ldGray-3),
+        28px 0 0 var(--mantine-color-ldGray-3);
 }
 
 .chatMessages {
@@ -261,17 +219,9 @@
     line-height: 1.5;
     white-space: pre-wrap;
     border: 1px solid;
-
-    @mixin light {
-        background-color: var(--mantine-color-ldGray-0);
-        color: var(--mantine-color-black);
-        border-color: var(--mantine-color-ldGray-3);
-    }
-    @mixin dark {
-        background-color: var(--mantine-color-dark-6);
-        color: var(--mantine-color-white);
-        border-color: var(--mantine-color-dark-4);
-    }
+    background-color: var(--mantine-color-ldGray-0);
+    color: var(--mantine-color-text);
+    border-color: var(--mantine-color-ldGray-3);
 }
 
 .assistantMessage {
@@ -311,13 +261,7 @@
     overflow-y: auto;
     padding: var(--mantine-spacing-sm);
     border-top: 1px solid;
-
-    @mixin light {
-        border-color: var(--mantine-color-ldGray-2);
-    }
-    @mixin dark {
-        border-color: var(--mantine-color-ldDark-4);
-    }
+    border-color: var(--mantine-color-default-border);
 }
 
 /* Compose screen: heading + input both take their natural height and sit
@@ -345,24 +289,12 @@
     width: 1px;
     cursor: col-resize;
     transition: background-color 120ms ease;
-
-    @mixin light {
-        background-color: var(--mantine-color-ldGray-2);
-    }
-    @mixin dark {
-        background-color: var(--mantine-color-ldDark-4);
-    }
+    background-color: var(--mantine-color-ldGray-2);
 
     &:hover,
     &[data-active] {
-        @mixin light {
-            background-color: var(--mantine-color-ldGray-4);
-            box-shadow: 0 0 0 1px var(--mantine-color-ldGray-4);
-        }
-        @mixin dark {
-            background-color: var(--mantine-color-ldDark-6);
-            box-shadow: 0 0 0 1px var(--mantine-color-ldDark-6);
-        }
+        background-color: var(--mantine-color-ldGray-4);
+        box-shadow: 0 0 0 1px var(--mantine-color-ldGray-4);
     }
 
     /* Disabled while the chat panel is collapsed — keep the 1px divider as
@@ -378,13 +310,7 @@
     flex-direction: column;
     height: 100%;
     overflow: hidden;
-
-    @mixin light {
-        background-color: var(--mantine-color-ldGray-0);
-    }
-    @mixin dark {
-        background-color: var(--mantine-color-dark-8);
-    }
+    background-color: var(--ld-color-page);
 }
 
 @mixin smaller-than $mantine-breakpoint-sm {
@@ -433,13 +359,7 @@
     flex: 1;
     padding-bottom: 50px;
     gap: var(--mantine-spacing-sm);
-
-    @mixin light {
-        color: var(--mantine-color-ldGray-5);
-    }
-    @mixin dark {
-        color: var(--mantine-color-ldDark-8);
-    }
+    color: var(--mantine-color-ldGray-5);
 }
 
 .bubbleQueryList {
@@ -459,15 +379,8 @@
     height: 22px;
     max-width: 100%;
     min-width: 0;
-
-    @mixin light {
-        background-color: var(--mantine-color-white);
-        border-color: var(--mantine-color-ldGray-3);
-    }
-    @mixin dark {
-        background-color: var(--mantine-color-ldDark-4);
-        border-color: var(--mantine-color-ldDark-6);
-    }
+    background-color: var(--mantine-color-body);
+    border-color: var(--mantine-color-ldGray-3);
 }
 
 .bubbleQueryItemIcon {
@@ -494,15 +407,8 @@
     padding: var(--mantine-spacing-md);
     border-radius: var(--mantine-radius-md);
     border: 1px solid;
-
-    @mixin light {
-        background-color: var(--mantine-color-ldGray-1);
-        border-color: var(--mantine-color-ldGray-3);
-    }
-    @mixin dark {
-        background-color: var(--mantine-color-dark-7);
-        border-color: var(--mantine-color-dark-4);
-    }
+    background-color: var(--mantine-color-ldGray-1);
+    border-color: var(--mantine-color-ldGray-3);
 }
 
 /* Wraps the rendered chat history. Reproduces `.chatMessages` flex-column
@@ -532,13 +438,7 @@
     gap: 2px;
     padding: 6px 8px;
     border-radius: var(--mantine-radius-sm);
-
-    @mixin light {
-        background-color: var(--mantine-color-white);
-    }
-    @mixin dark {
-        background-color: var(--mantine-color-dark-5);
-    }
+    background-color: var(--mantine-color-body);
 }
 
 .bubbleClarificationQuestion {

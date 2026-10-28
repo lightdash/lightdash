@@ -89,6 +89,10 @@ export const BigNumberConditionalFormatting: FC = () => {
                     variant="contained"
                     chevronPosition="right"
                     className={accordionClasses.containedList}
+                    classNames={{
+                        control: accordionClasses.containedControl,
+                        label: accordionClasses.containedLabel,
+                    }}
                     transparentActiveItem
                 >
                     {activeConfigs.map((conditionalFormatting, index) => (

@@ -30,26 +30,13 @@
     background-color: var(--mantine-color-ldGray-1);
     border: 1px solid var(--mantine-color-ldGray-2);
     border-radius: var(--mantine-radius-md);
-
-    @mixin dark {
-        border-color: var(--mantine-color-ldDark-4);
-    }
 }
 
 .inputModeControlIndicator {
     border: 1px solid var(--mantine-color-ldGray-2);
     border-radius: calc(var(--mantine-radius-md) - 2px);
     box-shadow: var(--mantine-shadow-xs);
-
-    @mixin light {
-        background-color: var(--mantine-color-white);
-    }
-
-    @mixin dark {
-        background-color: var(--mantine-color-ldDark-4);
-        border-color: var(--mantine-color-ldDark-5);
-        box-shadow: none;
-    }
+    background-color: var(--mantine-color-body);
 }
 
 .inputModeControlItem {
@@ -62,10 +49,6 @@
     font-size: var(--mantine-font-size-xs);
     font-weight: 600;
     line-height: 24px;
-
-    @mixin dark {
-        color: var(--mantine-color-ldDark-8);
-    }
 }
 
 .inputModeFormulaLabel {
@@ -78,10 +61,6 @@
     overflow: hidden;
     display: flex;
     flex-direction: column;
-
-    @mixin dark {
-        border-color: var(--mantine-color-ldDark-4);
-    }
 }
 
 .loadingFallback {

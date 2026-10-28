@@ -70,8 +70,7 @@
     border-radius: var(--mantine-radius-xl);
     background: var(--mantine-color-body);
     color: var(--mantine-color-dimmed);
-    border: 1px solid
-        light-dark(var(--mantine-color-gray-2), var(--mantine-color-ldDark-3));
+    border: 1px solid var(--mantine-color-default-border);
     box-shadow: var(--mantine-shadow-sm);
     cursor: pointer;
     max-width: rem(220px);
@@ -157,7 +156,6 @@
 
 .panel {
     composes: floatingPanel;
-    --ai-chat-input-bg: var(--mantine-color-background-0);
     right: 0;
     width: var(--panel-width);
     border-radius: var(--mantine-radius-lg);

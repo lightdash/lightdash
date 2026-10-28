@@ -444,6 +444,7 @@ export const AccessModelToggle: FC<AccessModelToggleProps> = ({
                         value={currentValue}
                         classNames={{
                             root: classes.segmentedControl,
+                            label: classes.segmentedLabel,
                         }}
                         onChange={(value) => {
                             const option = options.find(

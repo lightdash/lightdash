@@ -132,7 +132,14 @@ const NodeBody: FC<{ node: ToolComposerQueryNode }> = ({ node }) => {
         if (!canViewSql || !node.code) return null;
         return (
             <Box className={sqlBlockStyles.code}>
-                <CodeBlock code={node.code} language="python" />
+                <CodeBlock
+                    code={node.code}
+                    language="python"
+                    classNames={{
+                        codeHighlight: sqlBlockStyles.codeHighlight,
+                        code: sqlBlockStyles.codeInner,
+                    }}
+                />
             </Box>
         );
     }
@@ -140,7 +147,14 @@ const NodeBody: FC<{ node: ToolComposerQueryNode }> = ({ node }) => {
         if (!canViewSql || !node.payload.query) return null;
         return (
             <Box className={sqlBlockStyles.code}>
-                <CodeBlock code={node.payload.query} language="sql" />
+                <CodeBlock
+                    code={node.payload.query}
+                    language="sql"
+                    classNames={{
+                        codeHighlight: sqlBlockStyles.codeHighlight,
+                        code: sqlBlockStyles.codeInner,
+                    }}
+                />
             </Box>
         );
     }

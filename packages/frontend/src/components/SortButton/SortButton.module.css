@@ -3,13 +3,13 @@
     text-transform: unset;
 }
 
-.badge :global(.mantine-Badge-label),
+.badgeLabel,
 .content,
 .field {
     min-width: 0;
 }
 
-.badge :global(.mantine-Badge-label),
+.badgeLabel,
 .field {
     overflow: hidden;
     text-overflow: ellipsis;

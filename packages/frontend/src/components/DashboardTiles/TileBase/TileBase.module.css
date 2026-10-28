@@ -7,8 +7,7 @@
     overflow: unset;
     box-shadow: unset;
 
-    border: 1px solid
-        light-dark(var(--mantine-color-ldGray-2), var(--mantine-color-ldDark-2)) !important;
+    border: 1px solid var(--mantine-color-ldGray-2) !important;
 
     &[data-with-transparent-border='true'] {
         border: 1px solid transparent !important;
@@ -163,18 +162,18 @@
         box-shadow: none !important;
     }
 
-    .tileTooltip > :global(.mantine-Group-root) {
+    .tileTooltip > * {
         flex-wrap: wrap;
         justify-content: flex-end;
         gap: 2px;
     }
 
-    .tileTooltip :global(.mantine-ActionIcon-root) {
+    .tileTooltip :is(button, a) {
         min-width: 44px;
         min-height: 44px;
     }
 
-    .tileTooltip :global(.mantine-ActionIcon-root svg) {
+    .tileTooltip :is(button, a) svg {
         width: 20px !important;
         height: 20px !important;
     }

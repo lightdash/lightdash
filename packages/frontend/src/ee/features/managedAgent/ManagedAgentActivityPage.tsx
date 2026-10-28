@@ -2329,6 +2329,7 @@ const filterChipProps = (isActive: boolean) =>
         className: isActive
             ? `${classes.filterChip} ${classes.filterChipActive}`
             : classes.filterChip,
+        classNames: { section: classes.filterChipSection },
     }) as const;
 
 const FilterChipMultiSelect: FC<{

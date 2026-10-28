@@ -11,19 +11,11 @@
 
 .messageCard {
     overflow: visible;
-
-    @mixin light {
-        background-color: color-mix(
-            in srgb,
-            var(--mantine-color-ldGray-1) 45%,
-            transparent
-        );
-    }
-
-    @mixin dark {
-        background-color: var(--mantine-color-ldGray-1);
-        border-color: var(--mantine-color-ldGray-2);
-    }
+    background-color: color-mix(
+        in srgb,
+        var(--mantine-color-ldGray-1) 45%,
+        transparent
+    );
 }
 
 .messageCard.emptyMessageCard {
@@ -43,14 +35,7 @@
     background-color: transparent;
     font-size: 0.8125rem;
     font-weight: 500;
-
-    @mixin light {
-        color: var(--mantine-color-ldGray-8);
-    }
-
-    @mixin dark {
-        color: var(--mantine-color-text);
-    }
+    color: var(--mantine-color-ldGray-8);
 }
 
 .messageText {
