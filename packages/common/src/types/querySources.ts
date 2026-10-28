@@ -49,6 +49,22 @@ export enum QuerySourceType {
     PYTHON = 'python',
 }
 
+/** The external APIs an api query source can call live. */
+export enum ApiConnectorType {
+    POSTHOG = 'posthog',
+}
+
+/**
+ * What an api query asks its connector to run. Only `query` exists: a query
+ * in the connector's own language, such as HogQL for PostHog. APIs without a
+ * query language will add another kind rather than change this one.
+ */
+export type ApiSourcePayload = {
+    kind: 'query';
+    /** A query in the connector's language, e.g. HogQL for PostHog. */
+    query: string;
+};
+
 /**
  * A name identifying one query within a multi-query submission. Other queries
  * reference this query's results by this name, and by default the results are
