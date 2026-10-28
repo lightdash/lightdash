@@ -214,11 +214,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
             projectUuid,
         }),
     );
-    const canMergeAnotherQuery =
-        explore.type !== ExploreType.VIRTUAL &&
-        !!merge &&
-        !merge.isMerging &&
-        !merge.readOnly;
+    const canMergeAnotherQuery = !!merge && !merge.isMerging && !merge.readOnly;
 
     // Only call `onBack` for 4XX errors, otherwise we lose URL state when there's a Network error or backend is down
     if (status === 'error' && error.error.statusCode < 500) {
@@ -285,7 +281,8 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                     {explore.type === ExploreType.VIRTUAL &&
                         (canEditVirtualView ||
                             canDeleteVirtualView ||
-                            canViewContentAsCode) && (
+                            canViewContentAsCode ||
+                            canMergeAnotherQuery) && (
                             <Menu withArrow offset={-2}>
                                 <Menu.Target>
                                     <ActionIcon
@@ -298,6 +295,27 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                                     </ActionIcon>
                                 </Menu.Target>
                                 <Menu.Dropdown>
+                                    {canMergeAnotherQuery && (
+                                        <Menu.Item
+                                            leftSection={
+                                                <MantineIcon
+                                                    icon={IconGitMerge}
+                                                />
+                                            }
+                                            rightSection={<BetaBadge />}
+                                            onClick={handleAddMergeSource}
+                                        >
+                                            <Text fz="xs" fw={500}>
+                                                Merge another query
+                                            </Text>
+                                        </Menu.Item>
+                                    )}
+                                    {canMergeAnotherQuery &&
+                                        (canEditVirtualView ||
+                                            canViewContentAsCode ||
+                                            canDeleteVirtualView) && (
+                                            <Menu.Divider />
+                                        )}
                                     {canEditVirtualView && (
                                         <Menu.Item
                                             leftSection={
@@ -380,6 +398,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                             />
                         )}
                     {explore.type !== ExploreType.EXTERNAL_SOURCE &&
+                        explore.type !== ExploreType.VIRTUAL &&
                         canMergeAnotherQuery && (
                             <Menu withArrow offset={-2}>
                                 <Menu.Target>
