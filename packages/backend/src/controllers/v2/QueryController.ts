@@ -397,6 +397,7 @@ export class QueryController extends BaseController {
                 invalidateCache: body.invalidateCache,
                 usePreAggregateCache: body.usePreAggregateCache,
                 metricQuery,
+                limit: body.limit,
                 context: context ?? QueryExecutionContext.API,
                 dateZoom: body.dateZoom,
                 parameters: body.parameters,

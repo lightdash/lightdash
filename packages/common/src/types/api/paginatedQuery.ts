@@ -30,6 +30,13 @@ export type DateZoom = {
 export type ExecuteAsyncMetricQueryRequestParams =
     CommonExecuteQueryRequestParams & {
         query: Omit<MetricQueryRequest, 'csvLimit'>;
+        /**
+         * Export row limit, same contract as the saved-chart endpoints:
+         * - undefined: run with `query.limit`
+         * - null: all results, capped by the org's CSV cells limit
+         * - number: that many rows, capped by the org's CSV cells limit
+         */
+        limit?: number | null | undefined;
         dateZoom?: DateZoom;
         pivotConfiguration?: PivotConfiguration;
         // Filters whose target field is absent from the query's explore are
