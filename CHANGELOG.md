@@ -1,3 +1,10 @@
+# [3.92.0](https://github.com/lightdash/lightdash/compare/3.91.0...3.92.0) (2026-10-28)
+
+
+### Features
+
+* **homepage:** org-level opening picker in homepage admin controls ([#31752](https://github.com/lightdash/lightdash/issues/31752)) ([b8a2f5e](https://github.com/lightdash/lightdash/commit/b8a2f5e6667f3a2a9dd8251d3aaf385851021560))
+
 # [3.91.0](https://github.com/lightdash/lightdash/compare/3.90.0...3.91.0) (2026-10-28)
 
 
