@@ -1,3 +1,4 @@
+import { ApiConnectorType } from '@lightdash/common';
 import express from 'express';
 import knex from 'knex';
 import { MockClient } from 'knex-mock-client';
@@ -473,5 +474,59 @@ describe('database transaction metrics', () => {
             ]),
         );
         await database.destroy();
+    });
+});
+
+describe('live API source metrics', () => {
+    beforeEach(() => {
+        prometheus.register.clear();
+        vi.spyOn(http.Server.prototype, 'listen').mockImplementation(
+            function mockListen(this: http.Server) {
+                return this;
+            },
+        );
+    });
+
+    afterEach(() => {
+        prometheus.register.clear();
+        vi.restoreAllMocks();
+    });
+
+    it('counts requests by connector and outcome from a zero baseline', async () => {
+        const metrics = new PrometheusMetrics({
+            ...lightdashConfigMock.prometheus,
+            enabled: true,
+        });
+        metrics.start();
+        const requests = prometheus.register.getSingleMetric(
+            'lightdash_api_source_requests_total',
+        );
+        const inflight = prometheus.register.getSingleMetric(
+            'lightdash_api_source_inflight_requests',
+        );
+
+        expect((await requests!.get()).values).toContainEqual({
+            labels: { connector: 'posthog', outcome: 'rate_limited' },
+            value: 0,
+        });
+
+        metrics.trackApiSourceInflight(ApiConnectorType.POSTHOG, 1);
+        expect((await inflight!.get()).values).toEqual([
+            { labels: { connector: 'posthog' }, value: 1 },
+        ]);
+        metrics.observeApiSourceRequest(
+            ApiConnectorType.POSTHOG,
+            'rate_limited',
+            1200,
+        );
+        metrics.trackApiSourceInflight(ApiConnectorType.POSTHOG, -1);
+
+        expect((await requests!.get()).values).toContainEqual({
+            labels: { connector: 'posthog', outcome: 'rate_limited' },
+            value: 1,
+        });
+        expect((await inflight!.get()).values).toEqual([
+            { labels: { connector: 'posthog' }, value: 0 },
+        ]);
     });
 });
