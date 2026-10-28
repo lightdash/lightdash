@@ -1,3 +1,10 @@
+# [3.80.0](https://github.com/lightdash/lightdash/compare/3.79.1...3.80.0) (2026-10-28)
+
+
+### Features
+
+* **query-sources:** add PostHog connector for live API sources ([#31592](https://github.com/lightdash/lightdash/issues/31592)) ([6d96791](https://github.com/lightdash/lightdash/commit/6d96791521e9b704155ca675656dfb900bf2ffba)), closes [#31597](https://github.com/lightdash/lightdash/issues/31597)
+
 ## [3.79.1](https://github.com/lightdash/lightdash/compare/3.79.0...3.79.1) (2026-10-28)
 
 
