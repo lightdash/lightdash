@@ -1,6 +1,14 @@
 import { subject } from '@casl/ability';
 import { type HomepageOpening } from '@lightdash/common';
-import { Menu, Text } from '@mantine/core';
+import {
+    Box,
+    Button,
+    Group,
+    Popover,
+    Stack,
+    Text,
+    UnstyledButton,
+} from '@mantine/core';
 import {
     IconArrowBackUp,
     IconCheck,
@@ -10,15 +18,21 @@ import {
 } from '@tabler/icons-react';
 import { useEffect, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
+import { useLocalStorage } from 'react-use';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
 import { useContentAuthoringEnabled } from '../../../hooks/useContentAuthoringEnabled';
 import { Can } from '../../../providers/Ability';
 import classes from './adminHomepageControls.module.css';
+import { getGreeting } from './greeting';
 import {
+    useHomepageOpening,
     useOrgHomepageSettings,
     useUpdateOrgHomepageSettings,
 } from './hooks/useOrgHomepageSettings';
+import { PresetCard } from './TryNewHomepagePromo';
+
+const DEFAULT_NOTICE_STORAGE_KEY = 'homepage-v2-default-notice-closed';
 
 type Props = {
     projectUuid: string;
@@ -26,85 +40,195 @@ type Props = {
     showNewHomepage?: boolean;
 };
 
-const OPENING_OPTIONS: {
-    value: HomepageOpening | null;
-    label: string;
-    description: string;
-}[] = [
-    {
-        value: 'ask-first',
-        label: 'Ask first',
-        description: 'Opens on the Ask AI composer',
-    },
-    {
-        value: 'content-first',
-        label: 'Content first',
-        description: 'Opens on your content',
-    },
-    {
-        value: null,
-        label: 'Auto',
-        description: 'Ask first when AI is available',
-    },
-];
-
 // Org-wide opening choice. Always writes enabled: true because the control is
 // only reachable while the new homepage is on; writing the org's current
 // (possibly absent) value would create an explicit opt-out row.
-const OpeningMenu: FC<{ organizationUuid: string | undefined }> = ({
-    organizationUuid,
-}) => {
+const OpeningMenu: FC<{
+    projectUuid: string;
+    organizationUuid: string | undefined;
+}> = ({ projectUuid, organizationUuid }) => {
     const settings = useOrgHomepageSettings();
     const updateSettings = useUpdateOrgHomepageSettings();
+    const { opening, canAskAi } = useHomepageOpening(projectUuid);
     const current = settings.data?.opening ?? null;
+    const [pickerOpened, setPickerOpened] = useState(false);
+    const greeting = getGreeting(undefined);
+
+    // One-time notice for admins whose org landed on the new homepage by
+    // default. Every opt-in via the modal picked an explicit opening, so a
+    // null opening identifies orgs that never chose.
+    const [noticeClosed, setNoticeClosed] = useLocalStorage(
+        DEFAULT_NOTICE_STORAGE_KEY,
+        false,
+    );
+    const showNotice =
+        !noticeClosed && !!settings.data?.enabled && current === null;
+    const closeNotice = () => setNoticeClosed(true);
+
+    const choose = (value: HomepageOpening | null) =>
+        updateSettings.mutate({ enabled: true, opening: value });
 
     return (
         <Can I="manage" this={subject('Organization', { organizationUuid })}>
-            <Menu position="bottom-end" width={240}>
-                <Menu.Target>
-                    <button
-                        type="button"
-                        className={classes.tbBtn}
-                        aria-label="Homepage opening"
-                    >
-                        <MantineIcon icon={IconLayout} size={15} />
-                        <span className={classes.tbBtnLabel} aria-hidden="true">
-                            Homepage opening
-                        </span>
-                    </button>
-                </Menu.Target>
-                <Menu.Dropdown>
-                    <Menu.Label>How every homepage opens</Menu.Label>
-                    {OPENING_OPTIONS.map((option) => (
-                        <Menu.Item
-                            key={option.label}
-                            disabled={updateSettings.isLoading}
-                            rightSection={
-                                option.value === current ? (
-                                    <MantineIcon icon={IconCheck} size={14} />
-                                ) : null
-                            }
-                            onClick={() =>
-                                updateSettings.mutate({
-                                    enabled: true,
-                                    opening: option.value,
-                                })
-                            }
+            <Popover
+                opened={showNotice}
+                onDismiss={closeNotice}
+                position="bottom-end"
+                width={300}
+                withArrow
+            >
+                <Popover.Target>
+                    <Box>
+                        <Popover
+                            opened={pickerOpened}
+                            onChange={setPickerOpened}
+                            position="bottom-end"
+                            width={640}
                         >
-                            <Text size="sm">{option.label}</Text>
-                            <Text size="xs" c="dimmed">
-                                {option.description}
-                            </Text>
-                        </Menu.Item>
-                    ))}
-                </Menu.Dropdown>
-            </Menu>
+                            <Popover.Target>
+                                <button
+                                    type="button"
+                                    className={classes.tbBtn}
+                                    aria-label="Homepage opening"
+                                    aria-expanded={pickerOpened}
+                                    onClick={() => setPickerOpened((o) => !o)}
+                                >
+                                    <MantineIcon icon={IconLayout} size={15} />
+                                    <span
+                                        className={classes.tbBtnLabel}
+                                        aria-hidden="true"
+                                    >
+                                        Homepage opening
+                                    </span>
+                                </button>
+                            </Popover.Target>
+                            <Popover.Dropdown p={14}>
+                                <Stack gap="sm">
+                                    <Text size="sm" fw={600}>
+                                        How every homepage opens
+                                    </Text>
+                                    <Box
+                                        className={classes.pickerCards}
+                                        data-disabled={updateSettings.isLoading}
+                                    >
+                                        <Box
+                                            className={classes.pickerCard}
+                                            data-unavailable={!canAskAi}
+                                        >
+                                            <PresetCard
+                                                opening="ask-first"
+                                                greeting={greeting}
+                                                selectable={canAskAi}
+                                                selected={
+                                                    current === 'ask-first'
+                                                }
+                                                onSelect={() =>
+                                                    choose('ask-first')
+                                                }
+                                            />
+                                            {!canAskAi && (
+                                                <Text size="xs" c="dimmed">
+                                                    Needs an AI agent in this
+                                                    project.
+                                                </Text>
+                                            )}
+                                        </Box>
+                                        <Box className={classes.pickerCard}>
+                                            <PresetCard
+                                                opening="content-first"
+                                                greeting={greeting}
+                                                selectable
+                                                selected={
+                                                    current === 'content-first'
+                                                }
+                                                onSelect={() =>
+                                                    choose('content-first')
+                                                }
+                                            />
+                                        </Box>
+                                    </Box>
+                                    <UnstyledButton
+                                        className={classes.autoRow}
+                                        data-selected={current === null}
+                                        disabled={updateSettings.isLoading}
+                                        onClick={() => choose(null)}
+                                    >
+                                        <Box>
+                                            <Text size="sm" fw={600}>
+                                                Auto
+                                            </Text>
+                                            <Text size="xs" c="dimmed">
+                                                Ask first when an AI agent is
+                                                available, content first
+                                                otherwise.
+                                                {current === null &&
+                                                    ` Currently ${
+                                                        opening === 'ask-first'
+                                                            ? 'ask first'
+                                                            : 'content first'
+                                                    }.`}
+                                            </Text>
+                                        </Box>
+                                        <span className={classes.autoCheck}>
+                                            <MantineIcon
+                                                icon={IconCheck}
+                                                size={12}
+                                            />
+                                        </span>
+                                    </UnstyledButton>
+                                </Stack>
+                            </Popover.Dropdown>
+                        </Popover>
+                    </Box>
+                </Popover.Target>
+                <Popover.Dropdown bg="ldDark.9" c="ldGray.0" p={14}>
+                    <Stack gap="sm">
+                        <Text fw={600} size="sm">
+                            Your homepage has a new look
+                        </Text>
+                        <Box className={classes.noticePreview}>
+                            <PresetCard
+                                opening={opening}
+                                greeting={greeting}
+                                selectable={false}
+                                selected={false}
+                                onSelect={() => {}}
+                            />
+                        </Box>
+                        <Text size="sm" c="ldGray.3">
+                            Everyone in your organization now lands here. Pick
+                            how it opens, or switch back to the classic homepage
+                            any time.
+                        </Text>
+                        <Group gap="xs" justify="flex-end">
+                            <Button
+                                size="xs"
+                                variant="subtle"
+                                c="ldGray.0"
+                                onClick={closeNotice}
+                            >
+                                Got it
+                            </Button>
+                            <Button
+                                size="xs"
+                                variant="white"
+                                onClick={() => {
+                                    closeNotice();
+                                    setPickerOpened(true);
+                                }}
+                            >
+                                Choose opening
+                            </Button>
+                        </Group>
+                    </Stack>
+                </Popover.Dropdown>
+            </Popover>
         </Can>
     );
 };
 
-// Quiet escape hatch for the opt-in flow: only offered when the org enabled
-// homepage v2 via settings (flag-enabled orgs have no settings row to unset).
+// Quiet escape hatch: hidden while the settings request is still loading or
+// failed, since there is nothing to switch back from.
 const SwitchBackButton: FC<{ organizationUuid: string | undefined }> = ({
     organizationUuid,
 }) => {
@@ -186,7 +310,10 @@ export const AdminHomepageControls: FC<Props> = ({
 
     return (
         <div className={classes.corner} data-page-scrolled={isPageScrolled}>
-            <OpeningMenu organizationUuid={organizationUuid} />
+            <OpeningMenu
+                projectUuid={projectUuid}
+                organizationUuid={organizationUuid}
+            />
             <SwitchBackButton organizationUuid={organizationUuid} />
             <Can
                 I="manage"

@@ -347,7 +347,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     projectHomepageModel:
                         models.getProjectHomepageModel<ProjectHomepageModel>(),
                     analytics: context.lightdashAnalytics,
-                    featureFlagService: repository.getFeatureFlagService(),
                     groupsModel: models.getGroupsModel(),
                     projectModel: models.getProjectModel(),
                     userModel: models.getUserModel(),
