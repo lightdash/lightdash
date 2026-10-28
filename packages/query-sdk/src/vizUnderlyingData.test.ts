@@ -20,6 +20,12 @@ const EXEC_RESULT = {
     metricQuery: {},
     fields: {
         orders_amount: { fieldType: 'metric', type: 'sum', label: 'Amount' },
+        orders_status: {
+            fieldType: 'dimension',
+            type: 'string',
+            label: 'Status',
+            urls: [{ label: 'Open', url: 'https://x/${value.raw}' }],
+        },
     },
 };
 
@@ -73,6 +79,13 @@ describe('getVizUnderlyingData', () => {
             name: 'orders_amount',
             label: 'Amount',
             type: 'number',
+        });
+        // Field link patterns flow through to the result column.
+        expect(result.columns).toContainEqual({
+            name: 'orders_status',
+            label: 'Status',
+            type: 'string',
+            urls: [{ label: 'Open', url: 'https://x/${value.raw}' }],
         });
         expect(result.format(result.rows[0], 'orders_amount')).toBe('$100');
     });

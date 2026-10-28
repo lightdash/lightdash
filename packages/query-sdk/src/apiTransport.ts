@@ -97,6 +97,7 @@ type FieldMeta = {
     format?: string;
     round?: number;
     compact?: string;
+    urls?: { label: string; url: string }[];
     [key: string]: unknown;
 };
 
@@ -915,10 +916,20 @@ function mapApiRowsToQueryResult({
         const name = idToName.get(fieldId) ?? fieldId;
         const fieldMeta = fields[fieldId];
         const colMeta = columns[fieldId];
+        const urls = Array.isArray(fieldMeta?.urls)
+            ? fieldMeta.urls.filter(
+                  (u): u is { label: string; url: string } =>
+                      typeof u === 'object' &&
+                      u !== null &&
+                      typeof u.label === 'string' &&
+                      typeof u.url === 'string',
+              )
+            : [];
         return {
             name,
             label: fieldMeta?.label ?? fieldMeta?.displayName ?? name,
             type: mapColumnType(colMeta?.type ?? fieldMeta?.type ?? 'string'),
+            ...(urls.length > 0 ? { urls } : {}),
         };
     });
 

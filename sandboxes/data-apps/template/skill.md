@@ -147,7 +147,18 @@ columns:
                     url: "https://portal.example.com/users/${row.accounts.owner_id.raw }"
 ```
 
-**When a field you display declares `urls`, render its values as links built from those patterns** — in tables, underlying-data views, and anywhere the raw value is shown. Dashboards already do this; the app must match. Resolve placeholders yourself (simple substitution):
+**When a field you display declares `urls`, render its values as links built from those patterns** — in tables, underlying-data views, and anywhere the raw value is shown. Dashboards already do this; the app must match.
+
+Every query result's `columns` carry the patterns too (`column.urls`), and the SDK resolves them per cell — prefer this over hand-rolling, especially in generic column loops:
+
+```tsx
+import { resolveColumnUrls } from '@lightdash/query-sdk';
+
+const links = resolveColumnUrls({ column, row, columns, format });
+// → [{ label, href }] with unresolvable patterns already skipped
+```
+
+When you hand-roll instead (e.g. a hard-coded table where you know the field), resolve placeholders with simple substitution:
 
 - `${value.raw}` / `${value.formatted}` — the cell's own raw/formatted value.
 - `${row.<model>.<field>.raw}` (or `.formatted`) — another field in the same result row. **Add that field to the query** so it's present in the row.
@@ -526,6 +537,27 @@ Rules:
 - Whenever you show an underlying-data table/dialog, include a Download button in that table/dialog header. It should call `downloadUnderlyingData({ row, metric, fileType, values, limit, filename })`, track export state, and show a spinner or "Exporting..." label until the promise settles.
 - For underlying-data downloads, `limit: 'table'` uses the backend default underlying-data row limit, `limit: 'all'` exports all matching rows allowed by backend export caps, and a number requests that many rows.
 - This works for grouped SDK query rows. If you have heavily transformed or pivoted data client-side, keep the original source row around and pass that original row.
+- **Render field links in the dialog's generic column loop.** Underlying-data columns carry `urls` (the field's link patterns), and `resolveColumnUrls` resolves them per cell — a cell with resolved links renders as a link (see [Field links — `urls`](#field-links--urls)):
+
+```tsx
+import { resolveColumnUrls } from '@lightdash/query-sdk';
+
+{result.columns.map((c) => {
+    const links = resolveColumnUrls({ column: c, row: r, columns: result.columns, format: result.format });
+    return (
+        <TableCell key={c.name}>
+            {links.length > 0 ? (
+                <a href={links[0].href} target="_blank" rel="noreferrer"
+                   className="text-primary underline underline-offset-4">
+                    {result.format(r, c.name)}
+                </a>
+            ) : (
+                result.format(r, c.name)
+            )}
+        </TableCell>
+    );
+})}
+```
 
 ```tsx
 const revenueQuery = query('orders')

@@ -146,10 +146,24 @@ export type QueryDefinition = {
 
 export type ColumnType = 'string' | 'number' | 'date' | 'timestamp' | 'boolean';
 
+/**
+ * A link pattern declared on the field in the semantic layer (`urls:` in the
+ * model YAML). `url` is a template: `${value.raw}` / `${value.formatted}` is
+ * the cell's own value, `${row.<table>.<field>.raw}` (or `.formatted`)
+ * references another field in the same result row, and a `| url_encode`
+ * filter URL-encodes the substituted value. Resolve with `resolveColumnUrls`.
+ */
+export type ColumnUrl = {
+    label: string;
+    url: string;
+};
+
 export type Column = {
     name: string;
     label: string;
     type: ColumnType;
+    /** Link patterns for this field's values; render cells as links when set. */
+    urls?: ColumnUrl[];
 };
 
 export type Row = Record<string, string | number | boolean | null>;
