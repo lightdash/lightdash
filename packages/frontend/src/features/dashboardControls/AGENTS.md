@@ -52,6 +52,9 @@ Gated on the flag:
   turns on `isControlsEnabled` for the grid, header and filter bar, and
   renders `TileOverlays`, `TabCounts` and `FieldTilesBar`. A dashboard with
   no tiles has no grid, so its header gets `isControlsEnabled={false}`.
+- `pages/DashboardVersionComparison.tsx`: a "Filter sections" block after
+  "Filters" when either version has a section, rows from
+  `getSectionChangeRows` in the shipped filters table.
 
 Openings (optional props, defaults are today's behaviour):
 
@@ -104,6 +107,7 @@ Fix behaviour in the shared piece, once, never in a copy.
 | `LinkPrompts.tsx`, `linkCandidates.ts` | Link prompts on tiles added while editing |
 | `SectionedFilters.tsx`, `SectionMenu.tsx`, `SectionNameInput.tsx`, `sections.ts` | Sections bar, drag and drop, naming; pure section helpers |
 | `SelectionBar.tsx`, `SelectionActions.tsx`, `barSelection.ts` | Multi-select on the sectioned bar |
+| `sectionVersionChanges.ts` | Section rows for the version comparison page |
 | `DashboardHeaderGuard.tsx` | Shipped header made inert while an editor's filter is edited |
 | `useEditorDismiss.ts` | Escape handling while a filter is edited |
 | `DropdownClass.tsx`, `railContractClasses.ts` | Embed class contract on the rail and portalled lists |
