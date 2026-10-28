@@ -8,6 +8,23 @@
     gap: 8px;
 }
 
+/* Crops the opt-in preset miniature to its greeting and hero */
+.noticePreview {
+    height: 110px;
+    overflow: hidden;
+    border-radius: 10px;
+    display: flex;
+    pointer-events: none;
+}
+
+.noticePreview > * {
+    flex: 1;
+    max-width: none;
+    border-width: 0;
+    border-radius: 0;
+    box-shadow: none;
+}
+
 .tbBtn {
     border: 1px solid var(--mantine-color-ldGray-2);
     background: var(--mantine-color-body);

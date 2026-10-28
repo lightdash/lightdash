@@ -29,6 +29,11 @@ vi.mock('../../../hooks/useContentAuthoringEnabled', () => ({
 
 vi.mock('./hooks/useOrgHomepageSettings', () => ({
     useOrgHomepageSettings: () => ({ data: settings.current }),
+    useHomepageOpening: () => ({
+        opening: 'content-first',
+        canAskAi: false,
+        isLoading: false,
+    }),
     useUpdateOrgHomepageSettings: () => ({
         mutate,
         isLoading: false,
@@ -59,6 +64,35 @@ describe('AdminHomepageControls', () => {
         authoringEnabled.current = true;
         settings.current = { enabled: false, opening: null };
         mutate.mockReset();
+        localStorage.clear();
+    });
+
+    it('shows the default-on notice once to admins whose org never chose an opening', () => {
+        settings.current = { enabled: true, opening: null };
+        const { unmount } = renderControls();
+
+        expect(
+            screen.getByText('Your homepage has a new look'),
+        ).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Got it' }));
+        expect(
+            screen.queryByText('Your homepage has a new look'),
+        ).not.toBeInTheDocument();
+
+        unmount();
+        renderControls();
+        expect(
+            screen.queryByText('Your homepage has a new look'),
+        ).not.toBeInTheDocument();
+    });
+
+    it('does not show the notice when the org already chose an opening', () => {
+        settings.current = { enabled: true, opening: 'ask-first' };
+        renderControls();
+
+        expect(
+            screen.queryByText('Your homepage has a new look'),
+        ).not.toBeInTheDocument();
     });
 
     it('lets org admins change the opening without touching enablement', () => {
