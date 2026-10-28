@@ -144,7 +144,7 @@
     white-space: nowrap;
 }
 
-.sqlCode {
+.sql :global(.mantine-CodeHighlight-code) {
     font-size: var(--mantine-font-size-xs);
     line-height: var(--mantine-line-height-md);
 }

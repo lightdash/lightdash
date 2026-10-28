@@ -214,7 +214,7 @@
 }
 
 .highlightOnHover .bodyRow:hover .bodyCell {
-    background: var(--mantine-color-ldGray-0);
+    background: var(--mantine-color-default-hover);
 }
 
 .bodyRow:last-of-type .bodyCell,
@@ -393,58 +393,6 @@
         border-color 160ms ease,
         box-shadow 160ms ease;
     width: var(--content-table-search-expanded-width, 280px);
-}
-
-@mixin dark {
-    .paper {
-        border-color: var(--mantine-color-ldDark-4);
-    }
-
-    .headCell,
-    .footerCell {
-        background: var(--mantine-color-background);
-        border-bottom-color: var(--mantine-color-ldDark-4);
-        color: var(--mantine-color-ldDark-7);
-    }
-
-    .footerCell {
-        border-top-color: var(--mantine-color-ldDark-4);
-    }
-
-    .bodyCell {
-        border-bottom-color: var(--mantine-color-ldDark-4);
-        color: var(--mantine-color-ldDark-7);
-    }
-
-    .columnBorders .headCell,
-    .columnBorders .footerCell {
-        border-right-color: var(--mantine-color-ldDark-4);
-    }
-
-    .highlightOnHover .bodyRow:hover .bodyCell {
-        background: var(--mantine-color-ldDark-3);
-    }
-
-    .progress {
-        background: linear-gradient(
-            90deg,
-            transparent,
-            var(--mantine-color-ldDark-4),
-            transparent
-        );
-    }
-
-    .emptyStateIcon {
-        background: var(--mantine-color-ldDark-3);
-    }
-
-    .searchInput {
-        border-color: var(--mantine-color-ldGray-4);
-    }
-
-    .searchInput:hover {
-        border-color: var(--mantine-color-ldGray-5);
-    }
 }
 
 @keyframes inHouseTableProgress {

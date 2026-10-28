@@ -21,6 +21,10 @@
 }
 
 .pinnedRow {
+    --pin-flash: light-dark(
+        var(--mantine-color-yellow-1),
+        var(--mantine-color-yellow-9)
+    );
     border-left: 3px solid var(--mantine-color-yellow-5);
     animation: highlight 4s ease-in-out 2;
 }
@@ -34,10 +38,7 @@
         background-color: transparent;
     }
     50% {
-        background-color: light-dark(
-            var(--mantine-color-yellow-1),
-            var(--mantine-color-yellow-9)
-        );
+        background-color: var(--pin-flash);
     }
     100% {
         background-color: transparent;
