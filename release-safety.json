@@ -1,14 +1,29 @@
 {
   "schemaVersion": "2",
-  "version": "3.87.0",
-  "previousVersion": "3.86.0",
-  "releaseDate": "2026-10-28T17:34:09.680Z",
+  "version": "3.88.0",
+  "previousVersion": "3.87.0",
+  "releaseDate": "2026-10-28T17:40:58.656Z",
   "migrations": {
-    "present": false,
-    "count": 0,
-    "coreCount": 0,
+    "present": true,
+    "count": 1,
+    "coreCount": 1,
     "eeCount": 0,
-    "files": []
+    "files": [
+      {
+        "name": "20261026120000_add_oauth_session_expires_at.ts",
+        "edition": "core",
+        "tables": [
+          "oauth2_access_tokens",
+          "oauth2_authorization_codes",
+          "oauth2_refresh_tokens"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": false
+        }
+      }
+    ]
   },
   "compatibility": {
     "rollingUpdateSafe": true,

@@ -1,3 +1,10 @@
+# [3.88.0](https://github.com/lightdash/lightdash/compare/3.87.0...3.88.0) (2026-10-28)
+
+
+### Features
+
+* **cli:** keep OAuth tokens for personal browser login and add lightdash logout ([#31603](https://github.com/lightdash/lightdash/issues/31603)) ([c7efd0f](https://github.com/lightdash/lightdash/commit/c7efd0f694b61bd233507c34c539c1f274ec4da4))
+
 # [3.87.0](https://github.com/lightdash/lightdash/compare/3.86.0...3.87.0) (2026-10-28)
 
 
