@@ -86,6 +86,18 @@ describe('AdminHomepageControls', () => {
         ).not.toBeInTheDocument();
     });
 
+    it('offers auto as a third choice and clears the explicit opening', () => {
+        settings.current = { enabled: true, opening: 'content-first' };
+        renderControls();
+
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Homepage opening' }),
+        );
+        fireEvent.click(screen.getByRole('button', { name: /^Auto/ }));
+
+        expect(mutate).toHaveBeenCalledWith({ enabled: true, opening: null });
+    });
+
     it('does not show the notice when the org already chose an opening', () => {
         settings.current = { enabled: true, opening: 'ask-first' };
         renderControls();
@@ -102,9 +114,7 @@ describe('AdminHomepageControls', () => {
         fireEvent.click(
             screen.getByRole('button', { name: 'Homepage opening' }),
         );
-        fireEvent.click(
-            screen.getByRole('menuitem', { name: /Content first/ }),
-        );
+        fireEvent.click(screen.getByRole('button', { name: /Content first/ }));
 
         expect(mutate).toHaveBeenCalledWith({
             enabled: true,

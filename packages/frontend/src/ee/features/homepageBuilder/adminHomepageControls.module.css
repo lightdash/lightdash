@@ -25,6 +25,53 @@
     box-shadow: none;
 }
 
+.pickerCards {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+}
+
+.pickerCards[data-disabled='true'] {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.pickerCard {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.pickerCard[data-unavailable='true'] > :first-child {
+    opacity: 0.55;
+}
+
+.autoRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+    padding: 10px 12px;
+    text-align: left;
+    font-family: inherit;
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: 10px;
+    background: var(--mantine-color-body);
+    color: var(--mantine-color-text);
+    cursor: pointer;
+}
+
+.autoRow:hover {
+    background: var(--mantine-color-default-hover);
+}
+
+.autoRow[data-selected='true'] {
+    border-color: var(--mantine-color-ldDark-9);
+}
+
 .tbBtn {
     border: 1px solid var(--mantine-color-ldGray-2);
     background: var(--mantine-color-body);
