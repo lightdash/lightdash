@@ -1,3 +1,10 @@
+## [3.75.2](https://github.com/lightdash/lightdash/compare/3.75.1...3.75.2) (2026-10-28)
+
+
+### Bug Fixes
+
+* **spaces:** handle missing inheritance chain when copying access ([#31612](https://github.com/lightdash/lightdash/issues/31612)) ([205239f](https://github.com/lightdash/lightdash/commit/205239f7dd132e6cde3797a62a88e8019eb4ff52))
+
 ## [3.75.1](https://github.com/lightdash/lightdash/compare/3.75.0...3.75.1) (2026-10-28)
 
 
