@@ -1,3 +1,10 @@
+## [3.78.3](https://github.com/lightdash/lightdash/compare/3.78.2...3.78.3) (2026-10-28)
+
+
+### Bug Fixes
+
+* paginate retained query history by creation time ([#31722](https://github.com/lightdash/lightdash/issues/31722)) ([22b39da](https://github.com/lightdash/lightdash/commit/22b39da5aebbb5473b963340a914b7bf66629d07))
+
 ## [3.78.2](https://github.com/lightdash/lightdash/compare/3.78.1...3.78.2) (2026-10-28)
 
 
