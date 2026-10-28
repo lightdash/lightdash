@@ -1,3 +1,10 @@
+## [3.92.1](https://github.com/lightdash/lightdash/compare/3.92.0...3.92.1) (2026-10-28)
+
+
+### Bug Fixes
+
+* rounded chart context menus with pop transition ([#31763](https://github.com/lightdash/lightdash/issues/31763)) ([9a6f3dd](https://github.com/lightdash/lightdash/commit/9a6f3dd720006f405aa1c2c49ab7737bac414124))
+
 # [3.92.0](https://github.com/lightdash/lightdash/compare/3.91.0...3.92.0) (2026-10-28)
 
 
