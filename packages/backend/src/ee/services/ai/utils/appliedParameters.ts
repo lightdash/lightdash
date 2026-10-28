@@ -19,23 +19,30 @@ export type AppliedParametersQuery = Pick<
 const getQueryParameterReferences = (
     explore: Explore,
     { dimensions, metrics, filters, additionalMetrics }: AppliedParametersQuery,
-): string[] =>
-    getMetricQueryParameterReferences(explore, {
+): string[] => {
+    const filterFieldIds = getTotalFilterRules(filters ?? {}).map(
+        (rule) => rule.target.fieldId,
+    );
+    const usedFieldIds = new Set([...metrics, ...filterFieldIds]);
+    return getMetricQueryParameterReferences(explore, {
         // Custom metrics compile from their base dimension's SQL.
         dimensions: [
             ...dimensions,
-            ...(additionalMetrics ?? []).flatMap(
-                ({ table, baseDimensionName }) =>
-                    baseDimensionName
-                        ? [getItemId({ table, name: baseDimensionName })]
-                        : [],
+            ...(additionalMetrics ?? []).flatMap((metric) =>
+                metric.baseDimensionName && usedFieldIds.has(getItemId(metric))
+                    ? [
+                          getItemId({
+                              table: metric.table,
+                              name: metric.baseDimensionName,
+                          }),
+                      ]
+                    : [],
             ),
         ],
         metrics,
-        filterFieldIds: getTotalFilterRules(filters ?? {}).map(
-            (rule) => rule.target.fieldId,
-        ),
+        filterFieldIds,
     });
+};
 
 export const getAppliedParameters = (
     explore: Explore,

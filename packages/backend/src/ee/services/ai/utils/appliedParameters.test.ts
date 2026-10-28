@@ -1,4 +1,9 @@
-import { FilterOperator, type Explore } from '@lightdash/common';
+import {
+    FilterOperator,
+    MetricType,
+    type AdditionalMetric,
+    type Explore,
+} from '@lightdash/common';
 import { getAppliedParameters } from './appliedParameters';
 
 const explore = {
@@ -72,5 +77,32 @@ describe('getAppliedParameters', () => {
             defaulted: { 'orders.date_range': 'last 7 days' },
             unset: [],
         });
+    });
+
+    it('reports custom metric base dimensions only for selected custom metrics', () => {
+        const customMetric: AdditionalMetric = {
+            name: 'in_range_count',
+            label: 'In range count',
+            table: 'orders',
+            type: MetricType.COUNT,
+            sql: '',
+            baseDimensionName: 'in_range',
+        };
+        const query = {
+            dimensions: ['orders_status'],
+            filters: {},
+            additionalMetrics: [customMetric],
+        };
+        expect(
+            getAppliedParameters(explore, {}, { ...query, metrics: [] }, null),
+        ).toBeNull();
+        expect(
+            getAppliedParameters(
+                explore,
+                {},
+                { ...query, metrics: ['orders_in_range_count'] },
+                null,
+            )?.defaulted,
+        ).toEqual({ 'orders.date_range': 'last 7 days' });
     });
 });
