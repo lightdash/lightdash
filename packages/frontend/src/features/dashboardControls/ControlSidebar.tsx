@@ -28,7 +28,7 @@ import classes from './ControlSidebar.module.css';
 import { EditorShell } from './EditorShell';
 import { FieldsAndTiles } from './FieldsAndTiles';
 import { FilterSettings } from './FilterSettings';
-import { getFilterFields } from './peers';
+import { getFilterRows } from './peers';
 import { getTilesSummary } from './railSummaries';
 import { withFilterRuleLabel } from './sidebarState';
 import { useAppliedTileCount } from './useAppliedTileCount';
@@ -223,7 +223,7 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule, labelId }) => {
     const fieldName =
         field?.label ??
         (filterRule.target.isSqlColumn ? filterRule.target.fieldId : null);
-    const fieldCount = getFilterFields(filterRule, dashboardTiles).length;
+    const fieldCount = getFilterRows(filterRule, dashboardTiles).length;
     const isStarting = isPlaceholder && isNew;
     const name = isStarting
         ? getUiString('filters.rail.newFilter')

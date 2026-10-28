@@ -14,6 +14,12 @@
 - A SQL column is never a field, even when its name matches a field id: use
   `isSqlColumnRow` / `isTargetOnRow` for counts, clearing, highlight, scroll
   and tab counts. SQL chart tiles map per tile with `isSqlColumn` targets.
+- The rail lists `getFilterRows`: the fields, then every column a SQL chart
+  tile is mapped to, so the list matches the tile cards. Removing such a
+  column row takes it off its tiles. Removing the first row promotes the
+  next one (a field, else a column); only the last row empties the filter.
+  Known limit: a column whose id equals one of the filter's fields shares
+  that field's row.
 - A data app tile takes the filter as a whole (on: no entry, off: `false`).
   It counts as filtered, never in a field's count; clear/remove leave it.
 - A mapping to a field the tile no longer offers (`getMissingTileFieldId`)

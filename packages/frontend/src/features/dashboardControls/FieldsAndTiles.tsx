@@ -32,7 +32,11 @@ import { DropdownClass } from './DropdownClass';
 import { getFieldCandidates } from './fieldCandidates';
 import { FieldRow } from './FieldRow';
 import classes from './FieldsAndTiles.module.css';
-import { applyFieldToUnfilteredTiles, getFilterFields } from './peers';
+import {
+    applyFieldToUnfilteredTiles,
+    getFilterFields,
+    getFilterRows,
+} from './peers';
 import { useRailContractClasses } from './railContractClasses';
 import { useControlsSidebar } from './useControlsSidebar';
 import { useFieldTileActions } from './useFieldTileActions';
@@ -162,15 +166,16 @@ export const FieldsAndTiles: FC = () => {
         () =>
             editingRule === null
                 ? []
-                : getFilterFields(editingRule, dashboardTiles),
+                : getFilterRows(editingRule, dashboardTiles),
         [editingRule, dashboardTiles],
     );
 
     const targetField = useFilterRuleField(editingRule);
 
-    // Listed rows: the filter's fields, then the ones waiting for a tile
+    // Listed rows: the filter's fields and columns, then the fields waiting
+    // for a tile
     const rowIds = useMemo(
-        () => [...fieldIds, ...waitingFieldIds],
+        () => [...new Set([...fieldIds, ...waitingFieldIds])],
         [fieldIds, waitingFieldIds],
     );
 

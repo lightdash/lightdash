@@ -16,6 +16,7 @@ import {
     getFieldCount,
     getFieldScope,
     getFilterFields,
+    getFilterRows,
     getMissingTileFieldId,
     getTabCounts,
     getTabCountsForField,
@@ -850,6 +851,52 @@ describe('what a field would do over the tiles in scope', () => {
         });
     });
 
+    describe('a SQL column on a field filter', () => {
+        const sqlTile = {
+            uuid: 's',
+            tabUuid: 't1',
+            type: DashboardTileTypes.SQL_CHART,
+        } as DashboardTile;
+        const allTiles = [...tiles, sqlTile];
+        const onColumn = rule({ s: toSqlColumnTarget('country') });
+
+        it('is a row of the filter, after its fields, but not a field', () => {
+            expect(getFilterFields(onColumn, allTiles)).toEqual([
+                'orders_status',
+            ]);
+            expect(getFilterRows(onColumn, allTiles)).toEqual([
+                'orders_status',
+                'country',
+            ]);
+            expect(isSqlColumnRow(onColumn, 'country')).toBe(true);
+            expect(
+                isTargetOnRow(
+                    onColumn,
+                    toSqlColumnTarget('country'),
+                    'country',
+                ),
+            ).toBe(true);
+        });
+
+        it('is no row once its tile is gone', () => {
+            expect(getFilterRows(onColumn, tiles)).toEqual(['orders_status']);
+        });
+
+        it('becomes the first row when the only field is removed', () => {
+            const next = removeField(
+                onColumn,
+                'orders_status',
+                allTiles,
+                fieldsByTile,
+                { s: [{ reference: 'country', type: DimensionType.STRING }] },
+            );
+            expect(next.target).toEqual(toSqlColumnTarget('country'));
+            expect(next.tileTargets).toEqual({
+                s: toSqlColumnTarget('country'),
+            });
+        });
+    });
+
     describe('a SQL column that reads like a field id', () => {
         const sqlTile = {
             uuid: 's',
@@ -915,6 +962,9 @@ describe('what a field would do over the tiles in scope', () => {
             };
             expect(isSqlColumnRow(columnRule, 'orders_status')).toBe(true);
             expect(isSqlColumnRow(onColumn, 'orders_status')).toBe(false);
+            expect(getFilterRows(onColumn, allTiles)).toEqual([
+                'orders_status',
+            ]);
             expect(
                 getFieldCount(
                     columnRule,

@@ -31,6 +31,7 @@ import {
 import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
 import { renderWithProviders as renderWithAppProviders } from '../../testing/testUtils';
 import { FieldsAndTiles } from './FieldsAndTiles';
+import { toSqlColumnTarget } from './peers';
 import { RailContractClasses } from './railContractClasses';
 import { useEditorDismiss } from './useEditorDismiss';
 
@@ -599,6 +600,19 @@ describe('FieldsAndTiles', () => {
             expect(updateFilter).not.toHaveBeenCalled();
         });
 
+        it('promotes the next column when its own column is removed', async () => {
+            const CITY = { ...COUNTRY, fieldId: 'city' };
+            setSidebar(sqlRule({ 'sql-1': COUNTRY, 'sql-3': CITY }));
+            renderWithProviders(<FieldsAndTiles />);
+
+            expect(countOf('city')).toHaveTextContent('1 tile');
+            await userEvent.click(removeButtonOf('country'));
+            expect(removeLastField).not.toHaveBeenCalled();
+            const next = getUpdatedRule();
+            expect(next.target).toEqual(CITY);
+            expect(next.tileTargets).toEqual({ 'sql-3': CITY });
+        });
+
         it('has no other field to add', () => {
             setSidebar(sqlRule({ 'sql-1': COUNTRY }));
             renderWithProviders(<FieldsAndTiles />);
@@ -606,6 +620,56 @@ describe('FieldsAndTiles', () => {
             expect(
                 screen.getByRole('button', { name: 'Add another field' }),
             ).toHaveAttribute('data-disabled', 'true');
+        });
+    });
+
+    describe('a field filter that also filters SQL chart tiles', () => {
+        const COUNTRY = { ...toSqlColumnTarget('country') };
+
+        beforeEach(() => {
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                dashboardTiles: [
+                    tile('tile-1'),
+                    tile('tile-2'),
+                    {
+                        uuid: 'sql-1',
+                        type: DashboardTileTypes.SQL_CHART,
+                    } as DashboardTile,
+                ],
+            };
+            mockSqlColumnsByTile.current = {
+                'sql-1': [{ reference: 'country', type: 'string' }],
+            };
+        });
+
+        it('lists the column its SQL chart tiles are on', async () => {
+            setSidebar(rule('orders_status', { 'sql-1': COUNTRY }));
+            renderWithProviders(<FieldsAndTiles />);
+
+            expect(countOf('Status')).toHaveTextContent('2 tiles');
+            expect(countOf('country')).toHaveTextContent('1 tile');
+            await expectDetails('country', 'SQL column · 1 of 1 tile');
+        });
+
+        it('promotes the column when the only field is removed', async () => {
+            setSidebar(rule('orders_status', { 'sql-1': COUNTRY }));
+            renderWithProviders(<FieldsAndTiles />);
+
+            await userEvent.click(removeButtonOf('Status'));
+            expect(removeLastField).not.toHaveBeenCalled();
+            const next = getUpdatedRule();
+            expect(next.target).toEqual(COUNTRY);
+            expect(next.tileTargets).toEqual({ 'sql-1': COUNTRY });
+        });
+
+        it('takes the column off its tiles when it is removed', async () => {
+            setSidebar(rule('orders_status', { 'sql-1': COUNTRY }));
+            renderWithProviders(<FieldsAndTiles />);
+
+            await userEvent.click(removeButtonOf('country'));
+            expect(removeLastField).not.toHaveBeenCalled();
+            expect(getUpdatedRule().tileTargets).toBeUndefined();
         });
     });
 
