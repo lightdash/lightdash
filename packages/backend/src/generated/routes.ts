@@ -26157,6 +26157,14 @@ const models: TsoaRoute.Models = {
                         dashboardFilters: { ref: 'DashboardFilters' },
                         pivotConfiguration: { ref: 'PivotConfiguration' },
                         dateZoom: { ref: 'DateZoom' },
+                        limit: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'double' },
+                                { dataType: 'enum', enums: [null] },
+                                { dataType: 'undefined' },
+                            ],
+                        },
                         query: {
                             ref: 'Omit_MetricQueryRequest.csvLimit_',
                             required: true,

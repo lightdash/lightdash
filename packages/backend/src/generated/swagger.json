@@ -27775,6 +27775,12 @@
                             "dateZoom": {
                                 "$ref": "#/components/schemas/DateZoom"
                             },
+                            "limit": {
+                                "type": "number",
+                                "format": "double",
+                                "nullable": true,
+                                "description": "Export row limit, same contract as the saved-chart endpoints:\n- undefined: run with `query.limit`\n- null: all results, capped by the org's CSV cells limit\n- number: that many rows, capped by the org's CSV cells limit"
+                            },
                             "query": {
                                 "$ref": "#/components/schemas/Omit_MetricQueryRequest.csvLimit_"
                             }
@@ -74291,7 +74297,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.84.0",
+        "version": "3.85.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"

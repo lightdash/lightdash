@@ -1,3 +1,17 @@
+# [3.85.0](https://github.com/lightdash/lightdash/compare/3.84.0...3.85.0) (2026-10-28)
+
+
+### Bug Fixes
+
+* **ai:** tell self-managed key owners when their provider rate limit is hit ([#31741](https://github.com/lightdash/lightdash/issues/31741)) ([615070f](https://github.com/lightdash/lightdash/commit/615070f96cf7c2160db0528270e2c29879c4052a))
+* apply the CSV cells limit to Explore exports like dashboard and chart exports ([#31735](https://github.com/lightdash/lightdash/issues/31735)) ([ffbd60e](https://github.com/lightdash/lightdash/commit/ffbd60e40bb8e3ac530af84798a6697065b53ae7))
+* hide virtual view actions on non-virtual explores ([#31750](https://github.com/lightdash/lightdash/issues/31750)) ([3411571](https://github.com/lightdash/lightdash/commit/3411571cac4b34a238ee54690e36c454e097d311))
+
+
+### Features
+
+* **query-sources:** track live API source usage ([#31746](https://github.com/lightdash/lightdash/issues/31746)) ([53101bc](https://github.com/lightdash/lightdash/commit/53101bcbfe5ed3c72ee7bd943aec072afad8df82)), closes [#31594](https://github.com/lightdash/lightdash/issues/31594)
+
 # [3.84.0](https://github.com/lightdash/lightdash/compare/3.83.0...3.84.0) (2026-10-28)
 
 
