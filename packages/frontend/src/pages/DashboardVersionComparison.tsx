@@ -644,14 +644,14 @@ const FiltersTable = ({
     data,
     searchPlaceholder = 'Search filters...',
 }: {
-    data: any[];
+    data: AlignedFilter[];
     searchPlaceholder?: string;
 }) => {
     const theme = useMantineTheme();
     const [search, setSearch] = useState('');
     const tableContainerRef = useRef<HTMLDivElement>(null);
 
-    const columns = useMemo<ContentTableColumnDef<any>[]>(
+    const columns = useMemo<ContentTableColumnDef<AlignedFilter>[]>(
         () => [
             {
                 accessorFn: (row) => row.currentFilter?.label || '-',
