@@ -8,7 +8,16 @@ import {
     scrollTreeToItem,
     SEED_USERS,
     test,
+    type Page,
 } from '../../support/test';
+
+// The spaces table is virtualized and shared previews hold spaces from other suites, so find by search.
+const expectSpaceListed = async (page: Page, spaceName: string) => {
+    const search = page.getByPlaceholder('Search by name');
+    await search.fill(spaceName);
+    await expect(page.getByText(spaceName).first()).toBeVisible();
+    await search.clear();
+};
 
 const apiUrl = '/api/v1';
 
@@ -167,7 +176,7 @@ test.describe('Admin access to spaces', () => {
             JAFFLE_SHOP_SPACE_NAME,
             ...TREE_1_ROOT_SPACE_NAMES,
         ]) {
-            await expect(page.getByText(spaceName).first()).toBeVisible();
+            await expectSpaceListed(page, spaceName);
         }
     });
 
@@ -183,7 +192,7 @@ test.describe('Admin access to spaces', () => {
             ...TREE_1_ROOT_SPACE_NAMES,
             ...TREE_2_ROOT_SPACE_NAMES,
         ]) {
-            await expect(page.getByText(spaceName).first()).toBeVisible();
+            await expectSpaceListed(page, spaceName);
         }
     });
 
@@ -246,7 +255,7 @@ test.describe('Editor access to spaces', () => {
         await page.goto(`/projects/${SEED_PROJECT.project_uuid}/spaces`);
 
         for (const spaceName of EDITOR_ROOT_SPACE_NAMES) {
-            await expect(page.getByText(spaceName).first()).toBeVisible();
+            await expectSpaceListed(page, spaceName);
         }
 
         await expect(page.getByText('Parent Space 2')).toHaveCount(0);
@@ -294,7 +303,7 @@ test.describe('Viewer access to spaces', () => {
         await page.goto(`/projects/${SEED_PROJECT.project_uuid}/spaces`);
 
         for (const spaceName of VIEWER_ROOT_SPACE_NAMES) {
-            await expect(page.getByText(spaceName).first()).toBeVisible();
+            await expectSpaceListed(page, spaceName);
         }
 
         await expect(page.getByText('Parent Space 2')).toHaveCount(0);
@@ -304,6 +313,7 @@ test.describe('Viewer access to spaces', () => {
     test('can see nested spaces', async ({ page }) => {
         await page.goto(`/projects/${SEED_PROJECT.project_uuid}/spaces`);
 
+        await expectSpaceListed(page, 'Parent Space 1');
         await page.getByText('Parent Space 1').click();
         for (const spaceName of [
             'Child Space 1.1',
@@ -343,7 +353,7 @@ test.describe('Editor can create content', () => {
         await page.getByText('Create space').click();
         await page.getByPlaceholder('eg. KPIs').fill(spaceName);
         await page.getByRole('button', { name: 'Create' }).click();
-        await expect(page.getByText(spaceName).first()).toBeVisible();
+        await expectSpaceListed(page, spaceName);
 
         await page.getByTestId(`ResourceViewActionMenu/${spaceName}`).click();
         await page.getByText('Delete space').click();

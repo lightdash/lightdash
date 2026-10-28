@@ -21,7 +21,10 @@ export const selectMantine = async (
     // The dropdown is portaled and repositions while the page scrolls, so settle the scroll first.
     await select.scrollIntoViewIfNeeded();
     await select.click();
-    await page.getByRole('option', { name: optionLabel }).click();
+    // Long forms shift while loading, so the portaled option never passes the stability check
+    await page
+        .getByRole('option', { name: optionLabel })
+        .click({ force: true });
 };
 
 // The save-chart form initialises once spaces and dashboards load and overwrites anything typed
