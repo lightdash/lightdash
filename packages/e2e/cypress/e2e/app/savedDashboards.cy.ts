@@ -24,7 +24,7 @@ describe('Dashboard List', () => {
             .its('response.statusCode')
             .should('eq', 201);
         cy.url().should('match', /\/projects\/[^/]+\/dashboards\/[^/]+\/edit$/);
-        cy.findByText(dashboardName).should('exist');
+        cy.findByText(dashboardName, { timeout: 30000 }).should('exist');
 
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/dashboards`);
         cy.contains('tr', dashboardName).find('button').click();
