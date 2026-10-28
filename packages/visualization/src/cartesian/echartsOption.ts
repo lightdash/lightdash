@@ -1256,30 +1256,38 @@ const applyReadableColorsToMarkLine = (
 ) => {
     const baseStyle = getReferenceLineStyle(baseColor, backgroundColor);
 
-    // Apply readable color adjustment to each reference line
-    const adjustedData = markLine.data?.map((item: any) => {
-        if (!item.lineStyle?.color || !backgroundColor) {
-            return item;
-        }
+    // ECharts throws on a mark line with no value and no type, so drop them.
+    const adjustedData = markLine.data
+        ?.filter(
+            (item) =>
+                item.type != null || item.xAxis != null || item.yAxis != null,
+        )
+        .map((item: any) => {
+            if (!item.lineStyle?.color || !backgroundColor) {
+                return item;
+            }
 
-        const adjustedColor = getReadableColor(
-            item.lineStyle.color,
-            backgroundColor,
-        );
-        const itemStyle = getReferenceLineStyle(adjustedColor, backgroundColor);
+            const adjustedColor = getReadableColor(
+                item.lineStyle.color,
+                backgroundColor,
+            );
+            const itemStyle = getReferenceLineStyle(
+                adjustedColor,
+                backgroundColor,
+            );
 
-        return {
-            ...item,
-            lineStyle: {
-                ...item.lineStyle,
-                color: adjustedColor,
-            },
-            label: {
-                ...itemStyle.label,
-                position: item.label?.position,
-            },
-        };
-    });
+            return {
+                ...item,
+                lineStyle: {
+                    ...item.lineStyle,
+                    color: adjustedColor,
+                },
+                label: {
+                    ...itemStyle.label,
+                    position: item.label?.position,
+                },
+            };
+        });
 
     return {
         ...markLine,
