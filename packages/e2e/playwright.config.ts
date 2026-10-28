@@ -9,7 +9,8 @@ export default defineConfig({
     fullyParallel: false,
     forbidOnly: CI,
     retries: parseInt(process.env.PLAYWRIGHT_RETRIES ?? (CI ? '2' : '0'), 10),
-    workers: CI ? 2 : 1,
+    // One browser per CI shard, as the Cypress containers ran; two per shard overloaded the preview.
+    workers: 1,
     timeout: 120_000,
     // Every test starts a cold browser context, so first paints on a preview are slow.
     expect: { timeout: 30_000 },

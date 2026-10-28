@@ -8,9 +8,17 @@ import {
     type Page,
 } from '../../support/test';
 
-// The SQL/Chart toggle is a segmented control; click its option by exact text.
-const selectEditorTab = (page: Page, tab: 'SQL' | 'Chart') =>
-    page.getByRole('radiogroup').getByText(tab, { exact: true }).click();
+// The SQL/Chart toggle is a segmented control; the editor can reset it while a chart is still
+// loading, so click until the option sticks.
+const selectEditorTab = async (page: Page, tab: 'SQL' | 'Chart') => {
+    const group = page.getByRole('radiogroup');
+    await expect(async () => {
+        await group.getByText(tab, { exact: true }).click();
+        await expect(group.getByRole('radio', { name: tab })).toBeChecked({
+            timeout: 2_000,
+        });
+    }).toPass({ timeout: 30_000 });
+};
 
 test.describe('SQL Runner (new)', () => {
     let schema: string;
