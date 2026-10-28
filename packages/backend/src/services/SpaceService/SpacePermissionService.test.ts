@@ -1148,22 +1148,28 @@ describe('SpacePermissionService', () => {
         const projectUuid = 'project-uuid';
         const organizationUuid = 'org-uuid';
 
-        test('throws NotFoundError when the space has no inheritance chain', async () => {
-            mockPermissionModel.getInheritanceChains.mockResolvedValue({});
+        test.each([{}, undefined, null])(
+            'throws NotFoundError for missing inheritance data (%j)',
+            async (chainEntry) => {
+                mockPermissionModel.getInheritanceChains.mockResolvedValue(
+                    // @ts-expect-error Exercise nullish results outside the model's contract.
+                    chainEntry,
+                );
 
-            await expect(
-                service.getInheritedPermissionsToCopy('missing-space'),
-            ).rejects.toEqual(
-                new NotFoundError('Space missing-space not found'),
-            );
+                await expect(
+                    service.getInheritedPermissionsToCopy('missing-space'),
+                ).rejects.toEqual(
+                    new NotFoundError('Space missing-space not found'),
+                );
 
-            expect(
-                mockPermissionModel.getInheritanceChains,
-            ).toHaveBeenCalledWith(['missing-space']);
-            expect(
-                mockPermissionModel.getDirectSpaceAccess,
-            ).not.toHaveBeenCalled();
-        });
+                expect(
+                    mockPermissionModel.getInheritanceChains,
+                ).toHaveBeenCalledWith(['missing-space']);
+                expect(
+                    mockPermissionModel.getDirectSpaceAccess,
+                ).not.toHaveBeenCalled();
+            },
+        );
 
         test('returns user and group entries from ancestor spaces', async () => {
             const childSpaceUuid = 'child-space';

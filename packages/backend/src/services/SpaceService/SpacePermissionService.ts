@@ -1129,7 +1129,7 @@ export class SpacePermissionService extends BaseService {
             [spaceUuid],
         );
 
-        const entry = chainEntry[spaceUuid];
+        const entry = chainEntry?.[spaceUuid];
         if (!entry) {
             throw new NotFoundError(`Space ${spaceUuid} not found`);
         }
