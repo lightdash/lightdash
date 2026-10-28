@@ -8384,7 +8384,7 @@ describe('AsyncQueryService', () => {
             });
         });
 
-        test('AI reads allow page sizes up to the AI row limits', async () => {
+        test('maxPageSize raises the page size cap for that read', async () => {
             serviceWithCache.queryHistoryModel.get = vi.fn().mockResolvedValue({
                 ...buildPendingAiQueryHistory(sessionAccount.user.id),
                 context: QueryExecutionContext.MCP_RUN_SQL,
@@ -8411,7 +8411,7 @@ describe('AsyncQueryService', () => {
             await expect(
                 serviceWithCache.getAsyncQueryResults({
                     ...args,
-                    aiAccessOnly: true,
+                    maxPageSize: 5000,
                 }),
             ).resolves.toMatchObject({ status: QueryHistoryStatus.READY });
         });

@@ -2038,6 +2038,7 @@ export class McpService extends BaseService {
             queryUuid,
             page: 1,
             pageSize,
+            maxPageSize: this.lightdashConfig.mcp.runSqlMaxLimit,
             aiAccessOnly: true,
         });
 
