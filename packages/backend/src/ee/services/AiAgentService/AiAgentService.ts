@@ -2781,17 +2781,11 @@ export class AiAgentService extends BaseService {
                 return;
             case 'classic':
             case 'composer': {
-                const [multiSourceQuery, composeSqlRunner] = await Promise.all([
-                    this.featureFlagService.get({
-                        user,
-                        featureFlagId: FeatureFlags.MultiSourceQuery,
-                    }),
-                    this.featureFlagService.get({
-                        user,
-                        featureFlagId: FeatureFlags.ComposeSqlRunner,
-                    }),
-                ]);
-                if (!multiSourceQuery.enabled || !composeSqlRunner.enabled) {
+                const composeSqlRunner = await this.featureFlagService.get({
+                    user,
+                    featureFlagId: FeatureFlags.ComposeSqlRunner,
+                });
+                if (!composeSqlRunner.enabled) {
                     throw new ForbiddenError(
                         'Composer queries must be enabled to compare query paths',
                     );
@@ -16737,20 +16731,11 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                         deepResearchContextRuns,
                         latestDeepResearchProgress,
                     );
-                // Web-chat composer requires both orchestration and execution flags.
-                const [
-                    { enabled: multiSourceQueryEnabled },
-                    { enabled: composeSqlRunnerEnabled },
-                ] = await Promise.all([
-                    this.featureFlagService.get({
-                        user,
-                        featureFlagId: FeatureFlags.MultiSourceQuery,
-                    }),
-                    this.featureFlagService.get({
+                const { enabled: composeSqlRunnerEnabled } =
+                    await this.featureFlagService.get({
                         user,
                         featureFlagId: FeatureFlags.ComposeSqlRunner,
-                    }),
-                ]);
+                    });
                 const standardToolAllowlist =
                     responseExecution.mode === 'standard'
                         ? resolveStandardToolAllowlist(
@@ -16759,7 +16744,6 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                           )
                         : undefined;
                 const enableComposerQueries = isComposerQueriesEnabled({
-                    multiSourceQueryEnabled,
                     composeSqlRunnerEnabled,
                     agent: agentSettings,
                     isDeepResearch: responseExecution.mode === 'deep_research',

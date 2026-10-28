@@ -2759,7 +2759,6 @@ describe('AsyncQueryService', () => {
                 featureFlagModel.get as import('vitest').Mock
             ).mock.calls.map(([{ featureFlagId }]) => featureFlagId);
             expect(flagsRead).not.toContain(FeatureFlags.ComposeSqlRunner);
-            expect(flagsRead).not.toContain(FeatureFlags.MultiSourceQuery);
             expect(service.queryHistoryModel.create).toHaveBeenCalledWith(
                 sessionAccount,
                 expect.objectContaining({

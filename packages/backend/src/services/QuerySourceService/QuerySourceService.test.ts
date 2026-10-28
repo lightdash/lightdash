@@ -788,11 +788,6 @@ describe('python query source gating', () => {
         );
         return { ...fakes, executeAsyncPythonQuery };
     };
-    const flagsOnExcept =
-        (disabled: FeatureFlags | null) =>
-        async ({ featureFlagId }: { featureFlagId: FeatureFlags }) => ({
-            enabled: featureFlagId !== disabled,
-        });
     const pipeline: SourceQuery[] = [
         { nodeId: 'orders', sourceType: QuerySourceType.SQL, sql: 'SELECT 1' },
         {
@@ -802,42 +797,6 @@ describe('python query source gating', () => {
             references: ['orders'],
         },
     ];
-
-    it('lists python only when the compose SQL runner flag is on', async () => {
-        const { registry } = createRegistry();
-        const { service, mocks } = createService(registry);
-        const listed = async () =>
-            (await service.listSources(account, projectUuid)).sources.map(
-                (source) => source.sourceType,
-            );
-
-        expect(await listed()).toContain(QuerySourceType.PYTHON);
-        mocks.featureFlagModel.get.mockImplementation(
-            flagsOnExcept(FeatureFlags.ComposeSqlRunner),
-        );
-        expect(await listed()).not.toContain(QuerySourceType.PYTHON);
-    });
-
-    it('refuses a python pipeline before submitting any node when python is off', async () => {
-        const { registry, sqlSource, executeAsyncPythonQuery } =
-            createRegistry();
-        const { service, mocks } = createService(registry);
-        mocks.featureFlagModel.get.mockImplementation(
-            flagsOnExcept(FeatureFlags.ComposeSqlRunner),
-        );
-
-        await expect(
-            service.executeSourceQueries({
-                ...executionContext,
-                account,
-                projectUuid,
-                queries: pipeline,
-                context: QueryExecutionContext.AI,
-            }),
-        ).rejects.toThrow('python queries are not enabled');
-        expect(sqlSource.submitQuery).not.toHaveBeenCalled();
-        expect(executeAsyncPythonQuery).not.toHaveBeenCalled();
-    });
 
     it('submits a python node after the nodes it references', async () => {
         const { registry, executeAsyncPythonQuery } = createRegistry();
