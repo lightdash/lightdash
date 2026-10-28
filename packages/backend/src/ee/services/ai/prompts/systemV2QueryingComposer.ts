@@ -14,10 +14,12 @@ export const COMPOSER_QUERY_PATH = {
 
 export const getQueryingComposerSection = ({
     enablePythonNodes,
+    enableApiNodes,
     canRunSql,
     slackChannelId,
 }: {
     enablePythonNodes: boolean;
+    enableApiNodes: boolean;
     canRunSql: boolean;
     slackChannelId: string | null;
 }): string =>
@@ -34,6 +36,11 @@ export const getQueryingComposerSection = ({
         ...(enablePythonNodes
             ? [
                   '- Run statistics, forecasts and other algorithms that SQL expresses poorly in a python node.',
+              ]
+            : []),
+        ...(enableApiNodes
+            ? [
+                  '- Answer questions about product usage tracked in PostHog (events, users, sessions) with an api node running HogQL, and prefer an explore when one already models that data. Join api rows with semanticLayer rows in a duckdb node, matching their grain and date truncation first.',
               ]
             : []),
         '- Build an answer that takes several queries, or a computation over their results, as one pipeline in one query call, whose terminal node is the result that answers the question.',

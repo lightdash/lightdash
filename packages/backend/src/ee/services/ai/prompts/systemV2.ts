@@ -185,6 +185,8 @@ export const getSystemPromptV2 = (
         canRunSql?: boolean;
         // Python nodes in query; only meaningful for the composer base.
         enableComposerPythonNodes?: boolean;
+        // Api nodes in query; only meaningful for the composer base.
+        enableComposerApiNodes?: boolean;
         unauthenticatedMcpServerNames?: string[];
         mcpServers?: Array<{ name: string; toolNames: string[] }>;
     },
@@ -208,6 +210,7 @@ export const getSystemPromptV2 = (
         canRunSql = false,
         canRunQuery = false,
         enableComposerPythonNodes = false,
+        enableComposerApiNodes = false,
         unauthenticatedMcpServerNames = [],
         deferredSections = new Set<DeferredPromptSection>(),
         mcpServers = [],
@@ -234,6 +237,7 @@ export const getSystemPromptV2 = (
               ...COMPOSER_QUERY_PATH,
               queryLanguageSections: getQueryingComposerSection({
                   enablePythonNodes: enableComposerPythonNodes,
+                  enableApiNodes: enableComposerApiNodes,
                   canRunSql,
                   slackChannelId,
               }),

@@ -214,6 +214,7 @@ import {
     type ApiAiAgentComposerArtifactVizQuery,
     type ApiGetAsyncQueryResults,
     type AppGeneratePipelineJobPayload,
+    type ComposerApiConnection,
     type ComposerStoredChartVizConfig,
     type DataAppVizChart,
     type DuckdbSourceQuery,
@@ -670,6 +671,7 @@ import { createWritebackAgentDeliveryGuard } from '../AiWritebackService/writeba
 import { type WritebackPreviewService } from '../AiWritebackService/WritebackPreviewService';
 import type { AppGenerateService } from '../AppGenerateService/AppGenerateService';
 import { resolveRenderableDataAppVizVersion } from '../AppGenerateService/dataAppVizRender';
+import { type ExternalConnectionService } from '../ExternalConnectionService/ExternalConnectionService';
 import { type MobilePushNotificationService } from '../MobilePushNotificationService/MobilePushNotificationService';
 import { ProjectContextService } from '../ProjectContextService/ProjectContextService';
 import { createReviewRemediationAgentWorkGuard } from '../reviewRemediationAgentWork';
@@ -968,6 +970,10 @@ type AiAgentServiceDependencies = {
     analytics: LightdashAnalytics;
     asyncQueryService: AsyncQueryService;
     querySourceService: Pick<QuerySourceService, 'submitQueries'>;
+    externalConnectionService: Pick<
+        ExternalConnectionService,
+        'listApiSourceConnections'
+    >;
     queryHistoryModel: Pick<QueryHistoryModel, 'pollForQueryCompletion'>;
     catalogService: CatalogService;
     catalogModel: CatalogModel;
@@ -1307,6 +1313,8 @@ export class AiAgentService extends BaseService {
         QuerySourceService,
         'submitQueries'
     >;
+
+    private readonly externalConnectionService: AiAgentServiceDependencies['externalConnectionService'];
 
     private readonly queryHistoryModel: Pick<
         QueryHistoryModel,
@@ -2008,6 +2016,7 @@ export class AiAgentService extends BaseService {
         this.analytics = dependencies.analytics;
         this.asyncQueryService = dependencies.asyncQueryService;
         this.querySourceService = dependencies.querySourceService;
+        this.externalConnectionService = dependencies.externalConnectionService;
         this.queryHistoryModel = dependencies.queryHistoryModel;
         this.catalogService = dependencies.catalogService;
         this.catalogModel = dependencies.catalogModel;
@@ -11676,6 +11685,35 @@ export class AiAgentService extends BaseService {
         });
     }
 
+    /** The project's API connections the user may query, offered as composer api nodes. */
+    private async getComposerApiConnections(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<ComposerApiConnection[]> {
+        const { enabled } = await this.featureFlagService.get({
+            user,
+            featureFlagId: FeatureFlags.ApiQuerySources,
+        });
+        if (!enabled) return [];
+        const connections =
+            await this.externalConnectionService.listApiSourceConnections(
+                fromSession(user),
+                projectUuid,
+            );
+        return connections.flatMap(
+            ({ externalConnectionUuid, name, apiSource }) =>
+                apiSource
+                    ? [
+                          {
+                              connectionUuid: externalConnectionUuid,
+                              name,
+                              connector: apiSource.connector,
+                          },
+                      ]
+                    : [],
+        );
+    }
+
     private async getAgentSettings(
         user: SessionUser,
         prompt: SlackPrompt | AiWebAppPrompt,
@@ -16751,6 +16789,12 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                         standardToolAllowlist !== undefined,
                     battleProfile,
                 });
+                const composerApiConnections = enableComposerQueries
+                    ? await this.getComposerApiConnections(
+                          user,
+                          prompt.projectUuid,
+                      )
+                    : [];
                 const { enabled: filterExpressionsEnabled } =
                     await this.featureFlagService.get({
                         user,
@@ -17232,6 +17276,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     repoFsSupportsCodeSearch,
                     canRunSql,
                     enableComposerQueries,
+                    composerApiConnections,
                     canCreateDashboards,
                     autoApproveSql:
                         (options.autoApproveSql ?? false) ||

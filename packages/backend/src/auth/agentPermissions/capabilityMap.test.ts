@@ -244,6 +244,7 @@ const buildAgentTools = (overrides: Partial<AiAgentArgs>) => {
         }),
         execution: { mode: 'standard', maxSteps: 10 },
         messageHistory: [{ role: 'user', content: 'Question' }],
+        composerApiConnections: [],
         mcpServers: [],
         requestingUser: { name: 'User', role: null, groups: [] },
         maxQueryLimit: 5000,
