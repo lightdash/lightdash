@@ -22,9 +22,10 @@ import {
     applyFieldToAllTiles,
     getFieldCount,
     getFieldScope,
-    getFilterFields,
+    getFilterRows,
     getTileField,
     getTilesOnTab,
+    isSqlColumnRow,
     removeField,
     removeFieldFromAll,
     toSqlColumnTarget,
@@ -142,7 +143,7 @@ const getSqlColumnScope = (
 };
 
 export type FieldTileActions = {
-    // A field of the filter; the column of a SQL column filter is one too
+    // A row of the filter: a field, or a column (`isSqlColumnRow`)
     forField: (fieldId: string) => FieldTiles;
     // A column SQL chart tiles are mapped to, on a filter of any kind
     forSqlColumn: (reference: string) => FieldTiles;
@@ -287,18 +288,31 @@ export const useFieldTileActions = (
                     );
                 },
                 remove: () => {
-                    // A column on a field filter is no row of it to remove
-                    const isRow =
-                        !isSqlColumn ||
-                        (isSqlColumnFilter &&
-                            fieldId === editingRule.target.fieldId);
-                    if (!canAct || !isRow) return;
-                    // Its last field: the control goes back to "pick a field",
+                    if (!canAct) return;
+                    // A column only SQL chart tiles are on leaves them
+                    if (
+                        isSqlColumn &&
+                        !(
+                            isSqlColumnFilter &&
+                            fieldId === editingRule.target.fieldId
+                        )
+                    ) {
+                        const next = removeFieldFromAll(
+                            editingRule,
+                            fieldId,
+                            tiles,
+                            fieldsByTile,
+                            sqlColumnsByTile,
+                            true,
+                        );
+                        if (next !== editingRule) updateFilter(next);
+                        return;
+                    }
+                    // Its last row: the control goes back to "pick a field",
                     // waiting fields included, and keeps the field's name
                     if (
                         !isWaiting &&
-                        getFilterFields(editingRule, dashboardTiles).length ===
-                            1
+                        getFilterRows(editingRule, dashboardTiles).length === 1
                     ) {
                         // An unknown field has no name: the title stays "Filter"
                         removeLastField(
@@ -311,7 +325,13 @@ export const useFieldTileActions = (
                         return;
                     }
                     updateFilter(
-                        removeField(editingRule, fieldId, tiles, fieldsByTile),
+                        removeField(
+                            editingRule,
+                            fieldId,
+                            tiles,
+                            fieldsByTile,
+                            sqlColumnsByTile,
+                        ),
                     );
                     removeWaitingField(fieldId);
                 },
@@ -320,10 +340,7 @@ export const useFieldTileActions = (
 
         return {
             forField: (fieldId) =>
-                build(
-                    fieldId,
-                    isSqlColumnFilter && fieldId === editingRule.target.fieldId,
-                ),
+                build(fieldId, isSqlColumnRow(editingRule, fieldId)),
             forSqlColumn: (reference) => build(reference, true),
         };
     }, [

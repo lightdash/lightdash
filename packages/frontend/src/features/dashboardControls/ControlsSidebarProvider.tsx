@@ -54,6 +54,7 @@ import { getLinkKey } from './linkCandidates';
 import {
     getFieldCount,
     getFilterFields,
+    getFilterRows,
     getTileField,
     isSqlColumnRow,
     removeField,
@@ -1351,14 +1352,14 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
                 : null,
         [undo, state, dashboardFilters, activeTabUuid, toSavedRule],
     );
-    // The clicked field, while it is one: a field of the filter, a waiting
+    // The clicked field, while it is one: a row of the filter, a waiting
     // field, or the field of a live undo. A clear that took it off its last
     // tile leaves it clicked only as long as that undo
     const clickedFieldId = useMemo(
         () =>
             highlightedFieldId !== null &&
             editingRule !== null &&
-            (getFilterFields(editingRule, dashboardTiles).includes(
+            (getFilterRows(editingRule, dashboardTiles).includes(
                 highlightedFieldId,
             ) ||
                 waitingFieldIds.includes(highlightedFieldId) ||
