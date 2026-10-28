@@ -1,3 +1,17 @@
+# [3.81.0](https://github.com/lightdash/lightdash/compare/3.80.0...3.81.0) (2026-10-28)
+
+
+### Bug Fixes
+
+* allow merging queries from virtual views ([#31723](https://github.com/lightdash/lightdash/issues/31723)) ([3a51984](https://github.com/lightdash/lightdash/commit/3a51984ae0335629ddc7c091c8338a6cf7b166d7))
+* reap create-project jobs locked by a dead worker ([#31744](https://github.com/lightdash/lightdash/issues/31744)) ([c6e5c09](https://github.com/lightdash/lightdash/commit/c6e5c091757e3c08a942cd2c9fa09e2f7f38c860))
+* rerun a merge when only its pivot sort anchor changes ([#31733](https://github.com/lightdash/lightdash/issues/31733)) ([cc08e06](https://github.com/lightdash/lightdash/commit/cc08e063d4dad84cb8cb871c3fa7f1a0bedaa73a))
+
+
+### Features
+
+* **content-as-code:** write back to the source of local dbt packages ([#31731](https://github.com/lightdash/lightdash/issues/31731)) ([fafb0a8](https://github.com/lightdash/lightdash/commit/fafb0a84773a8ff752790f8b597da6cc57de5c23))
+
 # [3.80.0](https://github.com/lightdash/lightdash/compare/3.79.1...3.80.0) (2026-10-28)
 
 
