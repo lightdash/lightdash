@@ -16,26 +16,17 @@ Use the repository's mapped triage vocabulary. See `docs/agents/triage-labels.md
 
 This is a multi-context repository rooted at `CONTEXT-MAP.md`. See `docs/agents/domain.md`.
 
-## Formula Package Development
+## Area guides
 
-The `packages/formula/` package contains a Peggy-based parser that compiles Google Sheets-like formulas to SQL for each warehouse dialect (Postgres, BigQuery, Snowflake, DuckDB).
+These live next to the code and load when Claude works there. Read the linked file before working in that area.
 
-**Never read files in `packages/formula-tests/`.** This package contains black-box integration tests. Use the following commands for feedback:
-
-```bash
-pnpm formula:test:duckdb   # DuckDB only — sub-second feedback loop
-pnpm formula:test:tier1    # DuckDB + Postgres
-pnpm formula:test:tier2    # BigQuery + Snowflake
-pnpm formula:test:all      # Everything
-```
-
-The development loop is:
-1. Edit code in `packages/formula/`
-2. `pnpm formula:build`
-3. `pnpm formula:test:duckdb` (or tier1/tier2) — read the feedback output
-4. Fix issues and repeat
-
-Unit tests in `packages/formula/tests/` CAN be read and edited (grammar and AST tests).
+- **Formula package**: never read files in `packages/formula-tests/`; dev loop in `packages/formula/CLAUDE.md`.
+- **Release safety**: `Release-safety preview` is required on `main`; before declaring a break, read `docs/release-safety.md`.
+- **Merge freeze**: agents never freeze or unfreeze merges; ask a human. Details in `docs/merge-freeze.md`.
+- **dbt YAML schemas**: two schemas must stay in sync when field types change; see `packages/common/src/dbt/CLAUDE.md`.
+- **Warehouse credentials**: new sensitive credential fields go in `sensitiveCredentialsFieldNames`; see `packages/common/src/types/CLAUDE.md`.
+- **LIGHTDASH_SECRET-derived state** must register for rotation; see `packages/backend/CLAUDE.md`.
+- **Slugs and uuid-or-slug params**: rules in `packages/backend/CLAUDE.md`.
 
 ## Architecture
 
@@ -192,44 +183,6 @@ refresh/restart behavior, and remove temporary ENV overrides after rollout.
 3. **API**: TSOA generates OpenAPI specs from TypeScript controllers
 4. **Authentication**: CASL-based authorization with multiple auth providers
 
-## Release-safety declarations
-
-`Release-safety preview` is a required check on `main`. It protects self-hosted upgrades: `unknown` means we could not confirm the change is safe, while `breaking` means we know it is incompatible. Both hold the upgrade, for different reasons.
-
-- For migration breaks, follow the detailed [migration release-safety declarations](packages/backend/src/database/migrations/CLAUDE.md#release-safety-declarations).
-- For API or type breaks, add a stable ID to `release-safety.declarations.json` with `reason` and `requiredStop`. The reason must be at least 24 characters, use more than one word, describe what breaks and for whom, and not use placeholder text. Omit `migration` for these entries.
-
-For REST or MCP changes with no external callers, add an advisory declaration:
-
-- Use it only for a surface behind a feature flag that is off by default, or called only by a Lightdash client.
-- Set `requiredStop: false`. Add `impact: { "kind": "no-external-callers", "featureFlag": "agent-identity", "covers": { "rest": ["DELETE /api/v2/example/{exampleUuid}"], "mcp": [] } }`. Use a `FeatureFlags` enum value, not its key. List exact REST operations or MCP tool names in `covers`.
-- Supply exactly one evidence field: `featureFlag` or a substantive `firstPartyOnly` statement that names the only Lightdash client.
-- With `featureFlag`, the reason must say whether the flag is off by default on Cloud and on self-hosted. Off by default is a reviewed claim; release-safety checks that the flag exists, not its defaults or endpoint gating.
-- With `firstPartyOnly`, the reason must say what an old UI pod, browser tab or client sees during a rolling update. For example: "the old settings page shows an error until refresh". Explain why the accepted behaviour is safe.
-- Advisories keep covered API findings rolling-safe. They never cover migrations, config changes or required stops. The author and reviewer accept the no-external-callers claim; release-safety does not verify it.
-
-For an environment variable the backend stops reading, add it to `release-safety.retired-config.json` as `"NAME": "reason"`. The config diff then reports that removal as retired instead of breaking. Use it only for a variable no operator relies on: undocumented, or internal to an experiment. The reason must say who set it and why nothing breaks without it. The file is append-only.
-
-A declaration is active only for a Git range that adds its ID. The release generator compares the last release tag with the target ref. The pull request preview compares the merge base with the head. This makes the declaration expire after the release that first contains it. Do not remove it after release.
-
-The registry is append-only. Never edit, remove, rename, or reuse an existing ID. Add a new ID for every new break, even when it affects the same file or has similar reason text. A release may add `releasedIn` for documentation, but that value never controls activation.
-
-Never declare a break merely to make CI pass. Declaring a break advises every self-hosted customer to use the Recreate strategy. A release that ships as `breaking` or `unknown` stops the internal analytics instance upgrading. The declaration does not reactivate in later Git ranges.
-
-## Merge Freeze — Holding `main` While a Release Is Cut
-
-`release.yml` fires on every push to `main`, so the release that goes out is whatever `main` contains at that moment. When something needs to reach a release on its own — a fix someone is waiting on — hold merges rather than asking people in Slack not to merge:
-
--   **Freeze**: `gh workflow run merge-freeze.yml -f action=freeze`. This adds a `merge-freeze` required status check to the `main` ruleset. Nothing ever reports that check, so merges into `main` are blocked for everyone without a ruleset bypass.
--   **Unfreeze**: the same workflow with `action=unfreeze`. Do it as soon as the release is cut — a freeze left on blocks the whole team, and there is no auto-expiry. Repeat unfreeze to refresh stale PR checks even when the ruleset is already open. In `#engineering`, ask `@Cloudy unfreeze merges to lightdash`.
--   **Any verified Lightdash employee can unfreeze through Cloudy in Slack.** Direct Actions dispatch remains available to the recorded owner. A repo admin can remove the `merge-freeze` check from the `main` ruleset by hand.
--   **There is no free-text reason, deliberately** — this repo is public, and a reason box invites someone to name a customer in it. Blocked PRs show who froze it so people know who to ask, and `#engineering` gets the same on both directions. Say why in Slack.
--   **Only `main` is affected.** Stacked PRs merging into their parent branch are untouched.
--   **Check the current state**: the `MERGE_FREEZE` repo variable (`true`/`false`), and `MERGE_FREEZE_ACTOR` for who froze it — `gh variable list -R lightdash/lightdash`. The authority is the ruleset itself: `merge-freeze` in the `main` ruleset's required status checks (`gh api repos/lightdash/lightdash/rulesets`). The variables are a mirror, so trust the ruleset if they ever disagree.
--   **Agents: never freeze or unfreeze on your own initiative.** It blocks every engineer in the repo. Ask, and let a human dispatch it.
-
-Freezing analytics/customer *deployments* is a different mechanism in a different repo — see the `lightdash-cloud` CLAUDE.md.
-
 ## Package-Specific Notes
 
 **Backend (`packages/backend/`):**
@@ -279,19 +232,6 @@ Freezing analytics/customer *deployments* is a different mechanism in a differen
 -   Frontend and backend reference common package via `"references"` in tsconfig.json
 -   Common package builds to multiple targets: ESM (`dist/esm`), CJS (`dist/cjs`), Types (`dist/types`)
 -   Web workers importing from common should use built ESM paths: `@lightdash/common/dist/esm/[module]`
-
-## dbt YAML Validation Schemas
-
-There are **two** JSON schemas that define valid Lightdash metadata in dbt YAML files. They must stay in sync:
-
-| Schema | Path | Used by |
-|--------|------|---------|
-| `lightdashMetadata.json` | `packages/common/src/dbt/schemas/lightdashMetadata.json` | Compile-time validation (`exploreCompiler`) |
-| `lightdash-dbt-2.0.json` | `packages/common/src/schemas/json/lightdash-dbt-2.0.json` | CLI `lightdash generate` (`DbtSchemaEditor`) |
-
-**When adding or modifying field types (metric types, dimension types, additional dimension types), you MUST update both schemas.** The `lightdash-dbt-2.0.json` schema has two copies of the metric enum — one under `$defs/modelMeta` (model-level metrics) and one under `$defs/columnMeta` (column-level metrics). Both must be updated.
-
-The canonical source of truth for field types is `packages/common/src/types/field.ts` (e.g., `MetricType` enum).
 
 ## Testing Memories
 
@@ -353,97 +293,6 @@ Dependency lifecycle scripts (`preinstall`/`install`/`postinstall`) are blocked 
 - `allowBuilds: { <package>: false }` — build script we intentionally do NOT run (each entry documents why).
 
 This matters because these scripts also run on `npm install` for downstream consumers of our published packages (e.g. `@lightdash/cli`). When CI fails on an unreviewed build script, either remove/replace the dependency, add it as `false` (with a reason) if its script is safe to skip, or `true` if the script must run.
-
-### Warehouse Credentials Protection
-
-**CRITICAL**: When adding new credential fields to warehouse configurations, always check if they contain sensitive data that should NOT be exposed via API responses.
-
-**Location**: `packages/common/src/types/projects.ts`
-
-The `sensitiveCredentialsFieldNames` array controls which fields are stripped from API responses:
-
-```typescript
-export const sensitiveCredentialsFieldNames = [
-    'user',
-    'password',
-    'keyfileContents',
-    'personalAccessToken',
-    'privateKey',
-    'privateKeyPass',
-    'sshTunnelPrivateKey',
-    'sslcert',
-    'sslkey',
-    'sslrootcert',
-    'token',
-    'refreshToken',
-    'oauthClientId',
-    'oauthClientSecret',
-    // Add any new sensitive fields here!
-] as const;
-```
-
-**When adding new warehouse authentication methods:**
-
-1. **Identify sensitive fields**: Any field containing passwords, tokens, keys, secrets, or identifiers that could be used for authentication
-2. **Add to sensitiveCredentialsFieldNames**: This ensures the field is stripped via `Omit<CreateXxxCredentials, SensitiveCredentialsFieldNames>`
-3. **Test API responses**: Verify the sensitive data doesn't appear in GET /api/v1/projects/{uuid} responses
-4. **Examples of sensitive fields**:
-    - OAuth client secrets (equivalent to passwords)
-    - Refresh tokens (can be used to obtain access tokens)
-    - Access tokens (direct authentication)
-    - Private keys, certificates
-    - Database passwords
-    - Personal access tokens
-5. **Examples of potentially sensitive fields** (use judgment):
-    - OAuth client IDs (less sensitive but best practice to hide)
-    - Usernames (often considered PII)
-
-**How it works**:
-
--   `CreateXxxCredentials` types contain ALL fields including sensitive ones (used for creation/updates)
--   `XxxCredentials` types are `Omit<CreateXxxCredentials, SensitiveCredentialsFieldNames>` (used for API responses)
--   `ProjectModel.get()` filters credentials using this array before returning to API controllers
--   `ProjectModel.getWithSensitiveFields()` returns unfiltered data for internal use only
-
-### LIGHTDASH_SECRET-Derived State Must Register for Rotation
-
-Anything persisted or verified using `LIGHTDASH_SECRET` must be covered by the `rotate-lightdash-secret` maintenance command (`packages/backend/src/scripts/rotate-lightdash-secret/`), or secret rotation strands it. When adding:
-
--   **A new encrypted DB column** (`EncryptionUtil` ciphertext): add it to `CIPHERTEXT_REGISTRY` in `registry.ts` (table, primary key column, column) so the command re-encrypts it.
--   **A new deterministic token-hash table** (`hashWithSecret`): add it to `TOKEN_HASH_TABLES` in `rotation.ts` so hashes are classified and reported as removal blockers. Token hashes are one-way and can never be migrated by the command: lookup verifies against every configured secret, but a credential hashed under a fallback must be reissued or revoked before that fallback is removed.
--   **A new signed or secret-derived artifact** (JWT, HMAC, signed cookie): sign with `lightdashConfig.lightdashSecrets.active`, verify against `lightdashSecrets.all`, and document its lifetime in the removal gates of `docs/lightdash-secret-rotation.md` (short-lived artifacts break once their signing secret leaves the configured secrets; the runbook's waiting periods must cover them).
-
-Tests in `rotation.test.ts` pin the registry contents — update them together with the registry.
-
-## Slugs — Project-Scoped Portable Identifiers
-
-Slugs are unique per project and resource type for charts, dashboards, SQL Runner charts, spaces, and data apps. Database constraints are authoritative and include soft-deleted rows, so a deleted resource reserves its slug for a safe restore. The same slug may be used in a different project.
-
-Use `generateUniqueSlugScopedToProject()` (`packages/backend/src/utils/SlugUtils.ts`) for normal creation. It derives the base with `generateSlug()`, probes exact indexed candidates, and appends `-1`, `-2`, and so on for conflicts. Explicit slugs used by content-as-code and promotion must be inserted exactly; same-project conflicts return an actionable conflict or resolve the intended active upsert, never overwrite another resource.
-
-Content-as-code upserts address content by exact slug, so a soft-deleted chart or dashboard that owns the slug is revived in place with the uploaded content instead of blocking the upload. Space paths are not database-constrained: one active space and any number of deleted spaces may share a path, and restoring a deleted space is rejected while an active space holds its path.
-
-UUIDs remain the canonical internal identity. Use them for foreign keys, durable relationships, and references without an explicit project scope. Slugs are appropriate for project-scoped URLs and portable content-as-code selectors.
-
-`getLtreePathFromSlug` is lossy: hyphens and underscores map to the same ltree label. Space hierarchy and access logic must use `parent_space_uuid`; path-based resolution must reject ambiguity rather than selecting an arbitrary row.
-
-### Make uuid vs uuid-or-slug explicit (endpoints & service args)
-
-A whole class of bug comes from a param named `*Uuid` that actually carries a
-uuid *or* a slug (routes that accept either resolve via `getByIdOrSlug`), then
-using the raw value as a real UUID downstream (DB write, FK, comparison). Make
-the contract explicit instead of relying on the name:
-
-- **Path params that accept either** must be typed `UuidOrSlug` and named
-  `*UuidOrSlug` (e.g. `@Path() dashboardUuidOrSlug: UuidOrSlug`). This documents
-  the dual contract in the OpenAPI spec.
-- **Uuid-only path params** must be typed `UUID` (e.g. `@Path() versionUuid: UUID`).
-  TSOA emits the uuid pattern validator for `UUID`, so non-uuid values are
-  rejected at the request boundary (422). Both types live in
-  `packages/common/src/types/api/uuid.ts`.
-- **Service args** mirror the same names: a `UuidOrSlug` arg must be resolved to
-  `entity.uuid` (via `getByIdOrSlug`) before being used as a key, FK, or in any
-  comparison — never pass the raw arg downstream.
 
 ## Translation — deliberately limited to embeds
 
