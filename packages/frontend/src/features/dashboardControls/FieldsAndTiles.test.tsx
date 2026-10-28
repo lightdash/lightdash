@@ -12,6 +12,7 @@ import {
     type ResultColumn,
 } from '@lightdash/common';
 import { Box } from '@mantine/core';
+import { useQuery } from '@tanstack/react-query';
 import {
     act,
     fireEvent,
@@ -30,6 +31,7 @@ import {
 } from '../../testing/dashboardStore';
 import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
 import { renderWithProviders as renderWithAppProviders } from '../../testing/testUtils';
+import { dashboardTileStatusActions } from '../dashboard/store';
 import { FieldsAndTiles } from './FieldsAndTiles';
 import { toSqlColumnTarget } from './peers';
 import { RailContractClasses } from './railContractClasses';
@@ -227,6 +229,7 @@ const renderWithProviders = (ui: ReactElement) => {
     const result = renderWithAppProviders(wrap(ui));
     return {
         ...result,
+        store,
         rerender: (node: ReactElement) => {
             act(() => {
                 seedDashboardEditState(
@@ -438,6 +441,144 @@ describe('FieldsAndTiles', () => {
         });
     });
 
+    describe('a new control on SQL chart tiles only', () => {
+        const sqlTile = (uuid: string) =>
+            ({
+                uuid,
+                type: DashboardTileTypes.SQL_CHART,
+                properties: { savedSqlUuid: `chart-${uuid}` },
+            }) as DashboardTile;
+        const columnInput = () =>
+            screen.getByPlaceholderText('Search column...');
+
+        beforeEach(() => {
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                dashboardTiles: [sqlTile('sql-1'), sqlTile('sql-2')],
+                allFilterableFields: undefined,
+                allFilterableMetrics: undefined,
+                allFilterableFieldsMap: {},
+                filterableFieldsByTileUuid: undefined,
+            };
+            setSidebar(rule(''), { isPlaceholder: true });
+        });
+
+        it('searches the columns already returned', async () => {
+            mockTileStatus.current = {
+                sqlChartTilesMetadata: {
+                    'sql-1': { columns: [country, total] },
+                },
+            };
+            renderWithProviders(<FieldsAndTiles />);
+
+            await userEvent.type(columnInput(), 'tot');
+            expect(
+                screen
+                    .getAllByRole('option', { hidden: true })
+                    .map((option) => option.textContent),
+            ).toEqual(['total']);
+        });
+
+        it('keeps the typed search when another SQL chart tile returns', async () => {
+            mockTileStatus.current = {
+                sqlChartTilesMetadata: {
+                    'sql-1': { columns: [country, total] },
+                },
+            };
+            const { store } = renderWithProviders(<FieldsAndTiles />);
+
+            await userEvent.type(columnInput(), 'tot');
+            act(() => {
+                store.dispatch(
+                    dashboardTileStatusActions.updateSqlChartTilesMetadata({
+                        tileUuid: 'sql-2',
+                        metadata: { columns: [country] },
+                    }),
+                );
+            });
+            expect(columnInput()).toHaveValue('tot');
+            expect(
+                screen
+                    .getAllByRole('option', { hidden: true })
+                    .map((option) => option.textContent),
+            ).toEqual(['total']);
+        });
+
+        it('shows the columns load while a SQL chart tile runs its query', async () => {
+            let finish: () => void = () => {};
+            // A mounted SQL chart tile, as its results query registers
+            const RunningTile = () => {
+                useQuery(
+                    ['savedSqlChartResults', 'chart', { tileUuid: 'sql-2' }],
+                    () =>
+                        new Promise<null>((resolve) => {
+                            finish = () => resolve(null);
+                        }),
+                );
+                return null;
+            };
+            renderWithProviders(
+                <>
+                    <RunningTile />
+                    <FieldsAndTiles />
+                </>,
+            );
+            await waitFor(() =>
+                expect(columnInput()).toHaveAttribute('aria-busy', 'true'),
+            );
+
+            act(() => finish());
+            await waitFor(() =>
+                expect(columnInput()).toHaveAttribute('aria-busy', 'false'),
+            );
+        });
+
+        it('does not wait for a tile that has its columns and queries again', async () => {
+            mockTileStatus.current = {
+                sqlChartTilesMetadata: {
+                    'sql-1': { columns: [country] },
+                    'sql-2': { columns: [total] },
+                },
+            };
+            // A refresh, or a filter or parameter change, recreates the query
+            const RefreshedTile = () => {
+                useQuery(
+                    ['savedSqlChartResults', 'chart', { tileUuid: 'sql-2' }],
+                    () => new Promise<null>(() => {}),
+                );
+                return null;
+            };
+            renderWithProviders(
+                <>
+                    <RefreshedTile />
+                    <FieldsAndTiles />
+                </>,
+            );
+            await act(async () => {});
+            expect(columnInput()).toHaveAttribute('aria-busy', 'false');
+        });
+
+        it('does not wait for a SQL chart tile whose results query never runs', async () => {
+            // Its chart failed or is gone: the results query stays disabled
+            const StuckTile = () => {
+                useQuery(
+                    ['savedSqlChartResults', 'chart', { tileUuid: 'sql-2' }],
+                    () => null,
+                    { enabled: false },
+                );
+                return null;
+            };
+            renderWithProviders(
+                <>
+                    <StuckTile />
+                    <FieldsAndTiles />
+                </>,
+            );
+            await act(async () => {});
+            expect(columnInput()).toHaveAttribute('aria-busy', 'false');
+        });
+    });
+
     it('lists the fields of a filter with their tile counts', async () => {
         setSidebar(rule('orders_status', { 'tile-1': REGION }));
         renderWithProviders(<FieldsAndTiles />);
@@ -547,7 +688,11 @@ describe('FieldsAndTiles', () => {
 
     describe('a SQL column filter', () => {
         const sqlTile = (uuid: string) =>
-            ({ uuid, type: DashboardTileTypes.SQL_CHART }) as DashboardTile;
+            ({
+                uuid,
+                type: DashboardTileTypes.SQL_CHART,
+                properties: { savedSqlUuid: `chart-${uuid}` },
+            }) as DashboardTile;
         const COUNTRY = {
             fieldId: 'country',
             tableName: 'sql_chart',
@@ -635,6 +780,7 @@ describe('FieldsAndTiles', () => {
                     {
                         uuid: 'sql-1',
                         type: DashboardTileTypes.SQL_CHART,
+                        properties: { savedSqlUuid: 'chart-sql-1' },
                     } as DashboardTile,
                 ],
             };
