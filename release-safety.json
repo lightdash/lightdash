@@ -1,14 +1,27 @@
 {
   "schemaVersion": "2",
-  "version": "3.81.0",
-  "previousVersion": "3.80.0",
-  "releaseDate": "2026-10-28T15:47:18.142Z",
+  "version": "3.82.0",
+  "previousVersion": "3.81.0",
+  "releaseDate": "2026-10-28T16:39:19.263Z",
   "migrations": {
-    "present": false,
-    "count": 0,
+    "present": true,
+    "count": 1,
     "coreCount": 0,
-    "eeCount": 0,
-    "files": []
+    "eeCount": 1,
+    "files": [
+      {
+        "name": "20261026180000_add_api_source_to_external_connections.ts",
+        "edition": "ee",
+        "tables": [
+          "external_connections"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": true
+        }
+      }
+    ]
   },
   "compatibility": {
     "rollingUpdateSafe": true,

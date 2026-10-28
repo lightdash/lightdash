@@ -15323,6 +15323,32 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "ExternalConnectionKind": {
+                "type": "string",
+                "enum": ["data_app", "live_source"],
+                "description": "Who a connection serves: data apps through the proxy, or live API queries."
+            },
+            "ApiConnectorType.POSTHOG": {
+                "enum": ["posthog"],
+                "type": "string"
+            },
+            "PostHogApiSource": {
+                "properties": {
+                    "projectId": {
+                        "type": "string",
+                        "description": "The PostHog project id, the number after /project/ in its URL."
+                    },
+                    "connector": {
+                        "$ref": "#/components/schemas/ApiConnectorType.POSTHOG"
+                    }
+                },
+                "required": ["projectId", "connector"],
+                "type": "object"
+            },
+            "ExternalConnectionApiSource": {
+                "$ref": "#/components/schemas/PostHogApiSource",
+                "description": "Connector settings of a live source; the server fixes its access rules."
+            },
             "ExternalConnection": {
                 "properties": {
                     "updatedAt": {
@@ -15343,6 +15369,19 @@
                     },
                     "hasSecret": {
                         "type": "boolean"
+                    },
+                    "apiSource": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ExternalConnectionApiSource"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Optional for compatibility with older servers during rolling upgrades."
+                    },
+                    "kind": {
+                        "$ref": "#/components/schemas/ExternalConnectionKind",
+                        "description": "Optional for compatibility with older servers during rolling upgrades."
                     },
                     "customHeaders": {
                         "allOf": [
@@ -15510,6 +15549,14 @@
                 "properties": {
                     "secret": {
                         "type": "string",
+                        "nullable": true
+                    },
+                    "apiSource": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ExternalConnectionApiSource"
+                            }
+                        ],
                         "nullable": true
                     },
                     "customHeaders": {
@@ -15838,6 +15885,14 @@
                         "allOf": [
                             {
                                 "$ref": "#/components/schemas/Record_string.string_"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "apiSource": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/PostHogApiSource"
                             }
                         ],
                         "nullable": true
@@ -74147,7 +74202,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.81.0",
+        "version": "3.82.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"

@@ -14876,6 +14876,40 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ExternalConnectionKind: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['data_app'] },
+                { dataType: 'enum', enums: ['live_source'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ApiConnectorType.POSTHOG': {
+        dataType: 'refEnum',
+        enums: ['posthog'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    PostHogApiSource: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                projectId: { dataType: 'string', required: true },
+                connector: { ref: 'ApiConnectorType.POSTHOG', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ExternalConnectionApiSource: {
+        dataType: 'refAlias',
+        type: { ref: 'PostHogApiSource', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ExternalConnection: {
         dataType: 'refAlias',
         type: {
@@ -14900,6 +14934,14 @@ const models: TsoaRoute.Models = {
                     required: true,
                 },
                 hasSecret: { dataType: 'boolean', required: true },
+                apiSource: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'ExternalConnectionApiSource' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
+                kind: { ref: 'ExternalConnectionKind' },
                 customHeaders: {
                     dataType: 'union',
                     subSchemas: [
@@ -15026,6 +15068,13 @@ const models: TsoaRoute.Models = {
                     dataType: 'union',
                     subSchemas: [
                         { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
+                apiSource: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'ExternalConnectionApiSource' },
                         { dataType: 'enum', enums: [null] },
                     ],
                 },
@@ -15412,6 +15461,14 @@ const models: TsoaRoute.Models = {
                     dataType: 'union',
                     subSchemas: [
                         { ref: 'Record_string.string_' },
+                        { dataType: 'enum', enums: [null] },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                apiSource: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'PostHogApiSource' },
                         { dataType: 'enum', enums: [null] },
                         { dataType: 'undefined' },
                     ],

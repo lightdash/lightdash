@@ -1,3 +1,18 @@
+# [3.82.0](https://github.com/lightdash/lightdash/compare/3.81.0...3.82.0) (2026-10-28)
+
+
+### Bug Fixes
+
+* drop the sections tip and badge only filters edited in edit mode ([#31715](https://github.com/lightdash/lightdash/issues/31715)) ([5389f0b](https://github.com/lightdash/lightdash/commit/5389f0b0e4f9d14033d24a0c192c586ca2fdfb4b))
+* keep filter section moves out of the editor pending state ([#31712](https://github.com/lightdash/lightdash/issues/31712)) ([d1298ad](https://github.com/lightdash/lightdash/commit/d1298ad9122e5a0ec088820fd603aec8561ddcb5))
+* start open filter sections on their own line ([#31714](https://github.com/lightdash/lightdash/issues/31714)) ([123846d](https://github.com/lightdash/lightdash/commit/123846db57ad5ec90b65c7190242d167d882a3e5))
+
+
+### Features
+
+* **external-connections:** add a PostHog option to the add-connection wizard ([#31598](https://github.com/lightdash/lightdash/issues/31598)) ([9c93173](https://github.com/lightdash/lightdash/commit/9c931730036b6f62d118adc57be2a9decdd0d3ff)), closes [#31597](https://github.com/lightdash/lightdash/issues/31597)
+* **external-connections:** store PostHog api sources on project connections ([#31597](https://github.com/lightdash/lightdash/issues/31597)) ([0dfd7b2](https://github.com/lightdash/lightdash/commit/0dfd7b219906572e662699b48b50a04cfd1786b4)), closes [#31592](https://github.com/lightdash/lightdash/issues/31592)
+
 # [3.81.0](https://github.com/lightdash/lightdash/compare/3.80.0...3.81.0) (2026-10-28)
 
 
