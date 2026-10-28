@@ -5,7 +5,6 @@ import {
     convertExplores,
     DbtError,
     DEFAULT_SPOTLIGHT_CONFIG,
-    DeploySessionStatus,
     DimensionType,
     ExploreType,
     FieldType,
@@ -53,7 +52,6 @@ import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import { buildPreAggregateExplore } from '../../../ee/preAggregates/buildPreAggregateExplore';
 import Logger from '../../../logging/logger';
 import { CatalogModel } from '../../../models/CatalogModel/CatalogModel';
-import { DbtSourceRefCatalogModel } from '../../../models/DbtSourceRefCatalogModel';
 import { DeploySessionModel } from '../../../models/DeploySessionModel';
 import { GithubAppInstallationsModel } from '../../../models/GithubAppInstallations/GithubAppInstallationsModel';
 import { JobModel } from '../../../models/JobModel/JobModel';
@@ -326,7 +324,6 @@ describe('Multi-connection compile on the real schema', () => {
         failure: {
             sources: string[];
             phase: 'prepare' | 'manifest';
-            crossSourceRefs: boolean;
             onWarning?: (warning: string) => Promise<void>;
         } | null = null,
     ) => {
@@ -379,18 +376,14 @@ describe('Multi-connection compile on the real schema', () => {
                         },
                     },
                     dbtVersion: SupportedDbtVersions.V1_8,
-                    crossSourceRefsEnabled: failure?.crossSourceRefs ?? false,
                     mixedWarehouseConnectionsEnabled: false,
                     onSourceWarning: failure?.onWarning,
-                    prepareSourceManifest: async (source) => {
+                    fetchSourceManifest: async (...args) => {
                         if (
                             failure?.phase === 'prepare' &&
-                            failure.sources.includes(source.name)
+                            failure.sources.includes(args[0].name)
                         )
                             throw new Error('Repository clone failed');
-                        return null;
-                    },
-                    fetchSourceManifest: async (...args) => {
                         if (
                             failure?.phase === 'manifest' &&
                             failure.sources.includes(args[0].name)
@@ -537,9 +530,6 @@ describe('Multi-connection compile on the real schema', () => {
             database,
         });
         compiler = new MultiConnectionCompiler({
-            dbtSourceRefCatalogModel: new DbtSourceRefCatalogModel({
-                database,
-            }),
             projectModel,
             projectDbtSourcesModel,
             warehouseConnectionCompileModel,
@@ -922,9 +912,6 @@ describe('Multi-connection compile on the real schema', () => {
                 analytics,
                 projectModel,
                 projectDbtSourcesModel,
-                dbtSourceRefCatalogModel: new DbtSourceRefCatalogModel({
-                    database,
-                }),
                 warehouseConnectionModel,
                 warehouseConnectionCompileModel,
                 userWarehouseCredentialsModel:
@@ -1002,14 +989,6 @@ describe('Multi-connection compile on the real schema', () => {
                                 : '',
                     });
                     return {
-                        prepareDbtSource: async () => {
-                            if (options.failedSources?.includes(name))
-                                throw new Error('Repository clone failed');
-                            return {
-                                projectDir: null,
-                                timings: { gitRefreshMs: null, depsMs: null },
-                            };
-                        },
                         getDbtManifest: async () => ({
                             manifest: sourceManifests[name],
                             timings: {
@@ -2323,38 +2302,6 @@ Sources in this project: Core models, marketing, finance.`;
                 },
             );
 
-            test('accepts a fresh single-package preview using the parent ref catalog', async () => {
-                const parent = await setup();
-                await new DbtSourceRefCatalogModel({
-                    database,
-                }).upsertProvisional({
-                    projectUuid: parent.fixture.projectUuid,
-                    dbtSourceUuid: parent.primary.dbtSourceUuid,
-                    connectionGroup: 'original',
-                    projectName: 'analytics',
-                    dbtVersion: '1.7.0',
-                    nodes: [],
-                    referencedProjects: [],
-                    compileJobUuid: null,
-                });
-                await database('cached_explore')
-                    .where('project_uuid', parent.fixture.projectUuid)
-                    .delete();
-                const { fixture, primary, deploy } = await setup(
-                    ProjectType.PREVIEW,
-                    parent.fixture.projectUuid,
-                );
-                await database('cached_explore')
-                    .where('project_uuid', fixture.projectUuid)
-                    .delete();
-                await deploy();
-                const rows = await cachedExplores(fixture.projectUuid);
-                expect(rows).toHaveLength(1);
-                expect(rows[0].explore.tables?.orders.dbtSourceUuid).toBe(
-                    primary.dbtSourceUuid,
-                );
-            });
-
             test('a mapped mixed preview replaces uploaded sources and carries untouched sources', async () => {
                 const { fixture, primary, deploy } = await setup(
                     ProjectType.PREVIEW,
@@ -2570,117 +2517,6 @@ Sources in this project: Core models, marketing, finance.`;
                 });
                 expect(await guardedState(fixture.projectUuid)).toEqual(before);
             });
-
-            test.each([
-                { route: 'single', explicit: false },
-                { route: 'single', explicit: true },
-                { route: 'multi', explicit: false },
-                { route: 'multi', explicit: true },
-            ])(
-                'qualifies cross-source names and preserves the saved chart data ($route, explicit $explicit)',
-                async ({ route, explicit }) => {
-                    const { fixture, primary, deploy } = await setup();
-                    if (route === 'multi') {
-                        await database('projects')
-                            .where('project_uuid', fixture.projectUuid)
-                            .update({ connection_mode: 'multi' } as never);
-                        await bind(
-                            fixture,
-                            'finance',
-                            fixture.extraConnectionUuid,
-                        );
-                    }
-                    const chartOwner = await seedGuardedState(
-                        fixture.projectUuid,
-                    );
-                    const before = await guardedState(fixture.projectUuid);
-                    expect(before.catalog.length).toBeGreaterThan(0);
-                    expect(await chartOwner()).toBe(primary.dbtSourceUuid);
-                    const warehouse = knex({
-                        client: 'pg',
-                        connection: {
-                            ...postgresWarehouse(ORIGINAL_DB),
-                            database: ORIGINAL_DB,
-                        },
-                    });
-                    const chartData = async () => {
-                        const saved = await projectModel.getExploreFromCache(
-                            fixture.projectUuid,
-                            'orders',
-                        );
-                        return (
-                            await warehouse.raw(
-                                `SELECT id, amount FROM ${saved.tables![saved.baseTable!].sqlTable} ORDER BY id`,
-                            )
-                        ).rows;
-                    };
-                    try {
-                        await warehouse('orders').delete();
-                        await warehouse('orders').insert({
-                            id: 1,
-                            amount: 101,
-                        });
-                        await database('cached_explore')
-                            .where({
-                                project_uuid: fixture.projectUuid,
-                                name: 'orders',
-                            })
-                            .update({
-                                explore: database.raw(
-                                    "jsonb_set(explore, '{tables,orders,sqlTable}', to_jsonb(?::text))",
-                                    ['"public"."orders"'],
-                                ),
-                            });
-                        const savedData = await chartData();
-                        expect(savedData).toEqual([{ id: 1, amount: 101 }]);
-                        const ownerBefore =
-                            await projectModel.getExploreFromCache(
-                                fixture.projectUuid,
-                                'orders',
-                            );
-                        const uploaded = [
-                            packagedExplore('payments', 'finance'),
-                            packagedExplore('orders', 'dbt_utils'),
-                        ];
-                        await deploy({
-                            explores: uploaded,
-                            cliDeploy: {
-                                sourceUuid: explicit
-                                    ? fixture.sourceUuids.finance
-                                    : null,
-                                target: null,
-                            },
-                        });
-                        expect(
-                            await projectModel.getExploreFromCache(
-                                fixture.projectUuid,
-                                'orders',
-                            ),
-                        ).toEqual(ownerBefore);
-                        expect(await chartData()).toEqual(savedData);
-                        expect(
-                            uploaded.find(
-                                (item) => item.name === 'finance__orders',
-                            )?.warnings,
-                        ).toEqual(
-                            expect.arrayContaining([
-                                expect.objectContaining({
-                                    message: expect.stringContaining(
-                                        'owned by model "orders" from source "Core models"',
-                                    ),
-                                }),
-                            ]),
-                        );
-                        const after = await guardedState(fixture.projectUuid);
-                        expect({ ...after, explores: before.explores }).toEqual(
-                            before,
-                        );
-                        expect(await chartOwner()).toBe(primary.dbtSourceUuid);
-                    } finally {
-                        await warehouse.destroy();
-                    }
-                },
-            );
 
             test.each(['owned', 'reserved'])(
                 'rejects an unsafe qualified name with no project changes (%s)',
@@ -3203,34 +3039,6 @@ Sources in this project: Core models, marketing, finance.`;
                 },
             );
 
-            test('falls back to catalog project names when cached packages are absent', async () => {
-                const { fixture, primary, deploy } = await setup();
-                await database('cached_explore')
-                    .where('project_uuid', fixture.projectUuid)
-                    .whereIn('name', ['orders', 'retired'])
-                    .update({
-                        explore: database.raw(
-                            "explore #- '{tables,orders,dbtPackageName}' #- '{tables,retired,dbtPackageName}'",
-                        ),
-                    });
-                await new DbtSourceRefCatalogModel({
-                    database,
-                }).upsertProvisional({
-                    projectUuid: fixture.projectUuid,
-                    dbtSourceUuid: primary.dbtSourceUuid,
-                    connectionGroup: 'original',
-                    projectName: 'analytics',
-                    dbtVersion: '1.7.0',
-                    nodes: [],
-                    referencedProjects: [],
-                    compileJobUuid: null,
-                });
-                await deploy();
-                expect(
-                    Object.keys(await bindings(fixture.projectUuid)),
-                ).toEqual(['campaigns', 'orders', 'payments']);
-            });
-
             test('drops upstream error stubs using the base table package only', async () => {
                 const { fixture, deploy } = await setup();
                 const upload = packagedExplore('orders', 'analytics');
@@ -3300,9 +3108,6 @@ Sources in this project: Core models, marketing, finance.`;
                     .where('project_uuid', fixture.projectUuid)
                     .delete();
                 await database('cached_explore')
-                    .where('project_uuid', fixture.projectUuid)
-                    .delete();
-                await database('dbt_source_ref_catalogs')
                     .where('project_uuid', fixture.projectUuid)
                     .delete();
                 const upload = packagedExplore('orders', 'unknown');
@@ -4010,7 +3815,6 @@ Sources in this project: Core models, marketing, finance.`;
                         {
                             sources: [],
                             phase: 'prepare',
-                            crossSourceRefs: true,
                         },
                     );
                     const deployed = (
@@ -4065,7 +3869,6 @@ Sources in this project: Core models, marketing, finance.`;
                         {
                             sources: ['marketing'],
                             phase: 'prepare',
-                            crossSourceRefs: true,
                         },
                     );
                     expect(
@@ -4143,43 +3946,11 @@ Sources in this project: Core models, marketing, finance.`;
                         },
                     ]).nodes,
                 );
-                const external = dbtManifest('reference_only', [
-                    {
-                        name: 'external_stub',
-                        database: ORIGINAL_DB,
-                        table: 'campaigns',
-                    },
-                ]);
-                Object.assign(
-                    sourceManifests.marketing.nodes,
-                    Object.fromEntries(
-                        Object.entries(external.nodes).map(([id, node]) => [
-                            id,
-                            { ...node, path: '', original_file_path: '' },
-                        ]),
-                    ),
-                );
                 await compile(
                     fixture,
                     primaryModels,
                     postgresWarehouse(ORIGINAL_DB),
-                    { sources: [], phase: 'prepare', crossSourceRefs: true },
                 );
-                const sourceCatalog = await database('dbt_source_ref_catalogs')
-                    .where({
-                        project_uuid: fixture.projectUuid,
-                        dbt_source_uuid: fixture.sourceUuids.marketing,
-                    })
-                    .first();
-                expect(sourceCatalog?.project_name).toBe('marketing');
-                expect(
-                    sourceCatalog?.nodes.map((node) => node.package_name),
-                ).toEqual(
-                    expect.arrayContaining(['marketing', 'synthetic_vendor']),
-                );
-                expect(
-                    sourceCatalog?.nodes.map((node) => node.package_name),
-                ).not.toContain('reference_only');
                 const names = ['campaigns', 'settlements', 'vendor_receipt'];
                 const deployed = (await cachedExplores(fixture.projectUuid))
                     .filter((row) => names.includes(row.name))
@@ -4189,15 +3960,23 @@ Sources in this project: Core models, marketing, finance.`;
                     if (sourceSelection.startsWith('legacy'))
                         delete legacy.dbtModelIdentity;
                     for (const table of Object.values(legacy.tables)) {
-                        if (sourceSelection.startsWith('legacy')) {
-                            delete table.dbtSourceName;
-                            delete table.dbtModelUniqueId;
+                        if (
+                            !sourceSelection.startsWith('legacy') ||
+                            legacy.name === 'settlements'
+                        ) {
+                            if (sourceSelection.startsWith('legacy')) {
+                                delete table.dbtSourceName;
+                                delete table.dbtModelUniqueId;
+                            }
+                            if (
+                                sourceSelection === 'legacy with foreign stamps'
+                            )
+                                table.dbtSourceUuid = foreignSourceUuid;
+                            else delete table.dbtSourceUuid;
                         }
-                        if (sourceSelection === 'legacy with foreign stamps')
-                            table.dbtSourceUuid = foreignSourceUuid;
-                        else delete table.dbtSourceUuid;
                     }
                 }
+
                 if (sourceSelection.startsWith('legacy')) {
                     await projectModel.saveExploresToCache(
                         fixture.projectUuid,
@@ -4423,92 +4202,6 @@ Sources in this project: Core models, marketing, finance.`;
                                 ? fixture.extraConnectionUuid
                                 : null,
                     });
-                },
-            );
-
-            test.each([false, true])(
-                'a fresh preview publishes each source in a mixed batched upload (explicit %s)',
-                async (explicit) => {
-                    const fixture = await createProject(
-                        undefined,
-                        undefined,
-                        true,
-                        ProjectType.PREVIEW,
-                    );
-                    await bind(fixture, 'finance', null);
-                    await routeSingle(fixture.projectUuid);
-                    const identity = await projectModel.getDbtSourceIdentity(
-                        fixture.projectUuid,
-                    );
-                    await Promise.all(
-                        [
-                            ['primary', identity.dbtSourceUuid],
-                            ['finance', fixture.sourceUuids.finance],
-                        ].map(async ([projectName, dbtSourceUuid]) => {
-                            await new DbtSourceRefCatalogModel({
-                                database,
-                            }).upsertProvisional({
-                                projectUuid: fixture.projectUuid,
-                                dbtSourceUuid,
-                                connectionGroup: 'original',
-                                projectName,
-                                dbtVersion: '1.7.0',
-                                nodes: [],
-                                referencedProjects: [],
-                                compileJobUuid: null,
-                            });
-                        }),
-                    );
-                    const user = await compilingUser(fixture.projectUuid);
-                    const service = deployService(fixture.projectUuid);
-                    const { deploySessionUuid } =
-                        await service.startDeploySession(
-                            fromSession(user, 'session-cookie'),
-                            fixture.projectUuid,
-                        );
-                    await service.addDeployBatch(
-                        user,
-                        fixture.projectUuid,
-                        deploySessionUuid,
-                        [
-                            sourceExplore('orders', 'primary'),
-                            sourceExplore('refunds', 'finance'),
-                        ],
-                        0,
-                        true,
-                    );
-                    const finalized = await service.finalizeDeploy(
-                        user,
-                        fixture.projectUuid,
-                        deploySessionUuid,
-                        'cli-1',
-                        undefined,
-                        {
-                            sourceUuid: explicit
-                                ? fixture.sourceUuids.finance
-                                : null,
-                            target: null,
-                        },
-                    );
-                    const rows = await cachedExplores(fixture.projectUuid);
-                    expect(rows.map((row) => row.name)).toEqual([
-                        'orders',
-                        'refunds',
-                    ]);
-                    expect(rows[0].explore.tables?.orders.dbtSourceUuid).toBe(
-                        identity.dbtSourceUuid,
-                    );
-                    expect(rows[1].explore.tables?.refunds.dbtSourceUuid).toBe(
-                        fixture.sourceUuids.finance,
-                    );
-                    expect(finalized.status).toBe(
-                        DeploySessionStatus.COMPLETED,
-                    );
-                    await expect(
-                        new DeploySessionModel(database).getSession(
-                            deploySessionUuid,
-                        ),
-                    ).rejects.toMatchObject({ statusCode: 404 });
                 },
             );
 
@@ -5421,7 +5114,6 @@ Sources in this project: Core models, marketing, finance.`;
                         {
                             sources: ['marketing'],
                             phase,
-                            crossSourceRefs: true,
                         },
                     );
                     const after = await database('cached_explore')
@@ -5450,92 +5142,6 @@ Sources in this project: Core models, marketing, finance.`;
                 },
             );
 
-            test.each([
-                'unique',
-                'ambiguous',
-                'other-source',
-                'joined-only',
-                'no-catalog',
-            ] as const)(
-                'legacy cached ownership uses only an unambiguous base-table package (%s)',
-                async (ownership) => {
-                    const fixture = await createProject();
-                    await compile(
-                        fixture,
-                        primaryModels,
-                        postgresWarehouse(ORIGINAL_DB),
-                        {
-                            sources: [],
-                            phase: 'prepare',
-                            crossSourceRefs: true,
-                        },
-                    );
-                    const rows = await cachedExplores(fixture.projectUuid);
-                    const campaigns = rows.find(
-                        (row) => row.name === 'campaigns',
-                    )!.explore as Explore;
-                    const table = campaigns.tables[campaigns.baseTable];
-                    delete table.dbtSourceUuid;
-                    if (ownership === 'other-source')
-                        table.dbtSourceUuid = fixture.sourceUuids.finance;
-                    if (ownership === 'joined-only') {
-                        campaigns.tables.joined = { ...table, name: 'joined' };
-                        table.dbtPackageName = 'unmapped';
-                    }
-                    if (ownership === 'ambiguous') {
-                        await database('dbt_source_ref_catalogs')
-                            .where({
-                                project_uuid: fixture.projectUuid,
-                                dbt_source_uuid: fixture.sourceUuids.finance,
-                            })
-                            .update({
-                                project_name: 'marketing',
-                                status: 'provisional',
-                            });
-                    }
-                    if (ownership === 'no-catalog') {
-                        await database('dbt_source_ref_catalogs')
-                            .where('project_uuid', fixture.projectUuid)
-                            .delete();
-                    }
-                    await database('cached_explore')
-                        .where({
-                            project_uuid: fixture.projectUuid,
-                            name: 'campaigns',
-                        })
-                        .update({ explore: JSON.stringify(campaigns) });
-                    const expected = ownership === 'unique' ? 1 : 0;
-                    expect(
-                        await projectModel.countCachedExploresForDbtSource(
-                            fixture.projectUuid,
-                            fixture.sourceUuids.marketing,
-                        ),
-                    ).toBe(expected);
-                    const before = await database('cached_explore')
-                        .where({
-                            project_uuid: fixture.projectUuid,
-                            name: 'campaigns',
-                        })
-                        .first();
-                    await projectModel.saveExploreStreamToCache(
-                        fixture.projectUuid,
-                        (async function* fresh() {
-                            yield rows.find((row) => row.name === 'orders')!
-                                .explore;
-                        })(),
-                        undefined,
-                        [fixture.sourceUuids.marketing],
-                    );
-                    const after = await database('cached_explore')
-                        .where({
-                            project_uuid: fixture.projectUuid,
-                            name: 'campaigns',
-                        })
-                        .first();
-                    expect(after).toEqual(expected === 1 ? before : undefined);
-                },
-            );
-
             test('all non-primary failures still save the primary and carry both sources', async () => {
                 const fixture = await createProject();
                 await compile(fixture);
@@ -5550,7 +5156,6 @@ Sources in this project: Core models, marketing, finance.`;
                     {
                         sources: ['marketing', 'finance'],
                         phase: 'manifest',
-                        crossSourceRefs: false,
                     },
                 );
                 const after = await cachedExplores(fixture.projectUuid);
@@ -5582,7 +5187,6 @@ Sources in this project: Core models, marketing, finance.`;
                     {
                         sources: ['marketing'],
                         phase: 'manifest',
-                        crossSourceRefs: true,
                     },
                 );
                 expect(
@@ -5607,7 +5211,6 @@ Sources in this project: Core models, marketing, finance.`;
                         {
                             sources: ['primary'],
                             phase: 'manifest',
-                            crossSourceRefs: true,
                         },
                     ),
                 ).rejects.toThrow('Primary parse failed');
@@ -5679,7 +5282,6 @@ Sources in this project: Core models, marketing, finance.`;
                     {
                         sources: ['marketing'],
                         phase: 'manifest',
-                        crossSourceRefs: true,
                     },
                 );
                 expect(
@@ -5706,7 +5308,6 @@ Sources in this project: Core models, marketing, finance.`;
                         {
                             sources: [],
                             phase: 'prepare',
-                            crossSourceRefs: true,
                         },
                     );
                     if (ownership === 'legacy')
@@ -5770,7 +5371,6 @@ Sources in this project: Core models, marketing, finance.`;
                             {
                                 sources: ['marketing'],
                                 phase: 'manifest',
-                                crossSourceRefs: true,
                                 onWarning: (warning) =>
                                     jobs.appendJobStepWarning(
                                         jobUuid,
@@ -7111,9 +6711,6 @@ Sources in this project: Core models, marketing, finance.`;
                 .orderBy('name');
         const freshCompiler = () =>
             new MultiConnectionCompiler({
-                dbtSourceRefCatalogModel: new DbtSourceRefCatalogModel({
-                    database,
-                }),
                 projectModel,
                 projectDbtSourcesModel,
                 warehouseConnectionCompileModel,
@@ -8845,13 +8442,6 @@ Sources in this project: Core models, marketing, finance.`;
         const bindingAnalytics = { track: vi.fn() };
         const bindingService = () =>
             new WarehouseConnectionBindingService({
-                dbtSourceRefCatalogModel: { deleteForSource: vi.fn() },
-                featureFlagService: {
-                    get: vi.fn(async ({ featureFlagId }) => ({
-                        id: featureFlagId,
-                        enabled: false,
-                    })),
-                } as never,
                 projectModel,
                 warehouseConnectionCompileModel,
                 warehouseConnectionModel,
@@ -9095,9 +8685,6 @@ Sources in this project: Core models, marketing, finance.`;
 
         const dbtSourcesService = () =>
             new ProjectDbtSourcesService({
-                dbtSourceRefCatalogModel: new DbtSourceRefCatalogModel({
-                    database,
-                }),
                 lightdashConfig: lightdashConfigMock,
                 analytics: { track: vi.fn() } as never,
                 projectModel,

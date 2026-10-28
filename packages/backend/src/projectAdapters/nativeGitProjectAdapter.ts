@@ -26,7 +26,6 @@ import {
 import { preAggregatePostProcessor } from '../ee/preAggregates/postProcessor';
 import {
     type DbtManifestFetchOptions,
-    type DbtSourcePreparation,
     type ProjectAdapter,
     type TrackingParams,
 } from '../types';
@@ -39,11 +38,6 @@ import { GIT_REPOSITORY_ENVIRONMENT, GitRepository } from './gitRepository';
 
 export class NativeGitProjectAdapter implements ProjectAdapter {
     readonly dbtProjectDir: string;
-
-    private readonly sourcePreparation: DbtSourcePreparation = {
-        projectDir: null,
-        timings: { gitRefreshMs: null, depsMs: null },
-    };
 
     private readonly localRepositoryDir: string;
 
@@ -239,16 +233,8 @@ export class NativeGitProjectAdapter implements ProjectAdapter {
         return undefined;
     }
 
-    async prepareDbtSource(_options?: {
-        signal?: AbortSignal;
-    }): Promise<DbtSourcePreparation> {
-        return this.sourcePreparation;
-    }
-
     async getDbtManifest(options?: DbtManifestFetchOptions): Promise<never> {
-        await this.prepareDbtSource(
-            options?.signal ? { signal: options.signal } : undefined,
-        );
+        options?.signal?.throwIfAborted();
         throw new ParameterError(
             'Native YAML projects cannot be combined with additional dbt sources.',
         );

@@ -121,7 +121,6 @@ import {
     DbDashboardTabs,
 } from '../../database/entities/dashboards';
 import { DashboardSlugMappingsTableName } from '../../database/entities/dashboardSlugMappings';
-import { DbtSourceRefCatalogsTableName } from '../../database/entities/dbtSourceRefCatalogs';
 import {
     ExternalSourcesTableName,
     ExternalSourceTablesTableName,
@@ -265,7 +264,6 @@ import {
 import {
     cachedExploreSourcesForSources,
     type CachedExploreSource,
-    type CachedSourceCatalog,
 } from './cachedExploreSource';
 import {
     allocateStagedExploreNames,
@@ -3789,25 +3787,13 @@ export class ProjectModel {
         projectUuid: string,
         dbtSourceUuids: string[],
     ): Promise<Map<string, string>> {
-        const [project, sources, packages, explores] = await Promise.all([
+        const [project, sources, explores] = await Promise.all([
             database(ProjectTableName)
                 .select('dbt_source_uuid')
                 .where('project_uuid', projectUuid)
                 .first(),
             database(ProjectDbtSourcesTableName)
                 .select('project_dbt_source_uuid')
-                .where('project_uuid', projectUuid),
-            database(DbtSourceRefCatalogsTableName)
-                .select<CachedSourceCatalog[]>(
-                    {
-                        sourceUuid: 'dbt_source_uuid',
-                        packageName: 'project_name',
-                    },
-                    database.raw(
-                        "ARRAY(SELECT DISTINCT node->>'package_name' FROM jsonb_array_elements(??) AS node WHERE node->>'package_name' IS NOT NULL) AS ??",
-                        ['nodes', 'nodePackageNames'],
-                    ),
-                )
                 .where('project_uuid', projectUuid),
             database(CachedExploreTableName)
                 .select<CachedExploreSource[]>(
@@ -3828,7 +3814,6 @@ export class ProjectModel {
         ]);
         return cachedExploreSourcesForSources(
             explores,
-            packages,
             [
                 project?.dbt_source_uuid ?? projectUuid,
                 ...sources.map((source) => source.project_dbt_source_uuid),

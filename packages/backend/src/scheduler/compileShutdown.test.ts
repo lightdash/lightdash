@@ -7,9 +7,12 @@ import knex from 'knex';
 import { getTracker, MockClient } from 'knex-mock-client';
 import { JobsTableName, JobStepsTableName } from '../database/entities/jobs';
 import { JobModel } from '../models/JobModel/JobModel';
-import { resolveCrossSourceManifests } from '../projectAdapters/crossSourceRefs';
 import { ProjectService } from '../services/ProjectService/ProjectService';
-import { armCompileShutdown, CompileInterruptedError } from './compileShutdown';
+import {
+    armCompileShutdown,
+    CompileInterruptedError,
+    getCompileShutdownSignal,
+} from './compileShutdown';
 import { SchedulerWorker } from './SchedulerWorker';
 
 it('writes the shutdown error to the running step and job before stop returns', async () => {
@@ -46,16 +49,12 @@ it('writes the shutdown error to the running step and job before stop returns', 
     );
     const work = run('leaf_a', async () => {
         await jobModel.tryJobStep('leaf_a', JobStepType.COMPILING, () =>
-            resolveCrossSourceManifests({
-                tasks: [{ key: 'leaf_a', context: null, fetch }],
-                enabled: true,
-                concurrency: 1,
-                signal: armCompileShutdown(),
-            }),
+            fetch({ signal: armCompileShutdown() }),
         );
     }).catch((error: unknown) => error);
     try {
         await vi.waitFor(() => expect(fetch).toHaveBeenCalledOnce());
+        expect(getCompileShutdownSignal()).toBeUndefined();
         await worker.stop();
         expect(await work).toBeInstanceOf(CompileInterruptedError);
         const updates = tracker.history.update;

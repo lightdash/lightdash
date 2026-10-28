@@ -22,7 +22,6 @@ REPO = Path(__file__).resolve().parents[2]
 FIXTURES = REPO / 'examples' / 'mixed-warehouse-dev'
 TRINO_FIXTURE = REPO / 'examples' / 'trino-dev' / 'dbt'
 SNOWFLAKE_FIXTURE = REPO / 'examples' / 'mixed-warehouse-dev' / 'snowflake'
-GITHUB_REPOSITORY = 'lightdash/lightdash'
 
 
 class Api:
@@ -368,22 +367,6 @@ class Runner:
         source_uuid = response['results']['projectDbtSourceUuid']
         return self.bind(project, source_uuid, source_name, connection_uuid)
 
-    def add_github_source(self, project, source_name, sub_path, connection_uuid, branch):
-        response, seconds = timed(self.api.call, 'POST', f'/api/v1/projects/{project}/dbt-sources', {
-            'name': source_name,
-            'dbtConnection': {
-                'type': 'github', 'authorization_method': 'personal_access_token',
-                'personal_access_token': '', 'repository': GITHUB_REPOSITORY,
-                'branch': branch, 'project_sub_path': sub_path,
-            },
-        })
-        if not self.rec.step(f'add GitHub source "{source_name}"', ok(response), message(response), seconds):
-            return None
-        source_uuid = response['results']['projectDbtSourceUuid']
-        if connection_uuid is None:
-            return source_uuid
-        return self.bind(project, source_uuid, source_name, connection_uuid)
-
     def bind(self, project, source_uuid, source_name, connection_uuid):
         response, seconds = timed(self.api.call, 'PUT', f'/api/v1/projects/{project}/warehouse-connections/dbt-sources/{source_uuid}', {
             'warehouseConnectionUuid': connection_uuid,
@@ -636,42 +619,6 @@ class Runner:
             'name': 'Playground', 'warehouseConnection': {'type': 'duckdb', 'connectionType': 'embedded', 'dataset': 'jaffle'},
         })
         self.rec.step('backend-provisioned DuckDB is refused as an extra', not ok(response), message(response), seconds)
-        self.rec.finish()
-
-    def cross_source(self, branch):
-        self.rec.start('cross-source refs: refs and joins inside and across connections', 'cross-source')
-        project = self.create_project('Cross-source refs', 'postgres')
-        if not project:
-            return self.rec.finish()
-        self.refresh(project, 'initial compile of the original')
-        self.switch(project, 'Postgres (original)', 'Trino extra', 'trino')
-        trino_uuid = self.connections(project).get('Trino extra', {}).get('warehouseConnectionUuid')
-        self.add_github_source(project, 'pg_shared', 'examples/mixed-warehouse-dev/xref/pg_shared', None, branch)
-        self.add_github_source(project, 'trino_shared', 'examples/mixed-warehouse-dev/xref/trino_shared', trino_uuid, branch)
-        self.add_github_source(project, 'trino_consumer', 'examples/mixed-warehouse-dev/xref/trino_consumer', trino_uuid, branch)
-        result = self.refresh(project, 'compile with refs inside the Trino connection')
-        explore = self.explore(project, 'trino_nation_regions')
-        bound = (explore or {}).get('warehouseConnection') or {}
-        self.rec.step('ref between two sources on the Trino connection resolves', explore is not None and bound.get('warehouseConnectionUuid') == trino_uuid, json.dumps(bound))
-        warnings = json.dumps((explore or {}).get('warnings') or [])
-        self.rec.step('join to a model on another connection is skipped with a warning naming both connections', 'Joins across connections are not supported' in warnings and 'Postgres (original)' in warnings, clip(warnings, 300))
-        self.run_query(project, {'exploreName': 'trino_nation_regions', 'dimensions': ['trino_nation_regions_nation_name'], 'metrics': ['trino_nation_regions_nation_count'], 'filters': {}, 'sorts': [], 'limit': 5, 'tableCalculations': [], 'additionalMetrics': [], 'customDimensions': []}, 'query the explore built from a cross-source ref')
-        self.rec.finish()
-
-        self.rec.start('cross-source refs: ref across connections is refused clearly', 'cross-source')
-        project = self.create_project('Cross-connection ref', 'postgres')
-        if not project:
-            return self.rec.finish()
-        self.refresh(project, 'initial compile of the original')
-        self.switch(project, 'Postgres (original)', 'Trino extra', 'trino')
-        trino_uuid = self.connections(project).get('Trino extra', {}).get('warehouseConnectionUuid')
-        self.add_github_source(project, 'pg_shared', 'examples/mixed-warehouse-dev/xref/pg_shared', None, branch)
-        self.add_github_source(project, 'trino_xconn', 'examples/mixed-warehouse-dev/xref/trino_xconn', trino_uuid, branch)
-        result = self.refresh(project, 'compile with a ref across connections')
-        warnings = json.dumps(((result or {}).get('jobResults') or {}).get('connectionWarnings') or [])
-        expected = 'Refs across connections are not supported'
-        self.rec.step('the Trino connection fails with a cross-connection ref warning', expected in warnings and 'pg_shared' in warnings, clip(warnings, 400), expected=expected)
-        self.rec.step('the original connection still compiles', self.explore(project, 'pg_calendar') is not None)
         self.rec.finish()
 
     def preview_and_cli(self, source_project, cli_dir):
@@ -956,22 +903,6 @@ class Runner:
         self.rec.step('control: the same custom dimension prompt on the Postgres primary uses Postgres SQL', bool(sql) and 'date_format' not in (sql or '').lower(), clip(sql or detail, 300), seconds)
         self.rec.finish()
 
-    def flag_off_cross_source(self, branch):
-        self.rec.start('flag off: same-type ref across connections keeps the existing message', 'flag-off')
-        project = self.create_project('Flag off cross-source', 'postgres')
-        if not project:
-            return self.rec.finish()
-        self.refresh(project, 'initial compile of the original')
-        if not self.switch(project, 'Postgres (original)', 'Postgres replica', 'postgres'):
-            return self.rec.finish()
-        replica = self.connections(project).get('Postgres replica', {}).get('warehouseConnectionUuid')
-        self.add_github_source(project, 'pg_shared', 'examples/mixed-warehouse-dev/xref/pg_shared', None, branch)
-        self.add_github_source(project, 'pg_xconn', 'examples/mixed-warehouse-dev/xref/pg_xconn', replica, branch)
-        result = self.refresh(project, 'compile with a ref across two Postgres connections')
-        warnings = json.dumps(((result or {}).get('jobResults') or {}).get('connectionWarnings') or [])
-        self.rec.step('the replica fails with the existing message and no cross-connection explanation', 'pg_shared' in warnings and 'Refs across connections' not in warnings, clip(warnings, 400))
-        self.rec.finish()
-
     def flag_off(self, state):
         self.rec.start('flag off: same-type extras only, as on main', 'flag-off')
         project = self.create_project('Flag off Postgres', 'postgres')
@@ -1029,25 +960,11 @@ class Runner:
             self.rec.finish()
 
 
-def prepare_physical_fixtures(env, pg_database):
-    psql = ['docker', 'exec', '-i', 'ldenv-pg', 'psql', '-U', env['PGUSER'], '-d', pg_database, '-v', 'ON_ERROR_STOP=1']
-    subprocess.run(psql, input=(
-        'create schema if not exists xref;\n'
-        'create or replace view xref.pg_calendar as select d::date as calendar_date, extract(isodow from d)::int as day_of_week '
-        "from generate_series(date '2024-01-01', date '2024-12-31', interval '1 day') d;\n"
-    ), text=True, check=True, capture_output=True)
+def prepare_physical_fixtures(env):
     subprocess.run(
         [str(Path.home() / '.lightdash/dev-venv-trino/bin/dbt'), 'run', '--profiles-dir', '.'],
         cwd=TRINO_FIXTURE, check=True, capture_output=True,
     )
-    trino = ['docker', 'exec', '-i', 'ld-trino-dev', 'trino']
-    statements = [
-        'CREATE SCHEMA IF NOT EXISTS memory.xref',
-        'CREATE TABLE IF NOT EXISTS memory.xref.trino_nations AS SELECT nationkey AS nation_id, name AS nation_name, regionkey AS region_id FROM tpch.tiny.nation',
-        "CREATE TABLE IF NOT EXISTS memory.xref.trino_nation_regions AS SELECT nation_id, nation_name, region_id, DATE '2024-03-01' AS joined_on FROM memory.xref.trino_nations",
-    ]
-    for statement in statements:
-        subprocess.run(trino + ['--execute', statement], check=True, capture_output=True)
     clickhouse = f"http://localhost:{env.get('CLICKHOUSE_HTTP_PORT', '18123')}/?user=lightdash&password=lightdash"
     for statement in [
         'CREATE DATABASE IF NOT EXISTS analytics',
@@ -1075,7 +992,6 @@ def main():
     parser.add_argument('--url', default='http://localhost:8080')
     parser.add_argument('--env-file', default=str(REPO / '.env.development.local'))
     parser.add_argument('--pg-database', required=True)
-    parser.add_argument('--branch', required=True, help='Git branch the GitHub dbt sources clone')
     parser.add_argument('--mode', choices=['flag-on', 'flag-off'], required=True)
     parser.add_argument('--out', default=str(Path(tempfile.gettempdir()) / 'mixed-warehouse-scale-test'))
     parser.add_argument('--only', default='', help='Comma-separated scenario groups to run')
@@ -1097,7 +1013,7 @@ def main():
         return not only or group in only
 
     if args.mode == 'flag-on':
-        prepare_physical_fixtures(env, args.pg_database)
+        prepare_physical_fixtures(env)
         types = runner.w.types
         mixed = []
         if wanted('matrix'):
@@ -1117,8 +1033,6 @@ def main():
                     mixed.append([project, [original, extra]])
         if wanted('guards'):
             runner.flag_on_refusals()
-        if wanted('cross-source'):
-            runner.cross_source(args.branch)
         if wanted('preview-cli') and mixed:
             runner.preview_and_cli(mixed[0][0], TRINO_FIXTURE)
         if wanted('new-cases'):
@@ -1129,7 +1043,6 @@ def main():
         state_file.write_text(json.dumps(state, indent=2))
     else:
         runner.flag_off(state)
-        runner.flag_off_cross_source(args.branch)
 
     recorder.save()
     write_summary(recorder)

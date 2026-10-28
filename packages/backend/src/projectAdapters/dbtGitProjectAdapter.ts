@@ -14,7 +14,8 @@ import Logger from '../logging/logger';
 import type { DbtTargetResult } from '../services/WarehouseClientFactory/CredentialResolver';
 import {
     CachedWarehouse,
-    DbtSourcePreparation,
+    DbtManifestFetchOptions,
+    DbtManifestFetchResult,
     ProjectAdapter,
     type TrackingParams,
 } from '../types';
@@ -57,9 +58,7 @@ export class DbtGitProjectAdapter
 
     git: SimpleGit;
 
-    private gitRefresh: Promise<number> | null = null;
-
-    private gitPreparation: Promise<DbtSourcePreparation> | null = null;
+    private readonly gitRefreshes = new Set<Promise<void>>();
 
     constructor({
         warehouseClient,
@@ -124,16 +123,9 @@ export class DbtGitProjectAdapter
     }
 
     async releaseDisk(options?: { keepProject?: boolean }): Promise<void> {
-        await Promise.allSettled([
-            ...(this.gitRefresh ? [this.gitRefresh] : []),
-            ...(this.gitPreparation ? [this.gitPreparation] : []),
-        ]);
+        await Promise.allSettled([...this.gitRefreshes]);
         await super.releaseDisk(options);
-        if (!options?.keepProject) {
-            await this._destroyLocal();
-            this.gitRefresh = null;
-            this.gitPreparation = null;
-        }
+        if (!options?.keepProject) await this._destroyLocal();
     }
 
     private async _destroyLocal() {
@@ -152,13 +144,19 @@ export class DbtGitProjectAdapter
 
     private async _refreshRepo(signal?: AbortSignal) {
         signal?.throwIfAborted();
-        await new GitRepository(
+        const refresh = new GitRepository(
             this.git,
             this.localRepositoryDir,
             this.remoteRepositoryUrl,
             this.repository,
             this.branch,
         ).refresh(signal);
+        this.gitRefreshes.add(refresh);
+        try {
+            await refresh;
+        } finally {
+            this.gitRefreshes.delete(refresh);
+        }
     }
 
     public async prepareExploreStream(
@@ -166,7 +164,7 @@ export class DbtGitProjectAdapter
         loadSources?: boolean,
         allowPartialCompilation?: boolean,
     ) {
-        await this.prepareDbtSource();
+        await this._refreshRepo();
         return super.prepareExploreStream(
             trackingParams,
             loadSources,
@@ -176,46 +174,20 @@ export class DbtGitProjectAdapter
 
     public async test(options?: { signal?: AbortSignal }) {
         if (options?.signal) {
-            await this.prepareRepository(options.signal);
+            await this._refreshRepo(options.signal);
             await super.test(options);
         } else {
-            await this.prepareRepository();
+            await this._refreshRepo();
             await super.test();
         }
     }
-
-    private async prepareRepository(signal?: AbortSignal): Promise<number> {
-        signal?.throwIfAborted();
-        this.gitRefresh ??= (async () => {
-            const startedAt = Date.now();
-            await this._refreshRepo(signal);
-            return Date.now() - startedAt;
-        })();
-        try {
-            return await this.gitRefresh;
-        } catch (error) {
-            if (signal?.aborted) this.gitRefresh = null;
-            throw error;
-        }
-    }
-
-    public async prepareDbtSource(options?: {
-        signal?: AbortSignal;
-    }): Promise<DbtSourcePreparation> {
-        options?.signal?.throwIfAborted();
-        this.gitPreparation ??= (async () => {
-            const gitRefreshMs = await this.prepareRepository(options?.signal);
-            const preparation = await super.prepareDbtSource(options);
-            return {
-                ...preparation,
-                timings: { ...preparation.timings, gitRefreshMs },
-            };
-        })();
-        try {
-            return await this.gitPreparation;
-        } catch (error) {
-            if (options?.signal?.aborted) this.gitPreparation = null;
-            throw error;
-        }
+    protected async fetchDbtManifest(
+        options?: DbtManifestFetchOptions,
+    ): Promise<DbtManifestFetchResult> {
+        const startedAt = Date.now();
+        await this._refreshRepo(options?.signal);
+        const gitRefreshMs = Date.now() - startedAt;
+        const result = await super.fetchDbtManifest(options);
+        return { ...result, timings: { ...result.timings, gitRefreshMs } };
     }
 }

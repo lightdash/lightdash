@@ -439,8 +439,8 @@ export class SchedulerWorker extends SchedulerTask {
                     context.controller.signal.aborted
                 )
                     return;
-                Logger.warn('dbt.compile.crossSourceInterrupted', {
-                    event: 'dbt.compile.crossSourceInterrupted',
+                Logger.warn('dbt.compile.interrupted', {
+                    event: 'dbt.compile.interrupted',
                     jobUuid: context.jobUuid,
                 });
                 context.controller.abort(new CompileInterruptedError());

@@ -144,6 +144,15 @@
                     "mcp": []
                 }
             }
+        },
+        "cross-source-dbt-refs-flag-removed": {
+            "reason": "The CrossSourceDbtRefs member is removed from the exported FeatureFlags enum. TypeScript consumers that reference this experimental flag must remove it when upgrading. Each dbt source now resolves its own refs with dbt.",
+            "requiredStop": false
+        },
+        "drop-dbt-source-ref-catalogs-table": {
+            "reason": "Old release pods fail multi-source publication and CLI deploy or preview source inference after this table is dropped during a rolling update. Operators must replace all old pods before these operations resume.",
+            "requiredStop": false,
+            "migration": "packages/backend/src/database/migrations/20261027120000_drop_dbt_source_ref_catalogs.ts"
         }
     }
 }

@@ -20,7 +20,6 @@ import {
     ParseError,
     preAggregatePostProcessor,
     QueryExecutionContext,
-    stripExternalDbtNodes,
     WarehouseCatalog,
     type WarehouseClient,
 } from '@lightdash/common';
@@ -477,9 +476,7 @@ export const compileProject = async (
                 { targetDir: context.targetDir },
                 options,
             );
-        let manifest = stripExternalDbtNodes(
-            await loadManifest({ targetDir: context.targetDir }),
-        );
+        let manifest = await loadManifest({ targetDir: context.targetDir });
         const projectManifestModels = getModelsFromManifest(manifest);
         if (
             !options.combineManifest &&

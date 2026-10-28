@@ -1,7 +1,6 @@
 import { subject } from '@casl/ability';
 import {
     assertRegisteredAccount,
-    FeatureFlags,
     ForbiddenError,
     ParameterError,
     type Account,
@@ -10,13 +9,10 @@ import {
 } from '@lightdash/common';
 import { type LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { trackSafely } from '../../analytics/trackSafely';
-import { type DbtSourceRefCatalogModel } from '../../models/DbtSourceRefCatalogModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { type WarehouseConnectionCompileModel } from '../../models/WarehouseConnectionCompileModel/WarehouseConnectionCompileModel';
 import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
-import { logCrossSourceCacheError } from '../../projectAdapters/crossSourceCatalogCache';
 import { BaseService } from '../BaseService';
-import { type FeatureFlagService } from '../FeatureFlag/FeatureFlagService';
 import { type WarehouseCredentialPolicy } from '../WarehouseConnectionService/WarehouseConnectionService';
 
 type WarehouseConnectionBindingServiceArguments = {
@@ -28,8 +24,6 @@ type WarehouseConnectionBindingServiceArguments = {
         'assertCanWriteWarehouseConnection'
     >;
     analytics: Pick<LightdashAnalytics, 'track'>;
-    dbtSourceRefCatalogModel: Pick<DbtSourceRefCatalogModel, 'deleteForSource'>;
-    featureFlagService: Pick<FeatureFlagService, 'get'>;
 };
 
 export class WarehouseConnectionBindingService extends BaseService {
@@ -52,10 +46,6 @@ export class WarehouseConnectionBindingService extends BaseService {
 
     private readonly analytics: Pick<LightdashAnalytics, 'track'>;
 
-    private readonly dbtSourceRefCatalogModel: WarehouseConnectionBindingServiceArguments['dbtSourceRefCatalogModel'];
-
-    private readonly featureFlagService: WarehouseConnectionBindingServiceArguments['featureFlagService'];
-
     constructor(args: WarehouseConnectionBindingServiceArguments) {
         super({ serviceName: 'WarehouseConnectionBindingService' });
         this.projectModel = args.projectModel;
@@ -64,8 +54,6 @@ export class WarehouseConnectionBindingService extends BaseService {
         this.warehouseConnectionModel = args.warehouseConnectionModel;
         this.credentialPolicy = args.credentialPolicy;
         this.analytics = args.analytics;
-        this.dbtSourceRefCatalogModel = args.dbtSourceRefCatalogModel;
-        this.featureFlagService = args.featureFlagService;
     }
 
     private async getBindingsForAnalytics(
@@ -199,23 +187,6 @@ export class WarehouseConnectionBindingService extends BaseService {
             projectDbtSourceUuid,
             warehouseConnectionUuid,
         );
-        const { enabled } = await this.featureFlagService.get({
-            user: {
-                userUuid: account.user.id,
-                organizationUuid: summary.organizationUuid,
-            },
-            featureFlagId: FeatureFlags.CrossSourceDbtRefs,
-        });
-        if (enabled) {
-            try {
-                await this.dbtSourceRefCatalogModel.deleteForSource(
-                    projectUuid,
-                    projectDbtSourceUuid,
-                );
-            } catch (error) {
-                logCrossSourceCacheError(error);
-            }
-        }
         if (before === null) return;
         const target = before.connections.find(
             (connection) =>

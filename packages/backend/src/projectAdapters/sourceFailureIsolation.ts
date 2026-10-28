@@ -1,7 +1,6 @@
 import {
     DbtError,
     getDbtManifestVersion,
-    getExternalModelNodesFromManifest,
     isDbtRpcManifestResults,
     isSupportedDbtAdapter,
     type DbtManifest,
@@ -13,9 +12,8 @@ import {
     CompileInterruptedError,
     throwIfCompileAborted,
 } from '../scheduler/compileShutdown';
-import { DbtSourceDiskError } from './DbtSourceDiskPool';
 
-export type SourceFailurePhase = 'prepare' | 'manifest' | 'dependency';
+export type SourceFailurePhase = 'prepare' | 'manifest';
 
 export const isFatalSourceFailure = (error: unknown): boolean => {
     if (error instanceof DbtSourceError)
@@ -32,7 +30,6 @@ export const isFatalSourceFailure = (error: unknown): boolean => {
         return true;
     return (
         error instanceof CompileInterruptedError ||
-        error instanceof DbtSourceDiskError ||
         (error instanceof Error &&
             ['AbortError', 'TimeoutError'].includes(error.name))
     );
@@ -47,7 +44,6 @@ export const validateDbtSourceManifest = (manifest: DbtManifest): void => {
             'The dbt manifest is invalid or uses an unsupported adapter.',
         );
     getDbtManifestVersion(manifest);
-    getExternalModelNodesFromManifest(manifest);
 };
 
 export class SourceFailureIsolation {
@@ -83,7 +79,6 @@ export class SourceFailureIsolation {
         const reasons: Record<SourceFailurePhase, string> = {
             prepare: 'could not load the repository or install dbt packages',
             manifest: 'could not parse, list models, or validate the manifest',
-            dependency: 'a referenced dbt source failed',
         };
         const warning = `Source "${sourceName}" failed: ${reasons[phase]}; ${carriedExploreCount > 0 ? `kept its ${carriedExploreCount} explores from the last successful refresh` : 'no explores from a previous successful refresh are available; nothing was carried'}.`;
         await this.onWarning(warning);

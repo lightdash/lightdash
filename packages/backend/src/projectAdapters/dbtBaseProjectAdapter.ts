@@ -52,7 +52,6 @@ import {
     DbtClient,
     DbtManifestFetchOptions,
     DbtManifestFetchResult,
-    DbtSourcePreparation,
     ProjectAdapter,
     type TrackingParams,
 } from '../types';
@@ -72,13 +71,9 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
 
     dbtProjectDir?: string;
 
-    private preparation: Promise<DbtSourcePreparation> | null = null;
-
     private readonly manifestFetches = new Set<
         Promise<DbtManifestFetchResult>
     >();
-
-    private preparationTimingsReported = false;
 
     constructor(
         dbtClient: DbtClient,
@@ -102,26 +97,14 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
     }
 
     async releaseDisk(_options?: { keepProject?: boolean }): Promise<void> {
-        await Promise.allSettled([
-            ...this.manifestFetches,
-            ...(this.preparation ? [this.preparation] : []),
-        ]);
+        await Promise.allSettled([...this.manifestFetches]);
         await this.dbtClient.cleanup?.();
-        this.preparation = null;
-        this.preparationTimingsReported = false;
     }
 
     public async test(options?: { signal?: AbortSignal }): Promise<void> {
         Logger.debug('Test dbt client');
-        if (options?.signal) {
-            await this.dbtClient.test(async () => {
-                await this.prepareDbtSource(options);
-            }, options.signal);
-        } else {
-            await this.dbtClient.test(async () => {
-                await this.prepareDbtSource();
-            });
-        }
+        if (options?.signal) await this.dbtClient.test(options.signal);
+        else await this.dbtClient.test();
         Logger.debug('Test warehouse client');
         await this.warehouseClient.test();
     }
@@ -132,34 +115,6 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
             return this.dbtClient.getDbtPackages();
         }
         return undefined;
-    }
-
-    public async prepareDbtSource(options?: {
-        signal?: AbortSignal;
-    }): Promise<DbtSourcePreparation> {
-        options?.signal?.throwIfAborted();
-        this.preparation ??= (async () => {
-            let depsMs: number | null = null;
-            if (this.dbtClient.installDeps !== undefined) {
-                const startedAt = Date.now();
-                if (options?.signal)
-                    await this.dbtClient.installDeps(options.signal);
-                else await this.dbtClient.installDeps();
-                depsMs = Date.now() - startedAt;
-            }
-            return {
-                projectDir: this.dbtClient.installDeps
-                    ? (this.dbtProjectDir ?? null)
-                    : null,
-                timings: { gitRefreshMs: null, depsMs },
-            };
-        })();
-        try {
-            return await this.preparation;
-        } catch (error) {
-            if (options?.signal?.aborted) this.preparation = null;
-            throw error;
-        }
     }
 
     public async getDbtManifest(
@@ -174,23 +129,25 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         }
     }
 
-    private async fetchDbtManifest(
+    protected async fetchDbtManifest(
         options?: DbtManifestFetchOptions,
     ): Promise<DbtManifestFetchResult> {
-        const preparation = await this.prepareDbtSource(
-            options?.signal ? { signal: options.signal } : undefined,
-        );
-        const timings = this.preparationTimingsReported
-            ? { gitRefreshMs: null, depsMs: null }
-            : preparation.timings;
-        this.preparationTimingsReported = true;
+        let depsMs: number | null = null;
+        if (this.dbtClient.installDeps !== undefined) {
+            const startedAt = Date.now();
+            if (options?.signal)
+                await this.dbtClient.installDeps(options.signal);
+            else await this.dbtClient.installDeps();
+            depsMs = Date.now() - startedAt;
+        }
         Logger.debug(`Get dbt manifest`);
         const manifestStartedAt = Date.now();
         const result = await this.dbtClient.getDbtManifest(options);
         return {
             ...result,
             timings: {
-                ...timings,
+                gitRefreshMs: null,
+                depsMs,
                 manifestMs: Date.now() - manifestStartedAt,
             },
         };
@@ -299,7 +256,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         allowPartialCompilation: boolean = true,
         deferExploreNaming: boolean = false,
     ): Promise<AsyncIterable<Explore | ExploreError>> {
-        await this.prepareDbtSource();
+        await this.dbtClient.installDeps?.();
         Logger.debug('Get dbt manifest');
         const { manifest, selectedModelIds } =
             await this.dbtClient.getDbtManifest();

@@ -36,7 +36,24 @@ const setup = () => {
                         project === 'preview' ? 'primary' : 'parent-primary',
                     dbtSourceName: 'Core models',
                 })),
-            getAllExploresFromCache: vi.fn().mockResolvedValue({}),
+            getAllExploresFromCache: vi
+                .fn()
+                .mockImplementation(async (project: string) =>
+                    project === 'preview'
+                        ? {}
+                        : {
+                              orders: explore(
+                                  'orders',
+                                  'analytics',
+                                  'parent-primary',
+                              ),
+                              payments: explore(
+                                  'payments',
+                                  'finance',
+                                  'parent-extra',
+                              ),
+                          },
+                ),
         },
         projectDbtSourcesModel: {
             getSourcesWithBindings: vi
@@ -44,24 +61,6 @@ const setup = () => {
                 .mockImplementation(async (project: string) => [
                     source(project === 'preview' ? 'extra' : 'parent-extra'),
                 ]),
-        },
-        dbtSourceRefCatalogModel: {
-            getProjectNames: vi
-                .fn()
-                .mockImplementation(async (project: string) =>
-                    project === 'preview'
-                        ? []
-                        : [
-                              {
-                                  dbt_source_uuid: 'parent-primary',
-                                  project_name: 'analytics',
-                              },
-                              {
-                                  dbt_source_uuid: 'parent-extra',
-                                  project_name: 'finance',
-                              },
-                          ],
-                ),
         },
     };
     const args = {
@@ -115,9 +114,8 @@ test('accepts a single-package preview', async () => {
     expect(result.get('analytics')).toBe('primary');
 });
 
-test('uses parent cached stamps when no ref catalog is available', async () => {
+test('uses parent cached stamps', async () => {
     const { models, args } = setup();
-    models.dbtSourceRefCatalogModel.getProjectNames.mockResolvedValue([]);
     models.projectModel.getAllExploresFromCache.mockImplementation(
         async (project: string) =>
             project === 'preview'
@@ -168,10 +166,10 @@ test.each([null, 'extra'])(
 
 test('rejects ambiguous package ownership', async () => {
     const { models, args } = setup();
-    models.dbtSourceRefCatalogModel.getProjectNames.mockResolvedValue([
-        { dbt_source_uuid: 'parent-primary', project_name: 'analytics' },
-        { dbt_source_uuid: 'parent-extra', project_name: 'analytics' },
-    ]);
+    models.projectModel.getAllExploresFromCache.mockResolvedValue({
+        orders: explore('orders', 'analytics', 'primary'),
+        payments: explore('payments', 'analytics', 'extra'),
+    });
     await rejected(
         'several sources (Core models, Replica models) provide analytics',
         resolvePackages(models, args),
@@ -180,25 +178,10 @@ test('rejects ambiguous package ownership', async () => {
 
 test('does not infer dbt project names from source labels', async () => {
     const { models, args } = setup();
-    models.dbtSourceRefCatalogModel.getProjectNames.mockResolvedValue([]);
     args.explores = [explore('orders', 'Replica models')];
     await rejected(
         'no source in this project provides the dbt project Replica models',
         resolvePackages(models, args),
-    );
-});
-
-test('passes a cached cross-source name to the locked allocator', async () => {
-    const { models, args } = setup();
-    models.projectModel.getAllExploresFromCache.mockResolvedValue({
-        orders: explore('orders', 'analytics', 'primary'),
-    });
-    args.explores = [explore('orders', 'finance')];
-    expect(await resolvePackages(models, args)).toEqual(
-        new Map([
-            ['analytics', 'primary'],
-            ['finance', 'extra'],
-        ]),
     );
 });
 
@@ -232,10 +215,18 @@ test('rejects two uploaded packages that claim the same explore name', async () 
 
 test('resolves unstamped preview rows from main through the parent package map', async () => {
     const { models, args } = setup();
-    models.projectModel.getAllExploresFromCache.mockResolvedValue({
-        orders: explore('orders', 'analytics'),
-        payments: explore('payments', 'finance'),
-    });
+    models.projectModel.getAllExploresFromCache.mockImplementation(
+        async (project: string) =>
+            project === 'preview'
+                ? {
+                      orders: explore('orders', 'analytics'),
+                      payments: explore('payments', 'finance'),
+                  }
+                : {
+                      orders: explore('orders', 'analytics', 'parent-primary'),
+                      payments: explore('payments', 'finance', 'parent-extra'),
+                  },
+    );
     expect(await resolvePackages(models, args)).toEqual(
         new Map([
             ['analytics', 'primary'],

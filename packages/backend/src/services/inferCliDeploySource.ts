@@ -6,7 +6,6 @@ import {
     type Explore,
     type ExploreError,
 } from '@lightdash/common';
-import { type DbtSourceRefCatalogModel } from '../models/DbtSourceRefCatalogModel';
 import { type ProjectDbtSourcesModel } from '../models/ProjectDbtSourcesModel';
 import { type ProjectModel } from '../models/ProjectModel/ProjectModel';
 import { type WarehouseConnectionModel } from '../models/WarehouseConnectionModel/WarehouseConnectionModel';
@@ -25,7 +24,6 @@ type InferenceModels = {
         ProjectDbtSourcesModel,
         'getSourcesWithBindings'
     >;
-    dbtSourceRefCatalogModel: Pick<DbtSourceRefCatalogModel, 'getProjectNames'>;
     warehouseConnectionModel: Pick<
         WarehouseConnectionModel,
         'getProject' | 'getCredentials'
@@ -129,11 +127,6 @@ export const inferCliDeploySource = async (
         if (table?.dbtPackageName && sourceUuid) {
             addPackage(table.dbtPackageName, sourceUuid);
         }
-    });
-    const catalogNames =
-        await models.dbtSourceRefCatalogModel.getProjectNames(projectUuid);
-    catalogNames.forEach((row) => {
-        addPackage(row.project_name, row.dbt_source_uuid);
     });
     const infer = async (): Promise<
         | {

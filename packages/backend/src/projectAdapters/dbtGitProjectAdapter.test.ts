@@ -160,7 +160,7 @@ describe('Git manifest fetch', () => {
         vi.restoreAllMocks();
     });
 
-    it('refreshes and installs dependencies once across two manifest fetches', async () => {
+    it('refreshes and installs dependencies for each manifest fetch', async () => {
         const adapter = buildGitAdapter();
         const refresh = vi.fn(async () => {
             vi.advanceTimersByTime(12500);
@@ -178,17 +178,16 @@ describe('Git manifest fetch', () => {
             installDeps,
             getDbtManifest,
         } as unknown as DbtGitProjectAdapter['dbtClient'];
-        await adapter.prepareDbtSource();
         await expect(adapter.getDbtManifest()).resolves.toEqual({
             manifest,
             timings: { gitRefreshMs: 12500, depsMs: 2300, manifestMs: 15300 },
         });
         await expect(adapter.getDbtManifest()).resolves.toEqual({
             manifest,
-            timings: { gitRefreshMs: null, depsMs: null, manifestMs: 15300 },
+            timings: { gitRefreshMs: 12500, depsMs: 2300, manifestMs: 15300 },
         });
-        expect(refresh).toHaveBeenCalledTimes(1);
-        expect(installDeps).toHaveBeenCalledTimes(1);
+        expect(refresh).toHaveBeenCalledTimes(2);
+        expect(installDeps).toHaveBeenCalledTimes(2);
         expect(getDbtManifest).toHaveBeenCalledTimes(2);
     });
 });

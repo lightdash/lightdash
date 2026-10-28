@@ -4,28 +4,19 @@ export type CachedExploreSource = {
     packageName: string | null;
 };
 
-export type CachedSourceCatalog = {
-    sourceUuid: string;
-    packageName: string;
-    nodePackageNames: string[];
-};
-
 export const cachedExploreSourcesForSources = (
     explores: CachedExploreSource[],
-    catalogs: CachedSourceCatalog[],
     currentSourceUuids: string[],
     requestedSourceUuids: string[],
 ): Map<string, string> => {
     const currentSources = new Set(currentSourceUuids);
     const requestedSources = new Set(requestedSourceUuids);
     const packageOwners = new Map<string, Set<string>>();
-    for (const { sourceUuid, packageName, nodePackageNames } of catalogs) {
-        if (currentSources.has(sourceUuid)) {
-            for (const name of [packageName, ...nodePackageNames]) {
-                const owners = packageOwners.get(name) ?? new Set<string>();
-                owners.add(sourceUuid);
-                packageOwners.set(name, owners);
-            }
+    for (const { sourceUuid, packageName } of explores) {
+        if (sourceUuid && packageName && currentSources.has(sourceUuid)) {
+            const owners = packageOwners.get(packageName) ?? new Set<string>();
+            owners.add(sourceUuid);
+            packageOwners.set(packageName, owners);
         }
     }
     return new Map(
@@ -43,17 +34,3 @@ export const cachedExploreSourcesForSources = (
         }),
     );
 };
-
-export const cachedExploreNamesForSources = (
-    explores: CachedExploreSource[],
-    catalogs: CachedSourceCatalog[],
-    currentSourceUuids: string[],
-    requestedSourceUuids: string[],
-): string[] => [
-    ...cachedExploreSourcesForSources(
-        explores,
-        catalogs,
-        currentSourceUuids,
-        requestedSourceUuids,
-    ).keys(),
-];
