@@ -1060,6 +1060,24 @@ test('requires an agent client exactly for agent sign-ins and lets it issue many
     ).resolves.toBeDefined();
 });
 
+test('requires Snowflake when an agent sign-in links a Snowflake client', async () => {
+    const f = await fixture();
+    const issuer = await agentClient(f);
+    const row = linkedCredential(f, 'issuer_agent_client_uuid', issuer);
+    await expect(
+        migrated.database('credentials').insert({
+            ...row,
+            warehouse_type: WarehouseTypes.BIGQUERY,
+        }),
+    ).rejects.toMatchObject({
+        code: '23514',
+        constraint: 'credentials_agent_client_warehouse_check',
+    });
+    await expect(
+        migrated.database('credentials').insert(row),
+    ).resolves.toBeDefined();
+});
+
 test.each(['shared_login', 'agent_sign_in'] as const)(
     'forbids the old issuer credential link for %s',
     async (purpose) => {

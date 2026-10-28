@@ -2,7 +2,7 @@ import { type Knex } from 'knex';
 
 export const classification = {
     kind: 'safe',
-    reason: 'Adds identity links and constraints to empty, unused credential tables. Existing identity rows and callers remain unchanged.',
+    reason: 'Adds links and checks to the empty, unused credentials table, plus composite unique constraints on three populated identity parent tables. Existing primary keys guarantee uniqueness; no existing rows change.',
 };
 
 const purposeOwners = {
@@ -77,6 +77,8 @@ export async function up(knex: Knex): Promise<void> {
                 CHECK (web_identity_audience IS NULL OR (warehouse_type = 'athena' AND auth_mode = 'web_identity') IS TRUE),
             ADD CONSTRAINT credentials_agent_client_purpose_check
                 CHECK ((purpose = 'agent_sign_in') = (issuer_agent_client_uuid IS NOT NULL)),
+            ADD CONSTRAINT credentials_agent_client_warehouse_check
+                CHECK (issuer_agent_client_uuid IS NULL OR warehouse_type = 'snowflake'),
             ADD CONSTRAINT credentials_issuer_credential_null_check
                 CHECK (issuer_credential_uuid IS NULL),
             ADD CONSTRAINT credentials_ssh_key_pair_org_fk
@@ -107,6 +109,7 @@ export async function down(knex: Knex): Promise<void> {
             DROP CONSTRAINT credentials_ssh_key_pair_purpose_check,
             DROP CONSTRAINT credentials_web_identity_auth_check,
             DROP CONSTRAINT credentials_agent_client_purpose_check,
+            DROP CONSTRAINT credentials_agent_client_warehouse_check,
             DROP CONSTRAINT credentials_issuer_credential_null_check,
             DROP COLUMN ssh_key_pair_public_key,
             DROP COLUMN web_identity_audience,
