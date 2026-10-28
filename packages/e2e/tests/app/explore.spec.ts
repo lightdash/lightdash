@@ -1,6 +1,7 @@
 import { SEED_PROJECT } from '@lightdash/common';
 import {
     expect,
+    fillChartName,
     getMonacoEditorText,
     loginAs,
     runQuery,
@@ -77,7 +78,7 @@ test.describe('Explore', () => {
 
         await page.getByText('Save chart', { exact: true }).click();
 
-        await page.getByTestId('ChartCreateModal/NameInput').fill('My chart');
+        await fillChartName(page, 'My chart');
         await page.getByText('Next').click();
         await page.getByText('Save', { exact: true }).click();
         await expect(

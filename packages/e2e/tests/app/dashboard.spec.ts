@@ -1,6 +1,7 @@
 import { SEED_PROJECT } from '@lightdash/common';
 import {
     expect,
+    fillChartName,
     loginAs,
     SEED_USERS,
     test,
@@ -52,8 +53,7 @@ const createChartWithinDashboard = async (
         await page.getByText(field, { exact: true }).click();
     }
     await page.getByText('Save chart', { exact: true }).click();
-    await page.getByTestId('ChartCreateModal/NameInput').clear();
-    await page.getByTestId('ChartCreateModal/NameInput').fill(chartName);
+    await fillChartName(page, chartName);
     await page.getByText('Save', { exact: true }).click();
     await expect(
         page.getByText(`Success! ${chartName} was added to Title`, {
@@ -462,10 +462,10 @@ test.describe('Dashboard', () => {
         await page.getByText('Payment method', { exact: true }).click();
         await page.getByText('Unique payment count', { exact: true }).click();
         await page.getByText('Save chart', { exact: true }).click();
-        await page.getByTestId('ChartCreateModal/NameInput').clear();
-        await page
-            .getByTestId('ChartCreateModal/NameInput')
-            .fill("What's the number of unique payments per payment method?");
+        await fillChartName(
+            page,
+            "What's the number of unique payments per payment method?",
+        );
         await page.getByText('Save', { exact: true }).click();
 
         await page.getByText('Save changes', { exact: true }).click();

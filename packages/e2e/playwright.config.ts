@@ -11,7 +11,8 @@ export default defineConfig({
     retries: parseInt(process.env.PLAYWRIGHT_RETRIES ?? (CI ? '2' : '0'), 10),
     workers: CI ? 2 : 1,
     timeout: 120_000,
-    expect: { timeout: 10_000 },
+    // Every test starts a cold browser context, so first paints on a preview are slow.
+    expect: { timeout: 30_000 },
     reporter: CI
         ? [['list'], ['github'], ['html', { open: 'never' }]]
         : [['list'], ['html', { open: 'on-failure' }]],

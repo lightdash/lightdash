@@ -2,6 +2,7 @@ import { SEED_PROJECT } from '@lightdash/common';
 import {
     dragAndDrop,
     expect,
+    fillChartName,
     loginAs,
     SEED_USERS,
     test,
@@ -89,9 +90,7 @@ test.describe('Pivot Tables', () => {
 
         // Save a pivot table
         await page.getByText('Save chart').first().click();
-        await page
-            .getByTestId('ChartCreateModal/NameInput')
-            .fill('My Pivot Table Chart');
+        await fillChartName(page, 'My Pivot Table Chart');
         await page.getByText('Next', { exact: true }).click();
         await page.getByText('Save', { exact: true }).click();
         await expect(page.getByText('Chart was saved').first()).toBeAttached();

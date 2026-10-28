@@ -14,12 +14,24 @@ export const selectMantine = async (
     inputName: string,
     optionLabel: string,
 ) => {
-    await page
+    const select = page
         .locator(`input[name="${inputName}"]`)
         .locator('xpath=preceding-sibling::*[1]')
-        .locator('input')
-        .click();
+        .locator('input');
+    // The dropdown is portaled and repositions while the page scrolls, so settle the scroll first.
+    await select.scrollIntoViewIfNeeded();
+    await select.click();
     await page.getByRole('option', { name: optionLabel }).click();
+};
+
+// The save-chart form initialises once spaces and dashboards load and overwrites anything typed
+// before that; the modal shows a loading overlay until then.
+export const fillChartName = async (page: Page, name: string) => {
+    const input = page.getByTestId('ChartCreateModal/NameInput');
+    const modal = page.getByRole('dialog').filter({ has: input });
+    await expect(modal.locator('.mantine-LoadingOverlay-root')).toHaveCount(0);
+    await input.fill(name);
+    await expect(input).toHaveValue(name);
 };
 
 // Returns the SQL in the first Monaco model, whitespace-normalised.

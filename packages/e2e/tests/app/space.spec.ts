@@ -1,6 +1,7 @@
 import { SEED_PROJECT, SPACE_TREE_1, SPACE_TREE_2 } from '@lightdash/common';
 import {
     expect,
+    fillChartName,
     json,
     loginAs,
     loginWithPermissions,
@@ -66,13 +67,15 @@ test.describe('Space', () => {
 
         const modalBody = page.locator('.mantine-Modal-body');
         const chartNameInput = page.getByTestId('ChartCreateModal/NameInput');
+        // The form may prefill a name once it initialises, so the disabled state only holds once it is cleared
+        await expect(
+            modalBody.locator('.mantine-LoadingOverlay-root'),
+        ).toHaveCount(0);
         await chartNameInput.clear();
-        // The name is prefilled, so the disabled state only holds once it is cleared
         await expect(
             modalBody.getByRole('button', { name: 'Next' }),
         ).toBeDisabled();
-        await chartNameInput.fill(`Private chart ${timestamp}`);
-        await expect(chartNameInput).toHaveValue(`Private chart ${timestamp}`);
+        await fillChartName(page, `Private chart ${timestamp}`);
 
         // Saves to space by default
         await expect(
