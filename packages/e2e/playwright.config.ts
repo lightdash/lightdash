@@ -21,7 +21,7 @@ export default defineConfig({
         viewport: { width: 1920, height: 1080 },
         // Also bounds page.request calls and waitForResponse; cold previews need the headroom.
         actionTimeout: 30_000,
-        navigationTimeout: 30_000,
+        navigationTimeout: 60_000,
         timezoneId: process.env.TZ,
         trace: 'retain-on-failure',
         screenshot: 'only-on-failure',
