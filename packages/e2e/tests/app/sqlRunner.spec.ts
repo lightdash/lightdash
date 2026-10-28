@@ -1,5 +1,16 @@
 import { ChartKind, SEED_PROJECT } from '@lightdash/common';
-import { expect, json, loginAs, SEED_USERS, test } from '../../support/test';
+import {
+    expect,
+    json,
+    loginAs,
+    SEED_USERS,
+    test,
+    type Page,
+} from '../../support/test';
+
+// The SQL/Chart toggle is a segmented control; click its option by exact text.
+const selectEditorTab = (page: Page, tab: 'SQL' | 'Chart') =>
+    page.getByRole('radiogroup').getByText(tab, { exact: true }).click();
 
 test.describe('SQL Runner (new)', () => {
     let schema: string;
@@ -113,7 +124,7 @@ test.describe('SQL Runner (new)', () => {
         );
 
         // Verify that the chart is ready to be configured
-        await page.locator('label', { hasText: 'Chart' }).first().click();
+        await selectEditorTab(page, 'Chart');
         await expect(chartText('Created')).toBeVisible();
         await expect(chartText('Age sum')).toBeVisible();
 
@@ -166,7 +177,7 @@ test.describe('SQL Runner (new)', () => {
         );
 
         // Verify that the chart is ready to be configured
-        await page.locator('label', { hasText: 'Chart' }).first().click();
+        await selectEditorTab(page, 'Chart');
         await expect(chartText('Created')).toBeVisible();
         await expect(chartText('Age sum')).toBeVisible();
 
@@ -239,7 +250,7 @@ test.describe('SQL Runner (new)', () => {
             'customer_id',
         );
 
-        await page.locator('label', { hasText: 'Chart' }).first().click();
+        await selectEditorTab(page, 'Chart');
         await page
             .locator(
                 `button[data-testid="visualization-${ChartKind.BIG_NUMBER}"]`,
@@ -298,7 +309,7 @@ test.describe('SQL Runner (new)', () => {
         );
 
         // View chart
-        await page.locator('label', { hasText: 'Chart' }).first().click();
+        await selectEditorTab(page, 'Chart');
 
         // Verify that the chart is saved
         await page.getByRole('button', { name: /^Save/ }).first().click();
@@ -318,11 +329,13 @@ test.describe('SQL Runner (new)', () => {
         await page.getByText('Edit chart').click();
 
         await expect(barChartView).toBeAttached();
+        // Edit mode re-runs the query; on a cold preview that takes longer than the default expect budget
         await expect(page.getByTestId('chart-data-table')).toContainText(
             'age_sum',
+            { timeout: 30_000 },
         );
 
-        await page.locator('label', { hasText: 'SQL' }).first().click();
+        await selectEditorTab(page, 'SQL');
         await expect(monaco).toBeVisible();
         const newQuery = `SELECT * FROM "${schema}"."jaffle"."orders"`;
         await monaco.click();
@@ -338,7 +351,7 @@ test.describe('SQL Runner (new)', () => {
         );
 
         // Verify that there are errors to be fixed and fix them
-        await page.locator('label', { hasText: 'Chart' }).first().click();
+        await selectEditorTab(page, 'Chart');
         await expect(
             page.getByText('Column "created" does not exist. Choose another'),
         ).toBeVisible();
@@ -405,7 +418,7 @@ test.describe('SQL Runner (new)', () => {
         );
 
         // Verify that the chart is ready to be configured
-        await page.locator('label', { hasText: 'Chart' }).first().click();
+        await selectEditorTab(page, 'Chart');
         await expect(chartText('Created')).toBeVisible();
 
         // Intercept the API call we don't expect to happen
