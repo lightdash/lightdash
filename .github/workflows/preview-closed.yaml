@@ -8,8 +8,29 @@ on:
 permissions:
   deployments: write
   contents: read
+  actions: write
 
 jobs:
+  # A merged or closed PR loses its preview within seconds (Rainbow kills the
+  # env on the closed webhook; Okteto's is destroyed below), so a PR Checks
+  # run still on its E2E stage can only fail against a preview that is gone.
+  # Cancel it instead of letting it finish red.
+  cancel-pr-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cancel PR Checks still running for this PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD: ${{ github.event.pull_request.head.ref }}
+        run: |
+          for status in queued in_progress waiting; do
+            gh run list --repo "$GITHUB_REPOSITORY" --workflow pr.yml --branch "$HEAD" --event pull_request \
+              --status "$status" --json databaseId --jq '.[].databaseId'
+          done | sort -u | while read -r id; do
+            echo "cancelling PR Checks run $id"
+            gh run cancel --repo "$GITHUB_REPOSITORY" "$id" || true
+          done
+
   closed:
     runs-on: ubuntu-latest
     steps:
