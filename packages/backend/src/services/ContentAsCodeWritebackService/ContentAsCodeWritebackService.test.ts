@@ -598,6 +598,44 @@ describe('ContentAsCodeWritebackService', () => {
         );
     });
 
+    it('writes back to a local package source beside the project dir', async () => {
+        const { service, gitIntegrationService } = buildService({
+            settings: { syncEnabled: true, path: 'lightdash' },
+            snapshot: {
+                snapshotHash: 'abc',
+                filePath:
+                    '../../packages/team_a/lightdash/charts/monthly-revenue.yml',
+            },
+        });
+        gitIntegrationService.getProjectRepo.mockResolvedValue({
+            owner: 'acme',
+            repo: 'analytics',
+            branch: 'main',
+            path: 'projects/core',
+            type: DbtProjectType.GITHUB,
+        });
+        await service.propose(user, 'project-uuid', 'chart', 'monthly-revenue');
+
+        const [, , , filePath] = gitIntegrationService.saveFile.mock.calls[0];
+        expect(filePath).toBe(
+            'packages/team_a/lightdash/charts/monthly-revenue.yml',
+        );
+    });
+
+    it('falls back to the content path when the source path leaves the repo', async () => {
+        const { service, gitIntegrationService } = buildService({
+            settings: { syncEnabled: true, path: 'lightdash' },
+            snapshot: {
+                snapshotHash: 'abc',
+                filePath: '../elsewhere/charts/monthly-revenue.yml',
+            },
+        });
+        await service.propose(user, 'project-uuid', 'chart', 'monthly-revenue');
+
+        const [, , , filePath] = gitIntegrationService.saveFile.mock.calls[0];
+        expect(filePath).toBe('lightdash/charts/monthly-revenue.yml');
+    });
+
     it('names the reviewed file by the recorded source path', async () => {
         const { service } = buildService({
             snapshot: {

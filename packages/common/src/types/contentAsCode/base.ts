@@ -28,6 +28,46 @@ export const normalizeContentAsCodePath = (raw: string): string => {
     return segments.join('/');
 };
 
+// A file path recorded by an upload, relative to the project dir. Unlike the
+// content path it may climb into sibling folders: local dbt packages live
+// beside the project and are symlinked into dbt_packages.
+export const normalizeContentAsCodeSourcePath = (raw: string): string => {
+    const value = raw.trim().replace(/\\/g, '/');
+    if (value.startsWith('/')) {
+        throw new ParameterError(
+            'Content file paths must be relative to the project directory',
+        );
+    }
+    return value
+        .split('/')
+        .filter((segment) => segment !== '' && segment !== '.')
+        .join('/');
+};
+
+// Where a source path lands in the repo: '..' may reach sibling folders of
+// the project dir but never leave the repo
+export const resolveContentAsCodeRepoPath = (
+    projectDir: string,
+    sourcePath: string,
+): string => {
+    const segments: string[] = [];
+    for (const segment of joinContentAsCodePath(projectDir, sourcePath).split(
+        '/',
+    )) {
+        if (segment === '..') {
+            if (segments.length === 0) {
+                throw new ParameterError(
+                    `Content file path "${sourcePath}" points outside the repository`,
+                );
+            }
+            segments.pop();
+        } else if (segment !== '' && segment !== '.') {
+            segments.push(segment);
+        }
+    }
+    return segments.join('/');
+};
+
 export const getContentAsCodeFilePath = (
     contentPath: string,
     contentType: 'chart' | 'dashboard',

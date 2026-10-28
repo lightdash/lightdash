@@ -590,20 +590,21 @@ const isLooseContentFile = (entry: Dirent) => {
     );
 };
 
-// The file's path relative to the project dir, posix; undefined outside it
-const sourceFilePath = (filePath: string): string | undefined => {
-    const relative = path.relative(process.cwd(), filePath);
-    if (
-        path.isAbsolute(relative) ||
-        relative === '..' ||
-        relative.startsWith(`..${path.sep}`)
-    ) {
-        return undefined;
-    }
+// The file's real path relative to the project dir, posix. Local dbt
+// packages are symlinked into dbt_packages, so this points at their source.
+const sourceFilePath = async (
+    filePath: string,
+): Promise<string | undefined> => {
+    const [realFile, realCwd] = await Promise.all([
+        fs.realpath(filePath).catch(() => filePath),
+        fs.realpath(process.cwd()).catch(() => process.cwd()),
+    ]);
+    const relative = path.relative(realCwd, realFile);
+    if (path.isAbsolute(relative)) return undefined;
     return relative.split(path.sep).join('/');
 };
 
-const processYamlItem = <
+const processYamlItem = async <
     T extends ChartAsCode | DashboardAsCode | SqlChartAsCode,
 >(
     item: T,
@@ -640,7 +641,7 @@ const processYamlItem = <
         updatedAt: needsUpdating ? stats.mtime : item.updatedAt,
         needsUpdating: needsUpdating ?? true,
         // Sent with the upsert so write-back returns to this file
-        filePath: sourceFilePath(filePath),
+        filePath: await sourceFilePath(filePath),
     };
 };
 
@@ -761,7 +762,7 @@ const readLooseCodeFiles = async (
                         contentType === ContentAsCodeTypeEnum.SQL_CHART
                     ) {
                         charts.push(
-                            processYamlItem<ChartAsCode>(
+                            await processYamlItem<ChartAsCode>(
                                 parsed as ChartAsCode,
                                 file.name,
                                 stats,
@@ -774,7 +775,7 @@ const readLooseCodeFiles = async (
                         contentType === ContentAsCodeTypeEnum.DASHBOARD
                     ) {
                         dashboards.push(
-                            processYamlItem<DashboardAsCode>(
+                            await processYamlItem<DashboardAsCode>(
                                 parsed as DashboardAsCode,
                                 file.name,
                                 stats,
