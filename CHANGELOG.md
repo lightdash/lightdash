@@ -1,3 +1,10 @@
+# [3.84.0](https://github.com/lightdash/lightdash/compare/3.83.0...3.84.0) (2026-10-28)
+
+
+### Features
+
+* **ai:** let the agent query PostHog live through composer api nodes ([#31594](https://github.com/lightdash/lightdash/issues/31594)) ([33ea91a](https://github.com/lightdash/lightdash/commit/33ea91a4e9e2f9eee35eef3dfcc53f2e12dadc95)), closes [#31593](https://github.com/lightdash/lightdash/issues/31593)
+
 # [3.83.0](https://github.com/lightdash/lightdash/compare/3.82.0...3.83.0) (2026-10-28)
 
 
