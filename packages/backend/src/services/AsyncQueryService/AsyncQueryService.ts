@@ -343,7 +343,10 @@ import {
     getNextAndPreviousPage,
     validatePagination,
 } from '../ProjectService/resultsPagination';
-import type { ApiConnector } from '../QuerySourceService/api/ApiConnector';
+import type {
+    ApiConnector,
+    ApiConnectorResult,
+} from '../QuerySourceService/api/ApiConnector';
 import {
     getApiQueryOutcome,
     type ApiQueryOutcome,
@@ -11706,7 +11709,13 @@ export class AsyncQueryService extends ProjectService {
                             name: 'api.query.execute',
                             attributes,
                         },
-                        () => connector.execute({ payload, limit }),
+                        () =>
+                            this.executeApiConnector(
+                                connector,
+                                connectorType,
+                                payload,
+                                limit,
+                            ),
                     );
                     span.setAttributes({
                         'lightdash.rowCount': result.rows.length,
@@ -11844,6 +11853,40 @@ export class AsyncQueryService extends ProjectService {
                 }
             },
         );
+    }
+
+    /** One connector call, measured by outcome; rethrows what it caught. */
+    private async executeApiConnector(
+        connector: ApiConnector,
+        connectorType: ApiConnectorType,
+        payload: ApiSourcePayload,
+        limit: number,
+    ): Promise<ApiConnectorResult> {
+        const startedAt = Date.now();
+        this.prometheusMetrics?.trackApiSourceInflight(connectorType, 1);
+        try {
+            const result = await connector.execute({ payload, limit });
+            this.prometheusMetrics?.observeApiSourceRequest(
+                connectorType,
+                'ok',
+                Date.now() - startedAt,
+            );
+            if (result.truncated) {
+                this.prometheusMetrics?.incrementApiSourceTruncated(
+                    connectorType,
+                );
+            }
+            return result;
+        } catch (error) {
+            this.prometheusMetrics?.observeApiSourceRequest(
+                connectorType,
+                getApiQueryOutcome(error),
+                Date.now() - startedAt,
+            );
+            throw error;
+        } finally {
+            this.prometheusMetrics?.trackApiSourceInflight(connectorType, -1);
+        }
     }
 
     /** Usage for one api query; never fails the query it describes. */
