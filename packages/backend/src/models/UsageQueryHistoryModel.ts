@@ -15,7 +15,7 @@ export class UsageQueryHistoryModel {
         organizationUuid: string,
         before: string,
     ): AsyncGenerator<string> {
-        let cursor: string | undefined;
+        let cursor: { createdAt: string; queryUuid: string } | undefined;
         while (true) {
             const query = this.database('query_history as q')
                 .join('projects as p', 'p.project_uuid', 'q.project_uuid')
@@ -68,9 +68,16 @@ export class UsageQueryHistoryModel {
                         "q.request_parameters->>'dashboardUuid' as dashboard_id",
                     ),
                 )
+                .orderBy('q.created_at')
                 .orderBy('q.query_uuid')
                 .limit(1000);
-            if (cursor) query.where('q.query_uuid', '>', cursor);
+            if (cursor)
+                query.whereRaw('(??, ??) > (?, ?)', [
+                    'q.created_at',
+                    'q.query_uuid',
+                    cursor.createdAt,
+                    cursor.queryUuid,
+                ]);
             // Release the DB connection between pages and storage work.
             // eslint-disable-next-line no-await-in-loop
             const rows = await this.database.transaction(async (trx) => {
@@ -113,7 +120,9 @@ export class UsageQueryHistoryModel {
                     total_row_count: row.total_row_count,
                 })}\n`;
             }
-            cursor = rows[rows.length - 1].query_uuid;
+            const last = rows[rows.length - 1];
+            // Preserve Postgres microseconds; a JavaScript Date loses precision.
+            cursor = { createdAt: last.event_ts, queryUuid: last.query_uuid };
         }
     }
 }

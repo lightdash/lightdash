@@ -177,15 +177,17 @@ describe('retained query history for Analytics backfill', () => {
         );
     });
 
-    it('streams bounded keyset pages without duplicate boundary records or offset scans', async () => {
+    it('preserves timestamp ties and microsecond precision across bounded keyset pages', async () => {
         const first = queryRow();
         const second = queryRow({
             query_uuid: '00000000-0000-0000-0000-000000000020',
         });
         const third = queryRow({
-            query_uuid: '00000000-0000-0000-0000-000000000030',
+            query_uuid: '00000000-0000-0000-0000-000000000005',
+            event_ts: '2026-10-01T15:04:05.123457Z',
         });
-        tracker.on.select('query_history').responseOnce([first, second]);
+        tracker.on.select('query_history').responseOnce([first]);
+        tracker.on.select('query_history').responseOnce([second]);
         tracker.on.select('query_history').responseOnce([third]);
         tracker.on.select('query_history').response([]);
         expect((await collect()).map((row) => row.query_id)).toEqual([
@@ -194,21 +196,27 @@ describe('retained query history for Analytics backfill', () => {
             third.query_uuid,
         ]);
         const pages = tracker.history.select;
-        expect(pages).toHaveLength(3);
+        expect(pages).toHaveLength(4);
         expect(normalizeSql(pages[0].sql)).not.toContain(
-            '"q"."query_uuid" > ?',
+            '("q"."created_at", "q"."query_uuid") > (?, ?)',
         );
-        expect(normalizeSql(pages[1].sql)).toContain('"q"."query_uuid" > ?');
-        expect(pages[1].bindings).toContain(second.query_uuid);
-        expect(pages[2].bindings).toContain(third.query_uuid);
+        expect(normalizeSql(pages[1].sql)).toContain(
+            '("q"."created_at", "q"."query_uuid") > (?, ?)',
+        );
+        expect(pages[1].bindings).toContain(first.event_ts);
+        expect(pages[1].bindings).toContain(first.query_uuid);
+        expect(pages[2].bindings).toContain(second.event_ts);
+        expect(pages[2].bindings).toContain(second.query_uuid);
+        expect(pages[3].bindings).toContain(third.event_ts);
+        expect(pages[3].bindings).toContain(third.query_uuid);
         for (const page of pages) {
             expect(normalizeSql(page.sql)).toContain(
-                'order by "q"."query_uuid" asc limit ?',
+                'order by "q"."created_at" asc, "q"."query_uuid" asc limit ?',
             );
             expect(page.sql).not.toMatch(/\boffset\b/i);
             expect(page.bindings).toContain(1000);
         }
-        expect(tracker.history.transactions).toHaveLength(3);
+        expect(tracker.history.transactions).toHaveLength(4);
         expect(
             tracker.history.transactions.every(
                 (transaction) => transaction.state === 'committed',
@@ -218,6 +226,6 @@ describe('retained query history for Analytics backfill', () => {
             tracker.history.all.filter(
                 ({ sql }) => sql === 'SET TRANSACTION READ ONLY',
             ),
-        ).toHaveLength(3);
+        ).toHaveLength(4);
     });
 });
