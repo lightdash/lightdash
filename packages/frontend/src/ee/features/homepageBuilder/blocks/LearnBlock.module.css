@@ -1,0 +1,140 @@
+/* The homepage's Learn card: the library's Up next card, sized for a
+ * homepage column. --mi-band and --mi-fg come from Learn's groupVars, so the
+ * tile wears the module's group colour as it does in the library. */
+.card {
+    display: flex;
+    gap: 14px;
+    padding: 16px 18px;
+    border: 1px solid var(--mantine-color-ldGray-2);
+    border-radius: 10px;
+    background: var(--mantine-color-body);
+    box-shadow: var(--mantine-shadow-subtle);
+    min-width: 0;
+}
+
+.tile {
+    width: 40px;
+    height: 40px;
+    flex: none;
+    display: grid;
+    place-items: center;
+    border-radius: 10px;
+    background: var(--mi-band, var(--mantine-color-ldGray-1));
+    color: var(--mi-fg, var(--mantine-color-ldGray-7));
+}
+
+.body {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+    flex: 1;
+}
+
+.overline {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    font-size: 11px;
+    line-height: 1.3;
+    font-weight: 600;
+    color: var(--mantine-color-ldGray-6);
+}
+
+.title {
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.3;
+    font-weight: 600;
+}
+
+.blurb {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--mantine-color-ldGray-6);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.foot {
+    margin-top: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.progress {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 140px;
+    flex: 1;
+    max-width: 260px;
+    font-size: 12px;
+    color: var(--mantine-color-ldGray-6);
+}
+
+.actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* The walkthroughs the data team featured, under the recommendation. */
+.pinned {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.pinnedRow {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+}
+
+.pinnedRow + .pinnedRow {
+    border-top: 1px solid var(--mantine-color-ldGray-2);
+}
+
+.pinnedTile {
+    width: 30px;
+    height: 30px;
+    flex: none;
+    display: grid;
+    place-items: center;
+    border-radius: 7px;
+    background: var(--mi-band, var(--mantine-color-ldGray-1));
+    color: var(--mi-fg, var(--mantine-color-ldGray-7));
+}
+
+.pinnedTitle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    font-size: 13px;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.pinnedMeta {
+    font-size: 12px;
+    color: var(--mantine-color-ldGray-6);
+}
+
+.done {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--mantine-color-green-7);
+}

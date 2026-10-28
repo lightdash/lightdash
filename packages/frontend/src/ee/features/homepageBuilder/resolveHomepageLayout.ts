@@ -182,6 +182,7 @@ const isConfigEmptyBlock = (block: HomepageBlock): boolean => {
         case 'greeting':
         case 'favorites':
         case 'recent':
+        case 'learn':
             return false;
         default:
             return assertUnreachable(block, 'Unknown homepage block type');
@@ -232,6 +233,7 @@ const hugUnitsFor = (block: HomepageBlock): ResolvedColumn['hugUnits'] => {
         case 'announcements':
         case 'favorites':
         case 'recent':
+        case 'learn':
         case 'markdown':
         case 'quick-actions':
         case 'cta':

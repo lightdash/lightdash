@@ -37,11 +37,8 @@ import { useProjects } from '../../hooks/useProjects';
 import useApp from '../../providers/App/useApp';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
-import { useLearnAvailability } from './availability';
 import {
     accessNote,
-    buildLearnCatalogue,
-    focusModules,
     GROUP_DESCRIPTIONS,
     GROUP_LABELS,
     GROUP_ORDER,
@@ -49,6 +46,7 @@ import {
     isComplete,
     isStarted,
     sortForLearner,
+    upNextFor,
     type LearnModule,
 } from './catalogue';
 import { EnableLearnPanel } from './EnableLearnPanel';
@@ -67,6 +65,7 @@ import { createLearnSearch } from './search';
 import { thumbnailFor } from './thumbnails';
 import { useEnableLearn } from './useEnableLearn';
 import { useLearnAccess } from './useLearnAccess';
+import { useLearnCatalogue } from './useLearnUpNext';
 import { useStartFresh } from './useStartFresh';
 import { useStartWalkthrough } from './useStartWalkthrough';
 
@@ -232,11 +231,7 @@ const LearnPage: FC = () => {
 
     // Only modules this instance can run: a walkthrough clicks the real
     // product, so a feature the instance hides has nothing to click.
-    const { isOpen, isSettled } = useLearnAvailability();
-    const catalogue = useMemo(
-        () => buildLearnCatalogue().filter(isOpen),
-        [isOpen],
-    );
+    const { catalogue, isSettled } = useLearnCatalogue();
     const {
         completed,
         started,
@@ -304,16 +299,11 @@ const LearnPage: FC = () => {
     const doneCount = available.filter((m) => isComplete(completed, m)).length;
     // Training exists to teach what a learner cannot yet do, so the
     // recommendation is the first unfinished walkthrough, held-by-role ones
-    // first (sortForRole), rather than nothing for a viewer.
-    const { resume, recommended } = focusModules(
-        held,
-        available,
-        completed,
-        lastStarted,
-    );
-    // One thing to do next: the recommendation, or whatever was last
-    // started if nothing is left to recommend.
-    const upNext = recommended ?? resume;
+    // first (sortForRole), rather than nothing for a viewer. One thing to do
+    // next: the recommendation, or whatever was last started if nothing is
+    // left to recommend.
+    const next = upNextFor(held, available, completed, lastStarted);
+    const upNext = next?.module;
 
     // Start makes the learner's copy and goes straight into it; the
     // walkthrough brings them back to the library side when it ends.
@@ -407,7 +397,7 @@ const LearnPage: FC = () => {
                         }
                     />
                 </Box>
-                {upNext && (
+                {next && upNext && (
                     <Box
                         component="section"
                         className={`${styles.section} ${styles.upNext}`}
@@ -442,12 +432,7 @@ const LearnPage: FC = () => {
                                         size="compact-md"
                                         loading={opening === upNext.scope}
                                         onClick={() =>
-                                            start(
-                                                upNext.scope,
-                                                recommended
-                                                    ? 'recommended'
-                                                    : 'resume',
-                                            )
+                                            start(upNext.scope, next.source)
                                         }
                                     >
                                         Start
