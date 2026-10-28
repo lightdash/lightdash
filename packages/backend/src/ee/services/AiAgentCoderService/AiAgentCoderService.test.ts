@@ -104,6 +104,7 @@ const ownedDocument = {
     alwaysIncludeInContext: false,
     mimeType: 'text/markdown',
     content: '# Revenue\n\nNet of refunds.',
+    contentSizeBytes: 24,
 };
 
 const buildService = ({
@@ -117,6 +118,7 @@ const buildService = ({
     pinnedCredentialUuid = null,
     ownedDocuments = [],
     syncEnabled = false,
+    storedDocumentBytes = 0,
 }: {
     existing?: (typeof agentRow & { threadRetentionHours?: number | null })[];
     evaluations?: (typeof existingEvaluation)[];
@@ -131,6 +133,7 @@ const buildService = ({
     >;
     ownedDocuments?: (typeof ownedDocument)[];
     syncEnabled?: boolean;
+    storedDocumentBytes?: number;
 } = {}) => {
     const aiAgentModel = {
         findAgentsForCode: vi.fn(async () => existing),
@@ -158,6 +161,7 @@ const buildService = ({
     };
     const aiAgentDocumentModel = {
         findOwnedByAgent: vi.fn(async () => ownedDocuments),
+        getOrganizationContentSize: vi.fn(async () => storedDocumentBytes),
     };
     const aiAgentDocumentService = {
         createDocument: vi.fn(async () => ({ uuid: 'created-document-uuid' })),
@@ -1059,11 +1063,52 @@ describe('AiAgentCoderService', () => {
                         ],
                     },
                 ]),
-            ).rejects.toThrow('exceeds 255 characters');
+            ).rejects.toThrow('Document name cannot exceed 255 characters');
             expect(aiAgentModel.updateAgent).not.toHaveBeenCalled();
             expect(
                 aiAgentDocumentService.createDocument,
             ).not.toHaveBeenCalled();
+        });
+
+        it('rejects an upload that would exceed the organization quota before changing agents', async () => {
+            const { service, aiAgentModel, aiAgentDocumentService } =
+                buildService({
+                    ownedDocuments: [ownedDocument],
+                    storedDocumentBytes: 5 * 1024 * 1024 - 10,
+                });
+            // The replaced document frees its 24 bytes; 40 incoming still overflows
+            await expect(
+                service.upsertAgents(user, projectUuid, [
+                    {
+                        ...agentAsCode,
+                        knowledgeDocuments: [
+                            { ...declared, content: 'x'.repeat(40) },
+                        ],
+                    },
+                ]),
+            ).rejects.toThrow('exceed the organization quota');
+            expect(aiAgentModel.updateAgent).not.toHaveBeenCalled();
+            expect(
+                aiAgentDocumentService.updateDocumentContent,
+            ).not.toHaveBeenCalled();
+        });
+
+        it('matches a stored name with stray whitespace to its trimmed repo name', async () => {
+            const { service, aiAgentDocumentService } = buildService({
+                ownedDocuments: [
+                    { ...ownedDocument, name: `${ownedDocument.name}  ` },
+                ],
+            });
+            const result = await service.upsertAgents(user, projectUuid, [
+                { ...agentAsCode, knowledgeDocuments: [declared] },
+            ]);
+            expect(
+                aiAgentDocumentService.createDocument,
+            ).not.toHaveBeenCalled();
+            expect(
+                aiAgentDocumentService.deleteDocument,
+            ).not.toHaveBeenCalled();
+            expect(result.unchanged).toEqual(['revenue-agent']);
         });
 
         it('fails only the agent whose documents could not be applied', async () => {

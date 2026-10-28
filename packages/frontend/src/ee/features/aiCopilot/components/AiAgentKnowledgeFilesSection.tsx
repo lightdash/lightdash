@@ -49,9 +49,14 @@ import {
     useDeleteAiAgentDocument,
     useUpdateAiAgentDocument,
 } from '../hooks/useAiAgentDocuments';
+import {
+    getGitBackedActionProps,
+    MANAGED_BY_CODE_LABEL,
+} from '../utils/gitBackedDocument';
 import { AiAgentDocumentRelevanceCard } from './AiAgentDocumentRelevanceCard';
 import { AiAgentKnowledgeDocumentModal } from './AiAgentKnowledgeDocumentModal';
 import styles from './AiAgentKnowledgeFilesSection.module.css';
+import { GitBackedActionTooltip } from './GitBackedDocumentAction';
 
 const ACCEPT_ATTR =
     '.md,.markdown,.txt,text/markdown,text/plain,text/x-markdown';
@@ -144,8 +149,6 @@ const getPendingActionModalConfig = (
             );
     }
 };
-
-const MANAGED_BY_CODE_LABEL = 'Managed by Content as Code';
 
 type FileRowProps = {
     icon: typeof IconFileText;
@@ -666,22 +669,19 @@ export const AiAgentKnowledgeFilesSection = ({
                                                 >
                                                     Preview
                                                 </Button>
-                                                <Tooltip
-                                                    label={
+                                                <GitBackedActionTooltip
+                                                    managed={
                                                         selectedDocument.managedByContentAsCode
-                                                            ? MANAGED_BY_CODE_LABEL
-                                                            : 'Delete document'
                                                     }
+                                                    label="Delete document"
                                                 >
                                                     <ActionIcon
                                                         variant="default"
                                                         size="input-xs"
                                                         aria-label="Delete document"
-                                                        // data-disabled keeps hover events so the tooltip can say why
-                                                        data-disabled={
-                                                            selectedDocument.managedByContentAsCode ||
-                                                            undefined
-                                                        }
+                                                        {...getGitBackedActionProps(
+                                                            selectedDocument.managedByContentAsCode,
+                                                        )}
                                                         loading={
                                                             deleteDocument.isLoading &&
                                                             deleteDocument.variables ===
@@ -704,7 +704,7 @@ export const AiAgentKnowledgeFilesSection = ({
                                                             color="red"
                                                         />
                                                     </ActionIcon>
-                                                </Tooltip>
+                                                </GitBackedActionTooltip>
                                             </Group>
                                         )}
                                     </Group>

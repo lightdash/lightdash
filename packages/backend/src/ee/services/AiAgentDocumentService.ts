@@ -1,7 +1,6 @@
 import { subject } from '@casl/ability';
 import {
     AI_AGENT_DOCUMENT_MAX_CONTENT_BYTES,
-    AI_AGENT_DOCUMENT_MAX_NAME_LENGTH,
     AI_AGENT_DOCUMENT_ORG_QUOTA_BYTES,
     AiAgent,
     AiAgentDocument,
@@ -14,6 +13,7 @@ import {
     ApiUpdateAgentDocumentContent,
     Explore,
     ForbiddenError,
+    normalizeAiAgentDocumentName,
     NotFoundError,
     ParameterError,
     PayloadTooLargeError,
@@ -82,8 +82,12 @@ export type AiAgentDocumentScope = {
 };
 
 // 'repo' is the content-as-code upload, the one writer a Git-backed document
-// still accepts. Everything else, including API calls, is 'ui'.
+// still accepts; everything else, including API calls, is 'ui'.
 export type AiAgentDocumentWriteSource = 'ui' | 'repo';
+
+type OrganizationDocumentScope = AiAgentDocumentScope & {
+    organizationUuid: string;
+};
 
 type AiAgentDocumentServiceDependencies = {
     analytics: LightdashAnalytics;
@@ -128,38 +132,53 @@ export class AiAgentDocumentService extends BaseService {
         this.aiAgentModel = dependencies.aiAgentModel;
     }
 
-    /**
-     * A document the repo last applied is the repo's to change: once the
-     * project opts into content_as_code.sync, only an upload may edit or
-     * delete it, whoever the user is. Documents nobody uploaded stay
-     * editable, so one agent can mix repo-managed and UI-managed documents.
-     */
+    // Under content_as_code.sync a document the repo last applied accepts no
+    // other writer, whoever the user is; documents nobody uploaded stay editable.
     private async assertNotGitBacked(
         source: AiAgentDocumentWriteSource,
-        organizationUuid: string,
-        projectUuid: string,
-        agentUuid: string,
+        scope: OrganizationDocumentScope,
         documentName: string,
     ): Promise<void> {
         if (source === 'repo') return;
+        const managed = await this.findGitBackedDocumentNames(scope, [
+            documentName,
+        ]);
+        if (!managed.has(documentName)) return;
+        throw new ForbiddenError(
+            'This knowledge document is managed by Content as Code and can only be changed from the repository.',
+            { contentAsCodeManaged: true },
+        );
+    }
+
+    private async findGitBackedDocumentNames(
+        { organizationUuid, projectUuid, agentUuid }: OrganizationDocumentScope,
+        names: string[],
+    ): Promise<Set<string>> {
         const settings =
             await this.contentAsCodeProjectSettingsModel.get(projectUuid);
-        if (!settings?.syncEnabled) return;
+        if (!settings?.syncEnabled) return new Set();
         const [agent] = await this.aiAgentModel.findAgentsForCode({
             organizationUuid,
             projectUuid,
             agentUuids: [agentUuid],
         });
-        if (!agent) return;
-        const snapshot = await this.contentAsCodeSnapshotModel.get(
+        if (!agent) return new Set();
+        const slugByName = new Map(
+            names.map((name) => [
+                name,
+                getKnowledgeDocumentSnapshotSlug(agent.slug, name),
+            ]),
+        );
+        const stamped = await this.contentAsCodeSnapshotModel.findSlugs(
             projectUuid,
             AI_AGENT_KNOWLEDGE_DOCUMENT_SNAPSHOT_TYPE,
-            getKnowledgeDocumentSnapshotSlug(agent.slug, documentName),
+            [...slugByName.values()],
         );
-        if (snapshot === undefined) return;
-        throw new ForbiddenError(
-            'This knowledge document is managed by Content as Code and can only be changed from the repository.',
-            { contentAsCodeManaged: true },
+        return new Set(
+            names.filter((name) => {
+                const slug = slugByName.get(name);
+                return slug !== undefined && stamped.has(slug);
+            }),
         );
     }
 
@@ -291,44 +310,13 @@ export class AiAgentDocumentService extends BaseService {
             projectUuid,
         });
         const managedNames = await this.findGitBackedDocumentNames(
-            organizationUuid,
-            projectUuid,
-            agentUuid,
+            { organizationUuid, projectUuid, agentUuid },
             documents.map(({ name }) => name),
         );
         return documents.map((document) => ({
             ...document,
             managedByContentAsCode: managedNames.has(document.name),
         }));
-    }
-
-    private async findGitBackedDocumentNames(
-        organizationUuid: string,
-        projectUuid: string,
-        agentUuid: string,
-        names: string[],
-    ): Promise<Set<string>> {
-        const settings =
-            await this.contentAsCodeProjectSettingsModel.get(projectUuid);
-        if (!settings?.syncEnabled) return new Set();
-        const [agent] = await this.aiAgentModel.findAgentsForCode({
-            organizationUuid,
-            projectUuid,
-            agentUuids: [agentUuid],
-        });
-        if (!agent) return new Set();
-        const slugs = await this.contentAsCodeSnapshotModel.findSlugs(
-            projectUuid,
-            AI_AGENT_KNOWLEDGE_DOCUMENT_SNAPSHOT_TYPE,
-            names.map((name) =>
-                getKnowledgeDocumentSnapshotSlug(agent.slug, name),
-            ),
-        );
-        return new Set(
-            names.filter((name) =>
-                slugs.has(getKnowledgeDocumentSnapshotSlug(agent.slug, name)),
-            ),
-        );
     }
 
     async createDocument(
@@ -417,21 +405,11 @@ export class AiAgentDocumentService extends BaseService {
         );
         await this.assertNotGitBacked(
             source,
-            organizationUuid,
-            projectUuid,
-            agentUuid,
+            { organizationUuid, projectUuid, agentUuid },
             existing.name,
         );
 
-        const name = body.name.trim();
-        if (name.length === 0) {
-            throw new ParameterError('Document name cannot be empty');
-        }
-        if (name.length > AI_AGENT_DOCUMENT_MAX_NAME_LENGTH) {
-            throw new ParameterError(
-                `Document name cannot exceed ${AI_AGENT_DOCUMENT_MAX_NAME_LENGTH} characters`,
-            );
-        }
+        const name = normalizeAiAgentDocumentName(body.name);
 
         const existingContent =
             await this.aiAgentDocumentModel.getContentForAgent({
@@ -556,9 +534,7 @@ export class AiAgentDocumentService extends BaseService {
         );
         await this.assertNotGitBacked(
             source,
-            organizationUuid,
-            projectUuid,
-            agentUuid,
+            { organizationUuid, projectUuid, agentUuid },
             existing.name,
         );
 
@@ -599,15 +575,7 @@ export class AiAgentDocumentService extends BaseService {
         },
     ): Promise<AiAgentDocument> {
         await this.assertNotTrainingProject(scope.projectUuid, 'added');
-        const name = body.name.trim();
-        if (name.length === 0) {
-            throw new ParameterError('Document name cannot be empty');
-        }
-        if (name.length > AI_AGENT_DOCUMENT_MAX_NAME_LENGTH) {
-            throw new ParameterError(
-                `Document name cannot exceed ${AI_AGENT_DOCUMENT_MAX_NAME_LENGTH} characters`,
-            );
-        }
+        const name = normalizeAiAgentDocumentName(body.name);
         const contentBytes = Buffer.byteLength(body.content, 'utf8');
         if (contentBytes > AI_AGENT_DOCUMENT_MAX_CONTENT_BYTES) {
             throw new PayloadTooLargeError(
@@ -719,9 +687,7 @@ export class AiAgentDocumentService extends BaseService {
         );
         await this.assertNotGitBacked(
             source,
-            organizationUuid,
-            projectUuid,
-            agentUuid,
+            { organizationUuid, projectUuid, agentUuid },
             existing.name,
         );
 

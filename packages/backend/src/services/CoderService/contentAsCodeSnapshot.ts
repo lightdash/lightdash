@@ -55,7 +55,7 @@ const canonicalize = (value: unknown): CanonicalJsonValue => {
 };
 
 export const buildContentAsCodeSnapshot = (
-    content: SnapshotAsCodeContent | AgentAsCodeKnowledgeDocument,
+    content: SnapshotAsCodeContent,
 ): {
     snapshot: Record<string, CanonicalJsonValue>;
     snapshotHash: string;
@@ -75,4 +75,19 @@ export const buildContentAsCodeSnapshot = (
         .update(JSON.stringify(snapshot))
         .digest('hex');
     return { snapshot, snapshotHash };
+};
+
+export const buildKnowledgeDocumentSnapshot = (
+    document: AgentAsCodeKnowledgeDocument,
+): ReturnType<typeof buildContentAsCodeSnapshot> => {
+    const snapshot = canonicalize(document) as Record<
+        string,
+        CanonicalJsonValue
+    >;
+    return {
+        snapshot,
+        snapshotHash: createHash('sha256')
+            .update(JSON.stringify(snapshot))
+            .digest('hex'),
+    };
 };

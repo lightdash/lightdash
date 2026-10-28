@@ -1,5 +1,7 @@
 import {
     generateSlug,
+    getAiAgentDocumentFileExtension,
+    getAiAgentDocumentMimeType,
     getErrorMessage,
     ParameterError,
     type AgentAsCode,
@@ -12,8 +14,7 @@ export const KNOWLEDGE_DOCUMENTS_FOLDER_NAME = 'knowledge-documents';
 
 const ACCEPTED_EXTENSIONS = ['.md', '.txt'];
 
-// The file's extension carries the type, so neither content nor mimeType is
-// written to the YAML.
+// The file's extension carries the type, so the YAML lists neither content nor mimeType.
 export type AgentAsCodeKnowledgeDocumentFile = Omit<
     AgentAsCodeKnowledgeDocument,
     'content' | 'mimeType'
@@ -36,26 +37,50 @@ const toPosix = (filePath: string): string =>
 const getDocumentsFolder = (agentSlug: string): string =>
     path.join(agentSlug, KNOWLEDGE_DOCUMENTS_FOLDER_NAME);
 
-const getExtension = (
-    mimeType: AgentAsCodeKnowledgeDocument['mimeType'],
-): string => (mimeType === 'text/plain' ? '.txt' : '.md');
-
-const getMimeType = (file: string): AgentAsCodeKnowledgeDocument['mimeType'] =>
-    file.endsWith('.txt') ? 'text/plain' : 'text/markdown';
+const firstFreeFileName = (
+    base: string,
+    extension: string,
+    taken: string[],
+    index = 0,
+): string => {
+    const candidate = `${index === 0 ? base : `${base}-${index + 1}`}${extension}`;
+    return taken.includes(candidate)
+        ? firstFreeFileName(base, extension, taken, index + 1)
+        : candidate;
+};
 
 /** Deterministic file names from document names; a slug clash within one agent gets a numeric suffix. */
 const allocateFileNames = (
     documents: AgentAsCodeKnowledgeDocument[],
 ): string[] =>
-    documents.reduce<string[]>((taken, document) => {
-        const base = generateSlug(document.name);
-        const extension = getExtension(document.mimeType);
-        const candidate = (index: number) =>
-            `${index === 0 ? base : `${base}-${index + 1}`}${extension}`;
-        let index = 0;
-        while (taken.includes(candidate(index))) index += 1;
-        return [...taken, candidate(index)];
-    }, []);
+    documents.reduce<string[]>(
+        (taken, document) => [
+            ...taken,
+            firstFreeFileName(
+                generateSlug(document.name),
+                getAiAgentDocumentFileExtension(document.mimeType),
+                taken,
+            ),
+        ],
+        [],
+    );
+
+const listDocumentFiles = async (folder: string): Promise<string[]> => {
+    try {
+        return (await fs.readdir(folder, { withFileTypes: true }))
+            .filter(
+                (entry) =>
+                    entry.isFile() &&
+                    ACCEPTED_EXTENSIONS.some((extension) =>
+                        entry.name.endsWith(extension),
+                    ),
+            )
+            .map((entry) => entry.name);
+    } catch (error) {
+        if (isEnoent(error)) return [];
+        throw error;
+    }
+};
 
 export const toAgentAsCodeFile = (agent: AgentAsCode): AgentAsCodeFile => {
     const { knowledgeDocuments, ...rest } = agent;
@@ -73,11 +98,8 @@ export const toAgentAsCodeFile = (agent: AgentAsCode): AgentAsCodeFile => {
     };
 };
 
-/**
- * Writes the agent's document files under `<slug>/knowledge-documents/` next
- * to its YAML and removes document files that are no longer declared. The
- * folder is left alone when the agent carries no document list at all.
- */
+// Writes `<slug>/knowledge-documents/` beside the YAML and prunes files no
+// longer declared; an agent without a document list leaves the folder alone.
 export const writeAgentKnowledgeDocuments = async (
     yamlDirectory: string,
     agent: AgentAsCode,
@@ -85,21 +107,7 @@ export const writeAgentKnowledgeDocuments = async (
     if (agent.knowledgeDocuments === undefined) return;
     const folder = path.join(yamlDirectory, getDocumentsFolder(agent.slug));
     const fileNames = allocateFileNames(agent.knowledgeDocuments);
-    let existing: string[];
-    try {
-        existing = (await fs.readdir(folder, { withFileTypes: true }))
-            .filter(
-                (entry) =>
-                    entry.isFile() &&
-                    ACCEPTED_EXTENSIONS.some((extension) =>
-                        entry.name.endsWith(extension),
-                    ),
-            )
-            .map((entry) => entry.name);
-    } catch (error) {
-        if (!isEnoent(error)) throw error;
-        existing = [];
-    }
+    const existing = await listDocumentFiles(folder);
     if (agent.knowledgeDocuments.length > 0) {
         await fs.mkdir(folder, { recursive: true });
     }
@@ -126,6 +134,22 @@ const assertSafeRelativeFile = (file: string, source: string): void => {
     if (!ACCEPTED_EXTENSIONS.some((extension) => file.endsWith(extension))) {
         throw new ParameterError(
             `Invalid AI agent file "${source}": knowledge document file "${file}" must end with ${ACCEPTED_EXTENSIONS.join(' or ')}`,
+        );
+    }
+};
+
+const readDocumentFile = async (
+    filePath: string,
+    file: string,
+    yamlPath: string,
+): Promise<string> => {
+    try {
+        return await fs.readFile(filePath, 'utf8');
+    } catch (error) {
+        throw new ParameterError(
+            isEnoent(error)
+                ? `Invalid AI agent file "${yamlPath}": knowledge document file "${file}" does not exist`
+                : `Invalid AI agent file "${yamlPath}": could not read knowledge document file "${file}": ${getErrorMessage(error)}`,
         );
     }
 };
@@ -157,25 +181,16 @@ export const readAgentKnowledgeDocuments = async (
                     );
                 }
                 assertSafeRelativeFile(document.file, yamlPath);
-                let content: string;
-                try {
-                    content = await fs.readFile(
-                        path.join(directory, document.file),
-                        'utf8',
-                    );
-                } catch (error) {
-                    throw new ParameterError(
-                        isEnoent(error)
-                            ? `Invalid AI agent file "${yamlPath}": knowledge document file "${document.file}" does not exist`
-                            : `Invalid AI agent file "${yamlPath}": could not read knowledge document file "${document.file}": ${getErrorMessage(error)}`,
-                    );
-                }
                 return {
                     name: document.name,
                     alwaysIncludeInContext:
                         document.alwaysIncludeInContext === true,
-                    mimeType: getMimeType(document.file),
-                    content,
+                    mimeType: getAiAgentDocumentMimeType(document.file),
+                    content: await readDocumentFile(
+                        path.join(directory, document.file),
+                        document.file,
+                        yamlPath,
+                    ),
                 };
             },
         ),

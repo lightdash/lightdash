@@ -14,7 +14,6 @@ import {
     Text,
     Textarea,
     TextInput,
-    Tooltip,
     useMantineColorScheme,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
@@ -36,7 +35,9 @@ import {
     useAiAgentDocumentContent,
     useUpdateAiAgentDocumentContent,
 } from '../hooks/useAiAgentDocuments';
+import { getGitBackedActionProps } from '../utils/gitBackedDocument';
 import classes from './AiAgentKnowledgeDocumentModal.module.css';
+import { GitBackedActionTooltip } from './GitBackedDocumentAction';
 
 const MARKDOWN_REMARK_PLUGINS = [remarkFrontmatter];
 
@@ -139,17 +140,15 @@ const LoadedDocumentModal = ({
                         >
                             Download
                         </Button>
-                        <Tooltip
-                            label="Managed by Content as Code"
-                            disabled={!document.managedByContentAsCode}
+                        <GitBackedActionTooltip
+                            managed={document.managedByContentAsCode}
                         >
                             <Button
                                 size="xs"
                                 leftSection={<MantineIcon icon={IconEdit} />}
-                                // data-disabled keeps hover events so the tooltip can say why
-                                data-disabled={
-                                    document.managedByContentAsCode || undefined
-                                }
+                                {...getGitBackedActionProps(
+                                    document.managedByContentAsCode,
+                                )}
                                 onClick={() => {
                                     if (document.managedByContentAsCode) return;
                                     setMode('edit');
@@ -157,7 +156,7 @@ const LoadedDocumentModal = ({
                             >
                                 Edit
                             </Button>
-                        </Tooltip>
+                        </GitBackedActionTooltip>
                     </Group>
                 );
             case 'edit':

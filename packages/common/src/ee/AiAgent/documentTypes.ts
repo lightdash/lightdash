@@ -1,3 +1,5 @@
+import { ParameterError } from '../../types/errors';
+
 export const AI_AGENT_DOCUMENT_MAX_CONTENT_BYTES = 20 * 1024;
 export const AI_AGENT_DOCUMENT_MAX_NAME_LENGTH = 255;
 export const AI_AGENT_DOCUMENT_ORG_QUOTA_BYTES = 5 * 1024 * 1024;
@@ -5,6 +7,29 @@ export const AI_AGENT_DOCUMENT_ORG_QUOTA_BYTES = 5 * 1024 * 1024;
 export type AiAgentDocumentRelevance = 'high' | 'medium' | 'low' | 'none';
 
 export type AiAgentDocumentMimeType = 'text/markdown' | 'text/plain';
+
+export const getAiAgentDocumentFileExtension = (
+    mimeType: AiAgentDocumentMimeType,
+): '.md' | '.txt' => (mimeType === 'text/plain' ? '.txt' : '.md');
+
+export const getAiAgentDocumentMimeType = (
+    fileName: string,
+): AiAgentDocumentMimeType =>
+    fileName.toLowerCase().endsWith('.txt') ? 'text/plain' : 'text/markdown';
+
+/** Trims the name and rejects an empty or over-long one. */
+export const normalizeAiAgentDocumentName = (name: string): string => {
+    const trimmed = name.trim();
+    if (trimmed.length === 0) {
+        throw new ParameterError('Document name cannot be empty');
+    }
+    if (trimmed.length > AI_AGENT_DOCUMENT_MAX_NAME_LENGTH) {
+        throw new ParameterError(
+            `Document name cannot exceed ${AI_AGENT_DOCUMENT_MAX_NAME_LENGTH} characters`,
+        );
+    }
+    return trimmed;
+};
 
 export type AiAgentDocumentStructuredSummary = {
     description: string;

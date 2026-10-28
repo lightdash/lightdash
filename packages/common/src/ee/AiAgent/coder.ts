@@ -47,10 +47,8 @@ export type AgentAsCode = {
     // unchanged; present = authoritative (bind these, unbind the rest).
     skills?: string[];
     evaluations?: AgentAsCodeEvaluation[];
-    // Knowledge documents owned by this agent alone. Omitted = leave them
-    // unchanged; present = authoritative (create, update, delete the rest).
-    // Documents shared with other agents or the whole organization are
-    // never included and never touched.
+    // Documents owned by this agent alone; shared ones are never included nor
+    // touched. Omitted = leave unchanged; present = authoritative.
     knowledgeDocuments?: AgentAsCodeKnowledgeDocument[];
     updatedAt?: Date;
     downloadedAt?: Date;

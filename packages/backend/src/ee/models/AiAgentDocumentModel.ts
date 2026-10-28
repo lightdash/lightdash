@@ -344,11 +344,8 @@ export class AiAgentDocumentModel {
         return rows.map(mapRowToSummary);
     }
 
-    /**
-     * Documents that belong to this agent alone: in its project and granted
-     * to no other agent. Org-wide and shared documents are excluded so a
-     * caller can rewrite the result set without touching anything shared.
-     */
+    // In the agent's project and granted to no other agent, so a caller can
+    // rewrite the whole set without touching anything shared.
     async findOwnedByAgent(args: {
         organizationUuid: string;
         agentUuid: string;

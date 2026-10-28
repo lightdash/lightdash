@@ -1,4 +1,5 @@
 import { ContentAsCodeType } from '@lightdash/common';
+import { createHash } from 'crypto';
 import { Knex } from 'knex';
 import { ContentAsCodeSnapshotsTableName } from '../database/entities/contentAsCodeSnapshots';
 
@@ -13,10 +14,28 @@ export type ContentAsCodeSnapshotType =
     | ContentAsCodeType.DASHBOARD
     | typeof AI_AGENT_KNOWLEDGE_DOCUMENT_SNAPSHOT_TYPE;
 
+export type KnowledgeDocumentSnapshotSlug = string & {
+    readonly __brand: 'KnowledgeDocumentSnapshotSlug';
+};
+
+const MAX_SNAPSHOT_SLUG_LENGTH = 255;
+
+// Over-long names are cut and suffixed with a hash so the key stays unique
+// inside the varchar(255) column; the name is trimmed so UI and repo agree.
 export const getKnowledgeDocumentSnapshotSlug = (
     agentSlug: string,
     documentName: string,
-): string => `${agentSlug}/${documentName}`;
+): KnowledgeDocumentSnapshotSlug => {
+    const slug = `${agentSlug}/${documentName.trim()}`;
+    if (slug.length <= MAX_SNAPSHOT_SLUG_LENGTH) {
+        return slug as KnowledgeDocumentSnapshotSlug;
+    }
+    const hash = createHash('sha256').update(slug).digest('hex').slice(0, 12);
+    return `${slug.slice(
+        0,
+        MAX_SNAPSHOT_SLUG_LENGTH - hash.length - 1,
+    )}~${hash}` as KnowledgeDocumentSnapshotSlug;
+};
 
 type ContentAsCodeSnapshotModelArguments = {
     database: Knex;

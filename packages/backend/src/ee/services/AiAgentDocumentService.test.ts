@@ -76,10 +76,10 @@ const setup = ({
         delete: vi.fn().mockResolvedValue(undefined),
     };
     const contentAsCodeSnapshotModel = {
-        get: vi
+        findSlugs: vi
             .fn()
-            .mockResolvedValue(
-                gitBacked ? { snapshot: {}, snapshotHash: 'h' } : undefined,
+            .mockImplementation(async (_project, _type, slugs: string[]) =>
+                gitBacked ? new Set(slugs) : new Set(),
             ),
     };
     const aiAgentService = {
@@ -255,10 +255,10 @@ describe('AiAgentDocumentService with a document the repo last applied', () => {
         ).rejects.toThrow(
             new ForbiddenError(MANAGED, { contentAsCodeManaged: true }),
         );
-        expect(contentAsCodeSnapshotModel.get).toHaveBeenCalledWith(
+        expect(contentAsCodeSnapshotModel.findSlugs).toHaveBeenCalledWith(
             projectUuid,
             'ai_agent_knowledge_document',
-            'glossary-agent/Glossary',
+            ['glossary-agent/Glossary'],
         );
         expect(
             aiAgentDocumentModel.updateAlwaysIncludeInContext,
@@ -313,7 +313,7 @@ describe('AiAgentDocumentService with a document the repo last applied', () => {
             { projectUuid, agentUuid },
             'document-uuid',
         );
-        expect(contentAsCodeSnapshotModel.get).not.toHaveBeenCalled();
+        expect(contentAsCodeSnapshotModel.findSlugs).not.toHaveBeenCalled();
         expect(aiAgentDocumentModel.delete).toHaveBeenCalledOnce();
     });
 

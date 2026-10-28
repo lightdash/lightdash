@@ -1,13 +1,15 @@
 import { subject } from '@casl/ability';
 import {
     AI_AGENT_DOCUMENT_MAX_CONTENT_BYTES,
-    AI_AGENT_DOCUMENT_MAX_NAME_LENGTH,
+    AI_AGENT_DOCUMENT_ORG_QUOTA_BYTES,
     CONTENT_AS_CODE_VERSIONS,
     ContentAsCodeType,
     exceedsRetentionCeiling,
     ForbiddenError,
+    getAiAgentDocumentFileExtension,
     getErrorMessage,
     isValidRetentionWindowHours,
+    normalizeAiAgentDocumentName,
     ParameterError,
     RETENTION_WINDOW_HOURS_ERROR,
     type AgentAsCode,
@@ -28,7 +30,7 @@ import {
 } from '../../../models/ContentAsCodeSnapshotModel';
 import { type ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { BaseService } from '../../../services/BaseService';
-import { buildContentAsCodeSnapshot } from '../../../services/CoderService/contentAsCodeSnapshot';
+import { buildKnowledgeDocumentSnapshot } from '../../../services/CoderService/contentAsCodeSnapshot';
 import { paginateAsCode } from '../../../services/CoderService/pagination';
 import {
     type AiAgentDocumentModel,
@@ -37,7 +39,10 @@ import {
 import { type AiAgentModel } from '../../models/AiAgentModel';
 import { type AiAgentSkillModel } from '../../models/AiAgentSkillModel';
 import { BuiltInSkills } from '../ai/skills/builtInSkills';
-import { type AiAgentDocumentService } from '../AiAgentDocumentService';
+import {
+    type AiAgentDocumentScope,
+    type AiAgentDocumentService,
+} from '../AiAgentDocumentService';
 import { type AiAgentSkillService } from '../AiAgentSkillService';
 import { type AiOrganizationSettingsService } from '../AiOrganizationSettingsService';
 
@@ -86,8 +91,60 @@ const toKnowledgeDocumentAsCode = (
     content: document.content,
 });
 
-const getFileExtension = (mimeType: AgentAsCodeKnowledgeDocument['mimeType']) =>
-    mimeType === 'text/plain' ? 'txt' : 'md';
+const contentBytes = (content: string): number =>
+    Buffer.byteLength(content, 'utf8');
+
+const normalizeKnowledgeDocument = (
+    document: AgentAsCodeKnowledgeDocument,
+): AgentAsCodeKnowledgeDocument => ({
+    ...document,
+    name: normalizeAiAgentDocumentName(document.name),
+});
+
+type KnowledgeDocumentStep =
+    | {
+          kind: 'apply';
+          document: AgentAsCodeKnowledgeDocument;
+          existing: AiAgentOwnedDocument | undefined;
+      }
+    | { kind: 'remove'; existing: AiAgentOwnedDocument };
+
+type KnowledgeDocumentSyncContext = {
+    user: SessionUser;
+    scope: AiAgentDocumentScope;
+    agentSlug: string;
+    force: boolean;
+    syncEnabled: boolean;
+};
+
+// Stored names are matched trimmed so a UI-created "Foo " and a repo "Foo"
+// are the same document.
+const planKnowledgeDocuments = (
+    declared: AgentAsCodeKnowledgeDocument[],
+    owned: AiAgentOwnedDocument[],
+): KnowledgeDocumentStep[] => {
+    const existingByName = new Map(
+        owned.map((document) => [document.name.trim(), document]),
+    );
+    const declaredNames = new Set(declared.map(({ name }) => name));
+    return [
+        ...declared.map(
+            (document): KnowledgeDocumentStep => ({
+                kind: 'apply',
+                document,
+                existing: existingByName.get(document.name),
+            }),
+        ),
+        ...owned
+            .filter((existing) => !declaredNames.has(existing.name.trim()))
+            .map(
+                (existing): KnowledgeDocumentStep => ({
+                    kind: 'remove',
+                    existing,
+                }),
+            ),
+    ];
+};
 
 const toAgentAsCode = (
     agent: AgentForCode,
@@ -421,155 +478,151 @@ export class AiAgentCoderService extends BaseService {
         };
     }
 
-    /**
-     * Makes the agent's own documents match the declared list, by name.
-     * Unchanged content is left alone so a repeat upload neither rewrites
-     * storage nor regenerates summaries. Under content_as_code.sync every
-     * applied document is stamped as Git-backed, which locks it in the UI.
-     */
-    private async syncKnowledgeDocuments({
-        user,
-        organizationUuid,
-        projectUuid,
-        agent,
-        agentUuid,
-        force,
-        syncEnabled,
-    }: {
-        user: SessionUser;
-        organizationUuid: string;
-        projectUuid: string;
-        agent: AgentAsCode;
-        agentUuid: string;
-        force: boolean;
-        syncEnabled: boolean;
-    }): Promise<boolean> {
-        const declared = (agent.knowledgeDocuments ?? []).map((document) => ({
-            ...document,
-            name: document.name.trim(),
-        }));
-        const scope = { projectUuid, agentUuid };
-        const existingByName = new Map(
-            (
-                await this.aiAgentDocumentModel.findOwnedByAgent({
-                    organizationUuid,
-                    projectUuid,
-                    agentUuid,
-                })
-            ).map((document) => [document.name, document]),
-        );
-        let changed = false;
+    private async stampKnowledgeDocument(
+        { user, scope, agentSlug, syncEnabled }: KnowledgeDocumentSyncContext,
+        document: AgentAsCodeKnowledgeDocument,
+    ): Promise<void> {
+        if (!syncEnabled) return;
+        const { snapshot, snapshotHash } =
+            buildKnowledgeDocumentSnapshot(document);
+        await this.contentAsCodeSnapshotModel.upsert({
+            projectUuid: scope.projectUuid,
+            contentType: AI_AGENT_KNOWLEDGE_DOCUMENT_SNAPSHOT_TYPE,
+            slug: getKnowledgeDocumentSnapshotSlug(agentSlug, document.name),
+            snapshot,
+            snapshotHash,
+            appliedByUserUuid: user.userUuid,
+            filePath: null,
+        });
+    }
 
-        const stamp = async (
-            document: AgentAsCodeKnowledgeDocument,
-        ): Promise<void> => {
-            if (!syncEnabled) return;
-            const { snapshot, snapshotHash } =
-                buildContentAsCodeSnapshot(document);
-            await this.contentAsCodeSnapshotModel.upsert({
-                projectUuid,
-                contentType: AI_AGENT_KNOWLEDGE_DOCUMENT_SNAPSHOT_TYPE,
-                slug: getKnowledgeDocumentSnapshotSlug(
-                    agent.slug,
-                    document.name,
-                ),
-                snapshot,
-                snapshotHash,
-                appliedByUserUuid: user.userUuid,
-                filePath: null,
-            });
-        };
-
-        for (const document of declared) {
-            const existing = existingByName.get(document.name);
-            if (!existing) {
-                const created =
-                    // eslint-disable-next-line no-await-in-loop
-                    await this.aiAgentDocumentService.createDocument(
-                        user,
-                        scope,
-                        {
-                            name: document.name,
-                            originalFilename: `${document.name}.${getFileExtension(document.mimeType)}`,
-                            mimeType: document.mimeType,
-                            content: document.content,
-                        },
-                    );
-                if (document.alwaysIncludeInContext) {
-                    // eslint-disable-next-line no-await-in-loop
-                    await this.aiAgentDocumentService.updateDocument(
-                        user,
-                        scope,
-                        created.uuid,
-                        { alwaysIncludeInContext: true },
-                        'repo',
-                    );
-                }
-                changed = true;
-            } else {
-                if (
-                    force ||
-                    existing.content !== document.content ||
-                    existing.mimeType !== document.mimeType
-                ) {
-                    // eslint-disable-next-line no-await-in-loop
-                    await this.aiAgentDocumentService.updateDocumentContent(
-                        user,
-                        scope,
-                        existing.uuid,
-                        {
-                            name: document.name,
-                            content: document.content,
-                            mimeType: document.mimeType,
-                        },
-                        'repo',
-                    );
-                    changed = true;
-                }
-                if (
-                    existing.alwaysIncludeInContext !==
-                    document.alwaysIncludeInContext
-                ) {
-                    // eslint-disable-next-line no-await-in-loop
-                    await this.aiAgentDocumentService.updateDocument(
-                        user,
-                        scope,
-                        existing.uuid,
-                        {
-                            alwaysIncludeInContext:
-                                document.alwaysIncludeInContext,
-                        },
-                        'repo',
-                    );
-                    changed = true;
-                }
-            }
-            // eslint-disable-next-line no-await-in-loop
-            await stamp(document);
-        }
-
-        const declaredNames = new Set(declared.map(({ name }) => name));
-        const removed = [...existingByName.values()].filter(
-            (existing) => !declaredNames.has(existing.name),
-        );
-        for (const existing of removed) {
-            // eslint-disable-next-line no-await-in-loop
+    /** Returns whether the step changed anything on the server. */
+    private async applyKnowledgeDocumentStep(
+        context: KnowledgeDocumentSyncContext,
+        step: KnowledgeDocumentStep,
+    ): Promise<boolean> {
+        const { user, scope, agentSlug, force } = context;
+        if (step.kind === 'remove') {
             await this.aiAgentDocumentService.deleteDocument(
                 user,
                 scope,
-                existing.uuid,
+                step.existing.uuid,
                 'repo',
             );
-            // eslint-disable-next-line no-await-in-loop
             await this.contentAsCodeSnapshotModel.delete(
-                projectUuid,
+                scope.projectUuid,
                 AI_AGENT_KNOWLEDGE_DOCUMENT_SNAPSHOT_TYPE,
-                getKnowledgeDocumentSnapshotSlug(agent.slug, existing.name),
+                getKnowledgeDocumentSnapshotSlug(agentSlug, step.existing.name),
             );
-            changed = true;
+            return true;
         }
+        const { document, existing } = step;
+        if (!existing) {
+            const created = await this.aiAgentDocumentService.createDocument(
+                user,
+                scope,
+                {
+                    name: document.name,
+                    originalFilename: `${document.name}${getAiAgentDocumentFileExtension(document.mimeType)}`,
+                    mimeType: document.mimeType,
+                    content: document.content,
+                },
+            );
+            if (document.alwaysIncludeInContext) {
+                await this.aiAgentDocumentService.updateDocument(
+                    user,
+                    scope,
+                    created.uuid,
+                    { alwaysIncludeInContext: true },
+                    'repo',
+                );
+            }
+            await this.stampKnowledgeDocument(context, document);
+            return true;
+        }
+        const contentChanged =
+            force ||
+            existing.content !== document.content ||
+            existing.mimeType !== document.mimeType;
+        const usageChanged =
+            existing.alwaysIncludeInContext !== document.alwaysIncludeInContext;
+        if (contentChanged) {
+            await this.aiAgentDocumentService.updateDocumentContent(
+                user,
+                scope,
+                existing.uuid,
+                {
+                    name: document.name,
+                    content: document.content,
+                    mimeType: document.mimeType,
+                },
+                'repo',
+            );
+        }
+        if (usageChanged) {
+            await this.aiAgentDocumentService.updateDocument(
+                user,
+                scope,
+                existing.uuid,
+                { alwaysIncludeInContext: document.alwaysIncludeInContext },
+                'repo',
+            );
+        }
+        await this.stampKnowledgeDocument(context, document);
+        return contentChanged || usageChanged;
+    }
 
-        return changed;
+    // Steps run one after another: each create checks the organization quota
+    // against what the previous one stored.
+    private async syncKnowledgeDocuments(
+        context: KnowledgeDocumentSyncContext,
+        declared: AgentAsCodeKnowledgeDocument[],
+        owned: AiAgentOwnedDocument[],
+    ): Promise<boolean> {
+        const results = await planKnowledgeDocuments(declared, owned).reduce<
+            Promise<boolean[]>
+        >(
+            async (previous, step) => [
+                ...(await previous),
+                await this.applyKnowledgeDocumentStep(context, step),
+            ],
+            Promise.resolve([]),
+        );
+        return results.some(Boolean);
+    }
+
+    // The whole upload is sized against the quota before any write, so an
+    // agent is never left with some of its documents applied.
+    private async assertDocumentQuota(
+        organizationUuid: string,
+        agents: AgentAsCode[],
+        ownedDocumentsBySlug: Map<string, AiAgentOwnedDocument[]>,
+    ): Promise<void> {
+        if (agents.length === 0) return;
+        const sum = (values: number[]) =>
+            values.reduce((total, value) => total + value, 0);
+        const incomingBytes = sum(
+            agents.flatMap((agent) =>
+                (agent.knowledgeDocuments ?? []).map(({ content }) =>
+                    contentBytes(content),
+                ),
+            ),
+        );
+        const replacedBytes = sum(
+            [...ownedDocumentsBySlug.values()].flatMap((owned) =>
+                owned.map(({ contentSizeBytes }) => contentSizeBytes),
+            ),
+        );
+        const storedBytes =
+            await this.aiAgentDocumentModel.getOrganizationContentSize(
+                organizationUuid,
+            );
+        const projectedBytes = storedBytes - replacedBytes + incomingBytes;
+        if (projectedBytes > AI_AGENT_DOCUMENT_ORG_QUOTA_BYTES) {
+            throw new ParameterError(
+                `Knowledge documents would exceed the organization quota of ${AI_AGENT_DOCUMENT_ORG_QUOTA_BYTES} bytes (${projectedBytes} bytes after upload)`,
+            );
+        }
     }
 
     async upsertAgents(
@@ -628,27 +681,21 @@ export class AiAgentCoderService extends BaseService {
                 );
             }
             const documentNames = (agent.knowledgeDocuments ?? []).map(
-                ({ name }) => name.trim(),
+                ({ name }) => {
+                    try {
+                        return normalizeAiAgentDocumentName(name);
+                    } catch (error) {
+                        throw new ParameterError(
+                            `AI agent '${agent.slug}': ${getErrorMessage(error)}`,
+                        );
+                    }
+                },
             );
-            if (documentNames.some((name) => name.length === 0)) {
-                throw new ParameterError(
-                    `AI agent '${agent.slug}' has a knowledge document with an empty name`,
-                );
-            }
-            const longName = documentNames.find(
-                (name) => name.length > AI_AGENT_DOCUMENT_MAX_NAME_LENGTH,
-            );
-            if (longName !== undefined) {
-                throw new ParameterError(
-                    `AI agent '${agent.slug}': knowledge document name '${longName.slice(0, 40)}…' exceeds ${AI_AGENT_DOCUMENT_MAX_NAME_LENGTH} characters`,
-                );
-            }
             // Checked before any write so an oversized file never leaves the
             // agent half applied.
             const oversized = (agent.knowledgeDocuments ?? []).find(
                 ({ content }) =>
-                    Buffer.byteLength(content, 'utf8') >
-                    AI_AGENT_DOCUMENT_MAX_CONTENT_BYTES,
+                    contentBytes(content) > AI_AGENT_DOCUMENT_MAX_CONTENT_BYTES,
             );
             if (oversized) {
                 throw new ParameterError(
@@ -783,12 +830,38 @@ export class AiAgentCoderService extends BaseService {
             unchanged: [],
             deleted: [],
         };
-        const syncEnabled = agents.some(
+        const agentsWithDocuments = agents.filter(
             (agent) => agent.knowledgeDocuments !== undefined,
-        )
-            ? (await this.contentAsCodeProjectSettingsModel.get(projectUuid))
-                  ?.syncEnabled === true
-            : false;
+        );
+        const syncEnabled =
+            agentsWithDocuments.length > 0 &&
+            (await this.contentAsCodeProjectSettingsModel.get(projectUuid))
+                ?.syncEnabled === true;
+        const ownedDocumentsBySlug = new Map(
+            await Promise.all(
+                agentsWithDocuments.flatMap((agent) => {
+                    const existing = existingBySlug.get(agent.slug);
+                    return existing
+                        ? [
+                              this.aiAgentDocumentModel
+                                  .findOwnedByAgent({
+                                      organizationUuid,
+                                      projectUuid,
+                                      agentUuid: existing.uuid,
+                                  })
+                                  .then(
+                                      (owned) => [agent.slug, owned] as const,
+                                  ),
+                          ]
+                        : [];
+                }),
+            ),
+        );
+        await this.assertDocumentQuota(
+            organizationUuid,
+            agentsWithDocuments,
+            ownedDocumentsBySlug,
+        );
 
         const upsertOne = async (agent: AgentAsCode): Promise<void> => {
             const existing = existingBySlug.get(agent.slug);
@@ -957,15 +1030,19 @@ export class AiAgentCoderService extends BaseService {
 
             if (agent.knowledgeDocuments !== undefined) {
                 try {
-                    const documentsChanged = await this.syncKnowledgeDocuments({
-                        user,
-                        organizationUuid,
-                        projectUuid,
-                        agent,
-                        agentUuid,
-                        force,
-                        syncEnabled,
-                    });
+                    const documentsChanged = await this.syncKnowledgeDocuments(
+                        {
+                            user,
+                            scope: { projectUuid, agentUuid },
+                            agentSlug: agent.slug,
+                            force,
+                            syncEnabled,
+                        },
+                        agent.knowledgeDocuments.map(
+                            normalizeKnowledgeDocument,
+                        ),
+                        ownedDocumentsBySlug.get(agent.slug) ?? [],
+                    );
                     agentChanged = agentChanged || documentsChanged;
                 } catch (error) {
                     changes.failed = [
