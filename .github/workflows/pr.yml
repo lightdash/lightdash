@@ -797,7 +797,7 @@ jobs:
     name: "E2E: App (${{ matrix.containers }}/${{ strategy.job-total }})"
     env:
       # One store for deps and the global Node runtime, so the cached Node is reused
-      npm_config_store_dir: /__w/.pnpm-store
+      pnpm_config_store_dir: /__w/.pnpm-store
       PREVIEW_URL: ${{ needs.preview.outputs.url }}
       NODE_OPTIONS: "--max-old-space-size=8192"
     steps:
@@ -864,7 +864,7 @@ jobs:
     name: "E2E: Timezone (${{ matrix.timezone }})"
     env:
       # One store for deps and the global Node runtime, so the cached Node is reused
-      npm_config_store_dir: /__w/.pnpm-store
+      pnpm_config_store_dir: /__w/.pnpm-store
       PREVIEW_URL: ${{ needs.preview.outputs.url }}
       NODE_OPTIONS: "--max-old-space-size=8192"
     steps:
