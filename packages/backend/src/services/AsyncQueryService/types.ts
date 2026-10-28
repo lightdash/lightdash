@@ -69,6 +69,8 @@ export type GetAsyncQueryResultsArgs = Omit<
         queryUuid: string;
         aiAccessOnly?: boolean;
         reader?: QueryResultReader;
+        // Defaults to query.maxPageSize
+        maxPageSize?: number;
     };
 
 export type DownloadAsyncQueryResultsArgs = Omit<

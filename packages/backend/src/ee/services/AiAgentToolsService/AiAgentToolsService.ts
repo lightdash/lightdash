@@ -4619,6 +4619,8 @@ export class AiAgentToolsService extends BaseService {
                     page: 1,
                     aiAccessOnly: true,
                     pageSize: limit,
+                    // limit is already validated against the AI row limit
+                    maxPageSize: limit,
                 });
 
             if (queryResults.status === QueryHistoryStatus.READY) {

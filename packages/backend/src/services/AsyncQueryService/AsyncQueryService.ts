@@ -2466,6 +2466,7 @@ export class AsyncQueryService extends ProjectService {
         pageSize,
         aiAccessOnly = false,
         reader,
+        maxPageSize = this.lightdashConfig.query.maxPageSize,
     }: GetAsyncQueryResultsArgs): Promise<ApiGetAsyncQueryResults> {
         assertIsAccountWithOrg(account);
 
@@ -2563,7 +2564,7 @@ export class AsyncQueryService extends ProjectService {
         validatePagination({
             pageSize: defaultedPageSize,
             page,
-            queryMaxLimit: this.lightdashConfig.query.maxPageSize,
+            queryMaxLimit: maxPageSize,
             totalRowCount,
         });
 

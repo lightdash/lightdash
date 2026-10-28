@@ -8383,6 +8383,38 @@ describe('AsyncQueryService', () => {
                 },
             });
         });
+
+        test('maxPageSize raises the page size cap for that read', async () => {
+            serviceWithCache.queryHistoryModel.get = vi.fn().mockResolvedValue({
+                ...buildPendingAiQueryHistory(sessionAccount.user.id),
+                context: QueryExecutionContext.MCP_RUN_SQL,
+                status: QueryHistoryStatus.READY,
+                totalRowCount: 3000,
+                resultsFileName: 'results-file-name.json',
+                resultsExpiresAt: new Date(Date.now() + 60_000),
+                columns: expectedColumns,
+            });
+            (serviceWithCache as AnyType).getResultsPageFromS3 = vi
+                .fn()
+                .mockResolvedValue({ rows: [expectedFormattedRow] });
+            const args = {
+                account: sessionAccount,
+                projectUuid,
+                queryUuid: 'test-query-uuid',
+                page: 1,
+                pageSize: 3000,
+            };
+
+            await expect(
+                serviceWithCache.getAsyncQueryResults(args),
+            ).rejects.toThrow('page size is too large, max is 2500');
+            await expect(
+                serviceWithCache.getAsyncQueryResults({
+                    ...args,
+                    maxPageSize: 5000,
+                }),
+            ).resolves.toMatchObject({ status: QueryHistoryStatus.READY });
+        });
     });
 
     describe('runAsyncPreAggregateQuery', () => {
