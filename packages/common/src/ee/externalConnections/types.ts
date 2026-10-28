@@ -1,4 +1,5 @@
 import { type UUID } from '../../types/api/uuid';
+import { type ApiConnectorType } from '../../types/querySources';
 
 export type ExternalConnectionAuthType =
     | 'none'
@@ -8,6 +9,23 @@ export type ExternalConnectionAuthType =
     | 'oauth_client_credentials';
 
 export type OAuthClientAuthMethod = 'basic' | 'body';
+
+/** Who a connection serves: data apps through the proxy, or live API queries. */
+export type ExternalConnectionKind = 'data_app' | 'live_source';
+
+export type PostHogApiSource = {
+    connector: ApiConnectorType.POSTHOG;
+    /** The PostHog project id, the number after /project/ in its URL. */
+    projectId: string;
+};
+
+/** Connector settings of a live source; the server fixes its access rules. */
+export type ExternalConnectionApiSource = PostHogApiSource;
+
+export const POSTHOG_REGION_ORIGINS = {
+    us: 'https://us.posthog.com',
+    eu: 'https://eu.posthog.com',
+} as const;
 
 /** HTTP methods an admin can opt a connection into. Single source of truth for
  *  the backend validation allowlist and the frontend method pickers. */
@@ -105,6 +123,10 @@ export type ExternalConnection = {
     // Static non-secret headers sent on every proxied request, applied before
     // auth so the injected credential always wins (e.g. anthropic-version).
     customHeaders: Record<string, string> | null;
+    /** Optional for compatibility with older servers during rolling upgrades. */
+    kind?: ExternalConnectionKind;
+    /** Optional for compatibility with older servers during rolling upgrades. */
+    apiSource?: ExternalConnectionApiSource | null;
     hasSecret: boolean;
     createdByUserUuid: string | null;
     updatedByUserUuid: string | null;
@@ -165,6 +187,7 @@ export type CreateExternalConnection = {
     oauthClientId?: string | null;
     oauthClientAuthMethod?: OAuthClientAuthMethod | null;
     customHeaders?: Record<string, string> | null; // static non-secret headers sent on every request
+    apiSource?: ExternalConnectionApiSource | null;
     secret?: string | null; // bearer token, api key, client secret, or service-account keyfile JSON; null for type 'none'
 };
 

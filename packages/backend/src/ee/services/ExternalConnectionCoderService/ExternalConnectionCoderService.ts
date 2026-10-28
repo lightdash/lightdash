@@ -226,9 +226,11 @@ export class ExternalConnectionCoderService extends BaseService {
             projectUuid,
         );
 
+        // Live sources are set up in the app, not as code
         const connections = await this.externalConnectionModel.list(
             projectUuid,
             organizationUuid,
+            { kind: 'data_app' },
         );
         const filtered =
             slugs === undefined
@@ -301,6 +303,11 @@ export class ExternalConnectionCoderService extends BaseService {
             organizationUuid,
             slug,
         );
+        if (existing?.kind === 'live_source') {
+            throw new ParameterError(
+                `External connection '${slug}' is a live data source and cannot be updated as code`,
+            );
+        }
 
         if (!existing) {
             const createData: CreateExternalConnection = {

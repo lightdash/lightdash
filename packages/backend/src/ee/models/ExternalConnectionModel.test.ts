@@ -1,4 +1,4 @@
-import { ConflictError } from '@lightdash/common';
+import { ConflictError, ParameterError } from '@lightdash/common';
 import knex, { type Knex } from 'knex';
 import { getTracker, MockClient, type Tracker } from 'knex-mock-client';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
@@ -650,6 +650,8 @@ describe('ExternalConnectionModel', () => {
 
     describe('link + resolveAppAlias', () => {
         it('inserts a link row', async () => {
+            // No live source among the linked connections
+            tracker.on.select(ExternalConnectionsTableName).responseOnce([]);
             tracker.on
                 .insert(AppExternalConnectionsTableName)
                 .responseOnce([{}]);
@@ -666,6 +668,8 @@ describe('ExternalConnectionModel', () => {
         });
 
         it('keeps retries of the same app alias and connection idempotent', async () => {
+            // No live source among the linked connections
+            tracker.on.select(ExternalConnectionsTableName).responseOnce([]);
             tracker.on.insert(AppExternalConnectionsTableName).responseOnce([]);
             tracker.on
                 .select(AppExternalConnectionsTableName)
@@ -677,6 +681,8 @@ describe('ExternalConnectionModel', () => {
         });
 
         it('rejects an app alias already owned by another connection', async () => {
+            // No live source among the linked connections
+            tracker.on.select(ExternalConnectionsTableName).responseOnce([]);
             tracker.on.insert(AppExternalConnectionsTableName).responseOnce([]);
             tracker.on
                 .select(AppExternalConnectionsTableName)
@@ -690,6 +696,8 @@ describe('ExternalConnectionModel', () => {
         });
 
         it('replaceAppLinks deletes stale aliases and upserts with repoint-on-conflict', async () => {
+            // No live source among the linked connections
+            tracker.on.select(ExternalConnectionsTableName).responseOnce([]);
             tracker.on.delete(AppExternalConnectionsTableName).responseOnce(1);
             tracker.on
                 .insert(AppExternalConnectionsTableName)
@@ -712,6 +720,17 @@ describe('ExternalConnectionModel', () => {
             // Must repoint an existing alias, not conflict-ignore like linkToApp
             expect(insertQuery.sql).toContain('on conflict');
             expect(insertQuery.sql).toContain('do update');
+        });
+
+        it('refuses to link a live data source to an app', async () => {
+            tracker.on
+                .select(ExternalConnectionsTableName)
+                .responseOnce([{ name: 'PostHog' }]);
+
+            await expect(
+                model.linkToApp(APP_ID, CONNECTION_UUID, 'acme'),
+            ).rejects.toThrow(ParameterError);
+            expect(tracker.history.insert).toHaveLength(0);
         });
 
         it('replaceAppLinks with an empty set deletes all links and inserts nothing', async () => {

@@ -1,6 +1,7 @@
 import {
     type ApiKeyLocation,
     type ExternalConnectionAuthType,
+    type ExternalConnectionKind,
     type ExternalConnectionMethod,
     type OAuthClientAuthMethod,
 } from '@lightdash/common';
@@ -40,6 +41,9 @@ export type DbExternalConnection = {
     oauth_client_id: string | null;
     oauth_client_auth_method: OAuthClientAuthMethod | null;
     custom_headers: Record<string, string> | null;
+    connection_kind: ExternalConnectionKind;
+    // Parsed against the connector schema on read
+    api_source: unknown;
     created_by_user_uuid: string | null;
     updated_by_user_uuid: string | null;
     created_at: Date;
@@ -57,6 +61,7 @@ export type ExternalConnectionsTable = Knex.CompositeTableType<
         | 'slug'
         | 'type'
         | 'origin'
+        | 'connection_kind'
     > & {
         // jsonb columns are written as serialized JSON strings (read back as arrays)
         allowed_path_prefixes: string;
@@ -64,6 +69,7 @@ export type ExternalConnectionsTable = Knex.CompositeTableType<
         allowed_content_types: string;
         oauth_scopes?: string | null;
         custom_headers?: string | null;
+        api_source?: string | null;
     } & Partial<
             Pick<
                 DbExternalConnection,
@@ -114,6 +120,7 @@ export type ExternalConnectionsTable = Knex.CompositeTableType<
             allowed_content_types: string;
             oauth_scopes: string | null;
             custom_headers: string | null;
+            api_source: string | null;
         }
     >
 >;

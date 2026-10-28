@@ -1,13 +1,17 @@
 import {
     AlreadyExistsError,
+    ApiConnectorType,
     ConflictError,
     DATA_APP_VIZ_TEMPLATE,
     EXTERNAL_CONNECTION_DEFAULTS,
     generateSlug,
     getAppDisplayName,
     NotFoundError,
+    ParameterError,
     type CreateExternalConnection,
     type ExternalConnection,
+    type ExternalConnectionApiSource,
+    type ExternalConnectionKind,
     type ExternalConnectionLinkedApps,
     type ExternalConnectionListItem,
     type ExternalConnectionSample,
@@ -16,6 +20,7 @@ import {
     type UpdateExternalConnection,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
+import { z } from 'zod';
 import {
     AppsTableName,
     type DbApp as DbDataApp,
@@ -40,6 +45,25 @@ type ExternalConnectionModelArguments = {
     database: Knex;
     encryptionUtil: EncryptionUtil;
 };
+
+const apiSourceSchema = z.discriminatedUnion('connector', [
+    z.object({
+        connector: z.literal(ApiConnectorType.POSTHOG),
+        projectId: z.string(),
+    }),
+]);
+
+// A stored shape no connector understands reads as no api source, so the
+// connection fails with a clear error instead of reaching a connector.
+const parseApiSource = (value: unknown): ExternalConnectionApiSource | null => {
+    if (value === null) return null;
+    const parsed = apiSourceSchema.safeParse(value);
+    return parsed.success ? parsed.data : null;
+};
+
+const kindOf = (
+    apiSource: ExternalConnectionApiSource | null | undefined,
+): ExternalConnectionKind => (apiSource ? 'live_source' : 'data_app');
 
 type DbApp = {
     app_id: string;
@@ -96,6 +120,8 @@ export class ExternalConnectionModel {
             oauthClientId: row.oauth_client_id,
             oauthClientAuthMethod: row.oauth_client_auth_method,
             customHeaders: row.custom_headers,
+            kind: row.connection_kind,
+            apiSource: parseApiSource(row.api_source),
             hasSecret,
             createdByUserUuid: row.created_by_user_uuid,
             updatedByUserUuid: row.updated_by_user_uuid,
@@ -175,6 +201,7 @@ export class ExternalConnectionModel {
                         slug,
                         type: data.type,
                         origin: data.origin,
+                        connection_kind: kindOf(data.apiSource),
                         allow_browser_images: data.allowBrowserImages ?? false,
                         allow_data_app_builder_linking:
                             data.allowDataAppBuilderLinking ?? false,
@@ -212,6 +239,9 @@ export class ExternalConnectionModel {
                             Object.keys(data.customHeaders).length
                                 ? JSON.stringify(data.customHeaders)
                                 : null,
+                        api_source: data.apiSource
+                            ? JSON.stringify(data.apiSource)
+                            : null,
                         created_by_user_uuid: userUuid,
                         updated_by_user_uuid: userUuid,
                     })
@@ -283,6 +313,7 @@ export class ExternalConnectionModel {
                         slug: src.slug,
                         type: src.type,
                         origin: src.origin,
+                        connection_kind: src.connection_kind,
                         allow_browser_images: src.allow_browser_images,
                         allow_data_app_builder_linking:
                             src.allow_data_app_builder_linking,
@@ -309,6 +340,9 @@ export class ExternalConnectionModel {
                         oauth_client_auth_method: src.oauth_client_auth_method,
                         custom_headers: src.custom_headers
                             ? JSON.stringify(src.custom_headers)
+                            : null,
+                        api_source: src.api_source
+                            ? JSON.stringify(src.api_source)
                             : null,
                         created_by_user_uuid: src.created_by_user_uuid,
                         updated_by_user_uuid: src.updated_by_user_uuid,
@@ -362,6 +396,7 @@ export class ExternalConnectionModel {
     async list(
         projectUuid: string,
         organizationUuid: string,
+        filters: { kind: ExternalConnectionKind | null },
     ): Promise<ExternalConnectionListItem[]> {
         const linkedDataAppCounts = this.database(
             AppExternalConnectionsTableName,
@@ -417,6 +452,14 @@ export class ExternalConnectionModel {
                 organizationUuid,
             )
             .whereNull(`${ExternalConnectionsTableName}.deleted_at`)
+            .modify((query) => {
+                if (filters.kind !== null) {
+                    void query.where(
+                        `${ExternalConnectionsTableName}.connection_kind`,
+                        filters.kind,
+                    );
+                }
+            })
             .orderBy(`${ExternalConnectionsTableName}.created_at`, 'desc')
             .select<
                 Array<
@@ -750,6 +793,10 @@ export class ExternalConnectionModel {
                     data.customHeaders && Object.keys(data.customHeaders).length
                         ? JSON.stringify(data.customHeaders)
                         : null;
+            if (data.apiSource !== undefined)
+                updatePayload.api_source = data.apiSource
+                    ? JSON.stringify(data.apiSource)
+                    : null;
 
             await trx(ExternalConnectionsTableName)
                 .where('external_connection_uuid', uuid)
@@ -950,6 +997,9 @@ export class ExternalConnectionModel {
         externalConnectionUuid: string,
         alias: string,
     ): Promise<void> {
+        await ExternalConnectionModel.assertLinkableToApps(this.database, [
+            externalConnectionUuid,
+        ]);
         const inserted = await this.database(AppExternalConnectionsTableName)
             .insert({
                 app_id: appId,
@@ -990,6 +1040,10 @@ export class ExternalConnectionModel {
         links: Array<{ externalConnectionUuid: string; alias: string }>,
     ): Promise<void> {
         await this.database.transaction(async (trx) => {
+            await ExternalConnectionModel.assertLinkableToApps(
+                trx,
+                links.map((link) => link.externalConnectionUuid),
+            );
             await trx(AppExternalConnectionsTableName)
                 .where('app_id', appId)
                 .modify((query) => {
@@ -1015,6 +1069,23 @@ export class ExternalConnectionModel {
                     .merge(['external_connection_uuid']);
             }
         });
+    }
+
+    /** Live sources answer live API queries only; apps never reach them. */
+    private static async assertLinkableToApps(
+        db: Knex,
+        externalConnectionUuids: string[],
+    ): Promise<void> {
+        if (externalConnectionUuids.length === 0) return;
+        const liveSource = await db(ExternalConnectionsTableName)
+            .whereIn('external_connection_uuid', externalConnectionUuids)
+            .where('connection_kind', 'live_source')
+            .first<{ name: string } | undefined>('name');
+        if (liveSource) {
+            throw new ParameterError(
+                `Connection "${liveSource.name}" is a live data source and cannot be linked to an app`,
+            );
+        }
     }
 
     async unlinkFromApp(appId: string, alias: string): Promise<void> {
@@ -1105,6 +1176,10 @@ export class ExternalConnectionModel {
             )
             .where(`${AppExternalConnectionsTableName}.app_id`, appId)
             .where(`${AppExternalConnectionsTableName}.alias`, alias)
+            .where(
+                `${ExternalConnectionsTableName}.connection_kind`,
+                'data_app',
+            )
             .whereNull(`${ExternalConnectionsTableName}.deleted_at`)
             .first<
                 | (DbExternalConnection & { encrypted_payload: Buffer | null })

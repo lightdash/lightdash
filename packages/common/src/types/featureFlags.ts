@@ -224,6 +224,13 @@ export enum FeatureFlags {
     ComposeSqlRunner = 'compose-sql-runner',
 
     /**
+     * Enable api query sources: queries sent live to an external API (HogQL
+     * to PostHog) through a project connection, and the Live data sources
+     * project settings page. Off by default; enable per org.
+     */
+    ApiQuerySources = 'api-query-sources',
+
+    /**
      * Enable the "My query history" page
      * (/projects/{projectUuid}/query-history) and its listing endpoint
      * (GET /api/v2/projects/{projectUuid}/query/history). Off by default.
