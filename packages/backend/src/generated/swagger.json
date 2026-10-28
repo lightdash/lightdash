@@ -24921,6 +24921,118 @@
             "ApiDataAppActivityResponse": {
                 "$ref": "#/components/schemas/ApiSuccess__data-DataAppActivityEvent-Array--pagination_63_-KnexPaginateArgs-and-_totalPageCount-number--totalResults-number___"
             },
+            "AnalyticsHistoryBackfillStatus": {
+                "properties": {
+                    "error": {
+                        "type": "string"
+                    },
+                    "completed": {
+                        "type": "boolean"
+                    },
+                    "running": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["completed", "running"],
+                "type": "object"
+            },
+            "ApiSuccess_AnalyticsHistoryBackfillStatus_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AnalyticsHistoryBackfillStatus"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "AnalyticsProjectStatus": {
+                "properties": {
+                    "project": {
+                        "properties": {
+                            "hasContentUpdates": {
+                                "type": "boolean",
+                                "description": "Checks counts and dashboard verification, not edits to existing definitions."
+                            },
+                            "createdAt": {
+                                "type": "string"
+                            },
+                            "url": {
+                                "type": "string"
+                            },
+                            "slug": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "name": {
+                                "type": "string"
+                            },
+                            "projectUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "hasContentUpdates",
+                            "createdAt",
+                            "url",
+                            "slug",
+                            "name",
+                            "projectUuid"
+                        ],
+                        "type": "object",
+                        "nullable": true
+                    }
+                },
+                "required": ["project"],
+                "type": "object"
+            },
+            "ApiSuccess_AnalyticsProjectStatus_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AnalyticsProjectStatus"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "EnsureAnalyticsProjectResult": {
+                "properties": {
+                    "created": {
+                        "type": "boolean"
+                    },
+                    "url": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["created", "url", "projectUuid"],
+                "type": "object"
+            },
+            "ApiSuccess_EnsureAnalyticsProjectResult_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/EnsureAnalyticsProjectResult"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "AiThreadFile": {
                 "properties": {
                     "createdAt": {
@@ -67893,118 +68005,6 @@
                 "required": ["projectUuid"],
                 "type": "object"
             },
-            "AnalyticsHistoryBackfillStatus": {
-                "properties": {
-                    "error": {
-                        "type": "string"
-                    },
-                    "completed": {
-                        "type": "boolean"
-                    },
-                    "running": {
-                        "type": "boolean"
-                    }
-                },
-                "required": ["completed", "running"],
-                "type": "object"
-            },
-            "ApiSuccess_AnalyticsHistoryBackfillStatus_": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/AnalyticsHistoryBackfillStatus"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "AnalyticsProjectStatus": {
-                "properties": {
-                    "project": {
-                        "properties": {
-                            "hasContentUpdates": {
-                                "type": "boolean",
-                                "description": "Checks counts and dashboard verification, not edits to existing definitions."
-                            },
-                            "createdAt": {
-                                "type": "string"
-                            },
-                            "url": {
-                                "type": "string"
-                            },
-                            "slug": {
-                                "type": "string",
-                                "nullable": true
-                            },
-                            "name": {
-                                "type": "string"
-                            },
-                            "projectUuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "hasContentUpdates",
-                            "createdAt",
-                            "url",
-                            "slug",
-                            "name",
-                            "projectUuid"
-                        ],
-                        "type": "object",
-                        "nullable": true
-                    }
-                },
-                "required": ["project"],
-                "type": "object"
-            },
-            "ApiSuccess_AnalyticsProjectStatus_": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/AnalyticsProjectStatus"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "EnsureAnalyticsProjectResult": {
-                "properties": {
-                    "created": {
-                        "type": "boolean"
-                    },
-                    "url": {
-                        "type": "string"
-                    },
-                    "projectUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": ["created", "url", "projectUuid"],
-                "type": "object"
-            },
-            "ApiSuccess_EnsureAnalyticsProjectResult_": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/EnsureAnalyticsProjectResult"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
             "RoleAssignment": {
                 "properties": {
                     "hasMultipleRoles": {
@@ -74087,7 +74087,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.76.2",
+        "version": "3.76.3",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -80527,6 +80527,197 @@
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": []
+            }
+        },
+        "/api/v1/org/analytics-project/backfill": {
+            "get": {
+                "operationId": "GetAnalyticsHistoryBackfillStatus",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccess_AnalyticsHistoryBackfillStatus_"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "summary": "Check Analytics history backfill completion",
+                "tags": ["Analytics project"],
+                "security": [],
+                "parameters": []
+            },
+            "post": {
+                "operationId": "BackfillAnalyticsHistory",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "summary": "Backfill retained Analytics history",
+                "tags": ["Analytics project"],
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/org/analytics-project": {
+            "get": {
+                "operationId": "GetAnalyticsProjectStatus",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccess_AnalyticsProjectStatus_"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "summary": "Get internal analytics project status",
+                "tags": ["Analytics project"],
+                "security": [],
+                "parameters": []
+            },
+            "post": {
+                "operationId": "EnsureAnalyticsProject",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccess_EnsureAnalyticsProjectResult_"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "summary": "Ensure internal analytics project",
+                "tags": ["Analytics project"],
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/org/analytics-project/sample-content": {
+            "post": {
+                "operationId": "InstallAnalyticsSampleContent",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "summary": "Install sample charts and dashboard in the internal analytics project",
+                "tags": ["Analytics project"],
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/org/analytics-project/{projectUuid}": {
+            "delete": {
+                "operationId": "DeleteAnalyticsProject",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "summary": "Delete the organization's internal analytics project",
+                "tags": ["Analytics project"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/org/aiRouter": {
@@ -112488,197 +112679,6 @@
                         }
                     }
                 }
-            }
-        },
-        "/api/v1/org/analytics-project/backfill": {
-            "get": {
-                "operationId": "GetAnalyticsHistoryBackfillStatus",
-                "responses": {
-                    "200": {
-                        "description": "Ok",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiSuccess_AnalyticsHistoryBackfillStatus_"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "summary": "Check Analytics history backfill completion",
-                "tags": ["Analytics project"],
-                "security": [],
-                "parameters": []
-            },
-            "post": {
-                "operationId": "BackfillAnalyticsHistory",
-                "responses": {
-                    "200": {
-                        "description": "Ok",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "summary": "Backfill retained Analytics history",
-                "tags": ["Analytics project"],
-                "security": [],
-                "parameters": []
-            }
-        },
-        "/api/v1/org/analytics-project": {
-            "get": {
-                "operationId": "GetAnalyticsProjectStatus",
-                "responses": {
-                    "200": {
-                        "description": "Ok",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiSuccess_AnalyticsProjectStatus_"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "summary": "Get internal analytics project status",
-                "tags": ["Analytics project"],
-                "security": [],
-                "parameters": []
-            },
-            "post": {
-                "operationId": "EnsureAnalyticsProject",
-                "responses": {
-                    "200": {
-                        "description": "Ok",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiSuccess_EnsureAnalyticsProjectResult_"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "summary": "Ensure internal analytics project",
-                "tags": ["Analytics project"],
-                "security": [],
-                "parameters": []
-            }
-        },
-        "/api/v1/org/analytics-project/sample-content": {
-            "post": {
-                "operationId": "InstallAnalyticsSampleContent",
-                "responses": {
-                    "200": {
-                        "description": "Ok",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "summary": "Install sample charts and dashboard in the internal analytics project",
-                "tags": ["Analytics project"],
-                "security": [],
-                "parameters": []
-            }
-        },
-        "/api/v1/org/analytics-project/{projectUuid}": {
-            "delete": {
-                "operationId": "DeleteAnalyticsProject",
-                "responses": {
-                    "200": {
-                        "description": "Ok",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "summary": "Delete the organization's internal analytics project",
-                "tags": ["Analytics project"],
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/UUID"
-                        }
-                    }
-                ]
             }
         },
         "/api/v2/projects/{projectId}/roles/assignments": {

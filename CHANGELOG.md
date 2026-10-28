@@ -1,3 +1,10 @@
+## [3.76.3](https://github.com/lightdash/lightdash/compare/3.76.2...3.76.3) (2026-10-28)
+
+
+### Bug Fixes
+
+* add horizontal padding to table result-count footer on dashboards ([#31703](https://github.com/lightdash/lightdash/issues/31703)) ([94d7253](https://github.com/lightdash/lightdash/commit/94d725355527e51a9b2b1518122ead8866ba64e6))
+
 ## [3.76.2](https://github.com/lightdash/lightdash/compare/3.76.1...3.76.2) (2026-10-28)
 
 
