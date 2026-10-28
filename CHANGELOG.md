@@ -1,3 +1,10 @@
+## [3.78.1](https://github.com/lightdash/lightdash/compare/3.78.0...3.78.1) (2026-10-28)
+
+
+### Bug Fixes
+
+* **data-apps:** return stored investigations with a cached detect ([#31696](https://github.com/lightdash/lightdash/issues/31696)) ([5d8976a](https://github.com/lightdash/lightdash/commit/5d8976ab7c598796e52753b8b9ad33166d00f8b8))
+
 # [3.78.0](https://github.com/lightdash/lightdash/compare/3.77.0...3.78.0) (2026-10-28)
 
 

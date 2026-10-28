@@ -21512,42 +21512,6 @@
                     }
                 ]
             },
-            "ApiSuccess_DataAppAnalysis_": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/DataAppAnalysis"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiDataAppDetectResponse": {
-                "$ref": "#/components/schemas/ApiSuccess_DataAppAnalysis_"
-            },
-            "DataAppDetectRequest": {
-                "properties": {
-                    "force": {
-                        "type": "boolean",
-                        "description": "Run the model even when an analysis of identical rows exists."
-                    },
-                    "instructions": {
-                        "type": "string"
-                    },
-                    "sources": {
-                        "items": {
-                            "$ref": "#/components/schemas/DataAppAnalysisSource"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": ["sources"],
-                "type": "object"
-            },
             "DataAppInvestigateResult": {
                 "properties": {
                     "partial": {
@@ -21611,6 +21575,62 @@
                         "type": "object"
                     }
                 ]
+            },
+            "DataAppDetection": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/DataAppAnalysis"
+                    },
+                    {
+                        "properties": {
+                            "investigations": {
+                                "items": {
+                                    "$ref": "#/components/schemas/DataAppInvestigation"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["investigations"],
+                        "type": "object"
+                    }
+                ],
+                "description": "What detect returns: the analysis plus the viewer's own stored\ninvestigations of it — populated on a cache hit, empty on a fresh run."
+            },
+            "ApiSuccess_DataAppDetection_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/DataAppDetection"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiDataAppDetectResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_DataAppDetection_"
+            },
+            "DataAppDetectRequest": {
+                "properties": {
+                    "force": {
+                        "type": "boolean",
+                        "description": "Run the model even when an analysis of identical rows exists."
+                    },
+                    "instructions": {
+                        "type": "string"
+                    },
+                    "sources": {
+                        "items": {
+                            "$ref": "#/components/schemas/DataAppAnalysisSource"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["sources"],
+                "type": "object"
             },
             "DataAppAnalysisLookup": {
                 "properties": {
@@ -74127,7 +74147,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.78.0",
+        "version": "3.78.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
