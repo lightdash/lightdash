@@ -1,3 +1,10 @@
+## [3.75.1](https://github.com/lightdash/lightdash/compare/3.75.0...3.75.1) (2026-10-28)
+
+
+### Bug Fixes
+
+* resolve latest dashboard versions before usage references ([#31690](https://github.com/lightdash/lightdash/issues/31690)) ([8e40c15](https://github.com/lightdash/lightdash/commit/8e40c15ca242b8057347af21de1652922e715790))
+
 # [3.75.0](https://github.com/lightdash/lightdash/compare/3.74.0...3.75.0) (2026-10-28)
 
 
