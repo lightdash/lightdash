@@ -1872,7 +1872,6 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                             onClose={() => setContextMenuIsOpen(false)}
                             closeOnItemClick
                             closeOnEscape
-                            radius={0}
                             position="bottom-start"
                             offset={{
                                 crossAxis: 0,
@@ -2306,7 +2305,6 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMinimalProps> = (
                         onClose={() => setContextMenuIsOpen(false)}
                         closeOnItemClick
                         closeOnEscape
-                        radius={0}
                         position="bottom-start"
                         offset={{
                             crossAxis: 0,

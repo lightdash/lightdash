@@ -30,7 +30,6 @@ const CellMenu: FC<React.PropsWithChildren<CellMenuProps>> = ({
                 closeOnClickOutside
                 closeOnEscape
                 position="bottom-end"
-                radius={0}
                 offset={{ mainAxis: 0, crossAxis: 0 }}
                 {...rest}
             >

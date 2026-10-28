@@ -150,7 +150,6 @@ const EmbeddedDashboardChartInteractions: FC<Props> = ({
                 onClose={() => setContextMenuIsOpen(false)}
                 closeOnItemClick
                 closeOnEscape
-                radius={0}
                 position="bottom-start"
                 offset={{ crossAxis: 0, mainAxis: 0 }}
             >

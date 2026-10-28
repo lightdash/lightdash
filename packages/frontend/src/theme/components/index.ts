@@ -317,6 +317,7 @@ export const themeComponents: MantineThemeOverride['components'] = {
         defaultProps: {
             shadow: 'md',
             withinPortal: true,
+            transitionProps: dropdownTransition,
         },
         classNames: menuClasses,
     }),
