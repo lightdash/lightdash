@@ -18,7 +18,8 @@ export default defineConfig({
     use: {
         baseURL: process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3000',
         viewport: { width: 1920, height: 1080 },
-        actionTimeout: 10_000,
+        // Also bounds page.request calls and waitForResponse; cold previews need the headroom.
+        actionTimeout: 30_000,
         navigationTimeout: 30_000,
         timezoneId: process.env.TZ,
         trace: 'retain-on-failure',
