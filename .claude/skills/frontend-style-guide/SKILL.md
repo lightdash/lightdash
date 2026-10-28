@@ -10,9 +10,9 @@ allowed-tools: Read, Edit, Write, Glob, Grep
 
 Apply these rules when working on any frontend component in `packages/frontend/`.
 
-## Mantine 8
+## Mantine 9
 
-The app runs on Mantine 8 (`@mantine/core`), with the theme in `src/theme/`.
+The app runs on Mantine 9 (`@mantine/core`), with the theme in `src/theme/`.
 
 ## Design principles
 

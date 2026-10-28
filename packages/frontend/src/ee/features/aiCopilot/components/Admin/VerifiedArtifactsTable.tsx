@@ -164,7 +164,7 @@ export const VerifiedArtifactsTable: FC<Props> = ({
                 Cell: ({ row }) => {
                     const { firstName, lastName } = row.original.verifiedBy;
                     return (
-                        <Text fz="sm" c="ldGray.7">
+                        <Text fz="sm" c="dimmed">
                             {firstName} {lastName}
                         </Text>
                     );
@@ -178,7 +178,7 @@ export const VerifiedArtifactsTable: FC<Props> = ({
                 Cell: ({ row }) => {
                     const date = new Date(row.original.verifiedAt);
                     return (
-                        <Text fz="sm" c="ldGray.7">
+                        <Text fz="sm" c="dimmed">
                             {date.toLocaleDateString()}
                         </Text>
                     );
@@ -191,7 +191,7 @@ export const VerifiedArtifactsTable: FC<Props> = ({
                 size: 120,
                 Cell: ({ row }) => {
                     return (
-                        <Text fz="sm" c="ldGray.7">
+                        <Text fz="sm" c="dimmed">
                             {row.original.referenceCount}
                         </Text>
                     );
@@ -289,18 +289,15 @@ export const VerifiedArtifactsTable: FC<Props> = ({
                 p={`${theme.spacing.sm} ${theme.spacing.xl} ${theme.spacing.md} ${theme.spacing.xl}`}
                 fz="xs"
                 fw={500}
-                c="ldGray.8"
                 style={{
                     borderTop: `1px solid ${theme.colors.ldGray[3]}`,
                 }}
             >
                 {isFetching ? (
-                    <Text c="ldGray.8" fz="xs">
-                        Loading more...
-                    </Text>
+                    <Text fz="xs">Loading more...</Text>
                 ) : (
                     <Group gap="xs">
-                        <Text fz="xs" c="ldGray.8">
+                        <Text fz="xs">
                             {hasNextPage
                                 ? 'Scroll for more results'
                                 : 'All results loaded'}

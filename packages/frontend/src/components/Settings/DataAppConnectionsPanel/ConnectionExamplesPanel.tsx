@@ -162,7 +162,7 @@ const SampleRow: FC<SampleRowProps> = ({
                     <Text fz="xs" c="dimmed" ff="monospace" truncate>
                         {requestSummary}
                     </Text>
-                    <Text fz="xs" c="ldGray.5" ff="monospace" lineClamp={2}>
+                    <Text fz="xs" c="dimmed" ff="monospace" lineClamp={2}>
                         {responsePreview}
                     </Text>
                 </Stack>

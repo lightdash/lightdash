@@ -112,7 +112,7 @@ export const EvalPreviewSidebar: FC<EvalPreviewSidebarProps> = ({
                             />
                         </Group>
                     ) : (
-                        <Text fz="sm" fw={500} c="ldGray.5">
+                        <Text fz="sm" fw={500} c="dimmed">
                             Never run
                         </Text>
                     )}
@@ -151,7 +151,7 @@ export const EvalPreviewSidebar: FC<EvalPreviewSidebarProps> = ({
                                 <Text
                                     fz="xs"
                                     fw={600}
-                                    c="ldGray.5"
+                                    c="dimmed"
                                     w={20}
                                     ta="right"
                                     flex="0 0 auto"

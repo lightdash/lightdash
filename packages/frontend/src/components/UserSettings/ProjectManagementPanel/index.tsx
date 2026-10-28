@@ -86,7 +86,7 @@ const CopyableCommand: FC<{ label: string; command: string }> = ({
     command,
 }) => (
     <Stack gap={4}>
-        <Text fz="xs" fw={600} c="ldGray.7">
+        <Text fz="xs" fw={600} c="dimmed">
             {label}
         </Text>
         <CopyButton value={command}>
@@ -414,7 +414,7 @@ const ProjectManagementPanel: FC = () => {
                     const wt = row.original.warehouseType;
                     if (!wt) {
                         return (
-                            <Text fz="sm" c="ldGray.5">
+                            <Text fz="sm" c="dimmed">
                                 {'\u2014'}
                             </Text>
                         );
@@ -433,7 +433,7 @@ const ProjectManagementPanel: FC = () => {
                                     />
                                 </Avatar>
                             )}
-                            <Text fz="sm" c="ldGray.7">
+                            <Text fz="sm" c="dimmed">
                                 {label}
                             </Text>
                         </Group>
@@ -452,7 +452,7 @@ const ProjectManagementPanel: FC = () => {
                     </Group>
                 ),
                 Cell: ({ row }) => (
-                    <Text fz="sm" c="ldGray.7">
+                    <Text fz="sm" c="dimmed">
                         {row.original.createdByUserName ?? '\u2014'}
                     </Text>
                 ),
@@ -469,7 +469,7 @@ const ProjectManagementPanel: FC = () => {
                     </Group>
                 ),
                 Cell: ({ row }) => (
-                    <Text fz="sm" c="ldGray.7">
+                    <Text fz="sm" c="dimmed">
                         {new Date(row.original.createdAt).toLocaleDateString()}
                     </Text>
                 ),
@@ -490,13 +490,13 @@ const ProjectManagementPanel: FC = () => {
                     const { expiresAt } = row.original;
                     if (!expiresAt) {
                         return (
-                            <Text fz="sm" c="ldGray.5">
+                            <Text fz="sm" c="dimmed">
                                 {'—'}
                             </Text>
                         );
                     }
                     return (
-                        <Text fz="sm" c="ldGray.7">
+                        <Text fz="sm" c="dimmed">
                             {new Date(expiresAt).toLocaleDateString()}
                         </Text>
                     );

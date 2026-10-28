@@ -53,7 +53,7 @@ const TRIGGER_LABELS: Record<string, string> = {
 };
 
 const DetailLabel: FC<{ children: React.ReactNode }> = ({ children }) => (
-    <Text fz="xs" c="ldGray.5" fw={600} tt="uppercase" lts={0.5}>
+    <Text fz="xs" c="dimmed" fw={600} tt="uppercase" lts={0.5}>
         {children}
     </Text>
 );
@@ -62,7 +62,7 @@ const DetailValue: FC<{ children: React.ReactNode; mono?: boolean }> = ({
     children,
     mono,
 }) => (
-    <Text fz="sm" fw={400} ff={mono ? 'monospace' : undefined} c="ldGray.8">
+    <Text fz="sm" fw={400} ff={mono ? 'monospace' : undefined}>
         {children}
     </Text>
 );
@@ -238,7 +238,7 @@ const FiltersSection: FC<{
                             )}
                         </Group>
                         {index < filters.length - 1 && (
-                            <Text fz="xs" c="ldGray.5" fw={600} mt={4}>
+                            <Text fz="xs" c="dimmed" fw={600} mt={4}>
                                 AND
                             </Text>
                         )}
@@ -419,7 +419,7 @@ const MaterializationDetailDrawer: FC<Props> = ({
                             {summary.refreshCron && (
                                 <DetailValue mono>
                                     {summary.refreshCron}{' '}
-                                    <Text fz="xs" c="ldGray.5" span>
+                                    <Text fz="xs" c="dimmed" span>
                                         (
                                         {cronstrue.toString(
                                             summary.refreshCron,
@@ -431,7 +431,7 @@ const MaterializationDetailDrawer: FC<Props> = ({
                                     </Text>
                                 </DetailValue>
                             )}
-                            <Text fz="xs" c="ldGray.6">
+                            <Text fz="xs" c="dimmed">
                                 {summary.materializeOnChange
                                     ? 'Rebuilt on the project compile that changes its definition or the fields it reads. Compiles that leave it unchanged never rebuild it.'
                                     : 'Opted out with refresh.on_change: false in YAML. When a compile changes its definition or the fields it reads, the old materialization stops serving and the rebuild waits for the next scheduled or manual refresh.'}{' '}

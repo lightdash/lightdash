@@ -498,18 +498,15 @@ const UsersTable: FC = () => {
                 p={`${theme.spacing.sm} ${theme.spacing.xl} ${theme.spacing.md} ${theme.spacing.xl}`}
                 fz="xs"
                 fw={500}
-                c="ldGray.8"
                 style={{
                     borderTop: `1px solid ${theme.colors.ldGray[3]}`,
                 }}
             >
                 {isFetching ? (
-                    <Text c="ldGray.8" fz="xs">
-                        Loading more...
-                    </Text>
+                    <Text fz="xs">Loading more...</Text>
                 ) : (
                     <Group gap="two">
-                        <Text fz="xs" c="ldGray.8">
+                        <Text fz="xs">
                             {hasNextPage
                                 ? 'Scroll for more users'
                                 : 'All users loaded'}

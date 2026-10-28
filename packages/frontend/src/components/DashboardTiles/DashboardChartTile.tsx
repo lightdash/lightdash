@@ -1182,7 +1182,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                             {appliedFilterItems.length > 0 && (
                                                 <>
                                                     <Text
-                                                        c="ldGray.7"
+                                                        c="dimmed"
                                                         fw={500}
                                                         fz="xs"
                                                     >
@@ -1267,7 +1267,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                         <Text
                                                                             span
                                                                             inherit
-                                                                            c="ldGray.6"
+                                                                            c="dimmed"
                                                                         >
                                                                             {
                                                                                 sourceLabel
@@ -1330,7 +1330,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                             {chartFilterItems.length > 0 && (
                                                 <>
                                                     <Text
-                                                        c="ldGray.7"
+                                                        c="dimmed"
                                                         fw={500}
                                                         fz="xs"
                                                     >
@@ -1509,7 +1509,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                             mah="calc(100dvh - 24px)"
                                             style={{ overflowY: 'auto' }}
                                         >
-                                            <Text c="ldGray.7" fw={500} mb="xs">
+                                            <Text c="dimmed" fw={500} mb="xs">
                                                 Parameters
                                             </Text>
                                             <Stack

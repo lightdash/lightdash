@@ -663,7 +663,7 @@ const BatchJobRow: FC<{
                                     size="sm"
                                     style={{ color: theme.colors.red[6] }}
                                 />
-                                <Text fz="xs" c="ldGray.7">
+                                <Text fz="xs" c="dimmed">
                                     {getTargetName(r.target)}
                                 </Text>
                                 {r.error && (

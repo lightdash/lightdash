@@ -85,9 +85,9 @@ const LoginWithEmailOtp: FC<{
 
     return (
         <Stack gap="md">
-            <Text c="ldGray.8" fz="sm">
+            <Text fz="sm">
                 We've emailed a 6-digit code to{' '}
-                <Text span fw={500} fz="sm" c="ldGray.8">
+                <Text span fw={500} fz="sm">
                     {email}
                 </Text>
                 . Enter it below to sign in.

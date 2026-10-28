@@ -467,7 +467,7 @@ export const AiAgentKnowledgeFilesSection = ({
         <Stack gap="md">
             {withHeading && (
                 <Box>
-                    <Title order={6} c="ldGray.7" size="sm" fw={500}>
+                    <Title order={6} c="dimmed" size="sm" fw={500}>
                         Knowledge documents
                     </Title>
                     <Text c="dimmed" size="xs">

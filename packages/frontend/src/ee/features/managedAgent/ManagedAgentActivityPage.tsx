@@ -1967,7 +1967,7 @@ const ActionRow: FC<{
                 </Group>
             </Table.Td>
             <Table.Td className={classes.messageCell}>
-                <Text fz="xs" c="ldGray.7" lineClamp={1}>
+                <Text fz="xs" c="dimmed" lineClamp={1}>
                     {toPlainPreview(action.description)}
                 </Text>
             </Table.Td>

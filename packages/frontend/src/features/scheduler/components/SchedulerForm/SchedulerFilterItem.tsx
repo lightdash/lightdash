@@ -56,7 +56,7 @@ const FilterSummaryLabel: FC<
     }
     return (
         <Text fw={400} span>
-            <Text span c="ldGray.7">
+            <Text span c="dimmed">
                 {filterSummary?.operator}{' '}
             </Text>
             <Text fw={600} span>

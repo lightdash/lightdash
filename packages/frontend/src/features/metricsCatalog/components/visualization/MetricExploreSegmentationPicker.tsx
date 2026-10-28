@@ -56,7 +56,7 @@ export const MetricExploreSegmentationPicker: FC<Props> = ({
     return (
         <Stack gap="xs">
             <Group justify="space-between">
-                <Text fw={500} c="ldGray.7">
+                <Text fw={500} c="dimmed">
                     Segment
                 </Text>
 

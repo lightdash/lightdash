@@ -53,7 +53,7 @@ const TileTimezoneInfo: FC<Props> = ({ resolvedTimezone, timezoneSetting }) => {
                 mah="calc(100dvh - 24px)"
                 style={{ overflowY: 'auto' }}
             >
-                <Text size="sm" c="ldGray.7" maw={260}>
+                <Text size="sm" c="dimmed" maw={260}>
                     {getTimezoneSourceLabel(timezoneSetting, timezone)}
                 </Text>
             </Popover.Dropdown>

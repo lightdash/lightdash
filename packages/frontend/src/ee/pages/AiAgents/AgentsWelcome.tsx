@@ -211,7 +211,7 @@ const AgentsWelcome = () => {
                                             <Text
                                                 size="sm"
                                                 fw="bold"
-                                                c="ldGray.7"
+                                                c="dimmed"
                                             >
                                                 {agentFeature.title}
                                             </Text>

@@ -83,7 +83,7 @@ const ExplorerChartTypeAuthoringHeader: FC<Props> = ({
             >
                 Back to chart
             </Button>
-            <Text className={classes.studioLabel} fz="sm" fw={600} c="ldGray.8">
+            <Text className={classes.studioLabel} fz="sm" fw={600}>
                 Chart Studio
             </Text>
             <Box className={classes.divider} />

@@ -76,7 +76,7 @@ const PaletteOptionRow: FC<{ name: string; swatches: SwatchSet | null }> = ({
                 />
                 {swatches.darkColors && swatches.darkColors.length > 0 && (
                     <>
-                        <Text size="xs" c="ldGray.3">
+                        <Text size="xs" c="dimmed">
                             /
                         </Text>
                         <SwatchInline

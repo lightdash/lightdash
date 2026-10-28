@@ -234,7 +234,7 @@ const PreAggregateStatsTable: FC<Props> = ({
                             <Text size="xs" c="green.7" ff="monospace">
                                 {hitCount} cached
                             </Text>
-                            <Text size="xs" c="ldGray.4" ff="monospace">
+                            <Text size="xs" c="dimmed" ff="monospace">
                                 /
                             </Text>
                             <Text
@@ -247,7 +247,7 @@ const PreAggregateStatsTable: FC<Props> = ({
                             </Text>
                             {fallbackCount > 0 && (
                                 <>
-                                    <Text size="xs" c="ldGray.4" ff="monospace">
+                                    <Text size="xs" c="dimmed" ff="monospace">
                                         /
                                     </Text>
                                     <Tooltip label="Matched a pre-aggregate but execution failed. Results were served from the warehouse">

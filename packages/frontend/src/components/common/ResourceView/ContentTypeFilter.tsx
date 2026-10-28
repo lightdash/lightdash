@@ -15,7 +15,7 @@ interface OptionProps {
 
 const ContentTypeSelectOption = ({ label }: OptionProps) => (
     <Center px={'xxs'}>
-        <Text fz="sm" c="ldGray.7">
+        <Text fz="sm" c="dimmed">
             {label}
         </Text>
     </Center>

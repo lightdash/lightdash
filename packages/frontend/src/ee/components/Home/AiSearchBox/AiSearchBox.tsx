@@ -310,7 +310,7 @@ const AiSearchBoxInner: FC<Props> = ({
                                     >
                                         <Group gap={2}>
                                             {isTrial && (
-                                                <Text size="xs" c="ldGray.8">
+                                                <Text size="xs">
                                                     You are trialing the AI
                                                     Agents feature.
                                                 </Text>
@@ -324,7 +324,7 @@ const AiSearchBoxInner: FC<Props> = ({
                                 ) : showAgentSetupPrompt && isTrial ? (
                                     <Group gap="xs">
                                         <AiAgentIcon size={14} />
-                                        <Text size="xs" c="ldGray.8">
+                                        <Text size="xs">
                                             You are trialing the AI Agents
                                             feature.
                                         </Text>

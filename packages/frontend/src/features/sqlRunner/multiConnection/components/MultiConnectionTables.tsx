@@ -277,7 +277,7 @@ const RecentItem: FC<{
             <Text fz="sm" truncate>
                 {identity.table}
             </Text>
-            <Text fz="xs" c="ldGray.5" ml="auto" flex="0 0 auto">
+            <Text fz="xs" c="dimmed" ml="auto" flex="0 0 auto">
                 {identity.schema}
             </Text>
         </UnstyledButton>

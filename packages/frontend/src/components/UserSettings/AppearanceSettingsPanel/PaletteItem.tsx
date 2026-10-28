@@ -95,7 +95,7 @@ export const PaletteItem: FC<PaletteItemProps> = ({
                             </Tooltip>
                             {hasDarkColors && (
                                 <>
-                                    <Text c="ldGray.3" mx={4}>
+                                    <Text c="dimmed" mx={4}>
                                         /
                                     </Text>
                                     <Tooltip label="Dark mode" position="top">
@@ -119,7 +119,7 @@ export const PaletteItem: FC<PaletteItemProps> = ({
                                 </>
                             )}
                         </Group>
-                        <Text c="ldGray.3" mx={4}>
+                        <Text c="dimmed" mx={4}>
                             |
                         </Text>
 

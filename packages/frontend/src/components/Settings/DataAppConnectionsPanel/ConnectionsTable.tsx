@@ -111,7 +111,7 @@ const ConnectionRow: FC<
                 <Button
                     size="compact-xs"
                     variant="subtle"
-                    c="ldGray.7"
+                    c="dimmed"
                     px={0}
                     onClick={() => setConnectionToViewUsage(connection)}
                     rightSection={

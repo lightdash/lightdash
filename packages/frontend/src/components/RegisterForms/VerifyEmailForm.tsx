@@ -119,10 +119,10 @@ const VerifyEmailForm: FC<{
             mx="auto"
         >
             <Title order={3}>Check your inbox!</Title>
-            <Text c="ldGray.8" ta={align} fz="sm">
+            <Text ta={align} fz="sm">
                 Verify your email address by entering the code we've just sent
                 to{' '}
-                <Text span fw={500} fz="sm" c="ldGray.8">
+                <Text span fw={500} fz="sm">
                     {data?.email || 'your email'}
                 </Text>
                 .
@@ -196,7 +196,7 @@ const VerifyEmailForm: FC<{
                                 </Button>
                                 <Text c="dimmed" ta={align} fz="sm" fw={500}>
                                     Your one-time password expires in{' '}
-                                    <Text span fw={500} fz="sm" c="ldGray.7">
+                                    <Text span fw={500} fz="sm" c="dimmed">
                                         {zeroPad(minutes)}:{zeroPad(seconds)}
                                     </Text>
                                 </Text>

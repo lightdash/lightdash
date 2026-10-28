@@ -441,14 +441,7 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                     )}
                 </Group>
                 <Group gap="xs">
-                    <Badge
-                        bg="ldGray.1"
-                        c="ldGray.8"
-                        radius={6}
-                        py="sm"
-                        px="xs"
-                        h={32}
-                    >
+                    <Badge bg="ldGray.1" radius={6} py="sm" px="xs" h={32}>
                         <Group gap={6}>
                             <TotalMetricsDot />
                             <Text fz="sm" fw={500}>

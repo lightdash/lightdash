@@ -92,7 +92,7 @@ const ErrorMessage = ({
                         component="button"
                         type="button"
                         fz="xs"
-                        c="ldGray.7"
+                        c="dimmed"
                         underline="always"
                         onClick={() => setIsExpanded(!isExpanded)}
                     >

@@ -136,7 +136,7 @@ export const FilterRuleLabel: FC<Props> = ({
                                     </Badge>
                                 </HoverCard.Target>
                                 <HoverCard.Dropdown>
-                                    <Text fz="xs" fw={500} c="ldGray.5">
+                                    <Text fz="xs" fw={500} c="dimmed">
                                         Additional values (
                                         {
                                             truncatedValuesDisplay

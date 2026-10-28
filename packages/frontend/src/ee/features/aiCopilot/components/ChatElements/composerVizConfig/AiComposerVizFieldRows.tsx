@@ -84,7 +84,7 @@ const Row: FC<{ title: string; action?: ReactNode; children: ReactNode }> = ({
 }) => (
     <Stack gap="xs">
         <Group justify="space-between" wrap="nowrap">
-            <Text fw={500} fz="sm" c="ldGray.7">
+            <Text fw={500} fz="sm" c="dimmed">
                 {title}
             </Text>
             {action}

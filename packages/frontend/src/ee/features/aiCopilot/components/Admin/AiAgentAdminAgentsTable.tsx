@@ -266,7 +266,7 @@ const AiAgentAdminAgentsTable = () => {
                     const agent = row.original;
                     if (!agent.tags || agent.tags.length === 0) {
                         return (
-                            <Text c="ldGray.5" fz="xs" fs="italic">
+                            <Text c="dimmed" fz="xs" fs="italic">
                                 No tags
                             </Text>
                         );
@@ -303,7 +303,7 @@ const AiAgentAdminAgentsTable = () => {
 
                     if (agent.integrations.length === 0) {
                         return (
-                            <Text c="ldGray.5" fz="xs" fs="italic">
+                            <Text c="dimmed" fz="xs" fs="italic">
                                 None
                             </Text>
                         );
@@ -356,7 +356,7 @@ const AiAgentAdminAgentsTable = () => {
                                                         />
                                                         <Text
                                                             fz="xs"
-                                                            c="ldGray.7"
+                                                            c="dimmed"
                                                             fw={500}
                                                             truncate
                                                         >
@@ -393,7 +393,7 @@ const AiAgentAdminAgentsTable = () => {
 
                     if (totalCount === 0) {
                         return (
-                            <Text c="ldGray.5" fz="xs" fs="italic">
+                            <Text c="dimmed" fz="xs" fs="italic">
                                 No restrictions
                             </Text>
                         );
@@ -449,7 +449,7 @@ const AiAgentAdminAgentsTable = () => {
                 Cell: ({ row }) => {
                     const agent = row.original;
                     return (
-                        <Text fz="sm" c="ldGray.7">
+                        <Text fz="sm" c="dimmed">
                             {new Date(agent.createdAt).toLocaleDateString()}
                         </Text>
                     );
@@ -600,7 +600,6 @@ const AiAgentAdminAgentsTable = () => {
                     <Group gap="xs">
                         <Box
                             bg="ldGray.1"
-                            c="ldGray.9"
                             style={{
                                 borderRadius: 6,
                                 padding: `${theme.spacing.sm} ${theme.spacing.xs}`,

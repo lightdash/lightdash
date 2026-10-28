@@ -274,7 +274,7 @@ const McpActivityTable = ({
                         <Text
                             fz="xs"
                             ff="monospace"
-                            c="ldGray.7"
+                            c="dimmed"
                             display="inline-block"
                         >
                             {formatToolCallTime(row.original.call.createdAt)}
@@ -298,7 +298,7 @@ const McpActivityTable = ({
             ),
             Cell: ({ row }) =>
                 row.original.type === 'session' ? (
-                    <Text fz="sm" fw={500} c="ldGray.7">
+                    <Text fz="sm" fw={500} c="dimmed">
                         {row.original.callCount}{' '}
                         {row.original.callCount === 1 ? 'call' : 'calls'}
                     </Text>
@@ -370,7 +370,7 @@ const McpActivityTable = ({
                         imageUrl={null}
                     />
                 ) : (
-                    <Text c="ldGray.5" fz="sm">
+                    <Text c="dimmed" fz="sm">
                         —
                     </Text>
                 );
@@ -409,11 +409,11 @@ const McpActivityTable = ({
                         : '—';
                     return (
                         <Group gap="xs" wrap="nowrap">
-                            <Text c="ldGray.7" fz="sm" fw={500} truncate>
+                            <Text c="dimmed" fz="sm" fw={500} truncate>
                                 {label}
                             </Text>
                             {!sessionId && (
-                                <Text fz="xs" c="ldGray.5" flex="0 0 auto">
+                                <Text fz="xs" c="dimmed" flex="0 0 auto">
                                     not reported
                                 </Text>
                             )}
@@ -439,7 +439,7 @@ const McpActivityTable = ({
             Cell: ({ row }) =>
                 row.original.type === 'session' ? (
                     row.original.errorCount > 0 ? (
-                        <Text fz="sm" fw={500} c="ldGray.7">
+                        <Text fz="sm" fw={500} c="dimmed">
                             {row.original.errorCount}{' '}
                             {row.original.errorCount === 1 ? 'error' : 'errors'}
                         </Text>
@@ -469,7 +469,7 @@ const McpActivityTable = ({
             Cell: ({ row }) => {
                 if (row.original.type === 'session') {
                     return (
-                        <Text fz="xs" ff="monospace" c="ldGray.7">
+                        <Text fz="xs" ff="monospace" c="dimmed">
                             {formatToolCallTime(row.original.latestCallAt)}
                         </Text>
                     );
@@ -557,12 +557,10 @@ const McpActivityTable = ({
                 }}
             >
                 {isFetching ? (
-                    <Text c="ldGray.8" fz="xs">
-                        Loading more...
-                    </Text>
+                    <Text fz="xs">Loading more...</Text>
                 ) : (
                     <Group gap="two">
-                        <Text fz="xs" c="ldGray.8">
+                        <Text fz="xs">
                             {hasNextPage
                                 ? 'Scroll for more results'
                                 : 'All results loaded'}

@@ -207,7 +207,6 @@ export const DataAppActivityTopToolbar: FC<DataAppActivityTopToolbarProps> = ({
 
                 <Box
                     bg="ldGray.1"
-                    c="ldGray.9"
                     style={{
                         borderRadius: 6,
                         padding: `${theme.spacing.sm} ${theme.spacing.xs}`,

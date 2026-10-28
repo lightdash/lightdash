@@ -169,7 +169,7 @@ const ScheduleCell: FC<{ summary: PreAggregateMaterializationSummary }> = ({
     if (summary.externalTable) {
         return (
             <Tooltip label="Refreshes are managed outside the app">
-                <Text size="xs" c="ldGray.7" fw={500}>
+                <Text size="xs" c="dimmed" fw={500}>
                     Customer managed
                 </Text>
             </Tooltip>
@@ -184,7 +184,7 @@ const ScheduleCell: FC<{ summary: PreAggregateMaterializationSummary }> = ({
     }
     return (
         <Tooltip label={summary.refreshCron}>
-            <Text size="xs" c="ldGray.7" className={classes.helpCursor}>
+            <Text size="xs" c="dimmed" className={classes.helpCursor}>
                 {cronstrue.toString(summary.refreshCron, {
                     throwExceptionOnParseError: false,
                 })}
@@ -596,7 +596,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                             </Tooltip>
                             <Text
                                 size="xs"
-                                c="ldGray.5"
+                                c="dimmed"
                                 className={classes.nowrap}
                             >
                                 via {TRIGGER_LABELS[materialization.trigger]}

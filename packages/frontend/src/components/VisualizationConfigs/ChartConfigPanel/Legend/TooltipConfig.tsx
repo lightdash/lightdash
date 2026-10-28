@@ -274,7 +274,7 @@ export const TooltipConfig: FC<Props> = ({ fields }) => {
                             ml="sm"
                             pos="absolute"
                             w="400px"
-                            c="ldGray.5"
+                            c="dimmed"
                             fz="xs"
                             className={styles.placeholderText}
                             style={{

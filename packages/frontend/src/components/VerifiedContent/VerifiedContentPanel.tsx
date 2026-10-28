@@ -197,7 +197,7 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
                 size: 140,
                 minSize: 80,
                 Cell: ({ row }) => (
-                    <TruncatedText maxWidth="100%" c="ldGray.7">
+                    <TruncatedText maxWidth="100%" c="dimmed">
                         {row.original.spaceName}
                     </TruncatedText>
                 ),
@@ -211,7 +211,7 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
                 Cell: ({ row }) => {
                     const { firstName, lastName } = row.original.verifiedBy;
                     return (
-                        <TruncatedText maxWidth="100%" c="ldGray.7">
+                        <TruncatedText maxWidth="100%" c="dimmed">
                             {`${firstName} ${lastName}`}
                         </TruncatedText>
                     );
@@ -226,7 +226,7 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
                 Cell: ({ row }) => {
                     const date = new Date(row.original.verifiedAt);
                     return (
-                        <Text fz="sm" c="ldGray.7">
+                        <Text fz="sm" c="dimmed">
                             {date.toLocaleDateString()}
                         </Text>
                     );
