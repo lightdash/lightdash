@@ -64,6 +64,7 @@ import { FavoriteActionIcon } from '../../common/FavoriteActionIcon';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
 import ChartUpdateModal from '../../common/modal/ChartUpdateModal';
+import { Z_INDEX_FLOATING } from '../../common/Page/constants';
 import {
     HeaderActions,
     HeaderBreadcrumbs,
@@ -494,7 +495,7 @@ const SavedChartsHeader: FC = () => {
                                                 ? `Verified by ${savedChart.verification.verifiedBy.firstName} ${savedChart.verification.verifiedBy.lastName}`
                                                 : 'Verified'
                                         }
-                                        zIndex={10000}
+                                        zIndex={Z_INDEX_FLOATING}
                                     >
                                         <IconCircleCheckFilled
                                             size={16}

@@ -16,11 +16,8 @@
  */
 .stickyColumn {
     position: sticky !important;
-    z-index: 100;
-    background-color: light-dark(
-        var(--mantine-color-background-0),
-        var(--mantine-color-ldGray-0)
-    ) !important;
+    z-index: var(--ld-z-sticky);
+    background-color: var(--mantine-color-body) !important;
 }
 
 .stickyHeaderColumn {
@@ -37,10 +34,7 @@
 }
 
 .clickableHeader:hover {
-    background-color: light-dark(
-        var(--mantine-color-gray-1),
-        var(--mantine-color-ldGray-1)
-    );
+    background-color: var(--mantine-color-ldGray-1);
 }
 
 .mergedDimCell {

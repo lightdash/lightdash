@@ -104,6 +104,7 @@ import { FavoriteActionIcon } from '../FavoriteActionIcon';
 import MantineIcon from '../MantineIcon';
 import MantineModal from '../MantineModal';
 import DashboardUpdateModal from '../modal/DashboardUpdateModal';
+import { Z_INDEX_FLOATING } from '../Page/constants';
 import {
     HeaderActions,
     HeaderHeading,
@@ -567,7 +568,7 @@ const DashboardHeader = memo(
                                     ? `Verified by ${dashboard.verification.verifiedBy.firstName} ${dashboard.verification.verifiedBy.lastName}`
                                     : 'Verified'
                             }
-                            zIndex={10000}
+                            zIndex={Z_INDEX_FLOATING}
                         >
                             <IconCircleCheckFilled
                                 size={16}

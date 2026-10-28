@@ -22,6 +22,11 @@ import {
     PAGE_MIN_CONTENT_WIDTH,
     SIDEBAR_RESIZE_HANDLE_WIDTH,
     SIDEBAR_TOGGLE_RESERVE,
+    Z_INDEX_FLOATING,
+    Z_INDEX_STICKY,
+    Z_INDEX_STICKY_HEADER,
+    Z_INDEX_TOUR,
+    Z_INDEX_TOUR_CARD,
 } from '../components/common/Page/constants';
 import { LD_FIELD_COLORS } from './fieldColors';
 
@@ -67,6 +72,11 @@ export const cssVariablesResolver: CSSVariablesResolver = (theme) => ({
         '--page-content-max-width-large': `${PAGE_CONTENT_MAX_WIDTH_LARGE}px`,
         '--sidebar-toggle-reserve': `${SIDEBAR_TOGGLE_RESERVE}px`,
         '--sidebar-resize-handle-width': `${SIDEBAR_RESIZE_HANDLE_WIDTH}px`,
+        '--ld-z-sticky': `${Z_INDEX_STICKY}`,
+        '--ld-z-sticky-header': `${Z_INDEX_STICKY_HEADER}`,
+        '--ld-z-floating': `${Z_INDEX_FLOATING}`,
+        '--ld-z-tour': `${Z_INDEX_TOUR}`,
+        '--ld-z-tour-card': `${Z_INDEX_TOUR_CARD}`,
         '--dashboard-header-height': `${DASHBOARD_HEADER_HEIGHT}px`,
         '--dashboard-header-zindex': `${DASHBOARD_HEADER_ZINDEX}`,
         '--dashboard-tab-height': `${DASHBOARD_TAB_HEIGHT}px`,
