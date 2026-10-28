@@ -2986,6 +2986,24 @@ export class AsyncQueryService extends ProjectService {
         }
     }
 
+    private assertAnalyticsDownloadSupported(
+        project: Pick<Project, 'provisioningSource'>,
+        type: DownloadFileType | undefined,
+    ): void {
+        if (project.provisioningSource !== 'analytics') return;
+        if (type !== DownloadFileType.CSV && type !== DownloadFileType.XLSX) {
+            throw new ForbiddenError(
+                'Managed analytics supports CSV and Excel downloads only',
+            );
+        }
+        // Local export URLs do not recheck managed analytics access.
+        if (!this.fileStorageClient.isEnabled()) {
+            throw new ForbiddenError(
+                'Managed analytics downloads require export storage to be configured',
+            );
+        }
+    }
+
     async scheduleDownloadAsyncQueryResults(
         args: ScheduleDownloadAsyncQueryResultsArgs,
     ) {
@@ -2993,11 +3011,7 @@ export class AsyncQueryService extends ProjectService {
         assertIsAccountWithOrg(account);
         const project = await this.projectModel.getSummary(payload.projectUuid);
         await this.assertAnalyticsProjectAccess(account, project);
-        if (project.provisioningSource === 'analytics') {
-            throw new ForbiddenError(
-                'Scheduled downloads are unavailable for internal analytics',
-            );
-        }
+        this.assertAnalyticsDownloadSupported(project, payload.type);
         this.assertEmbedAiAgentCanDownload(
             account,
             project.organizationUuid,
@@ -3207,12 +3221,7 @@ export class AsyncQueryService extends ProjectService {
 
         const project = await this.projectModel.getSummary(projectUuid);
         await this.assertAnalyticsProjectAccess(account, project);
-        // Do not issue a signed export URL that outlives the feature/admin check.
-        if (project.provisioningSource === 'analytics') {
-            throw new ForbiddenError(
-                'Downloads are unavailable for internal analytics',
-            );
-        }
+        this.assertAnalyticsDownloadSupported(project, type);
         const { organizationUuid } = project;
         this.assertEmbedAiAgentCanDownload(
             account,

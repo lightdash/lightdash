@@ -2168,6 +2168,7 @@ describe('getNotificationPageData — app CSV/XLSX branch', () => {
             projectUuid: 'project-1',
             queryUuid: 'query-a',
             type: DownloadFileType.CSV,
+            accessMode: PersistentDownloadFileAccessMode.SIGNED,
             onlyRaw: false,
             expirationSecondsOverride: 604800,
         });

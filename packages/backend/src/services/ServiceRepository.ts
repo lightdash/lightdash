@@ -898,6 +898,8 @@ export class ServiceRepository
             () =>
                 new PersistentDownloadFileService({
                     analytics: this.context.lightdashAnalytics,
+                    projectModel: this.models.getProjectModel(),
+                    getProjectService: () => this.getProjectService(),
                     lightdashConfig: this.context.lightdashConfig,
                     persistentDownloadFileModel:
                         this.models.getPersistentDownloadFileModel(),

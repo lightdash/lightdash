@@ -1,5 +1,6 @@
 import { Ability } from '@casl/ability';
 import {
+    ForbiddenError,
     NotFoundError,
     ParameterError,
     PersistentDownloadFileAccessMode,
@@ -29,6 +30,8 @@ const mockModelCreate = vi.fn();
 const mockModelGet = vi.fn();
 const mockModelDelete = vi.fn();
 const mockTrack = vi.fn();
+const mockProjectGetSummary = vi.fn();
+const mockAssertAnalyticsProjectAccess = vi.fn();
 
 const baseData = {
     s3Key: 'exports/test-file.csv',
@@ -47,6 +50,10 @@ const createService = (
     }: { uploadsBucketConfigured?: boolean } = {},
 ) =>
     new PersistentDownloadFileService({
+        projectModel: { getSummary: mockProjectGetSummary },
+        getProjectService: () => ({
+            assertAnalyticsProjectAccess: mockAssertAnalyticsProjectAccess,
+        }),
         analytics: {
             track: mockTrack,
         } as unknown as LightdashAnalytics,
@@ -141,6 +148,14 @@ const accountWith = ({
 describe('PersistentDownloadFileService', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        mockProjectGetSummary.mockReset().mockResolvedValue({
+            projectUuid: 'test-project-uuid',
+            organizationUuid: 'test-org-uuid',
+            provisioningSource: null,
+        });
+        mockAssertAnalyticsProjectAccess
+            .mockReset()
+            .mockResolvedValue(undefined);
         mockModelCreate.mockResolvedValue(undefined);
         mockS3GetFileStream.mockResolvedValue({
             stream: Readable.from(['hello,world\n']),
@@ -149,6 +164,221 @@ describe('PersistentDownloadFileService', () => {
         mockUploadsGetFileStream.mockResolvedValue({
             stream: Readable.from(['png']),
             contentDisposition: null,
+        });
+    });
+
+    describe('protected Analytics exports', () => {
+        const analyticsProject = {
+            projectUuid: 'test-project-uuid',
+            organizationUuid: 'test-org-uuid',
+            provisioningSource: 'analytics',
+        };
+        const fileId = 'test-nanoid-123456789';
+        const tokenFor = (service: PersistentDownloadFileService) =>
+            new URL(
+                service.signPersistentUrl(
+                    `https://test.lightdash.cloud/api/v1/file/${fileId}`,
+                    3600,
+                ),
+            ).searchParams.get('downloadToken')!;
+
+        beforeEach(() => {
+            mockProjectGetSummary.mockResolvedValue(analyticsProject);
+        });
+
+        it.each(['csv', 'xlsx', 'jsonl', 's3_jsonl', 'zip'])(
+            'rechecks Analytics access when opening a protected %s export',
+            async (fileType) => {
+                mockModelGet.mockResolvedValue(
+                    fileRow(
+                        PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
+                        {
+                            file_type: fileType,
+                        },
+                    ),
+                );
+                const account = accountWith();
+                await expect(
+                    createService().getFileStream(
+                        fileId,
+                        requestContext(account),
+                    ),
+                ).resolves.toMatchObject({ fileType });
+                expect(mockAssertAnalyticsProjectAccess).toHaveBeenCalledWith(
+                    account,
+                    analyticsProject,
+                );
+            },
+        );
+
+        it.each([
+            PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
+            PersistentDownloadFileAccessMode.AUTHENTICATED_PROJECT,
+        ])(
+            'denies %s after Analytics access is revoked, even with a token',
+            async (mode) => {
+                mockModelGet.mockResolvedValue(fileRow(mode));
+                const service = createService();
+                const context = requestContext(
+                    accountWith(),
+                    tokenFor(service),
+                );
+                await service.getFileStream(fileId, context);
+                mockS3GetFileStream.mockClear();
+                mockAssertAnalyticsProjectAccess.mockRejectedValue(
+                    new ForbiddenError(
+                        'Managed analytics requires the View managed analytics permission',
+                    ),
+                );
+                await expect(
+                    service.getFileStream(fileId, context),
+                ).rejects.toThrow(NotFoundError);
+                expect(mockS3GetFileStream).not.toHaveBeenCalled();
+            },
+        );
+
+        it('denies access when the Analytics feature check rejects the organization', async () => {
+            mockModelGet.mockResolvedValue(
+                fileRow(PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR),
+            );
+            mockAssertAnalyticsProjectAccess.mockRejectedValue(
+                new ForbiddenError(
+                    'Internal analytics projects are not enabled for this organization',
+                ),
+            );
+            await expect(
+                createService().getFileStream(
+                    fileId,
+                    requestContext(accountWith()),
+                ),
+            ).rejects.toThrow(NotFoundError);
+            expect(mockS3GetFileStream).not.toHaveBeenCalled();
+        });
+
+        it.each([
+            ['anonymous', undefined],
+            [
+                'another organization',
+                accountWith({ organizationUuid: 'another-org' }),
+            ],
+            ['without project access', accountWith({ canViewProject: false })],
+        ] as const)(
+            'does not let a token bypass protected project access for %s',
+            async (_label, account) => {
+                mockModelGet.mockResolvedValue(
+                    fileRow(
+                        PersistentDownloadFileAccessMode.AUTHENTICATED_PROJECT,
+                    ),
+                );
+                const service = createService();
+                await expect(
+                    service.getFileStream(
+                        fileId,
+                        requestContext(account, tokenFor(service)),
+                    ),
+                ).rejects.toThrow(NotFoundError);
+                expect(mockS3GetFileStream).not.toHaveBeenCalled();
+            },
+        );
+
+        it('retains creator-only access even when another user has Analytics access', async () => {
+            mockModelGet.mockResolvedValue(
+                fileRow(PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR),
+            );
+            await expect(
+                createService().getFileStream(
+                    fileId,
+                    requestContext(accountWith({ userUuid: 'another-user' })),
+                ),
+            ).rejects.toThrow(NotFoundError);
+            expect(mockS3GetFileStream).not.toHaveBeenCalled();
+        });
+
+        it('rejects a file whose stored organization does not own its project', async () => {
+            mockModelGet.mockResolvedValue(
+                fileRow(PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR),
+            );
+            mockProjectGetSummary.mockResolvedValue({
+                ...analyticsProject,
+                organizationUuid: 'another-org',
+            });
+            await expect(
+                createService().getFileStream(
+                    fileId,
+                    requestContext(accountWith()),
+                ),
+            ).rejects.toThrow(NotFoundError);
+            expect(mockAssertAnalyticsProjectAccess).not.toHaveBeenCalled();
+            expect(mockS3GetFileStream).not.toHaveBeenCalled();
+        });
+
+        it.each([
+            PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
+            PersistentDownloadFileAccessMode.AUTHENTICATED_PROJECT,
+        ])(
+            'denies %s data exports after project deletion clears the foreign key',
+            async (mode) => {
+                mockModelGet.mockResolvedValue(
+                    fileRow(mode, { project_uuid: null }),
+                );
+                const service = createService();
+                await expect(
+                    service.getFileStream(
+                        fileId,
+                        requestContext(accountWith(), tokenFor(service)),
+                    ),
+                ).rejects.toThrow(NotFoundError);
+                expect(mockS3GetFileStream).not.toHaveBeenCalled();
+            },
+        );
+
+        it('does not serve files from a deleted project', async () => {
+            mockModelGet.mockResolvedValue(
+                fileRow(PersistentDownloadFileAccessMode.AUTHENTICATED_PROJECT),
+            );
+            mockProjectGetSummary.mockRejectedValue(
+                new NotFoundError('Project not found'),
+            );
+            const service = createService();
+            await expect(
+                service.getFileStream(
+                    fileId,
+                    requestContext(accountWith(), tokenFor(service)),
+                ),
+            ).rejects.toThrow('Cannot find file');
+            expect(mockS3GetFileStream).not.toHaveBeenCalled();
+        });
+
+        it.each(['csv', 'xlsx', 'zip', 'image'])(
+            'preserves explicitly signed scheduled %s sharing without a session',
+            async (fileType) => {
+                mockModelGet.mockResolvedValue(
+                    fileRow(PersistentDownloadFileAccessMode.SIGNED, {
+                        file_type: fileType,
+                    }),
+                );
+                const service = createService();
+                await expect(
+                    service.getFileStream(
+                        fileId,
+                        requestContext(undefined, tokenFor(service)),
+                    ),
+                ).resolves.toMatchObject({ fileType });
+                expect(mockProjectGetSummary).not.toHaveBeenCalled();
+                expect(mockAssertAnalyticsProjectAccess).not.toHaveBeenCalled();
+            },
+        );
+
+        it('preserves signed project image access', async () => {
+            mockModelGet.mockResolvedValue(uploadRow());
+            const service = createService();
+            await expect(
+                service.getFileStream(
+                    fileId,
+                    requestContext(undefined, tokenFor(service)),
+                ),
+            ).resolves.toMatchObject({ fileType: 'image' });
+            expect(mockProjectGetSummary).not.toHaveBeenCalled();
         });
     });
 
@@ -598,11 +828,11 @@ describe('PersistentDownloadFileService', () => {
             ).resolves.toMatchObject({ fileType: 'csv' });
         });
 
-        it('allows projectless assets only within the owning organization', async () => {
+        it('allows projectless images only within the owning organization', async () => {
             mockModelGet.mockResolvedValue(
                 fileRow(
                     PersistentDownloadFileAccessMode.AUTHENTICATED_PROJECT,
-                    { project_uuid: null },
+                    { project_uuid: null, file_type: 'image' },
                 ),
             );
             const service = createService();
@@ -612,7 +842,7 @@ describe('PersistentDownloadFileService', () => {
                     'test-nanoid-123456789',
                     requestContext(accountWith({ userUuid: 'other-user' })),
                 ),
-            ).resolves.toMatchObject({ fileType: 'csv' });
+            ).resolves.toMatchObject({ fileType: 'image' });
             await expect(
                 service.getFileStream(
                     'test-nanoid-123456789',
