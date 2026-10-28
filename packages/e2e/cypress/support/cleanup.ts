@@ -1,0 +1,137 @@
+/// <reference types="cypress" />
+
+// Tracks content created during a spec (via UI or cy.request) and deletes it
+// after the spec, so preview envs stay clean without a full DB reset.
+const created: string[] = [];
+
+type Matcher = {
+    method: 'POST' | 'GET';
+    url: RegExp;
+    deleteUrl: (match: RegExpMatchArray, results: AnyResults) => string | null;
+};
+
+type AnyResults = {
+    uuid?: string;
+    userUuid?: string;
+    savedSqlUuid?: string;
+    project?: { projectUuid?: string };
+    jobResults?: { projectUuid?: string };
+};
+
+const MATCHERS: Matcher[] = [
+    {
+        method: 'POST',
+        url: /api\/v1\/projects\/([^/?]+)\/spaces\/?(\?.*)?$/,
+        deleteUrl: (m, r) =>
+            r.uuid ? `/api/v1/projects/${m[1]}/spaces/${r.uuid}` : null,
+    },
+    {
+        method: 'POST',
+        url: /api\/v1\/projects\/[^/?]+\/dashboards(\/with-charts)?\/?(\?.*)?$/,
+        deleteUrl: (_m, r) => (r.uuid ? `/api/v1/dashboards/${r.uuid}` : null),
+    },
+    {
+        method: 'POST',
+        url: /api\/v1\/projects\/[^/?]+\/saved\/?(\?.*)?$/,
+        deleteUrl: (_m, r) => (r.uuid ? `/api/v1/saved/${r.uuid}` : null),
+    },
+    {
+        method: 'POST',
+        url: /api\/v1\/projects\/([^/?]+)\/sqlRunner\/saved\/?$/,
+        deleteUrl: (m, r) =>
+            r.savedSqlUuid
+                ? `/api/v1/projects/${m[1]}/sqlRunner/saved/${r.savedSqlUuid}`
+                : null,
+    },
+    {
+        method: 'POST',
+        url: /api\/v1\/user\/?$/,
+        deleteUrl: (_m, r) =>
+            r.userUuid ? `/api/v1/org/user/${r.userUuid}` : null,
+    },
+    {
+        method: 'POST',
+        url: /api\/v1\/org\/projects\/?$/,
+        deleteUrl: (_m, r) =>
+            r.project?.projectUuid
+                ? `/api/v1/org/projects/${r.project.projectUuid}`
+                : null,
+    },
+    {
+        // UI creates projects through an async job; the uuid only shows up in the job status
+        method: 'GET',
+        url: /api\/v1\/jobs\/[^/?]+\/?$/,
+        deleteUrl: (_m, r) =>
+            r.jobResults?.projectUuid
+                ? `/api/v1/org/projects/${r.jobResults.projectUuid}`
+                : null,
+    },
+];
+
+const track = (method: string, url: string, body: unknown) => {
+    const results =
+        body && typeof body === 'object' && 'results' in body
+            ? (body as { results: AnyResults }).results
+            : null;
+    if (!results || typeof results !== 'object') return;
+    const matcher = MATCHERS.find(
+        (m) => m.method === method.toUpperCase() && m.url.test(url),
+    );
+    if (!matcher) return;
+    const deleteUrl = matcher.deleteUrl(url.match(matcher.url)!, results);
+    if (deleteUrl && !created.includes(deleteUrl)) created.push(deleteUrl);
+};
+
+// Browser-originated requests
+beforeEach(() => {
+    for (const matcher of MATCHERS) {
+        cy.intercept({ method: matcher.method, url: matcher.url }, (req) => {
+            req.continue((res) => {
+                track(req.method, req.url, res.body);
+            });
+        });
+    }
+});
+
+// cy.request-originated requests
+const requestMethodAndUrl = (
+    args: unknown[],
+): { method: string; url: string } => {
+    const [first, second] = args;
+    if (typeof first === 'object' && first !== null) {
+        const options = first as Partial<Cypress.RequestOptions>;
+        return { method: options.method ?? 'GET', url: String(options.url) };
+    }
+    if (typeof second === 'string') {
+        return { method: String(first), url: second };
+    }
+    return { method: 'GET', url: String(first) };
+};
+
+Cypress.Commands.overwrite('request', (originalFn, ...args) => {
+    const { method, url } = requestMethodAndUrl(args);
+    return (originalFn as (...a: unknown[]) => Cypress.Chainable)(...args).then(
+        (resp: Cypress.Response<unknown>) => {
+            track(method, url, resp.body);
+            return resp;
+        },
+    );
+});
+
+after(() => {
+    if (created.length === 0) return;
+    cy.login();
+    cy.log(`Cleaning up ${created.length} created resources`);
+    // Reverse order so children go before parents; 404s are fine (cascades, tests deleting their own content)
+    created
+        .splice(0)
+        .reverse()
+        .forEach((url) => {
+            cy.request({
+                method: 'DELETE',
+                url,
+                failOnStatusCode: false,
+                log: false,
+            });
+        });
+});

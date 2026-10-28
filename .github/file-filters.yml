@@ -17,11 +17,15 @@ cli:
   - ".github/workflows/post-release.yml"
   - "packages/cli/**/*"
   - "packages/e2e/cypress/cli/**/*"
+  - "packages/e2e/cypress/support/**/*"
+  - "packages/e2e/cypress.config.ts"
   - "packages/common/**/*"
 
 frontend:
   - "packages/frontend/**/*"
   - "packages/e2e/cypress/e2e/app/**/*"
+  - "packages/e2e/cypress/support/**/*"
+  - "packages/e2e/cypress.config.ts"
   - "packages/common/**/*"
 
 backend:
@@ -53,5 +57,7 @@ release_safety_api:
   - *openapi_surface
 
 timezone:
+  - "packages/e2e/cypress/support/**/*"
+  - "packages/e2e/cypress.config.ts"
   - "packages/frontend/src/components/common/TimeZonePicker/index.tsx"
   - "packages/common/src/types/timezone.ts"
