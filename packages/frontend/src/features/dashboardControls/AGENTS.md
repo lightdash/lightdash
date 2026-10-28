@@ -174,7 +174,7 @@ read with `useUiStrings`; counts go through `formatTileCount` /
 `formatFieldCount` in `fieldLabels.ts`. Add every new key to both locale
 bundles in `packages/sdk-test-app/public/locales/`. Copy only an editor sees
 (label input, "Rules", link prompts, section controls, tips) stays literal.
-See `src/components/common/Filters/CLAUDE.md`.
+See `src/components/common/Filters/AGENTS.md`.
 
 ## Styling and motion
 
