@@ -24,6 +24,18 @@ Commands:
 
 eg: `ligthdash test` Runs `dbt test`
 
+## Browser login
+
+`lightdash login <url>` saves OAuth access and refresh tokens for that instance.
+The personal session ends eight hours after login. Refresh does not extend it.
+Run `lightdash logout` to revoke the tokens and remove the saved login.
+Personal CLI logins follow PAT admission on REST. OAuth scopes, role checks
+and human-only admin guards still apply. They cannot call MCP because browser
+login does not request MCP scopes. See [admission by surface](../../docs/agent-identity/agent-permissions.md#personal-cli-admission-by-surface).
+
+A browser login cannot start `lightdash agent connect` or use `agent revoke
+--human`. First run `lightdash login <url> --token <personal access token>`.
+
 ## Agent connection
 
 ### Warehouse sign-in
