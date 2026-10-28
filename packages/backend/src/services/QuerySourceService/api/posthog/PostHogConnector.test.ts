@@ -70,6 +70,12 @@ describe('PostHogConnector', () => {
             queryLanguage: 'HogQL',
             maxRows: 49_999,
             timeoutMs: 10_000,
+            limits: {
+                concurrentCalls: 3,
+                callsPerMinute: 240,
+                callsPerHour: 2_400,
+                callsPerQuery: 1,
+            },
         });
     });
 

@@ -69,6 +69,7 @@ import {
 } from '../AppGenerateService/appAuthz';
 import { type AppGenerateService } from '../AppGenerateService/AppGenerateService';
 import { type EmbedService } from '../EmbedService/EmbedService';
+import { ApiSourceCallLimiter } from './ApiSourceCallLimiter';
 import {
     validateApiSourceConnection,
     withApiSourceAccessRules,
@@ -163,6 +164,8 @@ export class ExternalConnectionService extends BaseService {
         'siteUrl' | 'liveSources'
     >;
 
+    private readonly apiSourceCallLimiter: ApiSourceCallLimiter;
+
     private readonly orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
 
     private readonly featureFlagModel: FeatureFlagModel;
@@ -186,6 +189,9 @@ export class ExternalConnectionService extends BaseService {
         this.oauthAuthorizationCodeTokenClient =
             args.oauthAuthorizationCodeTokenClient;
         this.lightdashConfig = args.lightdashConfig;
+        this.apiSourceCallLimiter = new ApiSourceCallLimiter({
+            model: args.externalConnectionModel,
+        });
         this.orgAiCopilotConfigResolver = args.orgAiCopilotConfigResolver;
         this.featureFlagModel = args.featureFlagModel;
     }
@@ -968,7 +974,9 @@ export class ExternalConnectionService extends BaseService {
                 `Connection "${connection.name}" is not set up for live queries`,
             );
         }
-        const send: ApiConnectorTransport = async (request) => {
+        let connector: ApiConnector;
+        let callsThisQuery = 0;
+        const sendOnce: ApiConnectorTransport = async (request) => {
             const secret =
                 await this.externalConnectionModel.getDecryptedSecret(
                     connection.externalConnectionUuid,
@@ -1005,12 +1013,25 @@ export class ExternalConnectionService extends BaseService {
                 throw error;
             }
         };
+        const send: ApiConnectorTransport = async (request) => {
+            const { label, limits } = connector.describe();
+            callsThisQuery += 1;
+            if (callsThisQuery > limits.callsPerQuery) {
+                throw new ParameterError(
+                    `This query needs more than ${limits.callsPerQuery} ${label} API calls. Narrow it with filters or a shorter time range.`,
+                );
+            }
+            return this.apiSourceCallLimiter.run(connection, limits, () =>
+                sendOnce(request),
+            );
+        };
         switch (apiSource.connector) {
             case ApiConnectorType.POSTHOG:
-                return new PostHogConnector({
+                connector = new PostHogConnector({
                     projectId: apiSource.projectId,
                     send,
                 });
+                return connector;
             default:
                 return assertUnreachable(
                     apiSource.connector,

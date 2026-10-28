@@ -101,6 +101,9 @@ const buildService = ({
             },
         ),
         create: vi.fn(async () => connection),
+        tryAcquireApiSourceCallLease: vi.fn().mockResolvedValue(true),
+        tryCountApiSourceCall: vi.fn().mockResolvedValue(true),
+        releaseApiSourceCallLease: vi.fn().mockResolvedValue(undefined),
         update: vi.fn(async () => connection),
     };
     const fetchToken = vi.fn();

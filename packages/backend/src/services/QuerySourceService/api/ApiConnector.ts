@@ -7,6 +7,15 @@ import type {
 /** How much query work an API does itself, from 5 (runs SQL) down to 1 (lists records). */
 export type ApiLevel = 1 | 2 | 3 | 4 | 5;
 
+/** How hard Lightdash may call the API through one connection, across all servers. */
+export type ApiConnectorLimits = {
+    concurrentCalls: number;
+    callsPerMinute: number;
+    callsPerHour: number;
+    /** Calls one query may make; lower-level APIs page through many. */
+    callsPerQuery: number;
+};
+
 export type ApiConnectorDescription = {
     connector: ApiConnectorType;
     label: string;
@@ -17,6 +26,7 @@ export type ApiConnectorDescription = {
     maxRows: number;
     /** How long the API lets one query run before failing it. */
     timeoutMs: number;
+    limits: ApiConnectorLimits;
 };
 
 export type ApiConnectorColumn = {
