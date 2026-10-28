@@ -545,6 +545,7 @@ const getMockedAsyncQueryService = (
             }) as DocumentService,
         getQuerySourceService: () => {
             querySourceService ??= new QuerySourceService({
+                analytics: analyticsMock,
                 getAsyncQueryService: () => service,
                 getAgentPermissionService: () => ({
                     loadRequest: vi.fn().mockResolvedValue({
@@ -27836,6 +27837,7 @@ describe('fresh execution producer to result reader', () => {
                     }),
                 );
                 const source = new QuerySourceService({
+                    analytics: analyticsMock,
                     getAsyncQueryService: () => f.service,
                     getAgentPermissionService: () =>
                         ({ assertOperation: vi.fn() }) as never,
@@ -27945,6 +27947,7 @@ describe('fresh execution producer to result reader', () => {
                 }),
             );
             const source = new QuerySourceService({
+                analytics: analyticsMock,
                 getAsyncQueryService: () => f.service,
                 getAgentPermissionService: () =>
                     ({ assertOperation: vi.fn() }) as never,
@@ -28056,6 +28059,7 @@ describe('fresh execution producer to result reader', () => {
     test('source status uses the real connection guard before returning pending or error state', async () => {
         await boundFixture(async (f, auth, queryUuid) => {
             const source = new QuerySourceService({
+                analytics: analyticsMock,
                 getAsyncQueryService: () => f.service,
                 getAgentPermissionService: () => auth.permissions,
                 projectModel: f.service.projectModel,

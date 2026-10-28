@@ -296,6 +296,7 @@ export class ExternalConnectionService extends BaseService {
                 organizationId: organizationUuid,
                 projectId: projectUuid,
                 externalConnectionUuid: connection.externalConnectionUuid,
+                ...ExternalConnectionService.kindProperties(connection),
                 authType: connection.type,
             },
         });
@@ -415,6 +416,15 @@ export class ExternalConnectionService extends BaseService {
         connectionUuid: string,
     ): Promise<ExternalConnection> {
         return this.getViewableConnection(account, projectUuid, connectionUuid);
+    }
+
+    private static kindProperties(
+        connection: Pick<ExternalConnection, 'kind' | 'apiSource'>,
+    ) {
+        return {
+            connectionKind: connection.kind ?? 'data_app',
+            connector: connection.apiSource?.connector ?? null,
+        };
     }
 
     private static resolveConnectionUpdate(
@@ -619,6 +629,7 @@ export class ExternalConnectionService extends BaseService {
                 organizationId: existing.organizationUuid,
                 projectId: projectUuid,
                 externalConnectionUuid: connectionUuid,
+                ...ExternalConnectionService.kindProperties(updated),
             },
         });
         return updated;
@@ -642,6 +653,7 @@ export class ExternalConnectionService extends BaseService {
                 organizationId: existing.organizationUuid,
                 projectId: projectUuid,
                 externalConnectionUuid: connectionUuid,
+                ...ExternalConnectionService.kindProperties(existing),
             },
         });
     }

@@ -9,6 +9,7 @@ import {
     AiAgentSkillVersionSource,
     AiCreditAllowanceAlertThreshold,
     AnyType,
+    ApiConnectorType,
     CacheMetadata,
     CartesianSeriesType,
     ChartKind,
@@ -96,6 +97,7 @@ import type { ExecutionContextInfo } from '../logging/winston';
 import type { EnsureOrganizationOverrideOutcome } from '../models/FeatureFlagModel/FeatureFlagModel';
 import type { FeatureFlagCheckAggregateEntry } from '../models/FeatureFlagModel/flagCheckAggregator';
 import { type PersistentDownloadFileSource } from '../services/PersistentDownloadFileService/PersistentDownloadFileService';
+import type { ApiQueryOutcome } from '../services/QuerySourceService/api/apiQueryOutcome';
 import { VERSION } from '../version';
 import {
     isAiUsageEvent,
@@ -672,7 +674,8 @@ type QueryExecutionSource =
     | 'pre_aggregate_duckdb'
     | 'pre_aggregate_warehouse'
     | 'external_source_duckdb'
-    | 'composer_duckdb';
+    | 'composer_duckdb'
+    | 'api_source';
 
 type QueryReadyEvent = BaseTrack & {
     event: 'query.ready';
@@ -747,6 +750,27 @@ export type QueryCompletedEvent = BaseTrack & {
         warehousePhaseTimings: WarehousePhaseTimings | null;
         totalRowCount: number | null;
         columnsCount: number | null;
+        // Set only when executionSource is 'api_source'.
+        apiConnector?: ApiConnectorType;
+        apiQueryOutcome?: ApiQueryOutcome;
+        truncated?: boolean;
+    };
+};
+
+/** One composer batch; counts say which sources a question combined. */
+export type QuerySourcesSubmittedEvent = BaseTrack & {
+    event: 'query_sources.submitted';
+    properties: {
+        organizationId: string;
+        projectId: string;
+        context: QueryExecutionContext;
+        nodeCount: number;
+        semanticLayerNodeCount: number;
+        sqlNodeCount: number;
+        duckdbNodeCount: number;
+        externalNodeCount: number;
+        pythonNodeCount: number;
+        apiNodeCount: number;
     };
 };
 
@@ -4806,6 +4830,7 @@ type TypedEvent =
     | QueryReadyEvent
     | QueryErrorEvent
     | QueryCompletedEvent
+    | QuerySourcesSubmittedEvent
     | PreAggregateQueryEvent
     | MaterializationEvent
     | QueryPageEvent

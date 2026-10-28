@@ -133,6 +133,7 @@ import {
     type AgentIdentityClaim,
     type AiExecutionPlan,
     type ApiCompiledMergeQueryResults,
+    type ApiConnectorType,
     type ApiDownloadAsyncQueryResults,
     type ApiDownloadAsyncQueryResultsAsCsv,
     type ApiDownloadAsyncQueryResultsAsXlsx,
@@ -343,6 +344,10 @@ import {
     validatePagination,
 } from '../ProjectService/resultsPagination';
 import type { ApiConnector } from '../QuerySourceService/api/ApiConnector';
+import {
+    getApiQueryOutcome,
+    type ApiQueryOutcome,
+} from '../QuerySourceService/api/apiQueryOutcome';
 import type { QuerySourceService } from '../QuerySourceService/QuerySourceService';
 import { mergeDraftIntoChart } from '../SavedChartsService/chartDraftOverlay';
 import { assertCanReplaceChartFilters } from '../SchedulerService/chartFilterOverridesAccess';
@@ -435,7 +440,7 @@ import {
     QueryEstimateCache,
 } from './queryCostEstimate';
 import { canReuseQueryResult } from './queryResultReuse';
-import { queryUsageProperties } from './queryUsage';
+import { queryUsageProperties, queryWorkloadOrigin } from './queryUsage';
 import {
     EstimateAsyncMetricQueryArgs,
     EstimateAsyncSqlQueryArgs,
@@ -11637,6 +11642,7 @@ export class AsyncQueryService extends ProjectService {
             account,
             queryUuid,
             projectUuid,
+            organizationUuid,
             connector,
             payload,
             limit: effectiveLimit,
@@ -11658,6 +11664,7 @@ export class AsyncQueryService extends ProjectService {
         account,
         queryUuid,
         projectUuid,
+        organizationUuid,
         connector,
         payload,
         limit,
@@ -11668,6 +11675,7 @@ export class AsyncQueryService extends ProjectService {
         account: Account;
         queryUuid: string;
         projectUuid: string;
+        organizationUuid: string;
         connector: ApiConnector;
         payload: ApiSourcePayload;
         limit: number;
@@ -11778,6 +11786,20 @@ export class AsyncQueryService extends ProjectService {
                         queryCreatedAt,
                         context,
                     );
+                    this.trackApiQueryCompleted({
+                        account,
+                        queryUuid,
+                        projectUuid,
+                        organizationUuid,
+                        context,
+                        connector: connectorType,
+                        queryCreatedAt,
+                        outcome: 'ok',
+                        errorMessage: null,
+                        totalRowCount: result.rows.length,
+                        columnsCount: result.columns.length,
+                        truncated: result.truncated,
+                    });
                     this.logger.info(
                         `Api query ${queryUuid} ready: ${result.rows.length} rows${
                             result.truncated ? ' (truncated)' : ''
@@ -11805,9 +11827,104 @@ export class AsyncQueryService extends ProjectService {
                         queryCreatedAt,
                         context,
                     );
+                    this.trackApiQueryCompleted({
+                        account,
+                        queryUuid,
+                        projectUuid,
+                        organizationUuid,
+                        context,
+                        connector: connectorType,
+                        queryCreatedAt,
+                        outcome: getApiQueryOutcome(e),
+                        errorMessage: message,
+                        totalRowCount: null,
+                        columnsCount: null,
+                        truncated: null,
+                    });
                 }
             },
         );
+    }
+
+    /** Usage for one api query; never fails the query it describes. */
+    private trackApiQueryCompleted({
+        account,
+        queryUuid,
+        projectUuid,
+        organizationUuid,
+        context,
+        connector,
+        queryCreatedAt,
+        outcome,
+        errorMessage,
+        totalRowCount,
+        columnsCount,
+        truncated,
+    }: {
+        account: Account;
+        queryUuid: string;
+        projectUuid: string;
+        organizationUuid: string;
+        context: QueryExecutionContext;
+        connector: ApiConnectorType;
+        queryCreatedAt: Date;
+        outcome: ApiQueryOutcome;
+        errorMessage: string | null;
+        totalRowCount: number | null;
+        columnsCount: number | null;
+        truncated: boolean | null;
+    }): void {
+        const responseTimeMs = Date.now() - queryCreatedAt.getTime();
+        void Promise.all([
+            this.isExcludedFromUsage(projectUuid),
+            this.getOnboardingFlow({
+                userUuid: account.user.id,
+                organizationUuid,
+            }),
+        ])
+            .then(([isPreviewProject, onboardingFlow]) => {
+                this.analytics.trackAccount(account, {
+                    event: 'query.completed',
+                    properties: {
+                        inheritedFromProjectUuid: null,
+                        queryId: queryUuid,
+                        organizationId: organizationUuid,
+                        projectId: projectUuid,
+                        isPreviewProject,
+                        status: outcome === 'ok' ? 'success' : 'error',
+                        context,
+                        onboardingFlow,
+                        exploreName: null,
+                        chartId: null,
+                        dashboardId: null,
+                        cacheHit: false,
+                        executionSource: 'api_source',
+                        ...this.getQueryConnectionAnalyticsProperties({
+                            warehouseConnectionUuid: null,
+                            warehouseType: null,
+                        }),
+                        connectionWarehouseType: null,
+                        workloadOrigin: queryWorkloadOrigin(context),
+                        responseTimeMs,
+                        responseTimingBasis: 'query_submission',
+                        errorMessage,
+                        warehouseExecutionTimeMs: null,
+                        warehousePhaseTimings: null,
+                        totalRowCount,
+                        columnsCount,
+                        apiConnector: connector,
+                        apiQueryOutcome: outcome,
+                        ...(truncated !== null ? { truncated } : {}),
+                    },
+                });
+            })
+            .catch((error) => {
+                this.logger.warn(
+                    `Could not track api query ${queryUuid}: ${getErrorMessage(
+                        error,
+                    )}`,
+                );
+            });
     }
 
     /**

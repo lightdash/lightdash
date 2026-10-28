@@ -551,7 +551,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     googleDriveClient: clients.getGoogleDriveClient(),
                     userOAuthGrantsModel: models.getUserOAuthGrantsModel(),
                 }),
-            querySourceService: ({ models, repository }) => {
+            querySourceService: ({ models, repository, context }) => {
                 const registry = QuerySourceRegistry.withBuiltInSources({
                     asyncQueryService: repository.getAsyncQueryService(),
                     projectService: repository.getProjectService(),
@@ -582,6 +582,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     }),
                 );
                 return new QuerySourceService({
+                    analytics: context.lightdashAnalytics,
                     getAsyncQueryService: () =>
                         repository.getAsyncQueryService(),
                     getAgentPermissionService: () =>

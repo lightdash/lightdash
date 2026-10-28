@@ -16,6 +16,7 @@ import {
     type SourceQuery,
 } from '@lightdash/common';
 import type { Mock } from 'vitest';
+import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { fromOauth } from '../../auth/account/account';
 import {
     buildAccount,
@@ -113,6 +114,7 @@ const createService = (registry: QuerySourceRegistry) => {
 
     const assertCanReadStoredResults = vi.fn().mockResolvedValue(undefined);
     const service = new QuerySourceService({
+        analytics: analyticsMock,
         getAsyncQueryService: () => ({ assertCanReadStoredResults }),
         getAgentPermissionService: () => mocks.permissions,
         projectModel: mocks.projectModel as unknown as ProjectModel,
@@ -297,6 +299,45 @@ describe('QuerySourceService', () => {
                     resolvedReferences: {},
                 }),
             );
+        });
+
+        it('tracks which source types a batch combined', async () => {
+            const fakes = createRegistryWithFakes();
+            const { service } = createService(fakes.registry);
+            const trackAccount = vi.spyOn(analyticsMock, 'trackAccount');
+
+            await service.executeSourceQueries({
+                ...executionContext,
+                account,
+                projectUuid,
+                queries: [
+                    {
+                        nodeId: 'orders',
+                        sourceType: QuerySourceType.SQL,
+                        sql: 'SELECT 1',
+                    },
+                    {
+                        nodeId: 'merged',
+                        sourceType: QuerySourceType.DUCKDB,
+                        sql: 'SELECT * FROM orders',
+                        references: ['orders'],
+                    },
+                ],
+                context: QueryExecutionContext.MULTI_SOURCE_QUERY,
+            });
+
+            expect(trackAccount).toHaveBeenCalledWith(account, {
+                event: 'query_sources.submitted',
+                properties: expect.objectContaining({
+                    projectId: projectUuid,
+                    context: QueryExecutionContext.MULTI_SOURCE_QUERY,
+                    nodeCount: 2,
+                    sqlNodeCount: 1,
+                    duckdbNodeCount: 1,
+                    apiNodeCount: 0,
+                }),
+            });
+            trackAccount.mockRestore();
         });
 
         it('submits in dependency order, rewriting node references to queryUuids', async () => {

@@ -75,11 +75,14 @@ const buildService = ({
         list: vi.fn().mockResolvedValue(connections),
         getProjectOrganizationUuid: vi.fn().mockResolvedValue('org-1'),
         getDecryptedSecret: vi.fn().mockResolvedValue('phx_secret'),
+        create: vi.fn().mockResolvedValue(connections[0]),
+        softDelete: vi.fn().mockResolvedValue(undefined),
     };
+    const analytics = { track: vi.fn() };
     const service = new ExternalConnectionService({
         allowedPrivateHostCidrs: {},
         externalConnectionModel,
-        analytics: { track: vi.fn() },
+        analytics,
         featureFlagModel: {
             get: vi.fn().mockResolvedValue({ enabled: liveSourcesEnabled }),
         },
@@ -88,7 +91,7 @@ const buildService = ({
         service as unknown as { createAuditedAbility: () => unknown },
         'createAuditedAbility',
     ).mockReturnValue({ can: () => canView, cannot: () => !canView });
-    return { service, externalConnectionModel };
+    return { service, externalConnectionModel, analytics };
 };
 
 beforeEach(() => {
@@ -214,6 +217,30 @@ describe('ExternalConnectionService live source writes', () => {
             projectId: '303731',
         },
     };
+
+    it('tracks a live source by kind and connector', async () => {
+        const { service, analytics } = buildService();
+        await service.create(account, 'proj-1', postHogCreate);
+        await service.delete(account, 'proj-1', 'conn-1');
+
+        const tracked = analytics.track.mock.calls.map(([event]) => event);
+        expect(tracked).toEqual([
+            expect.objectContaining({
+                event: 'external_connection.created',
+                properties: expect.objectContaining({
+                    connectionKind: 'live_source',
+                    connector: ApiConnectorType.POSTHOG,
+                }),
+            }),
+            expect.objectContaining({
+                event: 'external_connection.deleted',
+                properties: expect.objectContaining({
+                    connectionKind: 'live_source',
+                    connector: ApiConnectorType.POSTHOG,
+                }),
+            }),
+        ]);
+    });
 
     it('refuses to create a live source while live sources are off', async () => {
         const { service } = buildService({ liveSourcesEnabled: false });

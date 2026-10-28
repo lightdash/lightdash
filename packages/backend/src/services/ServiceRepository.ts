@@ -1413,6 +1413,7 @@ export class ServiceRepository
             });
 
             return new QuerySourceService({
+                analytics: this.context.lightdashAnalytics,
                 getAsyncQueryService: () => this.getAsyncQueryService(),
                 getAgentPermissionService: () =>
                     this.getAgentPermissionService(),
