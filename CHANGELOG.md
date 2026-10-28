@@ -1,3 +1,16 @@
+# [3.79.0](https://github.com/lightdash/lightdash/compare/3.78.3...3.79.0) (2026-10-28)
+
+
+### Bug Fixes
+
+* **ai:** widen date-only upper bounds on timestamp filter expressions ([#31732](https://github.com/lightdash/lightdash/issues/31732)) ([a004977](https://github.com/lightdash/lightdash/commit/a00497780db5457343462b96b23f47c48737ae59))
+* **composer:** load python node date columns tz-naive at midnight ([#31734](https://github.com/lightdash/lightdash/issues/31734)) ([417cdc2](https://github.com/lightdash/lightdash/commit/417cdc2008ad62c1c735236382d64d52944c8572))
+
+
+### Features
+
+* **ai-agent:** composer artifact Lineage view with graph and steps ([#31739](https://github.com/lightdash/lightdash/issues/31739)) ([237c0d6](https://github.com/lightdash/lightdash/commit/237c0d6fcb6c379ca3ad431f868169a2967cad04))
+
 ## [3.78.3](https://github.com/lightdash/lightdash/compare/3.78.2...3.78.3) (2026-10-28)
 
 
