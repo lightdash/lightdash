@@ -1,3 +1,16 @@
+# [3.87.0](https://github.com/lightdash/lightdash/compare/3.86.0...3.87.0) (2026-10-28)
+
+
+### Bug Fixes
+
+* list SQL column tiles in the filter editor's tile list ([#31717](https://github.com/lightdash/lightdash/issues/31717)) ([4923e93](https://github.com/lightdash/lightdash/commit/4923e9304404ac0c9b8747932a597d41e3698f0e))
+* searchable column list that shows it is still loading ([#31718](https://github.com/lightdash/lightdash/issues/31718)) ([c8f7086](https://github.com/lightdash/lightdash/commit/c8f70860bc0813b0acb3ef84d8330c44780ce180))
+
+
+### Features
+
+* **dashboards:** show filter section changes in version comparison ([#31668](https://github.com/lightdash/lightdash/issues/31668)) ([0d0d851](https://github.com/lightdash/lightdash/commit/0d0d851bc16faa526b04c055800f77b49026ba1d))
+
 # [3.86.0](https://github.com/lightdash/lightdash/compare/3.85.0...3.86.0) (2026-10-28)
 
 
