@@ -103,9 +103,12 @@ writer keys never enter DuckDB; signed URLs are not persisted in project
 credentials or returned through the API.
 
 History, paginated results, streaming results and legacy result reads check the
-analytics flag and organization-admin access. Export and scheduled-download
-creation are unavailable for analytics previews, including for admins, so this
-slice does not issue export URLs that outlive these checks.
+analytics flag and managed analytics access. CSV and Excel downloads, including
+scheduled data exports, are supported when export file storage is configured.
+Protected downloads recheck access; deliberately shared signed delivery links
+can outlive permission changes until they expire. See
+[downloads and scheduled deliveries](access.md#downloads-and-scheduled-deliveries)
+for the access requirements and sharing boundaries.
 
 ## Verify dimension refreshes and joins
 
@@ -142,9 +145,8 @@ instance and a dedicated bucket:
 - Review effective IAM and shared-instance isolation. Dedicated read-only
   credentials are deferred hardening (PROD-11103). Signed URLs keep broad keys
   out of DuckDB but still trust the signer. Folder separation is not an IAM boundary.
-- Review every permissions and cached/downloaded-results surface. Finish SQL
-  Runner, scheduling, AI and model-editing exclusions. Local org-admin checks are
-  not the final metadata-project role design.
+- Review permissions and cached/downloaded-results surfaces against the current
+  [managed analytics access rules](access.md), including signed delivery links.
 - Production provisioning and final project lifecycle/role design.
 - Additional entity-name lookups, domain metrics, schema evolution, empty
   streams, retention and query performance.

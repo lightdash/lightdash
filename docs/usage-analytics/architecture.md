@@ -22,15 +22,15 @@ Explore. It does not reconstruct every past event or historical People summaries
 
 ## Current implementation versus rollout intent
 
-| Area                   | Implemented                                                                               | Still required for production                                      |
-| ---------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| Project                | New projects use `DEFAULT` with `provisioning_source=analytics`; older previews retain their type | Non-admin project access remains a separate follow-up          |
-| Entry point            | Organization analytics settings and session-authenticated, org-admin-only endpoints       | No configurable connector setup UI                                 |
-| Enablement             | Standard `analytics-project` resolver: Console organization flags or deployment ENV flags | Controlled live verification before customer rollout               |
-| Source org             | Persisted, authorized project org; legacy local overrides ignored                         | Live shared-instance isolation verification                        |
-| Storage authentication | Existing writer credentials retained in backend; signed GET URLs passed to DuckDB         | Verify effective IAM; read-only hardening is deferred (PROD-11103) |
-| Models                 | Backend-owned Query Events, AI Usage, Data App Events and Export Events explores          | Additional event coverage and named-entity lookups                 |
-| Current names          | Daily per-org charts, dashboards, users and agents snapshots with optional ID joins       | Other entity lookups; production-scale database load verification  |
+| Area                   | Implemented                                                                                       | Still required for production                                      |
+| ---------------------- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| Project                | New projects use `DEFAULT` with `provisioning_source=analytics`; older previews retain their type | Non-admin project access remains a separate follow-up              |
+| Entry point            | Organization analytics settings and session-authenticated, org-admin-only endpoints               | No configurable connector setup UI                                 |
+| Enablement             | Standard `analytics-project` resolver: Console organization flags or deployment ENV flags         | Controlled live verification before customer rollout               |
+| Source org             | Persisted, authorized project org; legacy local overrides ignored                                 | Live shared-instance isolation verification                        |
+| Storage authentication | Existing writer credentials retained in backend; signed GET URLs passed to DuckDB                 | Verify effective IAM; read-only hardening is deferred (PROD-11103) |
+| Models                 | Backend-owned Query Events, AI Usage, Data App Events and Export Events explores                  | Additional event coverage and named-entity lookups                 |
+| Current names          | Daily per-org charts, dashboards, users and agents snapshots with optional ID joins               | Other entity lookups; production-scale database load verification  |
 
 Historical tickets and handover proposals may describe different designs. They
 are not evidence that production rollout or final role restrictions are complete.
@@ -229,9 +229,11 @@ concurrency limits still need validation before customer rollout.
 
 The query-local cache lifetime does not mean Lightdash has no persisted query results.
 The normal result/history paths still exist and need authorization. Analytics
-checks cover project access and result/history retrieval; exports and scheduled
-downloads are blocked in this preview. Flag-off denial is not deletion or
-cryptographic revocation of previously issued capabilities or returned data.
+checks cover project access, result/history retrieval, CSV/XLSX export generation
+and protected download retrieval. Scheduled deliveries can intentionally share
+signed export links; see [downloads and scheduled deliveries](access.md#downloads-and-scheduled-deliveries).
+Flag-off denial is not deletion or cryptographic revocation of previously issued
+signed delivery links or returned data.
 
 ### Small Parquet cache and temporary-file lifecycle
 
