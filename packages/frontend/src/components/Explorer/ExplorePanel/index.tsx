@@ -214,11 +214,11 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
             projectUuid,
         }),
     );
-    const canMergeAnotherQuery =
-        explore.type !== ExploreType.VIRTUAL &&
-        !!merge &&
-        !merge.isMerging &&
-        !merge.readOnly;
+    const canMergeAnotherQuery = !!merge && !merge.isMerging && !merge.readOnly;
+    const isVirtualView = explore.type === ExploreType.VIRTUAL;
+    const hasVirtualViewActions =
+        isVirtualView &&
+        (canEditVirtualView || canDeleteVirtualView || canViewContentAsCode);
 
     // Only call `onBack` for 4XX errors, otherwise we lose URL state when there's a Network error or backend is down
     if (status === 'error' && error.error.statusCode < 500) {
@@ -282,22 +282,49 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                             </HoverCard>
                         )}
                     </Group>
-                    {explore.type === ExploreType.VIRTUAL &&
-                        (canEditVirtualView ||
-                            canDeleteVirtualView ||
-                            canViewContentAsCode) && (
+                    {explore.type !== ExploreType.EXTERNAL_SOURCE &&
+                        (canMergeAnotherQuery || hasVirtualViewActions) && (
                             <Menu withArrow offset={-2}>
                                 <Menu.Target>
-                                    <ActionIcon
-                                        data-tour-anchor="virtual-view-actions"
-                                        data-tour-hint="Open virtual view actions"
-                                        aria-label="Virtual view actions"
-                                        variant="transparent"
-                                    >
-                                        <MantineIcon icon={IconDots} />
-                                    </ActionIcon>
+                                    {/* Two literal triggers: the tour generator reads anchors and hints from source. */}
+                                    {isVirtualView ? (
+                                        <ActionIcon
+                                            data-tour-anchor="virtual-view-actions"
+                                            data-tour-hint="Open virtual view actions"
+                                            aria-label="Virtual view actions"
+                                            variant="transparent"
+                                        >
+                                            <MantineIcon icon={IconDots} />
+                                        </ActionIcon>
+                                    ) : (
+                                        <ActionIcon
+                                            aria-label="Query options"
+                                            variant="transparent"
+                                        >
+                                            <MantineIcon icon={IconDots} />
+                                        </ActionIcon>
+                                    )}
                                 </Menu.Target>
                                 <Menu.Dropdown>
+                                    {canMergeAnotherQuery && (
+                                        <Menu.Item
+                                            leftSection={
+                                                <MantineIcon
+                                                    icon={IconGitMerge}
+                                                />
+                                            }
+                                            rightSection={<BetaBadge />}
+                                            onClick={handleAddMergeSource}
+                                        >
+                                            <Text fz="xs" fw={500}>
+                                                Merge another query
+                                            </Text>
+                                        </Menu.Item>
+                                    )}
+                                    {canMergeAnotherQuery &&
+                                        hasVirtualViewActions && (
+                                            <Menu.Divider />
+                                        )}
                                     {canEditVirtualView && (
                                         <Menu.Item
                                             leftSection={
@@ -378,32 +405,6 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                                 canMergeAnotherQuery={canMergeAnotherQuery}
                                 onAddMergeSource={handleAddMergeSource}
                             />
-                        )}
-                    {explore.type !== ExploreType.EXTERNAL_SOURCE &&
-                        canMergeAnotherQuery && (
-                            <Menu withArrow offset={-2}>
-                                <Menu.Target>
-                                    <ActionIcon
-                                        aria-label="Query options"
-                                        variant="transparent"
-                                    >
-                                        <MantineIcon icon={IconDots} />
-                                    </ActionIcon>
-                                </Menu.Target>
-                                <Menu.Dropdown>
-                                    <Menu.Item
-                                        leftSection={
-                                            <MantineIcon icon={IconGitMerge} />
-                                        }
-                                        rightSection={<BetaBadge />}
-                                        onClick={handleAddMergeSource}
-                                    >
-                                        <Text fz="xs" fw={500}>
-                                            Merge another query
-                                        </Text>
-                                    </Menu.Item>
-                                </Menu.Dropdown>
-                            </Menu>
                         )}
                 </Group>
 
