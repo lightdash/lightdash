@@ -1,3 +1,10 @@
+# [3.91.0](https://github.com/lightdash/lightdash/compare/3.90.0...3.91.0) (2026-10-28)
+
+
+### Features
+
+* **data-apps:** field url link patterns on result columns + SDK resolver ([#31748](https://github.com/lightdash/lightdash/issues/31748)) ([d805819](https://github.com/lightdash/lightdash/commit/d805819d9d666905dd20e0952fb655ac278ea20a))
+
 # [3.90.0](https://github.com/lightdash/lightdash/compare/3.89.0...3.90.0) (2026-10-28)
 
 
