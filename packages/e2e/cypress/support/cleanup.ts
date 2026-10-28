@@ -11,33 +11,39 @@ type Matcher = {
 
 type AnyResults = {
     uuid?: string;
+    userUuid?: string;
     savedSqlUuid?: string;
     project?: { projectUuid?: string };
 };
 
 const MATCHERS: Matcher[] = [
     {
-        url: /\/api\/v1\/projects\/([^/?]+)\/spaces\/?(\?.*)?$/,
+        url: /api\/v1\/projects\/([^/?]+)\/spaces\/?(\?.*)?$/,
         deleteUrl: (m, r) =>
             r.uuid ? `/api/v1/projects/${m[1]}/spaces/${r.uuid}` : null,
     },
     {
-        url: /\/api\/v1\/projects\/[^/?]+\/dashboards(\/with-charts)?\/?(\?.*)?$/,
+        url: /api\/v1\/projects\/[^/?]+\/dashboards(\/with-charts)?\/?(\?.*)?$/,
         deleteUrl: (_m, r) => (r.uuid ? `/api/v1/dashboards/${r.uuid}` : null),
     },
     {
-        url: /\/api\/v1\/projects\/[^/?]+\/saved\/?(\?.*)?$/,
+        url: /api\/v1\/projects\/[^/?]+\/saved\/?(\?.*)?$/,
         deleteUrl: (_m, r) => (r.uuid ? `/api/v1/saved/${r.uuid}` : null),
     },
     {
-        url: /\/api\/v1\/projects\/([^/?]+)\/sqlRunner\/saved\/?$/,
+        url: /api\/v1\/projects\/([^/?]+)\/sqlRunner\/saved\/?$/,
         deleteUrl: (m, r) =>
             r.savedSqlUuid
                 ? `/api/v1/projects/${m[1]}/sqlRunner/saved/${r.savedSqlUuid}`
                 : null,
     },
     {
-        url: /\/api\/v1\/org\/projects\/?$/,
+        url: /api\/v1\/user\/?$/,
+        deleteUrl: (_m, r) =>
+            r.userUuid ? `/api/v1/org/user/${r.userUuid}` : null,
+    },
+    {
+        url: /api\/v1\/org\/projects\/?$/,
         deleteUrl: (_m, r) =>
             r.project?.projectUuid
                 ? `/api/v1/org/projects/${r.project.projectUuid}`
@@ -101,6 +107,7 @@ Cypress.Commands.overwrite('request', (originalFn, ...args) => {
 after(() => {
     if (created.length === 0) return;
     cy.login();
+    cy.log(`Cleaning up ${created.length} created resources`);
     // Reverse order so children go before parents; 404s are fine (cascades, tests deleting their own content)
     created
         .splice(0)

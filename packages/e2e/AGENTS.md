@@ -30,8 +30,8 @@ containers run specs against the same database in parallel. Do not write a
 test that deletes "everything that is not seeded": it will remove content a
 parallel container is still using.
 
-`cypress/support/cleanup.ts` records every space, dashboard, chart, SQL Runner
+`cypress/support/cleanup.ts` records every user, space, dashboard, chart, SQL Runner
 chart and project a spec creates (through the UI or `cy.request`) and deletes
 them after the spec. Create content freely; you do not need an `after` hook
-for those types. Anything else a test creates (users, invites, user
+for those types. Anything else a test creates (invites, groups, user
 attributes, schedulers) must still be cleaned up by the test itself.
