@@ -101,7 +101,7 @@ const LearnMorePopover: FC<{ buttonStyles?: ButtonProps['style'] }> = ({
             </Popover.Target>
             <Popover.Dropdown
                 bg="ldDark.9"
-                c="white"
+                c="var(--mantine-color-body)"
                 p={16}
                 className={classes.spotlightDropdown}
             >
@@ -134,7 +134,7 @@ const LearnMorePopover: FC<{ buttonStyles?: ButtonProps['style'] }> = ({
                         <Button
                             variant="outline"
                             bg="ldDark.4"
-                            c="white"
+                            c="var(--mantine-color-body)"
                             hidden={true}
                             disabled={true}
                             style={{
