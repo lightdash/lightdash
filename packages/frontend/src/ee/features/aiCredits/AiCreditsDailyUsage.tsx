@@ -1,44 +1,28 @@
 import {
-    AI_CREDIT_USAGE_BREAKDOWNS,
+    type AiBillableFeature,
     type AiCreditDailyUsage,
-    type AiCreditDailyUsageSeries,
-    type AiCreditUsageBreakdown,
 } from '@lightdash/common';
-import {
-    Box,
-    Divider,
-    Group,
-    Paper,
-    SegmentedControl,
-    Skeleton,
-    Stack,
-    Text,
-    Title,
-    VisuallyHidden,
-} from '@mantine/core';
+import { Group, Paper, Skeleton, Stack, Text, Title } from '@mantine/core';
 import { type EChartsOption } from 'echarts';
-import { useMemo, useState, type FC } from 'react';
+import { useMemo, type FC } from 'react';
 import InlineErrorState from '../../../components/common/InlineErrorState';
 import EChartsReact from '../../../components/EChartsReactWrapper';
 import { AiCreditSeriesIcon } from './AiCreditSeriesIcon';
-import classes from './AiCreditsUsageBreakdown.module.css';
 import { dropFutureDays, formatCredits } from './creditUsage';
 import {
     findTopSeriesIndex,
-    getAiCreditRowShare,
     getAiCreditSeriesColor,
     renderAiCreditTooltip,
     toAiCreditChartBuckets,
 } from './dailyUsageChart';
 import { useAiCreditDailyUsage } from './hooks/useAiCreditDailyUsage';
-import { getAiCreditBreakdownLabel, getAiCreditSeriesLabel } from './labels';
+import { AI_CREDIT_FEATURE_LABELS } from './labels';
 
 const CHART_HEIGHT = 200;
 const BAR_TOP_RADIUS: [number, number, number, number] = [4, 4, 0, 0];
 
 type LabelledSeries = {
-    id: string;
-    series: AiCreditDailyUsageSeries;
+    feature: AiBillableFeature;
     label: string;
     color: string;
     credits: number;
@@ -46,10 +30,9 @@ type LabelledSeries = {
 
 const toLabelledSeries = (usage: AiCreditDailyUsage): LabelledSeries[] =>
     usage.series.map((series, index) => ({
-        id: series.type === 'value' ? `value:${series.key}` : series.type,
-        series,
-        label: getAiCreditSeriesLabel(usage.breakdown, series),
-        color: getAiCreditSeriesColor(series, index),
+        feature: series.feature,
+        label: AI_CREDIT_FEATURE_LABELS[series.feature],
+        color: getAiCreditSeriesColor(index),
         credits: series.credits,
     }));
 
@@ -138,61 +121,27 @@ const UsageChart: FC<{
     );
 };
 
-const UsageRows: FC<{
-    breakdown: AiCreditUsageBreakdown;
-    series: LabelledSeries[];
-    allowanceCredits: number | null;
-    usedCredits: number;
-}> = ({ breakdown, series, allowanceCredits, usedCredits }) => (
-    <Stack gap="sm">
+const UsageLegend: FC<{ series: LabelledSeries[] }> = ({ series }) => (
+    <Group gap="md" role="list" aria-label="Credits by feature this period">
         {series.map((item) => (
-            <Box key={item.id}>
-                {item.series.type === 'other' && <Divider mb="sm" />}
-                <Group justify="space-between" gap="xs" mb={4}>
-                    <Group gap="xs" wrap="nowrap">
-                        <AiCreditSeriesIcon
-                            breakdown={breakdown}
-                            series={item.series}
-                            color={item.color}
-                        />
-                        <Text fz="sm">{item.label}</Text>
-                    </Group>
-                    <Text fz="sm" c="dimmed">
-                        {formatCredits(item.credits)} credits
-                    </Text>
-                </Group>
-                <Box
-                    className={classes.segments}
-                    role="img"
-                    aria-label={`${item.label}: ${formatCredits(item.credits)} credits`}
-                >
-                    <Box
-                        className={classes.fill}
-                        w={`${getAiCreditRowShare({
-                            credits: item.credits,
-                            allowanceCredits,
-                            usedCredits,
-                        })}%`}
-                        bg={item.color}
-                    />
-                </Box>
-            </Box>
+            <Group key={item.feature} gap="xs" wrap="nowrap" role="listitem">
+                <AiCreditSeriesIcon feature={item.feature} color={item.color} />
+                <Text fz="sm">{item.label}</Text>
+                <Text fz="sm" c="dimmed">
+                    {formatCredits(item.credits)}
+                </Text>
+            </Group>
         ))}
-    </Stack>
+    </Group>
 );
 
-export const AiCreditsUsageBreakdown: FC<{
-    allowanceCredits: number | null;
-    usedCredits: number;
-}> = ({ allowanceCredits, usedCredits }) => {
-    const [breakdown, setBreakdown] =
-        useState<AiCreditUsageBreakdown>('feature');
+export const AiCreditsDailyUsage: FC = () => {
     const {
         data: usage,
         isInitialLoading,
         isError,
         refetch,
-    } = useAiCreditDailyUsage(breakdown);
+    } = useAiCreditDailyUsage();
     const series = useMemo(
         () => (usage === undefined ? [] : toLabelledSeries(usage)),
         [usage],
@@ -201,28 +150,7 @@ export const AiCreditsUsageBreakdown: FC<{
     return (
         <Paper p="md">
             <Stack gap="md">
-                <Group justify="space-between" gap="sm">
-                    <Title order={5}>Usage breakdown</Title>
-                    <SegmentedControl
-                        size="xs"
-                        value={breakdown}
-                        onChange={(value) => {
-                            const next = AI_CREDIT_USAGE_BREAKDOWNS.find(
-                                (option) => option === value,
-                            );
-                            if (next !== undefined) setBreakdown(next);
-                        }}
-                        data={AI_CREDIT_USAGE_BREAKDOWNS.map((value) => ({
-                            value,
-                            label: getAiCreditBreakdownLabel(value),
-                        }))}
-                    />
-                </Group>
-                <VisuallyHidden aria-live="polite">
-                    {isInitialLoading
-                        ? ''
-                        : `Showing usage by ${getAiCreditBreakdownLabel(breakdown).toLowerCase()}`}
-                </VisuallyHidden>
+                <Title order={5}>Daily usage by feature</Title>
                 {isInitialLoading ? (
                     <Skeleton h={200} />
                 ) : isError || usage === undefined ? (
@@ -239,12 +167,7 @@ export const AiCreditsUsageBreakdown: FC<{
                 ) : (
                     <>
                         <UsageChart usage={usage} series={series} />
-                        <UsageRows
-                            breakdown={usage.breakdown}
-                            series={series}
-                            allowanceCredits={allowanceCredits}
-                            usedCredits={usedCredits}
-                        />
+                        <UsageLegend series={series} />
                     </>
                 )}
             </Stack>
