@@ -5,11 +5,16 @@ import {
     type SourceQuery,
 } from '@lightdash/common';
 import { fireEvent, screen, within } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { useCompiledSqlFromMetricQuery } from '../../../../../../hooks/useCompiledSql';
+import mockIntersectingObserver from '../../../../../../testing/intersectingObserver';
 import { renderWithProviders } from '../../../../../../testing/testUtils';
 import { type ComposerRunNodeStatus } from '../useComposerRunNodeStatuses';
 import { AiComposerPipelinePanel } from './AiComposerPipelinePanel';
+import { type PipelineNode } from './groupPipeline';
+
+// The switch is hidden in the app; graph mode keeps its coverage.
+vi.mock('./pipelineModeSwitch', () => ({ SHOW_PIPELINE_MODE_SWITCH: true }));
 
 vi.mock('../../../../../../hooks/useCompiledSql', () => ({
     useCompiledSqlFromMetricQuery: vi.fn(() => ({ data: undefined })),
@@ -18,6 +23,8 @@ const compiledSql = vi.mocked(useCompiledSqlFromMetricQuery);
 vi.mock('../../../../../../hooks/useExplore', () => ({
     useExploreByProjectUuid: vi.fn(() => ({ data: undefined })),
 }));
+
+beforeAll(mockIntersectingObserver);
 
 const queries: SourceQuery[] = [
     {
@@ -49,6 +56,8 @@ const renderPanel = (props: {
     displayableNodeIds?: Set<string>;
     onDisplayNode?: (nodeId: string) => void;
     nodeStatuses?: Record<string, ComposerRunNodeStatus>;
+    chatNodeIds?: Set<string>;
+    onAddToChat?: ((node: PipelineNode) => void) | null;
 }) =>
     renderWithProviders(
         <AiComposerPipelinePanel
@@ -59,6 +68,9 @@ const renderPanel = (props: {
             displayableNodeIds={new Set(['orders', 'amounts', 'joined'])}
             onDisplayNode={() => {}}
             nodeStatuses={{}}
+            renderNodeResult={(nodeId) => <div>rows of {nodeId}</div>}
+            chatNodeIds={new Set()}
+            onAddToChat={null}
             defaultMode="list"
             {...props}
         >
@@ -72,19 +84,10 @@ const nodeButtons = () => screen.getAllByLabelText(/^Display /);
 const nodeButton = (title: string) => screen.getByLabelText(`Display ${title}`);
 
 describe('AiComposerPipelinePanel graph mode', () => {
-    it('shows the List / Graph switch only when expanded, defaulting to Graph for multiple nodes', () => {
+    it('shows the List / Graph switch only when expanded, defaulting to List', () => {
         renderPanel({ defaultMode: undefined });
-        expect(screen.queryByRole('radio', { name: 'Graph' })).toBeNull();
+        expect(screen.queryByRole('radio', { name: 'List' })).toBeNull();
         fireEvent.click(screen.getByRole('button', { name: /queries/i }));
-        expect(screen.getByRole('radio', { name: 'Graph' })).toBeChecked();
-    });
-
-    it('defaults to List for a single-node pipeline', () => {
-        renderPanel({
-            queries: [{ ...queries[0], nodeId: 'joined' }],
-            defaultExpanded: true,
-            defaultMode: undefined,
-        });
         expect(screen.getByRole('radio', { name: 'List' })).toBeChecked();
     });
 
@@ -132,42 +135,46 @@ describe('AiComposerPipelinePanel graph mode', () => {
     });
 });
 
+const cell = (nodeId: string) =>
+    within(document.querySelector<HTMLElement>(`[data-node-id="${nodeId}"]`)!);
+
 describe('AiComposerPipelinePanel list mode', () => {
-    it("shows a node's status only while queued or on error, with the error on its row", () => {
+    it("shows a node's status only while queued or on error, with the error in its cell", () => {
         renderPanel({
             defaultExpanded: true,
             nodeStatuses: {
-                orders: { status: 'success', error: null, totalRowCount: 5 },
+                orders: {
+                    status: 'success',
+                    error: null,
+                    totalRowCount: null,
+                    durationMs: null,
+                },
                 amounts: {
                     status: 'error',
                     error: 'column "amount" does not exist',
                     totalRowCount: null,
+                    durationMs: null,
                 },
-                joined: { status: 'pending', error: null, totalRowCount: null },
+                joined: {
+                    status: 'pending',
+                    error: null,
+                    totalRowCount: null,
+                    durationMs: null,
+                },
             },
         });
-        const row = (nodeId: string) =>
-            within(
-                document.getElementById(`composer-pipeline-node-${nodeId}`)!,
-            );
-        expect(row('orders').queryByLabelText('Completed')).toBeNull();
-        expect(row('amounts').getByLabelText('Failed')).toBeInTheDocument();
+        expect(cell('orders').queryByLabelText('Completed')).toBeNull();
+        expect(cell('amounts').getByLabelText('Failed')).toBeInTheDocument();
         expect(
-            row('amounts').getByText('column "amount" does not exist'),
+            cell('amounts').getByText('column "amount" does not exist'),
         ).toBeInTheDocument();
-        expect(row('joined').getByLabelText('Queued')).toBeInTheDocument();
+        expect(cell('joined').getByLabelText('Queued')).toBeInTheDocument();
         expect(
-            row('orders').queryByText('column "amount" does not exist'),
-        ).toBeNull();
+            cell('joined').getByText('Queued, waiting on the steps it reads'),
+        ).toBeInTheDocument();
     });
 
-    it('shows no status before the run has node results', () => {
-        renderPanel({ defaultExpanded: true });
-        expect(screen.queryByLabelText('Queued')).toBeNull();
-        expect(screen.queryByLabelText('Completed')).toBeNull();
-    });
-
-    it('leads each row with the description, falling back to the title', () => {
+    it('shows each cell with its title, description and code inline', () => {
         renderPanel({
             defaultExpanded: true,
             queries: [
@@ -176,184 +183,188 @@ describe('AiComposerPipelinePanel list mode', () => {
                 queries[2],
             ],
         });
-        const row = within(
-            document.getElementById('composer-pipeline-node-orders')!,
-        );
-        expect(row.getByText('Order count per status.')).toBeInTheDocument();
-        expect(row.queryByText('Orders by status')).toBeNull();
-        expect(screen.getByText('Average amount')).toBeInTheDocument();
-        expect(screen.queryByText(/^Reads /)).toBeNull();
+        expect(
+            cell('orders').getByText('Orders by status'),
+        ).toBeInTheDocument();
+        expect(
+            cell('orders').getByText(/Order count per status\./),
+        ).toBeInTheDocument();
+        expect(
+            document
+                .querySelector('[data-node-id="amounts"]')!
+                .querySelector('code'),
+        ).toHaveTextContent(/select\s+2/i);
     });
 
-    it('displays a node from its View result button, not the row', () => {
-        const onDisplayNode = vi.fn();
-        renderPanel({ defaultExpanded: true, onDisplayNode });
-        const row = document.getElementById('composer-pipeline-node-amounts')!;
-        fireEvent.click(row);
-        expect(onDisplayNode).not.toHaveBeenCalled();
-        fireEvent.click(
-            within(row).getByRole('button', {
-                name: 'View results of Average amount',
-            }),
-        );
-        expect(onDisplayNode).toHaveBeenCalledWith('amounts');
+    it('renders the rows of nodes with a result only, never those still running or failed', async () => {
+        renderPanel({
+            defaultExpanded: true,
+            displayableNodeIds: new Set(['orders', 'amounts']),
+            nodeStatuses: {
+                orders: {
+                    status: 'success',
+                    error: null,
+                    totalRowCount: null,
+                    durationMs: null,
+                },
+                amounts: {
+                    status: 'running',
+                    error: null,
+                    totalRowCount: null,
+                    durationMs: null,
+                },
+            },
+        });
+        expect(
+            await cell('orders').findByText('rows of orders'),
+        ).toBeInTheDocument();
+        expect(cell('amounts').queryByText('rows of amounts')).toBeNull();
+        expect(cell('joined').queryByText('rows of joined')).toBeNull();
     });
 
-    it("labels View results with a finished node's row count", () => {
+    it("shows a finished node's row count and run time under its rows", async () => {
         renderPanel({
             defaultExpanded: true,
             nodeStatuses: {
-                orders: { status: 'success', error: null, totalRowCount: 1 },
+                orders: {
+                    status: 'success',
+                    error: null,
+                    totalRowCount: 1200,
+                    durationMs: 1500,
+                },
                 amounts: {
                     status: 'success',
                     error: null,
-                    totalRowCount: 1234,
+                    totalRowCount: 1,
+                    durationMs: null,
                 },
-                joined: { status: 'running', error: null, totalRowCount: 0 },
             },
         });
-        const row = (nodeId: string) =>
-            within(
-                document.getElementById(`composer-pipeline-node-${nodeId}`)!,
-            );
         expect(
-            row('orders').getByText('View results (1 row)'),
+            await cell('orders').findByText('1,200 rows · 1.5 s'),
         ).toBeInTheDocument();
-        expect(
-            row('amounts').getByText('View results (1,234 rows)'),
-        ).toBeInTheDocument();
-        expect(row('joined').getByText('View results')).toBeInTheDocument();
+        expect(cell('amounts').getByText('1 row')).toBeInTheDocument();
     });
 
-    it('marks the displayed row and leaves legacy nodes without a button', () => {
+    it('collapses a cell, and jumping to a collapsed reference expands it', async () => {
+        renderPanel({ defaultExpanded: true });
+        const toggle = (nodeId: string) =>
+            cell(nodeId).getAllByRole('button', { name: /step$/ })[0];
+        fireEvent.click(toggle('orders'));
+        expect(toggle('orders')).toHaveAccessibleName('Expand step');
+        expect(cell('orders').queryByText('rows of orders')).toBeNull();
+
+        fireEvent.click(
+            await cell('joined').findByRole('button', {
+                name: 'Orders by status',
+            }),
+        );
+        expect(toggle('orders')).toHaveAccessibleName('Collapse step');
+        expect(
+            await cell('orders').findByText('rows of orders'),
+        ).toBeInTheDocument();
+    });
+
+    it('marks only the terminal node as the final result', () => {
+        renderPanel({ defaultExpanded: true });
+        expect(cell('joined').getByText('Final result')).toBeInTheDocument();
+        expect(cell('orders').queryByText('Final result')).toBeNull();
+    });
+
+    it('adds a node to the chat until it is attached', () => {
+        const onAddToChat = vi.fn();
         renderPanel({
             defaultExpanded: true,
-            displayedNodeId: 'amounts',
-            displayableNodeIds: new Set(['amounts']),
+            onAddToChat,
+            chatNodeIds: new Set(['orders']),
         });
         expect(
-            document.getElementById('composer-pipeline-node-amounts'),
-        ).toHaveAttribute('data-displayed', 'true');
-        expect(
-            screen.getByRole('button', {
-                name: 'View results of Average amount',
-            }),
-        ).toHaveAttribute('aria-pressed', 'true');
-        expect(
-            screen.queryByRole('button', {
-                name: 'View results of Orders by status',
-            }),
-        ).not.toBeInTheDocument();
-        expect(screen.getByText('Orders by status')).toBeInTheDocument();
+            cell('orders').queryByRole('button', { name: 'Add to chat' }),
+        ).toBeNull();
+        fireEvent.click(
+            cell('amounts').getByRole('button', { name: 'Add to chat' }),
+        );
+        expect(onAddToChat).toHaveBeenCalledWith(
+            expect.objectContaining({ nodeId: 'amounts' }),
+        );
     });
 });
 
-describe('AiComposerPipelinePanel query details', () => {
-    it('keeps the query collapsed until View query is clicked, without displaying the node', () => {
-        const onDisplayNode = vi.fn();
-        renderPanel({ defaultExpanded: true, onDisplayNode });
-        const row = () =>
-            document.getElementById('composer-pipeline-node-amounts')!;
-        const toggle = (name: string) =>
-            within(row()).getByRole('button', { name });
-        expect(toggle('View query')).toHaveAttribute('aria-expanded', 'false');
-        fireEvent.click(toggle('View query'));
-        expect(toggle('Hide query')).toHaveAttribute('aria-expanded', 'true');
-        expect(row().querySelector('code')).toHaveTextContent(/select\s+2/i);
-        expect(onDisplayNode).not.toHaveBeenCalled();
-        fireEvent.click(toggle('Hide query'));
-        expect(toggle('View query')).toHaveAttribute('aria-expanded', 'false');
-    });
+describe('AiComposerPipelinePanel semantic nodes', () => {
+    const semanticOrders: SourceQuery = {
+        sourceType: QuerySourceType.SEMANTIC_LAYER,
+        nodeId: 'orders',
+        title: 'Orders by status',
+        exploreName: 'orders',
+        dimensions: ['orders_status'],
+        metrics: ['orders_count'],
+        filters: {
+            dimensions: {
+                id: 'root',
+                and: [
+                    {
+                        id: 'status',
+                        target: { fieldId: 'orders_status' },
+                        operator: FilterOperator.EQUALS,
+                        values: ['completed'],
+                    },
+                ],
+            },
+        },
+        sorts: [{ fieldId: 'orders_count', descending: true }],
+        pivotConfiguration: {
+            indexColumn: [
+                { reference: 'orders_status', type: VizIndexType.CATEGORY },
+            ],
+            valuesColumns: [],
+            groupByColumns: undefined,
+            sortBy: undefined,
+        },
+    };
 
-    it("summarises a semantic node's filters, sort and parameters without displaying the node", () => {
-        const onDisplayNode = vi.fn();
+    it('heads a semantic node with its explore and opens its fields, filters and sort on demand', async () => {
         renderPanel({
             defaultExpanded: true,
-            onDisplayNode,
-            queries: [
-                {
-                    sourceType: QuerySourceType.SEMANTIC_LAYER,
-                    nodeId: 'orders',
-                    title: 'Orders by status',
-                    exploreName: 'orders',
-                    dimensions: ['orders_status'],
-                    metrics: ['orders_count'],
-                    filters: {
-                        dimensions: {
-                            id: 'root',
-                            and: [
-                                {
-                                    id: 'status',
-                                    target: { fieldId: 'orders_status' },
-                                    operator: FilterOperator.EQUALS,
-                                    values: ['completed'],
-                                },
-                            ],
-                        },
-                    },
-                    sorts: [{ fieldId: 'orders_count', descending: true }],
-                    parameters: { region: 'EMEA' },
-                },
-                queries[1],
-                queries[2],
-            ],
+            queries: [semanticOrders, queries[1], queries[2]],
         });
-        const row = document.getElementById('composer-pipeline-node-orders')!;
-        const toggle = within(row).getByRole('button', {
-            name: 'View metric query · Orders',
+        const details = await cell('orders').findByRole('button', {
+            name: 'Metric query',
         });
-        fireEvent.click(toggle);
-
-        expect(toggle).toHaveAttribute('aria-expanded', 'true');
-        expect(toggle).toHaveAccessibleName('Hide metric query · Orders');
-        expect(within(row).getByText('completed')).toBeInTheDocument();
-        expect(within(row).getByTestId('semantic-node-sort')).toHaveTextContent(
-            'Orders count',
-        );
-        expect(onDisplayNode).not.toHaveBeenCalled();
+        expect(details).toHaveAttribute('aria-expanded', 'false');
+        fireEvent.click(details);
+        expect(details).toHaveAttribute('aria-expanded', 'true');
+        expect(
+            await cell('orders').findByText('completed'),
+        ).toBeInTheDocument();
+        expect(cell('orders').queryByLabelText('Explore')).toBeNull();
+        expect(
+            cell('orders')
+                .getAllByTestId('semantic-node-field')
+                .map((chip) => chip.textContent),
+        ).toEqual(['Orders status', 'Orders count']);
+        expect(
+            cell('orders').getByTestId('semantic-node-sort'),
+        ).toHaveTextContent('Orders count');
     });
 
-    it('compiles a semantic node query only once View query is opened', () => {
+    it('compiles a semantic node query only once SQL query is opened', async () => {
         compiledSql.mockReturnValue({
             data: { query: 'SELECT status FROM orders' },
         } as unknown as ReturnType<typeof useCompiledSqlFromMetricQuery>);
         renderPanel({
             defaultExpanded: true,
-            queries: [
-                {
-                    sourceType: QuerySourceType.SEMANTIC_LAYER,
-                    nodeId: 'orders',
-                    title: 'Orders by status',
-                    exploreName: 'orders',
-                    dimensions: ['orders_status'],
-                    metrics: ['orders_count'],
-                    pivotConfiguration: {
-                        indexColumn: [
-                            {
-                                reference: 'orders_status',
-                                type: VizIndexType.CATEGORY,
-                            },
-                        ],
-                        valuesColumns: [],
-                        groupByColumns: undefined,
-                        sortBy: undefined,
-                    },
-                },
-                queries[1],
-                queries[2],
-            ],
+            queries: [semanticOrders, queries[1], queries[2]],
         });
-        const row = document.getElementById('composer-pipeline-node-orders')!;
         expect(compiledSql).not.toHaveBeenCalled();
-        fireEvent.click(within(row).getByRole('button', { name: 'View SQL' }));
+        fireEvent.click(
+            await cell('orders').findByRole('button', { name: 'SQL query' }),
+        );
         expect(compiledSql).toHaveBeenCalledWith(
             expect.objectContaining({
                 tableName: 'orders',
                 projectUuid: 'project',
                 metricQuery: expect.objectContaining({
                     exploreName: 'orders',
-                    dimensions: ['orders_status'],
-                    metrics: ['orders_count'],
                     limit: 500,
                 }),
                 pivotConfiguration: expect.objectContaining({
@@ -366,9 +377,11 @@ describe('AiComposerPipelinePanel query details', () => {
                 }),
             }),
         );
-        expect(row.querySelector('code')).toHaveTextContent(
-            /select\s+status\s+from\s+orders/i,
-        );
+        expect(
+            document
+                .querySelector('[data-node-id="orders"]')!
+                .querySelector('code'),
+        ).toHaveTextContent(/select\s+status\s+from\s+orders/i);
     });
 });
 
@@ -392,52 +405,26 @@ describe('AiComposerPipelinePanel python nodes', () => {
         },
     ];
 
-    it('lists a python node as a transformation with its code behind View code', () => {
-        renderWithProviders(
-            <AiComposerPipelinePanel
-                projectUuid="project"
-                queries={pythonQueries}
-                terminalNodeId="summary"
-                displayedNodeId="summary"
-                displayableNodeIds={new Set(['orders', 'simulated', 'summary'])}
-                onDisplayNode={() => {}}
-                nodeStatuses={{}}
-                defaultExpanded
-                defaultMode="list"
-            >
-                <div>results</div>
-            </AiComposerPipelinePanel>,
-        );
-        expect(screen.getByText('Transformation')).toBeInTheDocument();
-        const row = document.getElementById(
-            'composer-pipeline-node-simulated',
-        )!;
-        expect(within(row).getByText('Python')).toBeInTheDocument();
+    it("shows a python node's code inline", () => {
+        renderPanel({
+            defaultExpanded: true,
+            queries: pythonQueries,
+        });
         expect(
-            within(row).getByText('Monte Carlo draws per status.'),
-        ).toBeInTheDocument();
-        fireEvent.click(within(row).getByRole('button', { name: 'View code' }));
-        expect(row.querySelector('code')).toHaveTextContent(
-            /def run\(inputs, params\):/,
-        );
+            document
+                .querySelector('[data-node-id="simulated"]')!
+                .querySelector('code'),
+        ).toHaveTextContent(/def run\(inputs, params\):/);
     });
 
     it('labels a python node in graph mode', () => {
-        renderWithProviders(
-            <AiComposerPipelinePanel
-                projectUuid="project"
-                queries={pythonQueries}
-                terminalNodeId="simulated"
-                displayedNodeId="simulated"
-                displayableNodeIds={new Set(['simulated'])}
-                onDisplayNode={() => {}}
-                nodeStatuses={{}}
-                defaultExpanded
-                defaultMode="graph"
-            >
-                <div>results</div>
-            </AiComposerPipelinePanel>,
-        );
+        renderPanel({
+            defaultExpanded: true,
+            defaultMode: 'graph',
+            queries: pythonQueries,
+            displayedNodeId: 'simulated',
+            displayableNodeIds: new Set(['simulated']),
+        });
         expect(
             within(
                 screen.getByLabelText('Display Simulated amounts'),

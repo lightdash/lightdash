@@ -18,9 +18,10 @@ import { Box } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { type ComponentProps, type ReactNode } from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { sharedLightdashApi } from '../../../../../api';
 import type * as QueryResultsHooks from '../../../../../hooks/useQueryResults';
+import mockIntersectingObserver from '../../../../../testing/intersectingObserver';
 import { mockedLightdashApi } from '../../../../../testing/mockedLightdashApi';
 import { renderWithProviders } from '../../../../../testing/testUtils';
 import { AiArtifactPanel } from './AiArtifactPanel';
@@ -39,6 +40,10 @@ const mocks = vi.hoisted(() => ({
     saveVizConfig: vi.fn(),
 }));
 vi.mock('../../../../../api');
+// The switch is hidden in the app; graph mode keeps its coverage.
+vi.mock('./composerPipeline/pipelineModeSwitch', () => ({
+    SHOW_PIPELINE_MODE_SWITCH: true,
+}));
 vi.mock('../../../../../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: mocks.featureFlag,
 }));
@@ -86,6 +91,7 @@ vi.mock('../../../../../hooks/health/useHealth', () => ({
 }));
 vi.mock('../../store/hooks', () => ({
     useAiAgentStoreDispatch: () => vi.fn(),
+    useAiAgentStoreSelector: () => [],
 }));
 vi.mock('../../hooks/useAiArtifactChart', async (original) => ({
     ...(await original<object>()),
@@ -348,6 +354,7 @@ const nodeStatusesResponse = (
                       ...status,
                       error: error ?? null,
                       totalRowCount: null,
+                      warehouseExecutionTimeMs: null,
                   })),
               }
             : undefined) as unknown as typeof sharedLightdashApi);
@@ -418,6 +425,14 @@ const openChart = async () => {
 };
 const xAxisSelect = () => screen.getByRole('combobox', { name: 'X axis' });
 
+const cellOf = (nodeId: string) =>
+    within(document.querySelector<HTMLElement>(`[data-node-id="${nodeId}"]`)!);
+
+const openPipelineGraph = () => {
+    fireEvent.click(screen.getByRole('button', { name: /queries/i }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Graph' }));
+};
+
 const openPipelineList = () => {
     fireEvent.click(screen.getByRole('button', { name: /queries/i }));
     fireEvent.click(screen.getByRole('radio', { name: 'List' }));
@@ -448,16 +463,18 @@ describe('composer artifact', () => {
         expect(screen.getByText('Orders vs amounts')).toBeInTheDocument();
         expect(screen.getByRole('columnheader')).toHaveTextContent('Status');
         expect(screen.getByText('3 steps')).toBeInTheDocument();
-        expect(screen.queryByText('Sources')).not.toBeInTheDocument();
+        expect(document.querySelector('[data-node-id]')).toBeNull();
     });
 
-    it('expands into grouped rows by title', () => {
+    it('expands into one cell per node, titled', () => {
         renderComposer(composerConfig);
         openPipelineList();
-        expect(screen.getByText('Sources')).toBeInTheDocument();
-        expect(screen.getByText('Result')).toBeInTheDocument();
-        expect(screen.getByText('Orders by status')).toBeInTheDocument();
-        expect(screen.getByText('Orders with amounts')).toBeInTheDocument();
+        expect(
+            cellOf('orders').getByText('Orders by status'),
+        ).toBeInTheDocument();
+        expect(
+            cellOf('joined').getByText('Orders with amounts'),
+        ).toBeInTheDocument();
         expect(screen.queryByText('joined')).not.toBeInTheDocument();
     });
 
@@ -467,7 +484,7 @@ describe('composer artifact', () => {
             queries: composerConfig.queries.map(({ title, ...query }) => query),
         });
         openPipelineList();
-        expect(screen.getByText('joined')).toBeInTheDocument();
+        expect(cellOf('joined').getByText('joined')).toBeInTheDocument();
     });
 });
 
@@ -677,6 +694,8 @@ describe('composer viz config panel', () => {
 });
 
 describe('composer displayed node', () => {
+    beforeAll(mockIntersectingObserver);
+
     const ordersResults = resultsOf(
         {
             status: { reference: 'status', type: 'string' },
@@ -717,23 +736,31 @@ describe('composer displayed node', () => {
 
     const expandPipeline = openPipelineList;
 
-    it('displays a node result from List mode with its title and a way back', async () => {
+    it('shows each node its own rows in List mode', async () => {
         renderComposer();
         expandPipeline();
-        fireEvent.click(
-            screen.getByRole('button', {
-                name: 'View results of Average amount',
+        expect(
+            await cellOf('amounts').findByRole('columnheader', {
+                name: 'Avg amount',
             }),
-        );
+        ).toBeInTheDocument();
+        expect(
+            await cellOf('orders').findByRole('columnheader', { name: 'N' }),
+        ).toBeInTheDocument();
+    });
+
+    it('displays a node result from Graph mode with its title and a way back', async () => {
+        renderComposer();
+        openPipelineGraph();
+        fireEvent.click(screen.getByLabelText('Display Average amount'));
         expect(
             screen.getByRole('columnheader', { name: 'Avg amount' }),
         ).toBeInTheDocument();
-        // Header and pipeline row both name the node.
-        expect(screen.getAllByText('Average amount')).toHaveLength(2);
         expect(screen.queryByText('Orders vs amounts')).not.toBeInTheDocument();
-        expect(
-            document.getElementById('composer-pipeline-node-amounts'),
-        ).toHaveAttribute('data-displayed', 'true');
+        expect(screen.getByLabelText('Display Average amount')).toHaveAttribute(
+            'data-displayed',
+            'true',
+        );
 
         fireEvent.click(screen.getByRole('button', { name: 'Back to result' }));
         expect(screen.getByText('Orders vs amounts')).toBeInTheDocument();
@@ -745,28 +772,13 @@ describe('composer displayed node', () => {
         ).not.toBeInTheDocument();
     });
 
-    it('displays a node result from Graph mode', async () => {
-        renderComposer();
-        expandPipeline();
-        fireEvent.click(screen.getByRole('radio', { name: 'Graph' }));
-        fireEvent.click(screen.getByLabelText('Display Orders by status'));
-        expect(
-            screen.getByRole('columnheader', { name: 'Status' }),
-        ).toBeInTheDocument();
-        expect(
-            screen.getByLabelText('Display Orders by status'),
-        ).toHaveAttribute('data-displayed', 'true');
-    });
-
     it('resets to the terminal node when a new version opens', async () => {
         const { rerender } = renderComposer();
-        expandPipeline();
-        fireEvent.click(
-            screen.getByRole('button', {
-                name: 'View results of Average amount',
-            }),
-        );
-        expect(screen.getAllByText('Average amount')).toHaveLength(2);
+        openPipelineGraph();
+        fireEvent.click(screen.getByLabelText('Display Average amount'));
+        expect(
+            screen.getByRole('button', { name: 'Back to result' }),
+        ).toBeInTheDocument();
         rerender(
             <AiArtifactPanel
                 artifact={{ ...artifact, versionUuid: 'another-version' }}
@@ -782,9 +794,8 @@ describe('composer displayed node', () => {
         renderComposer({ data: undefined, isLoading: true });
         expandPipeline();
         expect(
-            screen.queryAllByRole('button', { name: /^View results of / }),
-        ).toHaveLength(0);
-        expect(screen.getByText('Average amount')).toBeInTheDocument();
+            cellOf('amounts').getByText('Average amount'),
+        ).toBeInTheDocument();
         expect(screen.queryByRole('columnheader')).not.toBeInTheDocument();
         expect(mocks.rows.mock.calls.every(([, queryUuid]) => !queryUuid)).toBe(
             true,
@@ -802,16 +813,13 @@ describe('composer displayed node', () => {
         ]);
         renderComposer();
         expandPipeline();
-        const row = (nodeId: string) =>
-            within(
-                document.getElementById(`composer-pipeline-node-${nodeId}`)!,
-            );
+        const row = cellOf;
         expect(await row('amounts').findByLabelText('Running')).toBeVisible();
         expect(row('orders').queryByLabelText('Completed')).toBeNull();
         expect(row('joined').getByLabelText('Queued')).toBeVisible();
     });
 
-    it("shows a failed node's error on its row and in the chart area", async () => {
+    it("shows a failed node's error in its cell and in the chart area", async () => {
         nodeStatusesResponse([
             { queryUuid: 'orders-query', status: QueryHistoryStatus.READY },
             {
@@ -829,24 +837,20 @@ describe('composer displayed node', () => {
         } as unknown as ReturnType<typeof resultsOf>;
         renderComposer();
         expandPipeline();
-        const amountsRow = within(
-            document.getElementById('composer-pipeline-node-amounts')!,
-        );
-        expect(await amountsRow.findByLabelText('Failed')).toBeVisible();
+        const amountsCell = cellOf('amounts');
+        expect(await amountsCell.findByLabelText('Failed')).toBeVisible();
         expect(
-            amountsRow.getByText('column "amount" does not exist'),
+            amountsCell.getByText('column "amount" does not exist'),
         ).toBeVisible();
-        fireEvent.click(
-            screen.getByRole('button', {
-                name: 'View results of Average amount',
-            }),
-        );
+        expect(amountsCell.queryByRole('columnheader')).toBeNull();
+        fireEvent.click(screen.getByRole('radio', { name: 'Graph' }));
+        fireEvent.click(screen.getByLabelText('Display Average amount'));
         expect(
             screen.getByText('This result could not be loaded'),
         ).toBeInTheDocument();
         expect(
-            screen.getAllByText('column "amount" does not exist'),
-        ).toHaveLength(2);
+            screen.getByText('column "amount" does not exist'),
+        ).toBeInTheDocument();
         expect(
             screen.getByRole('button', { name: 'Back to result' }),
         ).toBeInTheDocument();

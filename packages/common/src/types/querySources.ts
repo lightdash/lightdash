@@ -326,6 +326,8 @@ export type SourceQueryStatus = {
     error: string | null;
     /** Rows the query returned; null while unknown, e.g. before it finishes. */
     totalRowCount: number | null;
+    /** Warehouse run time; null while unknown or not recorded. */
+    warehouseExecutionTimeMs: number | null;
 };
 
 export type ApiGetSourceQueryStatusResults = {

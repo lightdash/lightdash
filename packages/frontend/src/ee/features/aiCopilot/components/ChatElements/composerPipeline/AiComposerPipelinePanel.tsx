@@ -1,33 +1,13 @@
+import { type SourceQuery } from '@lightdash/common';
 import {
-    assertUnreachable,
-    formatSql,
-    friendlyName,
-    getItemMap,
-    interpolateUiString,
-    metricQueryOfSemanticNode,
-    QuerySourceType,
-    WarehouseTypes,
-    type SemanticLayerSourceQuery,
-    type SourceQuery,
-} from '@lightdash/common';
-import {
-    ActionIcon,
     Box,
-    Collapse,
-    Group,
-    Loader,
     Paper,
     SegmentedControl,
     Text,
-    Tooltip,
     UnstyledButton,
 } from '@mantine/core';
 import { useElementSize } from '@mantine/hooks';
-import {
-    IconChevronRight,
-    IconHelpCircle,
-    IconTable,
-} from '@tabler/icons-react';
+import { IconChevronRight } from '@tabler/icons-react';
 import {
     Background,
     Handle,
@@ -51,308 +31,25 @@ import {
     type ReactNode,
 } from 'react';
 import '@xyflow/react/dist/style.css';
-import CodeBlock from '../../../../../../components/common/CodeBlock/CodeBlock';
-import InlineErrorState from '../../../../../../components/common/InlineErrorState';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import DefaultEdge from '../../../../../../components/common/ReactFlow/DefaultEdge';
 import reactFlowStyles from '../../../../../../components/common/ReactFlow/reactFlow.module.css';
 import ResizableSplitter from '../../../../../../components/common/ResizableSplitter';
-import { useCompiledSqlFromMetricQuery } from '../../../../../../hooks/useCompiledSql';
-import { useExploreByProjectUuid } from '../../../../../../hooks/useExplore';
-import { useUiStrings } from '../../../../../providers/Embed/useUiStrings';
-import { useCanViewAiAgentSql } from '../../../hooks/useCanViewAiAgentSql';
-import { NodeStatusIndicator } from '../ComposerNodeStatusIndicator';
 import { type ComposerRunNodeStatus } from '../useComposerRunNodeStatuses';
 import styles from './AiComposerPipelinePanel.module.css';
+import { groupPipeline, type PipelineLayer } from './groupPipeline';
 import {
-    groupPipeline,
-    nodeTypeLabelOf,
-    type PipelineLayer,
-    type PipelineNode,
-} from './groupPipeline';
-import { nodeTypeIcon } from './nodeTypeIcon';
+    PipelineNotebook,
+    type PipelineNotebookProps,
+} from './notebook/PipelineNotebook';
 import {
     layoutPipelineFlow,
     toPipelineFlow,
     type PipelineFlowNode,
 } from './pipelineGraph';
-import { SemanticNodeDetails } from './SemanticNodeDetails';
-
-const TRANSFORMATIONS_HELP =
-    'Transformations run in DuckDB or Python on top of the source results. They never touch the warehouse.';
-
-const pipelineNodeRowId = (nodeId: string) =>
-    `composer-pipeline-node-${nodeId}`;
+import { SHOW_PIPELINE_MODE_SWITCH } from './pipelineModeSwitch';
 
 export type PipelineMode = 'list' | 'graph';
-
-const layerLabel = (layer: PipelineLayer) => {
-    const single = layer.nodes.length === 1;
-    switch (layer.kind) {
-        case 'sources':
-            return single ? 'Source' : 'Sources';
-        case 'transformations':
-            return single ? 'Transformation' : 'Transformations';
-        case 'result':
-            return 'Result';
-        default:
-            return assertUnreachable(layer.kind, 'Unknown pipeline layer');
-    }
-};
-
-const queryCodeOf = (
-    query: Exclude<SourceQuery, SemanticLayerSourceQuery>,
-): { code: string; language: 'sql' | 'python' } => {
-    switch (query.sourceType) {
-        case QuerySourceType.SQL:
-            return { code: formatSql(query.sql), language: 'sql' };
-        case QuerySourceType.DUCKDB:
-        case QuerySourceType.EXTERNAL:
-            return {
-                code: formatSql(query.sql, WarehouseTypes.DUCKDB),
-                language: 'sql',
-            };
-        case QuerySourceType.PYTHON:
-            return { code: query.code, language: 'python' };
-        default:
-            return assertUnreachable(query, 'Unknown source type');
-    }
-};
-
-const queryToggleLabel = (query: SourceQuery, open: boolean) => {
-    const noun = query.sourceType === QuerySourceType.PYTHON ? 'code' : 'query';
-    return open ? `Hide ${noun}` : `View ${noun}`;
-};
-
-const DisclosureToggle: FC<{
-    open: boolean;
-    onToggle: () => void;
-    children: ReactNode;
-}> = ({ open, onToggle, children }) => (
-    <UnstyledButton
-        className={styles.queryToggle}
-        onClick={onToggle}
-        aria-expanded={open}
-    >
-        <MantineIcon
-            icon={IconChevronRight}
-            size={11}
-            stroke={1.6}
-            className={clsx(styles.chevron, open && styles.chevronOpen)}
-        />
-        {children}
-    </UnstyledButton>
-);
-
-const disclosureCollapse = {
-    transitionDuration: 240,
-    transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)',
-} as const;
-
-// Toggles sit in one row; their bodies wrap below it, see .disclosureBody.
-const SemanticNodeSummary: FC<{
-    query: SemanticLayerSourceQuery;
-    projectUuid: string;
-}> = ({ query, projectUuid }) => {
-    const [open, setOpen] = useState(false);
-    // Labels fall back to field ids, so a failed explore load stays silent.
-    const { data: explore } = useExploreByProjectUuid(
-        query.exploreName,
-        projectUuid,
-        { onError: () => {} },
-    );
-    const fieldsMap = useMemo(
-        () =>
-            explore
-                ? getItemMap(
-                      explore,
-                      query.additionalMetrics,
-                      query.tableCalculations,
-                      query.customDimensions,
-                  )
-                : {},
-        [
-            explore,
-            query.additionalMetrics,
-            query.tableCalculations,
-            query.customDimensions,
-        ],
-    );
-    const metricQuery = useMemo(
-        () => metricQueryOfSemanticNode(query),
-        [query],
-    );
-    const getUiString = useUiStrings();
-    const exploreLabel = explore?.label ?? friendlyName(query.exploreName);
-    const parts = [
-        getUiString(
-            open
-                ? 'aiAgent.composer.semanticNode.hide'
-                : 'aiAgent.composer.semanticNode.view',
-        ),
-        exploreLabel,
-    ];
-    return (
-        <>
-            <DisclosureToggle open={open} onToggle={() => setOpen((v) => !v)}>
-                {parts.join(' · ')}
-            </DisclosureToggle>
-            <Collapse
-                expanded={open}
-                className={styles.disclosureBody}
-                {...disclosureCollapse}
-            >
-                <Box className={styles.summaryBody}>
-                    <SemanticNodeDetails
-                        exploreLabel={exploreLabel}
-                        metricQuery={metricQuery}
-                        fieldsMap={fieldsMap}
-                        parameters={query.parameters ?? {}}
-                    />
-                </Box>
-            </Collapse>
-        </>
-    );
-};
-
-const NodeType: FC<{ query: SourceQuery }> = ({ query }) => (
-    <Text component="span" className={styles.nodeType}>
-        {nodeTypeLabelOf(query)}
-    </Text>
-);
-
-// Completed is the norm, so the type shows unless the node is queued, running or failed.
-const NodeMarker: FC<{
-    query: SourceQuery;
-    nodeStatus: ComposerRunNodeStatus | undefined;
-}> = ({ query, nodeStatus }) => (
-    <Box className={styles.nodeMarker}>
-        {nodeStatus && nodeStatus.status !== 'success' ? (
-            <NodeStatusIndicator status={nodeStatus.status} />
-        ) : (
-            <MantineIcon
-                icon={nodeTypeIcon(query)}
-                size={14}
-                stroke={1.6}
-                aria-hidden
-            />
-        )}
-    </Box>
-);
-
-// Semantic nodes carry no SQL; the query is compiled once View query opens.
-const SemanticQuerySql: FC<{
-    query: SemanticLayerSourceQuery;
-    projectUuid: string;
-}> = ({ query, projectUuid }) => {
-    const metricQuery = useMemo(
-        () => metricQueryOfSemanticNode(query),
-        [query],
-    );
-    const { data, error, refetch } = useCompiledSqlFromMetricQuery({
-        tableName: query.exploreName,
-        projectUuid,
-        metricQuery,
-        pivotConfiguration: query.pivotConfiguration,
-    });
-    if (data) return <CodeBlock code={formatSql(data.query)} language="sql" />;
-    if (error) {
-        return (
-            <InlineErrorState
-                message="Could not compile this query."
-                onRetry={() => void refetch()}
-            />
-        );
-    }
-    return (
-        <Group gap="xs" p="sm">
-            <Loader size="xs" color="ldGray.6" />
-            <Text fz="xs" c="dimmed">
-                Compiling query…
-            </Text>
-        </Group>
-    );
-};
-
-const QueryCode: FC<{ query: SourceQuery; projectUuid: string }> = ({
-    query,
-    projectUuid,
-}) => {
-    const [queryOpen, setQueryOpen] = useState(false);
-    const getUiString = useUiStrings();
-    // "View query" would read as the metric query next to it
-    const label =
-        query.sourceType === QuerySourceType.SEMANTIC_LAYER
-            ? getUiString(
-                  queryOpen
-                      ? 'aiAgent.composer.semanticNode.hideSql'
-                      : 'aiAgent.composer.semanticNode.viewSql',
-              )
-            : queryToggleLabel(query, queryOpen);
-    return (
-        <>
-            <DisclosureToggle
-                open={queryOpen}
-                onToggle={() => setQueryOpen((value) => !value)}
-            >
-                {label}
-            </DisclosureToggle>
-            <Collapse
-                expanded={queryOpen}
-                className={styles.disclosureBody}
-                {...disclosureCollapse}
-            >
-                <Box className={styles.code}>
-                    {query.sourceType === QuerySourceType.SEMANTIC_LAYER ? (
-                        queryOpen && (
-                            <SemanticQuerySql
-                                query={query}
-                                projectUuid={projectUuid}
-                            />
-                        )
-                    ) : (
-                        <CodeBlock {...queryCodeOf(query)} />
-                    )}
-                </Box>
-            </Collapse>
-        </>
-    );
-};
-
-const ViewResultsButton: FC<{
-    nodeTitle: string;
-    /** Null while the row count is unknown or the query is still running. */
-    totalRowCount: number | null;
-    displayed: boolean;
-    onClick: () => void;
-}> = ({ nodeTitle, totalRowCount, displayed, onClick }) => {
-    const getUiString = useUiStrings();
-    const label =
-        totalRowCount === null
-            ? getUiString('aiAgent.composer.node.viewResults')
-            : interpolateUiString(
-                  getUiString(
-                      totalRowCount === 1
-                          ? 'aiAgent.composer.node.viewResultsCount.singular'
-                          : 'aiAgent.composer.node.viewResultsCount.plural',
-                  ),
-                  { count: totalRowCount.toLocaleString() },
-              );
-    return (
-        <UnstyledButton
-            className={styles.queryToggle}
-            onClick={onClick}
-            aria-pressed={displayed}
-            aria-label={interpolateUiString(
-                getUiString('aiAgent.composer.node.viewResultsOf'),
-                { node: nodeTitle },
-            )}
-        >
-            <MantineIcon icon={IconTable} size={11} stroke={1.6} />
-            {label}
-        </UnstyledButton>
-    );
-};
 
 type NodeDisplay = {
     displayedNodeId: string;
@@ -362,105 +59,6 @@ type NodeDisplay = {
     /** By node id; a node without an entry shows no status. */
     nodeStatuses: Readonly<Record<string, ComposerRunNodeStatus>>;
 };
-
-const PipelineNodeRow: FC<
-    { node: PipelineNode; projectUuid: string } & NodeDisplay
-> = ({
-    node,
-    projectUuid,
-    displayedNodeId,
-    displayableNodeIds,
-    onDisplayNode,
-    nodeStatuses,
-}) => {
-    const displayed = node.nodeId === displayedNodeId;
-    const displayable = displayableNodeIds.has(node.nodeId);
-    const nodeStatus = nodeStatuses[node.nodeId];
-    const canViewSql = useCanViewAiAgentSql();
-    return (
-        <Box
-            className={clsx(styles.node, displayed && styles.displayed)}
-            id={pipelineNodeRowId(node.nodeId)}
-            data-node-id={node.nodeId}
-            data-displayed={displayed}
-        >
-            <Box className={styles.nodeHead}>
-                <NodeMarker query={node.query} nodeStatus={nodeStatus} />
-                <Text component="span" className={styles.nodeTitle}>
-                    {node.description ?? node.title}
-                </Text>
-                <NodeType query={node.query} />
-            </Box>
-            {nodeStatus?.status === 'error' && nodeStatus.error && (
-                <Text className={styles.nodeError}>{nodeStatus.error}</Text>
-            )}
-            <Box className={styles.details}>
-                {displayable && (
-                    <ViewResultsButton
-                        nodeTitle={node.title}
-                        totalRowCount={
-                            nodeStatus?.status === 'success'
-                                ? nodeStatus.totalRowCount
-                                : null
-                        }
-                        displayed={displayed}
-                        onClick={() => onDisplayNode(node.nodeId)}
-                    />
-                )}
-                {node.query.sourceType === QuerySourceType.SEMANTIC_LAYER && (
-                    <SemanticNodeSummary
-                        query={node.query}
-                        projectUuid={projectUuid}
-                    />
-                )}
-                {canViewSql && (
-                    <QueryCode query={node.query} projectUuid={projectUuid} />
-                )}
-            </Box>
-        </Box>
-    );
-};
-
-const PipelineList: FC<
-    { layers: PipelineLayer[]; projectUuid: string } & NodeDisplay
-> = ({ layers, projectUuid, ...display }) => (
-    <Box className={styles.body}>
-        {layers.map((layer) => (
-            <Box key={layer.depth} className={styles.layer}>
-                <Group gap={4} className={styles.layerHeading}>
-                    <Text component="span" inherit>
-                        {layerLabel(layer)}
-                    </Text>
-                    {layer.kind === 'transformations' && (
-                        <Tooltip
-                            label={TRANSFORMATIONS_HELP}
-                            multiline
-                            w={260}
-                            position="top-start"
-                        >
-                            <ActionIcon
-                                variant="subtle"
-                                size="xs"
-                                className={styles.helpIcon}
-                                aria-label="About transformations"
-                            >
-                                <MantineIcon icon={IconHelpCircle} size={12} />
-                            </ActionIcon>
-                        </Tooltip>
-                    )}
-                </Group>
-                {layer.nodes.map((node) => (
-                    <PipelineNodeRow
-                        projectUuid={projectUuid}
-                        key={node.nodeId}
-                        node={node}
-                        {...display}
-                    />
-                ))}
-            </Box>
-        ))}
-    </Box>
-);
 
 const PipelineFlowNodeView: FC<NodeProps<PipelineFlowNode>> = ({ data }) => (
     <Paper
@@ -618,7 +216,7 @@ const PipelineBar: FC<{
                 Queries
             </Text>
         </UnstyledButton>
-        {expanded && (
+        {expanded && SHOW_PIPELINE_MODE_SWITCH && (
             <SegmentedControl
                 size="xs"
                 value={mode}
@@ -637,21 +235,26 @@ const PipelineBar: FC<{
     </Box>
 );
 
-type Props = NodeDisplay & {
-    projectUuid: string;
-    queries: SourceQuery[];
-    terminalNodeId: string;
-    /** The displayed node result shown above the panel. */
-    children: ReactNode;
-    defaultExpanded?: boolean;
-    /** Controlled open state; the panel keeps its own when omitted. */
-    expanded?: boolean;
-    onExpandedChange?: (expanded: boolean) => void;
-    defaultMode?: PipelineMode;
-};
+type Props = NodeDisplay &
+    Pick<
+        PipelineNotebookProps,
+        'renderNodeResult' | 'chatNodeIds' | 'onAddToChat'
+    > & {
+        projectUuid: string;
+        queries: SourceQuery[];
+        terminalNodeId: string;
+        /** The displayed node result shown above the panel. */
+        children: ReactNode;
+        defaultExpanded?: boolean;
+        /** Controlled open state; the panel keeps its own when omitted. */
+        expanded?: boolean;
+        onExpandedChange?: (expanded: boolean) => void;
+        defaultMode?: PipelineMode;
+    };
 
 // The displayed node result on top, the pipeline underneath: a bar when
-// collapsed, a draggable splitter when expanded. Clicking a graph node or a row's View result displays it.
+// collapsed, a draggable splitter when expanded. Clicking a graph node displays it;
+// the list shows every node's own rows.
 export const AiComposerPipelinePanel: FC<Props> = ({
     projectUuid,
     queries,
@@ -660,6 +263,9 @@ export const AiComposerPipelinePanel: FC<Props> = ({
     displayableNodeIds,
     onDisplayNode,
     nodeStatuses,
+    renderNodeResult,
+    chatNodeIds,
+    onAddToChat,
     children,
     defaultExpanded = false,
     expanded: controlledExpanded,
@@ -668,9 +274,7 @@ export const AiComposerPipelinePanel: FC<Props> = ({
 }) => {
     const [ownExpanded, setOwnExpanded] = useState(defaultExpanded);
     const expanded = controlledExpanded ?? ownExpanded;
-    const [mode, setMode] = useState<PipelineMode>(
-        defaultMode ?? (queries.length > 1 ? 'graph' : 'list'),
-    );
+    const [mode, setMode] = useState<PipelineMode>(defaultMode ?? 'list');
     const display: NodeDisplay = {
         displayedNodeId,
         displayableNodeIds,
@@ -708,19 +312,33 @@ export const AiComposerPipelinePanel: FC<Props> = ({
             handleLabel="Resize results and pipeline"
             classNames={{ handle: styles.splitHandle }}
         >
-            <ResizableSplitter.Pane id="results" defaultSize={55} min={15}>
+            <ResizableSplitter.Pane
+                id="results"
+                defaultSize={33}
+                min={15}
+                className={styles.resultsPaneOpening}
+            >
                 <Box className={styles.results}>{children}</Box>
             </ResizableSplitter.Pane>
-            <ResizableSplitter.Pane id="pipeline" defaultSize={45} min={10}>
+            <ResizableSplitter.Pane
+                id="pipeline"
+                defaultSize={67}
+                min={10}
+                className={styles.pipelinePaneOpening}
+            >
                 <Box className={styles.root}>
                     {bar}
                     {mode === 'graph' ? (
                         <PipelineGraph layers={layers} {...display} />
                     ) : (
-                        <PipelineList
-                            layers={layers}
+                        <PipelineNotebook
+                            nodes={layers.flatMap((layer) => layer.nodes)}
                             projectUuid={projectUuid}
-                            {...display}
+                            nodeStatuses={nodeStatuses}
+                            displayableNodeIds={displayableNodeIds}
+                            renderNodeResult={renderNodeResult}
+                            chatNodeIds={chatNodeIds}
+                            onAddToChat={onAddToChat}
                         />
                     )}
                 </Box>

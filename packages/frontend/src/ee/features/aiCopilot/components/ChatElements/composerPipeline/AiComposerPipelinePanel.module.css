@@ -332,6 +332,29 @@
     background-color: var(--mantine-color-ldGray-4);
 }
 
+/* The splitter mounts on open: both panes grow from the collapsed bar (38px) to their sizes. */
+@keyframes resultsPaneOpen {
+    from {
+        flex-basis: calc(100% - 38px);
+    }
+}
+
+@keyframes pipelinePaneOpen {
+    from {
+        flex-basis: 38px;
+    }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .resultsPaneOpening {
+        animation: resultsPaneOpen 240ms cubic-bezier(0.25, 1, 0.5, 1);
+    }
+
+    .pipelinePaneOpening {
+        animation: pipelinePaneOpen 240ms cubic-bezier(0.25, 1, 0.5, 1);
+    }
+}
+
 @media (prefers-reduced-motion: reduce) {
     .chevron {
         transition: none;

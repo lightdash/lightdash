@@ -586,6 +586,7 @@ export type AiPromptContextEntityType =
     | 'review_finding'
     | 'preview_environment'
     | 'data_app_element'
+    | 'composer_node'
     | 'data_app_restore'
     | 'data_app'
     | 'document'
@@ -608,6 +609,14 @@ export type AiPromptDataAppElementSnapshot = {
     tag: string;
     text: string;
     loc: string;
+};
+
+// Composer node snapshot stored in runtime_overrides; entity_ref holds the
+// natural key and display_name the node title.
+export type AiPromptComposerNodeSnapshot = {
+    artifactUuid: string;
+    versionUuid: string;
+    nodeId: string;
 };
 
 // Restore snapshot stored in runtime_overrides; entity_uuid holds the app uuid.
@@ -640,6 +649,7 @@ export type DbAiPromptContext = {
         | AiPromptExternalSourceSnapshot
         | AiPromptThreadFileSnapshot
         | AiPromptDataAppElementSnapshot
+        | AiPromptComposerNodeSnapshot
         | AiPromptDataAppRestoreSnapshot
         | AiPromptDataAppSnapshot
         | AiPromptSkillSnapshot

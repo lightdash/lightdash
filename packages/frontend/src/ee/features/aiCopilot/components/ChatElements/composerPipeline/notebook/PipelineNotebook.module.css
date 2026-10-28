@@ -1,0 +1,139 @@
+.notebook {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    padding: var(--mantine-spacing-md);
+}
+
+.chevron {
+    color: var(--mantine-color-ldGray-5);
+    transition: transform 180ms ease;
+}
+
+.chevronOpen {
+    transform: rotate(90deg);
+}
+
+.cellToggle {
+    color: var(--mantine-color-ldGray-5);
+}
+
+.cellIcon {
+    display: flex;
+    align-items: center;
+    height: 20px;
+    color: var(--mantine-color-ldGray-6);
+}
+
+/* One frame per cell: open query views, then rows. */
+.cellFrame {
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-md);
+    overflow: hidden;
+    transition: border-color 300ms ease;
+}
+
+.cellFrame[data-flash='true'] {
+    border-color: var(--mantine-color-text);
+}
+
+.cellFrame > * {
+    margin-top: -1px;
+}
+
+/* Code runs full height; the notebook scrolls, not the cell. */
+.code :global(.mantine-CodeHighlight-code) {
+    font-size: var(--mantine-font-size-xs);
+    line-height: 1.5;
+}
+
+.toolbar {
+    min-height: 36px;
+    padding: 0 var(--mantine-spacing-xs) 0 var(--mantine-spacing-md);
+    border-top: 1px solid var(--mantine-color-default-border);
+}
+
+.footer {
+    padding: var(--mantine-spacing-xxs) var(--mantine-spacing-md);
+    border-top: 1px solid var(--mantine-color-default-border);
+}
+
+.cellFrame[data-empty='true'] {
+    display: none;
+}
+
+.source {
+    color: var(--mantine-color-ldGray-7);
+    cursor: default;
+}
+
+.panel {
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-md)
+        var(--mantine-spacing-sm);
+    border-top: 1px solid var(--mantine-color-default-border);
+}
+
+.codePanel {
+    composes: code;
+    border-top: 1px solid var(--mantine-color-default-border);
+}
+
+/* Header actions show on hover or focus, so idle cells read as title and rows. */
+.cellActions {
+    opacity: 0;
+    transition: opacity 120ms ease;
+}
+
+.cell:hover .cellActions,
+.cell:focus-within .cellActions {
+    opacity: 1;
+}
+
+@media (hover: none) {
+    .cellActions {
+        opacity: 1;
+    }
+}
+
+.cellError {
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-md);
+    background: var(--mantine-color-red-light);
+    font-size: var(--mantine-font-size-xs);
+    color: var(--mantine-color-red-light-color);
+    overflow-wrap: anywhere;
+    border-top: 1px solid var(--mantine-color-default-border);
+}
+
+/* Each block draws its top border; the frame's -1px margin hides the first one. */
+.cellFrame > .result {
+    overflow: hidden;
+}
+
+.facts {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.referencesIcon {
+    color: var(--mantine-color-ldGray-5);
+}
+
+.referencePill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 20px;
+    padding: 0 var(--mantine-spacing-xs);
+    border-radius: var(--mantine-radius-sm);
+    background: var(--mantine-color-ldGray-1);
+    font-size: var(--mantine-font-size-xs);
+    font-weight: 500;
+    color: var(--mantine-color-ldGray-7);
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.referencePill:hover {
+    background: var(--mantine-color-ldGray-2);
+    color: var(--mantine-color-text);
+}

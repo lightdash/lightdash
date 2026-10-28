@@ -88,6 +88,7 @@ import {
     isAiAgentMcpToolName,
     isAiAgentToolName,
     isAiAppThreadCreatedFrom,
+    isAiComposerChartArtifactConfig,
     isAiWritebackRunInProgress,
     isSameComposerNodeDefinition,
     isThreadPrompt,
@@ -174,6 +175,7 @@ import {
     AiAgentToolCallTableName,
     AiAgentToolResultTableName,
     AiOrganizationSettingsTableName,
+    AiPromptComposerNodeSnapshot,
     AiPromptContextEntityType,
     AiPromptContextTableName,
     AiPromptDataAppElementSnapshot,
@@ -7417,6 +7419,36 @@ export class AiAgentModel {
             ).map((r) => [r.app_id, r.name] as const),
         );
 
+        const composerVersionUuids = context.flatMap((c) =>
+            c.type === 'composer_node' ? [c.versionUuid] : [],
+        );
+        const composerNodeTitleByKey = new Map(
+            (composerVersionUuids.length === 0
+                ? []
+                : await trx(AiArtifactVersionsTableName)
+                      .whereIn('ai_artifact_version_uuid', composerVersionUuids)
+                      .select<
+                          {
+                              ai_artifact_version_uuid: string;
+                              chart_config: Record<string, unknown> | null;
+                          }[]
+                      >('ai_artifact_version_uuid', 'chart_config')
+            ).flatMap((version) =>
+                isAiComposerChartArtifactConfig(version.chart_config)
+                    ? version.chart_config.queries.flatMap((query) =>
+                          query.nodeId
+                              ? [
+                                    [
+                                        `${version.ai_artifact_version_uuid}:${query.nodeId}`,
+                                        query.title ?? null,
+                                    ] as const,
+                                ]
+                              : [],
+                      )
+                    : [],
+            ),
+        );
+
         const designUuids = context.flatMap((c) =>
             c.type === 'design' ? [c.designUuid] : [],
         );
@@ -7852,6 +7884,23 @@ export class AiAgentModel {
                         } satisfies AiPromptDataAppElementSnapshot,
                     };
                 }
+                case 'composer_node':
+                    return {
+                        ai_prompt_uuid: promptUuid,
+                        entity_type:
+                            'composer_node' as AiPromptContextEntityType,
+                        entity_uuid: null,
+                        entity_ref: `${ctx.artifactUuid}:${ctx.versionUuid}:${ctx.nodeId}`,
+                        display_name:
+                            composerNodeTitleByKey.get(
+                                `${ctx.versionUuid}:${ctx.nodeId}`,
+                            ) ?? null,
+                        runtime_overrides: {
+                            artifactUuid: ctx.artifactUuid,
+                            versionUuid: ctx.versionUuid,
+                            nodeId: ctx.nodeId,
+                        } satisfies AiPromptComposerNodeSnapshot,
+                    };
                 case 'data_app_restore': {
                     const appName = appNameByUuid.get(ctx.appUuid);
                     return {
@@ -8386,6 +8435,22 @@ export class AiAgentModel {
                     displayName: app
                         ? getAppDisplayName(app.name, snapshot.appUuid)
                         : row.display_name,
+                };
+            }
+            case 'composer_node': {
+                if (row.runtime_overrides === null) {
+                    throw new Error(
+                        `ai_prompt_context row ${row.ai_prompt_context_uuid} of type 'composer_node' is missing runtime_overrides`,
+                    );
+                }
+                const snapshot =
+                    row.runtime_overrides as AiPromptComposerNodeSnapshot;
+                return {
+                    type: 'composer_node',
+                    artifactUuid: snapshot.artifactUuid,
+                    versionUuid: snapshot.versionUuid,
+                    nodeId: snapshot.nodeId,
+                    title: row.display_name ?? snapshot.nodeId,
                 };
             }
             case 'data_app_restore': {

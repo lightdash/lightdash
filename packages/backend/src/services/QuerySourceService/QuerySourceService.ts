@@ -602,6 +602,8 @@ export class QuerySourceService extends BaseService {
                         projectModel: this.projectModel,
                     }),
                     totalRowCount: queryHistory.totalRowCount,
+                    warehouseExecutionTimeMs:
+                        queryHistory.warehouseExecutionTimeMs,
                 };
                 return status;
             }),

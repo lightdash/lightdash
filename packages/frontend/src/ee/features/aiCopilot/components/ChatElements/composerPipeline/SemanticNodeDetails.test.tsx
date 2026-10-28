@@ -52,7 +52,7 @@ const fieldsMap: ItemsMap = {
 
 const metricQuery: SemanticNodeQuery = {
     dimensions: ['users_last_active_at_day'],
-    metrics: [],
+    metrics: ['users_count'],
     filters: {
         dimensions: {
             id: 'root',
@@ -76,7 +76,6 @@ const renderDetails = (
     renderWithProviders(
         <MemoryRouter>
             <SemanticNodeDetails
-                exploreLabel="Users"
                 metricQuery={query}
                 fieldsMap={fields}
                 parameters={{ region: 'EMEA' }}
@@ -85,14 +84,18 @@ const renderDetails = (
     );
 
 describe('SemanticNodeDetails', () => {
-    it('shows the explore, fields, filters, parameters and sorts, each icon labelled', () => {
+    it('shows the fields, filters, parameters and sorts, each icon labelled', () => {
         renderDetails();
 
-        expect(screen.getByText('Users')).toBeInTheDocument();
-        ['Explore', 'Fields', 'Filters', 'Parameters', 'Sorts'].forEach(
-            (label) => expect(screen.getByLabelText(label)).toBeInTheDocument(),
+        ['Fields', 'Filters', 'Parameters', 'Sorts'].forEach((label) =>
+            expect(screen.getByLabelText(label)).toBeInTheDocument(),
         );
 
+        expect(
+            screen
+                .getAllByTestId('semantic-node-field')
+                .map((chip) => chip.textContent),
+        ).toEqual(['Last active at day', 'Users count']);
         expect(screen.getByText('Is deleted')).toBeInTheDocument();
         expect(screen.getByText('False')).toBeInTheDocument();
         expect(screen.getByTestId('semantic-node-sort')).toHaveTextContent(
@@ -107,8 +110,20 @@ describe('SemanticNodeDetails', () => {
         renderDetails({}, { ...metricQuery, filters: {}, sorts: [] });
 
         expect(
-            screen.getByText('Users last active at day'),
-        ).toBeInTheDocument();
+            screen
+                .getAllByTestId('semantic-node-field')
+                .map((chip) => chip.textContent),
+        ).toEqual(['Users last active at day', 'Users count']);
+    });
+
+    it('hides the fields row for a query without fields', () => {
+        renderDetails(fieldsMap, {
+            ...metricQuery,
+            dimensions: [],
+            metrics: [],
+        });
+
+        expect(screen.queryByLabelText('Fields')).toBeNull();
     });
 
     it('shows one sort badge per sort field, in order', () => {

@@ -1,6 +1,4 @@
 import {
-    assertUnreachable,
-    FeatureFlags,
     ChartKind,
     getComposerVizPanelOptions,
     getComposerVizPanelValue,
@@ -19,15 +17,9 @@ import { clsx } from 'clsx';
 import { useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import TruncatedText from '../../../../../components/common/TruncatedText';
-import { useInfiniteQueryResults } from '../../../../../hooks/useQueryResults';
-import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
-import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
-import {
-    getAiAgentArtifactResultsUrl,
-    getAiAgentMessageQueryResultsUrl,
-} from '../../hooks/aiAgentRouting';
 import styles from './AiArtifactPanel.module.css';
 import { AiComposerArtifactVisualization } from './AiComposerArtifactVisualization';
+import { AiComposerNodeResult } from './AiComposerNodeResult';
 import { AiComposerRunQueryVisualization } from './AiComposerRunQueryVisualization';
 import { AiComposerPipelinePanel } from './composerPipeline/AiComposerPipelinePanel';
 import {
@@ -35,21 +27,15 @@ import {
     type AiComposerVizConfigPanelMode,
 } from './composerVizConfig/AiComposerVizConfigPanel';
 import { useArtifactResultRows } from './useArtifactResultRows';
+import {
+    useComposerNodeResults,
+    type ComposerPanelSource,
+} from './useComposerNodeResults';
 import { useComposerRunNodeStatuses } from './useComposerRunNodeStatuses';
 
 const SAVE_DELAY_MS = 400;
 const READ_ONLY_REASON =
     'Only the thread owner or an agent admin can change this chart';
-
-/** What the panel shows: a saved artifact version, or a pipeline a message ran. */
-export type ComposerPanelSource =
-    | { kind: 'artifact'; artifactUuid: string; versionUuid: string }
-    | {
-          kind: 'messageQuery';
-          threadUuid: string;
-          messageUuid: string;
-          queryUuid: string;
-      };
 
 type Props = {
     projectUuid: string;
@@ -65,41 +51,10 @@ type Props = {
     /** Writes terminal node edits back; null when they stay on screen only. */
     onSaveVizConfig: ((vizConfig: AllVizChartConfig) => void) | null;
     onClose: (() => void) | null;
-};
-
-const getResultsUrl = ({
-    projectUuid,
-    agentUuid,
-    source,
-    queryUuid,
-}: {
-    projectUuid: string;
-    agentUuid: string;
-    source: ComposerPanelSource;
-    queryUuid: string;
-}) => {
-    switch (source.kind) {
-        case 'artifact':
-            return getAiAgentArtifactResultsUrl({
-                projectUuid,
-                agentUuid,
-                artifactUuid: source.artifactUuid,
-                versionUuid: source.versionUuid,
-                queryUuid,
-                cached: false,
-            });
-        case 'messageQuery':
-            return getAiAgentMessageQueryResultsUrl({
-                projectUuid,
-                agentUuid,
-                threadUuid: source.threadUuid,
-                messageUuid: source.messageUuid,
-                queryUuid: source.queryUuid,
-                resultQueryUuid: queryUuid,
-            });
-        default:
-            return assertUnreachable(source, 'Unknown composer panel source');
-    }
+    /** Nodes attached to the chat input. */
+    chatNodeIds: ReadonlySet<string>;
+    /** Null when this pipeline can't be pinned to the chat. */
+    onAddToChat: ((node: { nodeId: string; title: string }) => void) | null;
 };
 
 // Composer artifact: the displayed node result, the viz config panel under it,
@@ -116,10 +71,9 @@ export const AiComposerArtifactPanel: FC<Props> = ({
     onRerun,
     onSaveVizConfig,
     onClose,
+    chatNodeIds,
+    onAddToChat,
 }) => {
-    const isEmbed = useIsEmbedded();
-    const identityFlag = useServerFeatureFlag(FeatureFlags.AgentIdentity);
-    const identityEnabled = identityFlag.data?.enabled === true;
     const [displayedNodeId, setDisplayedNodeId] = useState(
         config.terminalNodeId,
     );
@@ -141,14 +95,12 @@ export const AiComposerArtifactPanel: FC<Props> = ({
     );
     const queryUuid = nodeQueryUuids?.[displayedNodeId];
 
-    const results = useInfiniteQueryResults(
+    const results = useComposerNodeResults({
         projectUuid,
-        isEmbed || !identityFlag.isLoading ? queryUuid : undefined,
-        undefined,
-        identityEnabled && !isEmbed && queryUuid
-            ? getResultsUrl({ projectUuid, agentUuid, source, queryUuid })
-            : null,
-    );
+        agentUuid,
+        source,
+        queryUuid,
+    });
     const { columns, rows, isLoading } = useArtifactResultRows(results);
     const storedVizConfig =
         isTerminalDisplayed && config.schemaVersion === 1
@@ -312,6 +264,19 @@ export const AiComposerArtifactPanel: FC<Props> = ({
                     displayableNodeIds={displayableNodeIds}
                     onDisplayNode={setDisplayedNodeId}
                     nodeStatuses={nodeStatuses}
+                    renderNodeResult={(nodeId) => {
+                        const nodeQueryUuid = nodeQueryUuids?.[nodeId];
+                        return nodeQueryUuid ? (
+                            <AiComposerNodeResult
+                                projectUuid={projectUuid}
+                                agentUuid={agentUuid}
+                                source={source}
+                                queryUuid={nodeQueryUuid}
+                            />
+                        ) : null;
+                    }}
+                    chatNodeIds={chatNodeIds}
+                    onAddToChat={onAddToChat}
                     expanded={isPipelineOpen}
                     onExpandedChange={(open) => {
                         setIsPipelineOpen(open);
