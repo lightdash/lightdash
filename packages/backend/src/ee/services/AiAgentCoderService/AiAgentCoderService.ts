@@ -19,6 +19,7 @@ import {
     type SessionUser,
 } from '@lightdash/common';
 import isEqual from 'lodash/isEqual';
+import sumBy from 'lodash/sumBy';
 import { validate as isValidUuid } from 'uuid';
 import { fromSession } from '../../../auth/account';
 import { type LightdashConfig } from '../../../config/parseConfig';
@@ -594,19 +595,13 @@ export class AiAgentCoderService extends BaseService {
         ownedDocumentsBySlug: Map<string, AiAgentOwnedDocument[]>,
     ): Promise<void> {
         if (agents.length === 0) return;
-        const sum = (values: number[]) =>
-            values.reduce((total, value) => total + value, 0);
-        const incomingBytes = sum(
-            agents.flatMap((agent) =>
-                (agent.knowledgeDocuments ?? []).map(({ content }) =>
-                    contentBytes(content),
-                ),
-            ),
+        const incomingBytes = sumBy(
+            agents.flatMap((agent) => agent.knowledgeDocuments ?? []),
+            ({ content }) => contentBytes(content),
         );
-        const replacedBytes = sum(
-            [...ownedDocumentsBySlug.values()].flatMap((owned) =>
-                owned.map(({ contentSizeBytes }) => contentSizeBytes),
-            ),
+        const replacedBytes = sumBy(
+            [...ownedDocumentsBySlug.values()].flat(),
+            ({ contentSizeBytes }) => contentSizeBytes,
         );
         const storedBytes =
             await this.aiAgentDocumentModel.getOrganizationContentSize(

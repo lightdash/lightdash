@@ -131,14 +131,16 @@ describe('agent knowledge documents as files', () => {
             { ...glossary, name: 'Revenue definitions' },
             { ...glossary, name: 'revenue-definitions' },
         ]);
-        expect(
+        const files =
             toAgentAsCodeFile(downloaded).knowledgeDocuments?.map(
                 ({ file }) => file,
+            ) ?? [];
+        expect(new Set(files).size).toBe(2);
+        files.forEach((file) =>
+            expect(file).toMatch(
+                /^revenue-agent\/knowledge-documents\/revenue-definitions-[0-9a-f]+\.md$/,
             ),
-        ).toEqual([
-            'revenue-agent/knowledge-documents/revenue-definitions.md',
-            'revenue-agent/knowledge-documents/revenue-definitions-2.md',
-        ]);
+        );
     });
 
     it('reports a declared file that does not exist', async () => {

@@ -1,5 +1,4 @@
 import {
-    generateSlug,
     getAiAgentDocumentFileExtension,
     getAiAgentDocumentMimeType,
     getErrorMessage,
@@ -9,7 +8,10 @@ import {
 } from '@lightdash/common';
 import { promises as fs } from 'fs';
 import * as path from 'path';
-import { assertSafeContentFilePath } from './contentAsCode/fileNames';
+import {
+    allocateContentFileNames,
+    assertSafeContentFilePath,
+} from './contentAsCode/fileNames';
 
 export const KNOWLEDGE_DOCUMENTS_FOLDER_NAME = 'knowledge-documents';
 
@@ -38,33 +40,39 @@ const toPosix = (filePath: string): string =>
 const getDocumentsFolder = (agentSlug: string): string =>
     path.join(agentSlug, KNOWLEDGE_DOCUMENTS_FOLDER_NAME);
 
-const firstFreeFileName = (
-    base: string,
-    extension: string,
-    taken: string[],
-    index = 0,
-): string => {
-    const candidate = `${index === 0 ? base : `${base}-${index + 1}`}${extension}`;
-    return taken.includes(candidate)
-        ? firstFreeFileName(base, extension, taken, index + 1)
-        : candidate;
-};
-
-/** Deterministic file names from document names; a slug clash within one agent gets a numeric suffix. */
+// One allocation per extension: the shared allocator takes a single
+// extension, and names only collide within one.
 const allocateFileNames = (
     documents: AgentAsCodeKnowledgeDocument[],
-): string[] =>
-    documents.reduce<string[]>(
-        (taken, document) => [
-            ...taken,
-            firstFreeFileName(
-                generateSlug(document.name),
-                getAiAgentDocumentFileExtension(document.mimeType),
-                taken,
-            ),
-        ],
-        [],
+): string[] => {
+    const indexed = documents.map((document, index) => ({
+        index,
+        document,
+        extension: getAiAgentDocumentFileExtension(document.mimeType),
+    }));
+    const allocated = new Map(
+        [...new Set(indexed.map(({ extension }) => extension))].flatMap(
+            (extension) => {
+                const group = indexed.filter(
+                    (entry) => entry.extension === extension,
+                );
+                const fileNames = allocateContentFileNames({
+                    items: group.map(({ document }) => ({
+                        identity: document.name,
+                        displayName: document.name,
+                    })),
+                    fallbackPrefix: 'knowledge-document',
+                    extension,
+                });
+                return group.map(
+                    ({ index }, position) =>
+                        [index, fileNames[position]] as const,
+                );
+            },
+        ),
     );
+    return indexed.map(({ index }) => allocated.get(index) ?? '');
+};
 
 const listDocumentFiles = async (folder: string): Promise<string[]> => {
     try {
