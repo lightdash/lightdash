@@ -8573,6 +8573,32 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiAgentDocumentMimeType: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['text/markdown'] },
+                { dataType: 'enum', enums: ['text/plain'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AgentAsCodeKnowledgeDocument: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                content: { dataType: 'string', required: true },
+                mimeType: { ref: 'AiAgentDocumentMimeType', required: true },
+                alwaysIncludeInContext: { dataType: 'boolean', required: true },
+                name: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AgentAsCode: {
         dataType: 'refAlias',
         type: {
@@ -8580,6 +8606,13 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 downloadedAt: { dataType: 'datetime' },
                 updatedAt: { dataType: 'datetime' },
+                knowledgeDocuments: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'AgentAsCodeKnowledgeDocument',
+                    },
+                },
                 evaluations: {
                     dataType: 'array',
                     array: {
@@ -25461,9 +25494,54 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    AiAgentDocumentSummary: {
-        dataType: 'refAlias',
-        type: { ref: 'Omit_AiAgentDocument.storageKey_', validators: {} },
+    AiAgentDocumentListItem: {
+        dataType: 'refObject',
+        properties: {
+            name: { dataType: 'string', required: true },
+            updatedAt: { dataType: 'datetime', required: true },
+            uuid: { dataType: 'string', required: true },
+            organizationUuid: { dataType: 'string', required: true },
+            projectUuid: {
+                dataType: 'union',
+                subSchemas: [
+                    { dataType: 'string' },
+                    { dataType: 'enum', enums: [null] },
+                ],
+                required: true,
+            },
+            createdAt: { dataType: 'datetime', required: true },
+            originalFilename: { dataType: 'string', required: true },
+            mimeType: { dataType: 'string', required: true },
+            contentSizeBytes: { dataType: 'double', required: true },
+            alwaysIncludeInContext: { dataType: 'boolean', required: true },
+            summary: {
+                ref: 'AiAgentDocumentStructuredSummary',
+                required: true,
+            },
+            agentAccess: {
+                dataType: 'array',
+                array: { dataType: 'string' },
+                required: true,
+            },
+            createdByUserUuid: {
+                dataType: 'union',
+                subSchemas: [
+                    { dataType: 'string' },
+                    { dataType: 'enum', enums: [null] },
+                ],
+                required: true,
+            },
+            updatedByUserUuid: {
+                dataType: 'union',
+                subSchemas: [
+                    { dataType: 'string' },
+                    { dataType: 'enum', enums: [null] },
+                ],
+                required: true,
+            },
+            managedByContentAsCode: { dataType: 'boolean', required: true },
+        },
+        additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiAiAgentDocumentSummaryListResponse: {
@@ -25474,8 +25552,8 @@ const models: TsoaRoute.Models = {
                 results: {
                     dataType: 'array',
                     array: {
-                        dataType: 'refAlias',
-                        ref: 'AiAgentDocumentSummary',
+                        dataType: 'refObject',
+                        ref: 'AiAgentDocumentListItem',
                     },
                     required: true,
                 },
@@ -25611,6 +25689,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                mimeType: { ref: 'AiAgentDocumentMimeType' },
                 content: { dataType: 'string', required: true },
                 name: { dataType: 'string', required: true },
             },

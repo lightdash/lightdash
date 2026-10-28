@@ -1,3 +1,10 @@
+# [3.78.0](https://github.com/lightdash/lightdash/compare/3.77.0...3.78.0) (2026-10-28)
+
+
+### Features
+
+* **content-as-code:** round-trip AI agent knowledge documents with the agent YAML ([#31697](https://github.com/lightdash/lightdash/issues/31697)) ([1d94ed0](https://github.com/lightdash/lightdash/commit/1d94ed04f6a9051657a082d5e314e73364698973))
+
 # [3.77.0](https://github.com/lightdash/lightdash/compare/3.76.3...3.77.0) (2026-10-28)
 
 

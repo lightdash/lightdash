@@ -8826,6 +8826,33 @@
                 "required": ["prompts", "title"],
                 "type": "object"
             },
+            "AiAgentDocumentMimeType": {
+                "type": "string",
+                "enum": ["text/markdown", "text/plain"]
+            },
+            "AgentAsCodeKnowledgeDocument": {
+                "properties": {
+                    "content": {
+                        "type": "string"
+                    },
+                    "mimeType": {
+                        "$ref": "#/components/schemas/AiAgentDocumentMimeType"
+                    },
+                    "alwaysIncludeInContext": {
+                        "type": "boolean"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "content",
+                    "mimeType",
+                    "alwaysIncludeInContext",
+                    "name"
+                ],
+                "type": "object"
+            },
             "AgentAsCode": {
                 "properties": {
                     "downloadedAt": {
@@ -8835,6 +8862,12 @@
                     "updatedAt": {
                         "type": "string",
                         "format": "date-time"
+                    },
+                    "knowledgeDocuments": {
+                        "items": {
+                            "$ref": "#/components/schemas/AgentAsCodeKnowledgeDocument"
+                        },
+                        "type": "array"
                     },
                     "evaluations": {
                         "items": {
@@ -27049,14 +27082,88 @@
                 "$ref": "#/components/schemas/Pick_AiAgentDocument.Exclude_keyofAiAgentDocument.storageKey__",
                 "description": "Construct a type with the properties of T except for those in type K."
             },
-            "AiAgentDocumentSummary": {
-                "$ref": "#/components/schemas/Omit_AiAgentDocument.storageKey_"
+            "AiAgentDocumentListItem": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "originalFilename": {
+                        "type": "string"
+                    },
+                    "mimeType": {
+                        "type": "string"
+                    },
+                    "contentSizeBytes": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "alwaysIncludeInContext": {
+                        "type": "boolean"
+                    },
+                    "summary": {
+                        "$ref": "#/components/schemas/AiAgentDocumentStructuredSummary"
+                    },
+                    "agentAccess": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "createdByUserUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "updatedByUserUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "managedByContentAsCode": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "name",
+                    "updatedAt",
+                    "uuid",
+                    "organizationUuid",
+                    "projectUuid",
+                    "createdAt",
+                    "originalFilename",
+                    "mimeType",
+                    "contentSizeBytes",
+                    "alwaysIncludeInContext",
+                    "summary",
+                    "agentAccess",
+                    "createdByUserUuid",
+                    "updatedByUserUuid",
+                    "managedByContentAsCode"
+                ],
+                "type": "object",
+                "additionalProperties": true
             },
             "ApiAiAgentDocumentSummaryListResponse": {
                 "properties": {
                     "results": {
                         "items": {
-                            "$ref": "#/components/schemas/AiAgentDocumentSummary"
+                            "$ref": "#/components/schemas/AiAgentDocumentListItem"
                         },
                         "type": "array"
                     },
@@ -27226,6 +27333,9 @@
             },
             "ApiUpdateAgentDocumentContent": {
                 "properties": {
+                    "mimeType": {
+                        "$ref": "#/components/schemas/AiAgentDocumentMimeType"
+                    },
                     "content": {
                         "type": "string"
                     },
@@ -74017,7 +74127,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.77.0",
+        "version": "3.78.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
