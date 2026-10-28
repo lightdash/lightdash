@@ -663,6 +663,8 @@ Use `formatField` for cells so dates render `Jun 16, 2025` instead of `2025-06-1
 
 For the action-menu label and clipboard copy on a cell, the same helper applies — pass `format` so the per-field server format wins for currency/percent.
 
+**Before writing any table or value display, check each displayed field's model YAML for a `urls:` block.** A field with `urls` MUST render its values as links, not plain text — see [Field links — `urls`](#field-links--urls). This is not optional polish: dashboards render these links, and an app that drops them loses functionality the user already relies on.
+
 ### Filters
 
 Use `.filters([...])` for dimension/WHERE filters and `.metricFilters([...])`
