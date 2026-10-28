@@ -90,6 +90,7 @@ describe('query execution', () => {
             name: 'share',
             label: 'Share of orders',
             type: 'number',
+            fieldId: 'share',
         });
         expect(result.rowKeys?.share).toBe('share');
         expect(result.format(result.rows[0], 'share')).toBe('64.2%');

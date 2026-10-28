@@ -162,6 +162,12 @@ export type Column = {
     name: string;
     label: string;
     type: ColumnType;
+    /**
+     * The API field id (`<table>_<field>`), preserved across result paths so
+     * `${row.<table>.<field>}` url references resolve to the right column
+     * even where names are qualified differently (underlying data, joins).
+     */
+    fieldId?: string;
     /** Link patterns for this field's values; render cells as links when set. */
     urls?: ColumnUrl[];
 };

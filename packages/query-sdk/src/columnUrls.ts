@@ -19,19 +19,27 @@ type ResolveArgs = {
 const TEMPLATE_RE = /\$\{([^}]+)\}/g;
 
 /**
- * Find the row key a `${row.<table>.<field>}` reference points at. SDK rows
- * are keyed by column name: a base-table field is its plain name while a
- * joined field uses dot notation, so both spellings are tried.
+ * Find the row key a `${row.<table>.<field>}` reference points at. Column
+ * names differ per result path (plain names, dot notation, or qualified ids
+ * in underlying-data results), so resolve through the column's `fieldId`
+ * (`<table>_<field>`), which preserves table identity everywhere. A dotted
+ * name match remains as a fallback for hand-built columns without a fieldId;
+ * a bare field name is never matched — the same name on another table would
+ * silently link the wrong record.
  */
 const rowKeyForReference = (
     columns: Column[],
     table: string,
     field: string,
 ): string | null => {
+    const fieldId = `${table}_${field}`;
+    const byFieldId = columns.find((c) => c.fieldId === fieldId);
+    if (byFieldId) return byFieldId.name;
     const dotted = `${table}.${field}`;
-    if (columns.some((c) => c.name === dotted)) return dotted;
-    if (columns.some((c) => c.name === field)) return field;
-    return null;
+    const byDottedName = columns.find(
+        (c) => c.fieldId === undefined && c.name === dotted,
+    );
+    return byDottedName ? byDottedName.name : null;
 };
 
 const applyFilters = (value: string, filters: string[]): string | null => {

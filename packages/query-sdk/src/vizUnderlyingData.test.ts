@@ -79,12 +79,14 @@ describe('getVizUnderlyingData', () => {
             name: 'orders_amount',
             label: 'Amount',
             type: 'number',
+            fieldId: 'orders_amount',
         });
         // Field link patterns flow through to the result column.
         expect(result.columns).toContainEqual({
             name: 'orders_status',
             label: 'Status',
             type: 'string',
+            fieldId: 'orders_status',
             urls: [{ label: 'Open', url: 'https://x/${value.raw}' }],
         });
         expect(result.format(result.rows[0], 'orders_amount')).toBe('$100');

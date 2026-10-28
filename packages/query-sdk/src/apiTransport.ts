@@ -929,6 +929,7 @@ function mapApiRowsToQueryResult({
             name,
             label: fieldMeta?.label ?? fieldMeta?.displayName ?? name,
             type: mapColumnType(colMeta?.type ?? fieldMeta?.type ?? 'string'),
+            fieldId,
             ...(urls.length > 0 ? { urls } : {}),
         };
     });

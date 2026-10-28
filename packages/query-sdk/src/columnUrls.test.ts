@@ -3,11 +3,17 @@ import { resolveColumnUrls } from './columnUrls';
 import type { Column, Row } from './types';
 
 const COLUMNS: Column[] = [
-    { name: 'customer_id', label: 'Customer ID', type: 'number' },
+    {
+        name: 'customer_id',
+        label: 'Customer ID',
+        type: 'number',
+        fieldId: 'customers_customer_id',
+    },
     {
         name: 'first_name',
         label: 'First name',
         type: 'string',
+        fieldId: 'customers_first_name',
         urls: [
             {
                 label: 'URL from value',
@@ -55,13 +61,19 @@ describe('resolveColumnUrls', () => {
         expect(first.href).toBe("https://example.com/company/Quo'te");
     });
 
-    it('resolves joined-table row references via dot-notation column names', () => {
+    it('resolves joined-table row references through fieldId', () => {
         const columns: Column[] = [
-            { name: 'orders.order_id', label: 'Order ID', type: 'number' },
+            {
+                name: 'orders.order_id',
+                label: 'Order ID',
+                type: 'number',
+                fieldId: 'orders_order_id',
+            },
             {
                 name: 'status',
                 label: 'Status',
                 type: 'string',
+                fieldId: 'orders_status',
                 urls: [
                     {
                         label: 'Order',
@@ -77,6 +89,70 @@ describe('resolveColumnUrls', () => {
                 columns,
             }),
         ).toEqual([{ label: 'Order', href: 'https://example.com/orders/7' }]);
+    });
+
+    it('resolves row references in underlying-data results keyed by qualified field id', () => {
+        const columns: Column[] = [
+            {
+                name: 'customers_customer_id',
+                label: 'Customer ID',
+                type: 'number',
+                fieldId: 'customers_customer_id',
+            },
+            {
+                name: 'customers_first_name',
+                label: 'First name',
+                type: 'string',
+                fieldId: 'customers_first_name',
+                urls: [
+                    {
+                        label: 'URL from row value',
+                        url: 'https://example.com/company/${row.customers.customer_id.raw | url_encode }',
+                    },
+                ],
+            },
+        ];
+        expect(
+            resolveColumnUrls({
+                column: columns[1],
+                row: {
+                    customers_customer_id: 54,
+                    customers_first_name: 'Rose',
+                },
+                columns,
+            }),
+        ).toEqual([
+            {
+                label: 'URL from row value',
+                href: 'https://example.com/company/54',
+            },
+        ]);
+    });
+
+    it('never matches a same-named field on a different table', () => {
+        const columns: Column[] = [
+            // Base table's own `id` — must NOT satisfy ${row.customers.id}.
+            { name: 'id', label: 'ID', type: 'number', fieldId: 'orders_id' },
+            {
+                name: 'status',
+                label: 'Status',
+                type: 'string',
+                fieldId: 'orders_status',
+                urls: [
+                    {
+                        label: 'Customer',
+                        url: 'https://example.com/customers/${row.customers.id.raw}',
+                    },
+                ],
+            },
+        ];
+        expect(
+            resolveColumnUrls({
+                column: columns[1],
+                row: { id: 99, status: 'completed' },
+                columns,
+            }),
+        ).toEqual([]);
     });
 
     it('returns nothing for null cells, unknown filters, or columns without urls', () => {

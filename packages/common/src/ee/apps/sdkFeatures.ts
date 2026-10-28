@@ -274,6 +274,14 @@ export const SDK_FEATURES: SdkFeature[] = [
             'Reflows the layout for narrow and short tiles, such as a dashboard on a phone, so values stay readable and nothing scrolls sideways.',
         wiring: 'Rework the layout to the "Fitting the frame" section of the reusable-visualization skill. A chart type built on an older template first needs the frame runtime added to its own files, as described under viz-responsive-layout in the sdk-features skill: the VizFrame marker in src/main.jsx and the html[data-viz-frame] rules in src/index.css. Then size type, padding and gaps in rem or Tailwind classes instead of px, make rows of items wrap with a minimum item width that keeps values on one line (capped just under half the frame), remove any scroll regions of the chart\'s own so only the frame scrolls, and make a title or table header row sticky.',
     },
+    {
+        key: 'field-links',
+        appliesTo: ['data_app'],
+        label: 'Field links',
+        description:
+            "Result columns carry the semantic layer's url link patterns, so values with configured links render as links, matching dashboards.",
+        wiring: 'In cell renderers (tables, underlying-data dialogs), call resolveColumnUrls({ column, row, columns, format }) and render the value as a link when it returns entries, styled visibly as a link.',
+    },
 ];
 
 export const SDK_FEATURE_KEYS: string[] = SDK_FEATURES.map((f) => f.key);
