@@ -75,7 +75,7 @@ const OpeningMenu: FC<{
                             opened={pickerOpened}
                             onChange={setPickerOpened}
                             position="bottom-end"
-                            width={560}
+                            width={640}
                         >
                             <Popover.Target>
                                 <button
@@ -162,12 +162,12 @@ const OpeningMenu: FC<{
                                                     }.`}
                                             </Text>
                                         </Box>
-                                        {current === null && (
+                                        <span className={classes.autoCheck}>
                                             <MantineIcon
                                                 icon={IconCheck}
-                                                size={16}
+                                                size={12}
                                             />
-                                        )}
+                                        </span>
                                     </button>
                                 </Stack>
                             </Popover.Dropdown>
