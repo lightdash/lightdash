@@ -155,6 +155,8 @@ columns:
 
 One pattern → the cell is a plain link (open in a new tab). Several → a primary link plus a menu, or a small dropdown. Skip the link for null/empty values. Never invent patterns for fields without `urls`.
 
+**Links must look like links at rest, not only on hover**: underline them (e.g. `underline underline-offset-4`) and/or use a distinct link color that fits the app's theme, plus a hover state. A viewer should spot the clickable cells without mousing over the table.
+
 ### Joined table fields — dot notation
 
 When a model has `joins`, the joined table's dimensions and metrics are available in your query. **Use dot notation** (`table.field`) to reference fields from joined tables:
