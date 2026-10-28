@@ -33,9 +33,8 @@ becomes: create saved chart (composer variant) + append a `SAVED_CHART` tile.
   `manage Explore` (`QuerySourceService.ts:76-112`), plus per-source checks. Saved charts are
   viewer-visible via `view SavedChart` + space access.
 - Saved pipelines must be self-contained: artifact pipelines referencing bare
-  `queryUuid`s stop replaying when results expire
-  (`docs/multi-source-query-platform-plan.md:37-44` — "copy-on-save pipeline
-  expansion").
+  `queryUuid`s stop replaying when results expire (copy-on-save pipeline
+  expansion).
 - Dashboard filters: the saved-chart contract is
   `applyDashboardFiltersForTile` → `addDashboardFiltersToMetricQuery` against
   an Explore (`packages/common/src/utils/filters.ts:1546,1606`); the SQL-chart

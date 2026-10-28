@@ -20,9 +20,7 @@ charts, AI artifacts, metrics-explorer output) onto one architecture:
   (`DataAppVizSchema` bindings) as the extensible end.
 
 Background and full findings: see the investigation report (internal artifact,
-"Charts on Composer Queries") and the prior in-repo docs
-`docs/multi-source-queries.md`, `docs/multi-source-query-platform-plan.md`,
-`docs/composer-queries-agent-plan.md`.
+"Charts on Composer Queries") and `docs/composer-queries/CONTEXT.md`.
 
 ## The sequence
 

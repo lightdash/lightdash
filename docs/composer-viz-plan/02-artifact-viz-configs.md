@@ -13,10 +13,6 @@ rendered through the existing SQL-chart data models. This retires the fourth
 viz vocabulary (LLM tool-args JSON) for new artifact types and gives agent
 output and saved content the same render path.
 
-This step was already sketched in `docs/composer-queries-agent-plan.md:189-192`
-and `docs/multi-source-query-platform-plan.md` ("Viz stack" section); this doc
-scopes it.
-
 ## Current state
 
 - `AiComposerChartArtifactConfig` (`packages/common/src/ee/AiAgent/
@@ -135,8 +131,7 @@ Investigate and answer, with file/line evidence:
 5. Replayability interaction. The artifact stores lastQueryUuid and results
    expire (see AiComposerArtifactVisualization expiry state). If vizConfig
    needs pivoted execution, define what "re-run" means for an expired
-   artifact and whether the pipeline-expansion issue flagged in
-   docs/multi-source-query-platform-plan.md must be fixed in this step.
+   artifact and whether copy-on-save pipeline expansion must be fixed in this step.
 
 Deliverable: a design doc with the extended artifact config type, the chosen
 tool surface (zod schema sketch), the pivot mechanism decision, the frontend
