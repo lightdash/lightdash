@@ -221,7 +221,7 @@ describe('ControlsBar', () => {
     });
 
     it.each([true, false])(
-        'shows the sections tip above the bar in edit mode only (%s)',
+        'shows no tip line above the bar (%s)',
         (isEditMode) => {
             const rule = (id: string) => ({
                 id,
@@ -242,15 +242,8 @@ describe('ControlsBar', () => {
                     <ControlsBar {...baseProps} isEditMode={isEditMode} />
                 </DashboardStoreTestProvider>,
             );
-            const tip = screen.queryByRole('note');
-            if (!isEditMode) {
-                expect(tip).toBeNull();
-                return;
-            }
-            expect(tip).toHaveTextContent('Move to new section');
-            expect(
-                tip?.compareDocumentPosition(screen.getByTestId('date-zoom')),
-            ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+            expect(screen.getByTestId('date-zoom')).toBeInTheDocument();
+            expect(screen.queryByRole('note')).toBeNull();
         },
     );
 

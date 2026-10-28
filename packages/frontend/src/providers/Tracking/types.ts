@@ -827,13 +827,7 @@ type DashboardSectionCreatedEvent = {
     properties: DashboardControlsEventBase & {
         source: DashboardSectionCreatedSource;
         filtersMoved: number;
-        wasTipShown: boolean;
     };
-};
-
-type DashboardSectionsTipDismissedEvent = {
-    name: EventName.DASHBOARD_SECTIONS_TIP_DISMISSED;
-    properties: DashboardControlsEventBase;
 };
 
 type DashboardFiltersMovedEvent = {
@@ -1406,7 +1400,6 @@ export type EventData =
     | FormulaTableCalculationAiGenerateClickedEvent
     | DashboardFilterLockToggledEvent
     | DashboardSectionCreatedEvent
-    | DashboardSectionsTipDismissedEvent
     | DashboardFiltersMovedEvent
     | DashboardFilterEditorOpenedEvent
     | DashboardFilterEditorClosedEvent

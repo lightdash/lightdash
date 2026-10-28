@@ -208,8 +208,12 @@ export const FilterPill: FC<Props> = memo(
                                 <MantineIcon icon={IconCheck} size="sm" />
                             ) : undefined
                         }
-                        // The open pill's pencil takes the grip's slot
-                        leadingIcon={isSelected ? <EditBadge /> : undefined}
+                        // The open pill's pencil takes the grip's slot, in edit mode only
+                        leadingIcon={
+                            isSelected && kind === 'editor' ? (
+                                <EditBadge />
+                            ) : undefined
+                        }
                         onClick={handleClick}
                     />
                     {isChanged && <ChangedDot />}

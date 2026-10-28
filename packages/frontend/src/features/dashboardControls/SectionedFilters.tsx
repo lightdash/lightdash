@@ -101,7 +101,6 @@ import { SelectionBar } from './SelectionBar';
 import { removeFilterRule } from './sidebarState';
 import { useControlsSidebarSelector } from './useControlsSidebar';
 import { hasOpenLayer } from './useEditorDismiss';
-import { useSectionsTip } from './useSectionsTip';
 import { type PillPopoverState } from './ViewerSavedPills';
 
 const ADD_FILTER_SELECTOR =
@@ -602,7 +601,6 @@ export const SectionedFilters: FC<Props> = ({
     const dispatch = useDashboardDispatch();
     const { track } = useTracking();
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
-    const { isShown: isTipShown } = useSectionsTip();
     const sections = useDashboardSelector(selectControlSections);
     const savedSections = useDashboardContext(
         (c) => c.dashboard?.config?.controlSections,
@@ -958,7 +956,6 @@ export const SectionedFilters: FC<Props> = ({
                             ...eventBase,
                             source: naming.source,
                             filtersMoved,
-                            wasTipShown: isTipShown,
                         },
                     });
                     setNaming(null);

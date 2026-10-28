@@ -7,7 +7,6 @@ import { DashboardFiltersBar } from '../dashboardFilters/DashboardFiltersBar';
 import { AddControl } from './AddControl';
 import { FilterPills } from './FilterPills';
 import { SectionedFilters } from './SectionedFilters';
-import { SectionsTip } from './SectionsTip';
 import { SettledFilterFields } from './SettledFilterFields';
 import { useControlsSidebarSelector } from './useControlsSidebar';
 
@@ -25,7 +24,6 @@ export const ControlsBar: FC<Props> = (props) => {
     );
     return (
         <>
-            {props.isEditMode && <SectionsTip />}
             <DashboardFiltersBar
                 {...props}
                 // The rail is on the page: a drawer over it would hide it

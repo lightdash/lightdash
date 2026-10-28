@@ -136,7 +136,6 @@ export enum EventName {
     DASHBOARD_FILTER_LOCK_TOGGLED = 'dashboard_filter_lock.toggled',
     DASHBOARD_FILTER_REQUIREMENTS_SAVED = 'dashboard_filter_requirements.saved',
     DASHBOARD_SECTION_CREATED = 'dashboard_section.created',
-    DASHBOARD_SECTIONS_TIP_DISMISSED = 'dashboard_sections_tip.dismissed',
     DASHBOARD_FILTERS_MOVED = 'dashboard_filters.moved',
     DASHBOARD_FILTER_EDITOR_OPENED = 'dashboard_filter_editor.opened',
     DASHBOARD_FILTER_EDITOR_CLOSED = 'dashboard_filter_editor.closed',
