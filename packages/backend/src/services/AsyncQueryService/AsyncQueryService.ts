@@ -141,6 +141,7 @@ import {
     type ApiExecuteAsyncMetricQueryResults,
     type ApiGetAsyncQueryResults,
     type ApiQueryHistoryListResponse,
+    type ApiSourcePayload,
     type CacheMetadata,
     type CalculateTotalKind,
     type CompiledCustomSqlDimension,
@@ -149,6 +150,7 @@ import {
     type DocumentQueryReference,
     type DocumentSqlChart,
     type DuckdbSourceQuery,
+    type ExecuteAsyncApiQueryRequestParams,
     type ExecuteAsyncComposeMergeQueryRequestParams,
     type ExecuteAsyncComposeSqlQueryRequestParams,
     type ExecuteAsyncDashboardChartRequestParams,
@@ -340,6 +342,7 @@ import {
     getNextAndPreviousPage,
     validatePagination,
 } from '../ProjectService/resultsPagination';
+import type { ApiConnector } from '../QuerySourceService/api/ApiConnector';
 import type { QuerySourceService } from '../QuerySourceService/QuerySourceService';
 import { mergeDraftIntoChart } from '../SavedChartsService/chartDraftOverlay';
 import { assertCanReplaceChartFilters } from '../SchedulerService/chartFilterOverridesAccess';
@@ -447,6 +450,7 @@ import {
     type DuckdbQueryPlan,
     type DuckdbQueryPlanComposer,
     type DuckdbQueryReferences,
+    type ExecuteAsyncApiQueryArgs,
     type ExecuteAsyncComposeSqlQueryArgs,
     type ExecuteAsyncDashboardChartQueryArgs,
     type ExecuteAsyncDashboardSqlChartArgs,
@@ -11464,6 +11468,308 @@ export class AsyncQueryService extends ProjectService {
                     span.setAttributes({ 'lightdash.error': message });
                     this.logger.warn(
                         `Python query ${queryUuid} failed: ${message}`,
+                    );
+                    await this.queryHistoryModel.updateStatusToError(
+                        queryUuid,
+                        projectUuid,
+                        message,
+                        account,
+                    );
+                    this.prometheusMetrics?.trackQueryStateTransition(
+                        QueryHistoryStatus.PENDING,
+                        QueryHistoryStatus.ERROR,
+                        context,
+                    );
+                    this.trackQueryTerminalStatus(
+                        QueryHistoryStatus.ERROR,
+                        queryCreatedAt,
+                        context,
+                    );
+                }
+            },
+        );
+    }
+
+    /**
+     * Sends a query live to an external API and lands its rows as a regular
+     * async query result. An api query reads no other results.
+     */
+    async executeAsyncApiQuery({
+        account,
+        projectUuid,
+        connectionUuid,
+        connector,
+        payload,
+        context,
+        querySurface,
+        limit,
+        parameters,
+    }: ExecuteAsyncApiQueryArgs): Promise<{ queryUuid: string }> {
+        assertIsAccountWithOrg(account);
+
+        const { enabled } = await this.featureFlagModel.get({
+            user: {
+                userUuid: account.user.id,
+                organizationUuid: account.organization.organizationUuid,
+            },
+            featureFlagId: FeatureFlags.ApiQuerySources,
+        });
+        if (!enabled) {
+            throw new ForbiddenError('API query sources are not enabled');
+        }
+
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+
+        const { maxLimit, defaultLimit } = this.lightdashConfig.query;
+        const effectiveLimit = limit ?? defaultLimit;
+        if (!Number.isInteger(effectiveLimit) || effectiveLimit < 1) {
+            throw new ParameterError('limit must be a positive integer');
+        }
+        if (effectiveLimit > maxLimit) {
+            throw new ParameterError(`limit must be at most ${maxLimit} rows`);
+        }
+        const identityEnabled = await this.isResultIdentityEnabled(account);
+        const effectiveParameters = parameters ?? {};
+        const requestParameters: ExecuteAsyncApiQueryRequestParams = {
+            connectionUuid,
+            payload,
+            limit: effectiveLimit,
+            context,
+            parameters: effectiveParameters,
+        };
+        const metricQuery: MetricQuery = {
+            exploreName: SQL_QUERY_MOCK_EXPLORER_NAME,
+            dimensions: [],
+            metrics: [],
+            filters: {},
+            sorts: [],
+            limit: effectiveLimit,
+            tableCalculations: [],
+            additionalMetrics: [],
+        };
+        const resultEntitlementFingerprint = identityEnabled
+            ? getQueryResultEntitlementFingerprint({
+                  parameters: getQueryResultRequestParameters(
+                      requestParameters,
+                      {},
+                  ),
+                  controls: await this.getUserAttributes({ account }),
+                  explore: null,
+                  metricQuery,
+              })
+            : null;
+        const reader = buildResultReader(
+            account,
+            context,
+            querySurface ?? null,
+        );
+        // API rows never touch the warehouse, like external source results.
+        const resultProducer: QueryResultProducer = {
+            entitlementFingerprint: resultEntitlementFingerprint,
+            version: 1,
+            warehouseConnectionUuid: null,
+            credentialOwner: { kind: 'no_warehouse_data' },
+            authMethod: account.authentication.type,
+            agentIdentity: reader.kind === 'agent' ? reader.claim : null,
+        };
+        const cacheKey = QueryHistoryModel.getCacheKey(projectUuid, {
+            sql: JSON.stringify({
+                connectionUuid,
+                payload,
+                limit: effectiveLimit,
+            }),
+            userUuid: null,
+        });
+
+        const queryCreatedAt = new Date();
+        const { queryUuid } = await this.createQueryHistory(
+            account,
+            {
+                projectUuid,
+                organizationUuid,
+                context,
+                fields: {},
+                compiledSql: payload.query,
+                requestParameters,
+                usedParameters: {},
+                metricQuery,
+                cacheKey,
+                pivotConfiguration: null,
+                originalColumns: {},
+            },
+            undefined,
+            undefined,
+            querySurface,
+            { resultEntitlementFingerprint },
+        );
+        await this.queryHistoryModel.recordResultProducer(
+            queryUuid,
+            projectUuid,
+            account.user.id,
+            resultProducer,
+        );
+        this.prometheusMetrics?.trackQueryStateTransition(
+            'new',
+            QueryHistoryStatus.PENDING,
+            context,
+        );
+
+        void this.runApiQuery({
+            account,
+            queryUuid,
+            projectUuid,
+            connector,
+            payload,
+            limit: effectiveLimit,
+            cacheKey,
+            context,
+            queryCreatedAt,
+        }).catch((e) => {
+            this.logger.error(
+                `Async api query ${queryUuid} failed outside its error path: ${getErrorMessage(
+                    e,
+                )}`,
+            );
+        });
+
+        return { queryUuid };
+    }
+
+    private async runApiQuery({
+        account,
+        queryUuid,
+        projectUuid,
+        connector,
+        payload,
+        limit,
+        cacheKey,
+        context,
+        queryCreatedAt,
+    }: {
+        account: Account;
+        queryUuid: string;
+        projectUuid: string;
+        connector: ApiConnector;
+        payload: ApiSourcePayload;
+        limit: number;
+        cacheKey: string;
+        context: QueryExecutionContext;
+        queryCreatedAt: Date;
+    }): Promise<void> {
+        const { connector: connectorType } = connector.describe();
+        const attributes = {
+            'lightdash.queryUuid': queryUuid,
+            'lightdash.projectUuid': projectUuid,
+            'lightdash.queryContext': context,
+            'lightdash.apiConnector': connectorType,
+            'lightdash.limit': limit,
+        };
+        await this.traceComposerQueryStage(
+            'api',
+            'total',
+            { name: 'api.query.run', attributes },
+            async (span) => {
+                const startedAt = Date.now();
+                try {
+                    const result = await this.traceComposerQueryStage(
+                        'api',
+                        'execute',
+                        {
+                            op: 'http.client',
+                            name: 'api.query.execute',
+                            attributes,
+                        },
+                        () => connector.execute({ payload, limit }),
+                    );
+                    span.setAttributes({
+                        'lightdash.rowCount': result.rows.length,
+                        'lightdash.truncated': result.truncated,
+                        'lightdash.apiCalls': result.apiCalls,
+                        ...(result.bytesRead !== null
+                            ? { 'lightdash.bytesRead': result.bytesRead }
+                            : {}),
+                    });
+
+                    const resultsStorageClient =
+                        this.getResultsStorageClientForContext(context);
+                    if (!resultsStorageClient.isEnabled) {
+                        throw new S3Error('S3 is not enabled');
+                    }
+                    const fileName =
+                        QueryHistoryModel.createUniqueResultsFileName(cacheKey);
+                    const createdAt = new Date();
+                    await this.traceComposerQueryStage(
+                        'api',
+                        'upload_result',
+                        {
+                            op: 's3.upload',
+                            name: 'api.query.upload_result',
+                            attributes: {
+                                ...attributes,
+                                'lightdash.totalRows': result.rows.length,
+                            },
+                        },
+                        async () => {
+                            const upload =
+                                resultsStorageClient.createUploadStream(
+                                    S3ResultsFileStorageClient.sanitizeFileExtension(
+                                        fileName,
+                                    ),
+                                    { contentType: 'application/jsonl' },
+                                );
+                            await upload.write(result.rows);
+                            await upload.close();
+                        },
+                    );
+
+                    const columns: ResultColumns = Object.fromEntries(
+                        result.columns.map((column) => [
+                            column.name,
+                            { reference: column.name, type: column.type },
+                        ]),
+                    );
+                    await this.queryHistoryModel.update(
+                        queryUuid,
+                        projectUuid,
+                        {
+                            status: QueryHistoryStatus.READY,
+                            error: null,
+                            warehouse_execution_time_ms: Date.now() - startedAt,
+                            total_row_count: result.rows.length,
+                            cache_key: cacheKey,
+                            results_file_name: fileName,
+                            results_created_at: createdAt,
+                            results_updated_at: new Date(),
+                            results_expires_at: await this.getCacheExpiresAt(
+                                projectUuid,
+                                createdAt,
+                            ),
+                            columns,
+                            fields: pythonColumnsToFields(columns),
+                        },
+                        account,
+                    );
+                    this.prometheusMetrics?.trackQueryStateTransition(
+                        QueryHistoryStatus.PENDING,
+                        QueryHistoryStatus.READY,
+                        context,
+                    );
+                    this.trackQueryTerminalStatus(
+                        QueryHistoryStatus.READY,
+                        queryCreatedAt,
+                        context,
+                    );
+                    this.logger.info(
+                        `Api query ${queryUuid} ready: ${result.rows.length} rows${
+                            result.truncated ? ' (truncated)' : ''
+                        } from ${connectorType} in ${Date.now() - startedAt}ms`,
+                    );
+                } catch (e) {
+                    const message = getErrorMessage(e);
+                    span.setAttributes({ 'lightdash.error': message });
+                    this.logger.warn(
+                        `Api query ${queryUuid} failed: ${message}`,
                     );
                     await this.queryHistoryModel.updateStatusToError(
                         queryUuid,

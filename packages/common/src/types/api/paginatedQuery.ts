@@ -8,6 +8,7 @@ import { type MergeQuery, type MetricSourcedMergeQuery } from '../mergeQuery';
 import type { MetricQueryRequest, SortField } from '../metricQuery';
 import type { PivotConfig } from '../pivot';
 import type {
+    ApiSourcePayload,
     ExternalSourceTableReference,
     QuerySourceTableName,
 } from '../querySources';
@@ -130,6 +131,14 @@ export type ExecuteAsyncComposeSqlQueryRequestParams =
         references?: Record<string, UUID>;
     };
 
+/** A query sent live to an external API; stored so query history shows what ran. */
+export type ExecuteAsyncApiQueryRequestParams =
+    CommonExecuteQueryRequestParams & {
+        connectionUuid: string;
+        payload: ApiSourcePayload;
+        limit?: number;
+    };
+
 /** Python `run(inputs, params)` over other async queries' results, executed in a sandbox. */
 export type ExecuteAsyncPythonQueryRequestParams =
     CommonExecuteQueryRequestParams & {
@@ -247,6 +256,7 @@ export type ExecuteAsyncQueryRequestParams = (
     | ExecuteAsyncSqlQueryRequestParams
     | ExecuteAsyncComposeSqlQueryRequestParams
     | ExecuteAsyncPythonQueryRequestParams
+    | ExecuteAsyncApiQueryRequestParams
     | ExecuteAsyncSavedChartRequestParams
     | ExecuteAsyncDashboardChartRequestParams
     | ExecuteAsyncUnderlyingDataRequestParams

@@ -20,6 +20,7 @@ import { ProjectService } from '../services/ProjectService/ProjectService';
 import { provisionTrainingProject } from '../services/ProjectService/provisionTrainingProject';
 import { QuerySourceRegistry } from '../services/QuerySourceService/QuerySourceRegistry';
 import { QuerySourceService } from '../services/QuerySourceService/QuerySourceService';
+import { ApiQuerySource } from '../services/QuerySourceService/sources/ApiQuerySource';
 import { RolesService } from '../services/RolesService/RolesService';
 import { EncryptionUtil } from '../utils/EncryptionUtil/EncryptionUtil';
 import { failInFlightAiAgentStreams } from './aiAgentShutdown';
@@ -555,6 +556,23 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     asyncQueryService: repository.getAsyncQueryService(),
                     projectService: repository.getProjectService(),
                 });
+                registry.register(
+                    new ApiQuerySource({
+                        asyncQueryService: repository.getAsyncQueryService(),
+                        getApiConnector: (
+                            account,
+                            projectUuid,
+                            connectionUuid,
+                        ) =>
+                            repository
+                                .getExternalConnectionService<ExternalConnectionService>()
+                                .getApiConnector(
+                                    account,
+                                    projectUuid,
+                                    connectionUuid,
+                                ),
+                    }),
+                );
                 registry.register(
                     new ExternalQuerySource({
                         asyncQueryService: repository.getAsyncQueryService(),

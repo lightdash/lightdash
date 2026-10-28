@@ -170,6 +170,7 @@ const nodeDefinition = (node: SourceQuery): string => {
             });
         case QuerySourceType.SQL:
         case QuerySourceType.EXTERNAL:
+        case QuerySourceType.API:
             return stableJson(node);
         default:
             return assertUnreachable(node, 'Unknown composer node');

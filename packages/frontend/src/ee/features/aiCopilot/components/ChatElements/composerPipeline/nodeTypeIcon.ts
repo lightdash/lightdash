@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import {
     createReactComponent,
+    IconApi,
     IconBrandPython,
     IconDatabase,
     IconFileSpreadsheet,
@@ -29,6 +30,8 @@ export const nodeTypeIcon = (query: SourceQuery) => {
             return IconFileSpreadsheet;
         case QuerySourceType.PYTHON:
             return IconBrandPython;
+        case QuerySourceType.API:
+            return IconApi;
         case QuerySourceType.DUCKDB:
             return IconDuckdb;
         default:
