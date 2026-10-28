@@ -1,3 +1,11 @@
+## [3.76.2](https://github.com/lightdash/lightdash/compare/3.76.1...3.76.2) (2026-10-28)
+
+
+### Bug Fixes
+
+* **content-as-code:** name the blocking pull request when a draft write-back conflicts ([#31699](https://github.com/lightdash/lightdash/issues/31699)) ([7e83c7d](https://github.com/lightdash/lightdash/commit/7e83c7dddcbb3dcf97f9f2a1af1305d0d4aa18cf))
+* keep external MCP tools whose input schema contains line breaks ([#31708](https://github.com/lightdash/lightdash/issues/31708)) ([7b3a17f](https://github.com/lightdash/lightdash/commit/7b3a17f6ee2fe5fe47ee0f69591dde155d7ef470))
+
 ## [3.76.1](https://github.com/lightdash/lightdash/compare/3.76.0...3.76.1) (2026-10-28)
 
 
