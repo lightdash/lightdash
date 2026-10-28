@@ -251,6 +251,45 @@
                 "required": ["config", "type", "id"],
                 "type": "object"
             },
+            "HomepageLearnShow": {
+                "type": "string",
+                "enum": ["up-next", "newest"],
+                "description": "The viewer's next Learn module, with their progress. Per viewer: it reads\nthe same recommendation the Learn library shows, and hides when the viewer\ncannot use Learn."
+            },
+            "HomepageLearnBlock": {
+                "properties": {
+                    "config": {
+                        "properties": {
+                            "show": {
+                                "$ref": "#/components/schemas/HomepageLearnShow",
+                                "description": "What the card leads with: each viewer's next module (the\ndefault, also for older configs) or the most recently released\nmodules the viewer can do."
+                            },
+                            "pinnedScopes": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array",
+                                "description": "Walkthroughs the data team features under the recommendation, by\nLearn module scope, in order. Optional so older configs load; a\nscope the instance cannot run is skipped at render."
+                            },
+                            "title": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["title"],
+                        "type": "object"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["learn"],
+                        "nullable": false
+                    },
+                    "id": {
+                        "type": "string"
+                    }
+                },
+                "required": ["config", "type", "id"],
+                "type": "object"
+            },
             "Exclude_HomepageBlock.HomepageCollectionBlock-or-HomepageResourcesBlock-or-HomepageQuickActionsBlock-or-HomepageCtaBlock_": {
                 "anyOf": [
                     {
@@ -273,6 +312,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/HomepageRecentBlock"
+                    },
+                    {
+                        "$ref": "#/components/schemas/HomepageLearnBlock"
                     }
                 ],
                 "description": "Exclude from T those types that are assignable to U"
@@ -13513,6 +13555,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/HomepageRecentBlock"
+                    },
+                    {
+                        "$ref": "#/components/schemas/HomepageLearnBlock"
                     }
                 ]
             },
@@ -74042,7 +74087,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.75.2",
+        "version": "3.76.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -115480,7 +115525,7 @@
                         }
                     }
                 },
-                "description": "Lists the query sources registered for this deployment. Every source\nsupports the same operations: scan its schema, and submit queries that\nreturn a queryUuid whose results are fetched with the standard async\nquery results endpoint. Requires the multi-source-query feature flag.",
+                "description": "Lists the query sources registered for this deployment. Every source\nsupports the same operations: scan its schema, and submit queries that\nreturn a queryUuid whose results are fetched with the standard async\nquery results endpoint. Requires the compose-sql-runner feature flag.",
                 "summary": "List query sources",
                 "tags": ["v2", "Query Sources"],
                 "security": [],

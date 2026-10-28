@@ -496,6 +496,42 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    HomepageLearnShow: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['up-next'] },
+                { dataType: 'enum', enums: ['newest'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    HomepageLearnBlock: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                config: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        show: { ref: 'HomepageLearnShow' },
+                        pinnedScopes: {
+                            dataType: 'array',
+                            array: { dataType: 'string' },
+                        },
+                        title: { dataType: 'string', required: true },
+                    },
+                    required: true,
+                },
+                type: { dataType: 'enum', enums: ['learn'], required: true },
+                id: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Exclude_HomepageBlock.HomepageCollectionBlock-or-HomepageResourcesBlock-or-HomepageQuickActionsBlock-or-HomepageCtaBlock_':
         {
             dataType: 'refAlias',
@@ -509,6 +545,7 @@ const models: TsoaRoute.Models = {
                     { ref: 'HomepageMetricsBlock' },
                     { ref: 'HomepageFavoritesBlock' },
                     { ref: 'HomepageRecentBlock' },
+                    { ref: 'HomepageLearnBlock' },
                 ],
                 validators: {},
             },
@@ -12954,6 +12991,7 @@ const models: TsoaRoute.Models = {
                 { ref: 'HomepageCtaBlock' },
                 { ref: 'HomepageFavoritesBlock' },
                 { ref: 'HomepageRecentBlock' },
+                { ref: 'HomepageLearnBlock' },
             ],
             validators: {},
         },

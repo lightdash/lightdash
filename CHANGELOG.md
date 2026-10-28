@@ -1,3 +1,10 @@
+# [3.76.0](https://github.com/lightdash/lightdash/compare/3.75.2...3.76.0) (2026-10-28)
+
+
+### Features
+
+* **homepage:** Learn block with the next module and featured walkthroughs (CS-242) ([#31607](https://github.com/lightdash/lightdash/issues/31607)) ([12bf4dd](https://github.com/lightdash/lightdash/commit/12bf4ddcb89f841e2d3c2968e4f5dd5664052f28))
+
 ## [3.75.2](https://github.com/lightdash/lightdash/compare/3.75.1...3.75.2) (2026-10-28)
 
 
