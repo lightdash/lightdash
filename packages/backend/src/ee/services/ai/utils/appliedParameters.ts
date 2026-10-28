@@ -1,19 +1,54 @@
 import {
-    getReferencedExploreParameterDefinitions,
+    getExploreParameterDefinitions,
+    getItemId,
+    getMetricQueryParameterReferences,
+    getReferencedParameterDefinitions,
+    getTotalFilterRules,
     type Explore,
     type ParameterDefinitions,
     type ParametersValuesMap,
+    type SemanticLayerSourceQuery,
     type ToolRunQueryAppliedParameters,
 } from '@lightdash/common';
+
+export type AppliedParametersQuery = Pick<
+    SemanticLayerSourceQuery,
+    'dimensions' | 'metrics' | 'filters' | 'additionalMetrics'
+>;
+
+const getQueryParameterReferences = (
+    explore: Explore,
+    { dimensions, metrics, filters, additionalMetrics }: AppliedParametersQuery,
+): string[] =>
+    getMetricQueryParameterReferences(explore, {
+        // Custom metrics compile from their base dimension's SQL.
+        dimensions: [
+            ...dimensions,
+            ...(additionalMetrics ?? []).flatMap(
+                ({ table, baseDimensionName }) =>
+                    baseDimensionName
+                        ? [getItemId({ table, name: baseDimensionName })]
+                        : [],
+            ),
+        ],
+        metrics,
+        filterFieldIds: getTotalFilterRules(filters ?? {}).map(
+            (rule) => rule.target.fieldId,
+        ),
+    });
 
 export const getAppliedParameters = (
     explore: Explore,
     projectParameterDefinitions: ParameterDefinitions,
+    query: AppliedParametersQuery,
     provided: ParametersValuesMap | null,
 ): ToolRunQueryAppliedParameters | null => {
-    const definitions = getReferencedExploreParameterDefinitions(
-        explore,
-        projectParameterDefinitions,
+    const definitions = getReferencedParameterDefinitions(
+        {
+            ...projectParameterDefinitions,
+            ...getExploreParameterDefinitions(explore),
+        },
+        getQueryParameterReferences(explore, query),
     );
     const referenced = Object.keys(definitions);
     if (referenced.length === 0) return null;
@@ -62,8 +97,14 @@ export const renderAppliedParameters = (
 export const summarizeAppliedParameters = (
     explore: Explore,
     projectParameterDefinitions: ParameterDefinitions,
+    query: AppliedParametersQuery,
     provided: ParametersValuesMap | null,
 ): string =>
     renderAppliedParameters(
-        getAppliedParameters(explore, projectParameterDefinitions, provided),
+        getAppliedParameters(
+            explore,
+            projectParameterDefinitions,
+            query,
+            provided,
+        ),
     );

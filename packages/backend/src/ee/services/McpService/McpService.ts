@@ -1160,6 +1160,12 @@ export class McpService extends BaseService {
             appliedParametersNote: summarizeAppliedParameters(
                 explore,
                 projectParameterDefinitions,
+                {
+                    dimensions: queryTool.queryConfig.dimensions,
+                    metrics: queryTool.queryConfig.metrics,
+                    filters: queryTool.queryConfig.filters,
+                    additionalMetrics,
+                },
                 queryTool.queryConfig.parameters,
             ),
         };

@@ -3,6 +3,7 @@ import { type LightdashProjectParameter } from '../types/lightdashProjectConfig'
 import {
     getExploreParameterDefinitions,
     getExploreParameterReferences,
+    getMetricQueryParameterReferences,
     getMissingRequiredParameters,
     getParameterReferences,
     getReferencedParameterDefinitions,
@@ -799,5 +800,101 @@ describe('getExploreParameterReferences', () => {
         } as unknown as Explore);
 
         expect(references).toEqual([]);
+    });
+});
+
+describe('getMetricQueryParameterReferences', () => {
+    const explore = {
+        name: 'orders',
+        label: 'Orders',
+        baseTable: 'orders',
+        joinedTables: [
+            {
+                table: 'customers',
+                parameterReferences: ['region'],
+                tablesReferences: ['orders', 'customers'],
+            },
+        ],
+        tables: {
+            orders: {
+                name: 'orders',
+                label: 'Orders',
+                dimensions: {
+                    status: { name: 'status', table: 'orders' },
+                    date_range: {
+                        name: 'date_range',
+                        table: 'orders',
+                        parameterReferences: ['date_range'],
+                    },
+                },
+                metrics: {
+                    total: { name: 'total', table: 'orders' },
+                },
+                lineageGraph: {},
+            },
+            customers: {
+                name: 'customers',
+                label: 'Customers',
+                dimensions: {
+                    city: { name: 'city', table: 'customers' },
+                },
+                metrics: {},
+                lineageGraph: {},
+            },
+        },
+    } as unknown as Explore;
+
+    it('returns only references from the selected and filtered fields', () => {
+        expect(
+            getMetricQueryParameterReferences(explore, {
+                dimensions: ['orders_status'],
+                metrics: ['orders_total'],
+                filterFieldIds: [],
+            }),
+        ).toEqual([]);
+        expect(
+            getMetricQueryParameterReferences(explore, {
+                dimensions: [],
+                metrics: ['orders_total'],
+                filterFieldIds: ['orders_date_range'],
+            }),
+        ).toEqual(['date_range']);
+    });
+
+    it('always reports the base table sql_where references', () => {
+        const withSqlWhere = {
+            ...explore,
+            tables: {
+                ...explore.tables,
+                orders: {
+                    ...explore.tables.orders,
+                    parameterReferences: ['env'],
+                },
+            },
+        };
+        expect(
+            getMetricQueryParameterReferences(withSqlWhere, {
+                dimensions: ['orders_status'],
+                metrics: [],
+                filterFieldIds: [],
+            }),
+        ).toEqual(['env']);
+    });
+
+    it('reports join references only when the joined table is used', () => {
+        expect(
+            getMetricQueryParameterReferences(explore, {
+                dimensions: ['orders_status'],
+                metrics: [],
+                filterFieldIds: [],
+            }),
+        ).toEqual([]);
+        expect(
+            getMetricQueryParameterReferences(explore, {
+                dimensions: ['customers_city'],
+                metrics: [],
+                filterFieldIds: [],
+            }),
+        ).toEqual(['region']);
     });
 });

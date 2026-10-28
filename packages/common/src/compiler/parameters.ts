@@ -20,6 +20,7 @@ import type {
     ParameterDefinitions,
     ParametersValuesMap,
 } from '../types/parameters';
+import { getItemId } from '../utils/item';
 
 // Regex for SQL parameter substitution - requires the full ${...} syntax.
 // Used by `replaceLightdashValues` to find substitution sites.
@@ -240,6 +241,56 @@ export const getExploreParameterReferences = (explore: Explore): string[] => {
         ].forEach((field) => {
             field.parameterReferences?.forEach((name) => references.add(name));
         });
+    });
+    return [...references];
+};
+
+/**
+ * Parameter names a query's SQL can depend on: its selected and filtered fields,
+ * the sql_where of every table it touches, and the joins that bring those tables in.
+ */
+export const getMetricQueryParameterReferences = (
+    explore: Explore,
+    {
+        dimensions,
+        metrics,
+        filterFieldIds,
+    }: { dimensions: string[]; metrics: string[]; filterFieldIds: string[] },
+): string[] => {
+    const fieldIds = new Set([...dimensions, ...metrics, ...filterFieldIds]);
+    const references = new Set<string>();
+    const tableNames = new Set([explore.baseTable]);
+    explore.joinedTables
+        .filter((join) => join.always)
+        .forEach((join) => tableNames.add(join.table));
+    Object.values(explore.tables).forEach((table) => {
+        [
+            ...Object.values(table.dimensions),
+            ...Object.values(table.metrics),
+        ].forEach((field) => {
+            if (!fieldIds.has(getItemId(field))) return;
+            field.parameterReferences?.forEach((name) => references.add(name));
+            tableNames.add(field.table);
+            field.tablesReferences?.forEach((name) => tableNames.add(name));
+        });
+    });
+    // A join's ON clause can pull in further tables, so expand to a fixed point.
+    let size = 0;
+    while (size !== tableNames.size) {
+        size = tableNames.size;
+        explore.joinedTables.forEach((join) => {
+            if (!tableNames.has(join.table)) return;
+            join.tablesReferences?.forEach((name) => tableNames.add(name));
+        });
+    }
+    explore.joinedTables.forEach((join) => {
+        if (!tableNames.has(join.table)) return;
+        join.parameterReferences?.forEach((name) => references.add(name));
+    });
+    tableNames.forEach((name) => {
+        explore.tables[name]?.parameterReferences?.forEach((ref) =>
+            references.add(ref),
+        );
     });
     return [...references];
 };

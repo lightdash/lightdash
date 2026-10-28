@@ -801,9 +801,16 @@ export const getRunQuery = ({
                     };
                 }
 
+                const appliedParametersQuery = {
+                    dimensions: queryTool.queryConfig.dimensions,
+                    metrics: queryTool.queryConfig.metrics,
+                    filters: queryTool.queryConfig.filters,
+                    additionalMetrics: populatedCustomMetrics,
+                };
                 const appliedParameters = getAppliedParameters(
                     explore,
                     projectParameterDefinitions,
+                    appliedParametersQuery,
                     queryTool.queryConfig.parameters,
                 );
 
@@ -900,6 +907,7 @@ export const getRunQuery = ({
                             summarizeAppliedParameters(
                                 explore,
                                 projectParameterDefinitions,
+                                appliedParametersQuery,
                                 queryTool.queryConfig.parameters,
                             ),
                         metadata: { status: 'success' },
@@ -1023,6 +1031,7 @@ export const getRunQuery = ({
                     summarizeAppliedParameters(
                         explore,
                         projectParameterDefinitions,
+                        appliedParametersQuery,
                         queryTool.queryConfig.parameters,
                     ) +
                     getExecutionStatsNote(queryResults.executionStats);
