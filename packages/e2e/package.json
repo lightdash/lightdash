@@ -3,27 +3,29 @@
     "version": "3.92.1",
     "private": true,
     "license": "MIT",
-    "main": "index.js",
     "scripts": {
-        "cypress:open": "cypress open --e2e",
-        "cypress:open:native": "RUNTIME=native cypress open --e2e",
-        "cypress:run": "cypress run",
+        "test": "playwright test",
+        "test:ui": "playwright test --ui",
+        "test:app": "playwright test tests/app",
+        "test:api": "playwright test tests/api",
+        "test:cli": "playwright test tests/cli",
+        "typecheck": "tsc --noEmit",
         "linter": "oxlint -c .oxlintrc.json --ignore-path ./../../.gitignore",
         "formatter": "oxfmt",
-        "lint": "pnpm run linter ./cypress",
-        "fix-lint": "pnpm run linter ./cypress --fix",
-        "format": "oxfmt ./cypress --check",
-        "fix-format": "oxfmt ./cypress"
+        "lint": "pnpm run linter ./tests ./support ./playwright.config.ts",
+        "fix-lint": "pnpm run linter ./tests ./support ./playwright.config.ts --fix",
+        "format": "oxfmt ./tests ./support ./playwright.config.ts --check",
+        "fix-format": "oxfmt ./tests ./support ./playwright.config.ts"
     },
     "dependencies": {
         "@lightdash/common": "workspace:*",
-        "@testing-library/cypress": "10.1.3",
-        "cypress": "15.18.1",
-        "cypress-split": "1.24.29",
+        "@playwright/test": "1.63.0",
         "dayjs": "1.11.10",
         "js-yaml": "4.3.2"
     },
     "devDependencies": {
+        "@types/js-yaml": "4.0.9",
+        "@types/node": "24.10.1",
         "oxlint": "1.75.0",
         "oxlint-tsgolint": "7.0.2001",
         "typescript": "npm:@typescript/typescript6@6.0.2"

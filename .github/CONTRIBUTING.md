@@ -530,16 +530,16 @@ pnpm install
 pnpm common-build
 pnpm warehouses-build
 
-# Run cypress in interactive mode
+# Run Playwright in UI mode
 pnpm e2e-open
 
-# Or run cypress in cli mode
+# Or run Playwright headless
 pnpm e2e-run
 ```
 
 Note:
 
-- Edit `packages/e2e/cypress.json` if you're running Lightdash on a different domain/port than `http://localhost:8080`
+- Set `PLAYWRIGHT_BASE_URL` if you're running Lightdash somewhere other than `http://localhost:3000` (see `packages/e2e/AGENTS.md`)
 
 #### How to check code quality
 
