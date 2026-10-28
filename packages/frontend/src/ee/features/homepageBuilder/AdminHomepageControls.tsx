@@ -103,8 +103,8 @@ const OpeningMenu: FC<{ organizationUuid: string | undefined }> = ({
     );
 };
 
-// Quiet escape hatch for the opt-in flow: only offered when the org enabled
-// homepage v2 via settings (flag-enabled orgs have no settings row to unset).
+// Quiet escape hatch: hidden while the settings request is still loading or
+// failed, since there is nothing to switch back from.
 const SwitchBackButton: FC<{ organizationUuid: string | undefined }> = ({
     organizationUuid,
 }) => {

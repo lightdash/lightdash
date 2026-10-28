@@ -89,7 +89,7 @@ describe('AdminHomepageControls', () => {
         expect(container).not.toHaveTextContent('Deep research');
     });
 
-    it('hides the switch-back control for flag-enabled orgs (no opt-in row)', () => {
+    it('hides the switch-back control while the homepage is off', () => {
         renderControls();
 
         expect(
@@ -99,7 +99,7 @@ describe('AdminHomepageControls', () => {
         ).toBeNull();
     });
 
-    it('offers switch-back when the org opted in via settings', () => {
+    it('offers switch-back while the homepage is on', () => {
         settings.current = { enabled: true, opening: 'content-first' };
         renderControls();
 
