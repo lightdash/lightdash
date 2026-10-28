@@ -155,3 +155,8 @@
     background: transparent;
     z-index: 2;
 }
+
+.previewDrawerBody {
+    padding: 0 0 var(--mantine-spacing-lg);
+    height: 100%;
+}

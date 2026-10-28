@@ -2,6 +2,7 @@ import { Center, Tooltip } from '@mantine/core';
 import { type Icon } from '@tabler/icons-react';
 import { type FC, type JSX } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
+import classes from './FilterGroupSeparator.module.css';
 
 type Props = {
     icon: Icon;
@@ -21,7 +22,7 @@ const FilterGroupSeparator: FC<Props> = ({
                 h={size === 'md' ? 30 : 24}
                 flex="0 0 auto"
                 bg="ldGray.1"
-                style={{ borderRadius: '100%' }}
+                className={classes.circle}
             >
                 <MantineIcon
                     icon={icon}

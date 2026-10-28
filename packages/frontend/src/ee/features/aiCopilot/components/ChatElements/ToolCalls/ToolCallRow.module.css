@@ -109,6 +109,7 @@
  * (Mantine Badge) so chips here match every other chip in the activity card. */
 .chipAppear {
     animation: chipAppear 320ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+    animation-delay: var(--chip-delay, 0ms);
 }
 
 .overflow {

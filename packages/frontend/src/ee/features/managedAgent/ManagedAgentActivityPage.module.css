@@ -452,6 +452,10 @@
     user-select: none;
 }
 
+.runHeaderRow[data-expandable='false'] {
+    cursor: default;
+}
+
 .runHeaderRow td {
     padding: 14px 12px 6px;
 }
@@ -662,4 +666,12 @@
     align-items: center;
     gap: 2px;
     vertical-align: bottom;
+}
+
+.scrollBody {
+    overflow: auto;
+}
+
+.hiddenCheck {
+    visibility: hidden;
 }

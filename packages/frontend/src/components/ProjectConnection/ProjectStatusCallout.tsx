@@ -8,6 +8,7 @@ import MDEditor from '@uiw/react-md-editor';
 import { type FC } from 'react';
 import rehypeExternalLinks from 'rehype-external-links';
 import MantineIcon from '../common/MantineIcon';
+import classes from './ProjectStatusCallout.module.css';
 
 type ProjectStatusCalloutProps = Omit<AlertProps, 'children'> & {
     isSuccess: boolean;
@@ -52,10 +53,7 @@ const ProjectStatusCallout: FC<ProjectStatusCalloutProps> = ({
                     rehypePlugins={[
                         [rehypeExternalLinks, { target: '_blank' }],
                     ]}
-                    style={{
-                        background: 'transparent',
-                        fontSize: '12px',
-                    }}
+                    className={classes.errorMarkdown}
                 />
             ) : null,
             styles: error ? { body: { gap: 0 } } : undefined,

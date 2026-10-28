@@ -2,6 +2,7 @@ import { Button } from '@mantine/core';
 import { IconChevronDown, IconChevronUp } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../common/MantineIcon';
+import classes from './FormCollapseButton.module.css';
 
 const FormCollapseButton: FC<
     React.PropsWithChildren<{
@@ -13,9 +14,7 @@ const FormCollapseButton: FC<
         <Button
             variant="subtle"
             size="compact-sm"
-            style={{
-                alignSelf: 'end',
-            }}
+            className={classes.button}
             leftSection={
                 isSectionOpen ? (
                     <MantineIcon icon={IconChevronUp} />

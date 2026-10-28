@@ -2,6 +2,7 @@ import { type DashboardFilterRule } from '@lightdash/common';
 import { Button, Divider, Group, Popover, Text, Tooltip } from '@mantine/core';
 import { useDisclosure, useId } from '@mantine/hooks';
 import { IconEye, IconEyeOff, IconRotate2 } from '@tabler/icons-react';
+import clsx from 'clsx';
 import { useCallback, useMemo, useRef, type FC, type ReactNode } from 'react';
 import { flushSync } from 'react-dom';
 import MantineIcon from '../../components/common/MantineIcon';
@@ -16,6 +17,7 @@ import {
     useDashboardSelector,
     useHasDashboardTemporaryFilters,
 } from '../dashboard/store';
+import classes from './AddFilterButton.module.css';
 import FilterConfiguration from './FilterConfiguration';
 
 type Props = {
@@ -168,12 +170,8 @@ const AddFilterButton: FC<Props> = ({
                             setHaveFiltersChanged(false);
                             onResetDashboardFilters();
                         }}
-                        styles={{
-                            root: {
-                                borderRadius: '100px',
-                                borderStyle: 'dashed',
-                            },
-                        }}
+                        radius={100}
+                        className={classes.dashed}
                     >
                         <MantineIcon icon={IconRotate2} />
                     </Button>
@@ -211,7 +209,11 @@ const AddFilterButton: FC<Props> = ({
                     >
                         <Button
                             data-dashboard-filter-control
-                            className={triggerClassName}
+                            className={clsx(
+                                triggerClassName,
+                                classes.dashed,
+                                hasAttachedButton && classes.attachedLeft,
+                            )}
                             size="xs"
                             variant="default"
                             radius={100}
@@ -220,18 +222,6 @@ const AddFilterButton: FC<Props> = ({
                                 isLoadingDashboardFilters ||
                                 isFetchingDashboardFilters
                             }
-                            styles={{
-                                root: {
-                                    borderStyle: 'dashed',
-                                    ...(hasAttachedButton
-                                        ? {
-                                              borderRightWidth: '0px',
-                                              borderTopRightRadius: '0px',
-                                              borderBottomRightRadius: '0px',
-                                          }
-                                        : {}),
-                                },
-                            }}
                             onClick={() =>
                                 isPopoverOpen
                                     ? handleDismiss()
@@ -289,16 +279,7 @@ const AddFilterButton: FC<Props> = ({
                                 onClick={() =>
                                     setIsAddFilterDisabled(!isAddFilterDisabled)
                                 }
-                                styles={{
-                                    root: {
-                                        borderLeft: '0px',
-                                        borderStartStartRadius: '0px',
-                                        borderEndStartRadius: '0px',
-                                        borderStartEndRadius: '100px',
-                                        borderEndEndRadius: '100px',
-                                        borderStyle: 'dashed',
-                                    },
-                                }}
+                                className={classes.attachedRight}
                             >
                                 <MantineIcon
                                     icon={
@@ -327,16 +308,7 @@ const AddFilterButton: FC<Props> = ({
                                 setHaveFiltersChanged(false);
                                 onResetDashboardFilters();
                             }}
-                            styles={{
-                                root: {
-                                    borderLeft: '0px',
-                                    borderStartStartRadius: '0px',
-                                    borderEndStartRadius: '0px',
-                                    borderStartEndRadius: '100px',
-                                    borderEndEndRadius: '100px',
-                                    borderStyle: 'dashed',
-                                },
-                            }}
+                            className={classes.attachedRight}
                         >
                             <MantineIcon icon={IconRotate2} />
                         </Button>

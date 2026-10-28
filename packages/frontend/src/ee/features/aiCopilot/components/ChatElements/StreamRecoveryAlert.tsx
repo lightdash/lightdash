@@ -1,5 +1,6 @@
 import { Box, Button, Group, Loader, Text } from '@mantine/core';
 import { useEffect, useState } from 'react';
+import classes from './StreamRecoveryAlert.module.css';
 
 const RECOVERY_TIMER_INTERVAL_MS = 1_000;
 const RECOVERY_REFRESH_OFFER_DELAY_SECONDS = 10;
@@ -35,10 +36,7 @@ export const StreamRecoveryAlert = () => {
                         size="xs"
                         fw={500}
                         c="yellow.9"
-                        style={{
-                            flexShrink: 0,
-                            fontVariantNumeric: 'tabular-nums',
-                        }}
+                        className={classes.status}
                     >
                         {elapsedSeconds > 0
                             ? `Connection lost. Reconnecting… ${elapsedSeconds}s`
@@ -54,12 +52,8 @@ export const StreamRecoveryAlert = () => {
                         size="compact-xs"
                         variant="transparent"
                         px={4}
-                        styles={{
-                            root: {
-                                color: 'var(--mantine-color-yellow-9)',
-                                flexShrink: 0,
-                            },
-                        }}
+                        c="yellow.9"
+                        flex="0 0 auto"
                         onClick={() => window.location.reload()}
                     >
                         Refresh page

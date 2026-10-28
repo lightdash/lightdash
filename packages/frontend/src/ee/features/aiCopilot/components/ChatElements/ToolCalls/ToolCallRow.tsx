@@ -163,7 +163,7 @@ export const ToolCallRow: FC<Props> = ({
                         <ToolCallChip
                             key={`chip-${idx}`}
                             className={styles.chipAppear}
-                            style={{ animationDelay: `${idx * 28}ms` }}
+                            style={{ '--chip-delay': `${idx * 28}ms` }}
                         >
                             {chipLabel}
                         </ToolCallChip>

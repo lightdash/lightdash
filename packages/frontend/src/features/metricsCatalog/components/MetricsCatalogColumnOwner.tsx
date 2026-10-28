@@ -28,7 +28,7 @@ export const MetricsCatalogColumnOwner: FC<Props> = ({ row }) => {
 
     if (!owner) {
         return (
-            <Text fz="sm" c="dimmed" fs="italic" style={{ cursor: 'default' }}>
+            <Text fz="sm" c="dimmed" fs="italic" className={classes.unassigned}>
                 Unassigned
             </Text>
         );

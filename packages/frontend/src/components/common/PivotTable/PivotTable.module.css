@@ -16,6 +16,7 @@
  */
 .stickyColumn {
     position: sticky !important;
+    left: var(--sticky-left, 0);
     z-index: var(--ld-z-sticky);
     background-color: var(--mantine-color-body) !important;
 }
@@ -42,4 +43,15 @@
     /* nudge the top-aligned value off the border so it lines up with the first
        row's centered content (cells are 32px tall) */
     padding-top: var(--mantine-spacing-xs);
+}
+
+.groupToggleButton {
+    height: unset;
+    padding-left: var(--mantine-spacing-two);
+    padding-right: var(--mantine-spacing-xxs);
+    font-feature-settings: 'tnum';
+}
+
+.groupToggleSection {
+    margin-right: 0;
 }

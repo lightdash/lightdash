@@ -502,7 +502,7 @@ const DashboardHeader = memo(
                                 color="yellow"
                                 variant="dot"
                                 size="sm"
-                                style={{ cursor: 'default' }}
+                                className={headerClasses.staticBadge}
                             >
                                 Unpublished changes
                             </Badge>
@@ -572,9 +572,7 @@ const DashboardHeader = memo(
                         >
                             <IconCircleCheckFilled
                                 size={16}
-                                style={{
-                                    color: 'var(--mantine-color-green-6)',
-                                }}
+                                color="var(--mantine-color-green-6)"
                             />
                         </Tooltip>
                     )}
@@ -1001,7 +999,7 @@ const DashboardHeader = memo(
 
                                 <Menu.Dropdown
                                     mah="calc(100dvh - 24px)"
-                                    style={{ overflowY: 'auto' }}
+                                    className={headerClasses.scrollableDropdown}
                                 >
                                     {compact && (
                                         <>
@@ -1321,9 +1319,7 @@ const DashboardHeader = memo(
                                                     isDashboardVerified ? (
                                                         <IconCircleCheckFilled
                                                             size={16}
-                                                            style={{
-                                                                color: 'var(--mantine-color-green-6)',
-                                                            }}
+                                                            color="var(--mantine-color-green-6)"
                                                         />
                                                     ) : (
                                                         <MantineIcon

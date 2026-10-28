@@ -19,8 +19,6 @@ import {
     Loader,
     Stack,
     Text,
-    useMantineTheme,
-    type MantineTheme,
 } from '@mantine/core';
 import {
     IconAlertTriangleFilled,
@@ -172,20 +170,12 @@ const JobTimingInfo: FC<{
 
 const PartialFailureText: FC<{
     failure: PartialFailure;
-    theme: MantineTheme;
-}> = ({ failure, theme }) => {
+}> = ({ failure }) => {
     switch (failure.type) {
         case PartialFailureType.DASHBOARD_CHART:
         case PartialFailureType.DASHBOARD_SQL_CHART:
             return (
-                <Stack
-                    gap={4}
-                    p="xs"
-                    style={{
-                        borderRadius: theme.radius.sm,
-                        backgroundColor: theme.colors.orange[0],
-                    }}
-                >
+                <Stack gap={4} p="xs" className={classes.failureCard}>
                     <Text fz="xs" fw={500} c="orange.9">
                         {failure.chartName}
                     </Text>
@@ -196,14 +186,7 @@ const PartialFailureText: FC<{
             );
         case PartialFailureType.MISSING_TARGETS:
             return (
-                <Stack
-                    gap={4}
-                    p="xs"
-                    style={{
-                        borderRadius: theme.radius.sm,
-                        backgroundColor: theme.colors.orange[0],
-                    }}
-                >
+                <Stack gap={4} p="xs" className={classes.failureCard}>
                     <Text fz="xs" fw={500} c="orange.9">
                         No recipients configured for this scheduled delivery
                     </Text>
@@ -211,14 +194,7 @@ const PartialFailureText: FC<{
             );
         case PartialFailureType.AI_AUGMENTATION:
             return (
-                <Stack
-                    gap={4}
-                    p="xs"
-                    style={{
-                        borderRadius: theme.radius.sm,
-                        backgroundColor: theme.colors.orange[0],
-                    }}
-                >
+                <Stack gap={4} p="xs" className={classes.failureCard}>
                     <Text fz="xs" fw={500} c="orange.9">
                         AI summary could not be generated
                     </Text>
@@ -229,14 +205,7 @@ const PartialFailureText: FC<{
             );
         case PartialFailureType.APP_QUERY:
             return (
-                <Stack
-                    gap={4}
-                    p="xs"
-                    style={{
-                        borderRadius: theme.radius.sm,
-                        backgroundColor: theme.colors.orange[0],
-                    }}
-                >
+                <Stack gap={4} p="xs" className={classes.failureCard}>
                     <Text fz="xs" fw={500} c="orange.9">
                         {failure.label}
                     </Text>
@@ -247,14 +216,7 @@ const PartialFailureText: FC<{
             );
         case PartialFailureType.APP_QUERY_MISSING:
             return (
-                <Stack
-                    gap={4}
-                    p="xs"
-                    style={{
-                        borderRadius: theme.radius.sm,
-                        backgroundColor: theme.colors.orange[0],
-                    }}
-                >
+                <Stack gap={4} p="xs" className={classes.failureCard}>
                     <Text fz="xs" fw={500} c="orange.9">
                         {failure.label}
                     </Text>
@@ -265,14 +227,7 @@ const PartialFailureText: FC<{
             );
         case PartialFailureType.APP_CAPTURE_OVERFLOW:
             return (
-                <Stack
-                    gap={4}
-                    p="xs"
-                    style={{
-                        borderRadius: theme.radius.sm,
-                        backgroundColor: theme.colors.orange[0],
-                    }}
-                >
+                <Stack gap={4} p="xs" className={classes.failureCard}>
                     <Text fz="xs" fw={500} c="orange.9">
                         {`${failure.droppedCount} queries were dropped from capture (limit ${MAX_DELIVERY_QUERIES})`}
                     </Text>
@@ -297,7 +252,6 @@ const getPartialFailureKey = (
 const JobRow: FC<{
     job: JobSummary;
     run: SchedulerRun;
-    theme: MantineTheme;
     partialFailures?: PartialFailure[];
     getTargetDisplayName: (
         target: string | null,
@@ -307,7 +261,6 @@ const JobRow: FC<{
 }> = ({
     job,
     run,
-    theme,
     partialFailures = [],
     getTargetDisplayName,
     getFormatDisplayName,
@@ -321,13 +274,9 @@ const JobRow: FC<{
 
     // Determine status icon
     const statusIcon = isPartialFailure ? (
-        <MantineIcon
-            icon={IconAlertTriangleFilled}
-            color="orange.6"
-            style={{ color: theme.colors.orange[6] }}
-        />
+        <MantineIcon icon={IconAlertTriangleFilled} color="orange.6" />
     ) : (
-        getLogStatusIconWithoutTooltip(job.finalStatus, theme)
+        getLogStatusIconWithoutTooltip(job.finalStatus)
     );
 
     // Determine status message: charts/dashboard-sql-charts and app queries are
@@ -446,13 +395,7 @@ const JobRow: FC<{
     // Simple row for success case (no details below)
     if (!hasDetails) {
         return (
-            <Box
-                p="sm"
-                style={{
-                    borderRadius: theme.radius.sm,
-                    border: `1px solid ${theme.colors.ldGray[2]}`,
-                }}
-            >
+            <Box p="sm" className={classes.jobCard}>
                 {mainContent}
             </Box>
         );
@@ -460,14 +403,7 @@ const JobRow: FC<{
 
     // Stack layout for error/partial failure cases (with details below)
     return (
-        <Stack
-            gap="sm"
-            p="sm"
-            style={{
-                borderRadius: theme.radius.sm,
-                border: `1px solid ${theme.colors.ldGray[2]}`,
-            }}
-        >
+        <Stack gap="sm" p="sm" className={classes.jobCard}>
             {mainContent}
             {isError && job.errorDetails && (
                 <Code block c="red.9" bg="red.0" fz="11px">
@@ -481,7 +417,6 @@ const JobRow: FC<{
                             <PartialFailureText
                                 key={getPartialFailureKey(failure, index)}
                                 failure={failure}
-                                theme={theme}
                             />
                         );
                     })}
@@ -498,14 +433,12 @@ const JobStatusSummaryHeader: FC<{
     totalCount: number;
     partialFailureCount: number;
     batchPartialFailureCount: number;
-    theme: MantineTheme;
 }> = ({
     completedCount,
     errorCount,
     totalCount,
     partialFailureCount,
     batchPartialFailureCount,
-    theme,
 }) => {
     const allSuccessful =
         errorCount === 0 &&
@@ -524,10 +457,7 @@ const JobStatusSummaryHeader: FC<{
     if (allSuccessful) {
         return (
             <>
-                {getLogStatusIconWithoutTooltip(
-                    SchedulerJobStatus.COMPLETED,
-                    theme,
-                )}
+                {getLogStatusIconWithoutTooltip(SchedulerJobStatus.COMPLETED)}
                 <Text fz="sm" fw={600}>
                     {completedCount} {pluralize(completedCount, 'job')}{' '}
                     completed successfully
@@ -539,10 +469,7 @@ const JobStatusSummaryHeader: FC<{
     if (allFailed) {
         return (
             <>
-                {getLogStatusIconWithoutTooltip(
-                    SchedulerJobStatus.ERROR,
-                    theme,
-                )}
+                {getLogStatusIconWithoutTooltip(SchedulerJobStatus.ERROR)}
                 <Text fz="sm" fw={600}>
                     All jobs failed
                 </Text>
@@ -553,11 +480,7 @@ const JobStatusSummaryHeader: FC<{
     if (hasPartialIssues) {
         return (
             <>
-                <MantineIcon
-                    icon={IconAlertTriangleFilled}
-                    color="orange.6"
-                    style={{ color: theme.colors.orange[6] }}
-                />
+                <MantineIcon icon={IconAlertTriangleFilled} color="orange.6" />
                 <Text fz="sm" fw={600}>
                     {buildJobStatusSummary(
                         completedCount,
@@ -579,9 +502,8 @@ const JobStatusSummaryHeader: FC<{
 
 const BatchJobRow: FC<{
     job: JobSummary;
-    theme: MantineTheme;
     getSlackChannelName: (channelId: string) => string | null;
-}> = ({ job, theme, getSlackChannelName }) => {
+}> = ({ job, getSlackChannelName }) => {
     const { batchResult } = job;
     if (!batchResult) return null;
 
@@ -592,24 +514,14 @@ const BatchJobRow: FC<{
 
     const getStatusIcon = () => {
         if (isTotalFailure) {
-            return getLogStatusIconWithoutTooltip(
-                SchedulerJobStatus.ERROR,
-                theme,
-            );
+            return getLogStatusIconWithoutTooltip(SchedulerJobStatus.ERROR);
         }
         if (isPartialFailure) {
             return (
-                <MantineIcon
-                    icon={IconAlertTriangleFilled}
-                    color="orange.6"
-                    style={{ color: theme.colors.orange[6] }}
-                />
+                <MantineIcon icon={IconAlertTriangleFilled} color="orange.6" />
             );
         }
-        return getLogStatusIconWithoutTooltip(
-            SchedulerJobStatus.COMPLETED,
-            theme,
-        );
+        return getLogStatusIconWithoutTooltip(SchedulerJobStatus.COMPLETED);
     };
 
     const getStatusColor = () => {
@@ -626,14 +538,7 @@ const BatchJobRow: FC<{
     };
 
     return (
-        <Stack
-            gap="sm"
-            p="sm"
-            style={{
-                borderRadius: theme.radius.sm,
-                border: `1px solid ${theme.colors.ldGray[2]}`,
-            }}
-        >
+        <Stack gap="sm" p="sm" className={classes.jobCard}>
             <Group gap="md" wrap="nowrap" align="flex-start">
                 {getStatusIcon()}
                 <Stack gap={4} flex={1}>
@@ -661,7 +566,7 @@ const BatchJobRow: FC<{
                                 <MantineIcon
                                     icon={IconX}
                                     size="sm"
-                                    style={{ color: theme.colors.red[6] }}
+                                    color="red.6"
                                 />
                                 <Text fz="xs" c="dimmed">
                                     {getTargetName(r.target)}
@@ -688,8 +593,6 @@ const RunDetailsModal: FC<RunDetailsModalProps> = ({
     isLoading,
     getSlackChannelName,
 }) => {
-    const theme = useMantineTheme();
-
     // Helper to format SchedulerFormat enum
     const getFormatDisplayName = (format: SchedulerFormat): string => {
         switch (format) {
@@ -932,7 +835,6 @@ const RunDetailsModal: FC<RunDetailsModalProps> = ({
                             batchPartialFailureCount={
                                 jobStatusSummary.batchPartialFailureCount
                             }
-                            theme={theme}
                         />
                     </Group>
                     {isLoading ? (
@@ -946,7 +848,6 @@ const RunDetailsModal: FC<RunDetailsModalProps> = ({
                                     <BatchJobRow
                                         key={job.jobId}
                                         job={job}
-                                        theme={theme}
                                         getSlackChannelName={
                                             getSlackChannelName
                                         }
@@ -956,7 +857,6 @@ const RunDetailsModal: FC<RunDetailsModalProps> = ({
                                         key={job.jobId}
                                         job={job}
                                         run={run}
-                                        theme={theme}
                                         partialFailures={partialFailures}
                                         getTargetDisplayName={
                                             getTargetDisplayName

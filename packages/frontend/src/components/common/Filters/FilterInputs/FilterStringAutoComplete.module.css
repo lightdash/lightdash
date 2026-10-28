@@ -51,3 +51,11 @@
     justify-content: flex-end;
     align-items: flex-start;
 }
+
+.defaultCursor {
+    cursor: default;
+}
+
+.hidden {
+    visibility: hidden;
+}

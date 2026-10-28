@@ -27,6 +27,7 @@ import useToaster from '../../../hooks/toaster/useToaster';
 import MantineIcon from '../../common/MantineIcon';
 import { DeletePaletteModal } from './DeletePaletteModal';
 import { EditPaletteModal } from './EditPaletteModal';
+import classes from './PaletteItem.module.css';
 
 type PaletteItemProps = {
     palette: Omit<OrganizationColorPalette, 'name'> & { name: string };
@@ -151,12 +152,10 @@ export const PaletteItem: FC<PaletteItemProps> = ({
                                     onSetActive(palette.colorPaletteUuid)
                                 }
                                 h={32}
-                                style={{
-                                    visibility:
-                                        isHovered && !isActive
-                                            ? 'visible'
-                                            : 'hidden',
-                                }}
+                                className={classes.useThemeButton}
+                                data-visible={
+                                    (isHovered && !isActive) || undefined
+                                }
                             >
                                 Use This Theme
                             </Button>

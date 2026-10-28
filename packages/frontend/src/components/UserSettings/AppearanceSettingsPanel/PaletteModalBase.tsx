@@ -116,11 +116,7 @@ export const PaletteModalBase: FC<PaletteModalBaseProps> = ({
                 <ScrollArea
                     h={260}
                     offsetScrollbars
-                    styles={{
-                        viewport: {
-                            maxHeight: 260,
-                        },
-                    }}
+                    classNames={{ viewport: classes.colorsViewport }}
                 >
                     <SimpleGrid cols={2} spacing="two">
                         {colors

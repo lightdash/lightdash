@@ -29,7 +29,7 @@ import {
     type ResultValue,
     type TableCalculation,
 } from '@lightdash/common';
-import { Group, Skeleton, Tooltip } from '@mantine/core';
+import { Group, Skeleton, Text, Tooltip } from '@mantine/core';
 import { IconExclamationCircle, IconKey } from '@tabler/icons-react';
 import { type CellContext } from '@tanstack/react-table';
 import omit from 'lodash/omit';
@@ -78,6 +78,7 @@ import {
     useAsyncCalculateTotal,
     useColumnTotalsEnabledByDefault,
 } from './useAsyncCalculateTotal';
+import classes from './useColumns.module.css';
 import { useExplore } from './useExplore';
 import { useExplorerQuery } from './useExplorerQuery';
 
@@ -259,7 +260,11 @@ const formatRichTextCell = (
     // Extract the value
     if (!isResultValue(cellValue)) {
         // Return empty/null display if not a proper ResultValue
-        return <span style={{ color: '#999' }}>-</span>;
+        return (
+            <Text span inherit c="dimmed">
+                -
+            </Text>
+        );
     }
 
     const value = (cellValue as { value: ResultValue }).value;
@@ -879,7 +884,7 @@ export const useColumns = (): TableColumn[] => {
                                 </Tooltip>
 
                                 <TableHeaderBoldLabel
-                                    style={{ marginLeft: 10 }}
+                                    className={classes.invalidFieldLabel}
                                 >
                                     {fieldId}
                                 </TableHeaderBoldLabel>

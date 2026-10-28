@@ -739,10 +739,9 @@ const TableCalculationModal: FC<Props> = ({
                                                 <Text
                                                     size="xs"
                                                     c="red.7"
-                                                    style={{
-                                                        wordBreak: 'break-word',
-                                                        whiteSpace: 'pre-wrap',
-                                                    }}
+                                                    className={
+                                                        classes.parseError
+                                                    }
                                                 >
                                                     {formulaParseError}
                                                 </Text>
@@ -815,11 +814,11 @@ const TableCalculationModal: FC<Props> = ({
                                         !form.values.sql ||
                                         form.values.sql.trim().length === 0
                                     }
-                                    style={{
-                                        visibility: showConversionPreview
-                                            ? 'hidden'
-                                            : 'visible',
-                                    }}
+                                    className={
+                                        showConversionPreview
+                                            ? classes.hidden
+                                            : undefined
+                                    }
                                 >
                                     Convert to formula
                                 </Button>
@@ -881,7 +880,7 @@ const TableCalculationModal: FC<Props> = ({
                                         pos="absolute"
                                         top={8}
                                         right={8}
-                                        style={{ zIndex: 5 }}
+                                        className={classes.floatingActions}
                                     >
                                         <Popover
                                             position="bottom-end"

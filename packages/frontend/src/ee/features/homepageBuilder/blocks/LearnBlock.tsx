@@ -122,6 +122,7 @@ const ModuleCard: FC<
     return (
         <div
             className={styles.card}
+            // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
             style={groupVars(module.group)}
             {...{ [dataAttr]: module.scope }}
         >
@@ -245,6 +246,7 @@ const ModuleList: FC<
                         <div
                             key={module.scope}
                             className={styles.pinnedRow}
+                            // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
                             style={groupVars(module.group)}
                             data-learn-module={module.scope}
                         >

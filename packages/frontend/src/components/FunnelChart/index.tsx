@@ -161,6 +161,7 @@ const FunnelChart: FC<FunnelChartProps> = memo(
                 <EChartsReact
                     ref={chartRef}
                     className={props.className}
+                    // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
                     style={
                         props.$shouldExpand
                             ? {

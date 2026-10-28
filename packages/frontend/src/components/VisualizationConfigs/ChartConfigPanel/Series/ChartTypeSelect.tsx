@@ -9,6 +9,7 @@ import {
 } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import MantineIcon from '../../../common/MantineIcon';
+import seriesClasses from './Series.module.css';
 
 const CHART_TYPE_OPTIONS = [
     { value: CartesianSeriesType.BAR, label: 'Bar', icon: IconChartBar },
@@ -71,12 +72,7 @@ export const ChartTypeSelect: FC<Props> = ({
                     <MantineIcon color="ldGray.8" icon={selectedChartIcon} />
                 )
             }
-            styles={{
-                input: {
-                    color: 'transparent',
-                    width: '4px',
-                },
-            }}
+            classNames={{ input: seriesClasses.chartTypeInput }}
         />
     );
 };

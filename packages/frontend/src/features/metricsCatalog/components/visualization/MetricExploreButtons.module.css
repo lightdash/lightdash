@@ -4,3 +4,11 @@
 .segmentationSelect:hover {
     cursor: not-allowed;
 }
+
+.clearButtonSection {
+    margin-left: 4px;
+}
+
+.hidden {
+    visibility: hidden;
+}

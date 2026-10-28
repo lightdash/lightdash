@@ -50,6 +50,7 @@ import useSearchParams from '../../../../../hooks/useSearchParams';
 import SlackSvg from '../../../../../svgs/slack.svg?react';
 import { useAiAgentAdminAgents } from '../../hooks/useAiAgentAdmin';
 import { useAgentSettingsLinkState } from '../../utils/agentSettingsNavigation';
+import adminClasses from './AdminTable.module.css';
 import ProjectsFilter from './ProjectsFilter';
 import { SearchFilter } from './SearchFilter';
 
@@ -335,12 +336,10 @@ const AiAgentAdminAgentsTable = () => {
                                                 <Paper
                                                     w="fit-content"
                                                     maw="100%"
-                                                    style={(t) =>
+                                                    className={
                                                         isResolved
                                                             ? undefined
-                                                            : {
-                                                                  border: `1px dashed ${t.colors.ldGray[4]}`,
-                                                              }
+                                                            : adminClasses.unresolvedChannel
                                                     }
                                                 >
                                                     <Group
@@ -349,10 +348,8 @@ const AiAgentAdminAgentsTable = () => {
                                                         wrap="nowrap"
                                                     >
                                                         <SlackSvg
-                                                            style={{
-                                                                width: '12px',
-                                                                height: '12px',
-                                                            }}
+                                                            width={12}
+                                                            height={12}
                                                         />
                                                         <Text
                                                             fz="xs"
@@ -600,13 +597,7 @@ const AiAgentAdminAgentsTable = () => {
                     <Group gap="xs">
                         <Box
                             bg="ldGray.1"
-                            style={{
-                                borderRadius: 6,
-                                padding: `${theme.spacing.sm} ${theme.spacing.xs}`,
-                                height: 32,
-                                display: 'flex',
-                                alignItems: 'center',
-                            }}
+                            className={adminClasses.resultsCount}
                         >
                             <Text fz="sm" fw={500}>
                                 {isLoading

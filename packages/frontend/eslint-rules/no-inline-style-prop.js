@@ -29,12 +29,22 @@ module.exports = {
                 }
                 if (node.name.name !== 'style') return;
                 const value = node.value;
+                let expression =
+                    value && value.type === 'JSXExpressionContainer'
+                        ? value.expression
+                        : null;
+                while (
+                    expression &&
+                    (expression.type === 'TSAsExpression' ||
+                        expression.type === 'TSSatisfiesExpression')
+                ) {
+                    expression = expression.expression;
+                }
                 if (
-                    value &&
-                    value.type === 'JSXExpressionContainer' &&
-                    value.expression.type === 'ObjectExpression' &&
-                    value.expression.properties.length > 0 &&
-                    value.expression.properties.every(isCssVariableKey)
+                    expression &&
+                    expression.type === 'ObjectExpression' &&
+                    expression.properties.length > 0 &&
+                    expression.properties.every(isCssVariableKey)
                 ) {
                     return;
                 }

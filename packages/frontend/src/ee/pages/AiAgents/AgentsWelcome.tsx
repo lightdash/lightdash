@@ -183,17 +183,11 @@ const AgentsWelcome = () => {
                                 What you can do with AI Agents:
                             </Title>
 
-                            <List
-                                styles={(theme) => ({
-                                    item: {
-                                        marginBottom: theme.spacing.xs,
-                                        marginTop: theme.spacing.xs,
-                                    },
-                                })}
-                            >
+                            <List>
                                 {AGENT_FEATURES.map((agentFeature) => (
                                     <List.Item
                                         key={agentFeature.title}
+                                        my="xs"
                                         icon={
                                             <Avatar
                                                 c="gray"

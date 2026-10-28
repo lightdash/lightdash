@@ -59,10 +59,11 @@ export const AgentVisualizationChartTypeSwitcher = <T extends SwitcherKind>({
                         icon={CHART_TYPE_ICONS[chartType]}
                         size="sm"
                         stroke={1.3}
-                        style={{
-                            rotate:
-                                chartType === 'horizontal' ? '90deg' : '0deg',
-                        }}
+                        className={
+                            chartType === 'horizontal'
+                                ? classes.rotatedIcon
+                                : undefined
+                        }
                     />
                 ),
             }))}

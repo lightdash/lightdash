@@ -601,12 +601,7 @@ export const Tables: FC<{ onRefresh: () => void }> = ({ onRefresh }) => {
                     onScrollPositionChange={({ y }) => setIsScrolled(y > 0)}
                 >
                     {catalog && (
-                        <Box
-                            style={{
-                                height: virtualizer.getTotalSize(),
-                                position: 'relative',
-                            }}
-                        >
+                        <Box h={virtualizer.getTotalSize()} pos="relative">
                             {virtualizer.getVirtualItems().map((virtualRow) => {
                                 const row = rows[virtualRow.index];
                                 if (!row) return null;
@@ -615,12 +610,9 @@ export const Tables: FC<{ onRefresh: () => void }> = ({ onRefresh }) => {
                                         key={virtualRow.key}
                                         data-index={virtualRow.index}
                                         ref={virtualizer.measureElement}
+                                        className={styles.virtualRow}
                                         style={{
-                                            position: 'absolute',
-                                            top: 0,
-                                            left: 0,
-                                            width: '100%',
-                                            transform: `translateY(${virtualRow.start}px)`,
+                                            '--row-start': `${virtualRow.start}px`,
                                         }}
                                     >
                                         <VirtualRow

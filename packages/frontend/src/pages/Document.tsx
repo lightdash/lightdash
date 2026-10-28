@@ -103,9 +103,7 @@ const DocumentWorkspace = ({ document }: { document: Document }) => {
                             >
                                 <IconCircleCheckFilled
                                     size={16}
-                                    style={{
-                                        color: 'var(--mantine-color-green-6)',
-                                    }}
+                                    color="var(--mantine-color-green-6)"
                                     aria-label="Verified"
                                 />
                             </Tooltip>

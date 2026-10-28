@@ -2,3 +2,17 @@
     border-radius: 12px;
     align-items: flex-start;
 }
+
+.headerButton {
+    border-radius: var(--mantine-radius-md);
+    border: 1px solid var(--mantine-color-ldGray-2);
+    padding: 0.25rem 10px 0.25rem var(--mantine-spacing-xs);
+    font-size: var(--mantine-font-size-sm);
+    font-weight: 500;
+    color: var(--mantine-color-ldGray-7);
+}
+
+.dropdownButton {
+    border: none;
+    flex-grow: 1;
+}

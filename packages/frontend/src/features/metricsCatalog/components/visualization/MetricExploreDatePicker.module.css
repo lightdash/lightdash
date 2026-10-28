@@ -106,3 +106,16 @@
         background: var(--mantine-color-body);
     }
 }
+
+.rangeInput {
+    box-shadow: var(--mantine-shadow-subtle);
+    border: 1px solid var(--mantine-color-ldGray-2);
+}
+
+.cancelButton {
+    border: 1px solid var(--mantine-color-ldGray-2);
+}
+
+.footerButton {
+    box-shadow: var(--mantine-shadow-subtle);
+}

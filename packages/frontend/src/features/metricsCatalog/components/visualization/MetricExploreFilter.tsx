@@ -6,6 +6,7 @@ import {
 } from '@lightdash/common';
 import { Button, Group, Select, Stack, Text } from '@mantine/core';
 import { IconFilter, IconX } from '@tabler/icons-react';
+import { clsx } from 'clsx';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { groupComboboxItems } from '../../../../components/common/Select/utils';
@@ -202,15 +203,11 @@ export const MetricExploreFilter: FC<Props> = ({
                                 size={12}
                             />
                         }
-                        className={styles.clearButton}
-                        style={{
-                            visibility: showClearButton,
-                        }}
-                        styles={{
-                            section: {
-                                marginLeft: 4,
-                            },
-                        }}
+                        className={clsx(
+                            styles.clearButton,
+                            showClearButton === 'hidden' && styles.hidden,
+                        )}
+                        classNames={{ section: styles.clearButtonSection }}
                         onClick={handleClearFilter}
                     >
                         Clear

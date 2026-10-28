@@ -457,3 +457,11 @@
 .loadEarlierRow {
     cursor: pointer;
 }
+
+.themeBadge {
+    cursor: pointer;
+}
+
+.themeBadge:disabled {
+    cursor: not-allowed;
+}

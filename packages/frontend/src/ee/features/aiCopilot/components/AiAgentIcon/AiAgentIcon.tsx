@@ -7,7 +7,6 @@ type Props = {
     animated?: boolean;
     calm?: boolean;
     className?: string;
-    style?: CSSProperties;
 };
 
 export const AiAgentIcon: FC<Props> = ({
@@ -16,7 +15,6 @@ export const AiAgentIcon: FC<Props> = ({
     animated = false,
     calm = false,
     className,
-    style,
 }) => {
     const resolvedSize = typeof size === 'number' ? `${size}px` : size;
 
@@ -25,12 +23,7 @@ export const AiAgentIcon: FC<Props> = ({
             aria-hidden="true"
             data-ai-agent-icon=""
             className={[styles.wrap, className].filter(Boolean).join(' ')}
-            style={
-                {
-                    '--ai-agent-icon-size': resolvedSize,
-                    ...style,
-                } as CSSProperties
-            }
+            style={{ '--ai-agent-icon-size': resolvedSize } as CSSProperties}
         >
             <span
                 className={[

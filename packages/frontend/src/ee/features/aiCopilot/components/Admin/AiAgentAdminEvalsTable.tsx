@@ -38,6 +38,7 @@ import { useIsTruncated } from '../../../../../hooks/useIsTruncated';
 import { useInfiniteAiAgentAdminEvals } from '../../hooks/useAiAgentAdmin';
 import { useAiAgentAdminFilters } from '../../hooks/useAiAgentAdminFilters';
 import { AgentNamePill } from '../AgentNamePill';
+import adminClasses from './AdminTable.module.css';
 import AgentsFilter from './AgentsFilter';
 import { RunStatusIndicator, TimeAgo } from './EvalRunStatus';
 import ProjectsFilter from './ProjectsFilter';
@@ -391,16 +392,7 @@ const AiAgentAdminEvalsTable = ({
                         )}
                     </Group>
 
-                    <Box
-                        bg="ldGray.1"
-                        style={{
-                            borderRadius: 6,
-                            padding: `${theme.spacing.sm} ${theme.spacing.xs}`,
-                            height: 32,
-                            display: 'flex',
-                            alignItems: 'center',
-                        }}
-                    >
+                    <Box bg="ldGray.1" className={adminClasses.resultsCount}>
                         <Text fz="sm" fw={500}>
                             {isFetching
                                 ? 'Loading...'
@@ -419,9 +411,7 @@ const AiAgentAdminEvalsTable = ({
                 fz="xs"
                 fw={500}
                 color="ldGray.8"
-                style={{
-                    borderTop: `1px solid ${theme.colors.ldGray[3]}`,
-                }}
+                className={adminClasses.loadMoreFooter}
             >
                 {isFetching ? (
                     <Text fz="xs">Loading more...</Text>

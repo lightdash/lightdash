@@ -185,3 +185,19 @@
     padding: var(--mantine-spacing-xs) 0;
     background-color: var(--ld-color-page);
 }
+
+.tabPane {
+    position: relative;
+}
+
+.tabPaneHidden {
+    position: absolute;
+    width: 100%;
+    pointer-events: none;
+    content-visibility: hidden;
+    contain-intrinsic-size: auto 1px auto 1px;
+}
+
+.tabSection {
+    flex-shrink: 0;
+}

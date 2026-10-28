@@ -1,4 +1,21 @@
 .composerFooter {
     padding-top: 0;
     background: var(--mantine-color-body);
+    z-index: calc(var(--mantine-z-index-app) - 1);
+}
+
+.viewport {
+    flex-grow: 1;
+    overflow-y: auto;
+}
+
+.content {
+    flex-grow: 1;
+    min-height: 100%;
+}
+
+.compactionLabel {
+    transform: translate(-50%, -50%);
+    background-color: var(--mantine-color-body);
+    white-space: nowrap;
 }

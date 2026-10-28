@@ -205,3 +205,17 @@
         var(--dashboard-tabs-zindex) + 1 - (var(--tabs-stuck, 0) * 2)
     );
 }
+
+.menuTrigger {
+    position: relative;
+    z-index: 1;
+}
+
+.verifiedIcon {
+    flex-shrink: 0;
+    color: var(--mantine-color-green-6);
+}
+
+.description {
+    white-space: pre-line;
+}

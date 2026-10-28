@@ -15,8 +15,6 @@ import { Table } from '../../components/DataViz/visualizations/Table';
 import { useDocumentExportStatus } from './documentExportStatus';
 import ReportChartFrame from './presentation/ReportChartFrame';
 
-const CHART_STYLE = { height: '100%', width: '100%' };
-
 export type SqlChartResults = {
     resultsRunner: IResultsRunner;
     spec: Record<string, unknown>;
@@ -129,7 +127,6 @@ const DocumentSqlChartView = ({
             spec={results.data.spec}
             isLoading={false}
             error={undefined}
-            style={CHART_STYLE}
         />,
     );
 };

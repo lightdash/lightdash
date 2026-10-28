@@ -434,9 +434,6 @@ const DatabricksForm: FC<{
                                                     onClick={() =>
                                                         removeCompute(index)
                                                     }
-                                                    style={{
-                                                        flexGrow: 0,
-                                                    }}
                                                 >
                                                     <MantineIcon
                                                         icon={IconTrash}
@@ -448,10 +445,7 @@ const DatabricksForm: FC<{
                                     <Button
                                         variant="default"
                                         size="xs"
-                                        style={(theme) => ({
-                                            alignSelf: 'flex-end',
-                                            boxShadow: theme.shadows.subtle,
-                                        })}
+                                        className={styles.addComputeButton}
                                         leftSection={
                                             <MantineIcon icon={IconPlus} />
                                         }

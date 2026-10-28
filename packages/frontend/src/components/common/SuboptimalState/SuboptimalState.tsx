@@ -1,4 +1,5 @@
 import { Box, Loader, Stack, Text, type StackProps } from '@mantine/core';
+import clsx from 'clsx';
 import { type FC, type ReactNode } from 'react';
 import MantineIcon, { type MantineIconProps } from '../MantineIcon';
 import classes from './SuboptimalState.module.css';
@@ -31,13 +32,6 @@ const SuboptimalState: FC<Props> = ({
             justify="center"
             ta="center"
             className={adaptive ? classes.container : undefined}
-            style={{
-                alignItems: 'center',
-                ...(typeof rest?.style === 'object' &&
-                !Array.isArray(rest.style)
-                    ? rest.style
-                    : {}),
-            }}
         >
             {loading && (
                 <Loader
@@ -58,8 +52,7 @@ const SuboptimalState: FC<Props> = ({
                 <Text
                     size="md"
                     fw={600}
-                    style={{ whiteSpace: 'pre-wrap' }}
-                    className={adaptive ? classes.title : undefined}
+                    className={clsx(classes.preWrap, adaptive && classes.title)}
                 >
                     {title}
                 </Text>
@@ -69,12 +62,10 @@ const SuboptimalState: FC<Props> = ({
                     <Text
                         component="div"
                         size="xs"
-                        className={adaptive ? classes.description : undefined}
-                        style={
-                            // Prevent line breaks in the description
-                            // Can be custom using: SNOWFLAKE_UNAUTHORIZED_ERROR_MESSAGE
-                            { whiteSpace: 'pre-wrap' }
-                        }
+                        className={clsx(
+                            classes.preWrap,
+                            adaptive && classes.description,
+                        )}
                     >
                         {description}
                     </Text>

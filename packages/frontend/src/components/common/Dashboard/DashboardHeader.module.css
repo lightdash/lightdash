@@ -58,3 +58,11 @@
 .draftsBadge {
     cursor: pointer;
 }
+
+.staticBadge {
+    cursor: default;
+}
+
+.scrollableDropdown {
+    overflow-y: auto;
+}

@@ -14,6 +14,7 @@ import {
     updateColumnVisibility,
     updateFieldLabel,
 } from '../store/tableVisSlice';
+import classes from './TableVisConfiguration.module.css';
 
 const TableVisConfiguration: FC<{ columns: VizColumn[] }> = ({ columns }) => {
     const dispatch = useVizDispatch();
@@ -91,19 +92,11 @@ const TableVisConfiguration: FC<{ columns: VizColumn[] }> = ({ columns }) => {
                                         }),
                                     );
                                 }}
-                                styles={(theme) => ({
-                                    input: {
-                                        backgroundColor: !columnsConfig[
-                                            reference
-                                        ].visible
-                                            ? theme.colors.ldGray[1]
-                                            : '',
-                                        cursor: !columnsConfig[reference]
-                                            .visible
-                                            ? 'not-allowed'
-                                            : 'text',
-                                    },
-                                })}
+                                classNames={{
+                                    input: columnsConfig[reference].visible
+                                        ? undefined
+                                        : classes.hiddenColumnInput,
+                                }}
                             />
                         );
                     })}

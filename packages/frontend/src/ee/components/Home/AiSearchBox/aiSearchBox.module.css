@@ -1,4 +1,5 @@
 .askAiSection {
+    overflow: hidden;
     --saturation-mix: 0%;
     --gradient-from: color-mix(
         in oklch,
@@ -113,4 +114,8 @@
 
 .loadingCard {
     overflow: hidden;
+}
+
+.askAiIcon {
+    margin-top: 4px;
 }

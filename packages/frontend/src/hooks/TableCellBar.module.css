@@ -1,0 +1,58 @@
+.layout {
+    display: grid;
+    /* Bar track fills the space left after a constant label gutter */
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 4px;
+}
+
+.bar {
+    border-radius: 2px;
+}
+
+.track {
+    position: relative;
+    width: 100%;
+    /* Clip min-width bars from spilling past the track edge
+       when the baseline sits very close to it. */
+    overflow: hidden;
+}
+
+.zeroLine {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    transform: translateX(-0.5px);
+    background-color: var(--mantine-color-ldGray-3);
+}
+
+.positiveBar {
+    position: absolute;
+    top: 0;
+    /* Left edge sits on the zero line, grows rightward. */
+    height: 20px;
+    min-width: 2px;
+    border-radius: 0 2px 2px 0;
+}
+
+.negativeBar {
+    position: absolute;
+    top: 0;
+    /* Right edge sits on the zero line, grows leftward. */
+    height: 20px;
+    min-width: 2px;
+    border-radius: 2px 0 0 2px;
+}
+
+.sizer {
+    grid-area: 1 / 1;
+    visibility: hidden;
+    white-space: nowrap;
+}
+
+.label {
+    grid-area: 1 / 1;
+    justify-self: end;
+    white-space: nowrap;
+}

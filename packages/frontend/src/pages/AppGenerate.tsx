@@ -230,11 +230,7 @@ const ThemeChip: FC<{
                 size="md"
                 leftSection={<MantineIcon icon={IconBrush} size={12} />}
                 disabled={disabled}
-                styles={{
-                    root: {
-                        cursor: disabled ? 'not-allowed' : 'pointer',
-                    },
-                }}
+                className={classes.themeBadge}
             >
                 {themeName}
             </Badge>

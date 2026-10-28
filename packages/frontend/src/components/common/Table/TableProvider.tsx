@@ -115,9 +115,9 @@ export const TableProvider: FC<React.PropsWithChildren<ProviderProps>> = ({
                             ? 'last-sticky-column'
                             : ''
                     }`,
-                    style: {
-                        maxWidth: colWidth,
-                        minWidth: colWidth,
+                    styleProps: {
+                        maw: colWidth,
+                        miw: colWidth,
                         left,
                     },
                 },
@@ -138,10 +138,10 @@ export const TableProvider: FC<React.PropsWithChildren<ProviderProps>> = ({
                 ...rowColumn.meta,
                 className: 'sticky-column',
                 width: rowColumnWidth,
-                style: {
-                    maxWidth: rowColumnWidth,
-                    minWidth: rowColumnWidth,
-                    backgroundColor: FROZEN_COLUMN_BACKGROUND,
+                styleProps: {
+                    maw: rowColumnWidth,
+                    miw: rowColumnWidth,
+                    bg: FROZEN_COLUMN_BACKGROUND,
                 },
             },
         };

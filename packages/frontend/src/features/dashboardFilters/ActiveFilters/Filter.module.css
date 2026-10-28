@@ -167,3 +167,15 @@
         var(--mantine-color-ldDark-1)
     );
 }
+
+.ruleLabel {
+    max-width: 100%;
+    overflow: hidden;
+}
+
+.dragging {
+    position: relative;
+    z-index: 1;
+    transform: translate(var(--drag-x), var(--drag-y));
+    opacity: 0.8;
+}

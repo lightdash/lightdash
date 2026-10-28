@@ -1,7 +1,7 @@
 import { interpolateUiString, type CatalogItem } from '@lightdash/common';
 import { Group, ActionIcon, Badge, Tooltip } from '@mantine/core';
 import { IconCode, IconX } from '@tabler/icons-react';
-import type { CSSProperties, FC } from 'react';
+import type { FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import { useCategoryColors } from '../styles/useCategoryColors';
@@ -25,14 +25,6 @@ export const CatalogCategory: FC<Props> = ({
 }) => {
     const colors = useCategoryColors(category.color);
     const getUiString = useUiStrings();
-
-    const categoryVars = {
-        '--category-text-color': colors.textColor,
-        '--category-background-color': colors.backgroundColor,
-        '--category-hover-background-color': colors.hoverBackgroundColor,
-        '--category-border-color': colors.borderColor,
-        '--category-focus-outline-color': colors.focusOutlineColor,
-    } as CSSProperties;
 
     return (
         <Badge
@@ -63,7 +55,14 @@ export const CatalogCategory: FC<Props> = ({
                 )
             }
             className={styles.base}
-            style={categoryVars}
+            style={{
+                '--category-text-color': colors.textColor,
+                '--category-background-color': colors.backgroundColor,
+                '--category-hover-background-color':
+                    colors.hoverBackgroundColor,
+                '--category-border-color': colors.borderColor,
+                '--category-focus-outline-color': colors.focusOutlineColor,
+            }}
         >
             <Group gap={1}>
                 {category.name}

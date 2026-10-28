@@ -159,13 +159,9 @@ const MetricDimensionItem: FC<{
                 variant="default"
                 className={classes.itemButton}
                 bg={itemColors.bg}
-                styles={{
-                    inner: {
-                        color: 'var(--mantine-color-ldDark-9)',
-                    },
-                    label: {
-                        maxWidth: '100%',
-                    },
+                classNames={{
+                    inner: classes.itemButtonInner,
+                    label: classes.itemButtonLabel,
                 }}
                 bd="none"
                 rightSection={

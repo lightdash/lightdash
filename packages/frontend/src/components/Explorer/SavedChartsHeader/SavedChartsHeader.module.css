@@ -1,0 +1,7 @@
+.scrollableDropdown {
+    overflow-y: auto;
+}
+
+.verifiedIcon {
+    color: var(--mantine-color-green-6);
+}

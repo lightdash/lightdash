@@ -93,15 +93,10 @@ export const DataVizSortConfig: FC<Props> = ({ sortBy, onChangeSortBy }) => {
                 classNames={{
                     option: `${classes.option} ${classes.grayOption}`,
                     dropdown: classes.dropdown,
-                    input: `${classes.input} ${classes.grayInput} ${
+                    input: `${classes.input} ${classes.grayInput} ${classes.sortInput} ${
                         !sortBy ? classes.inputUnsetValue : ''
                     }`,
                     section: classes.section,
-                }}
-                styles={{
-                    input: {
-                        width: '115px',
-                    },
                 }}
             />
         </Tooltip>

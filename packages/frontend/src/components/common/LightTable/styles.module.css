@@ -291,3 +291,15 @@
 .section[data-section-type='footer'] .cellSticky {
     bottom: var(--lt-sticky-offset);
 }
+
+.scrollContainer {
+    overflow: auto;
+    border: 1px solid var(--mantine-color-ldGray-3);
+    border-radius: 4px;
+}
+
+.scrollContainer[data-no-borders] {
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+}

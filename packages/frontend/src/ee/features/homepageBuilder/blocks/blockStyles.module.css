@@ -599,7 +599,11 @@ a .hoverCard:hover,
     border-radius: 10px;
     cursor: grab;
     outline: none;
-    transition: opacity 180ms cubic-bezier(0.22, 1, 0.36, 1);
+    transform: var(--tile-drag-transform);
+    transition: var(
+        --tile-drag-transition,
+        opacity 180ms cubic-bezier(0.22, 1, 0.36, 1)
+    );
 }
 
 .sortGrip {

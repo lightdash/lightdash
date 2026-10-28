@@ -605,7 +605,7 @@ export const SchedulerList: FC<Props> = ({
         return (
             <div className={classes.listBody}>
                 <Stack
-                    style={{ gridColumn: '1 / -1' }}
+                    className={classes.fullRow}
                     align="center"
                     justify="center"
                 >
@@ -618,7 +618,7 @@ export const SchedulerList: FC<Props> = ({
     if (error) {
         return (
             <div className={classes.listBody}>
-                <Stack style={{ gridColumn: '1 / -1' }} p="xl">
+                <Stack className={classes.fullRow} p="xl">
                     <ErrorState error={error.error} />
                 </Stack>
             </div>
@@ -629,7 +629,7 @@ export const SchedulerList: FC<Props> = ({
         return (
             <div className={classes.listBody}>
                 <Stack
-                    style={{ gridColumn: '1 / -1' }}
+                    className={classes.fullRow}
                     align="center"
                     justify="center"
                     gap="sm"
@@ -759,7 +759,7 @@ export const SchedulerList: FC<Props> = ({
                         icon={IconPlus}
                         size="sm"
                         display="inline"
-                        style={{ marginRight: 6, marginBottom: -2 }}
+                        className={classes.inlineIcon}
                     />
                     New {noun}
                 </button>

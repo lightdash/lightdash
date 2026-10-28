@@ -38,6 +38,7 @@ import { useIsTruncated } from '../../../../../hooks/useIsTruncated';
 import { useInfiniteMcpActivity } from '../../hooks/useMcpActivity';
 import { useMcpActivityFilters } from '../../hooks/useMcpActivityFilters';
 import { AgentNamePill } from '../AgentNamePill';
+import adminClasses from './AdminTable.module.css';
 import { ToolCallStatusIndicator, ToolNamePill } from './McpActivityDisplay';
 import {
     formatToolCallDuration,
@@ -552,9 +553,7 @@ const McpActivityTable = ({
                 fz="xs"
                 fw={500}
                 color="ldGray.8"
-                style={{
-                    borderTop: `1px solid ${theme.colors.ldGray[3]}`,
-                }}
+                className={adminClasses.loadMoreFooter}
             >
                 {isFetching ? (
                     <Text fz="xs">Loading more...</Text>

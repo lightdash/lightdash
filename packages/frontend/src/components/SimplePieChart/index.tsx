@@ -1,3 +1,4 @@
+import { Box } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconChartPieOff } from '@tabler/icons-react';
 import { type ECElementEvent } from 'echarts';
@@ -29,13 +30,13 @@ import PieChartContextMenu, {
 } from './PieChartContextMenu';
 
 const EmptyChart = () => (
-    <div style={{ height: '100%', width: '100%', padding: '50px 0' }}>
+    <Box h="100%" w="100%" py={50}>
         <SuboptimalState
             title="No data available"
             description="Query metrics and dimensions with results."
             icon={IconChartPieOff}
         />
-    </div>
+    </Box>
 );
 
 type SimplePieChartProps = Omit<EChartsReactProps, 'option'> & {
@@ -154,6 +155,7 @@ const SimplePieChart: FC<SimplePieChartProps> = memo(
                 <EChartsReact
                     ref={chartRef}
                     className={props.className}
+                    // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
                     style={
                         props.$shouldExpand
                             ? {

@@ -40,6 +40,7 @@ import useDashboardContext from '../../../providers/Dashboard/useDashboardContex
 import MantineModal from '../../common/MantineModal';
 import { MultiSelectCombobox } from '../../common/MultiSelectCombobox/MultiSelectCombobox';
 import { ChartIcon } from '../../common/ResourceIcon';
+import classes from './AddChartTilesModal.module.css';
 
 type Props = {
     onAddTiles: (
@@ -262,7 +263,7 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose, spaceUuids }) => {
             <form
                 id="add-saved-charts-to-dashboard"
                 onSubmit={handleSubmit}
-                style={{ minHeight: 360 }}
+                className={classes.form}
             >
                 <MultiSelectCombobox
                     radius="md"

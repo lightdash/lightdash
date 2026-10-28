@@ -36,3 +36,8 @@
 .redacted {
     font-style: italic;
 }
+
+.rowIcon {
+    margin-top: 2px;
+    flex-shrink: 0;
+}

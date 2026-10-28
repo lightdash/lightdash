@@ -1,0 +1,18 @@
+.dashed {
+    border-style: dashed;
+}
+
+.attachedLeft {
+    border-right-width: 0;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.attachedRight {
+    border-left: 0;
+    border-style: dashed;
+    border-start-start-radius: 0;
+    border-end-start-radius: 0;
+    border-start-end-radius: 100px;
+    border-end-end-radius: 100px;
+}

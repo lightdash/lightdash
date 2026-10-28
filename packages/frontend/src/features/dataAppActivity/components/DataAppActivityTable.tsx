@@ -20,6 +20,7 @@ import { useInfiniteScroll } from '../../../hooks/useInfiniteScroll';
 import { useIsTruncated } from '../../../hooks/useIsTruncated/index';
 import { useInfiniteDataAppActivity } from '../hooks/useDataAppActivity';
 import { useDataAppActivityFilters } from '../hooks/useDataAppActivityFilters';
+import classes from './DataAppActivityTable.module.css';
 import { DataAppActivityTopToolbar } from './DataAppActivityTopToolbar';
 
 const STATUS_COLORS: Record<string, string> = {
@@ -194,7 +195,7 @@ export const DataAppActivityTable: FC = () => {
                                         isChartType ? IconPuzzle : IconAppWindow
                                     }
                                     color="dimmed"
-                                    style={{ flex: '0 0 auto' }}
+                                    className={classes.typeIcon}
                                 />
                             </Tooltip>
                             {row.original.appDeleted ? (

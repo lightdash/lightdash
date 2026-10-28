@@ -40,3 +40,11 @@
     scrollbar-width: thin;
     overflow: auto;
 }
+
+.virtualItem {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    transform: translateY(var(--item-start));
+}

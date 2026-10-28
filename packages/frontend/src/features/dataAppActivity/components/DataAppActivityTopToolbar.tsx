@@ -30,6 +30,7 @@ import {
     type DataAppActivityKind,
     type useDataAppActivityFilters,
 } from '../hooks/useDataAppActivityFilters';
+import classes from './DataAppActivityTopToolbar.module.css';
 
 const PERIOD_LABELS: Record<
     (typeof DATA_APP_ACTIVITY_PERIODS)[number],
@@ -205,16 +206,7 @@ export const DataAppActivityTopToolbar: FC<DataAppActivityTopToolbarProps> = ({
                     )}
                 </Group>
 
-                <Box
-                    bg="ldGray.1"
-                    style={{
-                        borderRadius: 6,
-                        padding: `${theme.spacing.sm} ${theme.spacing.xs}`,
-                        height: 32,
-                        display: 'flex',
-                        alignItems: 'center',
-                    }}
-                >
+                <Box className={classes.resultsCount}>
                     <Text fz="sm" fw={500}>
                         {isFetching
                             ? 'Loading...'

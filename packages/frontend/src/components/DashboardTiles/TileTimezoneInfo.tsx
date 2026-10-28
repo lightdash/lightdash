@@ -11,6 +11,7 @@ import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { getTimezoneSourceLabel } from '../../utils/timezoneSourceLabel';
 import MantineIcon from '../common/MantineIcon';
+import tileClasses from './DashboardTiles.module.css';
 import { TileHeaderPopover } from './TileBase/TileHeaderPopover';
 
 type Props = {
@@ -51,7 +52,7 @@ const TileTimezoneInfo: FC<Props> = ({ resolvedTimezone, timezoneSetting }) => {
             <Popover.Dropdown
                 maw="calc(100vw - 24px)"
                 mah="calc(100dvh - 24px)"
-                style={{ overflowY: 'auto' }}
+                className={tileClasses.scrollableDropdown}
             >
                 <Text size="sm" c="dimmed" maw={260}>
                     {getTimezoneSourceLabel(timezoneSetting, timezone)}

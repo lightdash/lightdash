@@ -693,9 +693,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                 px="sm"
                 py="xs"
                 wrap="nowrap"
-                style={{
-                    borderBottom: '1px solid var(--mantine-color-ldGray-2)',
-                }}
+                className={classes.toolbar}
             >
                 <Group gap="xs" wrap="nowrap">
                     <MantineIcon icon={IconFilter} color="ldGray" />

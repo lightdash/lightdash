@@ -16,6 +16,7 @@ import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useAiAgentAdminEvalPrompts } from '../../hooks/useAiAgentAdmin';
 import { AgentNamePill } from '../AgentNamePill';
+import classes from './EvalPreviewSidebar.module.css';
 import { RunStatusIndicator, TimeAgo } from './EvalRunStatus';
 
 const getAdminEvalUrl = (evalSummary: AiAgentAdminEvalSummary) =>
@@ -120,7 +121,7 @@ export const EvalPreviewSidebar: FC<EvalPreviewSidebarProps> = ({
             </Group>
             <Divider color="ldGray.2" />
 
-            <Box p="lg" flex={1} style={{ overflowY: 'auto', minHeight: 0 }}>
+            <Box p="lg" flex={1} className={classes.promptList}>
                 <Text fz="xs" fw={600} c="dimmed" tt="uppercase" lts={0.4}>
                     Prompts ({evalSummary.promptCount})
                 </Text>
@@ -139,14 +140,7 @@ export const EvalPreviewSidebar: FC<EvalPreviewSidebarProps> = ({
                                 align="flex-start"
                                 wrap="nowrap"
                                 py="sm"
-                                style={
-                                    index < prompts.length - 1
-                                        ? {
-                                              borderBottom:
-                                                  '1px solid var(--mantine-color-ldGray-2)',
-                                          }
-                                        : undefined
-                                }
+                                className={classes.promptRow}
                             >
                                 <Text
                                     fz="xs"

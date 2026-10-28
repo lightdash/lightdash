@@ -50,7 +50,7 @@ const VisualizationCard = ({
             className={classes.visualizationCard}
             style={{ '--tile-area': grid }}
         >
-            <Text style={{ float: 'left' }} fw={600} mb={10}>
+            <Text className={classes.description} fw={600} mb={10}>
                 {description}
             </Text>
             {children}
@@ -219,9 +219,9 @@ const UserActivity: FC = () => {
 
     if (projectUuid === undefined || isInitialLoading || data === undefined) {
         return (
-            <div style={{ marginTop: '20px' }}>
+            <Box mt="lg">
                 <SuboptimalState title="Loading..." loading />
-            </div>
+            </Box>
         );
     }
 
@@ -236,13 +236,7 @@ const UserActivity: FC = () => {
                         },
                         {
                             title: (
-                                <Group
-                                    style={{
-                                        display: 'flex',
-                                        gap: 6,
-                                        alignItems: 'center',
-                                    }}
-                                >
+                                <Group gap={6}>
                                     <MantineIcon icon={IconUsers} size={20} />{' '}
                                     User activity for {project?.name}
                                 </Group>
@@ -325,6 +319,7 @@ const UserActivity: FC = () => {
                         How many users are querying this project, weekly?"
                 >
                     <EChartsReact
+                        // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
                         style={{ height: '100%' }}
                         notMerge
                         option={chartWeeklyQueryingUsers(
@@ -340,6 +335,7 @@ const UserActivity: FC = () => {
                         average?"
                 >
                     <EChartsReact
+                        // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
                         style={{ height: '100%' }}
                         notMerge
                         option={chartWeeklyAverageQueries(

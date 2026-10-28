@@ -1,5 +1,5 @@
 import { Box, type BoxProps, type MantineLoaderComponent } from '@mantine/core';
-import { forwardRef, memo } from 'react';
+import { forwardRef, memo, type CSSProperties } from 'react';
 import styles from './DotsLoader.module.css';
 
 const DOTS = Array.from({ length: 3 }, (_, i) => `${i * 0.16}s`);
@@ -17,9 +17,7 @@ export const DotsLoader: MantineLoaderComponent = memo(
                         <div
                             key={delay}
                             className={styles.dot}
-                            style={{
-                                animationDelay: delay,
-                            }}
+                            style={{ '--dot-delay': delay } as CSSProperties}
                         />
                     ))}
                     <div className={styles.delayedMessage}>

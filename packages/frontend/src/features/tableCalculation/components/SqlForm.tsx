@@ -92,6 +92,7 @@ export const SqlEditor: FC<SqlEditorProps> = ({
         ]
             .filter(Boolean)
             .join(' ')}
+        // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
         style={
             {
                 '--ace-gutter-background': gutterBackgroundColor,
@@ -239,7 +240,7 @@ export const SqlForm: FC<Props> = ({
                     setOptions={{
                         autoScrollEditorIntoView: true,
                     }}
-                    style={{ zIndex: 0 }}
+                    className={classes.editorLayer}
                     onLoad={handleEditorLoad}
                     enableLiveAutocompletion={!readOnly}
                     enableBasicAutocompletion={!readOnly}
@@ -278,14 +279,9 @@ export const SqlForm: FC<Props> = ({
                             </Text>
                         }
                         color="violet"
-                        styles={{
-                            root: {
-                                paddingBottom: theme.spacing.sm,
-                                paddingTop: theme.spacing.sm,
-                            },
-                            wrapper: {
-                                alignItems: 'center',
-                            },
+                        classNames={{
+                            root: classes.templatesAlert,
+                            wrapper: classes.templatesAlertWrapper,
                         }}
                     />
                 ) : (

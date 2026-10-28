@@ -1,6 +1,7 @@
 import type { AiAgentToolCall, AiAgentToolResult } from '@lightdash/common';
 import { Code, Divider, Stack, Text } from '@mantine/core';
 import { RankingDisplay } from './RankingDisplay';
+import classes from './ToolResults.module.css';
 import { parseToolResultMetadata } from './utils';
 
 export const ToolResults: React.FC<{
@@ -14,16 +15,7 @@ export const ToolResults: React.FC<{
                 <Text fw={500} size="xs" c="red.7">
                     Error
                 </Text>
-                <Code
-                    block
-                    c="red.9"
-                    bg="red.0"
-                    style={{
-                        fontSize: '11px',
-                        overflowWrap: 'anywhere',
-                        whiteSpace: 'pre-wrap',
-                    }}
-                >
+                <Code block c="red.9" bg="red.0" className={classes.errorCode}>
                     {toolResult.result}
                 </Code>
             </Stack>

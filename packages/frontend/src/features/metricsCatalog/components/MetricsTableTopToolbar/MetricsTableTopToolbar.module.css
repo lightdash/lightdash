@@ -37,3 +37,44 @@
         min-width: 44px;
     }
 }
+
+.hiddenToggle {
+    visibility: hidden;
+}
+
+.searchInput {
+    height: 32px;
+    width: 309px;
+    padding-block: var(--mantine-spacing-xs);
+    text-overflow: ellipsis;
+    font-size: var(--mantine-font-size-sm);
+    font-weight: 400;
+    color: var(--mantine-color-ldGray-5);
+    box-shadow: var(--mantine-shadow-subtle);
+}
+
+.searchInputFilled {
+    color: var(--mantine-color-ldGray-8);
+}
+
+.toolbarDivider {
+    align-self: center;
+}
+
+.resetButton {
+    border: 1px solid var(--mantine-color-ldGray-2);
+    box-shadow: var(--mantine-shadow-subtle);
+}
+
+.viewRoot {
+    border-radius: var(--mantine-radius-md);
+    gap: var(--mantine-spacing-two);
+    padding: var(--mantine-spacing-xxs);
+}
+
+.viewIndicator {
+    border-radius: var(--mantine-radius-md);
+    border: 1px solid var(--mantine-color-ldGray-2);
+    background-color: var(--mantine-color-background-0);
+    box-shadow: var(--mantine-shadow-subtle);
+}

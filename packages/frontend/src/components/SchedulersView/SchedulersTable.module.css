@@ -1,3 +1,15 @@
 .statusFilterBadge {
     cursor: pointer;
 }
+
+.itemName {
+    overflow-wrap: anywhere;
+    cursor: pointer;
+}
+
+.destinationIcon {
+    margin: 5px 2px;
+    width: 12px;
+    height: 12px;
+    filter: grayscale(100%);
+}

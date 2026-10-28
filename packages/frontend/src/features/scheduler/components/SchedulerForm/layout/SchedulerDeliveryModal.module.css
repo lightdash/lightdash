@@ -463,3 +463,21 @@
         padding: var(--mantine-spacing-md);
     }
 }
+
+.inlineIcon {
+    margin-right: 6px;
+    margin-bottom: -2px;
+}
+
+.inlineIconTight {
+    margin-right: 4px;
+    margin-bottom: -2px;
+}
+
+.zoomablePreview {
+    cursor: zoom-in;
+}
+
+.fullRow {
+    grid-column: 1 / -1;
+}

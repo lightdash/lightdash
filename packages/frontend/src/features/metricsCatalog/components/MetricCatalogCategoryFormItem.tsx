@@ -264,9 +264,7 @@ export const MetricCatalogCategoryFormItem: FC<Props> = ({
                 >
                     <Box
                         p="xxs"
-                        style={{
-                            visibility: hovered ? 'visible' : 'hidden',
-                        }}
+                        className={hovered ? undefined : styles.hiddenIcon}
                     >
                         <MantineIcon icon={IconCode} color="dimmed" size={14} />
                     </Box>
