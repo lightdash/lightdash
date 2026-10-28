@@ -1450,8 +1450,12 @@ export class ContentAsCodeWritebackService extends BaseService {
     ): void {
         if (row.contentDraftUuid === requestedDraftUuid) return;
 
+        const proposal =
+            row.prUrl === null
+                ? 'an active write-back proposal'
+                : `an open write-back pull request (${row.prUrl})`;
         throw new ConflictError(
-            `Content "${row.slug}" already has an active write-back proposal. Merge or close it before writing back another draft.`,
+            `Content "${row.slug}" already has ${proposal} from an earlier draft. Merge or close it before writing back this draft.`,
             {
                 contentType: row.contentType,
                 slug: row.slug,
