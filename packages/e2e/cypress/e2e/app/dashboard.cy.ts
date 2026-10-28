@@ -10,6 +10,7 @@ describe('Dashboard', () => {
 
         cy.findByRole('link', {
             name: 'How much revenue do we have per payment method?',
+            timeout: 30000,
         })
             .scrollIntoView()
             .then(($title) => {

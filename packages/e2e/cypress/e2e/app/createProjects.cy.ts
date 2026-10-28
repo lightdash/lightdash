@@ -59,6 +59,23 @@ const warehouseConfig = {
     },
 };
 
+// The connection form mounts behind a check for an in-flight create-project
+// job; on a slow preview that check can swap the form out and back while the
+// name is being typed. Wait for it before touching the field.
+const openManualProjectForm = (warehouseLabel: string, projectName: string) => {
+    cy.intercept('GET', '**/api/v1/org/jobs/create-project/active').as(
+        'activeCreateProjectJob',
+    );
+    cy.visit(`/createProject`);
+
+    cy.get('[role="button"').contains(warehouseLabel).click();
+    cy.get('[role="button"').contains('Manually').click();
+    cy.contains('button', 'I’ve defined them!').click();
+
+    cy.wait('@activeCreateProjectJob');
+    cy.get('[name="name"]').should('be.visible').clear().type(projectName);
+};
+
 const configurePostgresWarehouse = (
     config: (typeof warehouseConfig)['postgresSQL'],
 ) => {
@@ -500,13 +517,7 @@ describe('Create projects', () => {
     });
 
     it('Should create a Postgres project', () => {
-        cy.visit(`/createProject`);
-
-        cy.get('[role="button"').contains('PostgreSQL').click();
-        cy.get('[role="button"').contains('Manually').click();
-        cy.contains('button', 'I’ve defined them!').click();
-
-        cy.get('[name="name"]').clear().type(warehouseConfig.postgresSQL.name);
+        openManualProjectForm('PostgreSQL', warehouseConfig.postgresSQL.name);
         configurePostgresWarehouse(warehouseConfig.postgresSQL);
 
         testCompile().then((projectUuid) => {
@@ -525,13 +536,7 @@ describe('Create projects', () => {
         // Amazon Redshift is based on PostgreSQL
         // So we can use our own PostgreSQL local instance to test the connection against Redshift
 
-        cy.visit(`/createProject`);
-
-        cy.get('[role="button"').contains('Redshift').click();
-        cy.get('[role="button"').contains('Manually').click();
-        cy.contains('button', 'I’ve defined them!').click();
-
-        cy.get('[name="name"]').clear().type(warehouseConfig.redshift.name);
+        openManualProjectForm('Redshift', warehouseConfig.redshift.name);
         configurePostgresWarehouse(warehouseConfig.redshift);
 
         testCompile().then((projectUuid) => {
@@ -544,13 +549,7 @@ describe('Create projects', () => {
         });
     });
     it('Should create a Bigquery project', () => {
-        cy.visit(`/createProject`);
-
-        cy.get('[role="button"').contains('BigQuery').click();
-        cy.get('[role="button"').contains('Manually').click();
-        cy.contains('button', 'I’ve defined them!').click();
-
-        cy.get('[name="name"]').clear().type(warehouseConfig.bigQuery.name);
+        openManualProjectForm('BigQuery', warehouseConfig.bigQuery.name);
         configureBigqueryWarehouse(warehouseConfig.bigQuery);
 
         testCompile().then((projectUuid) => {
@@ -595,13 +594,7 @@ describe('Create projects', () => {
     });
     // note: we don't have a staging environment for Trino atm
     it.skip('Should create a Trino project', () => {
-        cy.visit(`/createProject`);
-
-        cy.get('[role="button"').contains('Trino').click();
-        cy.get('[role="button"').contains('Manually').click();
-        cy.contains('button', 'I’ve defined them!').click();
-
-        cy.get('[name="name"]').clear().type(warehouseConfig.trino.name);
+        openManualProjectForm('Trino', warehouseConfig.trino.name);
         configureTrinoWarehouse(warehouseConfig.trino);
 
         testCompile().then((projectUuid) => {
@@ -637,13 +630,7 @@ describe('Create projects', () => {
         });
     });
     it.skip('Should create a Databricks project', () => {
-        cy.visit(`/createProject`);
-
-        cy.get('[role="button"').contains('Databricks').click();
-        cy.get('[role="button"').contains('Manually').click();
-        cy.contains('button', 'I’ve defined them!').click();
-
-        cy.get('[name="name"]').clear().type(warehouseConfig.databricks.name);
+        openManualProjectForm('Databricks', warehouseConfig.databricks.name);
         configureDatabricksWarehouse(warehouseConfig.databricks);
 
         testCompile().then((projectUuid) => {
@@ -680,13 +667,7 @@ describe('Create projects', () => {
     });
 
     it('Should create a Snowflake project', () => {
-        cy.visit(`/createProject`);
-
-        cy.get('[role="button"').contains('Snowflake').click();
-        cy.get('[role="button"').contains('Manually').click();
-        cy.contains('button', 'I’ve defined them!').click();
-
-        cy.get('[name="name"]').clear().type(warehouseConfig.snowflake.name);
+        openManualProjectForm('Snowflake', warehouseConfig.snowflake.name);
         configureSnowflakeWarehouse(warehouseConfig.snowflake);
 
         testCompile().then((projectUuid) => {
