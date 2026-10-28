@@ -46334,95 +46334,28 @@
             "ApiAiCreditUsageResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_AiCreditUsageSummary_"
             },
-            "AiCreditUsageBreakdown": {
+            "AiBillableFeature": {
                 "type": "string",
-                "enum": ["user", "agent", "project", "feature", "channel"]
+                "enum": [
+                    "data-app",
+                    "agent",
+                    "deep-research",
+                    "agent-subtask",
+                    "compaction"
+                ]
             },
             "AiCreditDailyUsageSeries": {
-                "anyOf": [
-                    {
-                        "properties": {
-                            "credits": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "name": {
-                                "type": "string",
-                                "nullable": true
-                            },
-                            "key": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["value"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["credits", "name", "key", "type"],
-                        "type": "object"
+                "properties": {
+                    "credits": {
+                        "type": "number",
+                        "format": "double"
                     },
-                    {
-                        "properties": {
-                            "credits": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["other"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["credits", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "credits": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["deleted"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["credits", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "credits": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["embeddedViewers"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["credits", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "credits": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["unattributed"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["credits", "type"],
-                        "type": "object"
+                    "feature": {
+                        "$ref": "#/components/schemas/AiBillableFeature"
                     }
-                ]
+                },
+                "required": ["credits", "feature"],
+                "type": "object"
             },
             "AiCreditDailyUsageDay": {
                 "properties": {
@@ -46454,14 +46387,11 @@
                         },
                         "type": "array"
                     },
-                    "breakdown": {
-                        "$ref": "#/components/schemas/AiCreditUsageBreakdown"
-                    },
                     "period": {
                         "$ref": "#/components/schemas/AiCreditPeriod"
                     }
                 },
-                "required": ["days", "series", "breakdown", "period"],
+                "required": ["days", "series", "period"],
                 "type": "object"
             },
             "ApiSuccess_AiCreditDailyUsage_": {
@@ -74087,7 +74017,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.76.3",
+        "version": "3.77.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -91866,20 +91796,10 @@
                         }
                     }
                 },
-                "description": "Billable AI credits per day of the current period, split by feature,\nchannel, user, project or agent. Organization admins only.",
+                "description": "Billable AI credits per day of the current period, by feature.\nOrganization admins only.",
                 "summary": "Get daily AI credit usage",
                 "security": [],
-                "parameters": [
-                    {
-                        "description": "what to split each day's credits by",
-                        "in": "query",
-                        "name": "breakdown",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/AiCreditUsageBreakdown"
-                        }
-                    }
-                ]
+                "parameters": []
             }
         },
         "/api/v1/projects/{projectUuid}/aiAgentMemories": {

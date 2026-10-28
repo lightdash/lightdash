@@ -1,3 +1,10 @@
+# [3.77.0](https://github.com/lightdash/lightdash/compare/3.76.3...3.77.0) (2026-10-28)
+
+
+### Features
+
+* **ai:** simplify the AI Credits page and link it to the analytics project ([#31430](https://github.com/lightdash/lightdash/issues/31430)) ([1938951](https://github.com/lightdash/lightdash/commit/193895159f3b72e9f8b1ff82ca36117d02268319))
+
 ## [3.76.3](https://github.com/lightdash/lightdash/compare/3.76.2...3.76.3) (2026-10-28)
 
 

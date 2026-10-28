@@ -51170,16 +51170,16 @@ const models: TsoaRoute.Models = {
         type: { ref: 'ApiSuccess_AiCreditUsageSummary_', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    AiCreditUsageBreakdown: {
+    AiBillableFeature: {
         dataType: 'refAlias',
         type: {
             dataType: 'union',
             subSchemas: [
-                { dataType: 'enum', enums: ['user'] },
+                { dataType: 'enum', enums: ['data-app'] },
                 { dataType: 'enum', enums: ['agent'] },
-                { dataType: 'enum', enums: ['project'] },
-                { dataType: 'enum', enums: ['feature'] },
-                { dataType: 'enum', enums: ['channel'] },
+                { dataType: 'enum', enums: ['deep-research'] },
+                { dataType: 'enum', enums: ['agent-subtask'] },
+                { dataType: 'enum', enums: ['compaction'] },
             ],
             validators: {},
         },
@@ -51188,73 +51188,11 @@ const models: TsoaRoute.Models = {
     AiCreditDailyUsageSeries: {
         dataType: 'refAlias',
         type: {
-            dataType: 'union',
-            subSchemas: [
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        credits: { dataType: 'double', required: true },
-                        name: {
-                            dataType: 'union',
-                            subSchemas: [
-                                { dataType: 'string' },
-                                { dataType: 'enum', enums: [null] },
-                            ],
-                            required: true,
-                        },
-                        key: { dataType: 'string', required: true },
-                        type: {
-                            dataType: 'enum',
-                            enums: ['value'],
-                            required: true,
-                        },
-                    },
-                },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        credits: { dataType: 'double', required: true },
-                        type: {
-                            dataType: 'enum',
-                            enums: ['other'],
-                            required: true,
-                        },
-                    },
-                },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        credits: { dataType: 'double', required: true },
-                        type: {
-                            dataType: 'enum',
-                            enums: ['deleted'],
-                            required: true,
-                        },
-                    },
-                },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        credits: { dataType: 'double', required: true },
-                        type: {
-                            dataType: 'enum',
-                            enums: ['embeddedViewers'],
-                            required: true,
-                        },
-                    },
-                },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        credits: { dataType: 'double', required: true },
-                        type: {
-                            dataType: 'enum',
-                            enums: ['unattributed'],
-                            required: true,
-                        },
-                    },
-                },
-            ],
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                credits: { dataType: 'double', required: true },
+                feature: { ref: 'AiBillableFeature', required: true },
+            },
             validators: {},
         },
     },
@@ -51296,7 +51234,6 @@ const models: TsoaRoute.Models = {
                     },
                     required: true,
                 },
-                breakdown: { ref: 'AiCreditUsageBreakdown', required: true },
                 period: { ref: 'AiCreditPeriod', required: true },
             },
             validators: {},
@@ -111771,12 +111708,6 @@ export function RegisterRoutes(app: Router) {
         TsoaRoute.ParameterSchema
     > = {
         req: { in: 'request', name: 'req', required: true, dataType: 'object' },
-        breakdown: {
-            in: 'query',
-            name: 'breakdown',
-            required: true,
-            ref: 'AiCreditUsageBreakdown',
-        },
     };
     app.get(
         '/api/v1/org/ai-credits/usage/daily',
