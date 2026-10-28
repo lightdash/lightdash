@@ -1,5 +1,4 @@
 import {
-    type DashboardControlSection,
     type DashboardFilterableField,
     type DashboardFilterRule,
     type ResultColumn,
@@ -10,7 +9,6 @@ import {
     useContext,
     useContextSelector,
 } from 'use-context-selector';
-import { type RuleDropTarget } from './sections';
 
 /** The disclosure open under the edited filter's default value. */
 export type ControlsSidebarSection = 'tiles' | 'rules';
@@ -123,14 +121,6 @@ export type ControlsSidebarContextValue = {
      * Discard and Remove put them back as they were when the control opened.
      */
     updateOtherFilters: (rules: DashboardFilterRule[]) => void;
-    /**
-     * The bar's drag of the edited filter onto a pill or a section. An edit:
-     * Discard puts back its section and its place.
-     */
-    moveEditedFilter: (
-        over: RuleDropTarget,
-        sections: DashboardControlSection[],
-    ) => void;
     /** The pill's X: on the edited filter it ends the edit too. */
     removeFilterById: (filterId: string) => void;
     /**

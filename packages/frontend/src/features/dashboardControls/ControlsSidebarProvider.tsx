@@ -4,7 +4,6 @@ import {
     FilterOperator,
     isMetric,
     type Dashboard,
-    type DashboardControlSection,
     type DashboardFilterableField,
     type DashboardFilterRule,
     type DashboardFilters,
@@ -65,11 +64,7 @@ import {
     RailContractClasses,
     type RailContractClassNames,
 } from './railContractClasses';
-import {
-    countFilters,
-    moveRuleToSection,
-    type RuleDropTarget,
-} from './sections';
+import { countFilters } from './sections';
 import {
     canKeepFilterRule,
     findFilterRule,
@@ -77,7 +72,6 @@ import {
     haveOtherFilterRulesChanged,
     isDefaultValueIncomplete,
     isFilterRuleDirty,
-    isFilterRuleMoved,
     PLACEHOLDER_TARGET,
     removeFilterRule,
     replaceFilterRule,
@@ -168,14 +162,10 @@ type SidebarState = {
     } | null;
     // Other filters the editor itself wrote since this control was opened
     touchedFilterIds: string[];
-    // The bar's drag moved the edited rule, so Discard puts back its place too
-    isMoved: boolean;
-    // What last changed the edited rule's section, for the move event on Apply
-    sectionChangedBy: 'drag' | 'editor_section_select' | null;
 };
 
 // What Apply or Cancel would decide: a new filter with no field yet has
-// nothing to lose
+// nothing to lose, and a section move is applied at once, so it is no edit
 const isEditUnapplied = (
     state: SidebarState,
     isPlaceholder: boolean,
@@ -183,26 +173,22 @@ const isEditUnapplied = (
     toSaved: (rule: DashboardFilterRule) => DashboardFilterRule,
 ): boolean => {
     if (isPlaceholder) return !state.isNew;
-    const { snapshot, filterId, touchedFilterIds, isMoved } = state;
+    const { snapshot, filterId, touchedFilterIds } = state;
+    const toEdited = (rule: DashboardFilterRule) =>
+        omit(toSaved(rule), 'sectionId');
     return (
         isFilterRuleDirty(
             snapshot.dashboardFilters,
             dashboardFilters,
             filterId,
-            toSaved,
+            toEdited,
         ) ||
         haveOtherFilterRulesChanged(
             snapshot.dashboardFilters,
             dashboardFilters,
             touchedFilterIds,
-            toSaved,
-        ) ||
-        (isMoved &&
-            isFilterRuleMoved(
-                snapshot.dashboardFilters,
-                dashboardFilters,
-                filterId,
-            ))
+            toEdited,
+        )
     );
 };
 
@@ -609,8 +595,6 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
                     haveFiltersChanged: current.haveFiltersChanged,
                 },
                 touchedFilterIds: [],
-                isMoved: false,
-                sectionChangedBy: null,
             });
             if (!current.isPageViewer) {
                 current.track({
@@ -649,8 +633,6 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
                     haveFiltersChanged: current.haveFiltersChanged,
                 },
                 touchedFilterIds: [],
-                isMoved: false,
-                sectionChangedBy: null,
             });
             if (!current.isPageViewer) {
                 current.track({
@@ -819,14 +801,26 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
                       }
                     : waitingNow,
             );
+            const shownSection = ({ sectionId }: DashboardFilterRule) =>
+                sectionId !== undefined &&
+                current.controlSectionIds.includes(sectionId)
+                    ? sectionId
+                    : null;
             if (
                 current.state?.filterId === rule.id &&
+                !current.state.isNew &&
+                !current.state.isViewer &&
                 previous !== null &&
-                previous.sectionId !== rule.sectionId
+                shownSection(previous) !== shownSection(rule)
             ) {
-                writeState({
-                    ...current.state,
-                    sectionChangedBy: 'editor_section_select',
+                current.track({
+                    name: EventName.DASHBOARD_FILTERS_MOVED,
+                    properties: {
+                        ...getEventBase(current),
+                        method: 'editor_section_select',
+                        count: 1,
+                        whileEditing: true,
+                    },
                 });
             }
             writeFilters((filters) => replaceFilterRule(filters, rule));
@@ -836,7 +830,6 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
             writeFilters,
             writeFiltersChanged,
             writePlaceholder,
-            writeState,
             writeUndo,
             clearHighlightedField,
         ],
@@ -980,37 +973,6 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         [writeState, writeFilters, writeFiltersChanged, writeUndo],
     );
 
-    // The bar's drag of the edited filter: an edit like its Section select,
-    // so Discard puts back its section and its place
-    const moveEditedFilter = useCallback(
-        (over: RuleDropTarget, sections: DashboardControlSection[]) => {
-            const { state: editingState, dashboardFilters: filters } =
-                latest.current;
-            if (editingState === null) return;
-            const moved = moveRuleToSection(
-                filters,
-                editingState.filterId,
-                over,
-                sections,
-            );
-            if (moved === filters) return;
-            writeUndo(null);
-            const before = findFilterRule(filters, editingState.filterId);
-            const after = findFilterRule(moved, editingState.filterId);
-            writeState({
-                ...editingState,
-                isMoved: true,
-                sectionChangedBy:
-                    before?.sectionId === after?.sectionId
-                        ? editingState.sectionChangedBy
-                        : 'drag',
-            });
-            writeFilters(() => moved);
-            writeFiltersChanged(true);
-        },
-        [writeState, writeFilters, writeFiltersChanged, writeUndo],
-    );
-
     const addWaitingField = useCallback((fieldId: string) => {
         if (latest.current.state === null) return;
         const { filterId } = latest.current.state;
@@ -1122,12 +1084,29 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         const { state: editingState } = latest.current;
         if (editingState === null) return;
         rememberFocusReturn();
-        const { snapshot, filterId, touchedFilterIds, isMoved } = editingState;
+        const { snapshot, filterId, touchedFilterIds, emptiedAt } =
+            editingState;
+        const { placeholder: emptied } = latest.current;
+        const saved = findFilterRule(snapshot.dashboardFilters, filterId);
+        // An emptied filter goes back where it was emptied, in the section
+        // it is in now, so the restore keeps both
+        const withEmptiedBack = (filters: DashboardFilters) => {
+            if (emptiedAt === null || emptied === null || saved === null)
+                return filters;
+            const list = filters[emptiedAt.group];
+            return {
+                ...filters,
+                [emptiedAt.group]: [
+                    ...list.slice(0, emptiedAt.index),
+                    { ...saved, sectionId: emptied.sectionId },
+                    ...list.slice(emptiedAt.index),
+                ],
+            };
+        };
         writeFilters((filters) =>
             restoreFilterRules(
                 restoreFilterRule(
-                    // Out first, so it goes back in at the snapshot's place
-                    isMoved ? removeFilterRule(filters, filterId) : filters,
+                    withEmptiedBack(filters),
                     snapshot.dashboardFilters,
                     filterId,
                 ),
@@ -1211,35 +1190,6 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
                         : current.isEmbedded
                           ? 'embed'
                           : 'viewer',
-                },
-            });
-        }
-        // A section change made in the edit counts once it is applied; a
-        // dangling section id shows as none
-        const savedRule = findFilterRule(
-            snapshot.dashboardFilters,
-            current.state.filterId,
-        );
-        const shownSection = ({ sectionId }: DashboardFilterRule) =>
-            sectionId !== undefined &&
-            current.controlSectionIds.includes(sectionId)
-                ? sectionId
-                : null;
-        if (
-            !current.state.isNew &&
-            !current.state.isViewer &&
-            savedRule !== null &&
-            shownSection(savedRule) !== shownSection(rule)
-        ) {
-            current.track({
-                name: EventName.DASHBOARD_FILTERS_MOVED,
-                properties: {
-                    ...getEventBase(current),
-                    method:
-                        current.state.sectionChangedBy ??
-                        'editor_section_select',
-                    count: 1,
-                    whileEditing: true,
                 },
             });
         }
@@ -1475,7 +1425,6 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
             undoApply,
             fieldUndo,
             updateOtherFilters,
-            moveEditedFilter,
             removeFilterById,
             discard: cancel,
             close: apply,
@@ -1518,7 +1467,6 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
             fieldUndo,
             selectField,
             updateOtherFilters,
-            moveEditedFilter,
             removeFilterById,
             cancel,
             apply,

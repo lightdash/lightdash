@@ -45,10 +45,10 @@ const mockSidebar = vi.hoisted(() => ({
         isViewer: boolean;
         isSidebarOpen: boolean;
         editing?: { filterId: string } | null;
+        isNew?: boolean;
     },
 }));
 const mockOpenNew = vi.hoisted(() => vi.fn());
-const mockMoveEditedFilter = vi.hoisted(() => vi.fn());
 // Whether each draggable, by id, was last rendered disabled
 const mockDraggableDisabled = vi.hoisted(() => new Map<unknown, boolean>());
 const mockDragEnd = vi.hoisted(() => ({
@@ -79,14 +79,12 @@ vi.mock('./useControlsSidebar', () => ({
         selector: (
             value: typeof mockSidebar.current & {
                 openNew: typeof mockOpenNew;
-                moveEditedFilter: typeof mockMoveEditedFilter;
             },
         ) => unknown,
     ) =>
         selector({
             ...mockSidebar.current,
             openNew: mockOpenNew,
-            moveEditedFilter: mockMoveEditedFilter,
         }),
 }));
 // The drag gesture is dnd-kit's; the drop handler is captured
@@ -1021,7 +1019,7 @@ describe('SectionedFilters', () => {
             expect(ids.every(([, section]) => section === 'a')).toBe(true);
         });
 
-        it("moves the edited filter out through the editor on the bar's empty space", () => {
+        it('moves the edited filter as any other while it is edited', () => {
             mockSidebar.current = {
                 isViewer: false,
                 isSidebarOpen: true,
@@ -1031,28 +1029,11 @@ describe('SectionedFilters', () => {
             act(() =>
                 mockDragEnd.handlers[0](dragEvent('one', 'bar-space-target')),
             );
-            expect(mockMoveEditedFilter.mock.calls).toEqual([
-                [{ sectionId: null }, expect.any(Array)],
+            expect(sectionIdsOf(setDashboardFilters.mock.calls[0][0])).toEqual([
+                ['one', null],
+                ['two', 'b'],
             ]);
-            expect(setDashboardFilters).not.toHaveBeenCalled();
-        });
-
-        it('moves the edited filter through the editor while it is edited', () => {
-            mockSidebar.current = {
-                isViewer: false,
-                isSidebarOpen: true,
-                editing: { filterId: 'one' },
-            };
-            renderSectioned([rule('one', 'a'), rule('two', 'b')], 'tab-1');
-            act(() => {
-                mockDragEnd.handlers[0](dragEvent('one', 'b'));
-                mockDragEnd.handlers[0](dragEvent('one', 'two'));
-            });
-            expect(mockMoveEditedFilter.mock.calls).toEqual([
-                [{ sectionId: 'b' }, expect.any(Array)],
-                [{ ruleId: 'two' }, expect.any(Array)],
-            ]);
-            expect(setDashboardFilters).not.toHaveBeenCalled();
+            expect(setHaveFiltersChanged).toHaveBeenCalledWith(true);
         });
 
         it('moves another filter as the bar does while one is edited', () => {
@@ -1070,7 +1051,6 @@ describe('SectionedFilters', () => {
                 ['two', null],
             ]);
             expect(setHaveFiltersChanged).toHaveBeenCalledWith(true);
-            expect(mockMoveEditedFilter).not.toHaveBeenCalled();
         });
 
         it("keeps the capsules' drag off while a filter is edited", () => {
@@ -1852,7 +1832,6 @@ describe('SectionedFilters', () => {
                 screen.queryByRole('textbox', { name: 'Section name' }),
             ).not.toBeInTheDocument();
             expect(setDashboardFilters).not.toHaveBeenCalled();
-            expect(mockMoveEditedFilter).not.toHaveBeenCalled();
         });
 
         it('lights up under a dragged pill', () => {
@@ -2539,7 +2518,7 @@ describe('SectionedFilters', () => {
             });
         });
 
-        it('tracks a drag while a filter is edited, and leaves the edited pill to the editor', () => {
+        it('tracks a drag while a filter is edited, the edited pill moving as any other', () => {
             mockSidebar.current = {
                 isViewer: false,
                 isSidebarOpen: true,
@@ -2547,14 +2526,6 @@ describe('SectionedFilters', () => {
             };
             renderSectioned(rules(), 'tab-1');
             act(() => mockDragEnd.handlers[0](dragEvent('one', 'b')));
-            expect(mockMoveEditedFilter).toHaveBeenCalledTimes(1);
-            expect(mockTrack).not.toHaveBeenCalled();
-
-            act(() =>
-                mockDragEnd.handlers[0](
-                    dragEvent('three', 'unsectioned-target'),
-                ),
-            );
             expect(tracksOf(EventName.DASHBOARD_FILTERS_MOVED)).toEqual([
                 expect.objectContaining({
                     properties: expect.objectContaining({
@@ -2564,6 +2535,19 @@ describe('SectionedFilters', () => {
                     }),
                 }),
             ]);
+        });
+
+        it('tracks no move for a drag of the new filter being created', () => {
+            mockSidebar.current = {
+                isViewer: false,
+                isSidebarOpen: true,
+                editing: { filterId: 'one' },
+                isNew: true,
+            };
+            renderSectioned(rules(), 'tab-1');
+            act(() => mockDragEnd.handlers[0](dragEvent('one', 'b')));
+            expect(setDashboardFilters).toHaveBeenCalledTimes(1);
+            expect(tracksOf(EventName.DASHBOARD_FILTERS_MOVED)).toEqual([]);
         });
 
         it('tracks a dragged selection once, counting what changed section', () => {
