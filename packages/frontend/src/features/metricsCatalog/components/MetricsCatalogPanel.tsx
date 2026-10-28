@@ -114,7 +114,7 @@ const LearnMorePopover: FC = () => {
                         </ActionIcon>
                     </Group>
                     <LearnMoreContent width="100%" height="100%" />
-                    <Text fz="sm" c="dimmed">
+                    <Text fz="sm" c="var(--mantine-color-ldGray-3)">
                         Explore and curate your key Metrics in the{' '}
                         <Text span fw={600} inherit>
                             Catalog

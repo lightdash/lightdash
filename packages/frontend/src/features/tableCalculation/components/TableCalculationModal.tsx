@@ -700,12 +700,8 @@ const TableCalculationModal: FC<Props> = ({
             }
             modalRootProps={{
                 closeOnClickOutside: false,
-                styles: isExpanded
-                    ? {
-                          content: {
-                              minWidth: '90vw',
-                          },
-                      }
+                classNames: isExpanded
+                    ? { content: classes.expandedContent }
                     : undefined,
             }}
         >

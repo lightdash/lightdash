@@ -270,7 +270,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                                         fz="xs"
                                         label={
                                             <Stack gap="one" fz="xs">
-                                                <Text c="dimmed" fz="xs">
+                                                <Text c="gray.5" fz="xs">
                                                     Schedule type:{' '}
                                                     <Text
                                                         c="white"
@@ -281,7 +281,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                                                     </Text>
                                                 </Text>
                                                 {!isUserScope && (
-                                                    <Text c="dimmed" fz="xs">
+                                                    <Text c="gray.5" fz="xs">
                                                         Created by:{' '}
                                                         <Text
                                                             c="white"

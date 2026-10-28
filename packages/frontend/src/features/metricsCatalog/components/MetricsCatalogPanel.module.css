@@ -3,7 +3,7 @@
     align-items: flex-start;
 }
 
-.headerButton {
+.headerButton[data-variant] {
     border-radius: var(--mantine-radius-md);
     border: 1px solid var(--mantine-color-ldGray-2);
     padding: 0.25rem 10px 0.25rem var(--mantine-spacing-xs);

@@ -61,7 +61,7 @@
     align-self: center;
 }
 
-.resetButton {
+.resetButton[data-variant] {
     border: 1px solid var(--mantine-color-ldGray-2);
     box-shadow: var(--mantine-shadow-subtle);
 }

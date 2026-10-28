@@ -23,6 +23,28 @@ module.exports = {
         return {
             JSXAttribute(node) {
                 if (node.name.type !== 'JSXIdentifier') return;
+                const nested =
+                    node.value &&
+                    node.value.type === 'JSXExpressionContainer' &&
+                    node.value.expression.type === 'ObjectExpression'
+                        ? node.value.expression.properties
+                        : [];
+                for (const property of nested) {
+                    if (
+                        property.type === 'Property' &&
+                        property.key.type === 'Identifier' &&
+                        (property.key.name === 'style' ||
+                            property.key.name === 'styles')
+                    ) {
+                        context.report({
+                            node: property,
+                            messageId:
+                                property.key.name === 'styles'
+                                    ? 'noStyles'
+                                    : 'noStyle',
+                        });
+                    }
+                }
                 if (node.name.name === 'styles') {
                     context.report({ node, messageId: 'noStyles' });
                     return;

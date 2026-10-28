@@ -230,7 +230,7 @@ const DatabricksForm: FC<{
                     required
                     disabled={disabled}
                     placeholder="xxxx.gcp.databricks.com"
-                    labelProps={{ style: { marginTop: '8px' } }}
+                    labelProps={{ mt: 'xs' }}
                 />
                 <TextInput
                     name="warehouse.httpPath"

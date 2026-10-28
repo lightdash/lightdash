@@ -98,3 +98,7 @@
 .floatingActions {
     z-index: 5;
 }
+
+.expandedContent {
+    min-width: 90vw;
+}

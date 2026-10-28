@@ -1,5 +1,5 @@
 .stickyHeader,
-.stickyHeader:hover {
+.stickyHeader:hover:not([data-active]) {
     position: sticky;
     top: 0;
     z-index: 1;

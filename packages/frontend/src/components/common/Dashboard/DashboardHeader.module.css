@@ -66,3 +66,7 @@
 .scrollableDropdown {
     overflow-y: auto;
 }
+
+.headerCard {
+    z-index: var(--dashboard-header-zindex);
+}

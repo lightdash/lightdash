@@ -315,7 +315,7 @@ const LogsTable: FC<LogsTableProps> = ({
                                     <Tooltip
                                         label={
                                             <Stack gap="two" fz="xs">
-                                                <Text c="dimmed" fz="xs">
+                                                <Text c="gray.5" fz="xs">
                                                     Scheduler:{' '}
                                                     <Text
                                                         c="white"
@@ -325,7 +325,7 @@ const LogsTable: FC<LogsTableProps> = ({
                                                         {run.schedulerName}
                                                     </Text>
                                                 </Text>
-                                                <Text c="dimmed" fz="xs">
+                                                <Text c="gray.5" fz="xs">
                                                     Created by:{' '}
                                                     <Text
                                                         c="white"

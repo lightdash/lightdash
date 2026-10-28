@@ -5,8 +5,8 @@
     cursor: not-allowed;
 }
 
-.clearButtonSection {
-    margin-left: 4px;
+.clearButtonSection[data-position='right'] {
+    margin-inline-start: var(--mantine-spacing-xxs);
 }
 
 .hidden {

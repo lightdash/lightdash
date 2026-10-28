@@ -32,7 +32,7 @@ const ProjectStatusCallout: FC<ProjectStatusCalloutProps> = ({
             title: 'Updating project settings...',
             icon: <Loader size="lg" />,
             children: undefined,
-            styles: { body: { gap: 0 } },
+            classNames: { body: classes.compactBody },
         };
     } else if (isSuccess) {
         stateProps = {
@@ -40,7 +40,7 @@ const ProjectStatusCallout: FC<ProjectStatusCalloutProps> = ({
             title: 'Project settings updated!',
             icon: <MantineIcon icon={IconCircleCheckFilled} size="lg" />,
             children: undefined,
-            styles: { body: { gap: 0 } },
+            classNames: { body: classes.compactBody },
         };
     } else if (isError) {
         stateProps = {
@@ -56,7 +56,7 @@ const ProjectStatusCallout: FC<ProjectStatusCalloutProps> = ({
                     className={classes.errorMarkdown}
                 />
             ) : null,
-            styles: error ? { body: { gap: 0 } } : undefined,
+            classNames: error ? { body: classes.compactBody } : undefined,
         };
     } else {
         stateProps = {
@@ -64,7 +64,7 @@ const ProjectStatusCallout: FC<ProjectStatusCalloutProps> = ({
             title: 'Updating project settings...',
             icon: <Loader size="lg" />,
             children: undefined,
-            styles: { body: { gap: 0 } },
+            classNames: { body: classes.compactBody },
         };
     }
 

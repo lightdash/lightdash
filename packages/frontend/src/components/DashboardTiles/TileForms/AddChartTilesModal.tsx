@@ -297,20 +297,9 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose, spaceUuids }) => {
                     comboboxProps={{
                         withinPortal: true,
                         zIndex: getDefaultZIndex('modal'),
-                        styles: {
-                            groupLabel: {
-                                position: 'sticky',
-                                top: 0,
-                                zIndex: getDefaultZIndex('modal'),
-                                color: 'var(--mantine-color-ldGray-6)',
-                                fontWeight: 500,
-                                backgroundColor:
-                                    'light-dark(var(--mantine-color-white), var(--mantine-color-dark-6))',
-                            },
-                            option: {
-                                paddingTop: 4,
-                                paddingBottom: 4,
-                            },
+                        classNames: {
+                            groupLabel: classes.comboboxGroupLabel,
+                            option: classes.comboboxOption,
                         },
                     }}
                     scrollAreaProps={{ viewportRef: selectScrollRef }}
