@@ -53,6 +53,7 @@ const createService = ({
             ),
         },
         aiOrganizationSettingsService: {
+            getMcpProjectAccess: vi.fn().mockResolvedValue({ mode: 'all' }),
             isMcpEnabled: vi
                 .fn()
                 .mockResolvedValue(organizationMcpEnabled ?? true),

@@ -538,6 +538,8 @@ import {
     AiAgentToolCallTableName,
     AiAgentToolResultTable,
     AiAgentToolResultTableName,
+    AiOrganizationMcpProjectsTable,
+    AiOrganizationMcpProjectsTableName,
     AiPromptContextTable,
     AiPromptContextTableName,
     AiPromptDecisionShadowTable,
@@ -783,6 +785,7 @@ declare module 'knex/types/tables' {
         [OAuth2AuthorizationCodesTableName]: OAuth2AuthorizationCodesTable;
         [OAuth2AccessTokensTableName]: OAuth2AccessTokensTable;
         [OAuth2RefreshTokensTableName]: OAuth2RefreshTokensTable;
+        [AiOrganizationMcpProjectsTableName]: AiOrganizationMcpProjectsTable;
         [ExploreNameAllocationsTableName]: ExploreNameAllocationsTable;
         [DbtSourceRefCatalogsTableName]: DbtSourceRefCatalogsTable;
         [ReleaseHighlightsTableName]: ReleaseHighlightsTable;

@@ -3,8 +3,9 @@ import {
     assertUnreachable,
     ForbiddenError,
     ParameterError,
+    type Account,
+    type McpProjectAccess,
 } from '@lightdash/common';
-import type { Account } from '@lightdash/common';
 import type { NextFunction, Request, Response } from 'express';
 import express from 'express';
 import { request as httpRequest, type Server, type ServerResponse } from 'http';
@@ -112,6 +113,11 @@ const createAccount = (authentication: TestAuthentication): Account => {
 
 const createMcpService = () =>
     Object.assign(Object.create(McpService.prototype), {
+        aiOrganizationSettingsService: {
+            getMcpProjectAccess: vi
+                .fn<() => Promise<McpProjectAccess>>()
+                .mockResolvedValue({ mode: 'all' }),
+        },
         getPinnedAgent: vi.fn().mockResolvedValue({
             uuid: AGENT_UUID,
             projectUuid: AGENT_PROJECT_UUID,
@@ -1196,4 +1202,78 @@ describe('agent-pinned MCP route', () => {
             AGENT_UUID,
         );
     });
+});
+
+describe('organization MCP project policy at HTTP boundary', () => {
+    it.each(['oauth', 'pat', 'service-account', 'session'] as const)(
+        'denies excluded URL, header and agent pins for %s callers',
+        async (type) => {
+            const authentication =
+                type === 'oauth' ? { type, scopes: ['mcp:read'] } : { type };
+            const targets: {
+                path?: string;
+                headers?: Record<string, string>;
+                requestBody?: Record<string, unknown>;
+                savedContext?: boolean;
+            }[] = [
+                { path: `/api/v1/mcp/projects/${PROJECT_UUID}` },
+                { headers: { 'X-Lightdash-Project': PROJECT_UUID } },
+                { headers: { 'X-Lightdash-Agent': AGENT_UUID } },
+                {
+                    savedContext: true,
+                    requestBody: {
+                        jsonrpc: '2.0',
+                        id: 1,
+                        method: 'tools/call',
+                        params: { name: 'list_explores', arguments: {} },
+                    },
+                },
+            ];
+            await Promise.all(
+                targets.map(async (target) => {
+                    const { response, mcpService } = await requestMcp({
+                        account: createAccount(authentication),
+                        method: 'POST',
+                        requestBody: {
+                            jsonrpc: '2.0',
+                            id: 1,
+                            method: 'tools/list',
+                        },
+                        ...target,
+                        configureService: (service) => {
+                            Object.assign(
+                                service['aiOrganizationSettingsService'],
+                                {
+                                    getMcpProjectAccess: vi
+                                        .fn()
+                                        .mockResolvedValue({
+                                            mode: 'selected',
+                                            projectUuids: [],
+                                        }),
+                                },
+                            );
+                            if (target.savedContext) {
+                                Object.assign(service, {
+                                    getLegacyToolScope:
+                                        McpService.prototype.getLegacyToolScope,
+                                    mcpContextModel: {
+                                        getContext: vi.fn().mockResolvedValue({
+                                            context: {
+                                                projectUuid: PROJECT_UUID,
+                                            },
+                                        }),
+                                    },
+                                });
+                            }
+                        },
+                    });
+                    expect(response.status).toBe(403);
+                    expect(response.body).toContain(
+                        'MCP access to this project is disabled for your organization',
+                    );
+                    expect(mcpService.createServer).not.toHaveBeenCalled();
+                }),
+            );
+        },
+    );
 });
