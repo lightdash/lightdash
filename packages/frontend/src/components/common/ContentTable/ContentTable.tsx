@@ -739,7 +739,8 @@ export const ContentTable = <TData extends RowData>({
     const containerProps = sanitizeMantineProps(
         options.mantineTableContainerProps,
     );
-    const tableProps = sanitizeMantineProps(
+    // Column borders are drawn by this module, not by Mantine's data attribute.
+    const { withColumnBorders, ...tableProps } = sanitizeMantineProps(
         options.mantineTableProps,
     ) as SanitizedMantineProps<HTMLTableElement> &
         Omit<NonNullable<typeof options.mantineTableProps>, 'ref' | 'styles'>;
@@ -816,8 +817,7 @@ export const ContentTable = <TData extends RowData>({
                         isEmpty && classes.tableEmpty,
                         tableProps.highlightOnHover === true &&
                             classes.highlightOnHover,
-                        tableProps.withColumnBorders === true &&
-                            classes.columnBorders,
+                        withColumnBorders === true && classes.columnBorders,
                         tableProps.className,
                     )}
                     style={{

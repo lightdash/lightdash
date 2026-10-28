@@ -717,6 +717,7 @@ const InfiniteResourceTable = ({
         mantineTableProps: {
             highlightOnHover: true,
             withColumnBorders: Boolean(flatData.length),
+            className: classes.table,
         },
         mantineTableHeadCellProps: { px: 'xl' },
         mantineTableBodyRowProps: ({ row }) => {
