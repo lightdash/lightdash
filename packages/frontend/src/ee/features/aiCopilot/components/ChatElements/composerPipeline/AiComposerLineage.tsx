@@ -155,20 +155,17 @@ const LineageFlow: FC<{ layers: PipelineLayer[] } & GraphDisplay> = ({
         () => toPipelineFlow(layers, { hoveredNodeId, nodeStatuses }),
         [layers, hoveredNodeId, nodeStatuses],
     );
+    // State holds what React Flow owns (positions, sizes); data comes from props.
     const [nodes, setNodes, onNodesChange] = useNodesState(flow.nodes);
-
-    // Node data is copied into React Flow's store; keep the marks current.
-    useEffect(() => {
+    const renderedNodes = useMemo(() => {
         const dataById = new Map(
             flow.nodes.map((node) => [node.id, node.data]),
         );
-        setNodes((current) =>
-            current.map((node) => ({
-                ...node,
-                data: dataById.get(node.id) ?? node.data,
-            })),
-        );
-    }, [flow.nodes, setNodes]);
+        return nodes.map((node) => ({
+            ...node,
+            data: dataById.get(node.id) ?? node.data,
+        }));
+    }, [nodes, flow.nodes]);
     const laidOut = useRef(false);
     const initialized = useNodesInitialized();
     const { fitView } = useReactFlow();
@@ -193,7 +190,7 @@ const LineageFlow: FC<{ layers: PipelineLayer[] } & GraphDisplay> = ({
                     reactFlowStyles.reactFlow,
                     !laidOut.current && styles.flowPending,
                 )}
-                nodes={nodes}
+                nodes={renderedNodes}
                 edges={flow.edges}
                 onNodesChange={onNodesChange}
                 onNodeClick={(_, node) => onFocusNode(node.id)}
