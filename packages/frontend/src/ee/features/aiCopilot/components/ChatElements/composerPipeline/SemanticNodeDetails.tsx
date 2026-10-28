@@ -10,21 +10,28 @@ import {
     IconArrowDown,
     IconArrowsSort,
     IconArrowUp,
+    IconColumns3,
     IconFilter,
     IconVariable,
     type Icon,
 } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
+import FieldIcon from '../../../../../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import ErrorBoundary from '../../../../../../features/errorBoundary/ErrorBoundary';
+import { getFieldColors } from '../../../../../../utils/fieldColors';
 import { useUiStrings } from '../../../../../providers/Embed/useUiStrings';
 import AgentVisualizationFilters from '../AgentVisualizationFilters';
+import { FieldDetailHoverCard } from '../AgentVisualizationMetricsAndDimensions';
 import AgentVisualizationParameters from '../AgentVisualizationParameters';
 import { getVisualizationFiltersCount } from '../AiVisualizationRenderer.utils';
 import chipClasses from '../QueryChip.module.css';
 import styles from './SemanticNodeDetails.module.css';
 
-export type SemanticNodeQuery = Pick<MetricQuery, 'filters' | 'sorts'>;
+export type SemanticNodeQuery = Pick<
+    MetricQuery,
+    'dimensions' | 'metrics' | 'filters' | 'sorts'
+>;
 
 const semanticItemLabel = (fieldsMap: ItemsMap, fieldId: string) => {
     const item = fieldsMap[fieldId];
@@ -52,6 +59,33 @@ const DetailsRow: FC<{ icon: Icon; label: string; children: ReactNode }> = ({
         </Box>
     </Group>
 );
+
+const FieldChip: FC<{ fieldId: string; fieldsMap: ItemsMap }> = ({
+    fieldId,
+    fieldsMap,
+}) => {
+    const item = fieldsMap[fieldId];
+    return (
+        <FieldDetailHoverCard field={item}>
+            <Box
+                component="span"
+                className={chipClasses.chip}
+                data-testid="semantic-node-field"
+            >
+                {item && (
+                    <FieldIcon
+                        item={item}
+                        color={getFieldColors(item).color}
+                        size={12}
+                    />
+                )}
+                <Text fz="xs" fw={600} truncate>
+                    {semanticItemLabel(fieldsMap, fieldId)}
+                </Text>
+            </Box>
+        </FieldDetailHoverCard>
+    );
+};
 
 const Sorts: FC<{
     sorts: SemanticNodeQuery['sorts'];
@@ -92,7 +126,7 @@ type Props = {
     parameters: ParametersValuesMap;
 };
 
-/** Filters, parameters and sorts, each row marked by its icon. */
+/** Fields, filters, parameters and sorts, each row marked by its icon. */
 export const SemanticNodeDetails: FC<Props> = ({
     metricQuery,
     fieldsMap,
@@ -102,6 +136,28 @@ export const SemanticNodeDetails: FC<Props> = ({
     return (
         <Stack gap={6}>
             <ErrorBoundary>
+                {metricQuery.dimensions.length + metricQuery.metrics.length >
+                    0 && (
+                    <DetailsRow
+                        icon={IconColumns3}
+                        label={getUiString(
+                            'aiAgent.composer.semanticNode.fields',
+                        )}
+                    >
+                        <Group gap={4}>
+                            {[
+                                ...metricQuery.dimensions,
+                                ...metricQuery.metrics,
+                            ].map((fieldId) => (
+                                <FieldChip
+                                    key={fieldId}
+                                    fieldId={fieldId}
+                                    fieldsMap={fieldsMap}
+                                />
+                            ))}
+                        </Group>
+                    </DetailsRow>
+                )}
                 {getVisualizationFiltersCount(metricQuery.filters) > 0 && (
                     <DetailsRow
                         icon={IconFilter}

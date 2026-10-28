@@ -18,3 +18,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
 }
+
+.hoverDropdown {
+    overflow: auto;
+}

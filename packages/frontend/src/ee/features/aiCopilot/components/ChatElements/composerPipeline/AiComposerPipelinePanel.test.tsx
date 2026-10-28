@@ -322,13 +322,13 @@ describe('AiComposerPipelinePanel semantic nodes', () => {
         },
     };
 
-    it('heads a semantic node with its explore and opens its filters and sort on demand', async () => {
+    it('heads a semantic node with its explore and opens its fields, filters and sort on demand', async () => {
         renderPanel({
             defaultExpanded: true,
             queries: [semanticOrders, queries[1], queries[2]],
         });
         const details = await cell('orders').findByRole('button', {
-            name: 'Filters, sorts and parameters',
+            name: 'Fields, filters, sorts and parameters',
         });
         expect(details).toHaveAttribute('aria-expanded', 'false');
         fireEvent.click(details);
@@ -337,6 +337,11 @@ describe('AiComposerPipelinePanel semantic nodes', () => {
             await cell('orders').findByText('completed'),
         ).toBeInTheDocument();
         expect(cell('orders').queryByLabelText('Explore')).toBeNull();
+        expect(
+            cell('orders')
+                .getAllByTestId('semantic-node-field')
+                .map((chip) => chip.textContent),
+        ).toEqual(['Orders status', 'Orders count']);
         expect(
             cell('orders').getByTestId('semantic-node-sort'),
         ).toHaveTextContent('Orders count');

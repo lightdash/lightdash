@@ -522,7 +522,7 @@ export const DEFAULT_UI_STRINGS = {
     'aiAgent.composer.node.references': 'References',
     'aiAgent.composer.node.finalResult': 'Final result',
     'aiAgent.composer.semanticNode.queryDetails':
-        'Filters, sorts and parameters',
+        'Fields, filters, sorts and parameters',
     'aiAgent.composer.node.running': 'Running…',
     'aiAgent.composer.node.queued': 'Queued, waiting on the steps it reads',
     'aiAgent.composer.semanticNode.compiledSql': 'Compiled SQL',
