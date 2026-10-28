@@ -10,6 +10,13 @@ import {
     type ResultRow,
 } from '@lightdash/common';
 import { parse } from 'pgsql-ast-parser';
+import {
+    LightdashAnalytics,
+    type PgWireAuthenticationFailureReason,
+    type PgWireAuthMethod,
+    type PgWireQueryExecutedEvent,
+    type PgWireStatementKind,
+} from '../../analytics/LightdashAnalytics';
 import { fromApiKey, fromServiceAccount } from '../../auth/account/account';
 import Logger from '../../logging/logger';
 import type { ServiceRepository } from '../../services/ServiceRepository';
@@ -42,7 +49,21 @@ export type LightdashPgWireSession = {
     catalog: PgWireTable[];
     /** the system catalog describing `catalog`, built once per connection */
     catalogRelations: Map<string, CatalogRelation>;
+    /** `application_name` the client connected with, for usage analytics */
+    applicationName: string | null;
 };
+
+/** Rejects the connection and records why, for usage analytics */
+class PgWireAuthenticationError extends PgWireServerError {
+    constructor(
+        public readonly reason: PgWireAuthenticationFailureReason,
+        message: string,
+        code: string,
+        hint?: string,
+    ) {
+        super(message, code, hint);
+    }
+}
 
 const TEXT_OID = PG_OID.text;
 
@@ -200,6 +221,13 @@ const normalizeSql = (session: LightdashPgWireSession, sql: string): string => {
     return stripped !== sql && parses(stripped) ? stripped : sql;
 };
 
+const getAuthMethod = (password: string): PgWireAuthMethod | null => {
+    if (!password) return null;
+    return password.startsWith(AuthTokenPrefix.SERVICE_ACCOUNT)
+        ? 'service_account'
+        : 'personal_access_token';
+};
+
 const UUID_PATTERN =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -253,7 +281,39 @@ const fieldsOf = (compiled: PgWireCompiledQuery): PgWireResultField[] =>
 
 export const createLightdashPgWireHandlers = (
     serviceRepository: ServiceRepository,
+    analytics: LightdashAnalytics,
 ): PgWireHandlers<LightdashPgWireSession> => {
+    /** Tracking must never fail a client connection or statement */
+    const track = (
+        buildEvent: () => Parameters<LightdashAnalytics['track']>[0],
+    ) => {
+        try {
+            analytics.track(buildEvent());
+        } catch (e) {
+            Logger.debug(
+                `pgwire: failed to track usage: ${e instanceof Error ? e.message : e}`,
+            );
+        }
+    };
+
+    const trackQuery = (
+        session: LightdashPgWireSession,
+        properties: Omit<
+            PgWireQueryExecutedEvent['properties'],
+            'organizationId' | 'projectId' | 'applicationName'
+        >,
+    ) =>
+        track(() => ({
+            event: 'pgwire.query_executed',
+            userId: session.account.user.id,
+            properties: {
+                organizationId: session.account.organization.organizationUuid,
+                projectId: session.projectUuid,
+                applicationName: session.applicationName,
+                ...properties,
+            },
+        }));
+
     /**
      * The database name can be a project UUID or a slugified project name
      * (e.g. "jaffle-shop"). Projects have no stored slug, so slugs are derived
@@ -275,7 +335,8 @@ export const createLightdashPgWireHandlers = (
         );
         if (matches.length === 1) return matches[0].projectUuid;
         if (matches.length > 1) {
-            throw new PgWireServerError(
+            throw new PgWireAuthenticationError(
+                'database_ambiguous',
                 `database "${database}" is ambiguous: ${matches.length} projects share that name`,
                 '3D000',
                 `Use the project UUID instead: ${matches
@@ -283,7 +344,8 @@ export const createLightdashPgWireHandlers = (
                     .join(', ')}`,
             );
         }
-        throw new PgWireServerError(
+        throw new PgWireAuthenticationError(
+            'database_not_found',
             `database "${database}" does not exist`,
             '3D000',
             `Use a project UUID or one of: ${projects
@@ -383,7 +445,8 @@ export const createLightdashPgWireHandlers = (
             .getServiceAccountService<ServiceAccountService>()
             .authenticateServiceAccount(token);
         if (!serviceAccount) {
-            throw new PgWireServerError(
+            throw new PgWireAuthenticationError(
+                'invalid_token',
                 'password authentication failed: invalid service account token',
                 '28P01',
             );
@@ -392,7 +455,8 @@ export const createLightdashPgWireHandlers = (
             serviceAccount.scopes.length === 1 &&
             serviceAccount.scopes[0] === ServiceAccountScope.SCIM_MANAGE;
         if (isScimOnly) {
-            throw new PgWireServerError(
+            throw new PgWireAuthenticationError(
+                'scim_only_token',
                 'password authentication failed: SCIM-only tokens cannot access the semantic layer',
                 '28P01',
             );
@@ -419,15 +483,10 @@ export const createLightdashPgWireHandlers = (
         return fromApiKey(sessionUser, 'pgwire');
     };
 
-    const runStatement = async (
+    const runExplore = async (
         session: LightdashPgWireSession,
-        sql: string,
+        compiled: PgWireCompiledQuery,
     ): Promise<PgWireQueryResult> => {
-        const resolved = resolveStatement(session, sql);
-        if (resolved.kind === 'result') {
-            return resolved.result;
-        }
-        const { compiled } = resolved;
         if (compiled.alwaysEmpty) {
             // schema probes (WHERE 1=0, LIMIT 0) never reach the warehouse
             return {
@@ -464,73 +523,129 @@ export const createLightdashPgWireHandlers = (
         };
     };
 
-    return {
-        authenticate: async ({ user, database, password }) => {
-            if (!password) {
-                throw new PgWireServerError(
-                    'password authentication failed: provide a service account token (ldsvc_) or personal access token (ldpat_) as the password',
-                    '28P01',
-                    'Set up a service account under Settings > Service accounts (recommended), or a personal access token under Settings > Personal access tokens, and use it as the password',
-                );
-            }
-            const isServiceAccount = password.startsWith(
-                AuthTokenPrefix.SERVICE_ACCOUNT,
-            );
-            let account: Account;
-            try {
-                account = isServiceAccount
-                    ? await authenticateServiceAccountToken(password)
-                    : await authenticatePatToken(password);
-            } catch (e) {
-                if (e instanceof PgWireServerError) throw e;
-                Logger.info(
-                    `pgwire: ${
-                        isServiceAccount ? 'service account' : 'PAT'
-                    } authentication failed for user "${user}"`,
-                );
-                throw new PgWireServerError(
-                    `password authentication failed: invalid ${
-                        isServiceAccount
-                            ? 'service account token'
-                            : 'personal access token'
-                    }`,
-                    '28P01',
-                    isServiceAccount
-                        ? 'Create a service account under Settings > Service accounts and use its token as the password'
-                        : 'Create a token under Settings > Personal access tokens and use it as the password',
-                );
-            }
-            const projectUuid = await resolveProjectUuid(account, database);
-            let catalog: PgWireTable[];
-            try {
-                catalog = await buildCatalog(account, projectUuid);
-            } catch (e) {
-                throw new PgWireServerError(
-                    `cannot access project "${projectUuid}": ${
-                        e instanceof Error ? e.message : e
-                    }`,
-                    '3D000',
-                    'Use the project UUID as the database name',
-                );
-            }
+    const authenticateAccount = async (
+        password: string,
+        authMethod: PgWireAuthMethod,
+        user: string,
+    ): Promise<Account> => {
+        const isServiceAccount = authMethod === 'service_account';
+        try {
+            return isServiceAccount
+                ? await authenticateServiceAccountToken(password)
+                : await authenticatePatToken(password);
+        } catch (e) {
+            if (e instanceof PgWireServerError) throw e;
             Logger.info(
                 `pgwire: ${
-                    account.user?.email ?? account.authentication.type
-                } connected to project ${projectUuid} (${
-                    catalog.length
-                } explores)`,
+                    isServiceAccount ? 'service account' : 'PAT'
+                } authentication failed for user "${user}"`,
             );
-            return {
-                account,
-                projectUuid,
+            throw new PgWireAuthenticationError(
+                'invalid_token',
+                `password authentication failed: invalid ${
+                    isServiceAccount
+                        ? 'service account token'
+                        : 'personal access token'
+                }`,
+                '28P01',
+                isServiceAccount
+                    ? 'Create a service account under Settings > Service accounts and use its token as the password'
+                    : 'Create a token under Settings > Personal access tokens and use it as the password',
+            );
+        }
+    };
+
+    const connect = async (
+        account: Account,
+        database: string,
+        applicationName: string | null,
+    ): Promise<LightdashPgWireSession> => {
+        const projectUuid = await resolveProjectUuid(account, database);
+        let catalog: PgWireTable[];
+        try {
+            catalog = await buildCatalog(account, projectUuid);
+        } catch (e) {
+            throw new PgWireAuthenticationError(
+                'project_inaccessible',
+                `cannot access project "${projectUuid}": ${
+                    e instanceof Error ? e.message : e
+                }`,
+                '3D000',
+                'Use the project UUID as the database name',
+            );
+        }
+        Logger.info(
+            `pgwire: ${
+                account.user?.email ?? account.authentication.type
+            } connected to project ${projectUuid} (${catalog.length} explores)`,
+        );
+        return {
+            account,
+            projectUuid,
+            databaseName: database,
+            catalog,
+            catalogRelations: buildCatalogRelations({
                 databaseName: database,
+                userName: account.user?.email ?? 'lightdash',
                 catalog,
-                catalogRelations: buildCatalogRelations({
-                    databaseName: database,
-                    userName: account.user?.email ?? 'lightdash',
-                    catalog,
-                }),
-            };
+            }),
+            applicationName,
+        };
+    };
+
+    return {
+        authenticate: async ({ user, database, password, applicationName }) => {
+            const authMethod = getAuthMethod(password);
+            let account: Account | null = null;
+            try {
+                if (!authMethod) {
+                    throw new PgWireAuthenticationError(
+                        'missing_password',
+                        'password authentication failed: provide a service account token (ldsvc_) or personal access token (ldpat_) as the password',
+                        '28P01',
+                        'Set up a service account under Settings > Service accounts (recommended), or a personal access token under Settings > Personal access tokens, and use it as the password',
+                    );
+                }
+                account = await authenticateAccount(password, authMethod, user);
+                const session = await connect(
+                    account,
+                    database,
+                    applicationName,
+                );
+                const connectedAccount = account;
+                track(() => ({
+                    event: 'pgwire.connected',
+                    userId: connectedAccount.user.id,
+                    properties: {
+                        organizationId:
+                            connectedAccount.organization.organizationUuid,
+                        projectId: session.projectUuid,
+                        authMethod,
+                        applicationName,
+                        exploreCount: session.catalog.length,
+                    },
+                }));
+                return session;
+            } catch (e) {
+                if (e instanceof PgWireAuthenticationError) {
+                    const failedAccount = account;
+                    track(() => ({
+                        event: 'pgwire.authentication_failed',
+                        ...(failedAccount
+                            ? { userId: failedAccount.user.id }
+                            : { anonymousId: LightdashAnalytics.anonymousId }),
+                        properties: {
+                            organizationId:
+                                failedAccount?.organization.organizationUuid ??
+                                null,
+                            authMethod,
+                            reason: e.reason,
+                            applicationName,
+                        },
+                    }));
+                }
+                throw e;
+            }
         },
 
         describe: async (session, sql) => {
@@ -556,14 +671,44 @@ export const createLightdashPgWireHandlers = (
             Logger.debug(
                 `pgwire: ${session.account.user?.email ?? 'service account'} query: ${redactLiterals(sql).slice(0, 500)}`,
             );
+            const startedAt = Date.now();
+            let statementKind: PgWireStatementKind | null = null;
+            let exploreName: string | null = null;
             try {
-                return await runStatement(session, sql);
+                const resolved = resolveStatement(session, sql);
+                if (resolved.kind === 'result') {
+                    statementKind = 'metadata';
+                    return resolved.result;
+                }
+                statementKind = resolved.compiled.alwaysEmpty
+                    ? 'schema_probe'
+                    : 'explore';
+                exploreName = resolved.compiled.metricQuery.exploreName;
+                const result = await runExplore(session, resolved.compiled);
+                trackQuery(session, {
+                    statementKind,
+                    exploreName,
+                    status: 'success',
+                    errorCode: null,
+                    rowCount:
+                        result.type === 'rows' ? result.rows.length : null,
+                    durationMs: Date.now() - startedAt,
+                });
+                return result;
             } catch (e) {
                 // failures are otherwise only visible to the client; log the
                 // shape (literals redacted) so production issues are diagnosable
                 Logger.warn(
                     `pgwire: query failed (${e instanceof PgWireServerError ? e.code : 'unexpected'}: ${e instanceof Error ? redactLiterals(e.message).slice(0, 200) : e}) sql: ${redactLiterals(sql).slice(0, 300)}`,
                 );
+                trackQuery(session, {
+                    statementKind,
+                    exploreName,
+                    status: 'error',
+                    errorCode: e instanceof PgWireServerError ? e.code : null,
+                    rowCount: null,
+                    durationMs: Date.now() - startedAt,
+                });
                 throw e;
             }
         },

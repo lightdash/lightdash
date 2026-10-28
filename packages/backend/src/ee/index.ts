@@ -1971,7 +1971,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     schedulerClient: repository.getSchedulerClient(),
                 }),
         },
-        pgWireServerFactory: (serviceRepository) => {
+        pgWireServerFactory: (serviceRepository, analytics) => {
             // parseConfig fail-fasts when PGWIRE_PORT is set in `require` mode
             // without cert/key, so missing paths here can only mean the
             // explicit `disabled` opt-out (plaintext).
@@ -1981,7 +1981,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     ? { certPath: ssl.certPath, keyPath: ssl.keyPath }
                     : undefined;
             return new PostgresWireServer(
-                createLightdashPgWireHandlers(serviceRepository),
+                createLightdashPgWireHandlers(serviceRepository, analytics),
                 { tls: tlsOptions },
             );
         },

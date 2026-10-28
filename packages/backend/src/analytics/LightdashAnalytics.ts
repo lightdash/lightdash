@@ -919,6 +919,58 @@ export type MergeQueryRefusedEvent = BaseTrack & {
     };
 };
 
+export type PgWireAuthMethod = 'service_account' | 'personal_access_token';
+
+export type PgWireAuthenticationFailureReason =
+    | 'missing_password'
+    | 'invalid_token'
+    | 'scim_only_token'
+    | 'database_not_found'
+    | 'database_ambiguous'
+    | 'project_inaccessible';
+
+/** `metadata` covers session statements and catalog lookups answered in memory. */
+export type PgWireStatementKind = 'explore' | 'schema_probe' | 'metadata';
+
+export type PgWireConnectedEvent = BaseTrack & {
+    event: 'pgwire.connected';
+    properties: {
+        organizationId: string;
+        projectId: string;
+        authMethod: PgWireAuthMethod;
+        applicationName: string | null;
+        exploreCount: number;
+    };
+};
+
+export type PgWireAuthenticationFailedEvent = BaseTrack & {
+    event: 'pgwire.authentication_failed';
+    properties: {
+        /** Known only once the token resolved to an account. */
+        organizationId: string | null;
+        authMethod: PgWireAuthMethod | null;
+        reason: PgWireAuthenticationFailureReason;
+        applicationName: string | null;
+    };
+};
+
+export type PgWireQueryExecutedEvent = BaseTrack & {
+    event: 'pgwire.query_executed';
+    properties: {
+        organizationId: string;
+        projectId: string;
+        /** Null when the statement failed before it was classified. */
+        statementKind: PgWireStatementKind | null;
+        exploreName: string | null;
+        status: 'success' | 'error';
+        /** SQLSTATE returned to the client. */
+        errorCode: string | null;
+        rowCount: number | null;
+        durationMs: number;
+        applicationName: string | null;
+    };
+};
+
 type SubtotalQueryEvent = BaseTrack & {
     event: 'query.subtotal';
     properties: {
@@ -4969,6 +5021,9 @@ type TypedEvent =
     | SubtotalQueryEvent
     | MergeQueryExecutedEvent
     | MergeQueryRefusedEvent
+    | PgWireConnectedEvent
+    | PgWireAuthenticationFailedEvent
+    | PgWireQueryExecutedEvent
     | DeprecatedRouteCalled
     | AiAgentCreatedEvent
     | AiAgentThreadDeletedEvent
