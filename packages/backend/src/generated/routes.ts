@@ -31279,6 +31279,20 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        title: { dataType: 'string', required: true },
+                        nodeId: { dataType: 'string', required: true },
+                        versionUuid: { dataType: 'string', required: true },
+                        artifactUuid: { dataType: 'string', required: true },
+                        type: {
+                            dataType: 'enum',
+                            enums: ['composer_node'],
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
                         displayName: {
                             dataType: 'union',
                             subSchemas: [
@@ -41622,6 +41636,19 @@ const models: TsoaRoute.Models = {
                         type: {
                             dataType: 'enum',
                             enums: ['data_app_element'],
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        nodeId: { dataType: 'string', required: true },
+                        versionUuid: { dataType: 'string', required: true },
+                        artifactUuid: { dataType: 'string', required: true },
+                        type: {
+                            dataType: 'enum',
+                            enums: ['composer_node'],
                             required: true,
                         },
                     },
@@ -75614,6 +75641,14 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                warehouseExecutionTimeMs: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 totalRowCount: {
                     dataType: 'union',
                     subSchemas: [

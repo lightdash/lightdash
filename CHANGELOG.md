@@ -1,3 +1,16 @@
+# [3.75.0](https://github.com/lightdash/lightdash/compare/3.74.0...3.75.0) (2026-10-28)
+
+
+### Features
+
+* **ai-agent:** composer queries notebook with node rows and add to chat ([#31650](https://github.com/lightdash/lightdash/issues/31650)) ([015801e](https://github.com/lightdash/lightdash/commit/015801e83a4ef50fff700e09c7c523988a419012))
+* include query error messages in usage analytics ([#31651](https://github.com/lightdash/lightdash/issues/31651)) ([5c7157e](https://github.com/lightdash/lightdash/commit/5c7157eb69f22f1385e68ab969084685e7272ccd))
+
+
+### Performance Improvements
+
+* raise analytics Parquet staging budget to 32 MiB ([#31661](https://github.com/lightdash/lightdash/issues/31661)) ([decd9d1](https://github.com/lightdash/lightdash/commit/decd9d10535908bede594a8f956653bd8f32733e))
+
 # [3.74.0](https://github.com/lightdash/lightdash/compare/3.73.3...3.74.0) (2026-10-28)
 
 
