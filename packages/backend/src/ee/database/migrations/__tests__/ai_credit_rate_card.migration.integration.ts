@@ -7,6 +7,7 @@ import { randomUUID } from 'node:crypto';
 import { AiCreditRateCardModel } from '../../../models/AiCreditRateCardModel';
 import * as createTable from '../20260928160000_create_ai_credit_rate_card';
 import * as seedRows from '../20260928160100_seed_ai_credit_rate_card';
+import * as gptLineup from '../20261027080000_seed_ai_credit_rate_card_gpt_6_lineup';
 
 const TABLE = 'ai_credit_rate_card';
 
@@ -161,6 +162,45 @@ describe('AI credit rate card migration on PostgreSQL', () => {
             .where({ provider: 'anthropic', model_key: 'claude-sonnet-5' })
             .orderBy('effective_from');
         expect(sonnet).toHaveLength(2);
+    });
+
+    test('prices the GPT lineup by tier without repricing history, and reverses only its own rows', async () => {
+        await gptLineup.up(transaction);
+        await gptLineup.up(transaction);
+        const updated = await new AiCreditRateCardModel({
+            database: transaction,
+        }).getAll();
+        expect(updated).toHaveLength(rows.length + 3);
+        for (const [model, tier, usd] of [
+            ['gpt-6.1-sol', 'premium', 0.687],
+            ['gpt-6.1-terra', 'standard', 0.3435],
+            ['gpt-6-luna', 'fast', 0.03495],
+        ] as const) {
+            expect(updated.find((row) => row.modelKey === model)?.tier).toBe(
+                tier,
+            );
+            expect(
+                priceAiUsageInCredits(updated, {
+                    provider: 'openai',
+                    model,
+                    at: new Date('2026-10-27T12:00:00Z'),
+                    tokens: call,
+                }),
+            ).toBeCloseTo(usd * CREDITS_PER_USD, 6);
+            const historicalCall = {
+                provider: 'openai',
+                model,
+                at: new Date('2026-10-26T12:00:00Z'),
+                tokens: call,
+            };
+            expect(priceAiUsageInCredits(updated, historicalCall)).toBe(
+                priceAiUsageInCredits(rows, historicalCall),
+            );
+        }
+        await gptLineup.down(transaction);
+        expect(
+            await new AiCreditRateCardModel({ database: transaction }).getAll(),
+        ).toEqual(rows);
     });
 
     test('rejects a tier outside the fixed list', async () => {
