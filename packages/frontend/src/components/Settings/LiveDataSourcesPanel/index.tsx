@@ -18,16 +18,25 @@ import {
     IconDots,
     IconPencil,
     IconPlus,
+    IconRefresh,
     IconTrash,
 } from '@tabler/icons-react';
-import { useState, type FC } from 'react';
+import { useEffect, useState, type FC } from 'react';
+import { useSearchParams } from 'react-router';
 import { useExternalConnections } from '../../../features/externalConnections/hooks/useExternalConnections';
+import useHealth from '../../../hooks/health/useHealth';
 import tableStyles from '../../../hooks/styles/tableStyles.module.css';
+import useToaster from '../../../hooks/toaster/useToaster';
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsCard } from '../../common/Settings/SettingsCard';
 import { SettingsEmptyState } from '../../common/Settings/SettingsEmptyState';
 import { SettingsPage } from '../../common/Settings/SettingsPage';
 import { DeleteConnectionModal } from '../DataAppConnectionsPanel/DeleteConnectionModal';
+import {
+    getPostHogSignInUrl,
+    isSignedInConnection,
+    toPostHogFormValues,
+} from './postHogConnection';
 import { PostHogConnectionModal } from './PostHogConnectionModal';
 
 type Props = {
@@ -49,8 +58,9 @@ const connectorLabel = (connector: ApiConnectorType): string => {
 const SourceRow: FC<{
     connection: ExternalConnection;
     onEdit: () => void;
+    onReconnect: (() => void) | null;
     onDelete: () => void;
-}> = ({ connection, onEdit, onDelete }) => (
+}> = ({ connection, onEdit, onReconnect, onDelete }) => (
     <Table.Tr>
         <Table.Td>
             <Text fw={600} fz="sm">
@@ -74,6 +84,11 @@ const SourceRow: FC<{
                 {connection.apiSource?.projectId ?? '—'}
             </Text>
         </Table.Td>
+        <Table.Td>
+            <Text fz="sm" c="dimmed">
+                {isSignedInConnection(connection) ? 'Signed in' : 'API key'}
+            </Text>
+        </Table.Td>
         <Table.Td w="1%">
             <Menu position="bottom-end">
                 <Menu.Target>
@@ -92,6 +107,14 @@ const SourceRow: FC<{
                     >
                         Edit
                     </Menu.Item>
+                    {onReconnect && (
+                        <Menu.Item
+                            leftSection={<MantineIcon icon={IconRefresh} />}
+                            onClick={onReconnect}
+                        >
+                            Reconnect
+                        </Menu.Item>
+                    )}
                     <Menu.Item
                         color="red"
                         leftSection={<MantineIcon icon={IconTrash} />}
@@ -116,6 +139,28 @@ const LiveDataSourcesPanel: FC<Props> = ({ projectUuid }) => {
         useExternalConnections(projectUuid);
     const [modal, setModal] = useState<ModalState>({ kind: 'closed' });
     const closeModal = () => setModal({ kind: 'closed' });
+    const { data: health } = useHealth();
+    const canSignIn = health?.hasPostHogOAuth ?? false;
+    const { showToastSuccess, showToastError } = useToaster();
+
+    // The PostHog sign-in callback lands here with its outcome.
+    const [searchParams, setSearchParams] = useSearchParams();
+    useEffect(() => {
+        const connected = searchParams.get('connected');
+        const signInError = searchParams.get('signInError');
+        if (!connected && !signInError) return;
+        if (signInError) {
+            showToastError({
+                title: 'Could not connect PostHog',
+                subtitle: signInError,
+            });
+        } else {
+            showToastSuccess({ title: 'PostHog connected' });
+        }
+        searchParams.delete('connected');
+        searchParams.delete('signInError');
+        setSearchParams(searchParams, { replace: true });
+    }, [searchParams, setSearchParams, showToastError, showToastSuccess]);
     const sources = (connections ?? []).filter(
         (connection) => connection.kind === 'live_source',
     );
@@ -163,6 +208,7 @@ const LiveDataSourcesPanel: FC<Props> = ({ projectUuid }) => {
                                     <Table.Th>Connector</Table.Th>
                                     <Table.Th>Host</Table.Th>
                                     <Table.Th>Project ID</Table.Th>
+                                    <Table.Th>Access</Table.Th>
                                     <Table.Th></Table.Th>
                                 </Table.Tr>
                             </Table.Thead>
@@ -176,6 +222,21 @@ const LiveDataSourcesPanel: FC<Props> = ({ projectUuid }) => {
                                                 kind: 'edit',
                                                 connection,
                                             })
+                                        }
+                                        onReconnect={
+                                            canSignIn
+                                                ? () =>
+                                                      window.location.assign(
+                                                          getPostHogSignInUrl(
+                                                              projectUuid,
+                                                              toPostHogFormValues(
+                                                                  connection,
+                                                                  canSignIn,
+                                                              ),
+                                                              connection.externalConnectionUuid,
+                                                          ),
+                                                      )
+                                                : null
                                         }
                                         onDelete={() =>
                                             setModal({
@@ -197,6 +258,7 @@ const LiveDataSourcesPanel: FC<Props> = ({ projectUuid }) => {
                     onClose={closeModal}
                     projectUuid={projectUuid}
                     connection={modal.kind === 'edit' ? modal.connection : null}
+                    canSignIn={canSignIn}
                 />
             )}
 

@@ -1907,6 +1907,13 @@ export type LightdashConfig = {
         clientSecret: string | undefined;
         redirectDomain: string;
     };
+    liveSources: {
+        posthog: {
+            /** A registered client ID, or the URL of a client metadata document. */
+            oauthClientId: string | undefined;
+            oauthClientSecret: string | undefined;
+        };
+    };
     contentAsCode: {
         maxDownloads: number;
     };
@@ -4088,6 +4095,13 @@ export const parseConfig = (): LightdashConfig => {
             redirectDomain:
                 process.env.GITLAB_REDIRECT_DOMAIN ||
                 siteUrl.split('.')[0].split('//')[1],
+        },
+        liveSources: {
+            posthog: {
+                oauthClientId: process.env.POSTHOG_OAUTH_CLIENT_ID || undefined,
+                oauthClientSecret:
+                    process.env.POSTHOG_OAUTH_CLIENT_SECRET || undefined,
+            },
         },
         contentAsCode: {
             maxDownloads:

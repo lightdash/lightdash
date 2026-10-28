@@ -1,4 +1,5 @@
 import 'express-session';
+import { type PostHogOAuthSession } from '../ee/services/ExternalConnectionService/ExternalConnectionService';
 import { type AgentConnectAttempt } from '../services/AiAccessService/AiAccessService';
 
 declare module 'express-session' {
@@ -31,6 +32,7 @@ declare module 'express-session' {
                 clientId: string;
                 encryptedClientSecret: string;
             };
+            postHog?: PostHogOAuthSession;
             isPopup?: boolean | undefined;
             databricks?: {
                 projectUuid?: string | undefined;

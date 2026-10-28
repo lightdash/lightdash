@@ -13,6 +13,7 @@ import {
     type PossibleAbilities,
     type RegisteredAccount,
 } from '@lightdash/common';
+import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import { SecureFetchError } from '../../../utils/secureFetch/secureFetch';
 import { generateExternalConnectionConfigProposal } from '../ai/agents/externalConnectionConfigGenerator';
 import { getModel } from '../ai/models';
@@ -200,6 +201,8 @@ function buildService(opts: {
             getAccessToken: vi.fn().mockResolvedValue('test-oauth-token'),
             invalidateAccessToken: vi.fn(),
         } as never,
+        oauthAuthorizationCodeTokenClient: {} as never,
+        lightdashConfig: lightdashConfigMock,
         orgAiCopilotConfigResolver: orgAiCopilotConfigResolver as never,
         featureFlagModel: {
             get: vi.fn().mockResolvedValue({ enabled: true }),
