@@ -114,6 +114,7 @@ export type ExecuteAsyncFieldValueSearchArgs = CommonAsyncQueryArgs & {
 export type ExecuteAsyncMetricQueryArgs = CommonAsyncQueryArgs & {
     documentQueryContext?: DocumentQueryContext;
     metricQuery: MetricQuery;
+    limit?: number | null | undefined;
     dataAppPreviewToken?: string;
     customSqlProvenanceChartUuid?: UUID;
     dateZoom?: DateZoom;

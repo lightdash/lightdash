@@ -7533,6 +7533,7 @@ export class AsyncQueryService extends ProjectService {
             context,
             querySurface,
             metricQuery: inputMetricQuery,
+            limit,
             invalidateCache,
             usePreAggregateCache,
             parameters,
@@ -7577,6 +7578,7 @@ export class AsyncQueryService extends ProjectService {
                 aiPlan,
             },
             projectParameters,
+            exportLimits,
         ] = await Promise.all([
             this.getExploreForMetricQueryExecution({
                 account,
@@ -7606,17 +7608,33 @@ export class AsyncQueryService extends ProjectService {
                     organizationWarehouseCredentialsUuid,
             }),
             this.projectParametersModel.find(projectUuid),
+            limit === undefined
+                ? undefined
+                : resolveOrganizationExportLimits(
+                      this.organizationSettingsModel,
+                      this.lightdashConfig.query,
+                      organizationUuid,
+                  ),
         ]);
         const parallelLoadMs = Date.now() - metricQueryStart;
+
+        const metricQueryWithExportLimit = exportLimits
+            ? applyMetricQueryLimit(
+                  inputMetricQuery,
+                  limit,
+                  exportLimits.csvCellsLimit,
+                  exportLimits.maxLimit,
+              )
+            : inputMetricQuery;
 
         // Dashboard filters (e.g. from a data-app tile) are merged once the
         // explore is known so we can drop filters that target fields outside
         // it — silent drop is intentional, see ExecuteAsyncMetricQueryRequestParams.
-        let metricQuery: MetricQuery = inputMetricQuery;
+        let metricQuery: MetricQuery = metricQueryWithExportLimit;
         if (dashboardFilters) {
             const availableFieldIds = getExecutableFilterFieldIds(explore);
             metricQuery = addDashboardFiltersToMetricQuery(
-                inputMetricQuery,
+                metricQueryWithExportLimit,
                 {
                     dimensions: getDashboardFilterRulesForTables(
                         availableFieldIds,

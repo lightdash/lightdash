@@ -5596,6 +5596,78 @@ describe('AsyncQueryService', () => {
     });
 
     describe('executeAsyncMetricQuery', () => {
+        const getServiceWithExportLimit = (csvCellsLimit: number | null) => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                organizationSettingsModel: {
+                    get: vi.fn(async () => ({
+                        queryLimit: null,
+                        csvCellsLimit,
+                    })),
+                } as unknown as OrganizationSettingsModel,
+            });
+            vi.spyOn(
+                service.projectModel,
+                'findExploresFromCache',
+            ).mockResolvedValue({
+                [validExplore.name]: validExplore,
+            });
+            vi.spyOn(service, 'getUserAttributes').mockResolvedValue({
+                userAttributes: {},
+                intrinsicUserAttributes: {},
+            });
+            service['getWarehouseCredentials'] = vi
+                .fn()
+                .mockResolvedValue(warehouseClientMock.credentials);
+            const prepare = vi
+                .fn()
+                .mockResolvedValue(createQueryComposerMock());
+            service['prepareMetricQueryAsyncQueryArgs'] = prepare;
+            service['executeAsyncQuery'] = vi.fn().mockResolvedValue({
+                queryUuid: 'query-uuid',
+                cacheMetadata: { cacheHit: false },
+            });
+            return { service, prepare };
+        };
+
+        const effectiveQueryLimit = (prepare: ReturnType<typeof vi.fn>) =>
+            prepare.mock.calls[0][0].metricQuery.limit;
+
+        // metricQueryMock has 3 columns (1 dimension, 1 metric, 1 table calc),
+        // so a 60-cell org limit allows 20 rows
+        test.each([
+            ['all results', null, 20],
+            ['a custom row count above the cap', 50, 20],
+            ['a custom row count under the cap', 5, 5],
+        ])(
+            'an export of %s is capped by the org CSV cells limit',
+            async (_label, limit, expectedLimit) => {
+                const { service, prepare } = getServiceWithExportLimit(60);
+
+                await service.executeAsyncMetricQuery({
+                    account: sessionAccount,
+                    projectUuid,
+                    metricQuery: metricQueryMock,
+                    limit,
+                    context: QueryExecutionContext.EXPLORE,
+                });
+
+                expect(effectiveQueryLimit(prepare)).toBe(expectedLimit);
+            },
+        );
+
+        test('a query without an export limit keeps its own limit', async () => {
+            const { service, prepare } = getServiceWithExportLimit(60);
+
+            await service.executeAsyncMetricQuery({
+                account: sessionAccount,
+                projectUuid,
+                metricQuery: metricQueryMock,
+                context: QueryExecutionContext.EXPLORE,
+            });
+
+            expect(effectiveQueryLimit(prepare)).toBe(metricQueryMock.limit);
+        });
+
         test.each(['anyAttributes', 'requiredAttributes'] as const)(
             'authorizes %s with effective attribute overrides before compiling',
             async (restriction) => {
