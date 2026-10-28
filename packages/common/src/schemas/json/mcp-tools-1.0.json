@@ -286,16 +286,9 @@
                         "description": "Optional uuid of a completed run_metric_query whose first rows are shared with the build as sample data. It does not bind the chart type to that query."
                     },
                     "themeSlug": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
                         "default": null,
-                        "description": "Organization theme to build the chart type with: its slug, from list_data_app_themes. Omit it to use the organization default. An unknown slug returns an error and starts no build."
+                        "description": "Organization theme to build the chart type with: its slug, from list_data_app_themes. Omit it to use the organization default. An unknown slug returns an error and starts no build.",
+                        "type": ["string", "null"]
                     }
                 },
                 "required": ["name", "prompt"],
@@ -523,15 +516,8 @@
                         "type": "string"
                     },
                     "verifiedOnly": {
-                        "anyOf": [
-                            {
-                                "type": "boolean"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "description": "True searches only admin-verified charts and dashboards; spaces are omitted, and Data Apps stay included because they have no verification state. Verification is a status, not text, so search topic keywords rather than the word \"verified\". Null or false searches all content."
+                        "description": "True searches only admin-verified charts and dashboards; spaces are omitted, and Data Apps stay included because they have no verification state. Verification is a status, not text, so search topic keywords rather than the word \"verified\". Null or false searches all content.",
+                        "type": ["boolean", "null"]
                     }
                 },
                 "required": ["searchQueries"],
@@ -554,28 +540,14 @@
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "properties": {
                     "query": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
                         "default": null,
-                        "description": "Keyword terms matched against chart type names and descriptions. Set exactly one of query or slug."
+                        "description": "Keyword terms matched against chart type names and descriptions. Set exactly one of query or slug.",
+                        "type": ["string", "null"]
                     },
                     "slug": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
                         "default": null,
-                        "description": "Exact slug of one chart type. Set exactly one of query or slug."
+                        "description": "Exact slug of one chart type. Set exactly one of query or slug.",
+                        "type": ["string", "null"]
                     }
                 },
                 "type": "object"
@@ -593,14 +565,7 @@
                                     "type": "string"
                                 },
                                 "description": {
-                                    "anyOf": [
-                                        {
-                                            "type": "string"
-                                        },
-                                        {
-                                            "type": "null"
-                                        }
-                                    ]
+                                    "type": ["string", "null"]
                                 },
                                 "name": {
                                     "type": "string"
@@ -623,13 +588,9 @@
                                                     "additionalProperties": false,
                                                     "properties": {
                                                         "group": {
-                                                            "anyOf": [
-                                                                {
-                                                                    "type": "string"
-                                                                },
-                                                                {
-                                                                    "type": "null"
-                                                                }
+                                                            "type": [
+                                                                "string",
+                                                                "null"
                                                             ]
                                                         }
                                                     },
@@ -729,36 +690,24 @@
                                                         ]
                                                     },
                                                     "group": {
-                                                        "anyOf": [
-                                                            {
-                                                                "type": "string"
-                                                            },
-                                                            {
-                                                                "type": "null"
-                                                            }
+                                                        "type": [
+                                                            "string",
+                                                            "null"
                                                         ]
                                                     },
                                                     "label": {
                                                         "type": "string"
                                                     },
                                                     "max": {
-                                                        "anyOf": [
-                                                            {
-                                                                "type": "number"
-                                                            },
-                                                            {
-                                                                "type": "null"
-                                                            }
+                                                        "type": [
+                                                            "number",
+                                                            "null"
                                                         ]
                                                     },
                                                     "min": {
-                                                        "anyOf": [
-                                                            {
-                                                                "type": "number"
-                                                            },
-                                                            {
-                                                                "type": "null"
-                                                            }
+                                                        "type": [
+                                                            "number",
+                                                            "null"
                                                         ]
                                                     },
                                                     "name": {
@@ -797,13 +746,9 @@
                                                 "additionalProperties": false,
                                                 "properties": {
                                                     "description": {
-                                                        "anyOf": [
-                                                            {
-                                                                "type": "string"
-                                                            },
-                                                            {
-                                                                "type": "null"
-                                                            }
+                                                        "type": [
+                                                            "string",
+                                                            "null"
                                                         ]
                                                     },
                                                     "label": {
@@ -860,14 +805,7 @@
                                             ]
                                         },
                                         "inputGuidance": {
-                                            "anyOf": [
-                                                {
-                                                    "type": "string"
-                                                },
-                                                {
-                                                    "type": "null"
-                                                }
-                                            ]
+                                            "type": ["string", "null"]
                                         }
                                     },
                                     "required": [
@@ -926,16 +864,9 @@
                         "description": "Saved charts whose queries the app builds on: slugs from findContent (find_content over MCP). The charts stay unchanged."
                     },
                     "dashboardSlug": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
                         "default": null,
-                        "description": "Existing dashboard to start from: its slug, from findContent (find_content over MCP). The app starts from the dashboard's layout and charts; the dashboard stays unchanged."
+                        "description": "Existing dashboard to start from: its slug, from findContent (find_content over MCP). The app starts from the dashboard's layout and charts; the dashboard stays unchanged.",
+                        "type": ["string", "null"]
                     },
                     "externalConnectionSlugs": {
                         "anyOf": [
@@ -979,16 +910,9 @@
                         "description": "Starter template: \"dashboard\" for a dashboard-style app, \"slideshow\" for a slide show, \"pdf\" for a PDF report. Omit it, or pass \"custom\", for anything else."
                     },
                     "themeSlug": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
                         "default": null,
-                        "description": "Organization theme slug: the one the attached context lists (\"Theme: <name> (slug: <slug>)\"), which beats a theme named in the message, or else, when the user names a theme, brand or look, one from listDataAppThemes (list_data_app_themes over MCP). The coding agent receives the theme's files directly, so set the look here, not in the brief. Omit it for the organization default."
+                        "description": "Organization theme slug: the one the attached context lists (\"Theme: <name> (slug: <slug>)\"), which beats a theme named in the message, or else, when the user names a theme, brand or look, one from listDataAppThemes (list_data_app_themes over MCP). The coding agent receives the theme's files directly, so set the look here, not in the brief. Omit it for the organization default.",
+                        "type": ["string", "null"]
                     }
                 },
                 "required": ["name", "prompt"],
@@ -1094,26 +1018,12 @@
                 "additionalProperties": false,
                 "properties": {
                     "errorMessage": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "description": "Set once status is \"error\"; null otherwise."
+                        "description": "Set once status is \"error\"; null otherwise.",
+                        "type": ["string", "null"]
                     },
                     "prUrl": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "description": "URL of the pull request opened from the agent changes, set once status is \"ready\"; null if the agent made no file changes or the run has not finished yet."
+                        "description": "URL of the pull request opened from the agent changes, set once status is \"ready\"; null if the agent made no file changes or the run has not finished yet.",
+                        "type": ["string", "null"]
                     },
                     "status": {
                         "description": "\"pending\" | a pipeline stage (e.g. \"sandbox\", \"agent\", \"pull_request\") | \"ready\" | \"error\" | \"cancelled\".",
@@ -1220,14 +1130,7 @@
                                                 "type": "string"
                                             },
                                             "description": {
-                                                "anyOf": [
-                                                    {
-                                                        "type": "string"
-                                                    },
-                                                    {
-                                                        "type": "null"
-                                                    }
-                                                ]
+                                                "type": ["string", "null"]
                                             },
                                             "name": {
                                                 "type": "string"
@@ -1257,14 +1160,7 @@
                                     "type": "array"
                                 },
                                 "expiresAt": {
-                                    "anyOf": [
-                                        {
-                                            "type": "string"
-                                        },
-                                        {
-                                            "type": "null"
-                                        }
-                                    ]
+                                    "type": ["string", "null"]
                                 },
                                 "name": {
                                     "type": "string"
@@ -1330,15 +1226,8 @@
                 "additionalProperties": false,
                 "properties": {
                     "errorMessage": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "description": "Why the build failed. Set only when status is \"error\"."
+                        "description": "Why the build failed. Set only when status is \"error\".",
+                        "type": ["string", "null"]
                     },
                     "href": {
                         "description": "URL that opens the app, or Chart Studio for a custom chart type.",
@@ -1536,27 +1425,13 @@
                                             "type": "string"
                                         },
                                         "description": {
-                                            "anyOf": [
-                                                {
-                                                    "type": "string"
-                                                },
-                                                {
-                                                    "type": "null"
-                                                }
-                                            ]
+                                            "type": ["string", "null"]
                                         },
                                         "exploreId": {
                                             "type": "string"
                                         },
                                         "hint": {
-                                            "anyOf": [
-                                                {
-                                                    "type": "string"
-                                                },
-                                                {
-                                                    "type": "null"
-                                                }
-                                            ]
+                                            "type": ["string", "null"]
                                         },
                                         "joinedTables": {
                                             "items": {
@@ -1604,13 +1479,9 @@
                                                         ]
                                                     },
                                                     "description": {
-                                                        "anyOf": [
-                                                            {
-                                                                "type": "string"
-                                                            },
-                                                            {
-                                                                "type": "null"
-                                                            }
+                                                        "type": [
+                                                            "string",
+                                                            "null"
                                                         ]
                                                     },
                                                     "label": {
@@ -1626,13 +1497,9 @@
                                                         "anyOf": [
                                                             {
                                                                 "items": {
-                                                                    "anyOf": [
-                                                                        {
-                                                                            "type": "string"
-                                                                        },
-                                                                        {
-                                                                            "type": "number"
-                                                                        }
+                                                                    "type": [
+                                                                        "string",
+                                                                        "number"
                                                                     ]
                                                                 },
                                                                 "type": "array"
@@ -1777,44 +1644,16 @@
                                     "additionalProperties": false,
                                     "properties": {
                                         "caseSensitiveFilters": {
-                                            "anyOf": [
-                                                {
-                                                    "type": "boolean"
-                                                },
-                                                {
-                                                    "type": "null"
-                                                }
-                                            ]
+                                            "type": ["boolean", "null"]
                                         },
                                         "defaultTimeDimension": {
-                                            "anyOf": [
-                                                {
-                                                    "type": "string"
-                                                },
-                                                {
-                                                    "type": "null"
-                                                }
-                                            ]
+                                            "type": ["string", "null"]
                                         },
                                         "defaultTimeDimensionGranularity": {
-                                            "anyOf": [
-                                                {
-                                                    "type": "string"
-                                                },
-                                                {
-                                                    "type": "null"
-                                                }
-                                            ]
+                                            "type": ["string", "null"]
                                         },
                                         "description": {
-                                            "anyOf": [
-                                                {
-                                                    "type": "string"
-                                                },
-                                                {
-                                                    "type": "null"
-                                                }
-                                            ]
+                                            "type": ["string", "null"]
                                         },
                                         "exploreId": {
                                             "type": "string"
@@ -1829,27 +1668,13 @@
                                             "type": "string"
                                         },
                                         "hint": {
-                                            "anyOf": [
-                                                {
-                                                    "type": "string"
-                                                },
-                                                {
-                                                    "type": "null"
-                                                }
-                                            ]
+                                            "type": ["string", "null"]
                                         },
                                         "isFromJoinedTable": {
                                             "type": "boolean"
                                         },
                                         "joinedTableName": {
-                                            "anyOf": [
-                                                {
-                                                    "type": "string"
-                                                },
-                                                {
-                                                    "type": "null"
-                                                }
-                                            ]
+                                            "type": ["string", "null"]
                                         },
                                         "kind": {
                                             "enum": ["dimension", "metric"],
@@ -2018,14 +1843,7 @@
                                         "type": "array"
                                     },
                                     "sqlRunnerUrl": {
-                                        "anyOf": [
-                                            {
-                                                "type": "string"
-                                            },
-                                            {
-                                                "type": "null"
-                                            }
-                                        ]
+                                        "type": ["string", "null"]
                                     },
                                     "status": {
                                         "const": "done",
@@ -2046,14 +1864,7 @@
                                 "additionalProperties": false,
                                 "properties": {
                                     "exploreUrl": {
-                                        "anyOf": [
-                                            {
-                                                "type": "string"
-                                            },
-                                            {
-                                                "type": "null"
-                                            }
-                                        ]
+                                        "type": ["string", "null"]
                                     },
                                     "fields": {
                                         "additionalProperties": {},
@@ -2095,14 +1906,7 @@
                                 "additionalProperties": false,
                                 "properties": {
                                     "error": {
-                                        "anyOf": [
-                                            {
-                                                "type": "string"
-                                            },
-                                            {
-                                                "type": "null"
-                                            }
-                                        ]
+                                        "type": ["string", "null"]
                                     },
                                     "queryUuid": {
                                         "format": "uuid",
@@ -2169,15 +1973,8 @@
                         "type": "string"
                     },
                     "exploreName": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "description": "The explore the grep was scoped to, or null for all."
+                        "description": "The explore the grep was scoped to, or null for all.",
+                        "type": ["string", "null"]
                     },
                     "fuzzyMatches": {
                         "description": "Catalog-search near matches not already surfaced by the grep.",
@@ -2185,14 +1982,7 @@
                             "additionalProperties": false,
                             "properties": {
                                 "description": {
-                                    "anyOf": [
-                                        {
-                                            "type": "string"
-                                        },
-                                        {
-                                            "type": "null"
-                                        }
-                                    ]
+                                    "type": ["string", "null"]
                                 },
                                 "exploreName": {
                                     "type": "string"
@@ -2207,15 +1997,8 @@
                                     "type": "string"
                                 },
                                 "searchRank": {
-                                    "anyOf": [
-                                        {
-                                            "type": "number"
-                                        },
-                                        {
-                                            "type": "null"
-                                        }
-                                    ],
-                                    "description": "Full-text search rank; higher is better."
+                                    "description": "Full-text search rank; higher is better.",
+                                    "type": ["number", "null"]
                                 },
                                 "usageInCharts": {
                                     "type": "number"
@@ -2271,15 +2054,8 @@
                                     "type": "array"
                                 },
                                 "metricAmbiguityNote": {
-                                    "anyOf": [
-                                        {
-                                            "type": "string"
-                                        },
-                                        {
-                                            "type": "null"
-                                        }
-                                    ],
-                                    "description": "Warning when similarly named metrics could be confused."
+                                    "description": "Warning when similarly named metrics could be confused.",
+                                    "type": ["string", "null"]
                                 },
                                 "note": {
                                     "description": "The per-pattern summary line.",
@@ -2304,34 +2080,22 @@
                                                     "additionalProperties": false,
                                                     "properties": {
                                                         "defaultTimeDimension": {
-                                                            "anyOf": [
-                                                                {
-                                                                    "type": "string"
-                                                                },
-                                                                {
-                                                                    "type": "null"
-                                                                }
-                                                            ],
-                                                            "description": "Time dimension the metric defaults to, if configured."
+                                                            "description": "Time dimension the metric defaults to, if configured.",
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
                                                         },
                                                         "defaultTimeDimensionGranularity": {
-                                                            "anyOf": [
-                                                                {
-                                                                    "type": "string"
-                                                                },
-                                                                {
-                                                                    "type": "null"
-                                                                }
+                                                            "type": [
+                                                                "string",
+                                                                "null"
                                                             ]
                                                         },
                                                         "description": {
-                                                            "anyOf": [
-                                                                {
-                                                                    "type": "string"
-                                                                },
-                                                                {
-                                                                    "type": "null"
-                                                                }
+                                                            "type": [
+                                                                "string",
+                                                                "null"
                                                             ]
                                                         },
                                                         "exploreLabel": {
@@ -2348,15 +2112,11 @@
                                                             "type": "string"
                                                         },
                                                         "hint": {
-                                                            "anyOf": [
-                                                                {
-                                                                    "type": "string"
-                                                                },
-                                                                {
-                                                                    "type": "null"
-                                                                }
-                                                            ],
-                                                            "description": "The field aiHint, if any."
+                                                            "description": "The field aiHint, if any.",
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
                                                         },
                                                         "kind": {
                                                             "enum": [
@@ -2510,37 +2270,16 @@
                                     "type": "object"
                                 },
                                 "description": {
-                                    "anyOf": [
-                                        {
-                                            "type": "string"
-                                        },
-                                        {
-                                            "type": "null"
-                                        }
-                                    ]
+                                    "type": ["string", "null"]
                                 },
                                 "similarity": {
                                     "type": "number"
                                 },
                                 "title": {
-                                    "anyOf": [
-                                        {
-                                            "type": "string"
-                                        },
-                                        {
-                                            "type": "null"
-                                        }
-                                    ]
+                                    "type": ["string", "null"]
                                 },
                                 "verifiedQuestion": {
-                                    "anyOf": [
-                                        {
-                                            "type": "string"
-                                        },
-                                        {
-                                            "type": "null"
-                                        }
-                                    ]
+                                    "type": ["string", "null"]
                                 }
                             },
                             "required": [
@@ -2602,16 +2341,9 @@
                         "type": "string"
                     },
                     "themeSlug": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
                         "default": null,
-                        "description": "Organization theme to rebuild the chart type with: its slug, from list_data_app_themes. Omit it to keep the current theme. An unknown slug returns an error and starts no build."
+                        "description": "Organization theme to rebuild the chart type with: its slug, from list_data_app_themes. Omit it to keep the current theme. An unknown slug returns an error and starts no build.",
+                        "type": ["string", "null"]
                     }
                 },
                 "required": ["slug", "prompt"],
@@ -2670,16 +2402,9 @@
                         "description": "Saved charts whose queries the change builds on: slugs from findContent (find_content over MCP). The charts stay unchanged."
                     },
                     "dashboardSlug": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
                         "default": null,
-                        "description": "Existing dashboard to pull in: its slug, from findContent (find_content over MCP). The coding agent gets the dashboard's layout and charts; the dashboard stays unchanged."
+                        "description": "Existing dashboard to pull in: its slug, from findContent (find_content over MCP). The coding agent gets the dashboard's layout and charts; the dashboard stays unchanged.",
+                        "type": ["string", "null"]
                     },
                     "externalConnectionSlugs": {
                         "anyOf": [
@@ -2701,16 +2426,9 @@
                         "type": "string"
                     },
                     "themeSlug": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
                         "default": null,
-                        "description": "Organization theme slug: the one the attached context lists (\"Theme: <name> (slug: <slug>)\"), which beats a theme named in the message, or else, when the user names a theme, brand or look, one from listDataAppThemes (list_data_app_themes over MCP). The coding agent receives the theme's files directly, so set the look here, not in the brief. Passing it switches the app's theme, so pass it only when the user asks to switch the theme in this request; omit it to keep the current one."
+                        "description": "Organization theme slug: the one the attached context lists (\"Theme: <name> (slug: <slug>)\"), which beats a theme named in the message, or else, when the user names a theme, brand or look, one from listDataAppThemes (list_data_app_themes over MCP). The coding agent receives the theme's files directly, so set the look here, not in the brief. Passing it switches the app's theme, so pass it only when the user asks to switch the theme in this request; omit it to keep the current one.",
+                        "type": ["string", "null"]
                     }
                 },
                 "required": ["appSlug", "prompt"],
@@ -2860,14 +2578,7 @@
                                     "type": "string"
                                 },
                                 "description": {
-                                    "anyOf": [
-                                        {
-                                            "type": "string"
-                                        },
-                                        {
-                                            "type": "null"
-                                        }
-                                    ]
+                                    "type": ["string", "null"]
                                 },
                                 "name": {
                                     "type": "string"
@@ -2890,13 +2601,9 @@
                                                     "additionalProperties": false,
                                                     "properties": {
                                                         "group": {
-                                                            "anyOf": [
-                                                                {
-                                                                    "type": "string"
-                                                                },
-                                                                {
-                                                                    "type": "null"
-                                                                }
+                                                            "type": [
+                                                                "string",
+                                                                "null"
                                                             ]
                                                         }
                                                     },
@@ -2996,36 +2703,24 @@
                                                         ]
                                                     },
                                                     "group": {
-                                                        "anyOf": [
-                                                            {
-                                                                "type": "string"
-                                                            },
-                                                            {
-                                                                "type": "null"
-                                                            }
+                                                        "type": [
+                                                            "string",
+                                                            "null"
                                                         ]
                                                     },
                                                     "label": {
                                                         "type": "string"
                                                     },
                                                     "max": {
-                                                        "anyOf": [
-                                                            {
-                                                                "type": "number"
-                                                            },
-                                                            {
-                                                                "type": "null"
-                                                            }
+                                                        "type": [
+                                                            "number",
+                                                            "null"
                                                         ]
                                                     },
                                                     "min": {
-                                                        "anyOf": [
-                                                            {
-                                                                "type": "number"
-                                                            },
-                                                            {
-                                                                "type": "null"
-                                                            }
+                                                        "type": [
+                                                            "number",
+                                                            "null"
                                                         ]
                                                     },
                                                     "name": {
@@ -3064,13 +2759,9 @@
                                                 "additionalProperties": false,
                                                 "properties": {
                                                     "description": {
-                                                        "anyOf": [
-                                                            {
-                                                                "type": "string"
-                                                            },
-                                                            {
-                                                                "type": "null"
-                                                            }
+                                                        "type": [
+                                                            "string",
+                                                            "null"
                                                         ]
                                                     },
                                                     "label": {
@@ -3127,14 +2818,7 @@
                                             ]
                                         },
                                         "inputGuidance": {
-                                            "anyOf": [
-                                                {
-                                                    "type": "string"
-                                                },
-                                                {
-                                                    "type": "null"
-                                                }
-                                            ]
+                                            "type": ["string", "null"]
                                         }
                                     },
                                     "required": [
@@ -3208,15 +2892,8 @@
                                     "type": "string"
                                 },
                                 "instructions": {
-                                    "anyOf": [
-                                        {
-                                            "type": "string"
-                                        },
-                                        {
-                                            "type": "null"
-                                        }
-                                    ],
-                                    "description": "How to use the API, written by an admin."
+                                    "description": "How to use the API, written by an admin.",
+                                    "type": ["string", "null"]
                                 },
                                 "linkedAliases": {
                                     "description": "Aliases the appSlug app links this connection under; empty when not linked or no appSlug was given.",
@@ -3281,15 +2958,8 @@
                             "additionalProperties": false,
                             "properties": {
                                 "description": {
-                                    "anyOf": [
-                                        {
-                                            "type": "string"
-                                        },
-                                        {
-                                            "type": "null"
-                                        }
-                                    ],
-                                    "description": "What it looks like."
+                                    "description": "What it looks like.",
+                                    "type": ["string", "null"]
                                 },
                                 "isDefault": {
                                     "description": "Whether this theme applies when themeSlug is omitted.",
@@ -3827,28 +3497,14 @@
                                         "type": "string"
                                     },
                                     "secondaryYAxisLabel": {
-                                        "anyOf": [
-                                            {
-                                                "type": "string"
-                                            },
-                                            {
-                                                "type": "null"
-                                            }
-                                        ],
                                         "default": null,
-                                        "description": "A helpful label for the secondary y-axis"
+                                        "description": "A helpful label for the secondary y-axis",
+                                        "type": ["string", "null"]
                                     },
                                     "secondaryYAxisMetric": {
-                                        "anyOf": [
-                                            {
-                                                "type": "string"
-                                            },
-                                            {
-                                                "type": "null"
-                                            }
-                                        ],
                                         "default": null,
-                                        "description": "(Optional) A single metric field ID to display on a secondary (right) y-axis. Must NOT be included in yAxisMetrics. Use when one metric has a very different scale than others (e.g., percentage vs count)."
+                                        "description": "(Optional) A single metric field ID to display on a secondary (right) y-axis. Must NOT be included in yAxisMetrics. Use when one metric has a very different scale than others (e.g., percentage vs count).",
+                                        "type": ["string", "null"]
                                     },
                                     "stackBars": {
                                         "description": "If groupBy is provided then this will stack the bars on top of each other instead of side by side. Applies to bar and horizontal charts.",
@@ -4030,14 +3686,7 @@
                                         ]
                                     },
                                     "exploreUrl": {
-                                        "anyOf": [
-                                            {
-                                                "type": "string"
-                                            },
-                                            {
-                                                "type": "null"
-                                            }
-                                        ]
+                                        "type": ["string", "null"]
                                     },
                                     "queryUuid": {
                                         "format": "uuid",
@@ -4151,14 +3800,7 @@
                 "additionalProperties": false,
                 "properties": {
                     "agentDescription": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ]
+                        "type": ["string", "null"]
                     },
                     "agentName": {
                         "type": "string"
@@ -4196,14 +3838,7 @@
                                     "type": "string"
                                 },
                                 "description": {
-                                    "anyOf": [
-                                        {
-                                            "type": "string"
-                                        },
-                                        {
-                                            "type": "null"
-                                        }
-                                    ]
+                                    "type": ["string", "null"]
                                 },
                                 "name": {
                                     "type": "string"
@@ -4225,14 +3860,7 @@
                         "type": "array"
                     },
                     "instruction": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ]
+                        "type": ["string", "null"]
                     },
                     "reasoning": {
                         "type": "string"
@@ -4293,26 +3921,12 @@
                         "type": "string"
                     },
                     "errorMessage": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "description": "Why the run failed, or null on success. Only present on the completed result of a task-augmented call."
+                        "description": "Why the run failed, or null on success. Only present on the completed result of a task-augmented call.",
+                        "type": ["string", "null"]
                     },
                     "prUrl": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "description": "URL of the opened pull request, or null when the run made no changes or failed. Only present on the completed result of a task-augmented call."
+                        "description": "URL of the opened pull request, or null when the run made no changes or failed. Only present on the completed result of a task-augmented call.",
+                        "type": ["string", "null"]
                     },
                     "status": {
                         "description": "Final run status. Only present on the completed result of a task-augmented call.",
@@ -4703,28 +4317,14 @@
                                 "type": "string"
                             },
                             "secondaryYAxisLabel": {
-                                "anyOf": [
-                                    {
-                                        "type": "string"
-                                    },
-                                    {
-                                        "type": "null"
-                                    }
-                                ],
                                 "default": null,
-                                "description": "A helpful label for the secondary y-axis"
+                                "description": "A helpful label for the secondary y-axis",
+                                "type": ["string", "null"]
                             },
                             "secondaryYAxisMetric": {
-                                "anyOf": [
-                                    {
-                                        "type": "string"
-                                    },
-                                    {
-                                        "type": "null"
-                                    }
-                                ],
                                 "default": null,
-                                "description": "(Optional) A single metric field ID to display on a secondary (right) y-axis. Must NOT be included in yAxisMetrics. Use when one metric has a very different scale than others (e.g., percentage vs count)."
+                                "description": "(Optional) A single metric field ID to display on a secondary (right) y-axis. Must NOT be included in yAxisMetrics. Use when one metric has a very different scale than others (e.g., percentage vs count).",
+                                "type": ["string", "null"]
                             },
                             "stackBars": {
                                 "description": "If groupBy is provided then this will stack the bars on top of each other instead of side by side. Applies to bar and horizontal charts.",
@@ -5511,7 +5111,7 @@
                                                                                                 },
                                                                                                 {
                                                                                                     "format": "date-time",
-                                                                                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                                                                                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
                                                                                                     "type": "string"
                                                                                                 }
                                                                                             ],
@@ -5821,7 +5421,7 @@
                                                                                                 },
                                                                                                 {
                                                                                                     "format": "date-time",
-                                                                                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                                                                                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
                                                                                                     "type": "string"
                                                                                                 }
                                                                                             ],
@@ -5889,7 +5489,7 @@
                                                                                                 },
                                                                                                 {
                                                                                                     "format": "date-time",
-                                                                                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                                                                                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
                                                                                                     "type": "string"
                                                                                                 }
                                                                                             ],
@@ -6755,7 +6355,7 @@
                                                                             },
                                                                             {
                                                                                 "format": "date-time",
-                                                                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                                                                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
                                                                                 "type": "string"
                                                                             }
                                                                         ],
@@ -7065,7 +6665,7 @@
                                                                             },
                                                                             {
                                                                                 "format": "date-time",
-                                                                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                                                                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
                                                                                 "type": "string"
                                                                             }
                                                                         ],
@@ -7133,7 +6733,7 @@
                                                                             },
                                                                             {
                                                                                 "format": "date-time",
-                                                                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                                                                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
                                                                                 "type": "string"
                                                                             }
                                                                         ],
@@ -7884,7 +7484,7 @@
                                                                             },
                                                                             {
                                                                                 "format": "date-time",
-                                                                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                                                                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
                                                                                 "type": "string"
                                                                             }
                                                                         ],
@@ -8194,7 +7794,7 @@
                                                                             },
                                                                             {
                                                                                 "format": "date-time",
-                                                                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                                                                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
                                                                                 "type": "string"
                                                                             }
                                                                         ],
@@ -8262,7 +7862,7 @@
                                                                             },
                                                                             {
                                                                                 "format": "date-time",
-                                                                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                                                                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
                                                                                 "type": "string"
                                                                             }
                                                                         ],
@@ -8754,16 +8354,9 @@
                                             "type": "string"
                                         },
                                         "nullsFirst": {
-                                            "anyOf": [
-                                                {
-                                                    "type": "boolean"
-                                                },
-                                                {
-                                                    "type": "null"
-                                                }
-                                            ],
                                             "default": null,
-                                            "description": "If true sorts nulls first, if false sorts nulls last, otherwise sorts by warehouse default"
+                                            "description": "If true sorts nulls first, if false sorts nulls last, otherwise sorts by warehouse default",
+                                            "type": ["boolean", "null"]
                                         }
                                     },
                                     "required": ["fieldId", "descending"],
@@ -8847,14 +8440,7 @@
                                 "additionalProperties": false,
                                 "properties": {
                                     "exploreUrl": {
-                                        "anyOf": [
-                                            {
-                                                "type": "string"
-                                            },
-                                            {
-                                                "type": "null"
-                                            }
-                                        ]
+                                        "type": ["string", "null"]
                                     },
                                     "fields": {
                                         "additionalProperties": {},
@@ -8995,14 +8581,7 @@
                                         "type": "array"
                                     },
                                     "sqlRunnerUrl": {
-                                        "anyOf": [
-                                            {
-                                                "type": "string"
-                                            },
-                                            {
-                                                "type": "null"
-                                            }
-                                        ]
+                                        "type": ["string", "null"]
                                     },
                                     "status": {
                                         "const": "done",
@@ -9803,7 +9382,7 @@
                                                                     },
                                                                     {
                                                                         "format": "date-time",
-                                                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                                                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
                                                                         "type": "string"
                                                                     }
                                                                 ],
@@ -10113,7 +9692,7 @@
                                                                     },
                                                                     {
                                                                         "format": "date-time",
-                                                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                                                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
                                                                         "type": "string"
                                                                     }
                                                                 ],
@@ -10181,7 +9760,7 @@
                                                                     },
                                                                     {
                                                                         "format": "date-time",
-                                                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                                                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
                                                                         "type": "string"
                                                                     }
                                                                 ],
@@ -10932,7 +10511,7 @@
                                                                     },
                                                                     {
                                                                         "format": "date-time",
-                                                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                                                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
                                                                         "type": "string"
                                                                     }
                                                                 ],
@@ -11242,7 +10821,7 @@
                                                                     },
                                                                     {
                                                                         "format": "date-time",
-                                                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                                                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
                                                                         "type": "string"
                                                                     }
                                                                 ],
@@ -11310,7 +10889,7 @@
                                                                     },
                                                                     {
                                                                         "format": "date-time",
-                                                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                                                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
                                                                         "type": "string"
                                                                     }
                                                                 ],
