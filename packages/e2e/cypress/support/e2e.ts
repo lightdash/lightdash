@@ -15,6 +15,7 @@
 /// <reference types="cypress" />
 
 import './commands';
+import './cleanup';
 
 // Hide all requests from
 const cypressLogOriginal = Cypress.log;

@@ -22,3 +22,16 @@ response, test the API directly.
 
 A quick check before adding a test here: *does this need a browser?* If the
 answer is no, it belongs in `api-tests`.
+
+## Cleanup is automatic
+
+Preview environments keep their database between runs, and several CI
+containers run specs against the same database in parallel. Do not write a
+test that deletes "everything that is not seeded": it will remove content a
+parallel container is still using.
+
+`cypress/support/cleanup.ts` records every space, dashboard, chart, SQL Runner
+chart and project a spec creates (through the UI or `cy.request`) and deletes
+them after the spec. Create content freely; you do not need an `after` hook
+for those types. Anything else a test creates (users, invites, user
+attributes, schedulers) must still be cleaned up by the test itself.
