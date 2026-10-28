@@ -297,7 +297,6 @@ export class AiOrganizationSettingsModel {
             dataAppRuntimeAiEnabled: db.data_app_runtime_ai_enabled,
             dataAppContinueInAskAiEnabled:
                 db.data_app_continue_in_ask_ai_enabled,
-            dataAppAutoAnalysisEnabled: db.data_app_auto_analysis_enabled,
             dataAppAnalysisLimits:
                 db.data_app_analysis_limits ?? DATA_APP_ANALYSIS_DEFAULT_LIMITS,
             dataAppAnalysisDefaultInstructions:
@@ -403,7 +402,6 @@ export class AiOrganizationSettingsModel {
                 data_app_runtime_ai_enabled: data.dataAppRuntimeAiEnabled,
                 data_app_continue_in_ask_ai_enabled:
                     data.dataAppContinueInAskAiEnabled,
-                data_app_auto_analysis_enabled: data.dataAppAutoAnalysisEnabled,
                 data_app_analysis_limits: data.dataAppAnalysisLimits ?? null,
                 data_app_analysis_default_instructions:
                     data.dataAppAnalysisDefaultInstructions ?? null,
@@ -439,7 +437,6 @@ export class AiOrganizationSettingsModel {
                 | 'mcp_agents_enabled'
                 | 'data_app_runtime_ai_enabled'
                 | 'data_app_continue_in_ask_ai_enabled'
-                | 'data_app_auto_analysis_enabled'
                 | 'data_app_analysis_limits'
                 | 'data_app_analysis_default_instructions'
                 | 'require_explicit_slack_channel_linking'
@@ -482,10 +479,6 @@ export class AiOrganizationSettingsModel {
         if (data.dataAppContinueInAskAiEnabled !== undefined) {
             updateData.data_app_continue_in_ask_ai_enabled =
                 data.dataAppContinueInAskAiEnabled;
-        }
-        if (data.dataAppAutoAnalysisEnabled !== undefined) {
-            updateData.data_app_auto_analysis_enabled =
-                data.dataAppAutoAnalysisEnabled;
         }
         if (data.dataAppAnalysisLimits !== undefined) {
             updateData.data_app_analysis_limits = data.dataAppAnalysisLimits;
@@ -609,8 +602,6 @@ export class AiOrganizationSettingsModel {
                 dataAppRuntimeAiEnabled: data.dataAppRuntimeAiEnabled ?? false,
                 dataAppContinueInAskAiEnabled:
                     data.dataAppContinueInAskAiEnabled ?? true,
-                dataAppAutoAnalysisEnabled:
-                    data.dataAppAutoAnalysisEnabled ?? false,
                 dataAppAnalysisDefaultInstructions:
                     data.dataAppAnalysisDefaultInstructions ?? null,
                 requireExplicitSlackChannelLinking:

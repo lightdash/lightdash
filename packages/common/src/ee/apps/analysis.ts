@@ -26,25 +26,6 @@ export type AnalysisTargetLocator =
     | { kind: 'app'; appUuid: string }
     | { kind: 'dashboard'; dashboardUuid: string };
 
-/** Whether an app analyses on load: its own choice, or the org default. */
-export type DataAppAutoAnalysis = 'inherit' | 'on' | 'off';
-
-const DATA_APP_AUTO_ANALYSIS: ReadonlySet<string> = new Set([
-    'inherit',
-    'on',
-    'off',
-]);
-
-export const isDataAppAutoAnalysis = (
-    value: unknown,
-): value is DataAppAutoAnalysis =>
-    typeof value === 'string' && DATA_APP_AUTO_ANALYSIS.has(value);
-
-/** A stored value outside the set reads back as the org default. */
-export const normalizeDataAppAutoAnalysis = (
-    value: unknown,
-): DataAppAutoAnalysis => (isDataAppAutoAnalysis(value) ? value : 'inherit');
-
 /** One query the host captured for the viewer's current view of a data app. */
 /**
  * Org-configurable ceilings for AI analysis in data apps. Per-run limits

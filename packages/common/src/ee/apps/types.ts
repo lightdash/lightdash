@@ -26,7 +26,6 @@ import {
 import assertUnreachable from '../../utils/assertUnreachable';
 import { isHexCodeColor } from '../../utils/colors';
 import { toLlmJsonSchema } from '../../utils/zodJsonSchema';
-import { type DataAppAutoAnalysis } from './analysis';
 import { type ChartTypeIcon } from './chartTypeIcons';
 import {
     type DataAppVizConfigOption,
@@ -612,9 +611,6 @@ export type ApiGetAppResponse = ApiSuccess<{
     // and for chart types with no icon chosen.
     icon: ChartTypeIcon | null;
     verification: ContentVerificationInfo | null;
-    // Whether AI analysis runs when the app loads; 'inherit' takes the
-    // organization default.
-    autoAnalysis: DataAppAutoAnalysis;
 }>;
 
 export type ApiUpdateAppRequest = {
@@ -622,7 +618,6 @@ export type ApiUpdateAppRequest = {
     description?: string;
     // Custom chart types only; null clears the icon.
     icon?: ChartTypeIcon | null;
-    autoAnalysis?: DataAppAutoAnalysis;
 };
 
 export type ApiUpdateAppResponse = ApiSuccess<{
@@ -630,7 +625,6 @@ export type ApiUpdateAppResponse = ApiSuccess<{
     name: string;
     description: string;
     icon: ChartTypeIcon | null;
-    autoAnalysis: DataAppAutoAnalysis;
 }>;
 
 export type ApiDismissAddAnalysisOfferResponse = ApiSuccessEmpty;

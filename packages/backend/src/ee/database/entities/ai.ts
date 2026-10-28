@@ -686,7 +686,6 @@ export type DbAiOrganizationSettings = {
     mcp_agents_enabled: boolean;
     data_app_runtime_ai_enabled: boolean;
     data_app_continue_in_ask_ai_enabled: boolean;
-    data_app_auto_analysis_enabled: boolean;
     data_app_analysis_limits: DataAppAnalysisLimits | null;
     data_app_analysis_default_instructions: string | null;
     require_explicit_slack_channel_linking: boolean;
@@ -717,7 +716,6 @@ export type AiOrganizationSettingsTable = Knex.CompositeTableType<
                 | 'mcp_agents_enabled'
                 | 'data_app_runtime_ai_enabled'
                 | 'data_app_continue_in_ask_ai_enabled'
-                | 'data_app_auto_analysis_enabled'
                 | 'data_app_analysis_limits'
                 | 'data_app_analysis_default_instructions'
                 | 'require_explicit_slack_channel_linking'
@@ -742,7 +740,6 @@ export type AiOrganizationSettingsTable = Knex.CompositeTableType<
             | 'mcp_agents_enabled'
             | 'data_app_runtime_ai_enabled'
             | 'data_app_continue_in_ask_ai_enabled'
-            | 'data_app_auto_analysis_enabled'
             | 'data_app_analysis_limits'
             | 'data_app_analysis_default_instructions'
             | 'require_explicit_slack_channel_linking'

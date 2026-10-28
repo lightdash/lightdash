@@ -45,7 +45,6 @@ const readyAnalysis = {
 const available: DataAppAnalysisAvailability = {
     status: 'available',
     canContinueInAskAi: true,
-    autoAnalyseDefault: false,
 };
 
 const unavailable = (

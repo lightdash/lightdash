@@ -18,7 +18,6 @@ import {
 import { useForm } from '@mantine/form';
 import {
     IconMessageChatbot,
-    IconPlayerPlay,
     IconSparkles,
     type Icon,
 } from '@tabler/icons-react';
@@ -329,21 +328,6 @@ export const DataAppAiAnalysisSettingsPage: FC = () => {
                                 onChange={(checked) =>
                                     updateSettings({
                                         dataAppRuntimeAiEnabled: checked,
-                                    })
-                                }
-                            />
-                            <Divider />
-                            <SettingRow
-                                icon={IconPlayerPlay}
-                                name="Analyse automatically on load"
-                                description="Default for apps: run the analysis when a viewer opens an app, without a click. Stored analyses of identical results are reused."
-                                checked={
-                                    settings.dataAppAutoAnalysisEnabled ?? false
-                                }
-                                disabled={isUpdating || !aiOn || !analysisOn}
-                                onChange={(checked) =>
-                                    updateSettings({
-                                        dataAppAutoAnalysisEnabled: checked,
                                     })
                                 }
                             />
