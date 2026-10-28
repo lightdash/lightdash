@@ -105,7 +105,6 @@ const ToolbarToggle: FC<{
     <Tooltip label={label}>
         <ActionIcon
             size="sm"
-            variant={open ? 'light' : 'subtle'}
             aria-label={label}
             aria-expanded={open}
             onClick={onToggle}
