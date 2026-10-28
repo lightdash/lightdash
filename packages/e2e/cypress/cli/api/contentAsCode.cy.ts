@@ -1,3 +1,5 @@
+import { SEED_PROJECT } from '@lightdash/common';
+
 describe('Content as Code CLI', () => {
     const lightdashDir = './lightdash';
     const lightdashUrl = Cypress.config('baseUrl');
@@ -5,13 +7,18 @@ describe('Content as Code CLI', () => {
     before(() => {
         cy.login();
         cy.getApiToken().then((apiToken) => {
-            cy.exec(`lightdash login ${lightdashUrl} --token ${apiToken}`, {
-                failOnNonZeroExit: false,
-                env: {
-                    NODE_ENV: 'development',
-                    CI: true,
+            // Pin the project: CI login otherwise picks the first project in the org,
+            // which can be a short-lived one from a concurrently running spec
+            cy.exec(
+                `lightdash login ${lightdashUrl} --token ${apiToken} --project ${SEED_PROJECT.project_uuid}`,
+                {
+                    failOnNonZeroExit: false,
+                    env: {
+                        NODE_ENV: 'development',
+                        CI: true,
+                    },
                 },
-            })
+            )
                 .its('stderr')
                 .should('contain', 'Login successful');
         });
