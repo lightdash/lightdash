@@ -422,9 +422,134 @@ describe('SectionedFilters', () => {
         );
         // The capsule is the only entry: no folder icon
         expect(document.querySelector('[data-add-section]')).toBeNull();
+        // Below the loose pills, with New section among the capsules
+        const sections = capsuleOf('Dates').closest('[class*="sections"]');
+        expect(sections).not.toContainElement(
+            screen.getByTestId('pills-unsectioned'),
+        );
+        expect(sections).toContainElement(
+            screen.getByRole('button', { name: 'New section' }),
+        );
+        // In a line of its own on a narrow bar, as the capsules are
+        expect(
+            screen
+                .getByRole('button', { name: 'New section' })
+                .closest('[class*="sections"] > *')?.className,
+        ).toMatch(/line/);
         expect(
             screen.queryByRole('button', { name: 'Filter rules' }),
         ).not.toBeInTheDocument();
+    });
+
+    it('starts the capsules on a line below the unsectioned pills only when there are any', () => {
+        const sectionsLine = () =>
+            screen
+                .getByRole('button', { name: 'New section' })
+                .closest('[class*="sections"]');
+        const { unmount } = renderSectioned([rule('one', 'a')], 'tab-1');
+        // No unsectioned pills: the capsules follow Add filter
+        expect(sectionsLine()).not.toHaveAttribute('data-own-line');
+        unmount();
+
+        renderSectioned([rule('one', 'a'), rule('loose', undefined)], 'tab-1');
+        expect(sectionsLine()).toHaveAttribute('data-own-line');
+        expect(sectionsLine()).toContainElement(capsuleOf('Dates'));
+    });
+
+    it('names a first section on the line its capsule lands on', async () => {
+        renderSectioned([rule('loose', undefined)], 'tab-1', []);
+        const ghost = screen.getByRole('button', { name: 'New section' });
+        // No sections yet: New section stays inline after the pills
+        expect(ghost.closest('[class*="sections"]')).not.toHaveAttribute(
+            'data-own-line',
+        );
+        await userEvent.click(ghost);
+        expect(
+            screen
+                .getByRole('textbox', { name: 'Section name' })
+                .closest('[class*="sections"]'),
+        ).toHaveAttribute('data-own-line');
+    });
+
+    it('keeps saved order on the sections line: open, folded, folded, open', () => {
+        const saved = [
+            { id: 'a', name: 'Dates' },
+            { id: 'b', name: 'Regions', collapsed: true },
+            { id: 'c', name: 'Status', collapsed: true },
+            { id: 'd', name: 'Totals' },
+        ];
+        mockDashboardContext.current = {
+            ...mockDashboardContext.current,
+            dashboard: {
+                config: { isDateZoomDisabled: false, controlSections: saved },
+            },
+        };
+        renderSectioned(
+            [
+                rule('one', 'a'),
+                rule('two', 'b'),
+                rule('three', 'c'),
+                rule('four', 'd'),
+            ],
+            'tab-1',
+            saved,
+        );
+        const lines = ['Dates', 'Regions', 'Status', 'Totals'].map(
+            (name) => capsuleOf(name).parentElement as HTMLElement,
+        );
+        const sectionsLine = lines[0].parentElement;
+        expect(sectionsLine?.className).toMatch(/sections/);
+        expect([...(sectionsLine?.children ?? [])].slice(0, 4)).toEqual(lines);
+        expect(lines.map((line) => line.hasAttribute('data-own-line'))).toEqual(
+            [true, false, false, true],
+        );
+    });
+
+    it("starts a viewer's capsules below a temporary filter, their only loose pill", () => {
+        mockSidebar.current = { isViewer: true, isSidebarOpen: false };
+        const { store } = renderSectioned([rule('one', 'a')], 'tab-1');
+        const sectionsLine = () =>
+            capsuleOf('Dates').parentElement?.parentElement;
+        expect(sectionsLine()).not.toHaveAttribute('data-own-line');
+        act(() => {
+            store.dispatch(
+                dashboardFiltersActions.setTemporaryFilters({
+                    dimensions: [rule('own', undefined)],
+                    metrics: [],
+                    tableCalculations: [],
+                }),
+            );
+        });
+        expect(sectionsLine()).toHaveAttribute('data-own-line');
+    });
+
+    it('renders sections and an unsectioned filter while a filter is edited', () => {
+        mockSidebar.current = {
+            isViewer: false,
+            isSidebarOpen: true,
+            editing: { filterId: 'one' },
+        };
+        renderSectioned([rule('one', 'a'), rule('loose', undefined)], 'tab-1');
+        expect(capsuleOf('Dates').parentElement?.parentElement).toHaveAttribute(
+            'data-own-line',
+        );
+    });
+
+    it('counts the edited pill shown on another tab as a loose pill', () => {
+        const filters = [rule('one', 'a'), rule('loose', undefined, onTabOne)];
+        const sectionsLine = () =>
+            capsuleOf('Dates').parentElement?.parentElement;
+        const { unmount } = renderSectioned(filters, 'tab-2');
+        expect(sectionsLine()).not.toHaveAttribute('data-own-line');
+        unmount();
+
+        mockSidebar.current = {
+            isViewer: false,
+            isSidebarOpen: true,
+            editing: { filterId: 'loose' },
+        };
+        renderSectioned(filters, 'tab-2');
+        expect(sectionsLine()).toHaveAttribute('data-own-line');
     });
 
     it('renders a capsule only for the sections that have a visible member', () => {
@@ -470,6 +595,8 @@ describe('SectionedFilters', () => {
             'a',
         );
         await userEvent.click(screen.getByRole('button', { name: 'Dates' }));
+        // The fold moves the capsule between lines without remounting it
+        expect(screen.getByRole('button', { name: 'Dates' })).toHaveFocus();
         expect(screen.getByTestId('pills-unsectioned')).not.toHaveAttribute(
             'data-popover',
         );
@@ -888,7 +1015,7 @@ describe('SectionedFilters', () => {
                 'tab-1',
             );
             const flowOf = () =>
-                capsuleOf('Dates').parentElement as HTMLElement;
+                capsuleOf('Dates').closest('[class*="flow"]') as HTMLElement;
             // Named by the leaving pill's kind, for the line on its landing
             expect(flowOf()).toHaveAttribute('data-over', 'dimensions');
             unmount();
@@ -981,10 +1108,9 @@ describe('SectionedFilters', () => {
                 ],
                 [rule('m1', undefined), rule('m3', 'b')],
             );
-            expect(capsuleOf('Dates').parentElement).toHaveAttribute(
-                'data-over',
-                'metrics',
-            );
+            expect(
+                capsuleOf('Dates').closest('[class*="flow"]'),
+            ).toHaveAttribute('data-over', 'metrics');
             mockDroppable.current = null;
         });
 
@@ -1115,6 +1241,102 @@ describe('SectionedFilters', () => {
             };
         });
         afterEach(() => grid.remove());
+
+        it.each([
+            // No sections: 7 pills fold the new section, beside Add filter
+            { loose: 7, moved: 7, saved: [], isOpen: false, isOwnLine: false },
+            // Folded sections: the last pills open it, on a line of its own
+            {
+                loose: 2,
+                moved: 2,
+                saved: [
+                    { id: 'b', name: 'Regions', collapsed: true },
+                    { id: 'c', name: 'Empty', collapsed: true },
+                ],
+                isOpen: true,
+                isOwnLine: false,
+            },
+            // A pill stays loose: the sections start below it
+            { loose: 3, moved: 2, saved: [], isOpen: true, isOwnLine: true },
+        ])(
+            'names a section where its capsule lands ($loose loose, $moved moved)',
+            async ({ loose, moved, saved, isOpen, isOwnLine }) => {
+                const ids = Array.from({ length: loose }, (_, i) => `p${i}`);
+                const { store } = renderSectioned(
+                    ids.map((id) => rule(id, undefined)),
+                    'tab-1',
+                    saved,
+                );
+                setDashboardFilters.mockImplementation(
+                    (filters: DashboardFilters) =>
+                        store.dispatch(
+                            dashboardFiltersActions.setDashboardFilters(
+                                filters,
+                            ),
+                        ),
+                );
+                // Whether its line is open, and the sections' line its own
+                const placeOf = (element: HTMLElement) => {
+                    const sectionsLine = element.closest(
+                        '[class*="sections"]',
+                    ) as HTMLElement;
+                    const line = [...sectionsLine.children].find((child) =>
+                        child.contains(element),
+                    );
+                    return {
+                        isOpen: line?.hasAttribute('data-own-line'),
+                        isOwnLine: sectionsLine.hasAttribute('data-own-line'),
+                    };
+                };
+                ids.slice(0, moved).forEach((id) =>
+                    fireEvent.click(pillOf(id), { metaKey: true }),
+                );
+                await userEvent.click(
+                    await screen.findByRole('button', {
+                        name: 'Move to new section',
+                    }),
+                );
+                expect(
+                    placeOf(
+                        screen.getByRole('textbox', { name: 'Section name' }),
+                    ),
+                ).toEqual({ isOpen, isOwnLine });
+                await userEvent.keyboard('Misc{Enter}');
+                expect(placeOf(capsuleOf('Misc'))).toEqual({
+                    isOpen,
+                    isOwnLine,
+                });
+            },
+        );
+
+        it('keeps a new section on its line when it is folded before a save', async () => {
+            const { store } = renderSectioned(
+                [rule('p0', undefined), rule('p1', undefined)],
+                'tab-1',
+                [],
+            );
+            setDashboardFilters.mockImplementation(
+                (filters: DashboardFilters) =>
+                    store.dispatch(
+                        dashboardFiltersActions.setDashboardFilters(filters),
+                    ),
+            );
+            fireEvent.click(pillOf('p0'), { metaKey: true });
+            fireEvent.click(pillOf('p1'), { metaKey: true });
+            await userEvent.click(
+                await screen.findByRole('button', {
+                    name: 'Move to new section',
+                }),
+            );
+            await userEvent.keyboard('Misc{Enter}');
+            const ownLine = () =>
+                capsuleOf('Misc').parentElement?.hasAttribute('data-own-line');
+            expect(ownLine()).toBe(true);
+            await userEvent.click(foldOf('Misc'));
+            expect(foldOf('Misc')).toHaveAttribute('aria-expanded', 'false');
+            expect(foldOf('Misc')).toHaveFocus();
+            expect(ownLine()).toBe(true);
+        });
 
         it('toggles with Cmd or Ctrl and shows the selection bar', async () => {
             renderSectioned(rules(), 'tab-1');
@@ -2117,12 +2339,33 @@ describe('SectionedFilters', () => {
         });
 
         it("saves the editor's fold as the way the section starts", async () => {
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                dashboard: {
+                    config: {
+                        isDateZoomDisabled: false,
+                        controlSections: [
+                            { id: 'a', name: 'Dates' },
+                            { id: 'b', name: 'Regions' },
+                            { id: 'c', name: 'Empty' },
+                        ],
+                    },
+                },
+            };
             const { store } = renderSectioned([rule('one', 'a')], 'tab-1');
             expect(selectHaveControlSectionsChanged(store.getState())).toBe(
                 false,
             );
+            // Saved open, a capsule takes a line of its own, and keeps it
+            // while the unsaved fold changes; empty, it stays inline
+            const ownLineOf = (name: string) =>
+                capsuleOf(name).parentElement?.hasAttribute('data-own-line');
+            expect(ownLineOf('Dates')).toBe(true);
+            expect(ownLineOf('Empty')).toBe(false);
             await userEvent.click(foldOf('Dates'));
             expect(foldOf('Dates')).toHaveAttribute('aria-expanded', 'false');
+            expect(foldOf('Dates')).toHaveFocus();
+            expect(ownLineOf('Dates')).toBe(true);
             expect(sectionsOf(store)[0].collapsed).toBe(true);
             expect(selectHaveControlSectionsChanged(store.getState())).toBe(
                 true,
@@ -2130,7 +2373,91 @@ describe('SectionedFilters', () => {
             // Back to the size rule's value with nothing saved: it follows the rule again
             await userEvent.click(foldOf('Dates'));
             expect(foldOf('Dates')).toHaveAttribute('aria-expanded', 'true');
+            expect(foldOf('Dates')).toHaveFocus();
+            expect(ownLineOf('Dates')).toBe(true);
             expect(sectionsOf(store)[0]).not.toHaveProperty('collapsed');
+        });
+
+        it.each([false, true])(
+            'places a section by its saved fold, so a fold moves no line (viewer: %s)',
+            async (isViewer) => {
+                mockSidebar.current = { isViewer, isSidebarOpen: false };
+                const saved = [
+                    { id: 'a', name: 'Dates' },
+                    { id: 'b', name: 'Regions', collapsed: true },
+                ];
+                mockDashboardContext.current = {
+                    ...mockDashboardContext.current,
+                    dashboard: {
+                        config: {
+                            isDateZoomDisabled: false,
+                            controlSections: saved,
+                        },
+                    },
+                };
+                renderSectioned(
+                    [rule('one', 'a'), rule('two', 'b')],
+                    'tab-1',
+                    saved,
+                );
+                const toggleOf = (name: string) =>
+                    isViewer
+                        ? screen.getByRole('button', { name })
+                        : foldOf(name);
+                const ownLineOf = (name: string) =>
+                    capsuleOf(name).parentElement?.hasAttribute(
+                        'data-own-line',
+                    );
+                expect(ownLineOf('Dates')).toBe(true);
+                expect(ownLineOf('Regions')).toBe(false);
+
+                // Folded in place, on its own line
+                await userEvent.click(toggleOf('Dates'));
+                expect(toggleOf('Dates')).toHaveAttribute(
+                    'aria-expanded',
+                    'false',
+                );
+                expect(toggleOf('Dates')).toHaveFocus();
+                expect(ownLineOf('Dates')).toBe(true);
+
+                // Opened in place, inline
+                await userEvent.click(toggleOf('Regions'));
+                expect(toggleOf('Regions')).toHaveAttribute(
+                    'aria-expanded',
+                    'true',
+                );
+                expect(toggleOf('Regions')).toHaveFocus();
+                expect(ownLineOf('Regions')).toBe(false);
+            },
+        );
+
+        it('places an unsaved section by its size, never by its fold', () => {
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                dashboard: {
+                    config: {
+                        isDateZoomDisabled: false,
+                        controlSections: [{ id: 'a', name: 'Dates' }],
+                    },
+                },
+            };
+            renderSectioned(
+                [
+                    rule('one', 'a'),
+                    rule('two', 'b'),
+                    ...Array.from({ length: 7 }, (_, i) => rule(`c-${i}`, 'c')),
+                ],
+                'tab-1',
+                [
+                    { id: 'a', name: 'Dates' },
+                    { id: 'b', name: 'Regions', collapsed: true },
+                    { id: 'c', name: 'Status', collapsed: false },
+                ],
+            );
+            const ownLineOf = (name: string) =>
+                capsuleOf(name).parentElement?.hasAttribute('data-own-line');
+            expect(ownLineOf('Regions')).toBe(true);
+            expect(ownLineOf('Status')).toBe(false);
         });
 
         it('keeps an explicit value when the saved section has one', async () => {

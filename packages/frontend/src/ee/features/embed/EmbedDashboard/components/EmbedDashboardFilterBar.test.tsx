@@ -226,11 +226,18 @@ describe('EmbedDashboardFilterBar', () => {
             within(sectioned).getByRole('button', { name: 'Reset' }),
         ).toBeInTheDocument();
         expect(screen.queryByTestId('rail-pills')).not.toBeInTheDocument();
+        // A size container, for the bar's narrow layouts
+        expect(sectioned.closest('[class*="filterArea"]')).not.toBeNull();
     });
 
     it('keeps the shipped filters for a dashboard with sections while the flag is off', () => {
         renderWithProviders(barElement(true, false, sectionedStore()));
         expect(screen.getByTestId('shipped-filters')).toBeInTheDocument();
+        expect(
+            screen
+                .getByTestId('shipped-filters')
+                .closest('[class*="filterArea"]'),
+        ).toBeNull();
         expect(
             screen.queryByTestId('sectioned-filters'),
         ).not.toBeInTheDocument();

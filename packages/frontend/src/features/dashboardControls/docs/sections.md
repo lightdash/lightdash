@@ -40,6 +40,22 @@ _group_ (that is `requiredGroupId`).
   only once the dashboard has sections. Order: "Add filter", unsectioned
   pills, one capsule per section, then (edit mode) the "New section" entry
   slot, so creating a section moves nothing before it.
+- Lines (CSS only: `.sections[data-own-line]`, `.line[data-own-line]` and
+  a container query):
+    - With unsectioned pills on the bar, capsules start below them; without,
+      they follow "Add filter". The edited pill counts on any tab.
+    - A capsule's line follows its saved fold, not the fold in view. Saved
+      open takes its own line; saved folded stays inline in saved order. An
+      editor's empty capsule stays inline.
+    - Saved fold: the persisted `collapsed`, else the size rule on the live
+      member count. An unsaved section ignores the `collapsed` its chevron
+      staged.
+    - Folding or opening expands in place. Moving filters in or out, or a
+      save, can change the line.
+    - Under 720px of bar (the app's `.content`, the embed's `.filterArea`
+      container), every capsule and "New section" take their own line.
+    - While a section is named, its line is predicted from the pills it
+      takes, so committing the name moves nothing.
 - An editor sees every section (each is a drop target); a viewer only those
   with a member visible on this tab.
 - An editor's chevron writes the saved `collapsed` (back to `undefined` when
