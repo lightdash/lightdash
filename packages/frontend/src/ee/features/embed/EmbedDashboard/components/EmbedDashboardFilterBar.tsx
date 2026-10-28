@@ -175,6 +175,7 @@ const EmbedDashboardFilterBar: FC<Props> = ({
                 gap="xs"
                 flex="1 1 24rem"
                 miw={0}
+                className={isControlsEnabled ? styles.filterArea : undefined}
             >
                 {shouldShowFilters &&
                     (isControlsEnabled ? (
