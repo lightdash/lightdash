@@ -130,6 +130,31 @@ A field's position in the YAML determines whether it goes in `.dimensions()` or 
 
 Use the **metric key name**, not the label. YAML `label: "Order Count"` → SDK field name is `order_count`.
 
+### Field links — `urls`
+
+A dimension or metric may declare `urls:` — link patterns for its values:
+
+```yaml
+columns:
+    - name: account_number
+      meta:
+          dimension:
+              type: string
+              urls:
+                  - label: Open account
+                    url: "https://portal.example.com/accounts/${value.raw | url_encode }"
+                  - label: Open owner
+                    url: "https://portal.example.com/users/${row.accounts.owner_id.raw }"
+```
+
+**When a field you display declares `urls`, render its values as links built from those patterns** — in tables, underlying-data views, and anywhere the raw value is shown. Dashboards already do this; the app must match. Resolve placeholders yourself (simple substitution):
+
+- `${value.raw}` / `${value.formatted}` — the cell's own raw/formatted value.
+- `${row.<model>.<field>.raw}` (or `.formatted`) — another field in the same result row. **Add that field to the query** so it's present in the row.
+- A `| url_encode` filter means URL-encode the substituted value (`encodeURIComponent`).
+
+One pattern → the cell is a plain link (open in a new tab). Several → a primary link plus a menu, or a small dropdown. Skip the link for null/empty values. Never invent patterns for fields without `urls`.
+
 ### Joined table fields — dot notation
 
 When a model has `joins`, the joined table's dimensions and metrics are available in your query. **Use dot notation** (`table.field`) to reference fields from joined tables:
