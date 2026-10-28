@@ -38,6 +38,17 @@ export const EMPTY_RESPONSE_MESSAGE =
 export const PROVIDER_BILLING_MESSAGE =
     'The configured AI provider account has a billing or credit issue. Check its billing settings or add credits, then try again.';
 
+export const PROVIDER_RATE_LIMIT_MESSAGE =
+    'The configured AI provider rejected this request because its rate limit was exceeded. Raise the rate limit or token quota on that provider or deployment, or wait a moment and try again.';
+
+const MANAGED_RATE_LIMIT_MESSAGE =
+    'The service is experiencing high demand. Please try again in a few moments.';
+
+const getRateLimitMessage = (keyManagement?: AiKeyManagement): string =>
+    keyManagement === 'self-managed'
+        ? PROVIDER_RATE_LIMIT_MESSAGE
+        : MANAGED_RATE_LIMIT_MESSAGE;
+
 const PROVIDER_BILLING_ERROR_CODES = new Set([
     'billing_error',
     'insufficient_credit',
@@ -153,7 +164,7 @@ export const getKnownUserFacingErrorMessage = (
             : 'The AI provider could not accept this request. Please try again later.';
     }
     if (apiCallError?.statusCode === 429 && !isProviderBillingError(error))
-        return 'The service is experiencing high demand. Please try again in a few moments.';
+        return getRateLimitMessage(keyManagement);
 
     // Context/token limit errors
     if (
@@ -177,7 +188,7 @@ export const getKnownUserFacingErrorMessage = (
         errorMessage.includes('quota') ||
         errorMessage.includes('throttl')
     ) {
-        return 'The service is experiencing high demand. Please try again in a few moments.';
+        return getRateLimitMessage(keyManagement);
     }
 
     // Timeout errors
@@ -228,7 +239,7 @@ const classifiedErrorMessage = (
         case 'context':
             return "This request exceeded the AI model's context limit, usually because the conversation or tool results became too large. Please start a new thread or break the request into smaller steps.";
         case 'rate':
-            return 'The service is experiencing high demand. Please try again in a few moments.';
+            return getRateLimitMessage(keyManagement);
         case 'timeout':
             return 'This request took too long to process. Try breaking it into smaller questions or start a new thread.';
         case 'permissions':
