@@ -2545,13 +2545,25 @@ describe('date-only bounds on timestamp fields', () => {
                         compiledSql: 'orders.created_at',
                     },
                 },
+                metrics: {
+                    ...ordersTable.metrics,
+                    last_created_at: {
+                        ...ordersTable.metrics.max_date,
+                        type: MetricType.TIMESTAMP,
+                        name: 'last_created_at',
+                        label: 'Last Created At',
+                    },
+                },
             },
         },
     };
 
-    const resolveDimensionValues = (dimensions: string) => {
+    const resolveValues = (filters: {
+        dimensions: string | null;
+        metrics: string | null;
+    }) => {
         const result = resolveExploreFilterExpressions({
-            filters: { dimensions, metrics: null },
+            filters,
             explore: timestampExplore,
         });
         if (!result.success) {
@@ -2560,6 +2572,8 @@ describe('date-only bounds on timestamp fields', () => {
         if (result.data === null) throw new Error('Expected filters');
         return getTotalFilterRules(result.data).map((rule) => rule.values);
     };
+    const resolveDimensionValues = (dimensions: string) =>
+        resolveValues({ dimensions, metrics: null });
 
     it.each([
         [
@@ -2595,6 +2609,15 @@ describe('date-only bounds on timestamp fields', () => {
         ['orders_order_date lessThanOrEqual=2026-10-25', [['2026-10-25']]],
     ] as const)('leaves other bounds untouched: %s', (expression, expected) => {
         expect(resolveDimensionValues(expression)).toEqual(expected);
+    });
+
+    it('widens a date-only upper bound on a timestamp metric', () => {
+        expect(
+            resolveValues({
+                dimensions: null,
+                metrics: 'orders_last_created_at lessThanOrEqual=2026-10-25',
+            }),
+        ).toEqual([['2026-10-25T23:59:59.999Z']]);
     });
 
     it('applies the same rule on the classic runQuery expression path', async () => {

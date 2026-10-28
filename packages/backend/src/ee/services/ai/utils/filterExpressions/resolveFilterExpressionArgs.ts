@@ -125,8 +125,16 @@ const isTimestampField = (field: ResolvedField): boolean =>
     field.fieldType === DimensionType.TIMESTAMP ||
     field.fieldType === MetricType.TIMESTAMP;
 
-// A bare date as an inclusive upper bound on a timestamp would compile to
-// midnight and drop the whole last day; widen it to the end of that day.
+const isInclusiveUpperBoundArgument = (
+    rule: FilterExpressionRule,
+    index: number,
+): boolean =>
+    (rule.operator.value === FilterOperator.LESS_THAN_OR_EQUAL &&
+        index === 0) ||
+    (rule.operator.value === FilterOperator.IN_BETWEEN && index === 1);
+
+// A bare date as an inclusive upper bound on a timestamp compiles to midnight
+// and drops the whole last day.
 const widenInclusiveUpperBound = ({
     rule,
     field,
@@ -138,12 +146,8 @@ const widenInclusiveUpperBound = ({
     scalar: FilterExpressionScalar;
     index: number;
 }): string => {
-    const isUpperBound =
-        (rule.operator.value === FilterOperator.LESS_THAN_OR_EQUAL &&
-            index === 0) ||
-        (rule.operator.value === FilterOperator.IN_BETWEEN && index === 1);
     if (
-        !isUpperBound ||
+        !isInclusiveUpperBoundArgument(rule, index) ||
         !isTimestampField(field) ||
         !z.string().date().safeParse(scalar.value).success
     ) {
