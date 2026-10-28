@@ -331,12 +331,16 @@ describe('SchedulerClient create project job lookup', () => {
             ) => callback({ query }),
         } as unknown as Awaited<typeof client.graphileUtils>);
 
+        const lockedAfter = new Date('2026-10-28T14:30:00Z');
         await expect(
-            client.hasCreateProjectWithCompileJob('lightdash-job-uuid'),
+            client.hasCreateProjectWithCompileJob(
+                'lightdash-job-uuid',
+                lockedAfter,
+            ),
         ).resolves.toBe(true);
         expect(query).toHaveBeenCalledWith(
-            expect.stringContaining("payload->>'jobUuid' = $2"),
-            ['createProjectWithCompile', 'lightdash-job-uuid'],
+            expect.stringContaining('locked_at IS NULL OR locked_at > $3'),
+            ['createProjectWithCompile', 'lightdash-job-uuid', lockedAfter],
         );
     });
 });

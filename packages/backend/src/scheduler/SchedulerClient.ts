@@ -1481,7 +1481,15 @@ export class SchedulerClient {
         return { jobId };
     }
 
-    async hasCreateProjectWithCompileJob(jobUuid: string): Promise<boolean> {
+    /**
+     * Whether the worker still holds the job: queued, or locked since
+     * `lockedAfter`. A lock older than that belongs to a worker that died
+     * mid-run; graphile only releases it hours later.
+     */
+    async hasCreateProjectWithCompileJob(
+        jobUuid: string,
+        lockedAfter: Date,
+    ): Promise<boolean> {
         const graphileClient = await this.graphileUtils;
         const result = await graphileClient.withPgClient((pgClient) =>
             pgClient.query<{ exists: boolean }>(
@@ -1490,8 +1498,13 @@ export class SchedulerClient {
                     FROM graphile_worker.jobs
                     WHERE task_identifier = $1
                       AND payload->>'jobUuid' = $2
+                      AND (locked_at IS NULL OR locked_at > $3)
                 ) AS exists`,
-                [SCHEDULER_TASKS.CREATE_PROJECT_WITH_COMPILE, jobUuid],
+                [
+                    SCHEDULER_TASKS.CREATE_PROJECT_WITH_COMPILE,
+                    jobUuid,
+                    lockedAfter,
+                ],
             ),
         );
         return result.rows[0]?.exists ?? false;

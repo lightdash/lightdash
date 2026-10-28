@@ -5664,17 +5664,20 @@ export class ProjectService
     private async reapStaleCreateProjectJobs(
         organizationUuid: string,
     ): Promise<void> {
+        const updatedBefore = new Date(
+            Date.now() - ProjectService.CREATE_PROJECT_JOB_ENQUEUE_GRACE_MS,
+        );
         const staleJobUuids =
             await this.jobModel.findStaleCreateProjectJobUuids({
                 organizationUuid,
-                updatedBefore: new Date(
-                    Date.now() -
-                        ProjectService.CREATE_PROJECT_JOB_ENQUEUE_GRACE_MS,
-                ),
+                updatedBefore,
             });
         const schedulerJobExists = await Promise.all(
             staleJobUuids.map((jobUuid) =>
-                this.schedulerClient.hasCreateProjectWithCompileJob(jobUuid),
+                this.schedulerClient.hasCreateProjectWithCompileJob(
+                    jobUuid,
+                    updatedBefore,
+                ),
             ),
         );
         await this.jobModel.markCreateProjectJobsAsError(
