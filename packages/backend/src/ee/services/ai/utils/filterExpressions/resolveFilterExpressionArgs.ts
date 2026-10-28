@@ -18,6 +18,7 @@ import {
     isDimension,
     isFilterExpressionCurrentDateOperator,
     isFilterExpressionRelativeDateOperator,
+    MetricType,
     parseFilterExpression,
     TableCalculationType,
     toolRunQueryExpressionResolvedArgsSchema,
@@ -119,6 +120,37 @@ const dateOrDateTimeSchema = z.union([
     z.string().date(),
     z.string().datetime(),
 ]);
+
+const isTimestampField = (field: ResolvedField): boolean =>
+    field.fieldType === DimensionType.TIMESTAMP ||
+    field.fieldType === MetricType.TIMESTAMP;
+
+// A bare date as an inclusive upper bound on a timestamp would compile to
+// midnight and drop the whole last day; widen it to the end of that day.
+const widenInclusiveUpperBound = ({
+    rule,
+    field,
+    scalar,
+    index,
+}: {
+    rule: FilterExpressionRule;
+    field: ResolvedField;
+    scalar: FilterExpressionScalar;
+    index: number;
+}): string => {
+    const isUpperBound =
+        (rule.operator.value === FilterOperator.LESS_THAN_OR_EQUAL &&
+            index === 0) ||
+        (rule.operator.value === FilterOperator.IN_BETWEEN && index === 1);
+    if (
+        !isUpperBound ||
+        !isTimestampField(field) ||
+        !z.string().date().safeParse(scalar.value).success
+    ) {
+        return scalar.value;
+    }
+    return `${scalar.value}T23:59:59.999Z`;
+};
 
 const strictNumberPattern = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/;
 
@@ -697,7 +729,7 @@ const convertStandardValues = ({
     source: FilterExpressionSource;
 }): ResolutionResult<RawFilterValue[]> => {
     const values: RawFilterValue[] = [];
-    for (const scalar of rule.arguments) {
+    for (const [index, scalar] of rule.arguments.entries()) {
         switch (field.filterType) {
             case FilterType.STRING:
                 values.push(scalar.value);
@@ -757,7 +789,9 @@ const convertStandardValues = ({
                         }),
                     );
                 }
-                values.push(scalar.value);
+                values.push(
+                    widenInclusiveUpperBound({ rule, field, scalar, index }),
+                );
                 break;
             default:
                 return assertUnreachable(
