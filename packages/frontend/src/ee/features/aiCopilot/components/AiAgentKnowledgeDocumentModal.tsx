@@ -2,7 +2,7 @@ import {
     AI_AGENT_DOCUMENT_MAX_CONTENT_BYTES,
     AI_AGENT_DOCUMENT_MAX_NAME_LENGTH,
     assertUnreachable,
-    type AiAgentDocumentSummary,
+    type AiAgentDocumentListItem,
 } from '@lightdash/common';
 import {
     Box,
@@ -35,14 +35,16 @@ import {
     useAiAgentDocumentContent,
     useUpdateAiAgentDocumentContent,
 } from '../hooks/useAiAgentDocuments';
+import { getGitBackedActionProps } from '../utils/gitBackedDocument';
 import classes from './AiAgentKnowledgeDocumentModal.module.css';
+import { GitBackedActionTooltip } from './GitBackedDocumentAction';
 
 const MARKDOWN_REMARK_PLUGINS = [remarkFrontmatter];
 
 type LoadedDocumentModalProps = {
     agentUuid: string;
     content: string;
-    document: AiAgentDocumentSummary;
+    document: AiAgentDocumentListItem;
     onClose: () => void;
     projectUuid: string;
 };
@@ -138,13 +140,23 @@ const LoadedDocumentModal = ({
                         >
                             Download
                         </Button>
-                        <Button
-                            size="xs"
-                            leftSection={<MantineIcon icon={IconEdit} />}
-                            onClick={() => setMode('edit')}
+                        <GitBackedActionTooltip
+                            managed={document.managedByContentAsCode}
                         >
-                            Edit
-                        </Button>
+                            <Button
+                                size="xs"
+                                leftSection={<MantineIcon icon={IconEdit} />}
+                                {...getGitBackedActionProps(
+                                    document.managedByContentAsCode,
+                                )}
+                                onClick={() => {
+                                    if (document.managedByContentAsCode) return;
+                                    setMode('edit');
+                                }}
+                            >
+                                Edit
+                            </Button>
+                        </GitBackedActionTooltip>
                     </Group>
                 );
             case 'edit':
@@ -279,7 +291,7 @@ const LoadedDocumentModal = ({
 
 type Props = {
     agentUuid: string;
-    document: AiAgentDocumentSummary | null;
+    document: AiAgentDocumentListItem | null;
     onClose: () => void;
     projectUuid: string;
 };

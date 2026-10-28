@@ -1,28 +1,49 @@
 import { subject } from '@casl/ability';
 import {
+    AI_AGENT_DOCUMENT_MAX_CONTENT_BYTES,
+    AI_AGENT_DOCUMENT_ORG_QUOTA_BYTES,
     CONTENT_AS_CODE_VERSIONS,
     ContentAsCodeType,
     exceedsRetentionCeiling,
     ForbiddenError,
+    getAiAgentDocumentFileExtension,
     getErrorMessage,
     isValidRetentionWindowHours,
+    normalizeAiAgentDocumentName,
     ParameterError,
     RETENTION_WINDOW_HOURS_ERROR,
     type AgentAsCode,
     type AgentAsCodeEvaluation,
+    type AgentAsCodeKnowledgeDocument,
     type AgentAsCodeUpsertChanges,
     type SessionUser,
 } from '@lightdash/common';
 import isEqual from 'lodash/isEqual';
+import sumBy from 'lodash/sumBy';
 import { validate as isValidUuid } from 'uuid';
 import { fromSession } from '../../../auth/account';
 import { type LightdashConfig } from '../../../config/parseConfig';
+import { type ContentAsCodeProjectSettingsModel } from '../../../models/ContentAsCodeProjectSettingsModel';
+import {
+    AI_AGENT_KNOWLEDGE_DOCUMENT_SNAPSHOT_TYPE,
+    getKnowledgeDocumentSnapshotSlug,
+    type ContentAsCodeSnapshotModel,
+} from '../../../models/ContentAsCodeSnapshotModel';
 import { type ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { BaseService } from '../../../services/BaseService';
+import { buildKnowledgeDocumentSnapshot } from '../../../services/CoderService/contentAsCodeSnapshot';
 import { paginateAsCode } from '../../../services/CoderService/pagination';
+import {
+    type AiAgentDocumentModel,
+    type AiAgentOwnedDocument,
+} from '../../models/AiAgentDocumentModel';
 import { type AiAgentModel } from '../../models/AiAgentModel';
 import { type AiAgentSkillModel } from '../../models/AiAgentSkillModel';
 import { BuiltInSkills } from '../ai/skills/builtInSkills';
+import {
+    type AiAgentDocumentScope,
+    type AiAgentDocumentService,
+} from '../AiAgentDocumentService';
 import { type AiAgentSkillService } from '../AiAgentSkillService';
 import { type AiOrganizationSettingsService } from '../AiOrganizationSettingsService';
 
@@ -61,10 +82,76 @@ const groupEvaluationsByAgentUuid = (
         return grouped;
     }, new Map());
 
+const toKnowledgeDocumentAsCode = (
+    document: AiAgentOwnedDocument,
+): AgentAsCodeKnowledgeDocument => ({
+    name: document.name,
+    alwaysIncludeInContext: document.alwaysIncludeInContext,
+    mimeType:
+        document.mimeType === 'text/plain' ? 'text/plain' : 'text/markdown',
+    content: document.content,
+});
+
+const contentBytes = (content: string): number =>
+    Buffer.byteLength(content, 'utf8');
+
+const normalizeKnowledgeDocument = (
+    document: AgentAsCodeKnowledgeDocument,
+): AgentAsCodeKnowledgeDocument => ({
+    ...document,
+    name: normalizeAiAgentDocumentName(document.name),
+});
+
+type KnowledgeDocumentStep =
+    | {
+          kind: 'apply';
+          document: AgentAsCodeKnowledgeDocument;
+          existing: AiAgentOwnedDocument | undefined;
+      }
+    | { kind: 'remove'; existing: AiAgentOwnedDocument };
+
+type KnowledgeDocumentSyncContext = {
+    user: SessionUser;
+    scope: AiAgentDocumentScope;
+    agentSlug: string;
+    force: boolean;
+    syncEnabled: boolean;
+};
+
+// Stored names are matched trimmed so a UI-created "Foo " and a repo "Foo"
+// are the same document.
+const planKnowledgeDocuments = (
+    declared: AgentAsCodeKnowledgeDocument[],
+    owned: AiAgentOwnedDocument[],
+): KnowledgeDocumentStep[] => {
+    const existingByName = new Map(
+        owned.map((document) => [document.name.trim(), document]),
+    );
+    const declaredNames = new Set(declared.map(({ name }) => name));
+    return [
+        ...declared.map(
+            (document): KnowledgeDocumentStep => ({
+                kind: 'apply',
+                document,
+                existing: existingByName.get(document.name),
+            }),
+        ),
+        ...owned
+            .filter((existing) => !declaredNames.has(existing.name.trim()))
+            .map(
+                (existing): KnowledgeDocumentStep => ({
+                    kind: 'remove',
+                    existing,
+                }),
+            ),
+    ];
+};
+
 const toAgentAsCode = (
     agent: AgentForCode,
     evaluations: EvaluationForCode[],
     skills: string[] | null,
+    knowledgeDocuments: AgentAsCodeKnowledgeDocument[] | null,
 ): AgentAsCode => ({
     contentType: ContentAsCodeType.AI_AGENT,
     version: AGENT_AS_CODE_VERSION,
@@ -87,6 +174,7 @@ const toAgentAsCode = (
     threadRetentionHours: agent.threadRetentionHours ?? undefined,
     modelConfig: agent.modelConfig,
     ...(skills !== null ? { skills: [...skills].sort() } : {}),
+    ...(knowledgeDocuments !== null ? { knowledgeDocuments } : {}),
     evaluations: [...evaluations]
         .sort((left, right) => left.title.localeCompare(right.title))
         .map(normalizeEvaluation),
@@ -124,6 +212,10 @@ type Dependencies = {
     aiAgentModel: AiAgentModel;
     aiAgentSkillModel: AiAgentSkillModel;
     aiAgentSkillService: AiAgentSkillService;
+    aiAgentDocumentModel: AiAgentDocumentModel;
+    aiAgentDocumentService: AiAgentDocumentService;
+    contentAsCodeProjectSettingsModel: ContentAsCodeProjectSettingsModel;
+    contentAsCodeSnapshotModel: ContentAsCodeSnapshotModel;
     projectModel: ProjectModel;
     lightdashConfig: LightdashConfig;
     aiOrganizationSettingsService: AiOrganizationSettingsService;
@@ -136,6 +228,14 @@ export class AiAgentCoderService extends BaseService {
 
     private readonly aiAgentSkillService: AiAgentSkillService;
 
+    private readonly aiAgentDocumentModel: AiAgentDocumentModel;
+
+    private readonly aiAgentDocumentService: AiAgentDocumentService;
+
+    private readonly contentAsCodeProjectSettingsModel: ContentAsCodeProjectSettingsModel;
+
+    private readonly contentAsCodeSnapshotModel: ContentAsCodeSnapshotModel;
+
     private readonly projectModel: ProjectModel;
 
     private readonly lightdashConfig: LightdashConfig;
@@ -146,6 +246,10 @@ export class AiAgentCoderService extends BaseService {
         aiAgentModel,
         aiAgentSkillModel,
         aiAgentSkillService,
+        aiAgentDocumentModel,
+        aiAgentDocumentService,
+        contentAsCodeProjectSettingsModel,
+        contentAsCodeSnapshotModel,
         projectModel,
         lightdashConfig,
         aiOrganizationSettingsService,
@@ -154,6 +258,11 @@ export class AiAgentCoderService extends BaseService {
         this.aiAgentModel = aiAgentModel;
         this.aiAgentSkillModel = aiAgentSkillModel;
         this.aiAgentSkillService = aiAgentSkillService;
+        this.aiAgentDocumentModel = aiAgentDocumentModel;
+        this.aiAgentDocumentService = aiAgentDocumentService;
+        this.contentAsCodeProjectSettingsModel =
+            contentAsCodeProjectSettingsModel;
+        this.contentAsCodeSnapshotModel = contentAsCodeSnapshotModel;
         this.projectModel = projectModel;
         this.lightdashConfig = lightdashConfig;
         this.aiOrganizationSettingsService = aiOrganizationSettingsService;
@@ -276,6 +385,26 @@ export class AiAgentCoderService extends BaseService {
             ),
         );
 
+        const knowledgeDocumentsByAgentUuid = new Map(
+            await Promise.all(
+                page.page.map(
+                    async ({ uuid }) =>
+                        [
+                            uuid,
+                            (
+                                await this.aiAgentDocumentModel.findOwnedByAgent(
+                                    {
+                                        organizationUuid,
+                                        projectUuid,
+                                        agentUuid: uuid,
+                                    },
+                                )
+                            ).map(toKnowledgeDocumentAsCode),
+                        ] as const,
+                ),
+            ),
+        );
+
         return {
             agents: page.page.map((agent) =>
                 toAgentAsCode(
@@ -284,6 +413,7 @@ export class AiAgentCoderService extends BaseService {
                     skillsEnabled
                         ? (skillNamesByAgentUuid.get(agent.uuid) ?? [])
                         : null,
+                    knowledgeDocumentsByAgentUuid.get(agent.uuid) ?? [],
                 ),
             ),
             missingIds,
@@ -349,6 +479,142 @@ export class AiAgentCoderService extends BaseService {
         };
     }
 
+    private async stampKnowledgeDocument(
+        { user, scope, agentSlug, syncEnabled }: KnowledgeDocumentSyncContext,
+        document: AgentAsCodeKnowledgeDocument,
+    ): Promise<void> {
+        if (!syncEnabled) return;
+        const { snapshot, snapshotHash } =
+            buildKnowledgeDocumentSnapshot(document);
+        await this.contentAsCodeSnapshotModel.upsert({
+            projectUuid: scope.projectUuid,
+            contentType: AI_AGENT_KNOWLEDGE_DOCUMENT_SNAPSHOT_TYPE,
+            slug: getKnowledgeDocumentSnapshotSlug(agentSlug, document.name),
+            snapshot,
+            snapshotHash,
+            appliedByUserUuid: user.userUuid,
+            filePath: null,
+        });
+    }
+
+    /** Returns whether the step changed anything on the server. */
+    private async applyKnowledgeDocumentStep(
+        context: KnowledgeDocumentSyncContext,
+        step: KnowledgeDocumentStep,
+    ): Promise<boolean> {
+        const { user, scope, agentSlug, force } = context;
+        if (step.kind === 'remove') {
+            await this.aiAgentDocumentService.deleteDocument(
+                user,
+                scope,
+                step.existing.uuid,
+                'repo',
+            );
+            return true;
+        }
+        const { document, existing } = step;
+        if (!existing) {
+            const created = await this.aiAgentDocumentService.createDocument(
+                user,
+                scope,
+                {
+                    name: document.name,
+                    originalFilename: `${document.name}${getAiAgentDocumentFileExtension(document.mimeType)}`,
+                    mimeType: document.mimeType,
+                    content: document.content,
+                },
+            );
+            if (document.alwaysIncludeInContext) {
+                await this.aiAgentDocumentService.updateDocument(
+                    user,
+                    scope,
+                    created.uuid,
+                    { alwaysIncludeInContext: true },
+                    'repo',
+                );
+            }
+            await this.stampKnowledgeDocument(context, document);
+            return true;
+        }
+        const contentChanged =
+            force ||
+            existing.content !== document.content ||
+            existing.mimeType !== document.mimeType;
+        const usageChanged =
+            existing.alwaysIncludeInContext !== document.alwaysIncludeInContext;
+        if (contentChanged) {
+            await this.aiAgentDocumentService.updateDocumentContent(
+                user,
+                scope,
+                existing.uuid,
+                {
+                    name: document.name,
+                    content: document.content,
+                    mimeType: document.mimeType,
+                },
+                'repo',
+            );
+        }
+        if (usageChanged) {
+            await this.aiAgentDocumentService.updateDocument(
+                user,
+                scope,
+                existing.uuid,
+                { alwaysIncludeInContext: document.alwaysIncludeInContext },
+                'repo',
+            );
+        }
+        await this.stampKnowledgeDocument(context, document);
+        return contentChanged || usageChanged;
+    }
+
+    // Steps run one after another: each create checks the organization quota
+    // against what the previous one stored.
+    private async syncKnowledgeDocuments(
+        context: KnowledgeDocumentSyncContext,
+        declared: AgentAsCodeKnowledgeDocument[],
+        owned: AiAgentOwnedDocument[],
+    ): Promise<boolean> {
+        const results = await planKnowledgeDocuments(declared, owned).reduce<
+            Promise<boolean[]>
+        >(
+            async (previous, step) => [
+                ...(await previous),
+                await this.applyKnowledgeDocumentStep(context, step),
+            ],
+            Promise.resolve([]),
+        );
+        return results.some(Boolean);
+    }
+
+    // The whole upload is sized against the quota before any write, so an
+    // agent is never left with some of its documents applied.
+    private async assertDocumentQuota(
+        organizationUuid: string,
+        agents: AgentAsCode[],
+        ownedDocumentsBySlug: Map<string, AiAgentOwnedDocument[]>,
+    ): Promise<void> {
+        if (agents.length === 0) return;
+        const incomingBytes = sumBy(
+            agents.flatMap((agent) => agent.knowledgeDocuments ?? []),
+            ({ content }) => contentBytes(content),
+        );
+        const replacedBytes = sumBy(
+            [...ownedDocumentsBySlug.values()].flat(),
+            ({ contentSizeBytes }) => contentSizeBytes,
+        );
+        const storedBytes =
+            await this.aiAgentDocumentModel.getOrganizationContentSize(
+                organizationUuid,
+            );
+        const projectedBytes = storedBytes - replacedBytes + incomingBytes;
+        if (projectedBytes > AI_AGENT_DOCUMENT_ORG_QUOTA_BYTES) {
+            throw new ParameterError(
+                `Knowledge documents would exceed the organization quota of ${AI_AGENT_DOCUMENT_ORG_QUOTA_BYTES} bytes (${projectedBytes} bytes after upload)`,
+            );
+        }
+    }
+
     async upsertAgents(
         user: SessionUser,
         projectUuid: string,
@@ -401,6 +667,38 @@ export class AiAgentCoderService extends BaseService {
                 throw new ParameterError(
                     `Duplicate evaluation titles for AI agent '${agent.slug}': ${[
                         ...new Set(duplicateEvaluationTitles),
+                    ].join(', ')}`,
+                );
+            }
+            const documentNames = (agent.knowledgeDocuments ?? []).map(
+                ({ name }) => {
+                    try {
+                        return normalizeAiAgentDocumentName(name);
+                    } catch (error) {
+                        throw new ParameterError(
+                            `AI agent '${agent.slug}': ${getErrorMessage(error)}`,
+                        );
+                    }
+                },
+            );
+            // Checked before any write so an oversized file never leaves the
+            // agent half applied.
+            const oversized = (agent.knowledgeDocuments ?? []).find(
+                ({ content }) =>
+                    contentBytes(content) > AI_AGENT_DOCUMENT_MAX_CONTENT_BYTES,
+            );
+            if (oversized) {
+                throw new ParameterError(
+                    `AI agent '${agent.slug}': knowledge document '${oversized.name}' exceeds the ${AI_AGENT_DOCUMENT_MAX_CONTENT_BYTES} byte limit`,
+                );
+            }
+            const duplicateDocumentNames = documentNames.filter(
+                (name, index, names) => names.indexOf(name) !== index,
+            );
+            if (duplicateDocumentNames.length > 0) {
+                throw new ParameterError(
+                    `Duplicate knowledge document names for AI agent '${agent.slug}': ${[
+                        ...new Set(duplicateDocumentNames),
                     ].join(', ')}`,
                 );
             }
@@ -522,6 +820,38 @@ export class AiAgentCoderService extends BaseService {
             unchanged: [],
             deleted: [],
         };
+        const agentsWithDocuments = agents.filter(
+            (agent) => agent.knowledgeDocuments !== undefined,
+        );
+        const syncEnabled =
+            agentsWithDocuments.length > 0 &&
+            (await this.contentAsCodeProjectSettingsModel.get(projectUuid))
+                ?.syncEnabled === true;
+        const ownedDocumentsBySlug = new Map(
+            await Promise.all(
+                agentsWithDocuments.flatMap((agent) => {
+                    const existing = existingBySlug.get(agent.slug);
+                    return existing
+                        ? [
+                              this.aiAgentDocumentModel
+                                  .findOwnedByAgent({
+                                      organizationUuid,
+                                      projectUuid,
+                                      agentUuid: existing.uuid,
+                                  })
+                                  .then(
+                                      (owned) => [agent.slug, owned] as const,
+                                  ),
+                          ]
+                        : [];
+                }),
+            ),
+        );
+        await this.assertDocumentQuota(
+            organizationUuid,
+            agentsWithDocuments,
+            ownedDocumentsBySlug,
+        );
 
         const upsertOne = async (agent: AgentAsCode): Promise<void> => {
             const existing = existingBySlug.get(agent.slug);
@@ -554,7 +884,7 @@ export class AiAgentCoderService extends BaseService {
                     !force &&
                     isEqual(
                         getComparableAgent(
-                            toAgentAsCode(existing, [], null),
+                            toAgentAsCode(existing, [], null, null),
                             retentionDeclared,
                         ),
                         getComparableAgent(agent, retentionDeclared),
@@ -685,6 +1015,34 @@ export class AiAgentCoderService extends BaseService {
                         return;
                     }
                     agentChanged = true;
+                }
+            }
+
+            if (agent.knowledgeDocuments !== undefined) {
+                try {
+                    const documentsChanged = await this.syncKnowledgeDocuments(
+                        {
+                            user,
+                            scope: { projectUuid, agentUuid },
+                            agentSlug: agent.slug,
+                            force,
+                            syncEnabled,
+                        },
+                        agent.knowledgeDocuments.map(
+                            normalizeKnowledgeDocument,
+                        ),
+                        ownedDocumentsBySlug.get(agent.slug) ?? [],
+                    );
+                    agentChanged = agentChanged || documentsChanged;
+                } catch (error) {
+                    changes.failed = [
+                        ...(changes.failed ?? []),
+                        {
+                            slug: agent.slug,
+                            message: `AI agent '${agent.slug}': knowledge documents could not be applied — ${getErrorMessage(error)}`,
+                        },
+                    ];
+                    return;
                 }
             }
 

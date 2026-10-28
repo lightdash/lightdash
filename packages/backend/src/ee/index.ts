@@ -695,6 +695,14 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getAiAgentSkillService<AiAgentSkillService>(),
                     aiAgentSkillModel:
                         models.getAiAgentSkillModel<AiAgentSkillModel>(),
+                    aiAgentDocumentModel:
+                        models.getAiAgentDocumentModel<AiAgentDocumentModel>(),
+                    aiAgentDocumentService:
+                        repository.getAiAgentDocumentService<AiAgentDocumentService>(),
+                    contentAsCodeProjectSettingsModel:
+                        models.getContentAsCodeProjectSettingsModel(),
+                    contentAsCodeSnapshotModel:
+                        models.getContentAsCodeSnapshotModel(),
                     projectModel: models.getProjectModel(),
                     aiOrganizationSettingsService:
                         repository.getAiOrganizationSettingsService(),
@@ -927,6 +935,11 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     aiAgentService:
                         repository.getAiAgentService<AiAgentService>(),
                     lightdashConfig: context.lightdashConfig,
+                    contentAsCodeProjectSettingsModel:
+                        models.getContentAsCodeProjectSettingsModel(),
+                    contentAsCodeSnapshotModel:
+                        models.getContentAsCodeSnapshotModel(),
+                    aiAgentModel: models.getAiAgentModel(),
                     orgAiCopilotConfigResolver: new OrgAiCopilotConfigResolver({
                         lightdashConfig: context.lightdashConfig,
                         featureFlagModel: models.getFeatureFlagModel(),

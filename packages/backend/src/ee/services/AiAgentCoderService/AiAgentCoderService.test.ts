@@ -98,6 +98,15 @@ const existingEvaluation = {
     ],
 };
 
+const ownedDocument = {
+    uuid: 'document-uuid',
+    name: 'Revenue definitions',
+    alwaysIncludeInContext: false,
+    mimeType: 'text/markdown',
+    content: '# Revenue\n\nNet of refunds.',
+    contentSizeBytes: 24,
+};
+
 const buildService = ({
     existing = [agentRow],
     evaluations = [],
@@ -107,6 +116,9 @@ const buildService = ({
     boundSkills = [],
     skillsByName = {},
     pinnedCredentialUuid = null,
+    ownedDocuments = [],
+    syncEnabled = false,
+    storedDocumentBytes = 0,
 }: {
     existing?: (typeof agentRow & { threadRetentionHours?: number | null })[];
     evaluations?: (typeof existingEvaluation)[];
@@ -119,6 +131,9 @@ const buildService = ({
         string,
         { uuid: string; name: string; deletedAt: Date | null }
     >;
+    ownedDocuments?: (typeof ownedDocument)[];
+    syncEnabled?: boolean;
+    storedDocumentBytes?: number;
 } = {}) => {
     const aiAgentModel = {
         findAgentsForCode: vi.fn(async () => existing),
@@ -144,10 +159,30 @@ const buildService = ({
         getThreadRetentionCeiling: vi.fn(async () => retentionCeiling),
         validateAgentProviderCredential: vi.fn(async () => undefined),
     };
+    const aiAgentDocumentModel = {
+        findOwnedByAgent: vi.fn(async () => ownedDocuments),
+        getOrganizationContentSize: vi.fn(async () => storedDocumentBytes),
+    };
+    const aiAgentDocumentService = {
+        createDocument: vi.fn(async () => ({ uuid: 'created-document-uuid' })),
+        updateDocumentContent: vi.fn(async () => undefined),
+        updateDocument: vi.fn(async () => undefined),
+        deleteDocument: vi.fn(async () => undefined),
+    };
+    const contentAsCodeSnapshotModel = {
+        upsert: vi.fn(async () => undefined),
+        delete: vi.fn(async () => undefined),
+    };
     const service = new AiAgentCoderService({
         aiAgentModel: aiAgentModel as never,
         aiAgentSkillModel: aiAgentSkillModel as never,
         aiAgentSkillService: aiAgentSkillService as never,
+        aiAgentDocumentModel: aiAgentDocumentModel as never,
+        aiAgentDocumentService: aiAgentDocumentService as never,
+        contentAsCodeProjectSettingsModel: {
+            get: vi.fn(async () => ({ syncEnabled })),
+        } as never,
+        contentAsCodeSnapshotModel: contentAsCodeSnapshotModel as never,
         projectModel: {
             getSummary: vi.fn(async () => ({
                 projectUuid,
@@ -164,6 +199,8 @@ const buildService = ({
         aiAgentSkillModel,
         aiAgentSkillService,
         aiOrganizationSettingsService,
+        aiAgentDocumentService,
+        contentAsCodeSnapshotModel,
     };
 };
 
@@ -179,6 +216,7 @@ describe('AiAgentCoderService', () => {
             {
                 ...agentAsCode,
                 skills: [],
+                knowledgeDocuments: [],
                 evaluations: [],
                 updatedAt: agentRow.updatedAt,
             },
@@ -811,6 +849,309 @@ describe('AiAgentCoderService', () => {
             const { service } = buildService({ skillsEnabled: false });
             const { agents } = await service.downloadAgents(user, projectUuid);
             expect(agents[0]).not.toHaveProperty('skills');
+        });
+    });
+
+    describe('knowledge documents', () => {
+        const scope = { projectUuid, agentUuid: agentRow.uuid };
+        const declared = {
+            name: ownedDocument.name,
+            alwaysIncludeInContext: ownedDocument.alwaysIncludeInContext,
+            mimeType: 'text/markdown' as const,
+            content: ownedDocument.content,
+        };
+
+        it('exports the documents the agent owns with their content and usage mode', async () => {
+            const { service } = buildService({
+                ownedDocuments: [ownedDocument],
+            });
+            const { agents } = await service.downloadAgents(user, projectUuid);
+            expect(agents[0].knowledgeDocuments).toEqual([declared]);
+        });
+
+        it('leaves documents untouched when the field is omitted', async () => {
+            const { service, aiAgentDocumentService } = buildService({
+                ownedDocuments: [ownedDocument],
+            });
+            const result = await service.upsertAgents(user, projectUuid, [
+                agentAsCode,
+            ]);
+            expect(
+                aiAgentDocumentService.deleteDocument,
+            ).not.toHaveBeenCalled();
+            expect(result.unchanged).toEqual(['revenue-agent']);
+        });
+
+        it('creates a declared document the agent does not have yet', async () => {
+            const { service, aiAgentDocumentService } = buildService();
+            const result = await service.upsertAgents(user, projectUuid, [
+                {
+                    ...agentAsCode,
+                    knowledgeDocuments: [
+                        { ...declared, alwaysIncludeInContext: true },
+                    ],
+                },
+            ]);
+            expect(
+                aiAgentDocumentService.createDocument,
+            ).toHaveBeenCalledExactlyOnceWith(user, scope, {
+                name: declared.name,
+                originalFilename: `${declared.name}.md`,
+                mimeType: 'text/markdown',
+                content: declared.content,
+            });
+            expect(
+                aiAgentDocumentService.updateDocument,
+            ).toHaveBeenCalledExactlyOnceWith(
+                user,
+                scope,
+                'created-document-uuid',
+                { alwaysIncludeInContext: true },
+                'repo',
+            );
+            expect(result.updated).toEqual(['revenue-agent']);
+        });
+
+        it('does not rewrite a document whose content and usage mode are unchanged', async () => {
+            const { service, aiAgentDocumentService } = buildService({
+                ownedDocuments: [ownedDocument],
+            });
+            const result = await service.upsertAgents(user, projectUuid, [
+                { ...agentAsCode, knowledgeDocuments: [declared] },
+            ]);
+            expect(
+                aiAgentDocumentService.updateDocumentContent,
+            ).not.toHaveBeenCalled();
+            expect(
+                aiAgentDocumentService.updateDocument,
+            ).not.toHaveBeenCalled();
+            expect(result.unchanged).toEqual(['revenue-agent']);
+        });
+
+        it('rewrites changed content and toggles the usage mode by name', async () => {
+            const { service, aiAgentDocumentService } = buildService({
+                ownedDocuments: [ownedDocument],
+            });
+            const result = await service.upsertAgents(user, projectUuid, [
+                {
+                    ...agentAsCode,
+                    knowledgeDocuments: [
+                        {
+                            ...declared,
+                            content: 'Gross of refunds.',
+                            alwaysIncludeInContext: true,
+                        },
+                    ],
+                },
+            ]);
+            expect(
+                aiAgentDocumentService.updateDocumentContent,
+            ).toHaveBeenCalledExactlyOnceWith(
+                user,
+                scope,
+                ownedDocument.uuid,
+                {
+                    name: declared.name,
+                    content: 'Gross of refunds.',
+                    mimeType: 'text/markdown',
+                },
+                'repo',
+            );
+            expect(
+                aiAgentDocumentService.updateDocument,
+            ).toHaveBeenCalledExactlyOnceWith(
+                user,
+                scope,
+                ownedDocument.uuid,
+                { alwaysIncludeInContext: true },
+                'repo',
+            );
+            expect(result.updated).toEqual(['revenue-agent']);
+        });
+
+        it('keeps a plain-text document plain and rewrites it when only the type changes', async () => {
+            const { service, aiAgentDocumentService } = buildService({
+                ownedDocuments: [ownedDocument],
+            });
+            await service.upsertAgents(user, projectUuid, [
+                {
+                    ...agentAsCode,
+                    knowledgeDocuments: [
+                        { ...declared, mimeType: 'text/plain' },
+                        {
+                            name: 'Notes',
+                            alwaysIncludeInContext: false,
+                            mimeType: 'text/plain',
+                            content: 'plain',
+                        },
+                    ],
+                },
+            ]);
+            expect(
+                aiAgentDocumentService.updateDocumentContent,
+            ).toHaveBeenCalledExactlyOnceWith(
+                user,
+                scope,
+                ownedDocument.uuid,
+                {
+                    name: declared.name,
+                    content: declared.content,
+                    mimeType: 'text/plain',
+                },
+                'repo',
+            );
+            expect(
+                aiAgentDocumentService.createDocument,
+            ).toHaveBeenCalledExactlyOnceWith(user, scope, {
+                name: 'Notes',
+                originalFilename: 'Notes.txt',
+                mimeType: 'text/plain',
+                content: 'plain',
+            });
+        });
+
+        it('treats an empty list as authoritative and deletes the agent-owned rest', async () => {
+            const { service, aiAgentDocumentService } = buildService({
+                ownedDocuments: [ownedDocument],
+            });
+            const result = await service.upsertAgents(user, projectUuid, [
+                { ...agentAsCode, knowledgeDocuments: [] },
+            ]);
+            expect(
+                aiAgentDocumentService.deleteDocument,
+            ).toHaveBeenCalledExactlyOnceWith(
+                user,
+                scope,
+                ownedDocument.uuid,
+                'repo',
+            );
+            expect(result.updated).toEqual(['revenue-agent']);
+        });
+
+        it('rejects duplicate document names before changing agents', async () => {
+            const { service, aiAgentModel } = buildService();
+            await expect(
+                service.upsertAgents(user, projectUuid, [
+                    {
+                        ...agentAsCode,
+                        knowledgeDocuments: [declared, { ...declared }],
+                    },
+                ]),
+            ).rejects.toThrow('Duplicate knowledge document names');
+            expect(aiAgentModel.updateAgent).not.toHaveBeenCalled();
+        });
+
+        it('rejects an oversized or over-named document before changing agents', async () => {
+            const { service, aiAgentModel, aiAgentDocumentService } =
+                buildService();
+            await expect(
+                service.upsertAgents(user, projectUuid, [
+                    {
+                        ...agentAsCode,
+                        knowledgeDocuments: [
+                            { ...declared, content: 'x'.repeat(20 * 1024 + 1) },
+                        ],
+                    },
+                ]),
+            ).rejects.toThrow('exceeds the 20480 byte limit');
+            await expect(
+                service.upsertAgents(user, projectUuid, [
+                    {
+                        ...agentAsCode,
+                        knowledgeDocuments: [
+                            { ...declared, name: 'n'.repeat(256) },
+                        ],
+                    },
+                ]),
+            ).rejects.toThrow('Document name cannot exceed 255 characters');
+            expect(aiAgentModel.updateAgent).not.toHaveBeenCalled();
+            expect(
+                aiAgentDocumentService.createDocument,
+            ).not.toHaveBeenCalled();
+        });
+
+        it('rejects an upload that would exceed the organization quota before changing agents', async () => {
+            const { service, aiAgentModel, aiAgentDocumentService } =
+                buildService({
+                    ownedDocuments: [ownedDocument],
+                    storedDocumentBytes: 5 * 1024 * 1024 - 10,
+                });
+            // The replaced document frees its 24 bytes; 40 incoming still overflows
+            await expect(
+                service.upsertAgents(user, projectUuid, [
+                    {
+                        ...agentAsCode,
+                        knowledgeDocuments: [
+                            { ...declared, content: 'x'.repeat(40) },
+                        ],
+                    },
+                ]),
+            ).rejects.toThrow('exceed the organization quota');
+            expect(aiAgentModel.updateAgent).not.toHaveBeenCalled();
+            expect(
+                aiAgentDocumentService.updateDocumentContent,
+            ).not.toHaveBeenCalled();
+        });
+
+        it('matches a stored name with stray whitespace to its trimmed repo name', async () => {
+            const { service, aiAgentDocumentService } = buildService({
+                ownedDocuments: [
+                    { ...ownedDocument, name: `${ownedDocument.name}  ` },
+                ],
+            });
+            const result = await service.upsertAgents(user, projectUuid, [
+                { ...agentAsCode, knowledgeDocuments: [declared] },
+            ]);
+            expect(
+                aiAgentDocumentService.createDocument,
+            ).not.toHaveBeenCalled();
+            expect(
+                aiAgentDocumentService.deleteDocument,
+            ).not.toHaveBeenCalled();
+            expect(result.unchanged).toEqual(['revenue-agent']);
+        });
+
+        it('fails only the agent whose documents could not be applied', async () => {
+            const { service, aiAgentDocumentService } = buildService();
+            aiAgentDocumentService.createDocument.mockRejectedValueOnce(
+                new Error('Content exceeds the 20480 byte limit.'),
+            );
+            const result = await service.upsertAgents(user, projectUuid, [
+                { ...agentAsCode, knowledgeDocuments: [declared] },
+            ]);
+            expect(result.failed).toEqual([
+                {
+                    slug: 'revenue-agent',
+                    message: expect.stringContaining(
+                        'Content exceeds the 20480 byte limit.',
+                    ),
+                },
+            ]);
+            expect(result.updated).toEqual([]);
+        });
+
+        it('stamps applied documents as Git-backed only under content_as_code.sync', async () => {
+            const stamped = buildService({ syncEnabled: true });
+            await stamped.service.upsertAgents(user, projectUuid, [
+                { ...agentAsCode, knowledgeDocuments: [declared] },
+            ]);
+            expect(
+                stamped.contentAsCodeSnapshotModel.upsert,
+            ).toHaveBeenCalledExactlyOnceWith(
+                expect.objectContaining({
+                    projectUuid,
+                    contentType: 'ai_agent_knowledge_document',
+                    slug: `revenue-agent/${declared.name}`,
+                }),
+            );
+
+            const copyOnly = buildService({ syncEnabled: false });
+            await copyOnly.service.upsertAgents(user, projectUuid, [
+                { ...agentAsCode, knowledgeDocuments: [declared] },
+            ]);
+            expect(
+                copyOnly.contentAsCodeSnapshotModel.upsert,
+            ).not.toHaveBeenCalled();
         });
     });
 });

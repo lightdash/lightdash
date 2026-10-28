@@ -197,7 +197,7 @@ organization resources will use the same root.
 | Dashboards           | Project      | Slug                             | `lightdash/dashboards/` or nested spaces |
 | Spaces               | Project      | Full hierarchy path              | `.space.yml` files                       |
 | Virtual views        | Project      | Slug                             | `lightdash/virtual-views/`               |
-| AI agents            | Project      | Slug                             | `lightdash/ai-agents/`                   |
+| AI agents            | Project      | Slug                             | `lightdash/ai-agents/` (+ `<slug>/knowledge-documents/`) |
 | Scheduled deliveries | Project      | Project-scoped slug              | `lightdash/scheduled-deliveries/`        |
 | Alerts               | Project      | Project-scoped slug              | `lightdash/alerts/`                      |
 | Google Sheets syncs  | Project      | Project-scoped slug              | `lightdash/google-sheets/`               |
@@ -224,6 +224,56 @@ used by new clients.
 Organization themes use the organization-design package endpoints instead of a
 `/code/{resource}` endpoint because their portable representation is an
 uncompressed tar archive rather than one JSON document.
+
+## AI agent knowledge documents
+
+An agent's knowledge documents travel with the agent. The YAML lists them
+under `knowledgeDocuments`, and each document's text lives in its own file
+beside the YAML so a change in Git is a readable diff:
+
+```
+lightdash/ai-agents/
+  revenue-agent.yml
+  revenue-agent/
+    knowledge-documents/
+      revenue-definitions.md
+      refund-policy.md
+```
+
+```yaml
+knowledgeDocuments:
+    - name: Revenue definitions
+      file: revenue-agent/knowledge-documents/revenue-definitions.md
+      alwaysIncludeInContext: true
+    - name: Refund policy
+      file: revenue-agent/knowledge-documents/refund-policy.md
+      alwaysIncludeInContext: false
+```
+
+`file` is relative to the YAML's directory and must stay inside it; `.md`
+files are markdown documents and `.txt` files plain text, and download writes
+each document back with the matching extension. The CLI inlines the content
+for the API; the server never sees file paths. Download
+writes only the documents the agent owns alone: documents shared with other
+agents or with the whole organization are not exported and an upload never
+touches them.
+
+The list follows the same rule as `skills`: omitted means "leave the agent's
+documents as they are", present means authoritative. Upload matches by
+document name, creates the missing ones, rewrites changed content, toggles
+`alwaysIncludeInContext`, and deletes the agent-owned documents the list no
+longer names. Unchanged content is skipped, so a repeat upload does not
+regenerate the document's AI summary. The per-document size limit and the
+organization quota apply as in the UI; a document that fails them fails only
+its agent.
+
+With `content_as_code.sync: true`, every uploaded document is recorded as
+Git-backed. The agent settings page then shows it as managed by Content as
+Code and refuses edits, usage changes and deletion from the UI for everyone;
+the repo is the only writer until the document is removed from the repo and
+uploaded again. Documents nobody uploaded stay editable, so one agent can mix
+repo-managed and UI-managed documents. Without sync, upload is a plain copy
+and the UI stays editable, like charts.
 
 ## Optional project resources
 
