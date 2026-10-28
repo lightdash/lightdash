@@ -9,6 +9,7 @@ import {
 } from '@lightdash/common';
 import { promises as fs } from 'fs';
 import * as path from 'path';
+import { assertSafeContentFilePath } from './contentAsCode/fileNames';
 
 export const KNOWLEDGE_DOCUMENTS_FOLDER_NAME = 'knowledge-documents';
 
@@ -122,11 +123,9 @@ export const writeAgentKnowledgeDocuments = async (
 };
 
 const assertSafeRelativeFile = (file: string, source: string): void => {
-    const segments = file.split(/[\\/]/);
-    if (
-        path.isAbsolute(file) ||
-        segments.some((segment) => segment === '..' || segment === '')
-    ) {
+    try {
+        assertSafeContentFilePath(file);
+    } catch {
         throw new ParameterError(
             `Invalid AI agent file "${source}": knowledge document file "${file}" must be a relative path inside the agent folder`,
         );
