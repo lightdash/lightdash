@@ -87,6 +87,13 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
     blockThirdParty: [
         async ({ context }, use) => {
             await context.route(THIRD_PARTY_HOSTS, (route) => route.abort());
+            // First-run notices open as dialogs and make `getByRole('dialog')` ambiguous
+            await context.addInitScript(() => {
+                window.localStorage.setItem(
+                    'homepage-v2-default-notice-closed',
+                    'true',
+                );
+            });
             await use();
         },
         { auto: true },
