@@ -140,6 +140,7 @@ import {
     type ExternalConnectionMethod,
     type ExternalConnectionSample,
     type ExternalFetchRequest,
+    type FieldUrl,
     type ImportAppCodeRequestBody,
     type InstallRegistryChartTypeBody,
     type KnexPaginateArgs,
@@ -666,6 +667,9 @@ type RenderedModel = {
     // Field refs of model filters left out because their value is not a list.
     skippedFilterRefs: string[];
     hasSqlFilter: boolean;
+    // Visible fields carrying `urls` link patterns; drives the index marker
+    // and the generation-prompt reminder.
+    urlFields: string[];
 };
 
 /**
@@ -3928,6 +3932,7 @@ export class AppGenerateService extends BaseService {
         let dimensionCount = 0;
         let metricCount = 0;
         let totalBytes = 0;
+        let urlModels: { model: string; fields: string[] }[] = [];
         if (!isDataAppViz) {
             // Source the synthetic schema from the compiled explore cache (not
             // the flattened catalog summary) so it carries joins, real field
@@ -3948,6 +3953,7 @@ export class AppGenerateService extends BaseService {
             dimensionCount = catalog.dimensionCount;
             metricCount = catalog.metricCount;
             totalBytes = catalog.totalBytes;
+            urlModels = catalog.urlModels;
             if (catalog.skippedFilters.length > 0) {
                 this.logger.warn(
                     `App ${appUuid}: left ${catalog.skippedFilters.length} model filter(s) out of the catalog because their value is not a list: ${catalog.skippedFilters.join(', ')}`,
@@ -3978,6 +3984,16 @@ export class AppGenerateService extends BaseService {
 
         // Write chart reference files and prepend summary to prompt
         let finalPrompt = prompt;
+
+        // Doc-level guidance alone is unreliably followed, so fields with
+        // `urls` link patterns also get a per-run reminder in the prompt.
+        if (urlModels.length > 0) {
+            const listing = urlModels
+                .map(({ model, fields }) => `${model}: ${fields.join(', ')}`)
+                .join('; ')
+                .slice(0, 2_000);
+            finalPrompt = `[Field links: these fields declare \`urls\` link patterns in their model YAML — ${listing}. Wherever the app displays one of their values (including via a join), render it as a link built from the pattern, styled visibly as a link. See "Field links — urls" in the skill.]\n\n${finalPrompt}`;
+        }
         if (chartReferences && chartReferences.length > 0) {
             const referenceBlock = await this.writeChartReferences(
                 sandbox,
@@ -12666,6 +12682,26 @@ export class AppGenerateService extends BaseService {
     }
 
     /**
+     * Field link patterns (`urls`), verbatim: `${value.raw}` and
+     * `${row.<model>.<field>.raw}` placeholders are the template's own syntax,
+     * not something to resolve here. The index header explains them.
+     */
+    private static renderFieldUrlsYaml(
+        urls: FieldUrl[] | undefined,
+        indent: string,
+    ): string[] {
+        if (!urls || urls.length === 0) return [];
+        const lines: string[] = [`${indent}urls:`];
+        for (const { label, url } of urls) {
+            lines.push(
+                `${indent}  - label: ${AppGenerateService.yamlQuote(label)}`,
+                `${indent}    url: ${AppGenerateService.yamlQuote(url)}`,
+            );
+        }
+        return lines;
+    }
+
+    /**
      * Render one compiled table as a dbt-style model, carrying real
      * metric/dimension types, join relationships (`meta.joins`), AI hints,
      * model-level parameters, and model-level filters (`sql_filter`,
@@ -12745,6 +12781,12 @@ export class AppGenerateService extends BaseService {
                             );
                         }
                     }
+                    headerLines.push(
+                        ...AppGenerateService.renderFieldUrlsYaml(
+                            m.urls,
+                            '          ',
+                        ),
+                    );
                 }
             }
             if (joins.length > 0) {
@@ -12822,6 +12864,12 @@ export class AppGenerateService extends BaseService {
             block.push(`        meta:`);
             block.push(`          dimension:`);
             block.push(`            type: ${d.type}`);
+            block.push(
+                ...AppGenerateService.renderFieldUrlsYaml(
+                    d.urls,
+                    '            ',
+                ),
+            );
             return block;
         });
 
@@ -12837,6 +12885,9 @@ export class AppGenerateService extends BaseService {
             defaultFilterCount: defaultFilters.length,
             skippedFilterRefs,
             hasSqlFilter: sqlFilter !== null,
+            urlFields: [...metrics, ...dimensions]
+                .filter((f) => f.urls && f.urls.length > 0)
+                .map((f) => f.name),
         };
     }
 
@@ -13055,6 +13106,7 @@ export class AppGenerateService extends BaseService {
         metricCount: number;
         totalBytes: number;
         skippedFilters: string[];
+        urlModels: { model: string; fields: string[] }[];
     } {
         const models = AppGenerateService.exploresToRenderedModels(explores);
         const filenames = AppGenerateService.modelFilenames(models);
@@ -13089,8 +13141,14 @@ export class AppGenerateService extends BaseService {
             'A `filters=` marker means the model declares model-level filters',
             '(required/default/sql_filter) that affect every query against it —',
             'read that model file before querying it.',
+            "A `urls=N` marker means N of the model's fields declare `urls:` —",
+            'link patterns whose values MUST render as links: `${value.raw}` is',
+            "the cell's raw value; `${row.<model>.<field>.raw}` references",
+            'another field in the same row (include that field in the query).',
+            'Check the marked model file before displaying any of its fields,',
+            'including fields queried through a join.',
             '',
-            'name  file  dims/metrics  joins  [filters]  description',
+            'name  file  dims/metrics  joins  [filters]  [urls]  description',
             '',
         ].join('\n');
 
@@ -13113,12 +13171,16 @@ export class AppGenerateService extends BaseService {
                 filterParts.length > 0
                     ? `  filters=${filterParts.join(',')}`
                     : '';
+            const urls =
+                model.urlFields.length > 0
+                    ? `  urls=${model.urlFields.length}`
+                    : '';
             const description = model.description
                 ? `  ${model.description
                       .replace(/\s+/g, ' ')
                       .slice(0, AppGenerateService.INDEX_DESCRIPTION_MAX_LEN)}`
                 : '';
-            return `${model.name}  ${filename}  dims=${model.dimensionCount} metrics=${model.metricCount}  joins=${joins}${filters}${description}`;
+            return `${model.name}  ${filename}  dims=${model.dimensionCount} metrics=${model.metricCount}  joins=${joins}${filters}${urls}${description}`;
         };
 
         const compactLine = (entry: (typeof ranked)[number]): string =>
@@ -13167,6 +13229,9 @@ export class AppGenerateService extends BaseService {
             skippedFilters: models.flatMap((m) =>
                 m.skippedFilterRefs.map((fieldRef) => `${m.name}.${fieldRef}`),
             ),
+            urlModels: models
+                .filter((m) => m.urlFields.length > 0)
+                .map((m) => ({ model: m.name, fields: m.urlFields })),
         };
     }
 

@@ -130,6 +130,33 @@ A field's position in the YAML determines whether it goes in `.dimensions()` or 
 
 Use the **metric key name**, not the label. YAML `label: "Order Count"` → SDK field name is `order_count`.
 
+### Field links — `urls`
+
+A dimension or metric may declare `urls:` — link patterns for its values:
+
+```yaml
+columns:
+    - name: account_number
+      meta:
+          dimension:
+              type: string
+              urls:
+                  - label: Open account
+                    url: "https://portal.example.com/accounts/${value.raw | url_encode }"
+                  - label: Open owner
+                    url: "https://portal.example.com/users/${row.accounts.owner_id.raw }"
+```
+
+**When a field you display declares `urls`, render its values as links built from those patterns** — in tables, underlying-data views, and anywhere the raw value is shown. Dashboards already do this; the app must match. Resolve placeholders yourself (simple substitution):
+
+- `${value.raw}` / `${value.formatted}` — the cell's own raw/formatted value.
+- `${row.<model>.<field>.raw}` (or `.formatted`) — another field in the same result row. **Add that field to the query** so it's present in the row.
+- A `| url_encode` filter means URL-encode the substituted value (`encodeURIComponent`).
+
+One pattern → the cell is a plain link (open in a new tab). Several → a primary link plus a menu, or a small dropdown. Skip the link for null/empty values. Never invent patterns for fields without `urls`.
+
+**Links must look like links at rest, not only on hover**: underline them (e.g. `underline underline-offset-4`) and/or use a distinct link color that fits the app's theme, plus a hover state. A viewer should spot the clickable cells without mousing over the table.
+
 ### Joined table fields — dot notation
 
 When a model has `joins`, the joined table's dimensions and metrics are available in your query. **Use dot notation** (`table.field`) to reference fields from joined tables:
@@ -637,6 +664,8 @@ Use `formatField` for cells so dates render `Jun 16, 2025` instead of `2025-06-1
 ```
 
 For the action-menu label and clipboard copy on a cell, the same helper applies — pass `format` so the per-field server format wins for currency/percent.
+
+**Before writing any table or value display, check each displayed field's model YAML for a `urls:` block.** A field with `urls` MUST render its values as links, not plain text — see [Field links — `urls`](#field-links--urls). This applies to joined-table fields too: `customers.first_name` queried through `orders` is defined in `customers.yml`, so check the joined model's file (the index marks models whose fields carry links with `urls=…`). This is not optional polish: dashboards render these links, and an app that drops them loses functionality the user already relies on.
 
 ### Filters
 
@@ -1283,6 +1312,7 @@ The action-menu example above shows typical `drillDown()` usage. For the full AP
 | Mistake | Why it breaks | Fix |
 |---|---|---|
 | Guessing field names | API returns opaque errors | Read the dbt YAML first — always |
+| Rendering a `urls` field's values as plain text | Dashboards render those values as links; the app silently drops functionality the user relies on | Check every displayed field's model YAML — including joined models (`customers.first_name` lives in `customers.yml`) — for `urls:` and render links per [Field links — `urls`](#field-links--urls) |
 | `.metrics()` on a pre-aggregated model | Re-aggregates already-aggregated values → wrong numbers | If `wins` is a dimension in the YAML, use `.dimensions(['wins'])` |
 | `.metrics(['max_cumulative_points'])` instead of `.dimensions(['cumulative_points'])` | Aggregates per-row data into a single value — collapses line charts | Check YAML: is it under `columns[].name` (dimension) or `meta.metrics` (metric)? |
 | Unused dimensions in `.dimensions()` | Changes GROUP BY → wrong numbers | Only include dimensions you render or require for sorting; hidden sort fields stay selected but can be omitted from the UI |
