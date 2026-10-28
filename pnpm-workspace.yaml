@@ -114,6 +114,8 @@ minimumReleaseAgeExclude:
   # Security update: Node.js 24.22.1 base binaries for the Homebrew CLI (GHSA-9vrh-hg26-pgj3)
   - "@yao-pkg/pkg@6.24.0"
   - "@yao-pkg/pkg-fetch@3.6.7"
+  # Renovate security update: snowflake-sdk@3.3.0
+  - snowflake-sdk@3.3.0
 
 # pnpm 11 defaults verifyDepsBeforeRun to `install`, which re-verifies (and
 # reinstalls) node_modules before running any package script. The production
