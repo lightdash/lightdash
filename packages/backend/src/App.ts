@@ -92,6 +92,7 @@ import { sessionAccountMiddleware } from './middlewares/accountMiddleware';
 import { jwtAuthMiddleware } from './middlewares/jwtAuthMiddleware';
 import { createRestrictUnverifiedSessionMiddleware } from './middlewares/restrictUnverifiedSession/restrictUnverifiedSession';
 import { flush as flushFeatureFlagChecks } from './models/FeatureFlagModel/flagCheckAggregator';
+import { featureFlagRequestMiddleware } from './models/FeatureFlagModel/requestFeatureFlags';
 import { ModelProviderMap, ModelRepository } from './models/ModelRepository';
 import PrometheusMetrics from './prometheus/PrometheusMetrics';
 import { apiV1Router } from './routers/apiV1Router';
@@ -398,6 +399,7 @@ export default class App {
         };
 
         const expressApp = express();
+        expressApp.use(featureFlagRequestMiddleware);
 
         // Increase query string array limit from default (20) to 1000
         // to support endpoints that accept large arrays (e.g. chart IDs for
