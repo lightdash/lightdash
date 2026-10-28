@@ -1,3 +1,10 @@
+# [3.86.0](https://github.com/lightdash/lightdash/compare/3.85.0...3.86.0) (2026-10-28)
+
+
+### Features
+
+* **query-sources:** add Prometheus metrics for live API source requests ([#31747](https://github.com/lightdash/lightdash/issues/31747)) ([12e1170](https://github.com/lightdash/lightdash/commit/12e11706c769dc4cff7921d639b9bd0f18fa122d))
+
 # [3.85.0](https://github.com/lightdash/lightdash/compare/3.84.0...3.85.0) (2026-10-28)
 
 
