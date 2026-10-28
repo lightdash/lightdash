@@ -2,7 +2,8 @@ import { type DashboardFilterRule } from '@lightdash/common';
 import { Button, Divider, Group, Popover, Text, Tooltip } from '@mantine/core';
 import { useDisclosure, useId } from '@mantine/hooks';
 import { IconEye, IconEyeOff, IconRotate2 } from '@tabler/icons-react';
-import { useCallback, useMemo, type FC, type ReactNode } from 'react';
+import { useCallback, useMemo, useRef, type FC, type ReactNode } from 'react';
+import { flushSync } from 'react-dom';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
@@ -101,13 +102,41 @@ const AddFilterButton: FC<Props> = ({
         closeSubPopover();
     }, [isPopoverOpen, onPopoverClose, closeSubPopover]);
 
+    // A viewer's new filter is kept when the popover closes, as "any value"
+    // until a value is set
+    const draftRef = useRef<DashboardFilterRule | undefined>(undefined);
     const handleSaveChanges = useCallback(
         (newRule: DashboardFilterRule) => {
+            draftRef.current = undefined;
             onSave(newRule);
             handleClose();
         },
         [onSave, handleClose],
     );
+
+    const handleDraftChange = useCallback(
+        (rule: DashboardFilterRule | undefined) => {
+            draftRef.current = rule;
+        },
+        [],
+    );
+    const dropdownRef = useRef<HTMLDivElement>(null);
+    const handleDismiss = useCallback(() => {
+        // Inputs that commit typed text on blur would lose it: the popover
+        // closes on mousedown, before the blur
+        const activeElement = document.activeElement;
+        if (
+            (activeElement instanceof HTMLInputElement ||
+                activeElement instanceof HTMLTextAreaElement) &&
+            dropdownRef.current?.contains(activeElement)
+        ) {
+            flushSync(() => activeElement.blur());
+        }
+        const draft = draftRef.current;
+        draftRef.current = undefined;
+        if (!isEditMode && isPopoverOpen && draft) onSave(draft);
+        handleClose();
+    }, [isEditMode, isPopoverOpen, onSave, handleClose]);
 
     const showResetFiltersButton = !isEditMode && haveFiltersChanged;
     const hasAttachedButton = showResetFiltersButton || isEditMode;
@@ -161,8 +190,8 @@ const AddFilterButton: FC<Props> = ({
                 opened={isPopoverOpen}
                 closeOnEscape={!isSubPopoverOpen}
                 closeOnClickOutside={!isSubPopoverOpen}
-                onClose={handleClose}
-                onDismiss={!isSubPopoverOpen ? handleClose : undefined}
+                onClose={handleDismiss}
+                onDismiss={!isSubPopoverOpen ? handleDismiss : undefined}
                 disabled={disabled}
                 transitionProps={{ transition: 'pop-top-left' }}
                 withArrow
@@ -205,7 +234,7 @@ const AddFilterButton: FC<Props> = ({
                             }}
                             onClick={() =>
                                 isPopoverOpen
-                                    ? handleClose()
+                                    ? handleDismiss()
                                     : onPopoverOpen(popoverId)
                             }
                         >
@@ -214,7 +243,7 @@ const AddFilterButton: FC<Props> = ({
                     </Tooltip>
                 </Popover.Target>
 
-                <Popover.Dropdown>
+                <Popover.Dropdown ref={dropdownRef}>
                     {dashboardTiles && (
                         <FilterConfiguration
                             isCreatingNew={true}
@@ -230,6 +259,7 @@ const AddFilterButton: FC<Props> = ({
                                 filterableFieldsByTileUuid ?? {}
                             }
                             onSave={handleSaveChanges}
+                            onDraftChange={handleDraftChange}
                             popoverProps={{
                                 onOpen: openSubPopover,
                                 onClose: closeSubPopover,

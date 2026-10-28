@@ -3105,17 +3105,19 @@ describe('ControlsSidebarProvider in view mode', () => {
         expect(addFilterTracks()).toHaveLength(1);
     });
 
-    it("drops a viewer's new filter left with no value on Apply, as the shipped Apply", () => {
+    it("keeps a viewer's new filter left with no value on Apply, as any value", () => {
         const { result } = setup();
         act(() => result.current.openNew());
         act(() => result.current.addFirstField(statusField));
         expect(latest.temporaryFilters.dimensions).toHaveLength(1);
 
         act(() => result.current.close());
-        expect(latest.temporaryFilters).toEqual(NO_TEMPORARY_FILTERS);
-        expect(latest.changed).toBe(false);
+        expect(latest.temporaryFilters.dimensions).toEqual([
+            expect.objectContaining({ disabled: true }),
+        ]);
+        expect(latest.filters).toEqual(initialFilters);
         expect(result.current.editing).toBeNull();
-        expect(addFilterTracks()).toHaveLength(0);
+        expect(addFilterTracks()).toHaveLength(1);
     });
 
     it("adds a viewer's filter on a SQL column to the temporary filters", () => {
@@ -3278,15 +3280,17 @@ describe('ControlsSidebarProvider in view mode', () => {
             expect(result.current.isSidebarOpen).toBe(false);
         });
 
-        it('drops a new viewer filter with no value', () => {
+        it('keeps a new viewer filter with no value as any value', () => {
             const { result, rerender } = setup();
             act(() => result.current.openNew());
             act(() => result.current.addFirstField(statusField));
             mockParams.current = { mode: 'edit' };
             rerender();
             expect(result.current.isSidebarOpen).toBe(false);
-            expect(latest.temporaryFilters).toEqual(NO_TEMPORARY_FILTERS);
-            expect(addFilterTracks()).toHaveLength(0);
+            expect(latest.temporaryFilters.dimensions).toEqual([
+                expect.objectContaining({ disabled: true }),
+            ]);
+            expect(addFilterTracks()).toHaveLength(1);
         });
 
         it('keeps and tracks a new viewer filter with a value, as temporary', () => {

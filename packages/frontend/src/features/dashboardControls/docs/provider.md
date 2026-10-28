@@ -49,8 +49,9 @@ there is no separate list or open state.
 
 - `close()` (Apply) keeps the edits: they already live in the dashboard
   draft. A rule that cannot be kept (`canKeepFilterRule`: no field) is
-  dropped; a viewer's new filter with no value is dropped untracked; an empty
-  enabled default is written `disabled: true`.
+  dropped; a viewer's new filter with no value is kept as any value
+  (`disabled`) and tracked; an empty enabled default is written
+  `disabled: true`.
 - `discard()` (Cancel) and removing the edited filter undo what the editor
   wrote and nothing else: the edited rule goes back to its snapshot
   (`restoreFilterRule`, section and list position included), and other rules

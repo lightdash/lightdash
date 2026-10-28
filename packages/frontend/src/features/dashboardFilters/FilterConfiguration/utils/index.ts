@@ -437,23 +437,9 @@ export const getFilterRuleFilterType = (
     return FilterType.STRING;
 };
 
-export const isFilterEnabled = (
-    filterRule?: DashboardFilterRule,
-    isEditMode?: boolean,
-    isCreatingNew?: boolean,
-) => {
-    if (!filterRule) return false;
-
-    const isFilterRuleDisabled = filterRule.disabled;
-    if (
-        (isFilterRuleDisabled && isEditMode) ||
-        (isFilterRuleDisabled && !isCreatingNew)
-    ) {
-        return true;
-    }
-
-    return hasFilterValueSet(filterRule);
-};
+// A disabled rule reads "any value", which can always be applied
+export const isFilterEnabled = (filterRule?: DashboardFilterRule) =>
+    !!filterRule && (!!filterRule.disabled || hasFilterValueSet(filterRule));
 
 // Dashboard rules and chart rules share the fields a saved-value comparison
 // reads, so scheduler overrides on either resource reuse these helpers.
