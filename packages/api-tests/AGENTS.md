@@ -1,4 +1,4 @@
-# CLAUDE.md - api-tests Package
+# AGENTS.md - api-tests Package
 
 This file provides guidance to Claude Code when working with the `api-tests`
 package. See [README.md](README.md) for how to run the suite.

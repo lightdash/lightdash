@@ -1,4 +1,4 @@
-# CLAUDE.md
+# AGENTS.md
 
 ## Warehouse Credentials Protection
 

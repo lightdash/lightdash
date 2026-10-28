@@ -29,7 +29,7 @@ Each chart type requires changes across these layers:
 
 Chart logic lives in `@lightdash/visualization`, not in the frontend, so the
 web app, the SDK, embedding and Desktop draw the same chart. Read
-`packages/visualization/CLAUDE.md` first.
+`packages/visualization/AGENTS.md` first.
 
 - `config.ts`: `resolveXxxChartConfig` (defaults, field auto-selection,
   repairs, chart-specific data) and the pure helpers the editor hook calls
@@ -41,7 +41,7 @@ web app, the SDK, embedding and Desktop draw the same chart. Read
 ### 5. Frontend Hooks (thin wrappers over the package)
 
 Editor state lives in the per-chart Redux store
-(`packages/frontend/src/features/visualization/store/`, read its CLAUDE.md):
+(`packages/frontend/src/features/visualization/store/`, read its AGENTS.md):
 
 - `store/xxxEditorSlice.ts`: the editor's state type, `buildXxxEditorState`
   (the seed from a saved config) and reducers for edits with a meaning

@@ -2,7 +2,7 @@
 
 `Release-safety preview` is a required check on `main`. It protects self-hosted upgrades: `unknown` means we could not confirm the change is safe, while `breaking` means we know it is incompatible. Both hold the upgrade, for different reasons.
 
-- For migration breaks, follow the detailed [migration release-safety declarations](../packages/backend/src/database/migrations/CLAUDE.md#release-safety-declarations).
+- For migration breaks, follow the detailed [migration release-safety declarations](../packages/backend/src/database/migrations/AGENTS.md#release-safety-declarations).
 - For API or type breaks, add a stable ID to `release-safety.declarations.json` with `reason` and `requiredStop`. The reason must be at least 24 characters, use more than one word, describe what breaks and for whom, and not use placeholder text. Omit `migration` for these entries.
 
 For REST or MCP changes with no external callers, add an advisory declaration:

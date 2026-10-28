@@ -1,4 +1,4 @@
-# CLAUDE.md
+# AGENTS.md
 
 ## LIGHTDASH_SECRET-Derived State Must Register for Rotation
 

@@ -45,5 +45,5 @@ defaults cannot drift.
 - `packages/frontend/src/ee/providers/Embed/useUiStrings.ts` — the hook
 - `packages/common/src/utils/filterLabels.ts` — the resolver-threading
   pattern for pure functions
-- `packages/frontend/src/ee/providers/Embed/CLAUDE.md` — the delivery
+- `packages/frontend/src/ee/providers/Embed/AGENTS.md` — the delivery
   mechanism (`uiOverrides` prop → `EmbedProvider` → `t()`)

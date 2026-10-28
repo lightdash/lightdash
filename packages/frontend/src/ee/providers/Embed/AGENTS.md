@@ -86,10 +86,10 @@ const filter: SdkFilter = {
 - User abilities are automatically updated based on the embedded user's permissions
 - The provider supports navigation between dashboard and explore views while maintaining context
 - Content can be customized through language maps for white-label deployments
-- UI chrome strings are translated via the `uiOverrides` prop: `t()` on the context looks up a `UiStringKey` in it, and `useUiStrings()` adds the English-default fallback. `t()` resolves at a single point in the provider so a future direct-embed transport can add its source there. Shipped `UiStringKey`s are a public SDK contract — additive only, never rename or remove. See `packages/frontend/src/components/common/Filters/CLAUDE.md` for the full mandate on adding strings.
-- Embeds are white-label: shared components hide Lightdash branding and links to Lightdash docs when `useIsEmbedded()` (`./useIsEmbedded.ts`) is true. See "Embeds are white-label" in `packages/frontend/CLAUDE.md` before adding a docs link, help icon or branded copy to anything an embed can render.
+- UI chrome strings are translated via the `uiOverrides` prop: `t()` on the context looks up a `UiStringKey` in it, and `useUiStrings()` adds the English-default fallback. `t()` resolves at a single point in the provider so a future direct-embed transport can add its source there. Shipped `UiStringKey`s are a public SDK contract — additive only, never rename or remove. See `packages/frontend/src/components/common/Filters/AGENTS.md` for the full mandate on adding strings.
+- Embeds are white-label: shared components hide Lightdash branding and links to Lightdash docs when `useIsEmbedded()` (`./useIsEmbedded.ts`) is true. See "Embeds are white-label" in `packages/frontend/AGENTS.md` before adding a docs link, help icon or branded copy to anything an embed can render.
 - Embed tokens contain permissions, user attributes, and expiration settings configured server-side
-- Gate new embedded features with `ability.can('view', 'Embed…')` from an embed scope, not a new JWT `content` flag read through `useEmbed()`. See `packages/common/src/authorization/CLAUDE.md`.
+- Gate new embedded features with `ability.can('view', 'Embed…')` from an embed scope, not a new JWT `content` flag read through `useEmbed()`. See `packages/common/src/authorization/AGENTS.md`.
 </importantToKnow>
 
 <links>

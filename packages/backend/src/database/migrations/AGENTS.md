@@ -32,7 +32,7 @@ The migration system supports both up/down functions and includes 150+ historica
 
 ## Release-safety declarations
 
-For API and type breaks outside migrations, see the root [release-safety declarations](../../../../../CLAUDE.md#release-safety-declarations).
+For API and type breaks outside migrations, see the root [release-safety declarations](../../../../../AGENTS.md#release-safety-declarations).
 
 The release-safety gate applies these rules only to migration files changed by the pull request. Existing untouched migrations are grandfathered.
 
