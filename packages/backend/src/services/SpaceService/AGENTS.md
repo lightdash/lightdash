@@ -58,7 +58,7 @@ const accessible = await spacePermissionService.getAccessibleSpaceUuids(
   -> `resolveSpaceAccess` computes effective roles per user across the chain -> CASL checks the
   final permission.
 - **Wired up in EE**: Injected as a dependency into EE services via `ServiceRepository`.
-  See @packages/common/src/authorization/space/CLAUDE.md for the full mental model and mapping.
+  See @packages/common/src/authorization/space/AGENTS.md for the full mental model and mapping.
 
 **Why the old approach (`SpaceModel`) was bad:**
 

@@ -12,7 +12,7 @@ Checklist for deprecating a backend HTTP endpoint. The runtime behavior
 (warn→error logging, response headers) lives in one shared middleware — you
 only wire it on and supply a date + replacement hint.
 
-The authoritative policy is `packages/backend/src/controllers/CLAUDE.md` →
+The authoritative policy is `packages/backend/src/controllers/AGENTS.md` →
 "Deprecating Endpoints". This skill is the actionable checklist.
 
 ## Scope — endpoints only

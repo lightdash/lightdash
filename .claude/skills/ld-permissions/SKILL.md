@@ -147,7 +147,7 @@ Custom roles persist scope names as strings in the `scoped_roles` table (`role_u
 | **Tighten conditions on an existing scope** | No row change needed, but the behavioral change is invisible to operators. | None on the table; note in PR description. |
 | **Add a brand-new scope** | No existing rows are affected. Only system roles in `roleToScopeMapping.ts` need updating. | None for custom roles. |
 
-**Migration conventions** (see `packages/backend/src/database/CLAUDE.md` for general safe-migration rules):
+**Migration conventions** (see `packages/backend/src/database/AGENTS.md` for general safe-migration rules):
 
 - Wrap the body in `try/catch` and log a recoverable manual-fix command on failure. These backfills are best-effort cleanup — failing them should never block subsequent migrations.
 - Use `ON CONFLICT DO NOTHING` for inserts since `(role_uuid, scope_name)` is the natural unique key.
@@ -199,4 +199,4 @@ Why: the grant means "you may work within this dashboard", so it must never beco
 - Boundary-crossing op (move to space, promote, content-as-code, pin, copy into a *different* dashboard) → pass `uuid: null` (or use `getSpaceAccessContext`) so grants never count. The `expectNoGrantRows` test tripwire guards these — if you route a boundary op through a grant, that test fails.
 - Never resolve a grant against a `spaceUuid` the granting dashboard does not belong to; the helper asserts this pairing.
 
-The write-vs-boundary split lives in `SavedChartService` (grant-aware: `update`, `createVersion`, `create`, `delete`, `softDelete`, `duplicate`; space-only: `moveToSpace`, the move half of `updateMultiple`, pinning). See also `packages/backend/src/services/SpaceService/CLAUDE.md`.
+The write-vs-boundary split lives in `SavedChartService` (grant-aware: `update`, `createVersion`, `create`, `delete`, `softDelete`, `duplicate`; space-only: `moveToSpace`, the move half of `updateMultiple`, pinning). See also `packages/backend/src/services/SpaceService/AGENTS.md`.

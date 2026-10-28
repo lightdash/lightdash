@@ -40,7 +40,7 @@ If a Lightdash maintainer has invited you to contribute or approved your propose
 
 1. Confirm the scope and intended approach with the maintainer before you begin.
 2. Make sure the agreement is recorded on the relevant issue or pull request.
-3. Read the repository-level guidance and any instruction or context files relevant to the area you are changing, including `AGENTS.md`, `CLAUDE.md` and `CONTEXT-MAP.md`.
+3. Read the repository-level guidance and any instruction or context files relevant to the area you are changing, including `AGENTS.md` and `CONTEXT-MAP.md`.
 4. Keep the pull request focused on the agreed scope.
 5. Run the relevant tests and checks before requesting review.
 

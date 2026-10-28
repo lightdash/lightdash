@@ -30,7 +30,7 @@ assignment.
 **Adding a chart type or option:** add the resolver and builder in its folder,
 a case in `resolveChart` and `buildChart` (`render.ts`), the editor helpers the
 frontend needs to `editor.ts`, and keep the frontend hooks thin wrappers.
-See `packages/frontend/src/components/LightdashVisualization/CLAUDE.md` for
+See `packages/frontend/src/components/LightdashVisualization/AGENTS.md` for
 the rest of the chart-type checklist.
 </howToUse>
 

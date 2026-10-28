@@ -48,7 +48,7 @@ Customers embed Lightdash (iframe or SDK) inside their own product, so their end
 -   **Never say "Lightdash" to mean the app** in error messages (on any page) or in labels of embed-reachable components. Write "the server", "this instance", or drop the word. Scope and exceptions are in `docs/white-label-copy.md`.
 -   **New pages and components**: before finishing, grep your change for `lightdash.com` and `Lightdash` in user-visible strings, then decide for each whether an embed can reach it. Settings, project connection and admin pages are not embed-reachable and need no gate, but their error messages still must not say "Lightdash".
 -   **This is not authorization.** `useIsEmbedded()` only removes branding. What an embedded user may do is decided by abilities and the JWT, never by this flag.
--   Translating embed-visible strings is a separate mechanism (`uiOverrides`, see `src/components/common/Filters/CLAUDE.md`).
+-   Translating embed-visible strings is a separate mechanism (`uiOverrides`, see `src/components/common/Filters/AGENTS.md`).
 
 ## 🎓 Learn walkthroughs (`data-tour-*` attributes)
 
