@@ -290,6 +290,10 @@ host = "api.anthropic.com"          # Ask AI, data apps
 port = 443
 
 [[egress.allow]]
+host = "api.typesafe.ai"            # Jev decisions (JEV_API_KEY)
+port = 443
+
+[[egress.allow]]
 host = "api.brandfetch.io"          # organization brand lookup
 port = 443
 
@@ -395,6 +399,8 @@ WAREHOUSE_TRINO_HOST = "host"
 ANTHROPIC_API_KEY = "api-key"
 BRANDFETCH_API_KEY = "api-key"
 E2B_API_KEY = "api-key"
+E2B_TEMPLATE_TAG = "config"            # data-app sandbox template; defaults to the app version
+JEV_API_KEY = "api-key"                # TypeSafe Jev
 GITHUB_APP_ID = "github-app"
 GITHUB_APP_NAME = "github-app"
 GITHUB_CLIENT_ID = "github-app"
