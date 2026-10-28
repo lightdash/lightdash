@@ -14,7 +14,6 @@ and fixed values: never a filter or section name, label, value or field id.
 | `dashboard_filter_editor.switch_answered` | `resolvePending` (`apply`, `discard`) and Escape on a pending question (`withdrawn`)                                                          |
 | `dashboard_filters.moved`                 | Edited filter: `updateFilter` when the Section select changes its shown section; bar: `countSectionChanges`, never for a filter being created |
 | `dashboard_section.created`               | `NewSection` commit in `SectionedFilters` (the only event for it; moved pills send no `moved`)                                                |
-| `dashboard_sections_tip.dismissed`        | The tip's X                                                                                                                                   |
 | `dashboard_section.toggled`               | A viewer's capsule fold                                                                                                                       |
 
 Rules:

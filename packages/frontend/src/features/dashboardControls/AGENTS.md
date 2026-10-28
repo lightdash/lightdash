@@ -65,8 +65,7 @@ Openings (optional props, defaults are today's behaviour):
 - `FilterRequirements/RequiredFilterCard`: `onChangeOtherFilterRule`,
   `disabledReason`, `isListInPortal`, `withCard`.
 - `ActiveFilters/FilterPillButton`: `removeLabel`, `fieldIconOverride`,
-  `isLockSpaceReserved`, `areActionsHidden`, `leadingIcon`;
-  `Filter`: `openLeadingIcon`.
+  `isLockSpaceReserved`, `areActionsHidden`, `leadingIcon`.
 - `FilterConfiguration/FilterFieldSelect`: `defaultOpened`, `withLabel`,
   `placeholder`, `withinPortal`.
 - `FilterConfiguration/utils`: `getFilterRuleWithRequired` takes
@@ -105,7 +104,6 @@ Fix behaviour in the shared piece, once, never in a copy.
 | `LinkPrompts.tsx`, `linkCandidates.ts` | Link prompts on tiles added while editing |
 | `SectionedFilters.tsx`, `SectionMenu.tsx`, `SectionNameInput.tsx`, `sections.ts` | Sections bar, drag and drop, naming; pure section helpers |
 | `SelectionBar.tsx`, `SelectionActions.tsx`, `barSelection.ts` | Multi-select on the sectioned bar |
-| `SectionsTip.tsx`, `useSectionsTip.ts` | The one-time sections tip |
 | `DashboardHeaderGuard.tsx` | Shipped header made inert while an editor's filter is edited |
 | `useEditorDismiss.ts` | Escape handling while a filter is edited |
 | `DropdownClass.tsx`, `railContractClasses.ts` | Embed class contract on the rail and portalled lists |

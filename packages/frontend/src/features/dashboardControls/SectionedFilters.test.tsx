@@ -2613,7 +2613,6 @@ describe('SectionedFilters', () => {
     describe('tracking', () => {
         const setDashboardFilters = vi.fn();
         const setHaveFiltersChanged = vi.fn();
-        const TIP_KEY = 'dashboard-controls-sections-tip-dismissed';
         const grid = document.createElement('div');
         grid.className = 'react-grid-layout';
         const dragEvent = (activeId: string, overId: string) =>
@@ -2634,7 +2633,6 @@ describe('SectionedFilters', () => {
 
         beforeEach(() => {
             vi.clearAllMocks();
-            localStorage.removeItem(TIP_KEY);
             mockDroppable.current = null;
             document.body.appendChild(grid);
             mockSidebar.current = { isViewer: false, isSidebarOpen: false };
@@ -2665,7 +2663,6 @@ describe('SectionedFilters', () => {
         };
         afterEach(() => {
             expectNoNames();
-            localStorage.removeItem(TIP_KEY);
             grid.remove();
         });
 
@@ -2694,7 +2691,7 @@ describe('SectionedFilters', () => {
             expect(mockTrack).toHaveBeenCalledTimes(1);
         });
 
-        it('tracks a section made from the New section capsule, with the tip on screen', async () => {
+        it('tracks a section made from the New section capsule', async () => {
             const user = userEvent.setup();
             renderSectioned(
                 [rule('one', undefined), rule('two', undefined)],
@@ -2713,7 +2710,6 @@ describe('SectionedFilters', () => {
                     filtersCount: 2,
                     source: 'new_section_capsule',
                     filtersMoved: 0,
-                    wasTipShown: true,
                 },
             });
         });
@@ -2747,7 +2743,6 @@ describe('SectionedFilters', () => {
                         ...base,
                         source: 'selection_bar',
                         filtersMoved: 2,
-                        wasTipShown: false,
                     },
                 },
             ]);

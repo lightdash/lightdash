@@ -1223,28 +1223,24 @@ describe('FilterPills', () => {
             ).toBeNull();
         });
 
-        it('badges a saved pill while its popover is open', async () => {
+        it('never badges a saved pill while its popover is open', async () => {
             const user = userEvent.setup();
             renderWithProviders(<FilterPills activeTabUuid={undefined} />);
 
-            expect(editBadgeIn(pill(/^Status/))).toBeNull();
             await user.click(pill(/^Status/));
             await screen.findByRole('dialog');
-            // First, before the field icon, which stays
-            const [first, second] = leadingIconsOf(pill(/^Status/));
-            expect(first).toHaveAttribute('data-edit-badge');
-            expect(isFieldIcon(second)).toBe(true);
-            expect(editBadgeIn(pill(/^Region/))).toBeNull();
+            expect(editBadgeIn(pill(/^Status/))).toBeNull();
+            expect(isFieldIcon(leadingIconsOf(pill(/^Status/))[0])).toBe(true);
         });
 
-        it('badges their own pill while it is open in the rail', () => {
+        it('never badges their own pill while it is open in the rail', () => {
             mockSidebar.current = {
                 ...mockSidebar.current,
                 editing: { filterId: 'own' },
                 isSidebarOpen: true,
             };
             renderWithProviders(<FilterPills activeTabUuid={undefined} />);
-            expect(editBadgeIn(pill(/^Order region/))).not.toBeNull();
+            expect(editBadgeIn(pill(/^Order region/))).toBeNull();
         });
 
         it("applies a saved pill's value as the shipped view-mode write", async () => {
