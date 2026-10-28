@@ -90,6 +90,7 @@ export const EvalPreviewSidebar: FC<EvalPreviewSidebarProps> = ({
             <Group p="lg" gap="xl" align="flex-start">
                 <MetaField label="Agent">
                     <AgentNamePill
+                        uuid={evalSummary.agent.uuid}
                         name={evalSummary.agent.name}
                         imageUrl={evalSummary.agent.imageUrl}
                     />

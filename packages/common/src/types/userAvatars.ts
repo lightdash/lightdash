@@ -118,7 +118,7 @@ const hexToHsl = (hex: HexColor): Hsl => {
     return { h: h * 60, s: s * 100, l: l * 100 };
 };
 
-const hslToHex = ({ h, s, l }: Hsl): HexColor => {
+export const hslToHex = ({ h, s, l }: Hsl): HexColor => {
     const sNorm = Math.min(100, Math.max(0, s)) / 100;
     const lNorm = Math.min(100, Math.max(0, l)) / 100;
     const hNorm = ((h % 360) + 360) % 360;
@@ -141,7 +141,7 @@ const hslToHex = ({ h, s, l }: Hsl): HexColor => {
     return `#${toHex(rp)}${toHex(gp)}${toHex(bp)}`;
 };
 
-const shiftHsl = (
+export const shiftHsl = (
     hex: HexColor,
     { hueShift = 0, satShift = 0, lightShift = 0 },
 ): HexColor => {

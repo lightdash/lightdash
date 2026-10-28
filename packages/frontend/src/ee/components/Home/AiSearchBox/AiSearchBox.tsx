@@ -22,6 +22,7 @@ import { Link, useNavigate } from 'react-router';
 import { CategoryBadge } from '../../../../components/common/CategoryBadge';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { PolymorphicGroupButton } from '../../../../components/common/PolymorphicGroupButton';
+import { AgentAvatar } from '../../../features/aiCopilot/components/AgentAvatar';
 import { CompactAgentSelector } from '../../../features/aiCopilot/components/AgentSelector';
 import {
     AI_ROUTING_AUTO_VALUE,
@@ -239,13 +240,27 @@ const AiSearchBoxInner: FC<Props> = ({
                                         style={{ overflow: 'hidden' }}
                                         align="flex-start"
                                     >
-                                        <AiAgentIcon
-                                            style={{
-                                                flexShrink: 0,
-                                                marginTop: 4,
-                                            }}
-                                            size={14}
-                                        />
+                                        {activeSelection &&
+                                        activeSelection !== 'auto' ? (
+                                            <AgentAvatar
+                                                uuid={activeSelection.uuid}
+                                                name={activeSelection.name}
+                                                imageUrl={
+                                                    activeSelection.imageUrl
+                                                }
+                                                size={14}
+                                                className={
+                                                    styles.askAiAgentAvatar
+                                                }
+                                            />
+                                        ) : (
+                                            <AiAgentIcon
+                                                size={14}
+                                                className={
+                                                    styles.askAiAgentAvatar
+                                                }
+                                            />
+                                        )}
                                         <Text
                                             size="sm"
                                             c="foreground"

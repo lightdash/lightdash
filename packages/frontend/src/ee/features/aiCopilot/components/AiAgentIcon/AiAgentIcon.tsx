@@ -1,3 +1,4 @@
+import { type AiAgentOrbPalette } from '@lightdash/common';
 import { type CSSProperties, type FC } from 'react';
 import styles from './AiAgentIcon.module.css';
 
@@ -6,15 +7,27 @@ type Props = {
     muted?: boolean;
     animated?: boolean;
     calm?: boolean;
+    // Overrides the brand violet; see getAiAgentOrbPalette for per-agent colors.
+    palette?: AiAgentOrbPalette;
     className?: string;
     style?: CSSProperties;
 };
+
+const paletteVars = (palette: AiAgentOrbPalette): CSSProperties =>
+    ({
+        '--ai-agent-icon-base': palette.base,
+        '--ai-agent-icon-light': palette.light,
+        '--ai-agent-icon-lighter': palette.lighter,
+        '--ai-agent-icon-deep': palette.deep,
+        '--ai-agent-icon-accent': palette.accent,
+    }) as CSSProperties;
 
 export const AiAgentIcon: FC<Props> = ({
     size = 16,
     muted = false,
     animated = false,
     calm = false,
+    palette,
     className,
     style,
 }) => {
@@ -28,6 +41,7 @@ export const AiAgentIcon: FC<Props> = ({
             style={
                 {
                     '--ai-agent-icon-size': resolvedSize,
+                    ...(palette ? paletteVars(palette) : {}),
                     ...style,
                 } as CSSProperties
             }

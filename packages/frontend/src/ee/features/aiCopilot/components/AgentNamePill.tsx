@@ -1,8 +1,9 @@
 import { Group, Paper, Text } from '@mantine/core';
 import { type FC } from 'react';
-import { LightdashUserAvatar } from '../../../../components/Avatar';
+import { AgentAvatar } from './AgentAvatar';
 
 type AgentNamePillProps = {
+    uuid: string;
     name: string;
     imageUrl: string | null;
     // 'pill' for table cells (boxed, scanned once per column);
@@ -11,6 +12,7 @@ type AgentNamePillProps = {
 };
 
 export const AgentNamePill: FC<AgentNamePillProps> = ({
+    uuid,
     name,
     imageUrl,
     variant = 'pill',
@@ -19,10 +21,11 @@ export const AgentNamePill: FC<AgentNamePillProps> = ({
 
     const content = (
         <Group gap="two" wrap="nowrap">
-            <LightdashUserAvatar
+            <AgentAvatar
+                uuid={uuid}
                 size={isPill ? 12 : 14}
                 name={name}
-                src={imageUrl}
+                imageUrl={imageUrl}
             />
             <Text
                 fz={isPill ? 'sm' : 'xs'}

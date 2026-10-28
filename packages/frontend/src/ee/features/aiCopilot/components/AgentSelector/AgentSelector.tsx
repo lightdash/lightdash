@@ -16,10 +16,10 @@ import {
 } from '@tabler/icons-react';
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
-import { LightdashUserAvatar } from '../../../../../components/Avatar';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useAiRouterConfig } from '../../hooks/useAiRouter';
 import { useAgentSettingsLinkState } from '../../utils/agentSettingsNavigation';
+import { AgentAvatar } from '../AgentAvatar';
 import styles from './AgentSelector.module.css';
 import {
     AI_ROUTING_AUTO_VALUE,
@@ -146,10 +146,11 @@ export const AgentSelector = ({
                 >
                     <Group gap={6} wrap="nowrap" align="center" w="100%">
                         {!isAuto && (
-                            <LightdashUserAvatar
+                            <AgentAvatar
+                                uuid={selectedAgent.uuid}
                                 size={22}
                                 name={selectedAgent.name}
-                                src={selectedAgent.imageUrl}
+                                imageUrl={selectedAgent.imageUrl}
                             />
                         )}
                         <Text size="xs" truncate="end" className={styles.label}>
@@ -205,10 +206,11 @@ export const AgentSelector = ({
                             pr={6}
                         >
                             <Group gap="xs" wrap="nowrap" miw={0} flex={1}>
-                                <LightdashUserAvatar
+                                <AgentAvatar
+                                    uuid={item.value}
                                     size={22}
                                     name={item.label}
-                                    src={item.imageUrl}
+                                    imageUrl={item.imageUrl}
                                 />
 
                                 <Text size="xs" truncate="end" flex={1}>

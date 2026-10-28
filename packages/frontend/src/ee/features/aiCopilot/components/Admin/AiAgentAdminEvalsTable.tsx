@@ -198,6 +198,7 @@ const AiAgentAdminEvalsTable = ({
             ),
             Cell: ({ row }) => (
                 <AgentNamePill
+                    uuid={row.original.agent.uuid}
                     name={row.original.agent.name}
                     imageUrl={row.original.agent.imageUrl}
                 />

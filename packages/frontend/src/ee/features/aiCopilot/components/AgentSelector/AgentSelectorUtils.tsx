@@ -1,8 +1,8 @@
 import { type AiAgent } from '@lightdash/common';
 import { Badge, Group, Text, type ComboboxItem } from '@mantine/core';
 import { IconCheck } from '@tabler/icons-react';
-import { LightdashUserAvatar } from '../../../../../components/Avatar';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import { AgentAvatar } from '../AgentAvatar';
 
 export type Agent = Pick<AiAgent, 'name' | 'uuid' | 'imageUrl' | 'adminOnly'>;
 
@@ -27,10 +27,11 @@ export const renderSelectOption = ({
     checked?: boolean;
 }) => (
     <Group gap="xs" wrap="nowrap" miw={0} flex={1}>
-        <LightdashUserAvatar
+        <AgentAvatar
+            uuid={option.value}
             size={22}
             name={option.label}
-            src={option.imageUrl}
+            imageUrl={option.imageUrl}
         />
         <Text size="xs" truncate="end" flex={1}>
             {option.label}

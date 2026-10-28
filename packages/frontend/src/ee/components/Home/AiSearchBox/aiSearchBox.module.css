@@ -55,6 +55,11 @@
     visibility: visible;
 }
 
+.askAiAgentAvatar {
+    flex: 0 0 auto;
+    margin-top: 4px;
+}
+
 .actionIcon {
     background-color: var(--mantine-color-ldDark-7);
     &:hover {

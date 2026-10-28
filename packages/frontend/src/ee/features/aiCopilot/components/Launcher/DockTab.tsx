@@ -6,6 +6,7 @@ import { LightdashUserAvatar } from '../../../../../components/Avatar';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { type LauncherDockItem } from '../../store/aiAgentLauncherSlice';
 import { useAiAgentThreadStreaming } from '../../streaming/useAiAgentThreadStreamQuery';
+import { AgentAvatar } from '../AgentAvatar';
 import styles from './AiAgentsLauncher.module.css';
 
 type Props = {
@@ -49,12 +50,15 @@ export const DockTab: FC<Props> = ({
             <Group gap="xs" wrap="nowrap" w="100%">
                 {isStreaming ? (
                     <Loader size={12} color="gray" />
-                ) : (
-                    <LightdashUserAvatar
+                ) : agent ? (
+                    <AgentAvatar
+                        uuid={agent.uuid}
                         size="xs"
-                        name={agent?.name ?? 'AI'}
-                        src={agent?.imageUrl}
+                        name={agent.name}
+                        imageUrl={agent.imageUrl}
                     />
+                ) : (
+                    <LightdashUserAvatar size="xs" name="AI" />
                 )}
                 <Text size="sm" className={styles.dockTabTitle}>
                     {item.title}

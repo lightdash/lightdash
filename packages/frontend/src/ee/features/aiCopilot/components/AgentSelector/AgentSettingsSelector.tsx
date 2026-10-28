@@ -10,8 +10,8 @@ import {
 import { IconChevronDown, IconSettings } from '@tabler/icons-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { LightdashUserAvatar } from '../../../../../components/Avatar';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import { AgentAvatar } from '../AgentAvatar';
 import styles from './AgentSelector.module.css';
 import { getAgentOptions, type Agent } from './AgentSelectorUtils';
 
@@ -127,10 +127,11 @@ export const AgentSettingsSelector = ({
                                         miw={0}
                                         flex={1}
                                     >
-                                        <LightdashUserAvatar
+                                        <AgentAvatar
+                                            uuid={item.value}
                                             size={22}
                                             name={item.label}
-                                            src={item.imageUrl}
+                                            imageUrl={item.imageUrl}
                                         />
                                         <Text size="xs" truncate="end" flex={1}>
                                             {item.label}

@@ -22,7 +22,6 @@ import {
     IconMessages,
 } from '@tabler/icons-react';
 import { type FC, useMemo } from 'react';
-import { LightdashUserAvatar } from '../../../../../components/Avatar';
 import { AiMarkdown } from '../../../../../components/common/AiMarkdown';
 import { CategoryBadge } from '../../../../../components/common/CategoryBadge';
 import MantineIcon from '../../../../../components/common/MantineIcon';
@@ -33,6 +32,7 @@ import {
     useAiAgentThread,
     useProjectAiAgent,
 } from '../../hooks/useProjectAiAgents';
+import { AgentAvatar } from '../AgentAvatar';
 import { AgentChatDisplay } from '../ChatElements/AgentChatDisplay';
 import { getRenderableExcerpts } from './evidenceExcerptHelpers';
 import { EvidenceExcerpts } from './EvidenceExcerpts';
@@ -388,10 +388,11 @@ export const IssueDetailModal: FC<Props> = ({
                                     {agent && (
                                         <RailRow label="Agent">
                                             <Group gap={6} wrap="nowrap">
-                                                <LightdashUserAvatar
+                                                <AgentAvatar
+                                                    uuid={agent.uuid}
                                                     size={18}
                                                     name={agent.name}
-                                                    src={agent.imageUrl}
+                                                    imageUrl={agent.imageUrl}
                                                 />
                                                 <Text
                                                     className={styles.railText}
