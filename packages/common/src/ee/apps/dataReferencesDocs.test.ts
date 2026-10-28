@@ -33,12 +33,12 @@ const FENCE_RE = /```(\w+)?\n([\s\S]*?)```/g;
 // placeholder snippets). Keyed by `<doc>#<fenced-block-index>`, where the
 // index counts ALL fenced blocks in the doc, any language.
 const KNOWN_UNPARSEABLE: Record<string, string> = {
-    'skill.md#13': 'adjacent JSX fragment (axis defaults snippet)',
-    'skill.md#20': 'adjacent JSX fragment (screenshot crop snippet)',
-    'skill.md#22':
+    'skill.md#15': 'adjacent JSX fragment (axis defaults snippet)',
+    'skill.md#22': 'adjacent JSX fragment (screenshot crop snippet)',
+    'skill.md#24':
         'bare comment as JSX ternary alternate (loading-states skeleton)',
-    'skill.md#27': '`{...}` placeholder in DropdownMenu snippet',
-    'skill.md#31': 'adjacent JSX fragment (dialog snippet)',
+    'skill.md#29': '`{...}` placeholder in DropdownMenu snippet',
+    'skill.md#33': 'adjacent JSX fragment (dialog snippet)',
 };
 
 // Samples whose references legitimately cannot fully resolve.
