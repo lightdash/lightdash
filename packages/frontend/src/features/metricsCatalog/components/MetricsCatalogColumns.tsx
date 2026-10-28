@@ -176,19 +176,7 @@ export const MetricsCatalogColumns: ContentTableColumnDef<CatalogField>[] = [
         enableEditing: true,
         size: 270,
         minSize: 150,
-        mantineTableBodyCellProps: () => {
-            return {
-                pos: 'relative',
-                style: {
-                    padding: 0,
-                },
-                sx: {
-                    '&:hover': {
-                        outline: 'none',
-                    },
-                },
-            };
-        },
+        mantineTableBodyCellProps: { pos: 'relative', px: 0, py: 0 },
         Header: ({ column, table }) => (
             <MetricCatalogColumnHeaderCell
                 disabled={Boolean(
@@ -350,13 +338,7 @@ export const MetricsCatalogColumns: ContentTableColumnDef<CatalogField>[] = [
         size: 150,
         minSize: 100,
         maxSize: 150,
-        mantineTableBodyCellProps: () => {
-            return {
-                style: {
-                    textAlign: 'center',
-                },
-            };
-        },
+        mantineTableBodyCellProps: { ta: 'center' },
         Header: ({ column, table }) => (
             <MetricCatalogColumnHeaderCell
                 disabled={Boolean(

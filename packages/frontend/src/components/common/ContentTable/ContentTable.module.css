@@ -67,8 +67,8 @@
     width: 100%;
 }
 
-.columnResizing .headerLabel,
-.columnResizing .sortIcon {
+.table[data-resizing] .headerLabel,
+.table[data-resizing] .sortIcon {
     pointer-events: none;
 }
 
@@ -97,12 +97,18 @@
     color: var(--mantine-color-ldGray-7);
     font-size: var(--mantine-font-size-xs);
     font-weight: 600;
-    padding: 6px var(--mantine-spacing-md);
+    height: var(--mantine-spacing-3xl);
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-md);
     position: relative;
     text-align: left;
     user-select: none;
     vertical-align: middle;
     white-space: nowrap;
+}
+
+.footerCell {
+    border-bottom: 0;
+    border-top: 1px solid var(--mantine-color-ldGray-2);
 }
 
 .bodyCell {
@@ -173,14 +179,12 @@
 }
 
 .columnBorders .headCell,
-.columnBorders .footerCell,
-.columnBorders .bodyCell {
+.columnBorders .footerCell {
     border-right: 1px solid var(--mantine-color-ldGray-2);
 }
 
 .columnBorders .headCell:last-of-type,
-.columnBorders .footerCell:last-of-type,
-.columnBorders .bodyCell:last-of-type {
+.columnBorders .footerCell:last-of-type {
     border-right: 0;
 }
 
@@ -219,11 +223,13 @@
 }
 
 /* Neutral selection: one step over the hover grey, with an ink bar. */
-.rowSelected .bodyCell {
+.rowSelected .bodyCell,
+.bodyRow[data-selected] .bodyCell {
     background: var(--mantine-color-ldGray-1);
 }
 
-.rowSelected .bodyCell:first-child {
+.rowSelected .bodyCell:first-child,
+.bodyRow[data-selected] .bodyCell:first-child {
     box-shadow: inset 2px 0 0 var(--mantine-color-text);
 }
 
@@ -289,9 +295,13 @@
     width: 2px;
 }
 
-.resizeHandle:hover::after,
-.resizeHandleResizing::after {
+.headCell:hover .resizeHandle::after,
+.headCell[data-resizing] .resizeHandle::after {
     background: var(--mantine-color-blue-4);
+}
+
+.table[data-resizing] .headCell:not([data-resizing]) .resizeHandle::after {
+    background: transparent;
 }
 
 .fillerCell {
@@ -397,14 +407,17 @@
         color: var(--mantine-color-ldDark-7);
     }
 
+    .footerCell {
+        border-top-color: var(--mantine-color-ldDark-4);
+    }
+
     .bodyCell {
         border-bottom-color: var(--mantine-color-ldDark-4);
         color: var(--mantine-color-ldDark-7);
     }
 
     .columnBorders .headCell,
-    .columnBorders .footerCell,
-    .columnBorders .bodyCell {
+    .columnBorders .footerCell {
         border-right-color: var(--mantine-color-ldDark-4);
     }
 

@@ -265,7 +265,6 @@ const compareFilters = (
 
 // Tiles Table Component
 const TilesTable = ({ data }: { data: any[] }) => {
-    const theme = useMantineTheme();
     const [search, setSearch] = useState('');
     const tableContainerRef = useRef<HTMLDivElement>(null);
 
@@ -367,52 +366,12 @@ const TilesTable = ({ data }: { data: any[] }) => {
         initialState: {
             density: 'xs',
         },
-        mantinePaperProps: {
-            shadow: 'none',
-            withBorder: false,
-            style: {
-                backgroundColor: 'transparent',
-                padding: 0,
-            },
-        },
-        mantineTableContainerProps: {
-            ref: tableContainerRef,
-            style: {
-                maxHeight: '400px',
-                border: `1px solid ${theme.colors.ldGray[2]}`,
-                borderRadius: theme.spacing.sm,
-            },
-        },
+        mantineTableContainerProps: { ref: tableContainerRef, mah: 400 },
         mantineTableProps: {
             highlightOnHover: true,
             withColumnBorders: false,
         },
-        mantineTableHeadCellProps: {
-            style: {
-                backgroundColor: theme.colors.ldGray[0],
-                borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                fontSize: theme.fontSizes.xs,
-                fontWeight: 600,
-                color: theme.colors.ldGray[7],
-                padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-            },
-        },
-        mantineTableBodyCellProps: {
-            style: {
-                fontSize: theme.fontSizes.xs,
-                color: theme.colors.ldGray[7],
-                padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-            },
-        },
-        mantineTableFooterCellProps: {
-            style: {
-                backgroundColor: theme.colors.ldGray[0],
-                borderTop: `1px solid ${theme.colors.ldGray[2]}`,
-                fontSize: theme.fontSizes.xs,
-                color: theme.colors.ldGray[7],
-                padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-            },
-        },
+        mantineTableBodyCellProps: { fz: 'xs' },
         renderTopToolbar: () => (
             <TableToolbar
                 search={search}
@@ -433,7 +392,6 @@ const ChartsTable = ({
     data: any[];
     projectUuid: string | undefined;
 }) => {
-    const theme = useMantineTheme();
     const [search, setSearch] = useState('');
     const tableContainerRef = useRef<HTMLDivElement>(null);
 
@@ -590,43 +548,12 @@ const ChartsTable = ({
             density: 'xs',
             sorting: [{ id: 'chartName', desc: false }],
         },
-        mantinePaperProps: {
-            shadow: 'none',
-            withBorder: false,
-            style: {
-                backgroundColor: 'transparent',
-                padding: 0,
-            },
-        },
-        mantineTableContainerProps: {
-            ref: tableContainerRef,
-            style: {
-                maxHeight: '400px',
-                border: `1px solid ${theme.colors.ldGray[2]}`,
-                borderRadius: theme.spacing.sm,
-            },
-        },
+        mantineTableContainerProps: { ref: tableContainerRef, mah: 400 },
         mantineTableProps: {
             highlightOnHover: true,
             withColumnBorders: false,
         },
-        mantineTableHeadCellProps: {
-            style: {
-                backgroundColor: theme.colors.ldGray[0],
-                borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                fontSize: theme.fontSizes.xs,
-                fontWeight: 600,
-                color: theme.colors.ldGray[7],
-                padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-            },
-        },
-        mantineTableBodyCellProps: {
-            style: {
-                fontSize: theme.fontSizes.xs,
-                color: theme.colors.ldGray[7],
-                padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-            },
-        },
+        mantineTableBodyCellProps: { fz: 'xs' },
         renderTopToolbar: () => (
             <TableToolbar
                 search={search}
@@ -647,7 +574,6 @@ const FiltersTable = ({
     data: AlignedFilter[];
     searchPlaceholder?: string;
 }) => {
-    const theme = useMantineTheme();
     const [search, setSearch] = useState('');
     const tableContainerRef = useRef<HTMLDivElement>(null);
 
@@ -758,43 +684,12 @@ const FiltersTable = ({
         initialState: {
             density: 'xs',
         },
-        mantinePaperProps: {
-            shadow: 'none',
-            withBorder: false,
-            style: {
-                backgroundColor: 'transparent',
-                padding: 0,
-            },
-        },
-        mantineTableContainerProps: {
-            ref: tableContainerRef,
-            style: {
-                maxHeight: '400px',
-                border: `1px solid ${theme.colors.ldGray[2]}`,
-                borderRadius: theme.spacing.sm,
-            },
-        },
+        mantineTableContainerProps: { ref: tableContainerRef, mah: 400 },
         mantineTableProps: {
             highlightOnHover: true,
             withColumnBorders: false,
         },
-        mantineTableHeadCellProps: {
-            style: {
-                backgroundColor: theme.colors.ldGray[0],
-                borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                fontSize: theme.fontSizes.xs,
-                fontWeight: 600,
-                color: theme.colors.ldGray[7],
-                padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-            },
-        },
-        mantineTableBodyCellProps: {
-            style: {
-                fontSize: theme.fontSizes.xs,
-                color: theme.colors.ldGray[7],
-                padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-            },
-        },
+        mantineTableBodyCellProps: { fz: 'xs' },
         renderTopToolbar: () => (
             <TableToolbar
                 search={search}

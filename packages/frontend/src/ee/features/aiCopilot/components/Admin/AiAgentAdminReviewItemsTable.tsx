@@ -16,7 +16,6 @@ import {
     Stack,
     Text,
     Tooltip,
-    useMantineTheme,
 } from '@mantine/core';
 import {
     IconArrowRight,
@@ -380,7 +379,6 @@ const AiAgentAdminReviewItemsTable = ({
     initialProjectUuids = [],
     initialAgentUuids = [],
 }: AiAgentAdminReviewItemsTableProps) => {
-    const theme = useMantineTheme();
     const [search, setSearch] = useState<string | undefined>(undefined);
     const [reviewSurface, _setReviewSurface] =
         useState<ReviewSurface>('findings');
@@ -1243,19 +1241,9 @@ const AiAgentAdminReviewItemsTable = ({
         },
         getRowId: (row) => row.uuid,
         mantineTableContainerProps: {
-            style: {
-                maxHeight: 'calc(100dvh - 350px)',
-            },
+            mah: 'calc(100dvh - 350px)',
         },
-        mantineTableBodyCellProps: {
-            style: {
-                padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                borderRight: 'none',
-                borderLeft: 'none',
-                borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                borderTop: 'none',
-            },
-        },
+        mantineTableBodyCellProps: { py: 'sm' },
         mantineTableBodyRowProps: ({ row, table: mantineTable }) => {
             if (mantineTable.getState().showSkeletons) {
                 return {};
@@ -1272,12 +1260,7 @@ const AiAgentAdminReviewItemsTable = ({
 
             return {
                 className: styles.bodyRow,
-                style: {
-                    cursor: 'pointer',
-                    backgroundColor: isSelected
-                        ? theme.colors.ldGray[0]
-                        : undefined,
-                },
+                'data-selected': isSelected || undefined,
                 onClick: () =>
                     onReviewItemSelect?.({
                         projectUuid:
@@ -1352,18 +1335,7 @@ const AiAgentAdminReviewItemsTable = ({
         enableTopToolbar: true,
         enableBottomToolbar: false,
         mantineTableContainerProps: {
-            style: {
-                maxHeight: 'calc(100dvh - 350px)',
-            },
-        },
-        mantineTableBodyCellProps: {
-            style: {
-                padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-                borderRight: 'none',
-                borderLeft: 'none',
-                borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                borderTop: 'none',
-            },
+            mah: 'calc(100dvh - 350px)',
         },
         mantineTableBodyRowProps: ({ row, table: mantineTable }) => {
             if (mantineTable.getState().showSkeletons) {
@@ -1373,14 +1345,11 @@ const AiAgentAdminReviewItemsTable = ({
             const signal = row.original;
             return {
                 className: styles.bodyRow,
-                style: {
-                    backgroundColor:
-                        selectedReviewItemUuid &&
+                'data-selected':
+                    (selectedReviewItemUuid &&
                         selectedReviewItemUuid ===
-                            signal.finding?.reviewItemUuid
-                            ? theme.colors.ldGray[1]
-                            : undefined,
-                },
+                            signal.finding?.reviewItemUuid) ||
+                    undefined,
             };
         },
         renderTopToolbar: () =>

@@ -600,77 +600,15 @@ const AiAgentAdminThreadsTable = ({
         enableTopToolbar: true,
         mantineTableContainerProps: {
             ref: tableContainerRef,
-            sx: {
-                maxHeight: 'calc(100dvh - 350px)',
-                minHeight: '600px',
-                display: 'flex',
-                flexDirection: 'column',
-            },
+            mah: 'calc(100dvh - 350px)',
+            mih: 600,
             onScroll,
         },
         mantineTableProps: {
             highlightOnHover: true,
             withColumnBorders: Boolean(flatData.length),
-            sx: {
-                flexGrow: 1,
-                display: 'flex',
-                flexDirection: 'column',
-            },
         },
-        mantineTableHeadCellProps: (props) => {
-            const isAnyColumnResizing = props.table
-                .getAllColumns()
-                .some((c) => c.getIsResizing());
-
-            const isLastColumn =
-                props.table.getAllColumns().indexOf(props.column) ===
-                props.table.getAllColumns().length - 1;
-
-            const canResize = props.column.getCanResize();
-
-            return {
-                bg: 'ldGray.0',
-                h: '3xl',
-                pos: 'relative',
-                style: {
-                    userSelect: 'none',
-                    padding: `${theme.spacing.xs} ${theme.spacing.xl}`,
-                    borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                    borderRight: props.column.getIsResizing()
-                        ? `2px solid ${theme.colors.blue[3]}`
-                        : `1px solid ${
-                              isLastColumn
-                                  ? 'transparent'
-                                  : theme.colors.ldGray[2]
-                          }`,
-                    borderTop: 'none',
-                    borderLeft: 'none',
-                },
-                sx: {
-                    justifyContent: 'center',
-                    '&:hover': canResize
-                        ? {
-                              borderRight: !isAnyColumnResizing
-                                  ? `2px solid ${theme.colors.blue[3]} !important`
-                                  : undefined,
-                              transition: `border-right ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
-                          }
-                        : {},
-                },
-            };
-        },
-        mantineTableBodyProps: {
-            sx: {
-                flexGrow: 1,
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                'tr:last-of-type > td': {
-                    borderBottom: 'none',
-                    borderLeft: 'none !important',
-                },
-            },
-        },
+        mantineTableHeadCellProps: { px: 'xl' },
         mantineTableBodyRowProps: ({ row, table: mantineTable }) => {
             // Don't apply custom styling during skeleton loading
             if (mantineTable.getState().showSkeletons) {
@@ -681,12 +619,7 @@ const AiAgentAdminThreadsTable = ({
             const isSelected = selectedThread?.uuid === thread.uuid;
 
             return {
-                style: {
-                    cursor: 'pointer',
-                    backgroundColor: isSelected
-                        ? theme.colors.ldGray[1]
-                        : undefined,
-                },
+                'data-selected': isSelected || undefined,
                 onClick: () => {
                     setSelectedThread?.(thread);
                     if (onThreadSelect) {
@@ -699,23 +632,7 @@ const AiAgentAdminThreadsTable = ({
                 },
             };
         },
-        mantineTableBodyCellProps: () => {
-            return {
-                h: 72,
-                style: {
-                    padding: `${theme.spacing.md} ${theme.spacing.xl}`,
-                    borderRight: 'none',
-                    borderLeft: 'none',
-                    borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                    borderTop: 'none',
-                },
-                sx: {
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    flexShrink: 0,
-                },
-            };
-        },
+        mantineTableBodyCellProps: { h: 72, py: 'md', px: 'xl' },
         renderTopToolbar: () => (
             <AiAgentAdminTopToolbar
                 search={search}

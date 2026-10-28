@@ -14,7 +14,6 @@ import {
     type ContentTableColumnDef,
     type ContentTableSortingState,
 } from '../../../components/common/ContentTable';
-import contentTableClasses from '../../../components/common/ContentTable/ContentTable.module.css';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useInfiniteScroll } from '../../../hooks/useInfiniteScroll';
 import styles from '../QueryHistory.module.css';
@@ -366,7 +365,6 @@ export const QueryHistoryTable: FC<Props> = ({
         mantineTableContainerProps: {
             ref: containerRef,
             onScroll: isFlatSort ? onScroll : undefined,
-            className: styles.tableContainer,
         },
         mantineTableProps: {
             highlightOnHover: true,
@@ -386,10 +384,8 @@ export const QueryHistoryTable: FC<Props> = ({
                 return { className: styles.skeletonRow, 'aria-busy': true };
             }
             return {
-                className:
-                    original.item.queryUuid === selectedQueryUuid
-                        ? contentTableClasses.rowSelected
-                        : undefined,
+                'data-selected':
+                    original.item.queryUuid === selectedQueryUuid || undefined,
                 onClick: () => onSelect(original.item),
             };
         },

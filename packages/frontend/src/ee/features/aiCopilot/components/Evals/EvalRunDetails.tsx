@@ -12,7 +12,6 @@ import {
     Text,
     Title,
     Tooltip,
-    useMantineTheme,
 } from '@mantine/core';
 import { IconPoint, IconPointFilled, IconTarget } from '@tabler/icons-react';
 import dayjs from 'dayjs';
@@ -45,7 +44,6 @@ export const EvalRunDetails: FC<Props> = ({
     runUuid,
 }) => {
     const navigate = useNavigate();
-    const theme = useMantineTheme();
     const { setSelectedThreadUuid, selectedThreadUuid } =
         useEvalSectionContext();
 
@@ -211,71 +209,21 @@ export const EvalRunDetails: FC<Props> = ({
             const selected = result.threadUuid === selectedThreadUuid;
 
             return {
-                onClick: () => {
-                    if (isClickable) {
-                        handleViewThread(result);
-                    }
-                },
-                style: {
-                    cursor: isClickable ? 'pointer' : 'default',
-                    backgroundColor: selected
-                        ? 'var(--mantine-color-ldGray-1)'
-                        : undefined,
-                },
+                onClick: isClickable
+                    ? () => handleViewThread(result)
+                    : undefined,
+                'data-selected': selected || undefined,
             };
         },
         state: {
             isLoading,
         },
-        mantinePaperProps: {
-            shadow: undefined,
-            style: {
-                border: 'none',
-            },
-        },
+        mantinePaperProps: { bd: 'none' },
         mantineTableProps: {
             highlightOnHover: true,
             withColumnBorders: Boolean(runData?.results?.length),
         },
-        mantineTableHeadCellProps: (props) => {
-            const isFirstColumn =
-                props.table.getAllColumns().indexOf(props.column) === 0;
-            const isLastColumn =
-                props.table.getAllColumns().indexOf(props.column) ===
-                props.table.getAllColumns().length - 1;
-
-            return {
-                bg: 'ldGray.0',
-                h: '3xl',
-                pos: 'relative',
-                style: {
-                    userSelect: 'none',
-                    padding: `${theme.spacing.xs} ${theme.spacing.xl}`,
-                    borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                    borderRight: props.column.getIsResizing()
-                        ? `2px solid ${theme.colors.blue[3]}`
-                        : `1px solid ${
-                              isLastColumn || isFirstColumn
-                                  ? 'transparent'
-                                  : theme.colors.ldGray[2]
-                          }`,
-                    borderTop: 'none',
-                    borderLeft: 'none',
-                },
-            };
-        },
-        mantineTableBodyCellProps: () => {
-            return {
-                h: 48,
-                style: {
-                    padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-                    borderRight: 'none',
-                    borderLeft: 'none',
-                    borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                    borderTop: 'none',
-                },
-            };
-        },
+        mantineTableBodyCellProps: { h: 48 },
     });
 
     if (isLoading) {

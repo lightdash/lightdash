@@ -638,33 +638,7 @@ const ProjectManagementPanel: FC = () => {
         enableSorting: true,
         enableTopToolbar: true,
         enableBottomToolbar: false,
-        mantinePaperProps: {
-            shadow: undefined,
-            style: {
-                border: `1px solid ${theme.colors.ldGray[2]}`,
-                borderRadius: theme.radius.md,
-                boxShadow: theme.shadows.subtle,
-                display: 'flex',
-                flexDirection: 'column' as const,
-                overflow: 'hidden',
-            },
-        },
-        mantineTableHeadCellProps: {
-            bg: 'ldGray.0',
-            style: {
-                userSelect: 'none',
-                padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-                borderTop: `1px solid ${theme.colors.ldGray[2]}`,
-                borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-            },
-        },
-        mantineTableBodyCellProps: {
-            style: {
-                padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                borderTop: 'none',
-            },
-        },
+        mantineTableBodyCellProps: { py: 'sm' },
         mantineTableProps: {
             highlightOnHover: true,
         },

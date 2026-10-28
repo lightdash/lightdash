@@ -254,7 +254,7 @@ const CompilationHistoryTable: FC<CompilationHistoryTableProps> = ({
         ),
         mantineTableContainerProps: {
             ref: tableContainerRef,
-            style: { maxHeight: 'calc(100dvh - 370px)' },
+            mah: 'calc(100dvh - 370px)',
             onScroll,
         },
         mantineTableProps: {
@@ -263,37 +263,8 @@ const CompilationHistoryTable: FC<CompilationHistoryTableProps> = ({
         },
         mantineTableBodyRowProps: ({ row }) => ({
             onClick: () => handleRowClick(row.original),
-            style: { cursor: 'pointer' },
         }),
-        mantineTableHeadCellProps: {
-            h: '3xl',
-            pos: 'relative',
-            style: {
-                padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-                backgroundColor: theme.colors.ldGray[0],
-                fontWeight: 600,
-                fontSize: theme.fontSizes.xs,
-            },
-            sx: {
-                // Removing mantine table borders for last cell
-                '&:last-of-type': {
-                    borderLeft: 'none!important',
-                },
-            },
-        },
-        mantineTableBodyCellProps: {
-            sx: {
-                // Removing mantine table borders for last cell
-                '&:last-of-type': {
-                    borderLeft: 'none!important',
-                },
-            },
-            style: {
-                padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-                fontSize: theme.fontSizes.xs,
-                color: theme.colors.ldGray[7],
-            },
-        },
+        mantineTableBodyCellProps: { fz: 'xs' },
 
         rowVirtualizerInstanceRef,
         rowVirtualizerProps: { estimateSize: () => 40, overscan: 10 },

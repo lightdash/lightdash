@@ -1,5 +1,5 @@
 import { type PreAggregateDailyStatResult } from '@lightdash/common';
-import { Anchor, Group, Text, Tooltip, useMantineTheme } from '@mantine/core';
+import { Anchor, Group, Text, Tooltip } from '@mantine/core';
 import {
     IconAlertTriangle,
     IconChartBar,
@@ -38,8 +38,6 @@ const PreAggregateStatsTable: FC<Props> = ({
     isError,
     projectUuid,
 }) => {
-    const theme = useMantineTheme();
-
     const [sorting, setSorting] = useState<ContentTableSortingState>([
         { id: 'queries', desc: true },
     ]);
@@ -343,40 +341,13 @@ const PreAggregateStatsTable: FC<Props> = ({
             />
         ),
         mantineTableContainerProps: {
-            style: { maxHeight: 'calc(100dvh - 450px)' },
+            mah: 'calc(100dvh - 450px)',
         },
         mantineTableProps: {
             highlightOnHover: true,
             withColumnBorders: false,
         },
-        mantineTableHeadCellProps: {
-            h: '3xl',
-            pos: 'relative',
-            style: {
-                padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-                backgroundColor: theme.colors.ldGray[0],
-                fontWeight: 600,
-                fontSize: theme.fontSizes.xs,
-                justifyContent: 'center',
-            },
-            sx: {
-                '&:last-of-type': {
-                    borderLeft: 'none!important',
-                },
-            },
-        },
-        mantineTableBodyCellProps: {
-            sx: {
-                '&:last-of-type': {
-                    borderLeft: 'none!important',
-                },
-            },
-            style: {
-                padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-                fontSize: theme.fontSizes.xs,
-                color: theme.colors.ldGray[7],
-            },
-        },
+        mantineTableBodyCellProps: { fz: 'xs' },
         state: {
             isLoading,
             showAlertBanner: isError,

@@ -636,48 +636,14 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
         enableTopToolbar: true,
         enableBottomToolbar: true,
         mantineTableContainerProps: {
-            style: { maxHeight: 'calc(100dvh - 350px)' },
+            mah: 'calc(100dvh - 350px)',
         },
         mantineTableProps: {
             highlightOnHover: true,
             withColumnBorders: Boolean(filteredUsers.length),
         },
-        mantineTableHeadCellProps: (props) => {
-            const isLastColumn =
-                props.table.getAllColumns().indexOf(props.column) ===
-                props.table.getAllColumns().length - 1;
-
-            return {
-                bg: 'ldGray.0',
-                h: '3xl',
-                pos: 'relative',
-                style: {
-                    userSelect: 'none',
-                    padding: `${theme.spacing.xs} ${theme.spacing.xl}`,
-                    borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                    borderRight: props.column.getIsResizing()
-                        ? `2px solid ${theme.colors.blue[3]}`
-                        : `1px solid ${
-                              isLastColumn
-                                  ? 'transparent'
-                                  : theme.colors.ldGray[2]
-                          }`,
-                    borderTop: 'none',
-                    borderLeft: 'none',
-                },
-            };
-        },
-        mantineTableBodyCellProps: () => {
-            return {
-                style: {
-                    padding: `${theme.spacing.xs} ${theme.spacing.xl}`,
-                    borderRight: 'none',
-                    borderLeft: 'none',
-                    borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                    borderTop: 'none',
-                },
-            };
-        },
+        mantineTableHeadCellProps: { px: 'xl' },
+        mantineTableBodyCellProps: { py: 'xs', px: 'xl' },
         renderTopToolbar: () => (
             <Group
                 justify="space-between"
