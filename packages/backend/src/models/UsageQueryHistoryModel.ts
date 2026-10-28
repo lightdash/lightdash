@@ -1,5 +1,9 @@
 import { ProjectType, QueryHistoryStatus } from '@lightdash/common';
 import type { Knex } from 'knex';
+import {
+    MAX_ERROR_CHARACTERS,
+    truncateQueryError,
+} from '../analytics/eventStream/queryError';
 import { queryEventsCompactedColumns } from '../analytics/eventStream/queryEventsStream';
 import { QUERY_HISTORY_BACKFILL_EVENT } from '../analytics/eventStream/queryHistoryBackfill';
 
@@ -24,15 +28,10 @@ export class UsageQueryHistoryModel {
                 .where('o.organization_uuid', organizationUuid)
                 .whereNot('p.project_type', ProjectType.PREVIEW)
                 .where('q.created_at', '<', before)
-                .where((qb) =>
-                    qb
-                        .where('q.status', QueryHistoryStatus.READY)
-                        .orWhere((errors) =>
-                            errors
-                                .where('q.status', QueryHistoryStatus.ERROR)
-                                .whereNotNull('q.warehouse_execution_time_ms'),
-                        ),
-                )
+                .whereIn('q.status', [
+                    QueryHistoryStatus.READY,
+                    QueryHistoryStatus.ERROR,
+                ])
                 .select(
                     'q.query_uuid',
                     'q.project_uuid',
@@ -41,6 +40,13 @@ export class UsageQueryHistoryModel {
                     'q.status',
                     'q.warehouse_execution_time_ms',
                     'q.total_row_count',
+                )
+                .select(
+                    this.database.raw('LEFT(??, ?) AS ??', [
+                        'q.error',
+                        MAX_ERROR_CHARACTERS + 1,
+                        'error',
+                    ]),
                 )
                 .select(
                     this.database.raw(
@@ -94,6 +100,10 @@ export class UsageQueryHistoryModel {
                         row.status === QueryHistoryStatus.READY
                             ? 'success'
                             : 'error',
+                    error:
+                        row.status === QueryHistoryStatus.ERROR
+                            ? truncateQueryError(row.error)
+                            : null,
                     context: row.context,
                     explore_name: row.explore_name,
                     chart_id: row.chart_id,

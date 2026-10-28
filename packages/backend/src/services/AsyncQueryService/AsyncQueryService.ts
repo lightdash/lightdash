@@ -4551,6 +4551,7 @@ export class AsyncQueryService extends ProjectService {
                 projectId: projectUuid,
                 isPreviewProject,
                 status: 'error',
+                errorMessage,
                 context: queryTags.query_context,
                 onboardingFlow,
                 exploreName: queryTags.explore_name ?? null,
@@ -6760,6 +6761,7 @@ export class AsyncQueryService extends ProjectService {
                     // query.completed in runAsyncWarehouseQuery.
                     const trackQueryCompleted = (outcome: {
                         status: 'success' | 'error';
+                        errorMessage?: string;
                         cacheHit: boolean;
                         totalRowCount?: number | null;
                         columnsCount?: number | null;
@@ -6778,6 +6780,7 @@ export class AsyncQueryService extends ProjectService {
                                 projectId: projectUuid,
                                 isPreviewProject,
                                 status: outcome.status,
+                                errorMessage: outcome.errorMessage ?? null,
                                 context,
                                 onboardingFlow,
                                 exploreName: explore.name,
@@ -6883,6 +6886,7 @@ export class AsyncQueryService extends ProjectService {
                         );
                         trackQueryCompleted({
                             status: 'error',
+                            errorMessage: `Missing parameters: ${missingParameterReferences.join(', ')}`,
                             cacheHit: false,
                         });
                         this.prometheusMetrics?.trackQueryStateTransition(
@@ -6974,6 +6978,7 @@ export class AsyncQueryService extends ProjectService {
                         );
                         trackQueryCompleted({
                             status: 'error',
+                            errorMessage: executionPlan.error,
                             cacheHit: false,
                         });
                         this.prometheusMetrics?.trackQueryStateTransition(

@@ -10355,6 +10355,9 @@ describe('AsyncQueryService', () => {
                     },
                 });
                 expect(completed()).toHaveLength(1);
+                expect(completed()[0][0].properties?.errorMessage).toBe(
+                    uploadFails ? 'upload failed' : undefined,
+                );
                 expect(completed()[0][0]).toMatchObject({
                     properties: {
                         inheritedFromProjectUuid: null,

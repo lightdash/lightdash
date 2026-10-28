@@ -739,6 +739,8 @@ export type QueryCompletedEvent = BaseTrack & {
         schedulerId?: string | null;
         /** Usage-store only; stripped before product analytics/event metrics. */
         semanticUsage?: SemanticQueryUsage;
+        /** Usage-store only; never sent to product analytics/event metrics. */
+        errorMessage?: string | null;
         warehouseExecutionTimeMs: number | null;
         // Phase breakdown of warehouseExecutionTimeMs. Absent phases mean the
         // adapter does not report them.
@@ -5149,9 +5151,10 @@ export class LightdashAnalytics extends Analytics {
         if (
             payload.event === 'query.completed' &&
             payload.properties &&
-            'semanticUsage' in payload.properties
+            ('semanticUsage' in payload.properties ||
+                'errorMessage' in payload.properties)
         ) {
-            const { semanticUsage, ...properties } =
+            const { semanticUsage, errorMessage, ...properties } =
                 payload.properties as QueryCompletedEvent['properties'];
             payload = { ...payload, properties } as QueryCompletedEvent;
         }
