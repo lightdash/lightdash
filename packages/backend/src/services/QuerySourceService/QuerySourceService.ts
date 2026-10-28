@@ -18,6 +18,7 @@ import {
     type SourceQuery,
     type SourceQuerySubmission,
 } from '@lightdash/common';
+import type { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { sourceRequiresRawSql } from '../../auth/agentConnectionGrants/operationContracts';
 import { grantAllowsCapabilities } from '../../auth/agentConnectionGrants/resourceConstraints';
 import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
@@ -51,6 +52,7 @@ type QuerySourceServiceArguments = {
         AgentPermissionService,
         'loadRequest' | 'assertOperationWithRequest'
     >;
+    analytics: LightdashAnalytics;
     projectModel: ProjectModel;
     queryHistoryModel: QueryHistoryModel;
     featureFlagModel: FeatureFlagModel;
@@ -94,12 +96,15 @@ export class QuerySourceService extends BaseService {
 
     private readonly registry: QuerySourceRegistry;
 
+    private readonly analytics: LightdashAnalytics;
+
     private readonly getAgentPermissionService: QuerySourceServiceArguments['getAgentPermissionService'];
 
     private readonly getAsyncQueryService: QuerySourceServiceArguments['getAsyncQueryService'];
 
     constructor(args: QuerySourceServiceArguments) {
         super({ serviceName: 'QuerySourceService' });
+        this.analytics = args.analytics;
         this.getAsyncQueryService = args.getAsyncQueryService;
         this.projectModel = args.projectModel;
         this.queryHistoryModel = args.queryHistoryModel;
@@ -524,7 +529,35 @@ export class QuerySourceService extends BaseService {
             });
         }
 
+        this.trackSubmitted(account, projectUuid, context, submissions);
         return { queries: submissions };
+    }
+
+    private trackSubmitted(
+        account: Account,
+        projectUuid: string,
+        context: QueryExecutionContext,
+        submissions: InternalSourceQuerySubmission[],
+    ): void {
+        const { organizationUuid } = account.organization;
+        if (!organizationUuid) return;
+        const count = (sourceType: QuerySourceType) =>
+            submissions.filter((s) => s.sourceType === sourceType).length;
+        this.analytics.trackAccount(account, {
+            event: 'query_sources.submitted',
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                context,
+                nodeCount: submissions.length,
+                semanticLayerNodeCount: count(QuerySourceType.SEMANTIC_LAYER),
+                sqlNodeCount: count(QuerySourceType.SQL),
+                duckdbNodeCount: count(QuerySourceType.DUCKDB),
+                externalNodeCount: count(QuerySourceType.EXTERNAL),
+                pythonNodeCount: count(QuerySourceType.PYTHON),
+                apiNodeCount: count(QuerySourceType.API),
+            },
+        });
     }
 
     /** A plan on anything but a duckdb node is a caller bug, not a user error. */
