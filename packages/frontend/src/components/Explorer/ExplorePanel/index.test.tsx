@@ -170,6 +170,31 @@ describe('ExplorePanel virtual view actions', () => {
         expect(addSource).toHaveBeenCalledOnce();
     });
 
+    it('shows only merge on a dbt explore even with virtual view permissions', async () => {
+        const user = userEvent.setup();
+        mockUseExplore.mockReturnValue(exploreQuery({ data: mockExplore }));
+        testState.merge = {
+            isMerging: false,
+            readOnly: false,
+            additionalSources: [],
+            addSource: vi.fn(),
+        };
+
+        renderPanel({
+            user: {
+                abilityRules: [
+                    { action: 'manage', subject: 'VirtualView' },
+                    { action: 'view', subject: 'ContentAsCode' },
+                ],
+            },
+        });
+        await user.click(screen.getByRole('button', { name: 'Query options' }));
+        expect(
+            screen.getByRole('menuitem', { name: /Merge another query/ }),
+        ).toBeInTheDocument();
+        expect(screen.getAllByRole('menuitem')).toHaveLength(1);
+    });
+
     it.each([
         { isMerging: true, readOnly: false },
         { isMerging: false, readOnly: true },

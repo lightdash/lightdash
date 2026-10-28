@@ -325,7 +325,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                                         hasVirtualViewActions && (
                                             <Menu.Divider />
                                         )}
-                                    {canEditVirtualView && (
+                                    {isVirtualView && canEditVirtualView && (
                                         <Menu.Item
                                             leftSection={
                                                 <MantineIcon
@@ -341,7 +341,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                                             </Text>
                                         </Menu.Item>
                                     )}
-                                    {canViewContentAsCode && (
+                                    {isVirtualView && canViewContentAsCode && (
                                         <>
                                             {canEditVirtualView && (
                                                 <Menu.Divider />
@@ -363,7 +363,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                                             </Menu.Item>
                                         </>
                                     )}
-                                    {canDeleteVirtualView && (
+                                    {isVirtualView && canDeleteVirtualView && (
                                         <>
                                             <Menu.Divider />
                                             <Menu.Item
