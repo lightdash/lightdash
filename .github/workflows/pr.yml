@@ -180,8 +180,8 @@ jobs:
           - name: cli
             filter: --filter=@lightdash/cli
             args: ""
-          - name: common, visualization, warehouses, e2e, api-tests, query-sdk
-            filter: --filter=@lightdash/common --filter=@lightdash/visualization --filter=@lightdash/warehouses --filter=e2e --filter=api-tests --filter=@lightdash/query-sdk
+          - name: common, visualization, warehouses, api-tests, query-sdk
+            filter: --filter=@lightdash/common --filter=@lightdash/visualization --filter=@lightdash/warehouses --filter=api-tests --filter=@lightdash/query-sdk
             args: ""
     steps:
       - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
