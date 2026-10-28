@@ -2563,7 +2563,15 @@ export class AsyncQueryService extends ProjectService {
         validatePagination({
             pageSize: defaultedPageSize,
             page,
-            queryMaxLimit: this.lightdashConfig.query.maxPageSize,
+            // AI tools read a whole result in one page, so allow their row limits
+            queryMaxLimit: aiAccessOnly
+                ? Math.max(
+                      this.lightdashConfig.query.maxPageSize,
+                      this.lightdashConfig.ai.copilot.maxQueryLimit,
+                      this.lightdashConfig.ai.copilot.runSqlMaxLimit,
+                      this.lightdashConfig.mcp.runSqlMaxLimit,
+                  )
+                : this.lightdashConfig.query.maxPageSize,
             totalRowCount,
         });
 
