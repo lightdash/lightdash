@@ -1,3 +1,10 @@
+# [3.83.0](https://github.com/lightdash/lightdash/compare/3.82.0...3.83.0) (2026-10-28)
+
+
+### Features
+
+* **query-sources:** run PostHog api nodes through the async query pipeline ([#31593](https://github.com/lightdash/lightdash/issues/31593)) ([fc456d6](https://github.com/lightdash/lightdash/commit/fc456d69d7c7a235924f8a38abc3969d413b575c)), closes [#31598](https://github.com/lightdash/lightdash/issues/31598) [#31597](https://github.com/lightdash/lightdash/issues/31597)
+
 # [3.82.0](https://github.com/lightdash/lightdash/compare/3.81.0...3.82.0) (2026-10-28)
 
 

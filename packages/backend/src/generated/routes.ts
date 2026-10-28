@@ -26393,6 +26393,37 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiSourcePayload: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                query: { dataType: 'string', required: true },
+                kind: { dataType: 'enum', enums: ['query'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ExecuteAsyncApiQueryRequestParams: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'CommonExecuteQueryRequestParams' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        limit: { dataType: 'double' },
+                        payload: { ref: 'ApiSourcePayload', required: true },
+                        connectionUuid: { dataType: 'string', required: true },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ExecuteAsyncSavedChartRequestParams: {
         dataType: 'refAlias',
         type: {
@@ -26619,6 +26650,7 @@ const models: TsoaRoute.Models = {
                         { ref: 'ExecuteAsyncSqlQueryRequestParams' },
                         { ref: 'ExecuteAsyncComposeSqlQueryRequestParams' },
                         { ref: 'ExecuteAsyncPythonQueryRequestParams' },
+                        { ref: 'ExecuteAsyncApiQueryRequestParams' },
                         { ref: 'ExecuteAsyncSavedChartRequestParams' },
                         { ref: 'ExecuteAsyncDashboardChartRequestParams' },
                         { ref: 'ExecuteAsyncUnderlyingDataRequestParams' },
@@ -42561,6 +42593,29 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'QuerySourceType.API': {
+        dataType: 'refEnum',
+        enums: ['api'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiSourceQuery: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                pivotConfiguration: { ref: 'PivotConfiguration' },
+                limit: { dataType: 'double' },
+                payload: { ref: 'ApiSourcePayload', required: true },
+                connectionUuid: { dataType: 'string', required: true },
+                description: { dataType: 'string' },
+                title: { dataType: 'string' },
+                nodeId: { ref: 'QueryNodeId' },
+                sourceType: { ref: 'QuerySourceType.API', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SourceQuery: {
         dataType: 'refAlias',
         type: {
@@ -42571,6 +42626,7 @@ const models: TsoaRoute.Models = {
                 { ref: 'DuckdbSourceQuery' },
                 { ref: 'ExternalSourceQuery' },
                 { ref: 'PythonSourceQuery' },
+                { ref: 'ApiSourceQuery' },
             ],
             validators: {},
         },
@@ -75559,7 +75615,7 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     QuerySourceType: {
         dataType: 'refEnum',
-        enums: ['semanticLayer', 'sql', 'duckdb', 'external', 'python'],
+        enums: ['semanticLayer', 'sql', 'duckdb', 'external', 'python', 'api'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     QuerySourceDefinition: {

@@ -28046,6 +28046,46 @@
                 ],
                 "description": "Python `run(inputs, params)` over other async queries' results, executed in a sandbox."
             },
+            "ApiSourcePayload": {
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "A query in the connector's language, e.g. HogQL for PostHog."
+                    },
+                    "kind": {
+                        "type": "string",
+                        "enum": ["query"],
+                        "nullable": false
+                    }
+                },
+                "required": ["query", "kind"],
+                "type": "object",
+                "description": "What an api query asks its connector to run. Only `query` exists: a query\nin the connector's own language, such as HogQL for PostHog. APIs without a\nquery language will add another kind rather than change this one."
+            },
+            "ExecuteAsyncApiQueryRequestParams": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/CommonExecuteQueryRequestParams"
+                    },
+                    {
+                        "properties": {
+                            "limit": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "payload": {
+                                "$ref": "#/components/schemas/ApiSourcePayload"
+                            },
+                            "connectionUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["payload", "connectionUuid"],
+                        "type": "object"
+                    }
+                ],
+                "description": "A query sent live to an external API; stored so query history shows what ran."
+            },
             "ExecuteAsyncSavedChartRequestParams": {
                 "allOf": [
                     {
@@ -28320,6 +28360,9 @@
                             },
                             {
                                 "$ref": "#/components/schemas/ExecuteAsyncPythonQueryRequestParams"
+                            },
+                            {
+                                "$ref": "#/components/schemas/ExecuteAsyncApiQueryRequestParams"
                             },
                             {
                                 "$ref": "#/components/schemas/ExecuteAsyncSavedChartRequestParams"
@@ -37819,6 +37862,48 @@
                 "type": "object",
                 "description": "A python query as a source query: code defining\n`run(inputs: dict[str, pandas.DataFrame], params: dict) -> pandas.DataFrame`.\nReferences expose other queries' results as DataFrames in `inputs`, keyed\nlike DuckDB references expose tables. Referenced queries still running are\nwaited on; the query fails if any referenced query fails."
             },
+            "QuerySourceType.API": {
+                "enum": ["api"],
+                "type": "string"
+            },
+            "ApiSourceQuery": {
+                "properties": {
+                    "pivotConfiguration": {
+                        "$ref": "#/components/schemas/PivotConfiguration",
+                        "description": "Api queries refuse a pivot; pivot in a referencing duckdb query."
+                    },
+                    "limit": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Max rows to keep. Defaults to the standard query row limit."
+                    },
+                    "payload": {
+                        "$ref": "#/components/schemas/ApiSourcePayload"
+                    },
+                    "connectionUuid": {
+                        "type": "string",
+                        "description": "The project connection that runs the payload, such as a PostHog connection."
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "One-line note on what this query does, shown under the title."
+                    },
+                    "title": {
+                        "type": "string",
+                        "description": "Plain-language label shown to users instead of the node id. Optional: the public query-sources API accepts and ignores it."
+                    },
+                    "nodeId": {
+                        "$ref": "#/components/schemas/QueryNodeId",
+                        "description": "Names this query so other queries in the same submission can reference its results."
+                    },
+                    "sourceType": {
+                        "$ref": "#/components/schemas/QuerySourceType.API"
+                    }
+                },
+                "required": ["payload", "connectionUuid", "sourceType"],
+                "type": "object",
+                "description": "A query sent live to an external API at question time. Nothing is ingested:\nthe connector runs the payload and its rows become this node's result."
+            },
             "SourceQuery": {
                 "anyOf": [
                     {
@@ -37835,6 +37920,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/PythonSourceQuery"
+                    },
+                    {
+                        "$ref": "#/components/schemas/ApiSourceQuery"
                     }
                 ],
                 "description": "The tagged union every submit endpoint takes: one shape per source,\ndiscriminated by sourceType. New sources add a member here — this union is\nthe extension point, not new WarehouseTypes values."
@@ -70477,7 +70565,8 @@
                     "sql",
                     "duckdb",
                     "external",
-                    "python"
+                    "python",
+                    "api"
                 ],
                 "type": "string"
             },
@@ -74202,7 +74291,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.82.0",
+        "version": "3.83.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
