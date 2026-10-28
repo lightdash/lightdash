@@ -141,7 +141,6 @@ const setSidebar = (overrides: Partial<ControlsSidebarContextValue>) => {
         removeWaitingField: vi.fn(),
         updateFilter: vi.fn(),
         updateOtherFilters: vi.fn(),
-        moveEditedFilter: vi.fn(),
         removeFilterById: vi.fn(),
         discard: vi.fn(),
         close: vi.fn(),

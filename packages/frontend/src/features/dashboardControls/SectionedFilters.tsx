@@ -536,11 +536,9 @@ export const SectionedFilters: FC<Props> = ({
         setFlippedIds(new Set());
     }
     const isEditing = useControlsSidebarSelector((c) => c.isSidebarOpen);
-    const editingFilterId = useControlsSidebarSelector(
-        (c) => c.editing?.filterId ?? null,
-    );
-    const moveEditedFilter = useControlsSidebarSelector(
-        (c) => c.moveEditedFilter,
+    // A filter being created is no move: Cancel takes it out
+    const newFilterId = useControlsSidebarSelector((c) =>
+        c.isNew ? (c.editing?.filterId ?? null) : null,
     );
     const openNew = useControlsSidebarSelector((c) => c.openNew);
     // Any edit, however it starts, ends the selection: adjusted in render
@@ -1085,11 +1083,6 @@ export const SectionedFilters: FC<Props> = ({
               : { ruleId: overId };
         if ('sectionId' in target && target.sectionId === currentSectionId)
             return;
-        // The edited filter moves through the editor, so Cancel puts it back
-        if (isEditing && activeId === editingFilterId) {
-            moveEditedFilter(target, sections);
-            return;
-        }
         const moved = moveRuleToSection(
             dashboardFilters,
             activeId,
@@ -1100,10 +1093,11 @@ export const SectionedFilters: FC<Props> = ({
         if (selected.includes(activeId)) clearSelection();
         setDashboardFilters(moved);
         setHaveFiltersChanged(true);
-        trackMoved(
-            countSectionChanges(dashboardFilters, moved, sections),
-            'drag',
-        );
+        if (activeId !== newFilterId)
+            trackMoved(
+                countSectionChanges(dashboardFilters, moved, sections),
+                'drag',
+            );
     };
     const dragged = allRules.find(({ rule }) => rule.id === draggedId);
     const draggedSection = sections.find(({ id }) => id === draggedId);

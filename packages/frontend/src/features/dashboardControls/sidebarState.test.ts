@@ -62,14 +62,24 @@ describe('sidebarState', () => {
         ).toBe(true);
     });
 
-    it('counts the section a rule sits in as an edit, and puts it back', () => {
-        const moved = replaceFilterRule(filters, {
+    it('puts a rule back in the section it sits in now', () => {
+        const snapshot = replaceFilterRule(filters, {
             ...rule('a', ['1']),
             sectionId: 's',
         });
-        expect(isFilterRuleDirty(filters, moved, 'a', asIs)).toBe(true);
+        const intoOther = replaceFilterRule(filters, {
+            ...rule('a', ['9']),
+            sectionId: 't',
+        });
         expect(
-            findFilterRule(restoreFilterRule(moved, filters, 'a'), 'a'),
+            findFilterRule(restoreFilterRule(intoOther, snapshot, 'a'), 'a'),
+        ).toEqual({ ...rule('a', ['1']), sectionId: 't' });
+        const outOfIt = replaceFilterRule(filters, rule('a', ['9']));
+        expect(
+            findFilterRule(restoreFilterRule(outOfIt, snapshot, 'a'), 'a'),
+        ).toEqual(rule('a', ['1']));
+        expect(
+            findFilterRule(restoreFilterRules(outOfIt, snapshot, ['a']), 'a'),
         ).toEqual(rule('a', ['1']));
     });
 

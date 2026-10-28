@@ -54,13 +54,14 @@ there is no separate list or open state.
   `disabled: true`.
 - `discard()` (Cancel) and removing the edited filter undo what the editor
   wrote and nothing else: the edited rule goes back to its snapshot
-  (`restoreFilterRule`, section and list position included), and other rules
-  the editor wrote are restored over `touchedFilterIds`
+  (`restoreFilterRule`, keeping its current section and place), and other
+  rules the editor wrote are restored over `touchedFilterIds`
   (`restoreFilterRules`). Writes from outside the editor survive. Saving to
   the server stays with the dashboard's Save.
 - `removeLastField(label)` takes the rule out and reopens a placeholder with
   the same id, label, `required`, `requiredGroupId`, `lockedTabUuids`; the
-  next `addFirst*` puts it back at its old index.
+  next `addFirst*` puts it back at its old index, and so does Cancel, in the
+  placeholder's section.
 - `haveFiltersChanged` is settled on every way out (`settleFiltersChanged`):
   lowered only if the editor raised it and temporary filters are as they
   were, so a flag shipped code raised is never lowered.
@@ -77,11 +78,10 @@ there is no separate list or open state.
   applies if the tile later gains the field) and whether `tileTargets` exists
   (required-filter tab gating reads it).
 - `isDirty` also counts other rules the editor wrote
-  (`haveOtherFilterRulesChanged`) and `sectionId`. A move by the bar's drag of
-  the edited pill (`moveEditedFilter`) counts while the rule is off its
-  snapshot index (`isFilterRuleMoved`). Known limit: a touched rule the bar
-  then dragged to another section gets its `sectionId` back on Cancel but
-  keeps its new place.
+  (`haveOtherFilterRulesChanged`). Section membership never counts: a move by
+  the Section select or the bar's drag applies to the dashboard at once, and
+  Cancel keeps each rule in the section and place it is in now
+  (`restoreFilterRule` keeps the current `sectionId`).
 
 ## Undo
 

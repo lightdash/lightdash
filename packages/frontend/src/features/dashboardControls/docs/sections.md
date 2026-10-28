@@ -62,9 +62,8 @@ _group_ (that is `requiredGroupId`).
   no target. Resolution is `underPointerFor` (pointer first, `closestCenter`
   for the keyboard); a section drag only meets capsules.
 - Drops go through `moveRuleToSection`; a no-op drop writes nothing.
-  Dragging the edited pill goes through `moveEditedFilter` (Cancel restores
-  it); any other pill's drag survives Cancel. Capsule drag is off while a
-  filter is edited.
+  Every pill's drag, the edited one's included, survives Cancel and is no
+  edit. Capsule drag is off while a filter is edited.
 - Nothing changes size during a drag; feedback is drop lines, not slots.
 
 ## Selection
