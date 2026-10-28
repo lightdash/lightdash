@@ -1,3 +1,10 @@
+## [3.78.2](https://github.com/lightdash/lightdash/compare/3.78.1...3.78.2) (2026-10-28)
+
+
+### Bug Fixes
+
+* **charts:** drop valueless reference lines and skip unbuilt series views ([#31725](https://github.com/lightdash/lightdash/issues/31725)) ([7fe84cd](https://github.com/lightdash/lightdash/commit/7fe84cde5e1f7c9aa7a3d02323950c811b4680aa))
+
 ## [3.78.1](https://github.com/lightdash/lightdash/compare/3.78.0...3.78.1) (2026-10-28)
 
 
