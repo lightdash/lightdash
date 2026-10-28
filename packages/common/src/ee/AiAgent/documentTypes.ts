@@ -117,9 +117,11 @@ export type ApiAiAgentDocumentResponse = {
 
 // Content as Code last applied this document and the project syncs with
 // its repo, so the UI cannot change it.
-export type AiAgentDocumentListItem = AiAgentDocumentSummary & {
+// An interface so the OpenAPI schema stays a flat object rather than an
+// allOf, which the API diff tooling reads as a type change.
+export interface AiAgentDocumentListItem extends AiAgentDocumentSummary {
     managedByContentAsCode: boolean;
-};
+}
 
 export type ApiAiAgentDocumentSummaryListResponse = {
     status: 'ok';
