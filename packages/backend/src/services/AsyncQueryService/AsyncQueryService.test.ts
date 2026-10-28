@@ -9164,6 +9164,205 @@ describe('AsyncQueryService', () => {
     });
 
     describe('analytics cached-result boundaries', () => {
+        const unsupportedFormat =
+            'Managed analytics supports CSV and Excel downloads only';
+        const missingStorage =
+            'Managed analytics downloads require export storage to be configured';
+        test.each([
+            [undefined, unsupportedFormat],
+            [DownloadFileType.JSONL, unsupportedFormat],
+            [DownloadFileType.S3_JSONL, unsupportedFormat],
+            [DownloadFileType.IMAGE, unsupportedFormat],
+            [DownloadFileType.CSV, missingStorage],
+            [DownloadFileType.XLSX, missingStorage],
+        ] as const)(
+            'rejects analytics %s export: %s',
+            async (type, expected) => {
+                const exportStorage = {
+                    isEnabled: () => false,
+                } as FileStorageClient;
+                const service = getMockedAsyncQueryService(
+                    lightdashConfigMock,
+                    {
+                        exportsStorageClient: exportStorage,
+                        fileStorageClient: exportStorage,
+                    },
+                );
+                const account = buildAccount();
+                account.user.ability = new Ability<PossibleAbilities>([
+                    { action: 'view', subject: 'Project' },
+                    { action: 'view', subject: 'SystemAnalytics' },
+                ]);
+                vi.spyOn(projectModel, 'getSummary').mockResolvedValue({
+                    ...projectSummary,
+                    organizationUuid: account.organization.organizationUuid!,
+                    provisioningSource: 'analytics',
+                });
+                vi.spyOn(
+                    analyticsClient,
+                    'assertAnalyticsProjectEnabled',
+                ).mockResolvedValue(undefined);
+                const args: DownloadAsyncQueryResultsArgs = {
+                    account,
+                    projectUuid,
+                    queryUuid: 'analytics-query',
+                    type,
+                    accessMode:
+                        PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
+                };
+                await expect(
+                    service.scheduleDownloadAsyncQueryResults(args),
+                ).rejects.toThrow(expected);
+                await expect(service.download(args)).rejects.toThrow(expected);
+                vi.spyOn(service, 'pollForQueryCompletion').mockResolvedValue(
+                    undefined,
+                );
+                await expect(
+                    service.downloadSyncQueryResults({
+                        ...args,
+                        accessMode: PersistentDownloadFileAccessMode.SIGNED,
+                    }),
+                ).rejects.toThrow(expected);
+                expect(service.queryHistoryModel.get).not.toHaveBeenCalled();
+                expect(
+                    service.resultsStorageClient.getFileUrl,
+                ).not.toHaveBeenCalled();
+            },
+        );
+
+        test.each([
+            [DownloadFileType.CSV, 'schedule'],
+            [DownloadFileType.XLSX, 'schedule'],
+            [DownloadFileType.CSV, 'download'],
+            [DownloadFileType.XLSX, 'download'],
+            [DownloadFileType.CSV, 'downloadSync'],
+            [DownloadFileType.XLSX, 'downloadSync'],
+        ] as const)(
+            'allows %s %s for a user with managed analytics access',
+            async (type, operation) => {
+                const account = buildAccount();
+                account.user.ability = new Ability<PossibleAbilities>([
+                    { action: 'view', subject: 'Project' },
+                    { action: 'view', subject: 'SystemAnalytics' },
+                ]);
+                vi.spyOn(projectModel, 'getSummary').mockResolvedValue({
+                    ...projectSummary,
+                    organizationUuid: account.organization.organizationUuid!,
+                    provisioningSource: 'analytics',
+                });
+                vi.spyOn(
+                    analyticsClient,
+                    'assertAnalyticsProjectEnabled',
+                ).mockResolvedValue(undefined);
+                const exportStorage = {
+                    isEnabled: () => true,
+                    createUploadStream: () => ({
+                        writeStream: new Writable({
+                            write(_chunk, _encoding, callback) {
+                                callback();
+                            },
+                        }),
+                        close: async () => undefined,
+                    }),
+                    getFileUrl: async () => 'export-url',
+                    uploadExcel: async (stream: Readable) => {
+                        await stream.toArray();
+                        return 'export-url';
+                    },
+                } as unknown as FileStorageClient;
+                const createPersistentUrl = vi
+                    .fn()
+                    .mockResolvedValue('download-url');
+                const service = getMockedAsyncQueryService(
+                    lightdashConfigMock,
+                    {
+                        exportsStorageClient: exportStorage,
+                        fileStorageClient: exportStorage,
+                        persistentDownloadFileService: {
+                            createPersistentUrl,
+                        } as unknown as PersistentDownloadFileService,
+                    },
+                );
+                const history = {
+                    queryUuid: 'analytics-query',
+                    projectUuid,
+                    organizationUuid: account.organization.organizationUuid!,
+                    createdBy: account.user.id,
+                    createdByUserUuid: account.user.id,
+                    context: QueryExecutionContext.EXPLORE,
+                    status: QueryHistoryStatus.READY,
+                    requestParameters: {},
+                    metricQuery: metricQueryMock,
+                    fields: validExplore.tables.a.dimensions,
+                    columns: expectedColumns,
+                    resultsFileName: 'analytics-results.jsonl',
+                    resultsExpiresAt: new Date(Date.now() + 60_000),
+                    totalRowCount: 1,
+                } as QueryHistory;
+                vi.mocked(service.queryHistoryModel.get).mockResolvedValue(
+                    history,
+                );
+                const scheduleDownload = vi
+                    .fn()
+                    .mockResolvedValue({ jobId: 'analytics-export-job' });
+                Object.assign(service, {
+                    schedulerClient: {
+                        downloadAsyncQueryResults: scheduleDownload,
+                    },
+                });
+                vi.spyOn(service, 'pollForQueryCompletion').mockResolvedValue(
+                    undefined,
+                );
+                const args: DownloadAsyncQueryResultsArgs = {
+                    account,
+                    projectUuid,
+                    queryUuid: history.queryUuid,
+                    type,
+                    accessMode:
+                        operation === 'downloadSync'
+                            ? PersistentDownloadFileAccessMode.SIGNED
+                            : PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
+                };
+
+                if (operation === 'schedule') {
+                    await expect(
+                        service.scheduleDownloadAsyncQueryResults(args),
+                    ).resolves.toEqual({ jobId: 'analytics-export-job' });
+                    expect(scheduleDownload).toHaveBeenCalledWith(
+                        expect.objectContaining({
+                            projectUuid,
+                            queryUuid: history.queryUuid,
+                            type,
+                            organizationUuid:
+                                account.organization.organizationUuid,
+                            userUuid: account.user.id,
+                        }),
+                    );
+                } else {
+                    await expect(
+                        operation === 'downloadSync'
+                            ? service.downloadSyncQueryResults(args)
+                            : service.download(args),
+                    ).resolves.toMatchObject({
+                        fileUrl: 'download-url',
+                        truncated: false,
+                    });
+                    expect(createPersistentUrl).toHaveBeenCalledWith(
+                        expect.objectContaining({
+                            projectUuid,
+                            organizationUuid:
+                                account.organization.organizationUuid,
+                            fileType: type,
+                            accessMode: args.accessMode,
+                        }),
+                    );
+                }
+                expect(
+                    analyticsClient.assertAnalyticsProjectEnabled,
+                ).toHaveBeenCalled();
+            },
+        );
+
         afterEach(() => {
             projectModel.getSummary.mockResolvedValue(projectSummary);
             vi.mocked(
@@ -9226,6 +9425,15 @@ describe('AsyncQueryService', () => {
                     service.scheduleDownloadAsyncQueryResults(args),
                 ).rejects.toThrow(expected);
                 await expect(service.download(args)).rejects.toThrow(expected);
+                vi.spyOn(service, 'pollForQueryCompletion').mockResolvedValue(
+                    undefined,
+                );
+                await expect(
+                    service.downloadSyncQueryResults({
+                        ...args,
+                        accessMode: PersistentDownloadFileAccessMode.SIGNED,
+                    }),
+                ).rejects.toThrow(expected);
                 expect(service.queryHistoryModel.get).not.toHaveBeenCalled();
                 await expect(
                     service.getAsyncQueryResults(args),
