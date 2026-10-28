@@ -1,3 +1,16 @@
+# [3.74.0](https://github.com/lightdash/lightdash/compare/3.73.3...3.74.0) (2026-10-28)
+
+
+### Bug Fixes
+
+* **ai:** let AI and MCP SQL reads page up to their row limits ([#31688](https://github.com/lightdash/lightdash/issues/31688)) ([8588937](https://github.com/lightdash/lightdash/commit/8588937d488dc1620e572c55f7c3cdf2f1a71526))
+* restore analytics sync button visibility ([#31660](https://github.com/lightdash/lightdash/issues/31660)) ([b605c22](https://github.com/lightdash/lightdash/commit/b605c224b1bb5d0637dc418e96cb0aa3142b8e5b))
+
+
+### Features
+
+* add Sol 6.1 and Terra 6.1 with AI credit rates ([#31613](https://github.com/lightdash/lightdash/issues/31613)) ([a6c1e70](https://github.com/lightdash/lightdash/commit/a6c1e70fcbca9b32511200a3bbcc3cfd4cc9c3a8))
+
 ## [3.73.3](https://github.com/lightdash/lightdash/compare/3.73.2...3.73.3) (2026-10-27)
 
 
