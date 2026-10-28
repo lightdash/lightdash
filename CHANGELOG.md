@@ -1,3 +1,11 @@
+## [3.79.1](https://github.com/lightdash/lightdash/compare/3.79.0...3.79.1) (2026-10-28)
+
+
+### Bug Fixes
+
+* **dashboards:** keep a viewer's new filter with no value as any value ([#31713](https://github.com/lightdash/lightdash/issues/31713)) ([cf74594](https://github.com/lightdash/lightdash/commit/cf74594f83bfb08d56b64d0cb81bf7708479309a))
+* throttle session touch writes to once per interval instead of every request ([#31737](https://github.com/lightdash/lightdash/issues/31737)) ([5588d91](https://github.com/lightdash/lightdash/commit/5588d91fd4486b0945efa850d1861604b02c26d6))
+
 # [3.79.0](https://github.com/lightdash/lightdash/compare/3.78.3...3.79.0) (2026-10-28)
 
 
