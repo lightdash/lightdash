@@ -9,39 +9,31 @@ import { joinContentAsCodePath } from './fileDiscovery';
 
 export const DEFAULT_CONTENT_AS_CODE_PATH = 'lightdash';
 
-// Repo directory for charts/ and dashboards/, relative to the project dir; '' is the project dir itself
-export const normalizeContentAsCodePath = (raw: string): string => {
-    const value = raw.trim().replace(/\\/g, '/');
-    if (value.startsWith('/')) {
-        throw new ParameterError(
-            'content_as_code.path must be relative to the project directory',
-        );
-    }
-    const segments = value
-        .split('/')
-        .filter((segment) => segment !== '' && segment !== '.');
-    if (segments.includes('..')) {
-        throw new ParameterError(
-            'content_as_code.path cannot point outside the project directory',
-        );
-    }
-    return segments.join('/');
-};
-
-// A file path recorded by an upload, relative to the project dir. Unlike the
-// content path it may climb into sibling folders: local dbt packages live
-// beside the project and are symlinked into dbt_packages.
+// A file path recorded by an upload, relative to the project dir. It may
+// climb into sibling folders: local dbt packages live beside the project and
+// are symlinked into dbt_packages.
 export const normalizeContentAsCodeSourcePath = (raw: string): string => {
     const value = raw.trim().replace(/\\/g, '/');
     if (value.startsWith('/')) {
         throw new ParameterError(
-            'Content file paths must be relative to the project directory',
+            'Content paths must be relative to the project directory',
         );
     }
     return value
         .split('/')
         .filter((segment) => segment !== '' && segment !== '.')
         .join('/');
+};
+
+// Repo directory for charts/ and dashboards/, relative to the project dir; '' is the project dir itself
+export const normalizeContentAsCodePath = (raw: string): string => {
+    const normalized = normalizeContentAsCodeSourcePath(raw);
+    if (normalized.split('/').includes('..')) {
+        throw new ParameterError(
+            'content_as_code.path cannot point outside the project directory',
+        );
+    }
+    return normalized;
 };
 
 // Where a source path lands in the repo: '..' may reach sibling folders of
