@@ -5,6 +5,7 @@
 const created: string[] = [];
 
 type Matcher = {
+    method: 'POST' | 'GET';
     url: RegExp;
     deleteUrl: (match: RegExpMatchArray, results: AnyResults) => string | null;
 };
@@ -14,23 +15,28 @@ type AnyResults = {
     userUuid?: string;
     savedSqlUuid?: string;
     project?: { projectUuid?: string };
+    jobResults?: { projectUuid?: string };
 };
 
 const MATCHERS: Matcher[] = [
     {
+        method: 'POST',
         url: /api\/v1\/projects\/([^/?]+)\/spaces\/?(\?.*)?$/,
         deleteUrl: (m, r) =>
             r.uuid ? `/api/v1/projects/${m[1]}/spaces/${r.uuid}` : null,
     },
     {
+        method: 'POST',
         url: /api\/v1\/projects\/[^/?]+\/dashboards(\/with-charts)?\/?(\?.*)?$/,
         deleteUrl: (_m, r) => (r.uuid ? `/api/v1/dashboards/${r.uuid}` : null),
     },
     {
+        method: 'POST',
         url: /api\/v1\/projects\/[^/?]+\/saved\/?(\?.*)?$/,
         deleteUrl: (_m, r) => (r.uuid ? `/api/v1/saved/${r.uuid}` : null),
     },
     {
+        method: 'POST',
         url: /api\/v1\/projects\/([^/?]+)\/sqlRunner\/saved\/?$/,
         deleteUrl: (m, r) =>
             r.savedSqlUuid
@@ -38,40 +44,48 @@ const MATCHERS: Matcher[] = [
                 : null,
     },
     {
+        method: 'POST',
         url: /api\/v1\/user\/?$/,
         deleteUrl: (_m, r) =>
             r.userUuid ? `/api/v1/org/user/${r.userUuid}` : null,
     },
     {
+        method: 'POST',
         url: /api\/v1\/org\/projects\/?$/,
         deleteUrl: (_m, r) =>
             r.project?.projectUuid
                 ? `/api/v1/org/projects/${r.project.projectUuid}`
                 : null,
     },
+    {
+        // UI creates projects through an async job; the uuid only shows up in the job status
+        method: 'GET',
+        url: /api\/v1\/jobs\/[^/?]+\/?$/,
+        deleteUrl: (_m, r) =>
+            r.jobResults?.projectUuid
+                ? `/api/v1/org/projects/${r.jobResults.projectUuid}`
+                : null,
+    },
 ];
 
 const track = (method: string, url: string, body: unknown) => {
-    if (method.toUpperCase() !== 'POST') return;
     const results =
         body && typeof body === 'object' && 'results' in body
             ? (body as { results: AnyResults }).results
             : null;
     if (!results || typeof results !== 'object') return;
-    for (const matcher of MATCHERS) {
-        const match = url.match(matcher.url);
-        if (match) {
-            const deleteUrl = matcher.deleteUrl(match, results);
-            if (deleteUrl) created.push(deleteUrl);
-            return;
-        }
-    }
+    const matcher = MATCHERS.find(
+        (m) => m.method === method.toUpperCase() && m.url.test(url),
+    );
+    if (!matcher) return;
+    const deleteUrl = matcher.deleteUrl(url.match(matcher.url)!, results);
+    if (deleteUrl && !created.includes(deleteUrl)) created.push(deleteUrl);
 };
 
 // Browser-originated requests
 beforeEach(() => {
     for (const matcher of MATCHERS) {
-        cy.intercept({ method: 'POST', url: matcher.url }, (req) => {
+        cy.intercept({ method: matcher.method, url: matcher.url }, (req) => {
             req.continue((res) => {
                 track(req.method, req.url, res.body);
             });
