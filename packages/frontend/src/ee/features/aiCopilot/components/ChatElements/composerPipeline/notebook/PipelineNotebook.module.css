@@ -25,7 +25,7 @@
     color: var(--mantine-color-ldGray-6);
 }
 
-/* One frame per cell: query, rows, footer; inner blocks only draw dividers. */
+/* One frame per cell: open query views, then rows. */
 .cellFrame {
     border: 1px solid var(--mantine-color-default-border);
     border-radius: var(--mantine-radius-md);
@@ -37,8 +37,8 @@
     border-color: var(--mantine-color-text);
 }
 
-.cellFrame > * + * {
-    border-top: 1px solid var(--mantine-color-default-border);
+.cellFrame > * {
+    margin-top: -1px;
 }
 
 /* Code runs full height; the notebook scrolls, not the cell. */
@@ -47,15 +47,52 @@
     line-height: 1.5;
 }
 
-.queryHeader {
-    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm)
-        var(--mantine-spacing-xs) var(--mantine-spacing-md);
+.toolbar {
+    min-height: 36px;
+    padding: 0 var(--mantine-spacing-xs) 0 var(--mantine-spacing-md);
+    border-top: 1px solid var(--mantine-color-default-border);
 }
 
-.fields {
+.footer {
+    padding: var(--mantine-spacing-xxs) var(--mantine-spacing-md);
+    border-top: 1px solid var(--mantine-color-default-border);
+}
+
+.cellFrame[data-empty='true'] {
+    display: none;
+}
+
+.source {
+    color: var(--mantine-color-ldGray-7);
+    cursor: default;
+}
+
+.panel {
     padding: var(--mantine-spacing-xs) var(--mantine-spacing-md)
         var(--mantine-spacing-sm);
     border-top: 1px solid var(--mantine-color-default-border);
+}
+
+.codePanel {
+    composes: code;
+    border-top: 1px solid var(--mantine-color-default-border);
+}
+
+/* Header actions show on hover or focus, so idle cells read as title and rows. */
+.cellActions {
+    opacity: 0;
+    transition: opacity 120ms ease;
+}
+
+.cell:hover .cellActions,
+.cell:focus-within .cellActions {
+    opacity: 1;
+}
+
+@media (hover: none) {
+    .cellActions {
+        opacity: 1;
+    }
 }
 
 .cellError {
@@ -64,34 +101,17 @@
     font-size: var(--mantine-font-size-xs);
     color: var(--mantine-color-red-light-color);
     overflow-wrap: anywhere;
+    border-top: 1px solid var(--mantine-color-default-border);
 }
 
-/* The table draws its own top border. */
+/* Each block draws its top border; the frame's -1px margin hides the first one. */
 .cellFrame > .result {
     overflow: hidden;
-    border-top: 0;
-}
-
-.cellFooter {
-    padding: var(--mantine-spacing-xs) var(--mantine-spacing-md);
 }
 
 .facts {
     font-variant-numeric: tabular-nums;
-}
-
-.disclosure {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    font-size: var(--mantine-font-size-xs);
-    font-weight: 500;
-    color: var(--mantine-color-ldGray-6);
-}
-
-.disclosure:hover,
-.disclosure[aria-expanded='true'] {
-    color: var(--mantine-color-text);
+    white-space: nowrap;
 }
 
 .referencesIcon {

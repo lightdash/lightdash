@@ -33,9 +33,9 @@ import { NodeStatusIndicator } from '../../ComposerNodeStatusIndicator';
 import { type ComposerRunNodeStatus } from '../../useComposerRunNodeStatuses';
 import { nodeTypeLabelOf, type PipelineNode } from '../groupPipeline';
 import { nodeTypeIcon } from '../nodeTypeIcon';
-import { CompiledSql, CompiledSqlToggle, NodeQuery } from './NodeQuery';
+import { CellQueryPanels, CellQueryToggles, ExploreSource } from './NodeQuery';
 import styles from './PipelineNotebook.module.css';
-import { semanticQueryOf } from './semanticQueryOf';
+import { semanticQueryOf, type QueryPanel } from './semanticQueryOf';
 import { useExploreFromHere } from './useExploreFromHere';
 
 const FLASH_MS = 1200;
@@ -58,17 +58,13 @@ export type PipelineNotebookProps = {
 };
 
 // Results are a fetch per node, so a cell loads its own once scrolled into view.
-const LazyResult: FC<{ children: ReactNode }> = ({ children }) => {
+const useSeenInViewport = () => {
     const { ref, inViewport } = useInViewport();
     const [seen, setSeen] = useState(false);
     useEffect(() => {
         if (inViewport) setSeen(true);
     }, [inViewport]);
-    return (
-        <Box ref={ref} className={styles.result}>
-            {seen && children}
-        </Box>
-    );
+    return { ref, seen };
 };
 
 const CellStatus: FC<{
@@ -119,10 +115,9 @@ const NotebookCell: FC<CellProps> = ({
     const getUiString = useUiStrings();
     const canViewSql = useCanViewAiAgentSql();
     const exploreFromHere = useExploreFromHere(projectUuid);
-    const [sqlOpen, setSqlOpen] = useState(false);
+    const { ref: cellRef, seen } = useSeenInViewport();
     const status = nodeStatuses[node.nodeId];
     const semanticQuery = semanticQueryOf(node.query);
-    const showQuery = semanticQuery !== null || canViewSql;
     const hasResult =
         displayableNodeIds.has(node.nodeId) &&
         (status === undefined || status.status === 'success');
@@ -153,10 +148,31 @@ const NotebookCell: FC<CellProps> = ({
             ? 'aiAgent.composer.node.collapse'
             : 'aiAgent.composer.node.expand',
     );
-    const compiledSqlQuery = canViewSql ? semanticQuery : null;
+    const summary = waiting
+        ? getUiString(
+              status.status === 'running'
+                  ? 'aiAgent.composer.node.running'
+                  : 'aiAgent.composer.node.queued',
+          )
+        : facts.join(' · ') || null;
+    const [openPanels, setOpenPanels] = useState<ReadonlySet<QueryPanel>>(
+        () => new Set(),
+    );
+    const togglePanel = (panel: QueryPanel) =>
+        setOpenPanels((current) => {
+            const next = new Set(current);
+            if (!next.delete(panel)) next.add(panel);
+            return next;
+        });
+    const hasError = status?.status === 'error' && !!status.error;
 
     return (
-        <Stack gap="xs" data-node-id={node.nodeId}>
+        <Stack
+            ref={cellRef}
+            gap="xs"
+            className={styles.cell}
+            data-node-id={node.nodeId}
+        >
             <Group gap="xs" wrap="nowrap" align="flex-start">
                 <Tooltip label={toggleLabel}>
                     <ActionIcon
@@ -196,7 +212,7 @@ const NotebookCell: FC<CellProps> = ({
                         </Text>
                     )}
                 </Stack>
-                <Group gap="xxs" wrap="nowrap">
+                <Group gap="xxs" wrap="nowrap" className={styles.cellActions}>
                     {onAddToChat && !inChat && (
                         <Tooltip label={addToChatLabel}>
                             <ActionIcon
@@ -225,60 +241,72 @@ const NotebookCell: FC<CellProps> = ({
             </Group>
             <Collapse expanded={open}>
                 <Stack gap="xs">
-                    <Box className={styles.cellFrame} data-flash={flashing}>
-                        {showQuery && (
-                            <NodeQuery
-                                query={node.query}
-                                projectUuid={projectUuid}
-                            />
+                    <Box
+                        className={styles.cellFrame}
+                        data-flash={flashing}
+                        data-empty={
+                            !semanticQuery &&
+                            !canViewSql &&
+                            !hasError &&
+                            !hasResult &&
+                            !summary
+                        }
+                    >
+                        {semanticQuery && (
+                            <Group
+                                justify="space-between"
+                                wrap="nowrap"
+                                className={styles.toolbar}
+                            >
+                                <Group gap="xs" wrap="nowrap" miw={0}>
+                                    <ExploreSource
+                                        query={semanticQuery}
+                                        projectUuid={projectUuid}
+                                    />
+                                    {summary && (
+                                        <Text
+                                            fz="xs"
+                                            c="dimmed"
+                                            className={styles.facts}
+                                        >
+                                            {summary}
+                                        </Text>
+                                    )}
+                                </Group>
+                                <CellQueryToggles
+                                    query={semanticQuery}
+                                    canViewSql={canViewSql}
+                                    openPanels={openPanels}
+                                    onTogglePanel={togglePanel}
+                                />
+                            </Group>
                         )}
-                        {status?.status === 'error' && status.error && (
+                        <CellQueryPanels
+                            query={node.query}
+                            projectUuid={projectUuid}
+                            canViewSql={canViewSql}
+                            openPanels={openPanels}
+                        />
+                        {hasError && (
                             <Box className={styles.cellError}>
                                 {status.error}
                             </Box>
                         )}
-                        {waiting && (
-                            <Text
-                                fz="xs"
-                                c="dimmed"
-                                className={styles.cellFooter}
-                            >
-                                {getUiString(
-                                    status.status === 'running'
-                                        ? 'aiAgent.composer.node.running'
-                                        : 'aiAgent.composer.node.queued',
-                                )}
-                            </Text>
-                        )}
                         {hasResult && open && (
-                            <LazyResult>
-                                {renderNodeResult(node.nodeId)}
-                            </LazyResult>
+                            <Box className={styles.result}>
+                                {seen && renderNodeResult(node.nodeId)}
+                            </Box>
                         )}
-                        {(facts.length > 0 || compiledSqlQuery) && (
-                            <Group
-                                justify="space-between"
-                                wrap="nowrap"
-                                fz="xs"
-                                c="dimmed"
-                                className={styles.cellFooter}
-                            >
-                                <Text inherit className={styles.facts}>
-                                    {facts.join(' · ')}
+                        {!semanticQuery && summary && (
+                            <Box className={styles.footer}>
+                                <Text
+                                    fz="xs"
+                                    c="dimmed"
+                                    className={styles.facts}
+                                >
+                                    {summary}
                                 </Text>
-                                {compiledSqlQuery && (
-                                    <CompiledSqlToggle
-                                        open={sqlOpen}
-                                        onToggle={() => setSqlOpen((v) => !v)}
-                                    />
-                                )}
-                            </Group>
-                        )}
-                        {compiledSqlQuery && sqlOpen && (
-                            <CompiledSql
-                                query={compiledSqlQuery}
-                                projectUuid={projectUuid}
-                            />
+                            </Box>
                         )}
                     </Box>
                     {references.length > 0 && (

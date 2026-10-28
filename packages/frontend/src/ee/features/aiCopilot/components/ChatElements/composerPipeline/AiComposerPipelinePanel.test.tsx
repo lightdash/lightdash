@@ -328,7 +328,7 @@ describe('AiComposerPipelinePanel semantic nodes', () => {
             queries: [semanticOrders, queries[1], queries[2]],
         });
         const details = await cell('orders').findByRole('button', {
-            name: 'Fields, filters, sorts and parameters',
+            name: 'Metric query',
         });
         expect(details).toHaveAttribute('aria-expanded', 'false');
         fireEvent.click(details);
@@ -347,7 +347,7 @@ describe('AiComposerPipelinePanel semantic nodes', () => {
         ).toHaveTextContent('Orders count');
     });
 
-    it('compiles a semantic node query only once Compiled SQL is opened', async () => {
+    it('compiles a semantic node query only once SQL query is opened', async () => {
         compiledSql.mockReturnValue({
             data: { query: 'SELECT status FROM orders' },
         } as unknown as ReturnType<typeof useCompiledSqlFromMetricQuery>);
@@ -357,7 +357,7 @@ describe('AiComposerPipelinePanel semantic nodes', () => {
         });
         expect(compiledSql).not.toHaveBeenCalled();
         fireEvent.click(
-            await cell('orders').findByRole('button', { name: 'Compiled SQL' }),
+            await cell('orders').findByRole('button', { name: 'SQL query' }),
         );
         expect(compiledSql).toHaveBeenCalledWith(
             expect.objectContaining({

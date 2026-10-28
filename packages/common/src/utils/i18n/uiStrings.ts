@@ -521,11 +521,10 @@ export const DEFAULT_UI_STRINGS = {
     'aiAgent.composer.node.exploreFromHere': 'Explore from here',
     'aiAgent.composer.node.references': 'References',
     'aiAgent.composer.node.finalResult': 'Final result',
-    'aiAgent.composer.semanticNode.queryDetails':
-        'Fields, filters, sorts and parameters',
+    'aiAgent.composer.node.sqlQuery': 'SQL query',
+    'aiAgent.composer.semanticNode.metricQuery': 'Metric query',
     'aiAgent.composer.node.running': 'Running…',
     'aiAgent.composer.node.queued': 'Queued, waiting on the steps it reads',
-    'aiAgent.composer.semanticNode.compiledSql': 'Compiled SQL',
     'aiAgent.composer.semanticNode.compiling': 'Compiling query…',
     'aiAgent.composer.semanticNode.compileError':
         'Could not compile this query.',

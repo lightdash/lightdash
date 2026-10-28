@@ -20,3 +20,6 @@ export const hasQueryDetails = (query: SemanticLayerSourceQuery) => {
         Object.keys(query.parameters ?? {}).length > 0
     );
 };
+
+/** A semantic cell's toggleable query views. */
+export type QueryPanel = 'details' | 'sql';
