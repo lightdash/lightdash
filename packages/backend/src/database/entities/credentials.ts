@@ -20,6 +20,9 @@ export type DbCredentials = {
     subject_user_uuid: string | null;
     subject_label: string | null;
     issuer_credential_uuid: string | null;
+    ssh_key_pair_public_key: string | null;
+    web_identity_audience: string | null;
+    issuer_agent_client_uuid: string | null;
     oauth_grant_uuid: string | null;
     generation: string;
     expires_at: Date | null;

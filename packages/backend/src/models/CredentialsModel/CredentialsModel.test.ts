@@ -29,6 +29,9 @@ const row = {
     subject_user_uuid: null,
     subject_label: null,
     issuer_credential_uuid: null,
+    ssh_key_pair_public_key: null,
+    web_identity_audience: null,
+    issuer_agent_client_uuid: null,
     oauth_grant_uuid: null,
     generation: 'generation',
     expires_at: null,
@@ -63,8 +66,8 @@ describe('CredentialsModel', () => {
         expect(metadata).not.toHaveProperty('identity');
         for (const key of sensitiveCredentialsFieldNames)
             expect(metadata).not.toHaveProperty(key);
-        expect(Object.keys(metadata)).toHaveLength(20);
-        expect(tracker.history.select[0].sql).not.toContain('identity');
+        expect(Object.keys(metadata)).toHaveLength(23);
+        expect(tracker.history.select[0].sql).not.toContain('"identity"');
         expect(tracker.history.select[0].sql).not.toContain(
             'encrypted_secrets',
         );

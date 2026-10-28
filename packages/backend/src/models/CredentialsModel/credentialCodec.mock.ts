@@ -153,7 +153,6 @@ export const codecCases: Array<
         authMode: 'web_identity',
         identity: {
             assumeRoleArn: 'arn:role',
-            webIdentityAudience: 'audience',
         },
         secrets: {},
     },
@@ -191,20 +190,6 @@ export const codecCases: Array<
         identity: {},
         secrets: {},
     })),
-    {
-        purpose: 'agent_oauth_client',
-        warehouseType: WarehouseTypes.SNOWFLAKE,
-        authMode: 'oauth',
-        identity: { clientId: 'client' },
-        secrets: { clientSecret: 'secret-agent-client' },
-    },
-    {
-        purpose: 'ssh_key_pair',
-        warehouseType: null,
-        authMode: 'key_pair',
-        identity: { publicKey: 'public-key' },
-        secrets: { privateKey: 'secret-ssh' },
-    },
     ...['oauth', 'personal_access_token'].map((authMode) => ({
         purpose: 'git_user' as const,
         warehouseType: null,

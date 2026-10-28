@@ -69,6 +69,9 @@ const fixture = async () => {
         subjectUserUuid: null,
         subjectLabel: null,
         issuerCredentialUuid: null,
+        sshKeyPairPublicKey: null,
+        webIdentityAudience: null,
+        issuerAgentClientUuid: null,
         oauthGrantUuid: null,
         expiresAt: null,
         createdByUserUuid: users[0].user_uuid,
@@ -98,8 +101,50 @@ const fixture = async () => {
     };
 };
 
+const agentClient = async (f: Awaited<ReturnType<typeof fixture>>) => {
+    const existing = await migrated
+        .database('organization_snowflake_agent_clients')
+        .where('organization_uuid', f.base.organizationUuid)
+        .first();
+    if (existing) return existing.organization_snowflake_agent_client_uuid;
+    const [client] = await migrated
+        .database('organization_snowflake_agent_clients')
+        .insert({
+            organization_uuid: f.base.organizationUuid,
+            account_url: 'https://test.snowflakecomputing.com',
+            account_identifier: 'test',
+            client_id: 'client',
+            encrypted_client_secret: encryptionUtil.encrypt('client-secret'),
+        })
+        .returning('organization_snowflake_agent_client_uuid');
+    return client.organization_snowflake_agent_client_uuid;
+};
+
+const identityLinks = async (f: Awaited<ReturnType<typeof fixture>>) => {
+    const publicKey = `public-${f.base.organizationUuid}`;
+    const audience = `audience-${f.base.organizationUuid}`;
+    await migrated.database('ssh_key_pairs').insert({
+        public_key: publicKey,
+        private_key: encryptionUtil.encrypt('private'),
+        organization_uuid: f.base.organizationUuid,
+    });
+    await migrated.database('aws_web_identity_audiences').insert({
+        audience,
+        organization_uuid: f.base.organizationUuid,
+        created_by_user_uuid: null,
+    });
+    return {
+        ssh_key_pair_public_key: publicKey,
+        web_identity_audience: audience,
+        issuer_agent_client_uuid: await agentClient(f),
+    };
+};
+
 test('reverses and reapplies all three tables', async () => {
     await migrated.database.transaction(async (trx) => {
+        const links =
+            await import('../20261028120000_link_credential_identities');
+        await links.down(trx);
         await down(trx);
         expect(
             await Promise.all(
@@ -111,6 +156,7 @@ test('reverses and reapplies all three tables', async () => {
             ),
         ).toEqual([false, false, false]);
         await up(trx);
+        await links.up(trx);
         expect(
             await Promise.all(
                 [
@@ -135,7 +181,8 @@ test('rejects every invalid credential CHECK shape', async () => {
         { owner_project_uuid: f.projectUuid },
         { owner_warehouse_connection_uuid: f.connectionUuid },
         { warehouse_type: null },
-        { purpose: 'ssh_key_pair', warehouse_type: WarehouseTypes.SNOWFLAKE },
+        { purpose: 'ssh_key_pair' as CredentialPurpose, warehouse_type: null },
+        { purpose: 'agent_oauth_client' as CredentialPurpose },
         { identity: '[]' as unknown as Record<string, unknown> },
         { source_table: 'legacy' },
         { source_key: 'legacy-key' },
@@ -170,8 +217,6 @@ test('enforces the full purpose to owner matrix and warehouse presence', async (
         ),
         ['personal_sign_in', ['person'], true],
         ['agent_sign_in', ['person'], true],
-        ['agent_oauth_client', ['organization'], true],
-        ['ssh_key_pair', ['organization'], false],
         ['git_installation', ['organization'], false],
         ['git_user', ['person'], false],
         ...(
@@ -189,6 +234,7 @@ test('enforces the full purpose to owner matrix and warehouse presence', async (
             ],
         ),
     ];
+    const issuerAgentClientUuid = await agentClient(f);
     await Promise.all(
         cases.map(async ([purpose, owners, warehouse]) => {
             await Promise.all(
@@ -197,6 +243,10 @@ test('enforces the full purpose to owner matrix and warehouse presence', async (
                         const insert = {
                             ...f.raw,
                             purpose,
+                            issuer_agent_client_uuid:
+                                purpose === 'agent_sign_in'
+                                    ? issuerAgentClientUuid
+                                    : null,
                             owner_kind: owner,
                             owner_user_uuid:
                                 owner === 'person' ? f.userUuid : null,
@@ -244,32 +294,6 @@ test('rejects a connection credential whose extra connection belongs to another 
         migrated.database('credentials').insert({
             ...credential,
             owner_project_uuid: f.projectUuid,
-        }),
-    ).resolves.toBeDefined();
-});
-
-test('allows an issuer credential only for agent sign-in', async () => {
-    const f = await fixture();
-    const issuer = await f.model.create({
-        ...f.base,
-        purpose: 'agent_oauth_client',
-        authMode: 'oauth',
-        identity: { clientId: 'agent-client' },
-        secrets: { clientSecret: 'secret-client' },
-    });
-    await expect(
-        migrated.database('credentials').insert({
-            ...f.raw,
-            issuer_credential_uuid: issuer.uuid,
-        }),
-    ).rejects.toMatchObject({ code: '23514' });
-    await expect(
-        migrated.database('credentials').insert({
-            ...f.raw,
-            purpose: 'agent_sign_in',
-            owner_kind: 'person',
-            owner_user_uuid: f.userUuid,
-            issuer_credential_uuid: issuer.uuid,
         }),
     ).resolves.toBeDefined();
 });
@@ -629,69 +653,39 @@ test('accepts a Google OAuth grant owned by the credential owner', async () => {
     });
 });
 
-test.each(['purpose', 'organization', 'warehouse'] as const)(
-    'refuses an issuer with the wrong %s',
-    async (mismatch) => {
-        const f = await fixture();
-        const issuer = await f.model.create(
-            mismatch === 'purpose'
-                ? f.base
-                : {
-                      ...f.base,
-                      purpose: 'agent_oauth_client',
-                      authMode: 'oauth',
-                      identity: { clientId: 'client' },
-                      secrets: { clientSecret: 'client-secret' },
-                  },
-        );
-        const other = mismatch === 'organization' ? await fixture() : f;
-        await expect(
-            f.model.create({
-                ...other.base,
-                ownerKind: 'person',
-                ownerUserUuid: other.userUuid,
-                purpose: 'agent_sign_in',
-                warehouseType:
-                    mismatch === 'warehouse'
-                        ? WarehouseTypes.BIGQUERY
-                        : WarehouseTypes.SNOWFLAKE,
-                authMode: 'sso',
-                identity:
-                    mismatch === 'warehouse'
-                        ? { client_id: null }
-                        : { user: 'alice' },
-                secrets: { token: 'access-token' },
-                issuerCredentialUuid: issuer.uuid,
-            }),
-        ).rejects.toThrow(ParameterError);
-        expect(
-            await migrated
-                .database('credentials')
-                .where('issuer_credential_uuid', issuer.uuid),
-        ).toHaveLength(0);
-    },
-);
-
-test('accepts an agent OAuth client issuer in the same organization and warehouse', async () => {
+test('creates and reads all three identity links through the model', async () => {
     const f = await fixture();
-    const issuer = await f.model.create({
+    const links = await identityLinks(f);
+    const shared = await f.model.create({
         ...f.base,
-        purpose: 'agent_oauth_client',
-        authMode: 'oauth',
-        identity: { clientId: 'client' },
-        secrets: { clientSecret: 'client-secret' },
+        sshKeyPairPublicKey: links.ssh_key_pair_public_key,
     });
-    const credential = await f.model.create({
+    expect(await f.model.getMetadata(shared.uuid)).toMatchObject({
+        sshKeyPairPublicKey: links.ssh_key_pair_public_key,
+    });
+    const web = await f.model.create({
+        ...f.base,
+        warehouseType: WarehouseTypes.ATHENA,
+        authMode: 'web_identity',
+        identity: { assumeRoleArn: 'role' },
+        secrets: {},
+        webIdentityAudience: links.web_identity_audience,
+    });
+    expect(await f.model.getMetadata(web.uuid)).toMatchObject({
+        webIdentityAudience: links.web_identity_audience,
+    });
+    const agent = await f.model.create({
         ...f.base,
         ownerKind: 'person',
         ownerUserUuid: f.userUuid,
         purpose: 'agent_sign_in',
         authMode: 'sso',
-        secrets: { token: 'access-token' },
-        issuerCredentialUuid: issuer.uuid,
+        secrets: { token: 'access' },
+        issuerAgentClientUuid: links.issuer_agent_client_uuid,
     });
-    expect(await f.model.getMetadata(credential.uuid)).toMatchObject({
-        issuerCredentialUuid: issuer.uuid,
+    expect(await f.model.getMetadata(agent.uuid)).toMatchObject({
+        issuerAgentClientUuid: links.issuer_agent_client_uuid,
+        issuerCredentialUuid: null,
     });
 });
 
@@ -913,4 +907,244 @@ test('key rotation re-encrypts both new stores without changing generation or to
     expect((await reader.getMetadata(credential.uuid)).generation).toBe(
         credential.generation,
     );
+});
+
+const linkedCredential = (
+    f: Awaited<ReturnType<typeof fixture>>,
+    column: string,
+    value: string,
+): DbCredentialsInsert => ({
+    ...f.raw,
+    ...(column === 'web_identity_audience'
+        ? { warehouse_type: WarehouseTypes.ATHENA, auth_mode: 'web_identity' }
+        : {}),
+    ...(column === 'issuer_agent_client_uuid'
+        ? {
+              purpose: 'agent_sign_in' as const,
+              owner_kind: 'person' as const,
+              owner_user_uuid: f.userUuid,
+          }
+        : {}),
+    [column]: value,
+});
+
+const linkColumns = [
+    'ssh_key_pair_public_key',
+    'web_identity_audience',
+    'issuer_agent_client_uuid',
+] as const;
+
+test.each(linkColumns)(
+    'enforces the organization and existence of %s',
+    async (column) => {
+        const f = await fixture();
+        const other = await fixture();
+        const links = await identityLinks(f);
+        const row = linkedCredential(f, column, links[column]);
+        await expect(
+            migrated.database('credentials').insert({
+                ...row,
+                organization_uuid: other.base.organizationUuid,
+            }),
+        ).rejects.toMatchObject({ code: '23503' });
+        await expect(
+            migrated.database('credentials').insert(row),
+        ).resolves.toBeDefined();
+        await expect(
+            migrated.database('credentials').insert({
+                ...row,
+                [column]:
+                    column === 'issuer_agent_client_uuid'
+                        ? '00000000-0000-0000-0000-000000000001'
+                        : 'missing',
+            }),
+        ).rejects.toMatchObject({ code: '23503' });
+    },
+);
+
+test.each(['ssh_key_pair_public_key', 'web_identity_audience'] as const)(
+    'reserves %s only when it is present',
+    async (column) => {
+        const f = await fixture();
+        const links = await identityLinks(f);
+        await migrated.database('credentials').insert([f.raw, f.raw]);
+        const row = linkedCredential(f, column, links[column]);
+        await migrated.database('credentials').insert(row);
+        await expect(
+            migrated.database('credentials').insert(row),
+        ).rejects.toMatchObject({ code: '23505' });
+    },
+);
+
+test('limits SSH links to shared logins', async () => {
+    const f = await fixture();
+    const links = await identityLinks(f);
+    const row = linkedCredential(
+        f,
+        'ssh_key_pair_public_key',
+        links.ssh_key_pair_public_key,
+    );
+    await expect(
+        migrated.database('credentials').insert({
+            ...row,
+            purpose: 'ai_service_account',
+            owner_kind: 'connection',
+            owner_project_uuid: f.projectUuid,
+        }),
+    ).rejects.toMatchObject({
+        code: '23514',
+        constraint: 'credentials_ssh_key_pair_purpose_check',
+    });
+    await expect(
+        migrated.database('credentials').insert(row),
+    ).resolves.toBeDefined();
+});
+
+test.each([
+    { warehouse_type: WarehouseTypes.SNOWFLAKE, auth_mode: 'web_identity' },
+    { warehouse_type: WarehouseTypes.ATHENA, auth_mode: 'access_key' },
+    {
+        purpose: 'git_installation',
+        warehouse_type: null,
+        auth_mode: 'web_identity',
+    },
+])(
+    'limits web identity links to Athena web identity auth: %j',
+    async (patch) => {
+        const f = await fixture();
+        const links = await identityLinks(f);
+        const row = linkedCredential(
+            f,
+            'web_identity_audience',
+            links.web_identity_audience,
+        );
+        await expect(
+            migrated
+                .database('credentials')
+                .insert({ ...row, ...patch } as DbCredentialsInsert),
+        ).rejects.toMatchObject({
+            code: '23514',
+            constraint: 'credentials_web_identity_auth_check',
+        });
+        await expect(
+            migrated.database('credentials').insert(row),
+        ).resolves.toBeDefined();
+    },
+);
+
+test('requires an agent client exactly for agent sign-ins and lets it issue many sign-ins', async () => {
+    const f = await fixture();
+    const issuer = await agentClient(f);
+    const row = linkedCredential(f, 'issuer_agent_client_uuid', issuer);
+    await expect(
+        migrated
+            .database('credentials')
+            .insert({ ...row, issuer_agent_client_uuid: null }),
+    ).rejects.toMatchObject({
+        code: '23514',
+        constraint: 'credentials_agent_client_purpose_check',
+    });
+    await expect(
+        migrated
+            .database('credentials')
+            .insert({ ...f.raw, issuer_agent_client_uuid: issuer }),
+    ).rejects.toMatchObject({
+        code: '23514',
+        constraint: 'credentials_agent_client_purpose_check',
+    });
+    await expect(
+        migrated.database('credentials').insert([row, row]),
+    ).resolves.toBeDefined();
+    await expect(
+        migrated.database('credentials').insert(f.raw),
+    ).resolves.toBeDefined();
+});
+
+test.each(['shared_login', 'agent_sign_in'] as const)(
+    'forbids the old issuer credential link for %s',
+    async (purpose) => {
+        const f = await fixture();
+        const issuer = await f.model.create(f.base);
+        const row =
+            purpose === 'agent_sign_in'
+                ? linkedCredential(
+                      f,
+                      'issuer_agent_client_uuid',
+                      await agentClient(f),
+                  )
+                : f.raw;
+        await expect(
+            migrated
+                .database('credentials')
+                .insert({ ...row, issuer_credential_uuid: issuer.uuid }),
+        ).rejects.toMatchObject({
+            code: '23514',
+            constraint: 'credentials_issuer_credential_null_check',
+        });
+        await expect(
+            migrated.database('credentials').insert(row),
+        ).resolves.toBeDefined();
+    },
+);
+
+test('restores the old checks on down and reapplies the identity links', async () => {
+    const migration =
+        await import('../20261028120000_link_credential_identities');
+    const f = await fixture();
+    const links = await identityLinks(f);
+    await migrated.database.transaction(async (trx) => {
+        await trx('credentials').delete();
+        const checks = () =>
+            trx('pg_constraint')
+                .select(
+                    'conname',
+                    trx.raw('pg_get_constraintdef(oid) AS definition'),
+                )
+                .where({
+                    conrelid: trx.raw("'credentials'::regclass"),
+                    contype: 'c',
+                })
+                .orderBy('conname');
+        const before = await checks();
+        await migration.down(trx);
+        expect(
+            await Promise.all(
+                linkColumns.map((column) =>
+                    trx.schema.hasColumn('credentials', column),
+                ),
+            ),
+        ).toEqual([false, false, false]);
+        const previous = await trx('credentials')
+            .insert(
+                ['ssh_key_pair', 'agent_oauth_client'].map(
+                    (purpose) =>
+                        ({
+                            ...f.raw,
+                            purpose,
+                            warehouse_type:
+                                purpose === 'ssh_key_pair'
+                                    ? null
+                                    : WarehouseTypes.SNOWFLAKE,
+                        }) as DbCredentialsInsert,
+                ),
+            )
+            .returning('credential_uuid');
+        await trx('credentials').insert({
+            ...f.raw,
+            purpose: 'agent_sign_in',
+            owner_kind: 'person',
+            owner_user_uuid: f.userUuid,
+            issuer_credential_uuid: previous[1].credential_uuid,
+        });
+        await trx('credentials')
+            .where('organization_uuid', f.base.organizationUuid)
+            .delete();
+        await migration.up(trx);
+        expect(await checks()).toEqual(before);
+        await trx('credentials').insert(
+            linkColumns.map((column) =>
+                linkedCredential(f, column, links[column]),
+            ),
+        );
+    });
 });
