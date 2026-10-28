@@ -15,10 +15,7 @@ import { useState } from 'react';
 import MantineIcon from '../components/common/MantineIcon';
 import panelStyles from '../ee/features/aiCopilot/components/ChatElements/AiArtifactPanel.module.css';
 import { AiComposerResultError } from '../ee/features/aiCopilot/components/ChatElements/AiComposerResultError';
-import {
-    AiComposerPipelinePanel,
-    type PipelineMode,
-} from '../ee/features/aiCopilot/components/ChatElements/composerPipeline/AiComposerPipelinePanel';
+import { AiComposerLineage } from '../ee/features/aiCopilot/components/ChatElements/composerPipeline/AiComposerLineage';
 import { ComposerQueriesToolCallDescription } from '../ee/features/aiCopilot/components/ChatElements/ToolCalls/descriptions/ComposerQueriesToolCallDescription';
 import { type ComposerRunNodeStatus } from '../ee/features/aiCopilot/components/ChatElements/useComposerRunNodeStatuses';
 import {
@@ -210,8 +207,8 @@ type ArtifactProps = {
     queries: SourceQuery[];
     terminalNodeId: string;
     result: ResultTable;
-    defaultExpanded?: boolean;
-    defaultMode?: PipelineMode;
+    /** Shows the lineage instead of the result. */
+    lineage?: boolean;
     nodeStatuses?: Record<string, ComposerRunNodeStatus>;
     /** The displayed node's error, shown in place of the result. */
     resultError?: string;
@@ -222,8 +219,7 @@ const ComposerArtifact = ({
     queries,
     terminalNodeId,
     result,
-    defaultExpanded,
-    defaultMode,
+    lineage,
     nodeStatuses = {},
     resultError,
 }: ArtifactProps) => {
@@ -239,28 +235,30 @@ const ComposerArtifact = ({
                         panelStyles.flushContent,
                     )}
                 >
-                    <AiComposerPipelinePanel
-                        projectUuid={STORY_PROJECT_UUID}
-                        queries={queries}
-                        terminalNodeId={terminalNodeId}
-                        displayedNodeId={terminalNodeId}
-                        displayableNodeIds={
-                            new Set(queries.map((q) => q.nodeId!))
-                        }
-                        onDisplayNode={() => {}}
-                        nodeStatuses={nodeStatuses}
-                        defaultExpanded={defaultExpanded}
-                        defaultMode={defaultMode}
-                        renderNodeResult={() => (
-                            <ResultsTable result={result} withBorder={false} />
-                        )}
-                        chatNodeIds={chatNodeIds}
-                        onAddToChat={(node) =>
-                            setChatNodeIds(
-                                (current) => new Set([...current, node.nodeId]),
-                            )
-                        }
-                    >
+                    {lineage ? (
+                        <AiComposerLineage
+                            projectUuid={STORY_PROJECT_UUID}
+                            queries={queries}
+                            terminalNodeId={terminalNodeId}
+                            displayableNodeIds={
+                                new Set(queries.map((q) => q.nodeId!))
+                            }
+                            nodeStatuses={nodeStatuses}
+                            renderNodeResult={() => (
+                                <ResultsTable
+                                    result={result}
+                                    withBorder={false}
+                                />
+                            )}
+                            chatNodeIds={chatNodeIds}
+                            onAddToChat={(node) =>
+                                setChatNodeIds(
+                                    (current) =>
+                                        new Set([...current, node.nodeId]),
+                                )
+                            }
+                        />
+                    ) : (
                         <Stack gap="md" h="100%" mih={0}>
                             <Box
                                 className={clsx(
@@ -294,7 +292,7 @@ const ComposerArtifact = ({
                                 />
                             )}
                         </Stack>
-                    </AiComposerPipelinePanel>
+                    )}
                 </Box>
             </Box>
         </Box>
@@ -321,21 +319,17 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Collapsed: Story = {};
+export const Result: Story = {};
 
-export const Expanded: Story = {
-    args: { defaultExpanded: true },
-};
-
-export const Graph: Story = {
-    args: { defaultExpanded: true, defaultMode: 'graph' },
+export const Lineage: Story = {
+    args: { lineage: true },
 };
 
 export const PythonResult: Story = {
     args: {
         queries: pythonTerminalQueries,
         terminalNodeId: 'simulation',
-        defaultExpanded: true,
+        lineage: true,
         result: {
             title: 'Simulated monthly revenue',
             description: SIMULATION_DESCRIPTION,
@@ -354,7 +348,7 @@ export const DuckdbOverPython: Story = {
     args: {
         queries: duckdbOverPythonQueries,
         terminalNodeId: 'percentiles',
-        defaultExpanded: true,
+        lineage: true,
         result: {
             title: 'Revenue percentiles',
             description: SIMULATION_DESCRIPTION,
@@ -364,16 +358,11 @@ export const DuckdbOverPython: Story = {
     },
 };
 
-export const DuckdbOverPythonGraph: Story = {
-    args: { ...DuckdbOverPython.args, defaultMode: 'graph' },
-};
-
 export const AllNodeTypes: Story = {
     args: {
         queries: allNodeTypesQueries,
         terminalNodeId: 'summary',
-        defaultExpanded: true,
-        defaultMode: 'list',
+        lineage: true,
     },
 };
 
@@ -392,8 +381,7 @@ export const SemanticNodeDetails: Story = {
             },
         ],
         terminalNodeId: 'weekly_share',
-        defaultExpanded: true,
-        defaultMode: 'list',
+        lineage: true,
         result: {
             title: 'Weekly share of orders',
             description: 'Completed orders per week, last 90 days.',
