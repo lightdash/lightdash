@@ -98,6 +98,8 @@ To add or retarget a dashboard filter, take each tile's explore and field ids fr
 4. Call `runContentQuery` with `source.type: "metricQuery"` and the chart's `tableName`/`metricQuery`.
 5. Call `createContent` with the verified chart JSON.
 
+For a weekly chart of "the last 12 weeks up to today" where every week starts on its first day, put the `inThePast` filter on the week dimension (e.g. `orders_order_date_week`, `completed: false`, `unitOfTime: weeks`, `values: [12]`), not on the day or raw date. That gives 12 weekly rows: 11 full weeks plus the current week to date. The same filter on a day field starts mid-week, so the first week is partial.
+
 ### Create Dashboards
 
 1. Always read the `dashboard-reference` and `dashboard-best-practices` resources.
