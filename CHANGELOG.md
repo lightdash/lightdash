@@ -1,3 +1,10 @@
+# [3.90.0](https://github.com/lightdash/lightdash/compare/3.89.0...3.90.0) (2026-10-28)
+
+
+### Features
+
+* **data-apps:** surface field url link patterns to the app agent ([#31738](https://github.com/lightdash/lightdash/issues/31738)) ([cefeb97](https://github.com/lightdash/lightdash/commit/cefeb975ec37c6152cfbb72bb25b2ee2bfcc062e))
+
 # [3.89.0](https://github.com/lightdash/lightdash/compare/3.88.0...3.89.0) (2026-10-28)
 
 
