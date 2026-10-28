@@ -34,7 +34,6 @@ export const useAnalysisController = ({
     sources,
     inFlight,
     availability,
-    autoAnalyse,
     instructions = null,
     onNeedsAgent,
     onSourcesExpired,
@@ -46,8 +45,6 @@ export const useAnalysisController = ({
     sources: DataAppAnalysisSource[];
     inFlight: boolean;
     availability: DataAppAnalysisAvailability;
-    /** Already resolved against the org default. */
-    autoAnalyse: boolean;
     /** Author guidance for the model. */
     instructions?: string | null;
     /** Called when an investigation is asked for but no agent is picked yet. */
@@ -67,7 +64,6 @@ export const useAnalysisController = ({
         sources,
         inFlight,
         enabled: availability.status === 'available' && target !== null,
-        autoAnalyse,
         instructions,
         onSourcesExpired,
     });
