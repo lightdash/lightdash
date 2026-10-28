@@ -12,6 +12,7 @@ import {
 } from '../../database/entities/featureFlags';
 import Logger from '../../logging/logger';
 import { record } from './flagCheckAggregator';
+import { requestFeatureFlags } from './requestFeatureFlags';
 
 const UUID_REGEX =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -38,6 +39,11 @@ type FeatureFlagQueryOptions = {
 };
 
 export class FeatureFlagModel {
+    private readonly requestResults = new WeakMap<
+        object,
+        Map<string, Promise<FeatureFlag>>
+    >();
+
     protected readonly database: Knex;
 
     protected readonly lightdashConfig: LightdashConfig;
@@ -70,7 +76,7 @@ export class FeatureFlagModel {
         args: FeatureFlagLogicArgs,
         options: FeatureFlagQueryOptions = {},
     ): Promise<FeatureFlag> {
-        const result = await this.resolve(args, options);
+        const result = await this.resolveForRequest(args, options);
 
         if (options.recordCheck !== false) {
             try {
@@ -85,6 +91,48 @@ export class FeatureFlagModel {
         }
 
         return result;
+    }
+
+    private async resolveForRequest(
+        args: FeatureFlagLogicArgs,
+        options: FeatureFlagQueryOptions,
+    ): Promise<FeatureFlag> {
+        const request = requestFeatureFlags.getStore();
+        if (
+            !request ||
+            !request.active ||
+            args.featureFlagId !== FeatureFlags.AgentIdentity ||
+            options.trx ||
+            options.recordCheck === false
+        ) {
+            return this.resolve(args, options);
+        }
+
+        let results = this.requestResults.get(request);
+        if (!results) {
+            results = new Map();
+            this.requestResults.set(request, results);
+        }
+        const key = JSON.stringify([
+            args.user?.organizationUuid ?? null,
+            args.user?.userUuid ?? null,
+        ]);
+        let pending = results.get(key);
+        if (!pending) {
+            const requestResults = results;
+            pending = this.resolve(args, options).catch((error: unknown) => {
+                requestResults.delete(key);
+                throw error;
+            });
+            results.set(key, pending);
+        }
+        return { ...(await pending) };
+    }
+
+    private clearRequestResults(featureFlagId: string): void {
+        if (featureFlagId !== FeatureFlags.AgentIdentity) return;
+        const request = requestFeatureFlags.getStore();
+        if (request) this.requestResults.delete(request);
     }
 
     private async resolve(
@@ -215,6 +263,7 @@ export class FeatureFlagModel {
             .onConflict(this.database.raw(ORG_OVERRIDE_CONFLICT_TARGET))
             .ignore()
             .returning('feature_flag_override_id');
+        this.clearRequestResults(featureFlagId);
         if (inserted.length > 0) {
             return 'enabled';
         }
@@ -231,6 +280,7 @@ export class FeatureFlagModel {
         try {
             return await FeatureFlagModel.getFromDatabase(args, trx);
         } catch (e) {
+            this.clearRequestResults(args.featureFlagId);
             Logger.warn(
                 `Failed to check feature flag ${args.featureFlagId} from database, falling through: ${e}`,
             );
@@ -273,6 +323,7 @@ export class FeatureFlagModel {
         try {
             return await FeatureFlagModel.getOverrideFromDatabase(args, trx);
         } catch (e) {
+            this.clearRequestResults(args.featureFlagId);
             Logger.warn(
                 `Failed to check feature flag override ${args.featureFlagId} from database, falling through: ${e}`,
             );
@@ -338,6 +389,7 @@ export class FeatureFlagModel {
                 .onConflict(trx.raw(ORG_OVERRIDE_CONFLICT_TARGET))
                 .merge({ enabled, updated_at: new Date() });
         });
+        this.clearRequestResults(featureFlagId);
     }
 
     public async deleteOrganizationOverride(
@@ -349,5 +401,6 @@ export class FeatureFlagModel {
             featureFlagId,
             organizationUuid,
         ).delete();
+        this.clearRequestResults(featureFlagId);
     }
 }

@@ -125,10 +125,13 @@ so Console can turn the feature off again.
 
 ## Refresh, caching, and restart expectations
 
-- The standard backend `FeatureFlagModel.get` does not cache database flag
-  values; a subsequent database-backed resolution sees a committed Console change.
-  Do not capture the resolved boolean at service construction or add a separate
-  feature cache without a documented invalidation strategy.
+- The backend memoizes `agent-identity` during each HTTP request, per model,
+  organization and user. Concurrent checks share the pending lookup. The next
+  request reads the current value. Transaction checks, administrative listings
+  and work after the response completes bypass the memo. Database failures are
+  not memoized. Override writes through the same model clear its request memo.
+  Other flags do not cache database values. Do not capture a resolved boolean at
+  service construction or add a separate cache without an invalidation strategy.
 - ENV sets are parsed at startup; changing a deployment configuration requires
   a process rollout. Mixed old/new pods can briefly disagree during rollout.
 - `useServerFeatureFlag` uses React Query with `refetchOnMount: false`.
@@ -242,10 +245,11 @@ check refuses the connection. AI and dashboard credentials use separate rows and
 client cache entries. Credential selection follows the organisation's
 Snowflake identity rule.
 
-Console changes apply to the next backend flag resolution. Reload or refetch the
-page to update the UI. ENV and OAuth configuration changes need a process
-restart. Disabling the flag preserves saved credentials and restores normal query
-identity. It does not cancel queries in progress or revoke Snowflake tokens.
+Console changes apply on the next HTTP request or uncached backend flag check.
+Reload or refetch the page to update the UI. ENV and OAuth configuration changes
+need a process restart. Disabling the flag preserves saved credentials and
+restores normal query identity. It does not cancel queries in progress or revoke
+Snowflake tokens.
 
 ### Preview shared agent accounts
 

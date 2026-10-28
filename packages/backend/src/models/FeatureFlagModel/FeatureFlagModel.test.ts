@@ -1,5 +1,8 @@
 import { FeatureFlags } from '@lightdash/common';
-import { Knex } from 'knex';
+import type { Request, Response } from 'express';
+import knex, { Knex } from 'knex';
+import { getTracker, MockClient } from 'knex-mock-client';
+import { EventEmitter } from 'node:events';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { LightdashConfig } from '../../config/parseConfig';
 import {
@@ -9,8 +12,13 @@ import {
     FeatureFlagsTableName,
 } from '../../database/entities/featureFlags';
 import Logger from '../../logging/logger';
+import { FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
 import { FeatureFlagModel } from './FeatureFlagModel';
 import { record } from './flagCheckAggregator';
+import {
+    featureFlagRequestMiddleware,
+    requestFeatureFlags,
+} from './requestFeatureFlags';
 
 vi.mock('./flagCheckAggregator', async (importOriginal) => {
     const original =
@@ -155,6 +163,308 @@ const buildFakeWriteDatabase = ({
 };
 
 describe('FeatureFlagModel', () => {
+    describe('request flag memo', () => {
+        const featureFlagId = FeatureFlags.AgentIdentity;
+        const args = { featureFlagId, user: dbUser };
+        const buildRequestModel = () => {
+            const rows: FakeRows = { flag: { default_enabled: false } };
+            const query = vi.fn(buildFakeDatabase(rows));
+            const model = buildModel(
+                { previewFeatureFlags: { enabled: false } },
+                query as unknown as Knex,
+            );
+            return { model, query, rows };
+        };
+
+        it('shares sequential and concurrent checks within one request', async () => {
+            const { model, query } = buildRequestModel();
+            const service = new FeatureFlagService({
+                featureFlagModel: model,
+                lightdashConfig: lightdashConfigMock,
+            });
+            vi.mocked(record).mockClear();
+            await requestFeatureFlags.run({ active: true }, async () => {
+                expect(await model.get(args)).toEqual({
+                    id: featureFlagId,
+                    enabled: false,
+                });
+                const results = await Promise.all([
+                    service.get(args),
+                    model.get(args),
+                ]);
+                expect(results).toEqual([
+                    { id: featureFlagId, enabled: false },
+                    { id: featureFlagId, enabled: false },
+                ]);
+            });
+            expect(query).toHaveBeenCalledTimes(3);
+            expect(record).toHaveBeenCalledTimes(3);
+        });
+
+        it('shares an in-flight first lookup', async () => {
+            const { model, query } = buildRequestModel();
+            await requestFeatureFlags.run({ active: true }, () =>
+                Promise.all([model.get(args), model.get(args)]),
+            );
+            expect(query).toHaveBeenCalledTimes(3);
+        });
+
+        it('reads committed changes on the next request', async () => {
+            const { model, query, rows } = buildRequestModel();
+            expect(
+                await requestFeatureFlags.run({ active: true }, () =>
+                    model.get(args),
+                ),
+            ).toEqual({ id: featureFlagId, enabled: false });
+            rows.orgOverride = { enabled: true };
+            expect(
+                await requestFeatureFlags.run({ active: true }, () =>
+                    model.get(args),
+                ),
+            ).toEqual({ id: featureFlagId, enabled: true });
+            rows.orgOverride = { enabled: false };
+            expect(
+                await requestFeatureFlags.run({ active: true }, () =>
+                    model.get(args),
+                ),
+            ).toEqual({ id: featureFlagId, enabled: false });
+            expect(query).toHaveBeenCalledTimes(9);
+        });
+
+        it('keeps concurrent requests separate', async () => {
+            const { model, query } = buildRequestModel();
+            await Promise.all([
+                requestFeatureFlags.run({ active: true }, () =>
+                    model.get(args),
+                ),
+                requestFeatureFlags.run({ active: true }, () =>
+                    model.get(args),
+                ),
+            ]);
+            expect(query).toHaveBeenCalledTimes(6);
+        });
+
+        it('keeps users, organizations and organization-only checks separate', async () => {
+            const { model, query, rows } = buildRequestModel();
+            rows.orgOverride = {
+                organization_uuid: dbUser.organizationUuid,
+                enabled: true,
+            };
+            await requestFeatureFlags.run({ active: true }, async () => {
+                expect((await model.get(args)).enabled).toBe(true);
+                expect(
+                    (
+                        await model.get({
+                            ...args,
+                            user: {
+                                ...dbUser,
+                                userUuid:
+                                    'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+                            },
+                        })
+                    ).enabled,
+                ).toBe(true);
+                expect(
+                    (
+                        await model.get({
+                            ...args,
+                            user: { ...dbUser, organizationUuid: 'other-org' },
+                        })
+                    ).enabled,
+                ).toBe(false);
+                expect(
+                    (
+                        await model.get({
+                            ...args,
+                            user: { organizationUuid: dbUser.organizationUuid },
+                        })
+                    ).enabled,
+                ).toBe(true);
+                expect((await model.get({ featureFlagId })).enabled).toBe(
+                    false,
+                );
+            });
+            expect(query).toHaveBeenCalledTimes(12);
+        });
+
+        it('does not cache checks outside an HTTP request', async () => {
+            const { model, query, rows } = buildRequestModel();
+            expect((await model.get(args)).enabled).toBe(false);
+            rows.orgOverride = { enabled: true };
+            expect((await model.get(args)).enabled).toBe(true);
+            expect(query).toHaveBeenCalledTimes(6);
+        });
+
+        it('does not cache other flags or administrative listings', async () => {
+            const { model, query } = buildRequestModel();
+            await requestFeatureFlags.run({ active: true }, async () => {
+                await model.get({
+                    ...args,
+                    featureFlagId: FeatureFlags.DbtPartialParse,
+                });
+                await model.get({
+                    ...args,
+                    featureFlagId: FeatureFlags.DbtPartialParse,
+                });
+                await model.get(args, { recordCheck: false });
+                await model.get(args, { recordCheck: false });
+            });
+            expect(query).toHaveBeenCalledTimes(12);
+        });
+
+        it('keeps transaction checks separate from request checks', async () => {
+            const { model, query } = buildRequestModel();
+            const transactionQuery = vi.fn(
+                buildFakeDatabase({ flag: { default_enabled: true } }),
+            );
+            await requestFeatureFlags.run({ active: true }, async () => {
+                expect((await model.get(args)).enabled).toBe(false);
+                expect(
+                    (
+                        await model.get(args, {
+                            trx: transactionQuery as unknown as Knex,
+                        })
+                    ).enabled,
+                ).toBe(true);
+                expect((await model.get(args)).enabled).toBe(false);
+            });
+            expect(query).toHaveBeenCalledTimes(3);
+            expect(transactionQuery).toHaveBeenCalledTimes(3);
+        });
+
+        it('keeps models with different configuration separate', async () => {
+            const { model } = buildRequestModel();
+            const enabledModel = buildModel({
+                enabledFeatureFlags: new Set([featureFlagId]),
+            });
+            await requestFeatureFlags.run({ active: true }, async () => {
+                expect((await model.get(args)).enabled).toBe(false);
+                expect((await enabledModel.get(args)).enabled).toBe(true);
+            });
+        });
+
+        it('does not share mutable results between callers', async () => {
+            const { model } = buildRequestModel();
+            await requestFeatureFlags.run({ active: true }, async () => {
+                const first = await model.get(args);
+                first.enabled = true;
+                expect((await model.get(args)).enabled).toBe(false);
+            });
+        });
+
+        it.each(['enable', 'set', 'delete'] as const)(
+            'reads the new value after an organization override %s in the same request',
+            async (operation) => {
+                const database = knex({ client: MockClient });
+                const tracker = getTracker();
+                let enabled = operation === 'delete';
+                tracker.on
+                    .select(FeatureFlagsTableName)
+                    .response([
+                        { flag_id: featureFlagId, default_enabled: false },
+                    ]);
+                tracker.on
+                    .select(FeatureFlagOverridesTableName)
+                    .response(({ sql }) =>
+                        enabled && sql.includes('"organization_uuid"')
+                            ? [{ enabled: true }]
+                            : [],
+                    );
+                tracker.on.insert(FeatureFlagsTableName).response([]);
+                tracker.on
+                    .insert(FeatureFlagOverridesTableName)
+                    .response(() => {
+                        enabled = true;
+                        return [{ feature_flag_override_id: 1 }];
+                    });
+                tracker.on
+                    .delete(FeatureFlagOverridesTableName)
+                    .response(() => {
+                        enabled = false;
+                        return 1;
+                    });
+                const model = buildModel(
+                    { previewFeatureFlags: { enabled: false } },
+                    database,
+                );
+                try {
+                    await requestFeatureFlags.run(
+                        { active: true },
+                        async () => {
+                            expect((await model.get(args)).enabled).toBe(
+                                operation === 'delete',
+                            );
+                            if (operation === 'enable') {
+                                await model.ensureOrganizationOverrideEnabled(
+                                    featureFlagId,
+                                    dbUser.organizationUuid,
+                                );
+                            } else if (operation === 'set') {
+                                await model.upsertOrganizationOverride(
+                                    featureFlagId,
+                                    dbUser.organizationUuid,
+                                    true,
+                                );
+                            } else {
+                                await model.deleteOrganizationOverride(
+                                    featureFlagId,
+                                    dbUser.organizationUuid,
+                                );
+                            }
+                            expect((await model.get(args)).enabled).toBe(
+                                operation !== 'delete',
+                            );
+                        },
+                    );
+                } finally {
+                    tracker.reset();
+                    await database.destroy();
+                }
+            },
+        );
+
+        it('retries after a database failure instead of caching the fallback', async () => {
+            const { model, query, rows } = buildRequestModel();
+            rows.orgOverride = { enabled: true };
+            query.mockImplementationOnce(() => {
+                throw new Error('database unavailable');
+            });
+            await requestFeatureFlags.run({ active: true }, async () => {
+                expect((await model.get(args)).enabled).toBe(false);
+                expect((await model.get(args)).enabled).toBe(true);
+            });
+            expect(query).toHaveBeenCalledTimes(4);
+        });
+
+        it.each(['finish', 'close'])(
+            'does not cache work after the response emits %s',
+            async (event) => {
+                const { model, query, rows } = buildRequestModel();
+                const response = new EventEmitter();
+                await new Promise<void>((resolve, reject) => {
+                    featureFlagRequestMiddleware(
+                        {} as Request,
+                        response as Response,
+                        () => {
+                            const run = async () => {
+                                expect((await model.get(args)).enabled).toBe(
+                                    false,
+                                );
+                                response.emit(event);
+                                rows.orgOverride = { enabled: true };
+                                expect((await model.get(args)).enabled).toBe(
+                                    true,
+                                );
+                            };
+                            void run().then(resolve, reject);
+                        },
+                    );
+                });
+                expect(query).toHaveBeenCalledTimes(6);
+            },
+        );
+    });
+
     describe.each([FeatureFlags.DbtPartialParse, FeatureFlags.AgentIdentity])(
         '%s production rollout',
         (featureFlagId) => {
