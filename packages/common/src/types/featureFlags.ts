@@ -224,15 +224,6 @@ export enum FeatureFlags {
     ComposeSqlRunner = 'compose-sql-runner',
 
     /**
-     * Enable the multi-source query endpoints
-     * (/api/v2/projects/{projectUuid}/query-sources/*): source discovery,
-     * schema scans, source-query submission and batch status. Off by
-     * default; on in preview/dev environments via
-     * PREVIEW_ENABLED_FEATURE_FLAGS.
-     */
-    MultiSourceQuery = 'multi-source-query',
-
-    /**
      * Enable the "My query history" page
      * (/projects/{projectUuid}/query-history) and its listing endpoint
      * (GET /api/v2/projects/{projectUuid}/query/history). Off by default.
