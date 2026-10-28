@@ -509,11 +509,6 @@ export class AiAgentCoderService extends BaseService {
                 step.existing.uuid,
                 'repo',
             );
-            await this.contentAsCodeSnapshotModel.delete(
-                scope.projectUuid,
-                AI_AGENT_KNOWLEDGE_DOCUMENT_SNAPSHOT_TYPE,
-                getKnowledgeDocumentSnapshotSlug(agentSlug, step.existing.name),
-            );
             return true;
         }
         const { document, existing } = step;

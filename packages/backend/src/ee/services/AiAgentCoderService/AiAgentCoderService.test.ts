@@ -1153,22 +1153,5 @@ describe('AiAgentCoderService', () => {
                 copyOnly.contentAsCodeSnapshotModel.upsert,
             ).not.toHaveBeenCalled();
         });
-
-        it('drops the Git-backed stamp of a document removed from the repo', async () => {
-            const { service, contentAsCodeSnapshotModel } = buildService({
-                ownedDocuments: [ownedDocument],
-                syncEnabled: true,
-            });
-            await service.upsertAgents(user, projectUuid, [
-                { ...agentAsCode, knowledgeDocuments: [] },
-            ]);
-            expect(
-                contentAsCodeSnapshotModel.delete,
-            ).toHaveBeenCalledExactlyOnceWith(
-                projectUuid,
-                'ai_agent_knowledge_document',
-                `revenue-agent/${ownedDocument.name}`,
-            );
-        });
     });
 });

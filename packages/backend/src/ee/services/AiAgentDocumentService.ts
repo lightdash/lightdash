@@ -150,6 +150,34 @@ export class AiAgentDocumentService extends BaseService {
         );
     }
 
+    private async findAgentSlug({
+        organizationUuid,
+        projectUuid,
+        agentUuid,
+    }: OrganizationDocumentScope): Promise<string | undefined> {
+        const [agent] = await this.aiAgentModel.findAgentsForCode({
+            organizationUuid,
+            projectUuid,
+            agentUuids: [agentUuid],
+        });
+        return agent?.slug;
+    }
+
+    // A stamp outliving its document would lock the next document of that
+    // name, so every delete or rename drops it, whatever the sync setting.
+    private async dropGitBackedStamp(
+        scope: OrganizationDocumentScope,
+        documentName: string,
+    ): Promise<void> {
+        const agentSlug = await this.findAgentSlug(scope);
+        if (agentSlug === undefined) return;
+        await this.contentAsCodeSnapshotModel.delete(
+            scope.projectUuid,
+            AI_AGENT_KNOWLEDGE_DOCUMENT_SNAPSHOT_TYPE,
+            getKnowledgeDocumentSnapshotSlug(agentSlug, documentName),
+        );
+    }
+
     private async findGitBackedDocumentNames(
         { organizationUuid, projectUuid, agentUuid }: OrganizationDocumentScope,
         names: string[],
@@ -157,16 +185,16 @@ export class AiAgentDocumentService extends BaseService {
         const settings =
             await this.contentAsCodeProjectSettingsModel.get(projectUuid);
         if (!settings?.syncEnabled) return new Set();
-        const [agent] = await this.aiAgentModel.findAgentsForCode({
+        const agentSlug = await this.findAgentSlug({
             organizationUuid,
             projectUuid,
-            agentUuids: [agentUuid],
+            agentUuid,
         });
-        if (!agent) return new Set();
+        if (agentSlug === undefined) return new Set();
         const slugByName = new Map(
             names.map((name) => [
                 name,
-                getKnowledgeDocumentSnapshotSlug(agent.slug, name),
+                getKnowledgeDocumentSnapshotSlug(agentSlug, name),
             ]),
         );
         const stamped = await this.contentAsCodeSnapshotModel.findSlugs(
@@ -410,6 +438,12 @@ export class AiAgentDocumentService extends BaseService {
         );
 
         const name = normalizeAiAgentDocumentName(body.name);
+        if (existing.name.trim() !== name) {
+            await this.dropGitBackedStamp(
+                { organizationUuid, projectUuid, agentUuid },
+                existing.name,
+            );
+        }
 
         const existingContent =
             await this.aiAgentDocumentModel.getContentForAgent({
@@ -692,6 +726,10 @@ export class AiAgentDocumentService extends BaseService {
         );
 
         await this.aiAgentDocumentModel.delete(documentUuid);
+        await this.dropGitBackedStamp(
+            { organizationUuid, projectUuid, agentUuid },
+            existing.name,
+        );
 
         this.analytics.track<AiAgentDocumentDeletedEvent>({
             event: 'ai_agent_document.deleted',
@@ -842,7 +880,30 @@ export class AiAgentDocumentService extends BaseService {
             organizationUuid,
             existing.projectUuid,
         );
+        const grantedScopes = existing.projectUuid
+            ? existing.agentAccess.map((agentUuid) => ({
+                  organizationUuid,
+                  projectUuid: existing.projectUuid as string,
+                  agentUuid,
+              }))
+            : [];
+        const managedFor = await Promise.all(
+            grantedScopes.map((scope) =>
+                this.findGitBackedDocumentNames(scope, [existing.name]),
+            ),
+        );
+        if (managedFor.some((names) => names.has(existing.name))) {
+            throw new ForbiddenError(
+                'This knowledge document is managed by Content as Code and can only be changed from the repository.',
+                { contentAsCodeManaged: true },
+            );
+        }
         await this.aiAgentDocumentModel.delete(documentUuid);
+        await Promise.all(
+            grantedScopes.map((scope) =>
+                this.dropGitBackedStamp(scope, existing.name),
+            ),
+        );
 
         this.analytics.track<AiAgentDocumentDeletedEvent>({
             event: 'ai_agent_document.deleted',

@@ -74,6 +74,7 @@ const setup = ({
         }),
         updateAlwaysIncludeInContext: vi.fn().mockResolvedValue(undefined),
         delete: vi.fn().mockResolvedValue(undefined),
+        get: vi.fn().mockResolvedValue(undefined),
     };
     const contentAsCodeSnapshotModel = {
         findSlugs: vi
@@ -81,6 +82,7 @@ const setup = ({
             .mockImplementation(async (_project, _type, slugs: string[]) =>
                 gitBacked ? new Set(slugs) : new Set(),
             ),
+        delete: vi.fn().mockResolvedValue(undefined),
     };
     const aiAgentService = {
         getIsCopilotEnabled: vi.fn().mockResolvedValue(true),
@@ -329,5 +331,51 @@ describe('AiAgentDocumentService with a document the repo last applied', () => {
             'document-uuid',
         );
         expect(aiAgentDocumentModel.delete).toHaveBeenCalledOnce();
+    });
+});
+
+describe('AiAgentDocumentService keeps stamps in step with documents', () => {
+    it('drops the stamp when a document is deleted, even with sync off', async () => {
+        const { service, contentAsCodeSnapshotModel } = setup({
+            isTrainingProject: false,
+            syncEnabled: false,
+        });
+        await service.deleteDocument(
+            projectAdmin,
+            { projectUuid, agentUuid },
+            'document-uuid',
+        );
+        expect(
+            contentAsCodeSnapshotModel.delete,
+        ).toHaveBeenCalledExactlyOnceWith(
+            projectUuid,
+            'ai_agent_knowledge_document',
+            'glossary-agent/Glossary',
+        );
+    });
+
+    it('refuses the deprecated organization route on a managed document', async () => {
+        const { service, aiAgentDocumentModel } = setup({
+            isTrainingProject: false,
+            syncEnabled: true,
+            gitBacked: true,
+        });
+        const documentUuid = '4b9a1a2e-8d0c-4f6b-9e2a-1c3d5e7f9a0b';
+        aiAgentDocumentModel.get.mockResolvedValue({
+            uuid: documentUuid,
+            name: 'Glossary',
+            organizationUuid,
+            projectUuid,
+            agentAccess: [agentUuid],
+        });
+        await expect(
+            service.deleteOrganizationDocument(projectAdmin, documentUuid),
+        ).rejects.toThrow(
+            new ForbiddenError(
+                'This knowledge document is managed by Content as Code and can only be changed from the repository.',
+                { contentAsCodeManaged: true },
+            ),
+        );
+        expect(aiAgentDocumentModel.delete).not.toHaveBeenCalled();
     });
 });

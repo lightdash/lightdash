@@ -129,6 +129,17 @@ export class ContentAsCodeSnapshotModel {
         return new Set(rows.map((row) => row.slug));
     }
 
+    async deleteByPrefix(
+        projectUuid: string,
+        contentType: ContentAsCodeSnapshotType,
+        slugPrefix: string,
+    ): Promise<void> {
+        await this.database(ContentAsCodeSnapshotsTableName)
+            .where({ project_uuid: projectUuid, content_type: contentType })
+            .whereLike('slug', `${slugPrefix.replace(/[%_]/g, '\\$&')}%`)
+            .delete();
+    }
+
     async delete(
         projectUuid: string,
         contentType: ContentAsCodeSnapshotType,
