@@ -143,6 +143,7 @@ import {
     type ExternalConnectionMethod,
     type ExternalConnectionSample,
     type ExternalFetchRequest,
+    type FieldUrl,
     type ImportAppCodeRequestBody,
     type InstallRegistryChartTypeBody,
     type KnexPaginateArgs,
@@ -12685,6 +12686,26 @@ export class AppGenerateService extends BaseService {
     }
 
     /**
+     * Field link patterns (`urls`), verbatim: `${value.raw}` and
+     * `${row.<model>.<field>.raw}` placeholders are the template's own syntax,
+     * not something to resolve here. The index header explains them.
+     */
+    private static renderFieldUrlsYaml(
+        urls: FieldUrl[] | undefined,
+        indent: string,
+    ): string[] {
+        if (!urls || urls.length === 0) return [];
+        const lines: string[] = [`${indent}urls:`];
+        for (const { label, url } of urls) {
+            lines.push(
+                `${indent}  - label: ${AppGenerateService.yamlQuote(label)}`,
+                `${indent}    url: ${AppGenerateService.yamlQuote(url)}`,
+            );
+        }
+        return lines;
+    }
+
+    /**
      * Render one compiled table as a dbt-style model, carrying real
      * metric/dimension types, join relationships (`meta.joins`), AI hints,
      * model-level parameters, and model-level filters (`sql_filter`,
@@ -12764,6 +12785,12 @@ export class AppGenerateService extends BaseService {
                             );
                         }
                     }
+                    headerLines.push(
+                        ...AppGenerateService.renderFieldUrlsYaml(
+                            m.urls,
+                            '          ',
+                        ),
+                    );
                 }
             }
             if (joins.length > 0) {
@@ -12841,6 +12868,12 @@ export class AppGenerateService extends BaseService {
             block.push(`        meta:`);
             block.push(`          dimension:`);
             block.push(`            type: ${d.type}`);
+            block.push(
+                ...AppGenerateService.renderFieldUrlsYaml(
+                    d.urls,
+                    '            ',
+                ),
+            );
             return block;
         });
 
@@ -13108,6 +13141,10 @@ export class AppGenerateService extends BaseService {
             'A `filters=` marker means the model declares model-level filters',
             '(required/default/sql_filter) that affect every query against it —',
             'read that model file before querying it.',
+            "A field's `urls:` entries are link patterns: render that field's",
+            'values as links built from the pattern. `${value.raw}` is the',
+            "cell's raw value; `${row.<model>.<field>.raw}` references another",
+            'field in the same row (include that field in the query).',
             '',
             'name  file  dims/metrics  joins  [filters]  description',
             '',
