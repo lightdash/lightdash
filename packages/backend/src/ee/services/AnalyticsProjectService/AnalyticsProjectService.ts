@@ -12,26 +12,26 @@ import {
     SessionUser,
 } from '@lightdash/common';
 import memoize from 'lodash/memoize';
-import { UsageHistoryBackfill } from '../../analytics/eventStream/UsageHistoryBackfill';
+import { UsageHistoryBackfill } from '../../../analytics/eventStream/UsageHistoryBackfill';
 import {
     analyticsContentAsCode,
     analyticsDefaultSpace,
-} from '../../analytics/systemExplores/sampleContent';
-import type { LightdashConfig } from '../../config/parseConfig';
-import { type ContentVerificationModel } from '../../models/ContentVerificationModel';
-import { type DashboardModel } from '../../models/DashboardModel/DashboardModel';
-import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
-import { type SavedChartModel } from '../../models/SavedChartModel';
-import { type SpaceModel } from '../../models/SpaceModel';
-import { UserModel } from '../../models/UserModel';
-import type { SchedulerClient } from '../../scheduler/SchedulerClient';
-import { BaseService } from '../BaseService';
-import { type CoderService } from '../CoderService/CoderService';
+} from '../../../analytics/systemExplores/sampleContent';
+import type { LightdashConfig } from '../../../config/parseConfig';
+import { type ContentVerificationModel } from '../../../models/ContentVerificationModel';
+import { type DashboardModel } from '../../../models/DashboardModel/DashboardModel';
+import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
+import { type SavedChartModel } from '../../../models/SavedChartModel';
+import { type SpaceModel } from '../../../models/SpaceModel';
+import { UserModel } from '../../../models/UserModel';
+import type { SchedulerClient } from '../../../scheduler/SchedulerClient';
+import { BaseService } from '../../../services/BaseService';
+import { type CoderService } from '../../../services/CoderService/CoderService';
 import {
     analyticsExploreNames,
     createAnalyticsExplores,
-} from '../ProjectService/analyticsProject/createAnalyticsExplores';
-import { ProjectService } from '../ProjectService/ProjectService';
+} from '../../../services/ProjectService/analyticsProject/createAnalyticsExplores';
+import { ProjectService } from '../../../services/ProjectService/ProjectService';
 
 type Dependencies = {
     lightdashConfig: Pick<LightdashConfig, 'usageEvents'>;

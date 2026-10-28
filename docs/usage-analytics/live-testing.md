@@ -7,7 +7,8 @@ change is required. Read-only credential hardening is deferred in PROD-11103.
 
 ## Enable on the intended deployment
 
-1. Verify the existing usage-events endpoint, bucket and credentials are correct
+1. Verify the deployment has a validated commercial license. Verify the existing
+   usage-events endpoint, bucket and credentials are correct
    for the deployment and that its org has compacted Parquet data. Confirm effective
    IAM does not grant the identity access to other deployments' buckets.
 2. Enable `analytics-project` for the intended organization in Console, or add it
