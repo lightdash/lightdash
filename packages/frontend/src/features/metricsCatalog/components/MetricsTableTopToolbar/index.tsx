@@ -402,7 +402,6 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                             w={1}
                             h={20}
                             color="ldGray.3"
-                            className={classes.toolbarDivider}
                         />
                     )}
                     {showCategories && (
@@ -624,7 +623,6 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                         h={20}
                         color="#DEE2E6"
                         display={embedToken ? 'none' : undefined}
-                        className={classes.toolbarDivider}
                     />
                     <SegmentedControl
                         classNames={{

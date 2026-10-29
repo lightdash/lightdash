@@ -11,7 +11,6 @@ import {
 import { IconInfoCircle } from '@tabler/icons-react';
 import React from 'react';
 import MantineIcon from '../MantineIcon';
-import styles from './AdminContentViewFilter.module.css';
 
 export type ContentViewValue = 'shared' | 'shared-with-me' | 'all';
 
@@ -72,14 +71,7 @@ const AdminContentViewFilter: React.FC<AdminContentViewFilterProps> = ({
     }
     return (
         <>
-            {withDivider && (
-                <Divider
-                    orientation="vertical"
-                    w={1}
-                    h={20}
-                    className={styles.divider}
-                />
-            )}
+            {withDivider && <Divider orientation="vertical" w={1} h={20} />}
 
             <SegmentedControl
                 size="xs"

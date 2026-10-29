@@ -736,12 +736,7 @@ export const ServiceAccountsTable: FC<Props> = ({
                         />
                     </Tooltip>
 
-                    <Divider
-                        orientation="vertical"
-                        w={1}
-                        h={20}
-                        className={classes.verticalDivider}
-                    />
+                    <Divider orientation="vertical" w={1} h={20} />
 
                     <SegmentedControl
                         size="xs"
@@ -768,12 +763,7 @@ export const ServiceAccountsTable: FC<Props> = ({
 
                     {availableCreators.length > 0 && (
                         <>
-                            <Divider
-                                orientation="vertical"
-                                w={1}
-                                h={20}
-                                className={classes.verticalDivider}
-                            />
+                            <Divider orientation="vertical" w={1} h={20} />
                             <Popover width={250} position="bottom-start">
                                 <Popover.Target>
                                     <Tooltip label="Filter by creator">
