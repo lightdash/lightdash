@@ -944,13 +944,17 @@ describe('Service Account custom-role path', () => {
         expect(orgUsers.status).toBe(403);
 
         // manage:SavedChart not in role → modifying a chart must be denied.
-        // We resolve a real chart uuid from the seed project to keep this
-        // robust across reset-db cycles.
-        const chartsResp = await admin.get<Body<Array<{ uuid: string }>>>(
-            `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/charts`,
-        );
-        const someChartUuid = chartsResp.body.results[0]?.uuid;
-        if (!someChartUuid) throw new Error('No charts found in seed project');
+        // Pick a seeded chart by name: other files create and delete their own
+        // charts in parallel, so the first listed chart may be gone by now.
+        const chartsResp = await admin.get<
+            Body<Array<{ uuid: string; name: string }>>
+        >(`${apiUrl}/projects/${SEED_PROJECT.project_uuid}/charts`);
+        const someChartUuid = chartsResp.body.results.find(
+            (chart) =>
+                chart.name ===
+                'How much revenue do we have per payment method?',
+        )?.uuid;
+        if (!someChartUuid) throw new Error('Seeded chart not found');
         const patchChart = await sa.patch(`${apiUrl}/saved/${someChartUuid}`, {
             name: 'should-not-apply',
         });
