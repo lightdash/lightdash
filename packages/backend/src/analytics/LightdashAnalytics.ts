@@ -925,6 +925,7 @@ export type PgWireAuthenticationFailureReason =
     | 'missing_password'
     | 'invalid_token'
     | 'scim_only_token'
+    | 'disabled_for_organization'
     | 'database_not_found'
     | 'database_ambiguous'
     | 'project_inaccessible';

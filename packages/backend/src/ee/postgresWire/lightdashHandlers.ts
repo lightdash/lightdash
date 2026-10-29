@@ -555,6 +555,28 @@ export const createLightdashPgWireHandlers = (
         }
     };
 
+    const assertEnabledForOrganization = async (
+        account: Account,
+    ): Promise<void> => {
+        const { organizationUuid } = account.organization;
+        const enabled =
+            organizationUuid !== undefined &&
+            (await serviceRepository
+                .getOrganizationSettingsService()
+                .isSemanticLayerPgwireEnabled(organizationUuid));
+        if (!enabled) {
+            Logger.info(
+                `pgwire: rejected connection for organization ${organizationUuid}: Metric SQL API is not enabled`,
+            );
+            throw new PgWireAuthenticationError(
+                'disabled_for_organization',
+                'the Metric SQL API is not enabled for this organization',
+                '28000',
+                'An organization admin can turn it on under Project settings > Metric SQL API',
+            );
+        }
+    };
+
     const connect = async (
         account: Account,
         database: string,
@@ -607,6 +629,7 @@ export const createLightdashPgWireHandlers = (
                     );
                 }
                 account = await authenticateAccount(password, authMethod, user);
+                await assertEnabledForOrganization(account);
                 const session = await connect(
                     account,
                     database,

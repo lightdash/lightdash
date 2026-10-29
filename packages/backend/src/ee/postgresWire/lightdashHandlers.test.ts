@@ -407,7 +407,12 @@ describe('lightdash pgwire handlers: end to end through authenticate', () => {
             },
         },
     };
+    const isSemanticLayerPgwireEnabled = vi.fn(async () => true);
+    const getAllExploresSummary = vi.fn(async () => [{ name: 'orders' }]);
     const services = {
+        getOrganizationSettingsService: () => ({
+            isSemanticLayerPgwireEnabled,
+        }),
         getUserService: () => ({
             loginWithPersonalAccessToken: async () => ({
                 userUuid: 'user-uuid',
@@ -420,7 +425,7 @@ describe('lightdash pgwire handlers: end to end through authenticate', () => {
             }),
         }),
         getProjectService: () => ({
-            getAllExploresSummary: async () => [{ name: 'orders' }],
+            getAllExploresSummary,
             getExplore: async () => explore,
             runExploreQuery,
         }),
@@ -560,6 +565,36 @@ describe('lightdash pgwire handlers: end to end through authenticate', () => {
                 },
             }),
         );
+    });
+
+    it('rejects connections when the organization has not enabled the Metric SQL API', async () => {
+        track.mockClear();
+        isSemanticLayerPgwireEnabled.mockResolvedValueOnce(false);
+        getAllExploresSummary.mockClear();
+        const e2e = createLightdashPgWireHandlers(services, analytics);
+        await expect(
+            e2e.authenticate({
+                user: 'alice@example.com',
+                database: '11111111-1111-4111-8111-111111111111',
+                password: 'ldpat_test',
+                applicationName: 'Tableau',
+            }),
+        ).rejects.toMatchObject({
+            code: '28000',
+            message: 'the Metric SQL API is not enabled for this organization',
+        });
+        expect(isSemanticLayerPgwireEnabled).toHaveBeenCalledWith('org-uuid');
+        expect(getAllExploresSummary).not.toHaveBeenCalled();
+        expect(track).toHaveBeenLastCalledWith({
+            event: 'pgwire.authentication_failed',
+            userId: 'user-uuid',
+            properties: {
+                organizationId: 'org-uuid',
+                authMethod: 'personal_access_token',
+                reason: 'disabled_for_organization',
+                applicationName: 'Tableau',
+            },
+        });
     });
 
     it('does not fail the connection when tracking throws', async () => {
