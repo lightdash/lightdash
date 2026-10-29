@@ -22,15 +22,15 @@ Explore. It does not reconstruct every past event or historical People summaries
 
 ## Current implementation versus rollout intent
 
-| Area                   | Implemented                                                                               | Still required for production                                      |
-| ---------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| Project                | New projects use `DEFAULT` with `provisioning_source=analytics`; older previews retain their type | Non-admin project access remains a separate follow-up          |
-| Entry point            | Organization analytics settings and session-authenticated, org-admin-only endpoints       | No configurable connector setup UI                                 |
-| Enablement             | Standard `analytics-project` resolver: Console organization flags or deployment ENV flags | Controlled live verification before customer rollout               |
-| Source org             | Persisted, authorized project org; legacy local overrides ignored                         | Live shared-instance isolation verification                        |
-| Storage authentication | Existing writer credentials retained in backend; signed GET URLs passed to DuckDB         | Verify effective IAM; read-only hardening is deferred (PROD-11103) |
-| Models                 | Backend-owned Query Events, AI Usage, Data App Events and Export Events explores          | Additional event coverage and named-entity lookups                 |
-| Current names          | Daily per-org charts, dashboards, users and agents snapshots with optional ID joins       | Other entity lookups; production-scale database load verification  |
+| Area                   | Implemented                                                                                       | Still required for production                                      |
+| ---------------------- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| Project                | New projects use `DEFAULT` with `provisioning_source=analytics`; older previews retain their type | Non-admin project access remains a separate follow-up              |
+| Entry point            | Organization analytics settings and session-authenticated, org-admin-only endpoints               | No configurable connector setup UI                                 |
+| Enablement             | Validated commercial license and usage storage; `LIGHTDASH_DISABLE_ANALYTICS=true` opt-out        | Controlled live verification before customer rollout               |
+| Source org             | Persisted, authorized project org; legacy local overrides ignored                                 | Live shared-instance isolation verification                        |
+| Storage authentication | Existing writer credentials retained in backend; signed GET URLs passed to DuckDB                 | Verify effective IAM; read-only hardening is deferred (PROD-11103) |
+| Models                 | Backend-owned Query Events, AI Usage, Data App Events and Export Events explores                  | Additional event coverage and named-entity lookups                 |
+| Current names          | Daily per-org charts, dashboards, users and agents snapshots with optional ID joins               | Other entity lookups; production-scale database load verification  |
 
 Historical tickets and handover proposals may describe different designs. They
 are not evidence that production rollout or final role restrictions are complete.
@@ -96,7 +96,8 @@ an exactly-once guarantee.
 
 After event compaction, the same `compactUsageEvents` job refreshes charts,
 dashboards and users from Postgres, including on days with no new events. Each
-organization has separate files in the shared bucket:
+organization with at least one project has separate files in the shared bucket.
+Organizations with only a managed Analytics project remain eligible:
 
 ```text
 events/compacted/org_id=<org-uuid>/dim=charts/charts.parquet
@@ -124,7 +125,7 @@ below apply to interactive queries, not this background export.
 [`ProjectService.ensureAnalyticsProject`](../../packages/backend/src/services/ProjectService/ProjectService.ts)
 backs `POST /api/v1/org/analytics-project`:
 
-1. Check the session's organization, org-management permission and feature flag.
+1. Check the session's organization, org-management permission and deployment availability.
    No org, bucket, path or credential is accepted in the request.
 2. Verify signed-Parquet access before creating a project. Model compilation is
    in memory, but the endpoint includes this storage round trip.
@@ -229,9 +230,11 @@ concurrency limits still need validation before customer rollout.
 
 The query-local cache lifetime does not mean Lightdash has no persisted query results.
 The normal result/history paths still exist and need authorization. Analytics
-checks cover project access and result/history retrieval; exports and scheduled
-downloads are blocked in this preview. Flag-off denial is not deletion or
-cryptographic revocation of previously issued capabilities or returned data.
+checks cover project access, result/history retrieval, CSV/XLSX export generation
+and protected download retrieval. Scheduled deliveries can intentionally share
+signed export links; see [downloads and scheduled deliveries](access.md#downloads-and-scheduled-deliveries).
+Disabling the deployment does not revoke previously issued signed delivery links
+or returned data.
 
 ### Small Parquet cache and temporary-file lifecycle
 
@@ -291,7 +294,7 @@ immediately purge previously cached bytes. Eviction is not secure erasure.
 [`analyticsProjectClient`](../../packages/backend/src/services/ProjectService/analyticsProject/analyticsProjectClient.ts)
 reads files for the persisted project's org after service authorization checks.
 Legacy local org/source-org overrides are ignored in all environments. Production
-execution uses the standard feature-flag resolver for the target organization.
+execution uses validated commercial registration and the deployment opt-out.
 See [live testing](live-testing.md) for rollout and remaining trust boundaries.
 
 The prefix filter is a backend authorization boundary, not bucket IAM. Storage
@@ -309,7 +312,7 @@ no Terraform/IAM change or read-only cutover is included in this stack.
 
 ## Operations, verification and rollout
 
-- Follow [local testing](local-testing.md) for feature flags, persisted-org
+- Follow [local testing](local-testing.md) for deployment availability, persisted-org
   binding and the browser-console provisioning request. Keep capture
   disabled for a read-only local test; never copy another worktree's DB settings.
 - Follow [credential verification](credentials.md) for real-bucket read-only

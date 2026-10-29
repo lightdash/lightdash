@@ -114,6 +114,42 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
             await db.destroy();
         });
 
+        it('selects organizations with projects, including managed-only projects, without duplicates', async () => {
+            const analyticsOnlyOrg = randomUUID();
+            const emptyOrg = randomUUID();
+            await db.schema.createTable('organizations', (table) => {
+                table.integer('organization_id').primary();
+                table.uuid('organization_uuid').notNullable();
+            });
+            await db.raw(
+                'INSERT INTO organizations (organization_id, organization_uuid) VALUES (1, ?), (2, ?), (3, ?), (4, ?)',
+                [org, randomUUID(), emptyOrg, analyticsOnlyOrg],
+            );
+            await db.raw(
+                "INSERT INTO projects (project_id, project_uuid, organization_id, name) VALUES (100, ?, 4, 'Lightdash analytics'), (101, ?, 1, 'Second project')",
+                [randomUUID(), randomUUID()],
+            );
+            const model = new UsageDimensionsModel(
+                db,
+                'https://lightdash.example.com',
+            );
+            const readOrgs = async (scope?: string) => {
+                const result = [];
+                for await (const organizationRow of model.getOrganizations(
+                    scope,
+                ))
+                    result.push(organizationRow);
+                return result;
+            };
+            expect(
+                (await readOrgs()).map((row) => row.organization_id),
+            ).toEqual([1, 2, 4]);
+            expect(await readOrgs(emptyOrg)).toEqual([]);
+            expect(await readOrgs(analyticsOnlyOrg)).toEqual([
+                { organization_id: 4, organization_uuid: analyticsOnlyOrg },
+            ]);
+        });
+
         it('paginates projects without requiring content or exposing another organization', async () => {
             await db.raw(`INSERT INTO projects
                 SELECT n, md5('empty-project-' || n)::uuid, 1, 'Empty project ' || n

@@ -729,6 +729,7 @@ const getMockedProjectService = (
             | 'getAppGenerateService'
             | 'organizationWarehouseCredentialsModel'
             | 'getDataAppCustomSqlProvenance'
+            | 'isAnalyticsProjectEnabled'
             | 'featureFlagModel'
             | 'dbtSourceRefCatalogModel'
             | 'projectDbtSourcesModel'
@@ -737,6 +738,8 @@ const getMockedProjectService = (
     > = {},
 ) =>
     new ProjectService({
+        isAnalyticsProjectEnabled:
+            overrides.isAnalyticsProjectEnabled ?? (() => true),
         dbtSourceRefCatalogModel:
             overrides.dbtSourceRefCatalogModel ?? ({} as never),
         refreshTokenRotation: new RefreshTokenRotation({
@@ -1878,91 +1881,58 @@ describe('ProjectService', () => {
             ).not.toHaveBeenCalled();
         });
 
-        test.each([
-            { enabled: false, disabled: false, environment: 'development' },
-            { enabled: false, disabled: true, environment: 'development' },
-            { enabled: false, disabled: false, environment: 'production' },
-            { enabled: false, disabled: true, environment: 'production' },
-        ])(
-            'blocks creation and refresh in $environment when enabled=$enabled, disabled=$disabled',
-            async ({ enabled, disabled, environment }) => {
+        test.each(['development', 'production'])(
+            'blocks creation and reads when instance availability is disabled in %s',
+            async (environment) => {
                 vi.mocked(
                     analyticsClient.assertAnalyticsProjectEnabled,
                 ).mockRestore();
                 vi.stubEnv('NODE_ENV', environment);
-                vi.spyOn(
-                    lightdashConfigWithGoogleOAuthMock.enabledFeatureFlags,
-                    'has',
-                ).mockReturnValue(enabled);
-                vi.spyOn(
-                    lightdashConfigWithGoogleOAuthMock.disabledFeatureFlags,
-                    'has',
-                ).mockReturnValue(disabled);
-
+                const disabledService = getMockedProjectService(
+                    lightdashConfigWithGoogleOAuthMock,
+                    {
+                        isAnalyticsProjectEnabled: () => false,
+                    },
+                );
                 await expect(
-                    service.ensureAnalyticsProject(admin),
+                    disabledService.ensureAnalyticsProject(admin),
                 ).rejects.toThrow(/not enabled/);
                 await expect(
-                    service.assertAnalyticsProjectAccess(admin, {
+                    disabledService.assertAnalyticsProjectAccess(admin, {
                         organizationUuid: 'analytics-org',
                         projectUuid: 'analytics-project',
                         provisioningSource: 'analytics',
                     }),
                 ).rejects.toThrow(/not enabled/);
-
                 expect(
                     analyticsClient.createAnalyticsClient,
                 ).not.toHaveBeenCalled();
-                expect(testAnalyticsStorage).not.toHaveBeenCalled();
                 expect(
                     projectModel.runInAnalyticsProvisioningLock,
                 ).not.toHaveBeenCalled();
                 expect(
-                    projectModel.getAllByOrganizationUuid,
-                ).not.toHaveBeenCalled();
-                expect(
                     projectModel.createWithOptionalCredentials,
                 ).not.toHaveBeenCalled();
-                expect(projectModel.saveExploresToCache).not.toHaveBeenCalled();
             },
         );
 
-        test('allows an authorized production org enabled through Console without ENV and binds its storage source', async () => {
+        test('allows an authorized organization when instance analytics is enabled', async () => {
             projectModel.getAllByOrganizationUuid.mockResolvedValueOnce([
                 { ...defaultProject, provisioningSource: 'analytics' },
             ]);
             vi.mocked(
                 analyticsClient.assertAnalyticsProjectEnabled,
             ).mockRestore();
-            vi.stubEnv('NODE_ENV', 'production');
-            vi.spyOn(
-                lightdashConfigWithGoogleOAuthMock.enabledFeatureFlags,
-                'has',
-            ).mockReturnValue(false);
-            vi.spyOn(
-                lightdashConfigWithGoogleOAuthMock.disabledFeatureFlags,
-                'has',
-            ).mockReturnValue(false);
-            const flags = {
-                get: vi.fn().mockResolvedValue({
-                    id: FeatureFlags.AnalyticsProject,
-                    enabled: true,
-                }),
-            } as unknown as FeatureFlagModel;
+            const isAnalyticsProjectEnabled = vi.fn(() => true);
             const enabledService = getMockedProjectService(
                 lightdashConfigWithGoogleOAuthMock,
-                {
-                    featureFlagModel: flags,
-                },
+                { isAnalyticsProjectEnabled },
             );
             await enabledService.ensureAnalyticsProject(admin);
-            expect(flags.get).toHaveBeenCalledWith({
-                featureFlagId: FeatureFlags.AnalyticsProject,
-                user: { organizationUuid: admin.organizationUuid },
-            });
+            expect(isAnalyticsProjectEnabled).toHaveBeenCalled();
             expect(analyticsClient.createAnalyticsClient).toHaveBeenCalledWith(
                 admin.organizationUuid,
-                flags,
+                isAnalyticsProjectEnabled,
                 { allowEmpty: true },
             );
         });

@@ -2059,6 +2059,7 @@ export type LightdashConfig = {
         maxEntries: number;
         maxConsecutiveFailures: number;
     };
+    analyticsProject: { disabled: boolean };
     usageEvents: {
         enabled: boolean;
         flushIntervalMs: number;
@@ -3242,7 +3243,12 @@ export const parseConfig = (): LightdashConfig => {
         licenseKey !== null && process.env.PRE_AGGREGATES_ENABLED === 'true';
     const preAggregatesS3 = parsePreAggregateResultsS3Config();
     const usageEventsS3 = parseUsageEventsS3Config();
-    const usageEventsEnabled = licenseKey !== null && usageEventsS3 !== null;
+    const analyticsProjectDisabled =
+        process.env.LIGHTDASH_DISABLE_ANALYTICS === 'true';
+    const usageEventsEnabled =
+        !analyticsProjectDisabled &&
+        licenseKey !== null &&
+        usageEventsS3 !== null;
     const natsWorkerEnabled = process.env.NATS_ENABLED === 'true';
     const natsWorkerUrl = process.env.NATS_URL;
     const natsWorkerConcurrency =
@@ -4227,6 +4233,7 @@ export const parseConfig = (): LightdashConfig => {
                 'false',
         },
         motherduckInstanceCache,
+        analyticsProject: { disabled: analyticsProjectDisabled },
         usageEvents: {
             enabled: usageEventsEnabled,
             flushIntervalMs:

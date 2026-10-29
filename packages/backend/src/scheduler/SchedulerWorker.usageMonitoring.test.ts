@@ -11,6 +11,16 @@ vi.mock('../analytics/eventStream/UsageEventsCompactor', () => ({
 }));
 
 class UsageTestWorker extends SchedulerWorker {
+    getCrons() {
+        return this.getCronItems();
+    }
+
+    getHistoryTask() {
+        return this.getTaskList()[
+            SCHEDULER_TASKS.BACKFILL_USAGE_QUERY_HISTORY
+        ]!;
+    }
+
     getUsageTask() {
         return this.getTaskList()[SCHEDULER_TASKS.COMPACT_USAGE_EVENTS]!;
     }
@@ -33,6 +43,7 @@ describe('usage processing task scope', () => {
                 } as unknown as typeof UsageEventsCompactor,
             );
             const worker = new UsageTestWorker({
+                projectService: { isAnalyticsProjectEnabled: () => true },
                 lightdashConfig: {
                     ...lightdashConfigMock,
                     usageEvents: {
@@ -54,18 +65,68 @@ describe('usage processing task scope', () => {
     );
 });
 
+describe('disabled analytics processing', () => {
+    it.each([true, false])(
+        'does not start compaction or history when instance access is disabled (capture=%s)',
+        async (capture) => {
+            vi.clearAllMocks();
+            const worker = new UsageTestWorker({
+                lightdashConfig: {
+                    ...lightdashConfigMock,
+                    usageEvents: {
+                        ...lightdashConfigMock.usageEvents,
+                        enabled: capture,
+                        s3: { bucket: 'test' },
+                    },
+                },
+                projectService: { isAnalyticsProjectEnabled: () => false },
+            } as unknown as SchedulerWorkerArguments);
+            await worker.getUsageTask()({} as never, {} as never);
+            expect(UsageEventsCompactor).not.toHaveBeenCalled();
+            expect(
+                worker
+                    .getCrons()
+                    .some(
+                        (item) =>
+                            item.task === SCHEDULER_TASKS.COMPACT_USAGE_EVENTS,
+                    ),
+            ).toBe(false);
+            await expect(
+                worker.getHistoryTask()(
+                    { organizationUuid: 'org' } as never,
+                    {} as never,
+                ),
+            ).rejects.toThrow(/not (enabled|configured)/);
+        },
+    );
+});
+
 describe('usage monitoring worker configuration', () => {
     it.each([
-        { capture: true, storage: true, task: true, expected: true },
+        {
+            capture: true,
+            storage: true,
+            task: true,
+            available: true,
+            expected: true,
+        },
+        {
+            capture: true,
+            storage: true,
+            task: true,
+            available: false,
+            expected: false,
+        },
         { capture: false, storage: true, task: true, expected: false },
         { capture: true, storage: false, task: true, expected: false },
         { capture: true, storage: true, task: false, expected: false },
     ])(
         'publishes enabled=$expected before waiting for the queue ($capture/$storage/$task)',
-        async ({ capture, storage, task, expected }) => {
+        async ({ capture, storage, task, available = true, expected }) => {
             const setEnabled = vi.fn();
             const startupError = new Error('queue unavailable');
             const worker = new SchedulerWorker({
+                projectService: { isAnalyticsProjectEnabled: () => available },
                 lightdashConfig: {
                     ...lightdashConfigMock,
                     scheduler: {

@@ -836,6 +836,7 @@ export type HealthState = {
     hasJira: boolean;
     hasLinear: boolean;
     hasHeadlessBrowser: boolean;
+    hasManagedAnalytics?: boolean;
     hasExtendedUsageAnalytics: boolean;
     hasCacheAutocompleResults: boolean;
     appearance: {

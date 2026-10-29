@@ -1,5 +1,3 @@
-import { FeatureFlags } from '@lightdash/common';
-import knex from 'knex';
 import { parseArgs } from 'node:util';
 import { usageProcessingStartDate } from '../analytics/eventStream/usageProcessingWindow';
 import {
@@ -9,9 +7,6 @@ import {
 import { lightdashConfig } from '../config/lightdashConfig';
 import { parseUsageEventsS3Config } from '../config/parseConfig';
 import { getEnterpriseAppArguments } from '../ee';
-import knexConfig from '../knexfile';
-import { ModelRepository } from '../models/ModelRepository';
-import { UtilRepository } from '../utils/UtilRepository';
 
 async function main() {
     const { values } = parseArgs({
@@ -41,31 +36,19 @@ async function main() {
             'Usage processing is limited to the previous seven closed UTC days',
         );
     }
-    const database = knex(knexConfig.production);
-    try {
-        const { modelProviders } = await getEnterpriseAppArguments();
-        const models = new ModelRepository({
-            database,
-            lightdashConfig,
-            modelProviders,
-            utils: new UtilRepository({ lightdashConfig }),
-        });
-        const { enabled } = await models.getFeatureFlagModel().get({
-            featureFlagId: FeatureFlags.AnalyticsProject,
-            user: { organizationUuid: values['org-id'] },
-        });
-        if (!enabled)
-            throw new Error('Analytics is not enabled for this organization');
-        console.log(
-            await new UsageUserActivityBuilder(storage).run(
-                values['org-id'],
-                values.from,
-                values.to,
-            ),
-        );
-    } finally {
-        await database.destroy();
-    }
+    const { serviceProviders } = await getEnterpriseAppArguments();
+    if (
+        lightdashConfig.analyticsProject.disabled ||
+        !serviceProviders?.analyticsProjectService
+    )
+        throw new Error('Managed analytics is not enabled');
+    console.log(
+        await new UsageUserActivityBuilder(storage).run(
+            values['org-id'],
+            values.from,
+            values.to,
+        ),
+    );
 }
 
 void main().catch((error: unknown) => {

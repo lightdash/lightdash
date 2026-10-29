@@ -1,6 +1,5 @@
 import { Ability } from '@casl/ability';
 import {
-    FeatureFlags,
     ForbiddenError,
     LightdashInstallType,
     OrganizationMemberRole,
@@ -56,6 +55,7 @@ const userModel = {
         UserModel['findSessionUserAndOrgByUuid']
     >(async () => user),
 };
+const isAnalyticsProjectEnabled = vi.fn(() => true);
 const featureFlagModel = {
     get: vi.fn<FeatureFlagModel['get']>(async ({ featureFlagId }) => ({
         id: featureFlagId,
@@ -98,6 +98,7 @@ describe('organization service', () => {
                 {} as OrganizationAllowedEmailDomainsModel,
             groupsModel: {} as GroupsModel,
             featureFlagModel: featureFlagModel as unknown as FeatureFlagModel,
+            isAnalyticsProjectEnabled,
             rolesModel: rolesModel as unknown as RolesModel,
             // Nothing stored: every setting inherits the instance default.
             organizationSettingsModel: { get: async () => ({}) } as never,
@@ -110,7 +111,7 @@ describe('organization service', () => {
     });
 
     it.each([true, false])(
-        'lists analytics projects according to Console enablement: %s',
+        'lists analytics projects according to instance availability: %s',
         async (enabled) => {
             const account = buildAccount();
             const organizationUuid = account.organization.organizationUuid!;
@@ -135,10 +136,7 @@ describe('organization service', () => {
                 ordinaryProject,
                 analyticsProject,
             ]);
-            featureFlagModel.get.mockResolvedValueOnce({
-                id: FeatureFlags.AnalyticsProject,
-                enabled,
-            });
+            isAnalyticsProjectEnabled.mockReturnValueOnce(enabled);
             await expect(
                 organizationService.getProjects(account),
             ).resolves.toEqual(
@@ -146,10 +144,7 @@ describe('organization service', () => {
                     ? [ordinaryProject, analyticsProject]
                     : [ordinaryProject],
             );
-            expect(featureFlagModel.get).toHaveBeenCalledWith({
-                featureFlagId: FeatureFlags.AnalyticsProject,
-                user: { organizationUuid },
-            });
+            expect(isAnalyticsProjectEnabled).toHaveBeenCalled();
         },
     );
 
@@ -211,10 +206,7 @@ describe('organization service', () => {
             projectModel.getAllByOrganizationUuid.mockResolvedValueOnce([
                 project,
             ]);
-            featureFlagModel.get.mockResolvedValueOnce({
-                id: FeatureFlags.AnalyticsProject,
-                enabled,
-            });
+            isAnalyticsProjectEnabled.mockReturnValueOnce(enabled);
             await expect(
                 organizationService.getProjects(account),
             ).resolves.toEqual(visible ? [project] : []);

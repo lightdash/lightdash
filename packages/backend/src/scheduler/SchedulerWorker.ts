@@ -1,5 +1,4 @@
 import {
-    FeatureFlags,
     GenerateDailySchedulerJobError,
     getErrorMessage,
     getSchedulerUuid,
@@ -355,6 +354,7 @@ export class SchedulerWorker extends SchedulerTask {
         this.prometheusMetrics?.usageProcessing?.setEnabled(
             !!this.lightdashConfig.usageEvents?.enabled &&
                 this.lightdashConfig.usageEvents.s3 !== null &&
+                this.projectService.isAnalyticsProjectEnabled() &&
                 this.enabledTasks.includes(
                     SCHEDULER_TASKS.COMPACT_USAGE_EVENTS,
                 ),
@@ -903,17 +903,22 @@ export class SchedulerWorker extends SchedulerTask {
                     maxAttempts: 3,
                 },
             },
-            {
-                task: SCHEDULER_TASKS.COMPACT_USAGE_EVENTS,
-                pattern: '30 0 * * *', // 00:30 UTC daily
-                options: {
-                    queueName: 'usage-events-compaction',
-                    backfillPeriod: 12 * 3600 * 1000, // 12 hours in ms
-                    // Let the next nightly run catch up instead of retrying
-                    // expensive compaction during business hours.
-                    maxAttempts: 1,
-                },
-            },
+            ...(this.lightdashConfig.usageEvents.enabled &&
+            this.projectService.isAnalyticsProjectEnabled()
+                ? [
+                      {
+                          task: SCHEDULER_TASKS.COMPACT_USAGE_EVENTS,
+                          pattern: '30 0 * * *', // 00:30 UTC daily
+                          options: {
+                              queueName: 'usage-events-compaction',
+                              backfillPeriod: 12 * 3600 * 1000, // 12 hours in ms
+                              // Let the next nightly run catch up instead of retrying
+                              // expensive compaction during business hours.
+                              maxAttempts: 1,
+                          },
+                      },
+                  ]
+                : []),
             {
                 // Re-check pending email-whitelabel domains so verification
                 // completes asynchronously as DNS propagates.
@@ -2335,7 +2340,11 @@ export class SchedulerWorker extends SchedulerTask {
             },
             [SCHEDULER_TASKS.COMPACT_USAGE_EVENTS]: async (payload) => {
                 const { usageEvents } = this.lightdashConfig;
-                if (!usageEvents.enabled || usageEvents.s3 === null) {
+                if (
+                    !usageEvents.enabled ||
+                    usageEvents.s3 === null ||
+                    !this.projectService.isAnalyticsProjectEnabled()
+                ) {
                     Logger.debug(
                         'Usage events compaction skipped: usage events are not enabled',
                     );
@@ -2345,7 +2354,6 @@ export class SchedulerWorker extends SchedulerTask {
                     s3Config: usageEvents.s3,
                     prometheusMetrics: this.prometheusMetrics,
                     usageDimensionsModel: this.usageDimensionsModel,
-                    featureFlagModel: this.featureFlagModel,
                 });
                 const summary = await compactor.run(
                     new Date(),
@@ -2373,13 +2381,8 @@ export class SchedulerWorker extends SchedulerTask {
                 ) {
                     throw new Error('Usage history backfill is not configured');
                 }
-                const flag = await this.featureFlagModel.get({
-                    featureFlagId: FeatureFlags.AnalyticsProject,
-                    user: {
-                        organizationUuid: payload.organizationUuid,
-                    },
-                });
-                if (!flag.enabled) throw new Error('Analytics is not enabled');
+                if (!this.projectService.isAnalyticsProjectEnabled())
+                    throw new Error('Analytics is not enabled');
                 await new UsageHistoryBackfill(usageEvents.s3).run(
                     payload.organizationUuid,
                     this.usageHistoryModel,

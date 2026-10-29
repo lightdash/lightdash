@@ -48,6 +48,6 @@ current items. Add Dashboard references and Enabled schedules before reviewing
 an item for retirement. Group Created at by month to compare creation cohorts;
 activity counts cover retained history, not a selected event-time window.
 
-The existing usage feature gate and analytics-project access checks apply.
+Managed Analytics availability and organization/project access checks apply.
 A deployment needs a successful nightly snapshot and refreshed Explore definitions
 to expose inventory. Before the first snapshot, the model returns an empty result.
