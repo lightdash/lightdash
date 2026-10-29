@@ -1,11 +1,11 @@
 import {
-    assertUnreachable,
-    ApiConnectorType,
+    type ApiConnectorType,
     type ExternalConnection,
 } from '@lightdash/common';
 import {
     ActionIcon,
     Button,
+    Group,
     Menu,
     Paper,
     Skeleton,
@@ -15,7 +15,6 @@ import {
 } from '@mantine/core';
 import {
     IconBroadcast,
-    IconChevronDown,
     IconDots,
     IconPencil,
     IconPlus,
@@ -25,6 +24,8 @@ import {
 import { useEffect, useState, type FC } from 'react';
 import { useSearchParams } from 'react-router';
 import { useExternalConnections } from '../../../features/externalConnections/hooks/useExternalConnections';
+import { getLiveSource } from '../../../features/externalConnections/liveSources/liveSourceCatalog';
+import { LiveSourceIcon } from '../../../features/externalConnections/liveSources/LiveSourceIcon';
 import useHealth from '../../../hooks/health/useHealth';
 import tableStyles from '../../../hooks/styles/tableStyles.module.css';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -33,39 +34,15 @@ import { SettingsCard } from '../../common/Settings/SettingsCard';
 import { SettingsEmptyState } from '../../common/Settings/SettingsEmptyState';
 import { SettingsPage } from '../../common/Settings/SettingsPage';
 import { DeleteConnectionModal } from '../DataAppConnectionsPanel/DeleteConnectionModal';
-import {
-    getApiSourceTarget,
-    getGoogleSignInUrl,
-    GOOGLE_SOURCES,
-    isGoogleConnector,
-} from './googleConnection';
+import { AddLiveSourceModal } from './AddLiveSourceModal';
+import { getGoogleSignInUrl, isGoogleConnector } from './googleConnection';
 import { GoogleConnectionModal } from './GoogleConnectionModal';
 import { GoogleSourcePickerModal } from './GoogleSourcePickerModal';
-import {
-    getPostHogSignInUrl,
-    isSignedInConnection,
-    toPostHogFormValues,
-} from './postHogConnection';
+import { getPostHogSignInUrl, toPostHogFormValues } from './postHogConnection';
 import { PostHogConnectionModal } from './PostHogConnectionModal';
 
 type Props = {
     projectUuid: string;
-};
-
-const connectorLabel = (connector: ApiConnectorType): string => {
-    switch (connector) {
-        case ApiConnectorType.POSTHOG:
-            return 'PostHog';
-        case ApiConnectorType.SEARCH_CONSOLE:
-            return 'Search Console';
-        case ApiConnectorType.GA4:
-            return 'Google Analytics';
-        default:
-            return assertUnreachable(
-                connector,
-                `Unknown connector ${connector}`,
-            );
-    }
 };
 
 const SourceRow: FC<{
@@ -81,28 +58,20 @@ const SourceRow: FC<{
             </Text>
         </Table.Td>
         <Table.Td>
-            <Text fz="sm">
-                {connection.apiSource
-                    ? connectorLabel(connection.apiSource.connector)
-                    : '—'}
-            </Text>
-        </Table.Td>
-        <Table.Td>
-            <Text fz="sm" c="dimmed">
-                {connection.origin}
-            </Text>
-        </Table.Td>
-        <Table.Td>
-            <Text fz="sm" c="dimmed">
-                {connection.apiSource
-                    ? getApiSourceTarget(connection.apiSource)
-                    : '—'}
-            </Text>
-        </Table.Td>
-        <Table.Td>
-            <Text fz="sm" c="dimmed">
-                {isSignedInConnection(connection) ? 'Signed in' : 'API key'}
-            </Text>
+            {connection.apiSource ? (
+                <Group gap="xs" wrap="nowrap">
+                    <LiveSourceIcon
+                        connector={connection.apiSource.connector}
+                    />
+                    <Text fz="sm">
+                        {getLiveSource(connection.apiSource.connector).label}
+                    </Text>
+                </Group>
+            ) : (
+                <Text fz="sm" c="dimmed">
+                    —
+                </Text>
+            )}
         </Table.Td>
         <Table.Td w="1%">
             <Menu position="bottom-end">
@@ -145,6 +114,7 @@ const SourceRow: FC<{
 
 type ModalState =
     | { kind: 'closed' }
+    | { kind: 'pick' }
     | { kind: 'create'; connector: ApiConnectorType }
     | { kind: 'edit'; connection: ExternalConnection }
     | { kind: 'delete'; connection: ExternalConnection };
@@ -199,41 +169,14 @@ const LiveDataSourcesPanel: FC<Props> = ({ projectUuid }) => {
     );
 
     const addSourceButton = (
-        <Menu position="bottom-end">
-            <Menu.Target>
-                <Button
-                    size="xs"
-                    variant="default"
-                    leftSection={<MantineIcon icon={IconPlus} />}
-                    rightSection={<MantineIcon icon={IconChevronDown} />}
-                >
-                    Add data source
-                </Button>
-            </Menu.Target>
-            <Menu.Dropdown>
-                <Menu.Item
-                    onClick={() =>
-                        setModal({
-                            kind: 'create',
-                            connector: ApiConnectorType.POSTHOG,
-                        })
-                    }
-                >
-                    PostHog
-                </Menu.Item>
-                {canUseGoogle &&
-                    GOOGLE_SOURCES.map(({ connector, label }) => (
-                        <Menu.Item
-                            key={connector}
-                            onClick={() =>
-                                setModal({ kind: 'create', connector })
-                            }
-                        >
-                            {label}
-                        </Menu.Item>
-                    ))}
-            </Menu.Dropdown>
-        </Menu>
+        <Button
+            size="xs"
+            variant="default"
+            leftSection={<MantineIcon icon={IconPlus} />}
+            onClick={() => setModal({ kind: 'pick' })}
+        >
+            Add data source
+        </Button>
     );
 
     const getReconnect = (connection: ExternalConnection) => {
@@ -293,10 +236,7 @@ const LiveDataSourcesPanel: FC<Props> = ({ projectUuid }) => {
                             <Table.Thead>
                                 <Table.Tr>
                                     <Table.Th w={300}>Name</Table.Th>
-                                    <Table.Th>Connector</Table.Th>
-                                    <Table.Th>Host</Table.Th>
-                                    <Table.Th>Reads</Table.Th>
-                                    <Table.Th>Access</Table.Th>
+                                    <Table.Th>Integration</Table.Th>
                                     <Table.Th></Table.Th>
                                 </Table.Tr>
                             </Table.Thead>
@@ -325,6 +265,16 @@ const LiveDataSourcesPanel: FC<Props> = ({ projectUuid }) => {
                     </Paper>
                 )}
             </SettingsPage>
+
+            <AddLiveSourceModal
+                opened={modal.kind === 'pick'}
+                onClose={closeModal}
+                projectUuid={projectUuid}
+                canUseGoogle={canUseGoogle}
+                onPick={(picked: ApiConnectorType) =>
+                    setModal({ kind: 'create', connector: picked })
+                }
+            />
 
             {(modal.kind === 'create' || modal.kind === 'edit') &&
                 connector !== null &&

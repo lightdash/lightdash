@@ -948,6 +948,15 @@ type OnboardingWarehouseSelectedEvent = {
     };
 };
 
+type LiveDataSourceRequestedEvent = {
+    name: EventName.LIVE_DATA_SOURCE_REQUESTED;
+    properties: {
+        organizationId: string | null;
+        projectId: string;
+        integration: string;
+    };
+};
+
 type BigquerySsoSigninCompletedEvent = {
     name: EventName.BIGQUERY_SSO_SIGNIN_COMPLETED;
     properties: {
@@ -1412,7 +1421,8 @@ export type EventData =
     | SqlRunnerConnectionSwitchedEvent
     | SqlRunnerConnectionHintResolvedEvent
     | SqlRunnerShareLinkOpenedEvent
-    | OpenInSqlRunnerClickedEvent;
+    | OpenInSqlRunnerClickedEvent
+    | LiveDataSourceRequestedEvent;
 
 export type IdentifyData = {
     id: string;

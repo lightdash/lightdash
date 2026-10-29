@@ -8,7 +8,7 @@ export type GoogleConnector =
     | ApiConnectorType.SEARCH_CONSOLE
     | ApiConnectorType.GA4;
 
-export const GOOGLE_SOURCES: {
+const GOOGLE_SOURCES: {
     connector: GoogleConnector;
     label: string;
     defaultName: string;
