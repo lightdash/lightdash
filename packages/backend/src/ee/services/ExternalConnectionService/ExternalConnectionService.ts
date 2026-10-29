@@ -31,9 +31,12 @@ import {
     type ExternalConnectionSampleRequest,
     type ExternalFetchRequest,
     type ExternalFetchResponse,
+    type GoogleLiveSourceChoice,
+    type GoogleLiveSourcePendingChoice,
     type RegisteredAccount,
     type UpdateExternalConnection,
 } from '@lightdash/common';
+import isEqual from 'lodash/isEqual';
 import { createHash, randomBytes } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
@@ -46,12 +49,14 @@ import type {
     ApiConnector,
     ApiConnectorTransport,
 } from '../../../services/QuerySourceService/api/ApiConnector';
+import { SearchConsoleConnector } from '../../../services/QuerySourceService/api/google/SearchConsoleConnector';
 import { PostHogConnector } from '../../../services/QuerySourceService/api/posthog/PostHogConnector';
 import type { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
 import {
     normalizeCredentialUrlHref,
     normalizeCredentialUrlOrigin,
 } from '../../../utils/credentialDestination';
+import type { EncryptionUtil } from '../../../utils/EncryptionUtil/EncryptionUtil';
 import {
     secureFetch,
     SecureFetchError,
@@ -79,6 +84,14 @@ import {
     validateExternalConnectionConfig,
     validateServiceAccountKeyfile,
 } from './externalConnectionConfigValidation';
+import {
+    buildGoogleAuthorizeUrl,
+    GOOGLE_CONNECTORS,
+    GOOGLE_TOKEN_URL,
+    isGoogleConnector,
+    type GoogleApiGet,
+    type GoogleConnectorType,
+} from './googleOAuth';
 import { type GoogleServiceAccountTokenProvider } from './GoogleServiceAccountTokenProvider';
 import {
     isAccessTokenFresh,
@@ -87,6 +100,7 @@ import {
     serializeStoredOAuthTokens,
     type OAuthAuthorizationCodeClientConfig,
     type OAuthAuthorizationCodeTokenClient,
+    type StoredOAuthTokens,
 } from './OAuthAuthorizationCodeTokenClient';
 import {
     type OAuthClientCredentialsConfig,
@@ -122,7 +136,8 @@ type ExternalConnectionServiceArguments = {
     oauthAuthorizationCodeTokenClient: OAuthAuthorizationCodeTokenClient;
     orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
     featureFlagModel: FeatureFlagModel;
-    lightdashConfig: Pick<LightdashConfig, 'siteUrl' | 'liveSources'>;
+    encryptionUtil: Pick<EncryptionUtil, 'encrypt' | 'decrypt'>;
+    lightdashConfig: Pick<LightdashConfig, 'siteUrl' | 'liveSources' | 'auth'>;
 };
 
 export type PostHogRegion = keyof typeof POSTHOG_REGION_ORIGINS;
@@ -137,6 +152,29 @@ export type PostHogOAuthSession = {
     redirectUri: string;
     codeVerifier: string;
 };
+
+/** What the Google sign-in callback needs from the request that started it. */
+export type GoogleOAuthSession = {
+    projectUuid: string;
+    connector: GoogleConnectorType;
+    name: string;
+    connectionUuid: string | null;
+    redirectUri: string;
+    codeVerifier: string;
+};
+
+/** A Google sign-in that can read several properties, waiting for the admin to pick one. */
+export type PendingGoogleLiveSource = {
+    projectUuid: string;
+    connector: GoogleConnectorType;
+    name: string;
+    /** The granted tokens, encrypted while they wait in the session. */
+    encryptedTokens: string;
+    choices: GoogleLiveSourceChoice[];
+};
+
+const GOOGLE_API_TIMEOUT_MS = 10_000;
+const GOOGLE_API_RESPONSE_MAX_BYTES = 1024 * 1024;
 
 export class ExternalConnectionService extends BaseService {
     private readonly allowedPrivateHostCidrs: AllowedPrivateHostCidrs;
@@ -161,7 +199,12 @@ export class ExternalConnectionService extends BaseService {
 
     private readonly lightdashConfig: Pick<
         LightdashConfig,
-        'siteUrl' | 'liveSources'
+        'siteUrl' | 'liveSources' | 'auth'
+    >;
+
+    private readonly encryptionUtil: Pick<
+        EncryptionUtil,
+        'encrypt' | 'decrypt'
     >;
 
     private readonly apiSourceCallLimiter: ApiSourceCallLimiter;
@@ -189,6 +232,7 @@ export class ExternalConnectionService extends BaseService {
         this.oauthAuthorizationCodeTokenClient =
             args.oauthAuthorizationCodeTokenClient;
         this.lightdashConfig = args.lightdashConfig;
+        this.encryptionUtil = args.encryptionUtil;
         this.apiSourceCallLimiter = new ApiSourceCallLimiter({
             model: args.externalConnectionModel,
         });
@@ -670,11 +714,10 @@ export class ExternalConnectionService extends BaseService {
                 (data.origin !== undefined &&
                     data.origin !== existing.origin) ||
                 (data.apiSource !== undefined &&
-                    data.apiSource?.projectId !==
-                        existing.apiSource?.projectId))
+                    !isEqual(data.apiSource, existing.apiSource)))
         ) {
             throw new ParameterError(
-                'Reconnect this source to change its sign-in, region or project',
+                'Reconnect this source to change its sign-in, region, project or site',
             );
         }
         const resolved = ExternalConnectionService.resolveConnectionUpdate(
@@ -1032,11 +1075,14 @@ export class ExternalConnectionService extends BaseService {
                     send,
                 });
                 return connector;
+            case ApiConnectorType.SEARCH_CONSOLE:
+                connector = new SearchConsoleConnector({
+                    siteUrl: apiSource.siteUrl,
+                    send,
+                });
+                return connector;
             default:
-                return assertUnreachable(
-                    apiSource.connector,
-                    `Unknown api connector: ${apiSource.connector}`,
-                );
+                return assertUnreachable(apiSource, 'Unknown api connector');
         }
     }
 
@@ -1044,10 +1090,26 @@ export class ExternalConnectionService extends BaseService {
         return Object.hasOwn(POSTHOG_REGION_ORIGINS, region);
     }
 
-    private getPostHogClientSecret(clientId: string): string | null {
+    private getGoogleClient(): {
+        clientId: string;
+        clientSecret: string;
+    } | null {
+        const { oauth2ClientId, oauth2ClientSecret } =
+            this.lightdashConfig.auth.google;
+        return oauth2ClientId && oauth2ClientSecret
+            ? { clientId: oauth2ClientId, clientSecret: oauth2ClientSecret }
+            : null;
+    }
+
+    /** The secret of whichever configured sign-in client issued a connection's tokens. */
+    private getOAuthClientSecret(clientId: string): string | null {
         const { oauthClientId, oauthClientSecret } =
             this.lightdashConfig.liveSources.posthog;
-        return clientId === oauthClientId ? (oauthClientSecret ?? null) : null;
+        if (clientId === oauthClientId) return oauthClientSecret ?? null;
+        const google = this.getGoogleClient();
+        return google && clientId === google.clientId
+            ? google.clientSecret
+            : null;
     }
 
     getPostHogClientMetadata(): Record<string, unknown> | null {
@@ -1059,7 +1121,10 @@ export class ExternalConnectionService extends BaseService {
     /** Where the sign-in callback lands, with its outcome for the settings page to show. */
     getLiveDataSourcesUrl(
         projectUuid: string,
-        result: { connectionUuid: string } | { error: string },
+        result:
+            | { connectionUuid: string }
+            | { error: string }
+            | { pickGoogleSource: true },
     ): string {
         const url = new URL(
             `/generalSettings/projectManagement/${projectUuid}/liveDataSources`,
@@ -1067,6 +1132,8 @@ export class ExternalConnectionService extends BaseService {
         );
         if ('error' in result) {
             url.searchParams.set('signInError', result.error);
+        } else if ('pickGoogleSource' in result) {
+            url.searchParams.set('pickGoogleSource', 'true');
         } else {
             url.searchParams.set('connected', result.connectionUuid);
         }
@@ -1172,7 +1239,7 @@ export class ExternalConnectionService extends BaseService {
         const client: OAuthAuthorizationCodeClientConfig = {
             tokenUrl: getPostHogOAuthEndpoints(origin).tokenUrl,
             clientId: session.clientId,
-            clientSecret: this.getPostHogClientSecret(session.clientId),
+            clientSecret: this.getOAuthClientSecret(session.clientId),
         };
         let grant: Awaited<
             ReturnType<OAuthAuthorizationCodeTokenClient['exchangeCode']>
@@ -1221,14 +1288,37 @@ export class ExternalConnectionService extends BaseService {
             forwardUserIdentity: false,
             instructions: null,
         });
+        return this.saveSignedInConnection(account, {
+            projectUuid,
+            organizationUuid,
+            connectionUuid: session.connectionUuid,
+            config,
+        });
+    }
+
+    /** Creates a signed-in source, or replaces the sign-in of the one being reconnected. */
+    private async saveSignedInConnection(
+        account: RegisteredAccount,
+        {
+            projectUuid,
+            organizationUuid,
+            connectionUuid,
+            config,
+        }: {
+            projectUuid: string;
+            organizationUuid: string;
+            connectionUuid: string | null;
+            config: CreateExternalConnection;
+        },
+    ): Promise<ExternalConnection> {
         validateExternalConnectionConfig(config, true);
         validateApiSourceConnection(config);
 
-        if (session.connectionUuid) {
+        if (connectionUuid) {
             const existing = await this.getOwnedConnection(
                 account,
                 projectUuid,
-                session.connectionUuid,
+                connectionUuid,
             );
             const updated = await this.externalConnectionModel.update(
                 existing.externalConnectionUuid,
@@ -1268,6 +1358,329 @@ export class ExternalConnectionService extends BaseService {
         return connection;
     }
 
+    private async assertCanManageLiveSources(
+        account: RegisteredAccount,
+        projectUuid: string,
+    ): Promise<string> {
+        const organizationUuid =
+            await this.externalConnectionModel.getProjectOrganizationUuid(
+                projectUuid,
+            );
+        if (!organizationUuid) {
+            throw new NotFoundError('Project not found');
+        }
+        this.assertCanManage(account, projectUuid, organizationUuid);
+        await this.assertLiveSourcesEnabled(account);
+        return organizationUuid;
+    }
+
+    private readonly getGoogleApi: GoogleApiGet = async (url, accessToken) => {
+        const response = await secureFetch(url, {
+            method: 'GET',
+            headers: { Authorization: `Bearer ${accessToken}` },
+            timeoutMs: GOOGLE_API_TIMEOUT_MS,
+            maxResponseBytes: GOOGLE_API_RESPONSE_MAX_BYTES,
+            allowedContentTypes: ['application/json'],
+            allowedPrivateHostCidrs: this.allowedPrivateHostCidrs,
+        });
+        let body: unknown = null;
+        try {
+            body = JSON.parse(response.bodyText);
+        } catch {
+            body = null;
+        }
+        return { status: response.status, body };
+    };
+
+    /** Starts the Google sign-in that creates a source, or reconnects one. */
+    async startGoogleOAuth(
+        account: RegisteredAccount,
+        projectUuid: string,
+        request: {
+            connector: string;
+            name: string;
+            connectionUuid: string | null;
+        },
+    ): Promise<{
+        authorizeUrl: string;
+        state: string;
+        session: GoogleOAuthSession;
+    }> {
+        const client = this.getGoogleClient();
+        if (!client) {
+            throw new MissingConfigError(
+                'Signing in with Google is not configured on this server',
+            );
+        }
+        await this.assertCanManageLiveSources(account, projectUuid);
+        const { connector, connectionUuid } = request;
+        if (!isGoogleConnector(connector)) {
+            throw new ParameterError(`${connector} is not a Google source`);
+        }
+        const name = request.name.trim();
+        if (!name) {
+            throw new ParameterError('Name is required');
+        }
+        if (connectionUuid) {
+            const existing = await this.getOwnedConnection(
+                account,
+                projectUuid,
+                connectionUuid,
+            );
+            if (existing.apiSource?.connector !== connector) {
+                throw new ParameterError(
+                    `Connection "${existing.name}" is not a ${GOOGLE_CONNECTORS[connector].label} source`,
+                );
+            }
+        }
+
+        const state = randomBytes(24).toString('base64url');
+        const codeVerifier = randomBytes(32).toString('base64url');
+        // The same redirect as Google sign-in, so admins register nothing new.
+        const redirectUri = new URL(
+            `/api/v1${this.lightdashConfig.auth.google.callbackPath}`,
+            this.lightdashConfig.siteUrl,
+        ).href;
+        return {
+            authorizeUrl: buildGoogleAuthorizeUrl({
+                clientId: client.clientId,
+                redirectUri,
+                scope: GOOGLE_CONNECTORS[connector].scope,
+                state,
+                codeChallenge: createHash('sha256')
+                    .update(codeVerifier)
+                    .digest('base64url'),
+            }),
+            state,
+            session: {
+                projectUuid,
+                connector,
+                name,
+                connectionUuid,
+                redirectUri,
+                codeVerifier,
+            },
+        };
+    }
+
+    /**
+     * Exchanges the sign-in code. Saves the source when there is only one
+     * thing it could read, or it is being reconnected; otherwise returns the
+     * choices for the admin to pick from.
+     */
+    async completeGoogleOAuth(
+        account: RegisteredAccount,
+        session: GoogleOAuthSession,
+        code: string,
+    ): Promise<
+        | { connection: ExternalConnection }
+        | { pending: PendingGoogleLiveSource }
+    > {
+        const client = this.getGoogleClient();
+        if (!client) {
+            throw new MissingConfigError(
+                'Signing in with Google is not configured on this server',
+            );
+        }
+        const { projectUuid, connector } = session;
+        const organizationUuid = await this.assertCanManageLiveSources(
+            account,
+            projectUuid,
+        );
+        const config = GOOGLE_CONNECTORS[connector];
+
+        let tokens: StoredOAuthTokens;
+        try {
+            ({ tokens } =
+                await this.oauthAuthorizationCodeTokenClient.exchangeCode(
+                    { tokenUrl: GOOGLE_TOKEN_URL, ...client },
+                    {
+                        code,
+                        redirectUri: session.redirectUri,
+                        codeVerifier: session.codeVerifier,
+                    },
+                ));
+        } catch (error) {
+            this.logger.warn(
+                `Google sign-in failed: ${getErrorMessage(error)}`,
+            );
+            throw new WarehouseConnectionError(
+                'Google did not accept the sign-in. Try connecting again.',
+            );
+        }
+        if (!tokens.refreshToken) {
+            throw new WarehouseConnectionError(
+                'Google did not grant offline access. Try connecting again.',
+            );
+        }
+        const choices = await config.listChoices(
+            this.getGoogleApi,
+            tokens.accessToken,
+        );
+
+        if (session.connectionUuid) {
+            const existing = await this.getOwnedConnection(
+                account,
+                projectUuid,
+                session.connectionUuid,
+            );
+            const current = existing.apiSource
+                ? config.choiceOf(existing.apiSource)
+                : null;
+            if (!current || !choices.some(({ value }) => value === current)) {
+                throw new ParameterError(
+                    `This Google account cannot read ${current ?? 'the source'} in ${config.label}`,
+                );
+            }
+            return {
+                connection: await this.saveGoogleConnection(account, {
+                    projectUuid,
+                    organizationUuid,
+                    connector,
+                    name: session.name,
+                    tokens,
+                    choice: current,
+                    connectionUuid: existing.externalConnectionUuid,
+                }),
+            };
+        }
+        if (choices.length === 0) {
+            throw new ParameterError(
+                `This Google account cannot read anything in ${config.label}`,
+            );
+        }
+        if (choices.length === 1) {
+            return {
+                connection: await this.saveGoogleConnection(account, {
+                    projectUuid,
+                    organizationUuid,
+                    connector,
+                    name: session.name,
+                    tokens,
+                    choice: choices[0].value,
+                    connectionUuid: null,
+                }),
+            };
+        }
+        return {
+            pending: {
+                projectUuid,
+                connector,
+                name: session.name,
+                encryptedTokens: this.encryptionUtil
+                    .encrypt(serializeStoredOAuthTokens(tokens))
+                    .toString('base64'),
+                choices,
+            },
+        };
+    }
+
+    /** The choices of a pending Google sign-in, without its tokens. */
+    async getPendingGoogleChoice(
+        account: RegisteredAccount,
+        projectUuid: string,
+        pending: PendingGoogleLiveSource | undefined,
+    ): Promise<GoogleLiveSourcePendingChoice> {
+        await this.assertCanManageLiveSources(account, projectUuid);
+        if (!pending || pending.projectUuid !== projectUuid) {
+            throw new NotFoundError(
+                'No Google sign-in is waiting. Add the source again.',
+            );
+        }
+        return {
+            connector: pending.connector,
+            name: pending.name,
+            choices: pending.choices,
+        };
+    }
+
+    /** Saves a pending Google sign-in as a source reading the picked property. */
+    async finishGoogleOAuth(
+        account: RegisteredAccount,
+        projectUuid: string,
+        pending: PendingGoogleLiveSource | undefined,
+        choice: string,
+    ): Promise<ExternalConnection> {
+        const organizationUuid = await this.assertCanManageLiveSources(
+            account,
+            projectUuid,
+        );
+        if (!pending || pending.projectUuid !== projectUuid) {
+            throw new NotFoundError(
+                'No Google sign-in is waiting. Add the source again.',
+            );
+        }
+        if (!pending.choices.some(({ value }) => value === choice)) {
+            throw new ParameterError('Pick one of the listed options');
+        }
+        const tokens = parseStoredOAuthTokens(
+            this.encryptionUtil.decrypt(
+                Buffer.from(pending.encryptedTokens, 'base64'),
+            ),
+        );
+        if (!tokens) {
+            throw new ParameterError(
+                'The Google sign-in expired. Add the source again.',
+            );
+        }
+        return this.saveGoogleConnection(account, {
+            projectUuid,
+            organizationUuid,
+            connector: pending.connector,
+            name: pending.name,
+            tokens,
+            choice,
+            connectionUuid: null,
+        });
+    }
+
+    private async saveGoogleConnection(
+        account: RegisteredAccount,
+        args: {
+            projectUuid: string;
+            organizationUuid: string;
+            connector: GoogleConnectorType;
+            name: string;
+            tokens: StoredOAuthTokens;
+            choice: string;
+            connectionUuid: string | null;
+        },
+    ): Promise<ExternalConnection> {
+        const client = this.getGoogleClient();
+        if (!client) {
+            throw new MissingConfigError(
+                'Signing in with Google is not configured on this server',
+            );
+        }
+        const google = GOOGLE_CONNECTORS[args.connector];
+        const config = withApiSourceAccessRules<CreateExternalConnection>({
+            name: args.name,
+            type: 'oauth_authorization_code',
+            origin: google.origin,
+            secret: serializeStoredOAuthTokens(args.tokens),
+            apiSource: google.toApiSource(args.choice),
+            oauthTokenUrl: GOOGLE_TOKEN_URL,
+            oauthClientId: client.clientId,
+            oauthClientAuthMethod: null,
+            oauthScopes: null,
+            apiKeyName: null,
+            apiKeyLocation: null,
+            allowedPathPrefixes: [],
+            allowedMethods: [],
+            allowedContentTypes: [],
+            allowBrowserImages: false,
+            allowDataAppBuilderLinking: false,
+            forwardUserIdentity: false,
+            instructions: null,
+        });
+        return this.saveSignedInConnection(account, {
+            projectUuid: args.projectUuid,
+            organizationUuid: args.organizationUuid,
+            connectionUuid: args.connectionUuid,
+            config,
+        });
+    }
+
     private static signInExpiredError(connection: ExternalConnection) {
         return new WarehouseConnectionError(
             `The sign-in for connection "${connection.name}" expired or was revoked. Reconnect it in Live data sources.`,
@@ -1297,7 +1710,7 @@ export class ExternalConnectionService extends BaseService {
         const client: OAuthAuthorizationCodeClientConfig = {
             tokenUrl: connection.oauthTokenUrl,
             clientId: connection.oauthClientId,
-            clientSecret: this.getPostHogClientSecret(connection.oauthClientId),
+            clientSecret: this.getOAuthClientSecret(connection.oauthClientId),
         };
 
         let latestSecret: string | null;

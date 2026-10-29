@@ -39,6 +39,7 @@ export const BaseResponse: HealthState = {
     hasJira: true,
     hasLinear: true,
     hasPostHogOAuth: false,
+    hasGoogleLiveSources: false,
     hasHeadlessBrowser: false,
     hasSlack: false,
     auth: {

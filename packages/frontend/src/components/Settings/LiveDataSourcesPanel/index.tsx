@@ -15,6 +15,7 @@ import {
 } from '@mantine/core';
 import {
     IconBroadcast,
+    IconChevronDown,
     IconDots,
     IconPencil,
     IconPlus,
@@ -33,6 +34,14 @@ import { SettingsEmptyState } from '../../common/Settings/SettingsEmptyState';
 import { SettingsPage } from '../../common/Settings/SettingsPage';
 import { DeleteConnectionModal } from '../DataAppConnectionsPanel/DeleteConnectionModal';
 import {
+    getApiSourceTarget,
+    getGoogleSignInUrl,
+    GOOGLE_SOURCES,
+    isGoogleConnector,
+} from './googleConnection';
+import { GoogleConnectionModal } from './GoogleConnectionModal';
+import { GoogleSourcePickerModal } from './GoogleSourcePickerModal';
+import {
     getPostHogSignInUrl,
     isSignedInConnection,
     toPostHogFormValues,
@@ -47,6 +56,8 @@ const connectorLabel = (connector: ApiConnectorType): string => {
     switch (connector) {
         case ApiConnectorType.POSTHOG:
             return 'PostHog';
+        case ApiConnectorType.SEARCH_CONSOLE:
+            return 'Search Console';
         default:
             return assertUnreachable(
                 connector,
@@ -81,7 +92,9 @@ const SourceRow: FC<{
         </Table.Td>
         <Table.Td>
             <Text fz="sm" c="dimmed">
-                {connection.apiSource?.projectId ?? '—'}
+                {connection.apiSource
+                    ? getApiSourceTarget(connection.apiSource)
+                    : '—'}
             </Text>
         </Table.Td>
         <Table.Td>
@@ -130,9 +143,20 @@ const SourceRow: FC<{
 
 type ModalState =
     | { kind: 'closed' }
-    | { kind: 'create' }
+    | { kind: 'create'; connector: ApiConnectorType }
     | { kind: 'edit'; connection: ExternalConnection }
     | { kind: 'delete'; connection: ExternalConnection };
+
+const modalConnector = (modal: ModalState): ApiConnectorType | null => {
+    switch (modal.kind) {
+        case 'create':
+            return modal.connector;
+        case 'edit':
+            return modal.connection.apiSource?.connector ?? null;
+        default:
+            return null;
+    }
+};
 
 const LiveDataSourcesPanel: FC<Props> = ({ projectUuid }) => {
     const { data: connections, isLoading } =
@@ -141,21 +165,28 @@ const LiveDataSourcesPanel: FC<Props> = ({ projectUuid }) => {
     const closeModal = () => setModal({ kind: 'closed' });
     const { data: health } = useHealth();
     const canSignIn = health?.hasPostHogOAuth ?? false;
+    const canUseGoogle = health?.hasGoogleLiveSources ?? false;
     const { showToastSuccess, showToastError } = useToaster();
 
-    // The PostHog sign-in callback lands here with its outcome.
+    // Sign-in callbacks land here with their outcome.
     const [searchParams, setSearchParams] = useSearchParams();
+    const isPickingGoogleSource =
+        searchParams.get('pickGoogleSource') === 'true';
+    const closeGoogleSourcePicker = () => {
+        searchParams.delete('pickGoogleSource');
+        setSearchParams(searchParams, { replace: true });
+    };
     useEffect(() => {
         const connected = searchParams.get('connected');
         const signInError = searchParams.get('signInError');
         if (!connected && !signInError) return;
         if (signInError) {
             showToastError({
-                title: 'Could not connect PostHog',
+                title: 'Could not connect the source',
                 subtitle: signInError,
             });
         } else {
-            showToastSuccess({ title: 'PostHog connected' });
+            showToastSuccess({ title: 'Source connected' });
         }
         searchParams.delete('connected');
         searchParams.delete('signInError');
@@ -166,15 +197,70 @@ const LiveDataSourcesPanel: FC<Props> = ({ projectUuid }) => {
     );
 
     const addSourceButton = (
-        <Button
-            size="xs"
-            variant="default"
-            leftSection={<MantineIcon icon={IconPlus} />}
-            onClick={() => setModal({ kind: 'create' })}
-        >
-            Add data source
-        </Button>
+        <Menu position="bottom-end">
+            <Menu.Target>
+                <Button
+                    size="xs"
+                    variant="default"
+                    leftSection={<MantineIcon icon={IconPlus} />}
+                    rightSection={<MantineIcon icon={IconChevronDown} />}
+                >
+                    Add data source
+                </Button>
+            </Menu.Target>
+            <Menu.Dropdown>
+                <Menu.Item
+                    onClick={() =>
+                        setModal({
+                            kind: 'create',
+                            connector: ApiConnectorType.POSTHOG,
+                        })
+                    }
+                >
+                    PostHog
+                </Menu.Item>
+                {canUseGoogle &&
+                    GOOGLE_SOURCES.map(({ connector, label }) => (
+                        <Menu.Item
+                            key={connector}
+                            onClick={() =>
+                                setModal({ kind: 'create', connector })
+                            }
+                        >
+                            {label}
+                        </Menu.Item>
+                    ))}
+            </Menu.Dropdown>
+        </Menu>
     );
+
+    const getReconnect = (connection: ExternalConnection) => {
+        const connector = connection.apiSource?.connector;
+        if (connector && isGoogleConnector(connector)) {
+            return canUseGoogle
+                ? () =>
+                      window.location.assign(
+                          getGoogleSignInUrl(
+                              projectUuid,
+                              connector,
+                              connection.name,
+                              connection.externalConnectionUuid,
+                          ),
+                      )
+                : null;
+        }
+        return canSignIn
+            ? () =>
+                  window.location.assign(
+                      getPostHogSignInUrl(
+                          projectUuid,
+                          toPostHogFormValues(connection, canSignIn),
+                          connection.externalConnectionUuid,
+                      ),
+                  )
+            : null;
+    };
+    const connector = modalConnector(modal);
 
     return (
         <>
@@ -194,7 +280,7 @@ const LiveDataSourcesPanel: FC<Props> = ({ projectUuid }) => {
                     <SettingsEmptyState
                         icon={IconBroadcast}
                         title="No live data sources"
-                        description="Connect a PostHog project to let AI agents query it alongside your warehouse."
+                        description="Connect PostHog or a Google source to let AI agents query it alongside your warehouse."
                     />
                 ) : (
                     <Paper className={tableStyles.paper}>
@@ -207,7 +293,7 @@ const LiveDataSourcesPanel: FC<Props> = ({ projectUuid }) => {
                                     <Table.Th w={300}>Name</Table.Th>
                                     <Table.Th>Connector</Table.Th>
                                     <Table.Th>Host</Table.Th>
-                                    <Table.Th>Project ID</Table.Th>
+                                    <Table.Th>Reads</Table.Th>
                                     <Table.Th>Access</Table.Th>
                                     <Table.Th></Table.Th>
                                 </Table.Tr>
@@ -223,21 +309,7 @@ const LiveDataSourcesPanel: FC<Props> = ({ projectUuid }) => {
                                                 connection,
                                             })
                                         }
-                                        onReconnect={
-                                            canSignIn
-                                                ? () =>
-                                                      window.location.assign(
-                                                          getPostHogSignInUrl(
-                                                              projectUuid,
-                                                              toPostHogFormValues(
-                                                                  connection,
-                                                                  canSignIn,
-                                                              ),
-                                                              connection.externalConnectionUuid,
-                                                          ),
-                                                      )
-                                                : null
-                                        }
+                                        onReconnect={getReconnect(connection)}
                                         onDelete={() =>
                                             setModal({
                                                 kind: 'delete',
@@ -252,13 +324,34 @@ const LiveDataSourcesPanel: FC<Props> = ({ projectUuid }) => {
                 )}
             </SettingsPage>
 
-            {(modal.kind === 'create' || modal.kind === 'edit') && (
-                <PostHogConnectionModal
-                    opened
-                    onClose={closeModal}
+            {(modal.kind === 'create' || modal.kind === 'edit') &&
+                connector !== null &&
+                (isGoogleConnector(connector) ? (
+                    <GoogleConnectionModal
+                        opened
+                        onClose={closeModal}
+                        projectUuid={projectUuid}
+                        connector={connector}
+                        connection={
+                            modal.kind === 'edit' ? modal.connection : null
+                        }
+                    />
+                ) : (
+                    <PostHogConnectionModal
+                        opened
+                        onClose={closeModal}
+                        projectUuid={projectUuid}
+                        connection={
+                            modal.kind === 'edit' ? modal.connection : null
+                        }
+                        canSignIn={canSignIn}
+                    />
+                ))}
+
+            {isPickingGoogleSource && (
+                <GoogleSourcePickerModal
                     projectUuid={projectUuid}
-                    connection={modal.kind === 'edit' ? modal.connection : null}
-                    canSignIn={canSignIn}
+                    onClose={closeGoogleSourcePicker}
                 />
             )}
 

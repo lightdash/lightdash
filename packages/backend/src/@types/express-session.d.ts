@@ -1,5 +1,9 @@
 import 'express-session';
-import { type PostHogOAuthSession } from '../ee/services/ExternalConnectionService/ExternalConnectionService';
+import {
+    type GoogleOAuthSession,
+    type PendingGoogleLiveSource,
+    type PostHogOAuthSession,
+} from '../ee/services/ExternalConnectionService/ExternalConnectionService';
 import { type AgentConnectAttempt } from '../services/AiAccessService/AiAccessService';
 
 declare module 'express-session' {
@@ -11,6 +15,8 @@ declare module 'express-session' {
             { organizationUuid: string; clientVersion: string | null }
         >;
         agentConnectAttempts?: Record<string, AgentConnectAttempt>;
+        /** Kept apart from `oauth`, which other sign-ins reset. */
+        pendingGoogleLiveSource?: PendingGoogleLiveSource;
         oauth: {
             inviteCode?: string | undefined;
             returnTo?: string | undefined;
@@ -33,6 +39,7 @@ declare module 'express-session' {
                 encryptedClientSecret: string;
             };
             postHog?: PostHogOAuthSession;
+            googleLiveSource?: GoogleOAuthSession;
             isPopup?: boolean | undefined;
             databricks?: {
                 projectUuid?: string | undefined;
