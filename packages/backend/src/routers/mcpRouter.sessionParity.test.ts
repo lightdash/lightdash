@@ -7,6 +7,7 @@ import type {
 import express from 'express';
 import { request as httpRequest } from 'http';
 import type { AddressInfo } from 'net';
+import passport from 'passport';
 import { fromSession } from '../auth/account/account';
 import { defaultSessionUser } from '../auth/account/account.mock';
 import { McpService } from '../ee/services/McpService/McpService';
@@ -26,7 +27,7 @@ vi.mock('../controllers/authentication', () => ({
 }));
 
 test.each(['off', 'legacy', 'managed'] as const)(
-    '%s preserves browser-session transport authentication',
+    '%s rejects browser-session transport authentication',
     async (mode) => {
         const account = fromSession(defaultSessionUser);
         const getAgentPermissionService = vi.fn(() => ({
@@ -73,12 +74,16 @@ test.each(['off', 'legacy', 'managed'] as const)(
         vi.spyOn(service, 'isChartTypeBuildsEnabled').mockResolvedValue(false);
         vi.spyOn(service, 'isCustomChartTypesEnabled').mockResolvedValue(false);
         const app = express();
+        app.use(passport.initialize());
         app.use(express.json());
         app.use((request, _response, next) => {
             request.account = account;
             request.user = defaultSessionUser;
             request.services = {
                 getMcpService: () => service,
+                getOauthService: () => ({
+                    getSiteUrl: () => 'https://example.com',
+                }),
                 getAgentPermissionService,
             } as unknown as Express.Request['services'];
             next();
@@ -92,6 +97,7 @@ test.each(['off', 'legacy', 'managed'] as const)(
         try {
             const response = await new Promise<{
                 status: number;
+                challenge?: string;
                 body: string;
             }>((resolve, reject) => {
                 const request = httpRequest(
@@ -102,7 +108,7 @@ test.each(['off', 'legacy', 'managed'] as const)(
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
-                            Authorization: 'Bearer test-token',
+                            Cookie: 'connect.sid=session-cookie',
                             Accept: 'application/json, text/event-stream',
                         },
                     },
@@ -114,6 +120,7 @@ test.each(['off', 'legacy', 'managed'] as const)(
                         incoming.on('end', () =>
                             resolve({
                                 status: incoming.statusCode ?? 0,
+                                challenge: incoming.headers['www-authenticate'],
                                 body: Buffer.concat(chunks).toString('utf8'),
                             }),
                         );
@@ -129,20 +136,13 @@ test.each(['off', 'legacy', 'managed'] as const)(
                     }),
                 );
             });
-            expect(response.status).toBe(200);
-            expect(await new Response(response.body).json()).toMatchObject({
-                jsonrpc: '2.0',
-                id: 1,
-                result: {
-                    isError: true,
-                    content: [
-                        {
-                            type: 'text',
-                            text: 'MCP request is missing authenticated user context',
-                        },
-                    ],
-                },
+            expect(response.status).toBe(401);
+            expect(JSON.parse(response.body)).toEqual({
+                error: 'MCP requires an access token',
             });
+            expect(response.challenge).toBe(
+                'Bearer resource_metadata="https://example.com/api/v1/oauth/.well-known/oauth-protected-resource"',
+            );
             expect(getAgentPermissionService).not.toHaveBeenCalled();
         } finally {
             server.closeAllConnections();

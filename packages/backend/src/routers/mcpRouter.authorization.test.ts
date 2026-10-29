@@ -11,6 +11,7 @@ import { request as httpRequest, type Server, type ServerResponse } from 'http';
 import knex from 'knex';
 import { getTracker, MockClient } from 'knex-mock-client';
 import type { AddressInfo } from 'net';
+import passport from 'passport';
 import {
     fromApiKey,
     fromOauth,
@@ -160,8 +161,8 @@ const sendHttpRequest = ({
         const request = httpRequest(
             {
                 headers: {
-                    ...headers,
                     authorization: 'Bearer test-token',
+                    ...headers,
                     'content-type': 'application/json',
                     'x-agent-uuid': 'spoofed-agent',
                     'x-client-id': 'spoofed-client',
@@ -217,6 +218,7 @@ const requestMcp = async ({
     vi.mocked(mcpService.isAgentIdentityEnabled).mockResolvedValue(
         agentIdentityEnabled,
     );
+    app.use(passport.initialize());
     app.use(express.json());
     app.use((request, _response, next) => {
         request.account = account;
@@ -228,6 +230,9 @@ const requestMcp = async ({
         } as Express.User;
         request.services = {
             getMcpService: () => mcpService,
+            getOauthService: () => ({
+                getSiteUrl: () => 'https://example.com',
+            }),
         } as Express.Request['services'];
         next();
     });
@@ -240,7 +245,9 @@ const requestMcp = async ({
         method,
         path,
         port: address.port,
-        headers,
+        headers: account.isSessionUser()
+            ? { ...headers, authorization: '' }
+            : headers,
         requestBody,
     });
 
@@ -319,13 +326,21 @@ describe('MCP organization access', () => {
                 },
             });
 
-            expect(response).toEqual({
-                body: '{"error":"MCP is not enabled"}',
-                status: 403,
-            });
-            expect(getSettings).toHaveBeenCalledExactlyOnceWith(
-                'organization-uuid',
-            );
+            if (authentication.type === 'session') {
+                expect(response).toEqual({
+                    body: '{"error":"MCP requires an access token"}',
+                    status: 401,
+                });
+                expect(getSettings).not.toHaveBeenCalled();
+            } else {
+                expect(response).toEqual({
+                    body: '{"error":"MCP is not enabled"}',
+                    status: 403,
+                });
+                expect(getSettings).toHaveBeenCalledExactlyOnceWith(
+                    'organization-uuid',
+                );
+            }
             expect(mcpService.createServer).not.toHaveBeenCalled();
             expect(transport.handleRequest).not.toHaveBeenCalled();
         },

@@ -275,20 +275,37 @@ const returnHeaderIfUnauthenticated = (
     next: express.NextFunction,
 ) => {
     if (req.account?.isAuthenticated()) {
-        next();
-    } else {
-        const authHeaderPresent = !!req.headers.authorization;
-        Logger.warn(
-            `[MCP] Auth failed — header present: ${authHeaderPresent}, account: ${req.account?.authentication?.type ?? 'none'}`,
-        );
-        const oauthService = req.services.getOauthService();
-        const baseUrl = oauthService.getSiteUrl();
-        res.set(
-            'WWW-Authenticate',
-            `Bearer resource_metadata="${baseUrl}/api/v1/oauth/.well-known/oauth-protected-resource"`,
-        );
-        res.status(401).json({ error: 'Unauthorized' });
+        switch (req.account.authentication.type) {
+            case 'pat':
+            case 'oauth':
+            case 'service-account':
+                next();
+                return;
+            case 'session':
+            case 'jwt':
+                break;
+            default:
+                assertUnreachable(
+                    req.account.authentication,
+                    'Unknown MCP authentication type',
+                );
+        }
     }
+    const authHeaderPresent = !!req.headers.authorization;
+    Logger.warn(
+        `[MCP] Auth failed — header present: ${authHeaderPresent}, account: ${req.account?.authentication?.type ?? 'none'}`,
+    );
+    const oauthService = req.services.getOauthService();
+    const baseUrl = oauthService.getSiteUrl();
+    res.set(
+        'WWW-Authenticate',
+        `Bearer resource_metadata="${baseUrl}/api/v1/oauth/.well-known/oauth-protected-resource"`,
+    );
+    res.status(401).json({
+        error: req.account?.isAuthenticated()
+            ? 'MCP requires an access token'
+            : 'Unauthorized',
+    });
 };
 
 // Passport 401s credential-less requests itself, hiding the WWW-Authenticate header OAuth discovery needs
@@ -296,6 +313,12 @@ const authenticateOnlyWithCredentials: RequestHandler = (req, res, next) => {
     if (!req.headers.authorization && !req.isAuthenticated()) {
         next();
         return;
+    }
+    // MCP only accepts token principals. A session must not short-circuit token
+    // authentication when a client sends both its cookie jar and a credential.
+    if (req.headers.authorization && req.account?.isSessionUser()) {
+        delete req.user;
+        delete req.account;
     }
     allowApiKeyAuthentication(req, res, next);
 };
