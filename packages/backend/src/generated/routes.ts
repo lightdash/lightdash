@@ -251,6 +251,8 @@ import { OrganizationWarehouseCredentialsController } from './../ee/controllers/
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { OrgRoadmapController } from './../ee/controllers/OrgRoadmapController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+import { PostHogOAuthController } from './../ee/controllers/postHogOAuthController';
+// WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { PreAggregateController } from './../ee/controllers/PreAggregateController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { ProjectAnnouncementsController } from './../ee/controllers/projectAnnouncementsController';
@@ -8739,6 +8741,7 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['bearer_token'] },
                 { dataType: 'enum', enums: ['google_service_account'] },
                 { dataType: 'enum', enums: ['oauth_client_credentials'] },
+                { dataType: 'enum', enums: ['oauth_authorization_code'] },
             ],
             validators: {},
         },
@@ -86728,6 +86731,190 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'uploadImage',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsPostHogOAuthController_startPostHogOAuth: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        region: {
+            in: 'query',
+            name: 'region',
+            required: true,
+            dataType: 'string',
+        },
+        name: { in: 'query', name: 'name', required: true, dataType: 'string' },
+        connectionUuid: {
+            in: 'query',
+            name: 'connectionUuid',
+            dataType: 'string',
+        },
+    };
+    app.get(
+        '/api/v1/ee/projects/:projectUuid/live-sources/posthog/oauth/start',
+        ...fetchMiddlewares<RequestHandler>(PostHogOAuthController),
+        ...fetchMiddlewares<RequestHandler>(
+            PostHogOAuthController.prototype.startPostHogOAuth,
+        ),
+
+        async function PostHogOAuthController_startPostHogOAuth(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsPostHogOAuthController_startPostHogOAuth,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<PostHogOAuthController>(
+                        PostHogOAuthController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'startPostHogOAuth',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 302,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsPostHogOAuthController_postHogOAuthCallback: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        code: { in: 'query', name: 'code', dataType: 'string' },
+        state: { in: 'query', name: 'state', dataType: 'string' },
+        error: { in: 'query', name: 'error', dataType: 'string' },
+    };
+    app.get(
+        '/api/v1/ee/posthog/oauth/callback',
+        ...fetchMiddlewares<RequestHandler>(PostHogOAuthController),
+        ...fetchMiddlewares<RequestHandler>(
+            PostHogOAuthController.prototype.postHogOAuthCallback,
+        ),
+
+        async function PostHogOAuthController_postHogOAuthCallback(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsPostHogOAuthController_postHogOAuthCallback,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<PostHogOAuthController>(
+                        PostHogOAuthController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'postHogOAuthCallback',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 302,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsPostHogOAuthController_getPostHogOAuthClientMetadata: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {};
+    app.get(
+        '/api/v1/ee/posthog/oauth/client-metadata.json',
+        ...fetchMiddlewares<RequestHandler>(PostHogOAuthController),
+        ...fetchMiddlewares<RequestHandler>(
+            PostHogOAuthController.prototype.getPostHogOAuthClientMetadata,
+        ),
+
+        async function PostHogOAuthController_getPostHogOAuthClientMetadata(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsPostHogOAuthController_getPostHogOAuthClientMetadata,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<PostHogOAuthController>(
+                        PostHogOAuthController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getPostHogOAuthClientMetadata',
                     controller,
                     response,
                     next,

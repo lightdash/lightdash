@@ -1,8 +1,8 @@
 {
   "schemaVersion": "2",
-  "version": "3.98.1",
-  "previousVersion": "3.98.0",
-  "releaseDate": "2026-10-29T17:26:22.626Z",
+  "version": "3.99.0",
+  "previousVersion": "3.98.1",
+  "releaseDate": "2026-10-29T17:33:06.688Z",
   "migrations": {
     "present": false,
     "count": 0,
@@ -20,8 +20,10 @@
       "breaking": false,
       "changes": [],
       "breakingCount": 0,
-      "advisories": [],
-      "advisoryCount": 0
+      "advisories": [
+        "GET /api/v1/projects/{projectUuid}/code/externalConnections — added the new `oauth_authorization_code` enum value to the `results/externalConnections/items/authType` response property for the response status `200`"
+      ],
+      "advisoryCount": 1
     },
     "mcp": {
       "checked": true,

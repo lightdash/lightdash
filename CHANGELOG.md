@@ -1,3 +1,10 @@
+# [3.99.0](https://github.com/lightdash/lightdash/compare/3.98.1...3.99.0) (2026-10-29)
+
+
+### Features
+
+* **query-sources:** sign in to PostHog with OAuth for live sources ([#31760](https://github.com/lightdash/lightdash/issues/31760)) ([8937305](https://github.com/lightdash/lightdash/commit/8937305a0bf0d294b5e04e9e820ac60d6a90c681)), closes [#31592](https://github.com/lightdash/lightdash/issues/31592) [#31593](https://github.com/lightdash/lightdash/issues/31593) [#31594](https://github.com/lightdash/lightdash/issues/31594) [#31597](https://github.com/lightdash/lightdash/issues/31597) [#31598](https://github.com/lightdash/lightdash/issues/31598) [#31746](https://github.com/lightdash/lightdash/issues/31746) [#31747](https://github.com/lightdash/lightdash/issues/31747)
+
 ## [3.98.1](https://github.com/lightdash/lightdash/compare/3.98.0...3.98.1) (2026-10-29)
 
 
