@@ -119,6 +119,7 @@ import {
     getMergeSourceTableLabel,
     getMetricOverridesWithPopInheritance,
     getMetrics,
+    getModelInventoryFromManifest,
     getModelsFromManifest,
     getParameterReferences,
     getPersonSignIn,
@@ -19126,6 +19127,11 @@ export class ProjectService
                         },
                         {
                             disableTimestampConversion,
+                            modelInventory:
+                                getModelInventoryFromManifest(manifest),
+                            allowCrossSourceJoinFallback:
+                                manifest.lightdash_model_inventory_complete !==
+                                false,
                             postProcessors: [preAggregatePostProcessor],
                         },
                     );

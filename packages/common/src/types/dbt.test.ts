@@ -1,3 +1,4 @@
+import { projectMergedManifest } from '../dbt/projectMergedManifest';
 import {
     convertColumnMetric,
     convertModelMetric,
@@ -6,6 +7,7 @@ import {
     getDbtManifestPackageNames,
     getEffectiveFieldAiHints,
     getExternalModelNodesFromManifest,
+    getModelInventoryFromManifest,
     getModelsFromManifest,
     isExternalDbtNode,
     patchPathParts,
@@ -545,6 +547,42 @@ describe('external dbt model nodes', () => {
             relation_name: null,
             depends_on_nodes: [],
         });
+    });
+    it('keeps disabled inventory and source completeness through manifest projection', () => {
+        const full = {
+            ...manifest,
+            lightdash_model_inventory_complete: false,
+            nodes: {
+                [local.unique_id]: {
+                    ...local,
+                    lightdash_model_inventory_complete: true,
+                },
+            },
+            disabled: {
+                disabled: [
+                    {
+                        ...local,
+                        name: 'dim_calendar',
+                        lightdash_source_name: 'analytics',
+                    },
+                    { ...stub, name: 'dim_stub' },
+                ],
+            },
+        };
+        const projected = projectMergedManifest(full);
+        expect(getModelInventoryFromManifest(projected)).toEqual(
+            getModelInventoryFromManifest(full),
+        );
+        expect(
+            getModelInventoryFromManifest(projected).map((node) => node.name),
+        ).toContain('dim_calendar');
+        expect(
+            getModelInventoryFromManifest(projected).map((node) => node.name),
+        ).not.toContain('dim_stub');
+        expect(projected.lightdash_model_inventory_complete).toBe(false);
+        expect(
+            projected.nodes[local.unique_id].lightdash_model_inventory_complete,
+        ).toBe(true);
     });
     it('strips stubs without changing dependencies or mutating the input', () => {
         const stripped = stripExternalDbtNodes(manifest);

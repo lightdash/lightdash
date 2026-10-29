@@ -18,8 +18,10 @@ import {
     type DbtColumnMetadata,
     type DbtExploreLightdashAdditionalDimension,
     type DbtModelColumn,
+    type DbtModelJoin,
     type DbtModelNode,
     type LineageGraph,
+    type ModelInventoryEntry,
 } from '../types/dbt';
 import {
     CompileError,
@@ -1507,6 +1509,8 @@ export type ConvertExploresOptions = {
     allowPartialCompilation?: boolean;
     postProcessors?: ExplorePostProcessor[];
     deferExploreNaming?: boolean;
+    modelInventory?: ModelInventoryEntry[];
+    allowCrossSourceJoinFallback?: boolean;
     includeModelIdentity?: boolean;
 };
 
@@ -1539,6 +1543,8 @@ export async function* iterateExplores(
         postProcessors,
         deferExploreNaming,
         includeModelIdentity = deferExploreNaming,
+        modelInventory = models,
+        allowCrossSourceJoinFallback = true,
     } = options ?? {};
     const resolvedNamesByUniqueId = deferExploreNaming
         ? new Map(
@@ -1577,6 +1583,12 @@ export async function* iterateExplores(
             modelsByPlainName.has(model.name) ? null : model,
         );
     });
+    const inventoryNamespaceKeys = new Set(
+        modelInventory.map((model) =>
+            getManifestNamespaceKey(model, model.name),
+        ),
+    );
+    const joinResolutionErrors = new WeakMap<DbtModelJoin, string>();
     const resolveJoins = (
         model: DbtModelNode,
         joins: DbtModelNode['meta']['joins'],
@@ -1586,10 +1598,50 @@ export async function* iterateExplores(
             if (namespaceKey === undefined) {
                 return join;
             }
-            const joinedModel =
+            let joinedModel =
                 modelsByNamespaceAndName.get(namespaceKey) ??
-                modelsByQualifiedName.get(join.join) ??
-                modelsByPlainName.get(join.join);
+                modelsByQualifiedName.get(join.join);
+            if (!joinedModel) {
+                if (inventoryNamespaceKeys.has(namespaceKey)) {
+                    joinResolutionErrors.set(
+                        join,
+                        'the own-source model is disabled or excluded from compilation',
+                    );
+                    return join;
+                }
+                if (
+                    !(
+                        model.lightdash_model_inventory_complete ??
+                        allowCrossSourceJoinFallback
+                    )
+                ) {
+                    joinResolutionErrors.set(
+                        join,
+                        'the full own-source model inventory is unavailable, so cross-source fallback is unsafe',
+                    );
+                    return join;
+                }
+                joinedModel = modelsByPlainName.get(join.join) ?? undefined;
+                if (!joinedModel && modelsByPlainName.has(join.join)) {
+                    const candidates = [...modelsByQualifiedName.entries()]
+                        .filter(
+                            ([qualifiedName, candidate]) =>
+                                candidate.name === join.join &&
+                                modelsByNamespaceAndName.get(
+                                    getManifestNamespaceKey(
+                                        model,
+                                        qualifiedName,
+                                    ) ?? '',
+                                ) === undefined,
+                        )
+                        .map(([qualifiedName]) => qualifiedName)
+                        .sort();
+                    joinResolutionErrors.set(
+                        join,
+                        `the bare model name is ambiguous.${candidates.length > 0 ? ` Use one of: ${candidates.join(', ')}` : ' No unambiguous qualified target is available'}`,
+                    );
+                }
+            }
             const resolvedJoinName = joinedModel
                 ? resolvedNamesByUniqueId.get(joinedModel.unique_id)
                 : undefined;
@@ -1605,46 +1657,15 @@ export async function* iterateExplores(
     const resolvedModels = models.map((model) => {
         const resolvedName =
             resolvedNamesByUniqueId.get(model.unique_id) ?? model.name;
-        const resolveMeta = (
-            meta: DbtModelNode['meta'],
-        ): DbtModelNode['meta'] => ({
-            ...meta,
-            ...(meta.joins === undefined
-                ? {}
-                : { joins: resolveJoins(model, meta.joins) }),
-            ...(meta.explores === undefined
-                ? {}
-                : {
-                      explores: Object.fromEntries(
-                          Object.entries(meta.explores).map(
-                              ([name, explore]) => [
-                                  name,
-                                  {
-                                      ...explore,
-                                      ...(explore.joins === undefined
-                                          ? {}
-                                          : {
-                                                joins: resolveJoins(
-                                                    model,
-                                                    explore.joins,
-                                                ),
-                                            }),
-                                  },
-                              ],
-                          ),
-                      ),
-                  }),
-        });
-        const meta = resolveMeta(model.meta);
         return {
             ...model,
             name: resolvedName,
             meta: deferExploreNaming
-                ? { ...meta, label: meta.label ?? friendlyName(model.name) }
-                : meta,
-            config: model.config?.meta
-                ? { ...model.config, meta: resolveMeta(model.config.meta) }
-                : model.config,
+                ? {
+                      ...model.meta,
+                      label: model.meta.label ?? friendlyName(model.name),
+                  }
+                : model.meta,
         };
     });
 
@@ -2004,10 +2025,26 @@ export async function* iterateExplores(
         // Properties created from `exploreToCreate` are specific to each explore. e.g. each explore can have a different name, label & joins
         const compiledExplores = exploresToCreate.map((exploreToCreate) => {
             try {
+                const resolvedJoins =
+                    resolveJoins(model, exploreToCreate.joins) ?? [];
+                const resolutionWarnings: InlineError[] = resolvedJoins.flatMap(
+                    (join) => {
+                        const reason = joinResolutionErrors.get(join);
+                        if (reason === undefined) return [];
+                        const message = `Join "${join.alias || join.join}" to table "${join.join}" was skipped because ${reason}.`;
+                        if (!allowPartialCompilation)
+                            throw new CompileError(message, {});
+                        return [
+                            { type: InlineErrorType.MISSING_TABLE, message },
+                        ];
+                    },
+                );
                 const { joins: exploreJoins, tables: exploreTables } =
                     attachNestedTables(
                         model.name,
-                        exploreToCreate.joins,
+                        resolvedJoins.filter(
+                            (join) => !joinResolutionErrors.has(join),
+                        ),
                         exploreToCreate.tables,
                     );
                 const compiled = exploreCompiler.compileExplore({
@@ -2060,6 +2097,14 @@ export async function* iterateExplores(
                 });
                 return {
                     ...compiled,
+                    ...(resolutionWarnings.length > 0
+                        ? {
+                              warnings: [
+                                  ...(compiled.warnings ?? []),
+                                  ...resolutionWarnings,
+                              ],
+                          }
+                        : {}),
                     ...(Object.keys(granularityLabels).length > 0
                         ? { granularityLabels }
                         : {}),

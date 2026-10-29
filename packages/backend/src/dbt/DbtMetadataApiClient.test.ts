@@ -100,6 +100,9 @@ describe('DbtMetadataApiClient', () => {
                 },
             );
             const result = await createClient().getDbtManifest();
+            expect(result.manifest.lightdash_model_inventory_complete).toBe(
+                false,
+            );
             const expected = {
                 version: fields.version ?? null,
                 latest_version: fields.latestVersion ?? null,

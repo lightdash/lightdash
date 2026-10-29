@@ -27,6 +27,7 @@ const MODEL_FIELDS = [
     'depends_on',
     'lightdash_source_name',
     'lightdash_source_uuid',
+    'lightdash_model_inventory_complete',
 ] as const;
 
 const COLUMN_FIELDS = [
@@ -99,6 +100,26 @@ const projectModelNode = (
 
 export const projectMergedManifest = (manifest: DbtManifest): DbtManifest => ({
     metadata: manifest.metadata,
+    ...(manifest.lightdash_model_inventory_complete === undefined
+        ? {}
+        : {
+              lightdash_model_inventory_complete:
+                  manifest.lightdash_model_inventory_complete,
+          }),
+    ...(manifest.disabled === undefined
+        ? {}
+        : {
+              disabled: Object.fromEntries(
+                  Object.entries(manifest.disabled).map(([id, nodes]) => [
+                      id,
+                      nodes.map((node) =>
+                          projectModelNode(
+                              node as unknown as Record<string, unknown>,
+                          ),
+                      ),
+                  ]),
+              ) as DbtManifest['disabled'],
+          }),
     metrics: manifest.metrics,
     docs: manifest.docs,
     sources: manifest.sources,

@@ -58,6 +58,7 @@ export type DbtNode = {
     resource_type: string;
     config?: DbtNodeConfig;
     lightdash_source_name?: string;
+    lightdash_model_inventory_complete?: boolean;
     lightdash_source_uuid?: string;
 };
 export type DbtRawModelNode = Omit<
@@ -79,6 +80,7 @@ export type DbtRawModelNode = Omit<
     config?: CompiledModelNode['config'] & { meta?: DbtModelMetadata };
     meta: DbtModelMetadata;
     lightdash_source_name?: string;
+    lightdash_model_inventory_complete?: boolean;
     lightdash_source_uuid?: string;
 };
 export type DbtModelNode = DbtRawModelNode & {
@@ -534,6 +536,8 @@ export type DbtDoc = {
 
 export interface DbtManifest {
     nodes: Record<string, DbtNode>;
+    disabled?: Record<string, DbtRawModelNode[]>;
+    lightdash_model_inventory_complete?: boolean;
     metadata: DbtRawManifestMetadata;
     /**
      * dbt MetricFlow metrics (dbt >= 1.6). Translated into Lightdash metrics
@@ -1022,6 +1026,27 @@ export const getDbtManifestPackageNames = (manifest: DbtManifest): string[] => {
     });
     return [...packageNames];
 };
+
+export type ModelInventoryEntry = Pick<
+    DbtRawModelNode,
+    'name' | 'package_name' | 'lightdash_source_name'
+>;
+
+export const getModelInventoryFromManifest = (
+    manifest: DbtManifest,
+): ModelInventoryEntry[] =>
+    [
+        ...Object.values(manifest.nodes),
+        ...Object.values(manifest.disabled ?? {}).flat(),
+    ]
+        .filter((node) => ['model', 'seed'].includes(node.resource_type))
+        .map((node) => node as DbtRawModelNode)
+        .filter((node) => !isExternalDbtNode(node))
+        .map(({ name, package_name, lightdash_source_name }) => ({
+            name,
+            package_name,
+            lightdash_source_name,
+        }));
 
 export const getModelsFromManifest = (
     manifest: DbtManifest,
