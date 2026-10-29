@@ -41,12 +41,14 @@ is untouched and removing the flag is deleting these lines.
 Gated on the flag:
 
 - `pages/Dashboard.tsx`: `ControlsSidebarPage` instead of `Page`; the header
-  through `DashboardHeaderGuard`; `PageSpinner` until the flag's
+  through `DashboardHeaderGuard`; in edit mode `bandScope` on the header and
+  tabs wrapper (the band's 44px `--dashboard-header-height`); `PageSpinner` until the flag's
   `isInitialLoading` ends, so `Page` is never swapped for
   `ControlsSidebarPage` (that remounts the grid).
 - `features/dashboardTabs/index.tsx`: `ControlsBar` instead of
   `DashboardFiltersBar`; `ControlSidebar` first in the grid row with
-  `CONTROLS_RAIL_LAYOUT`; `hasQuietActions` on each `DraggableTab`.
+  `CONTROLS_RAIL_LAYOUT`; `hasQuietActions` on each `DraggableTab`; the tabs' stuck detector offset
+  from `getTabsStickyOffset` (`editBand.ts`, the band's height in edit mode).
 - `ee/features/embed/EmbedDashboard/components/EmbedDashboard.tsx`:
   `isEmbedFilterRailEnabled` (flag on, and not an embed editor in edit mode)
   turns on `isControlsEnabled` for the grid, header and filter bar, and
@@ -87,7 +89,7 @@ Pure moves out of shipped files, now shared by both sides:
 `FilterConfiguration/` (`FilterValueSection`, `SqlColumnSelect`, and in
 `utils` the rule helpers such as `getFilterRuleWithDisabledState`,
 `isLockedRequiredMissingValue`, `getFilterRuleFilterType`,
-`getRequiredGroupMemberUpdates`, `getDimensionFiltersToSave`), and the embed's `EmbedResetFiltersButton`.
+`getRequiredGroupMemberUpdates`, `getDimensionFiltersToSave`), the embed's `EmbedResetFiltersButton`, and `Dashboard/DashboardPerformanceWarning`.
 Fix behaviour in the shared piece, once, never in a copy.
 
 ## Map
@@ -111,7 +113,7 @@ Fix behaviour in the shared piece, once, never in a copy.
 | `SectionedFilters.tsx`, `SectionMenu.tsx`, `SectionNameInput.tsx`, `sections.ts` | Sections bar, drag and drop, naming; pure section helpers |
 | `SelectionBar.tsx`, `SelectionActions.tsx`, `barSelection.ts` | Multi-select on the sectioned bar |
 | `sectionVersionChanges.ts` | Section rows for the version comparison page |
-| `DashboardHeaderGuard.tsx` | Shipped header made inert while an editor's filter is edited |
+| `DashboardHeaderGuard.tsx` | Edit mode band (Editing, name; Add tile, Save dashboard, Cancel, "...") in place of the header; inert while an editor's filter is edited |
 | `useEditorDismiss.ts` | Escape handling while a filter is edited |
 | `DropdownClass.tsx`, `railContractClasses.ts` | Embed class contract on the rail and portalled lists |
 | `requirements.ts`, `railSummaries.ts`, `fieldLabels.ts` | Requirement rules, disclosure summaries, count copy |
@@ -121,7 +123,7 @@ Fix behaviour in the shared piece, once, never in a copy.
 Each one has broken before or would break silently.
 
 - **One filled button.** While a filter is edited the rail's Apply is the only
-  filled button on screen: the header guard draws Save as default, and the
+  filled button on screen: the inert band draws Save dashboard as an outline, and the
   field bar, selection bar and follow-ups never use `filled`.
 - **No state reset in an effect.** Open/closed, highlighted field, pending
   switch, undo, follow-ups and selection are all derived on render. The one
