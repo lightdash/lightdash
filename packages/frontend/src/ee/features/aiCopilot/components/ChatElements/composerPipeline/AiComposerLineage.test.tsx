@@ -276,7 +276,7 @@ describe('AiComposerLineage steps', () => {
                 orders: {
                     status: 'success',
                     error: null,
-                    totalRowCount: 1200,
+                    totalRowCount: 120,
                     durationMs: 1500,
                 },
                 amounts: {
@@ -287,7 +287,7 @@ describe('AiComposerLineage steps', () => {
                 },
             },
         });
-        expect(resultsToggle('orders')).toHaveTextContent('1,200 rows · 1.5 s');
+        expect(resultsToggle('orders')).toHaveTextContent('120 rows · 1.5 s');
         expect(resultsToggle('amounts')).toHaveTextContent('1 row');
     });
 

@@ -378,6 +378,7 @@
         "aiAgent.composer.node.addToChat": "ჩატში დამატება",
         "aiAgent.composer.node.exploreFromHere": "აქედან კვლევა",
         "aiAgent.composer.node.references": "მითითებები",
+        "aiAgent.composer.node.rowsReachedLimit": "{rows} · ლიმიტს მიაღწია",
         "aiAgent.composer.node.finalResult": "საბოლოო შედეგი",
         "aiAgent.composer.node.sqlQuery": "SQL მოთხოვნა",
         "aiAgent.composer.semanticNode.metricQuery": "მეტრიკის მოთხოვნა",

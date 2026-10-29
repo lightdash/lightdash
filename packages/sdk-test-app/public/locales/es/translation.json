@@ -378,6 +378,7 @@
         "aiAgent.composer.node.addToChat": "Añadir al chat",
         "aiAgent.composer.node.exploreFromHere": "Explorar desde aquí",
         "aiAgent.composer.node.references": "Referencias",
+        "aiAgent.composer.node.rowsReachedLimit": "{rows} · alcanzó el límite",
         "aiAgent.composer.node.finalResult": "Resultado final",
         "aiAgent.composer.node.sqlQuery": "Consulta SQL",
         "aiAgent.composer.semanticNode.metricQuery": "Consulta de métricas",
