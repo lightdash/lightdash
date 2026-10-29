@@ -156,6 +156,31 @@ describe('AiComposerLineage graph', () => {
             within(nodeButton('Average amount')).getByText('Running'),
         ).toBeInTheDocument();
     });
+
+    it('marks a node whose row count reached its limit, in the graph and its step', () => {
+        const done = (totalRowCount: number): ComposerRunNodeStatus => ({
+            status: 'success',
+            error: null,
+            totalRowCount,
+            durationMs: null,
+        });
+        renderPanel({
+            queries: [{ ...queries[0], limit: 1000 }, queries[1], queries[2]],
+            nodeStatuses: { orders: done(1000), amounts: done(20) },
+        });
+        expect(
+            within(nodeButton('Orders by status')).getByText(
+                '1,000 rows · reached limit',
+            ),
+        ).toBeInTheDocument();
+        expect(
+            cell('orders').getByText('1,000 rows · reached limit'),
+        ).toBeInTheDocument();
+        expect(
+            within(nodeButton('Average amount')).getByText('20 rows'),
+        ).toBeInTheDocument();
+        expect(cell('amounts').getByText('20 rows')).toBeInTheDocument();
+    });
 });
 
 describe('AiComposerLineage steps', () => {
@@ -251,7 +276,7 @@ describe('AiComposerLineage steps', () => {
                 orders: {
                     status: 'success',
                     error: null,
-                    totalRowCount: 1200,
+                    totalRowCount: 120,
                     durationMs: 1500,
                 },
                 amounts: {
@@ -262,7 +287,7 @@ describe('AiComposerLineage steps', () => {
                 },
             },
         });
-        expect(resultsToggle('orders')).toHaveTextContent('1,200 rows · 1.5 s');
+        expect(resultsToggle('orders')).toHaveTextContent('120 rows · 1.5 s');
         expect(resultsToggle('amounts')).toHaveTextContent('1 row');
     });
 
