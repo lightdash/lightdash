@@ -18931,10 +18931,29 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
                   "items": {
                     "additionalProperties": false,
                     "properties": {
+                      "limit": {
+                        "description": "Row limit this node ran with. A rowCount equal to it means the node reached its limit, so more rows may exist.",
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991,
+                        "type": "integer",
+                      },
                       "nodeId": {
                         "description": "Names this node so other nodes can read its result.",
                         "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$",
                         "type": "string",
+                      },
+                      "rowCount": {
+                        "anyOf": [
+                          {
+                            "maximum": 9007199254740991,
+                            "minimum": 0,
+                            "type": "integer",
+                          },
+                          {
+                            "type": "null",
+                          },
+                        ],
+                        "description": "Rows this node returned; null when its query is not ready.",
                       },
                       "sourceType": {
                         "enum": [
@@ -18959,6 +18978,8 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
                       "nodeId",
                       "title",
                       "sourceType",
+                      "rowCount",
+                      "limit",
                     ],
                     "type": "object",
                   },

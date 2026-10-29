@@ -2,9 +2,11 @@ import {
     buildComposerArtifactPipeline,
     COMPOSER_QUERY_PREVIEW_ROW_LIMIT,
     createToolComposerQueriesArgsSchema,
+    getSourceQueryLimit,
     getSourceQueryResultReferences,
     getSqlApprovalSql,
     getToolComposerQueriesDescription,
+    hasReachedSourceQueryLimit,
     QuerySourceType,
     queryToolDefinition,
     toComposerNodeColumns,
@@ -27,6 +29,7 @@ import {
     type QueryReviewer,
 } from '../decisions/queryReview';
 import type {
+    ComposerNodeStatus,
     GetPromptFn,
     IsThreadSqlAutoApprovedFn,
     ListSqlApprovalDecisionsFn,
@@ -205,6 +208,52 @@ const getComposerEmptyFilterHints = async (
         ),
     );
     return hints.filter(Boolean).join(' ');
+};
+
+type ComposerNodeSummary =
+    ToolComposerQueriesStructuredContent['nodes'][number];
+
+const renderComposerNodeSummary = (
+    queries: SourceQuery[],
+    nodes: ComposerNodeSummary[],
+    nodeStatuses: ComposerNodeStatus[],
+    maxQueryLimit: number,
+): string => {
+    const reachedLimit = new Set(
+        nodes
+            .filter(
+                (node) =>
+                    node.rowCount !== null &&
+                    hasReachedSourceQueryLimit(node, node.rowCount),
+            )
+            .map((node) => node.nodeId),
+    );
+    const nodeLines = nodes.map((node) => {
+        const status = nodeStatuses.find(
+            (candidate) => candidate.nodeId === node.nodeId,
+        );
+        const label =
+            node.title === null
+                ? `- ${node.nodeId} (${node.sourceType})`
+                : `- ${node.nodeId}: "${node.title}" (${node.sourceType})`;
+        const outcome =
+            node.rowCount === null
+                ? `${status?.state ?? 'not read'}${status?.error ? `: ${status.error}` : ''}`
+                : `${node.rowCount} rows`;
+        const capped = reachedLimit.has(node.nodeId)
+            ? ` Reached its limit of ${node.limit}, so more rows may exist (max ${maxQueryLimit}).`
+            : '';
+        return `${label}: ${outcome}, limit ${node.limit}.${capped}`;
+    });
+    const warnings = queries.flatMap((query) =>
+        Object.values(getSourceQueryResultReferences(query))
+            .filter((reference) => reachedLimit.has(reference))
+            .map(
+                (reference) =>
+                    `Warning: "${query.nodeId}" reads "${reference}", which reached its limit, so "${query.nodeId}" may be computed on incomplete rows.`,
+            ),
+    );
+    return [...nodeLines, ...warnings].join('\n');
 };
 
 export const getRunComposerQueries = ({
@@ -439,7 +488,7 @@ export const getRunComposerQueries = ({
 
                 await updateProgress('Running composer queries...');
 
-                const [{ terminal }, review] = await Promise.all([
+                const [{ terminal, nodeStatuses }, review] = await Promise.all([
                     runComposerQueries({
                         queries,
                         terminalNodeId: resolvedTerminalNodeId,
@@ -505,14 +554,18 @@ export const getRunComposerQueries = ({
                     nodeId: node.nodeId,
                     title: node.title ?? null,
                     sourceType: node.sourceType,
+                    rowCount:
+                        nodeStatuses.find(
+                            (status) => status.nodeId === node.nodeId,
+                        )?.rowCount ?? null,
+                    limit: getSourceQueryLimit(node),
                 }));
-                const nodeSummary = nodes
-                    .map((node) =>
-                        node.title === null
-                            ? `- ${node.nodeId} (${node.sourceType})`
-                            : `- ${node.nodeId}: "${node.title}" (${node.sourceType})`,
-                    )
-                    .join('\n');
+                const nodeSummary = renderComposerNodeSummary(
+                    queries,
+                    nodes,
+                    nodeStatuses,
+                    maxQueryLimit,
+                );
                 const columns = Object.values(terminal.columns).map(
                     ({ reference, type }) => ({ reference, type }),
                 );

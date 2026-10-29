@@ -123,6 +123,7 @@ const makeRun = (
         rows,
         rowCount: rows.length,
     },
+    nodeStatuses: [],
 });
 
 const makeTool = ({
