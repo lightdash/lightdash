@@ -10,11 +10,16 @@ import {
     type DashboardFilterRule,
 } from '@lightdash/common';
 import { Box } from '@mantine/core';
-import { Fragment, type FC, type ReactNode } from 'react';
 import {
-    DraggableItem,
-    DroppableArea,
-} from '../../components/common/DndHelpers';
+    Fragment,
+    useLayoutEffect,
+    useMemo,
+    useRef,
+    type FC,
+    type ReactNode,
+} from 'react';
+import { DroppableArea } from '../../components/common/DndHelpers';
+import dndClasses from '../../components/common/DndHelpers.module.css';
 import { useDndSensors } from '../../hooks/useDndSensors';
 import { useStableCallback } from '../../hooks/useStableCallback';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
@@ -34,11 +39,11 @@ import {
 } from '../dashboardFilters/ActiveFilters/useFilterTabPlacement';
 import { FilterPill, type FilterPillKind } from './FilterPill';
 import classes from './FilterPills.module.css';
+import { PillDragHandleContext } from './pillDragHandle';
 import { isRuleInSection } from './sections';
 import { isPlaceholderRule } from './sidebarState';
 import { TemporaryFilterPills } from './TemporaryFilterPills';
 import { useControlsSidebarSelector } from './useControlsSidebar';
-import { ViewerSavedPills, type PillPopoverState } from './ViewerSavedPills';
 
 type Props = {
     activeTabUuid: string | undefined;
@@ -49,12 +54,8 @@ type Props = {
      * `null` or string pass drags in the bar's one context (`SectionedFilters`).
      */
     sectionId?: string | null;
-    /** A viewer's saved popover state, shared across the bar's passes (default: local) */
-    popover?: PillPopoverState;
     /** An embed's class contract hook on each pill (default none). */
     triggerClassName?: string;
-    /** An embed's class contract hook on a saved pill's popover (default none). */
-    dropdownClassName?: string;
     /** The sectioned bar's loose pass: rule id to the kinds (space separated)
      * a pill leaving its section lands after (default none). */
     looseEnds?: Record<string, string>;
@@ -64,26 +65,74 @@ type FilterPillGroup = 'dimensions' | 'metrics';
 
 const GROUPS: FilterPillGroup[] = ['dimensions', 'metrics'];
 
-// A pill in the bar's one drag context: the overlay moves, the source fades
-// It drags while a filter is edited too: only the edited one is the editor's
-const BarDraggable: FC<{
+// A pill's drag: it starts from the grip alone, so the wrapper takes no
+// focus and Enter or Space on the pill opens it. On the sectioned bar's one
+// drag context the overlay moves and the source fades, also while a filter
+// is edited; on the flat bar the pill itself moves
+const PillDraggable: FC<{
     id: string;
+    isInBarContext: boolean;
+    isDisabled: boolean;
     looseEnd: string | undefined;
     children: ReactNode;
-}> = ({ id, looseEnd, children }) => {
-    const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-        id,
+}> = ({ id, isInBarContext, isDisabled, looseEnd, children }) => {
+    const {
+        listeners,
+        setNodeRef,
+        setActivatorNodeRef,
+        isDragging,
+        transform,
+    } = useDraggable({ id, disabled: isDisabled });
+    // The sensors are rebuilt on every bar render: the handle calls the
+    // latest listeners, so the memoised pill never re-renders for them
+    const latestListeners = useRef(listeners);
+    useLayoutEffect(() => {
+        latestListeners.current = listeners;
     });
+    const eventNames = Object.keys(listeners ?? {}).join(' ');
+    const handle = useMemo(
+        () =>
+            isDisabled
+                ? null
+                : {
+                      setNode: setActivatorNodeRef,
+                      listeners: Object.fromEntries(
+                          eventNames
+                              .split(' ')
+                              .filter(Boolean)
+                              .map((name) => [
+                                  name,
+                                  (event: unknown) =>
+                                      latestListeners.current?.[name]?.(event),
+                              ]),
+                      ),
+                  },
+        [isDisabled, setActivatorNodeRef, eventNames],
+    );
     return (
         <Box
             ref={setNodeRef}
-            className={classes.barDraggable}
-            data-dragging={isDragging || undefined}
+            className={
+                isInBarContext ? classes.barDraggable : dndClasses.draggable
+            }
+            data-dragging={
+                (isInBarContext ? isDragging : !!transform) || undefined
+            }
             data-loose-end={looseEnd}
-            {...listeners}
-            {...attributes}
+            style={{
+                '--drag-x':
+                    !isInBarContext && transform
+                        ? `${transform.x}px`
+                        : undefined,
+                '--drag-y':
+                    !isInBarContext && transform
+                        ? `${transform.y}px`
+                        : undefined,
+            }}
         >
-            {children}
+            <PillDragHandleContext.Provider value={handle}>
+                {children}
+            </PillDragHandleContext.Provider>
         </Box>
     );
 };
@@ -91,9 +140,7 @@ const BarDraggable: FC<{
 export const FilterPills: FC<Props> = ({
     activeTabUuid,
     sectionId,
-    popover,
     triggerClassName,
-    dropdownClassName,
     looseEnds,
 }) => {
     const editingFilterId = useControlsSidebarSelector(
@@ -211,65 +258,66 @@ export const FilterPills: FC<Props> = ({
 
     return (
         <>
-            {/* A viewer's saved filters keep the shipped pills and popover */}
-            {isViewer ? (
-                <ViewerSavedPills
-                    activeTabUuid={activeTabUuid}
-                    triggerClassName={triggerClassName}
-                    dropdownClassName={dropdownClassName}
-                    sectionId={sectionId}
-                    popover={popover}
-                />
-            ) : (
-                GROUPS.map((group) => {
-                    const orderedKeys = dashboardFilters[group].map(
-                        (rule) => rule.id,
-                    );
-                    const pills = dashboardFilters[group].map((filter) => {
-                        if (!isRuleInSection(filter, sectionId, sections))
-                            return null;
-                        const pill = renderPill(filter, group, 'editor');
-                        return (
-                            pill && (
-                                <DroppableArea
-                                    key={filter.id}
-                                    id={filter.id}
-                                    orderedKeys={orderedKeys}
-                                >
-                                    {sectionId === undefined ? (
-                                        <DraggableItem
-                                            id={filter.id}
-                                            disabled={isSidebarOpen}
-                                        >
-                                            {pill}
-                                        </DraggableItem>
-                                    ) : (
-                                        <BarDraggable
-                                            id={filter.id}
-                                            looseEnd={looseEnds?.[filter.id]}
-                                        >
-                                            {pill}
-                                        </BarDraggable>
-                                    )}
-                                </DroppableArea>
-                            )
-                        );
-                    });
-                    return sectionId === undefined ? (
-                        <DndContext
-                            key={group}
-                            sensors={dragSensors}
-                            onDragEnd={(event) => handleDragEnd(group, event)}
-                        >
-                            {pills}
-                            <DragOverlay />
-                        </DndContext>
-                    ) : (
-                        <Fragment key={group}>{pills}</Fragment>
-                    );
-                })
-            )}
-            {/* A viewer's own filters open in the rail too; in edit mode
+            {/* A viewer's saved filters open the same editor; they never drag */}
+            {isViewer
+                ? GROUPS.flatMap((group) =>
+                      dashboardFilters[group].map((filter) => {
+                          if (!isRuleInSection(filter, sectionId, sections))
+                              return null;
+                          const pill = renderPill(filter, group, 'viewerSaved');
+                          return (
+                              pill && (
+                                  <Fragment key={filter.id}>{pill}</Fragment>
+                              )
+                          );
+                      }),
+                  )
+                : GROUPS.map((group) => {
+                      const orderedKeys = dashboardFilters[group].map(
+                          (rule) => rule.id,
+                      );
+                      const pills = dashboardFilters[group].map((filter) => {
+                          if (!isRuleInSection(filter, sectionId, sections))
+                              return null;
+                          const pill = renderPill(filter, group, 'editor');
+                          return (
+                              pill && (
+                                  <DroppableArea
+                                      key={filter.id}
+                                      id={filter.id}
+                                      orderedKeys={orderedKeys}
+                                  >
+                                      <PillDraggable
+                                          id={filter.id}
+                                          isInBarContext={
+                                              sectionId !== undefined
+                                          }
+                                          isDisabled={
+                                              sectionId === undefined &&
+                                              isSidebarOpen
+                                          }
+                                          looseEnd={looseEnds?.[filter.id]}
+                                      >
+                                          {pill}
+                                      </PillDraggable>
+                                  </DroppableArea>
+                              )
+                          );
+                      });
+                      return sectionId === undefined ? (
+                          <DndContext
+                              key={group}
+                              sensors={dragSensors}
+                              onDragEnd={(event) => handleDragEnd(group, event)}
+                          >
+                              {pills}
+                              <DragOverlay />
+                          </DndContext>
+                      ) : (
+                          <Fragment key={group}>{pills}</Fragment>
+                      );
+                  })}
+            {/* A viewer's own filters open the editor too; in edit mode
                 they keep the shipped popover. They are never in a section */}
             {isViewer
                 ? typeof sectionId !== 'string' &&

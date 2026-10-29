@@ -68,9 +68,11 @@ const renderSettings = (filterRule: DashboardFilterRule) =>
                 rule={filterRule}
                 field={amount}
                 onChange={vi.fn()}
+                view="value"
+                onViewChange={vi.fn()}
+                appliedTileCount={1}
+                nameInput={null}
                 sectionSelect={null}
-                tiles={null}
-                tilesSummary="1 tile · 1 field"
             />
         </DashboardStoreTestProvider>,
     );

@@ -1,9 +1,10 @@
+import { type DraggableSyntheticListeners } from '@dnd-kit/core';
 import {
     isValuelessDashboardFilterRule,
     type DashboardFilterableField,
     type DashboardFilterRule,
 } from '@lightdash/common';
-import { ActionIcon, Button, Group, Tooltip } from '@mantine/core';
+import { ActionIcon, Box, Button, Group, Tooltip } from '@mantine/core';
 import {
     IconCircleCheck,
     IconCircleDashed,
@@ -28,6 +29,12 @@ import { showsComposedFilterValue } from './filterLabels';
 import { FilterRuleLabel } from './FilterRuleLabel';
 import { getTruncatedValuesDisplay } from './utils';
 
+/** A drag handle on the grip alone: its node and pointer listeners. */
+export type PillDragHandle = {
+    setNode: (node: HTMLElement | null) => void;
+    listeners: DraggableSyntheticListeners;
+};
+
 type Props = Omit<
     ComponentPropsWithoutRef<'button'>,
     'children' | 'onClick' | 'color'
@@ -37,6 +44,8 @@ type Props = Omit<
     isOrphaned: boolean;
     isTemporary: boolean;
     isDraggable: boolean;
+    /** Drags from the grip only (default: the grip is a plain icon). */
+    dragHandle?: PillDragHandle | null;
     isLocked: boolean;
     /** The lock action's label; null leaves the action out. */
     lockLabel: string | null;
@@ -70,6 +79,7 @@ export const FilterPillButton = forwardRef<HTMLButtonElement, Props>(
             isOrphaned,
             isTemporary,
             isDraggable,
+            dragHandle = null,
             isLocked,
             lockLabel,
             onLockToggle,
@@ -171,17 +181,40 @@ export const FilterPillButton = forwardRef<HTMLButtonElement, Props>(
                         field ||
                         fieldIconOverride) && (
                         <Group gap={4} wrap="nowrap">
-                            {isDraggable && (
-                                <MantineIcon
-                                    icon={IconGripVertical}
-                                    cursor="grab"
-                                    size="sm"
-                                    {...(areActionsHidden && {
-                                        className: classes.hiddenAction,
-                                        'aria-hidden': true,
-                                    })}
-                                />
-                            )}
+                            {isDraggable &&
+                                (dragHandle === null ? (
+                                    <MantineIcon
+                                        icon={IconGripVertical}
+                                        cursor="grab"
+                                        size="sm"
+                                        {...(areActionsHidden && {
+                                            className: classes.hiddenAction,
+                                            'aria-hidden': true,
+                                        })}
+                                    />
+                                ) : (
+                                    <Box
+                                        component="span"
+                                        ref={dragHandle.setNode}
+                                        display="inline-flex"
+                                        data-drag-handle
+                                        className={
+                                            areActionsHidden
+                                                ? classes.hiddenAction
+                                                : undefined
+                                        }
+                                        aria-hidden={
+                                            areActionsHidden || undefined
+                                        }
+                                        {...dragHandle.listeners}
+                                    >
+                                        <MantineIcon
+                                            icon={IconGripVertical}
+                                            cursor="grab"
+                                            size="sm"
+                                        />
+                                    </Box>
+                                ))}
                             {hasRequirementIcon && (
                                 <Tooltip
                                     fz="xs"

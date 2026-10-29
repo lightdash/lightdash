@@ -105,6 +105,21 @@ describe('AddControl', () => {
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
 
+    it('anchors the editor of a new filter, which has no pill yet', () => {
+        const editor = () => document.querySelector('[data-controls-editor]');
+        const { unmount } = renderWithProviders(<AddControl />);
+        expect(editor()).toBeNull();
+        unmount();
+
+        mockSidebar.current = {
+            ...mockSidebar.current,
+            isSidebarOpen: true,
+            isNew: true,
+        };
+        renderWithProviders(<AddControl />);
+        expect(editor()).not.toBeNull();
+    });
+
     it('is "Add filter", which opens a new one, with a menu in place of the shipped eye', () => {
         mockFilters.current = {
             dimensions: [

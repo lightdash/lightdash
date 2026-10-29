@@ -437,6 +437,7 @@ export const DEFAULT_UI_STRINGS = {
     'filters.rail.editingBadge': 'Editing',
     'filters.rail.applyBeforeOpening': 'Apply before opening {filter}?',
     'filters.rail.createBeforeOpening': 'Create before opening {filter}?',
+    'filters.rail.applyChangesFirst': 'Apply changes to {filter} first?',
     'filters.tileCard.locked': 'Tiles are locked while a filter is edited',
     'filters.tileCard.unreachable':
         'This tile has no field this filter can use',

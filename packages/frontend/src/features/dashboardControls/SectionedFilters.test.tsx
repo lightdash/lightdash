@@ -37,7 +37,6 @@ const pillsProps = vi.hoisted(() => ({
         sectionId: string | null | undefined;
         looseEnds?: Record<string, string>;
         triggerClassName?: string;
-        dropdownClassName?: string;
     }[],
 }));
 const mockSidebar = vi.hoisted(() => ({
@@ -122,9 +121,8 @@ vi.mock('@dnd-kit/core', async (importOriginal) => {
     };
 });
 
-// The pills have their own tests; the mock pins what each pass is asked for,
-// lets a pass open the shared popover and gives each of its rules a
-// draggable, as the real pass does in the bar's drag context
+// The pills have their own tests; the mock pins what each pass is asked for
+// and gives each of its rules a draggable, as the real pass does in the bar's drag context
 vi.mock('./AddControl', async (importOriginal) => ({
     ...(await importOriginal<typeof AddControlModule>()),
     AddControl: () => (
@@ -168,40 +166,24 @@ vi.mock('./FilterPills', async () => {
     return {
         FilterPills: ({
             sectionId,
-            popover,
             looseEnds,
             triggerClassName,
-            dropdownClassName,
         }: {
             sectionId: string | null | undefined;
             looseEnds?: Record<string, string>;
             triggerClassName?: string;
-            dropdownClassName?: string;
-            popover: {
-                openPopoverId: string | undefined;
-                onPopoverOpen: (id: string) => void;
-            };
         }) => {
             pillsProps.current.push({
                 sectionId,
                 looseEnds,
                 triggerClassName,
-                dropdownClassName,
             });
             const sections = useDashboardSelector(selectControlSections);
             const rules = useDashboardSelector(
                 selectDashboardFilters,
             ).dimensions.filter((r) => isRuleInSection(r, sectionId, sections));
             return (
-                <div
-                    data-testid={`pills-${sectionId ?? 'unsectioned'}`}
-                    data-popover={popover.openPopoverId}
-                >
-                    <button
-                        onClick={() => popover.onPopoverOpen(`${sectionId}`)}
-                    >
-                        open {sectionId}
-                    </button>
+                <div data-testid={`pills-${sectionId ?? 'unsectioned'}`}>
                     {rules.map((r) => (
                         <Draggable key={r.id} id={r.id} />
                     ))}
@@ -374,7 +356,6 @@ describe('SectionedFilters', () => {
             {
                 viewerActions: <button type="button">Embed add</button>,
                 triggerClassName: 'ld-dashboard-filter',
-                dropdownClassName: 'ld-dashboard-filter-dropdown',
             },
         );
         expect(
@@ -387,9 +368,6 @@ describe('SectionedFilters', () => {
         expect(pillsProps.current.length).toBeGreaterThan(1);
         for (const props of pillsProps.current) {
             expect(props.triggerClassName).toBe('ld-dashboard-filter');
-            expect(props.dropdownClassName).toBe(
-                'ld-dashboard-filter-dropdown',
-            );
         }
         const toggle = screen.getByRole('button', { name: 'Dates' });
         expect(toggle).toHaveAttribute('aria-expanded', 'true');
@@ -581,37 +559,11 @@ describe('SectionedFilters', () => {
         expect(toggle()).toHaveAttribute('aria-expanded', 'true');
     });
 
-    it('closes a pill popover when its section folds or leaves the tab', async () => {
-        // A viewer's bar: only the sections with a member on this tab
+    it('keeps focus on the fold as the capsule moves between lines', async () => {
         mockSidebar.current = { isViewer: true, isSidebarOpen: false };
-        // The mock opens the popover of a pill named after its section
-        const { switchTab } = renderSectioned(
-            [rule('a', 'a', onTabOne), rule('b', 'b')],
-            'tab-1',
-        );
-        await userEvent.click(screen.getByRole('button', { name: 'open a' }));
-        expect(screen.getByTestId('pills-unsectioned')).toHaveAttribute(
-            'data-popover',
-            'a',
-        );
+        renderSectioned([rule('a', 'a', onTabOne), rule('b', 'b')], 'tab-1');
         await userEvent.click(screen.getByRole('button', { name: 'Dates' }));
-        // The fold moves the capsule between lines without remounting it
         expect(screen.getByRole('button', { name: 'Dates' })).toHaveFocus();
-        expect(screen.getByTestId('pills-unsectioned')).not.toHaveAttribute(
-            'data-popover',
-        );
-
-        await userEvent.click(screen.getByRole('button', { name: 'Dates' }));
-        await userEvent.click(screen.getByRole('button', { name: 'open a' }));
-        expect(screen.getByTestId('pills-b')).toHaveAttribute(
-            'data-popover',
-            'a',
-        );
-        // Section a is not on this tab: its popover goes with it
-        switchTab('tab-2');
-        expect(screen.getByTestId('pills-b')).not.toHaveAttribute(
-            'data-popover',
-        );
     });
 
     it('starts as the saved choice says, over the member count', () => {
@@ -647,21 +599,6 @@ describe('SectionedFilters', () => {
         renderSectioned(members(6), 'tab-1');
         expect(foldOf('Dates')).toHaveAttribute('aria-expanded', 'true');
         expect(screen.getByTestId('pills-a')).toBeInTheDocument();
-    });
-
-    it('shares one open popover across the passes', async () => {
-        renderSectioned([rule('one', 'a')], 'tab-1');
-
-        await userEvent.click(screen.getByRole('button', { name: 'open a' }));
-
-        expect(screen.getByTestId('pills-unsectioned')).toHaveAttribute(
-            'data-popover',
-            'a',
-        );
-        expect(screen.getByTestId('pills-a')).toHaveAttribute(
-            'data-popover',
-            'a',
-        );
     });
 
     it('leaves out a section whose members are all hidden on the active tab', () => {

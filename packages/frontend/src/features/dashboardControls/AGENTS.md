@@ -1,7 +1,7 @@
 # Dashboard controls
 
-The filter rail, bar and tile overlays that replace the dashboard filter bar
-and popover. A _control_ is a filter control on the bar; it narrows data
+The filter editor popover, bar and tile overlays that replace the dashboard
+filter bar and popover. A _control_ is a filter control on the bar; it narrows data
 through fields. User-facing copy says _tile_, never _chart_.
 
 - **Flag**: `FeatureFlags.DashboardControls` (`dashboard-controls`), read with
@@ -15,9 +15,9 @@ through fields. User-facing copy says _tile_, never _chart_.
 Read the matching file before changing that area:
 
 - [`docs/provider.md`](docs/provider.md): read when changing
-  `ControlsSidebarProvider`, an edit's lifecycle (open, switch, Apply,
-  Cancel, mode change), "changed"/dirty rules, undo or focus return.
-- [`docs/editor.md`](docs/editor.md): read when changing the rail's content,
+  `ControlsSidebarProvider`, an edit's lifecycle (the draft, open, switch,
+  Apply, Cancel, mode change), "changed"/dirty rules, undo or focus return.
+- [`docs/editor.md`](docs/editor.md): read when changing the editor popover,
   `FilterSettings`, the lock or "Required" rules, Escape handling or the
   label draft.
 - [`docs/fields-and-tiles.md`](docs/fields-and-tiles.md): read when changing
@@ -46,13 +46,12 @@ Gated on the flag:
   `isInitialLoading` ends, so `Page` is never swapped for
   `ControlsSidebarPage` (that remounts the grid).
 - `features/dashboardTabs/index.tsx`: `ControlsBar` instead of
-  `DashboardFiltersBar`; `ControlSidebar` first in the grid row with
-  `CONTROLS_RAIL_LAYOUT`; `hasQuietActions` on each `DraggableTab`; the tabs' stuck detector offset
+  `DashboardFiltersBar`; `hasQuietActions` on each `DraggableTab`; the tabs' stuck detector offset
   from `getTabsStickyOffset` (`editBand.ts`, the band's height in edit mode).
 - `ee/features/embed/EmbedDashboard/components/EmbedDashboard.tsx`:
   `isEmbedFilterRailEnabled` (flag on, and not an embed editor in edit mode)
-  turns on `isControlsEnabled` for the grid, header and filter bar, and
-  renders `TileOverlays`, `TabCounts` and `FieldTilesBar`. A dashboard with
+  turns on `isControlsEnabled` for the header and filter bar, and
+  renders `TabCounts` and `FieldTilesBar` (`TileOverlays` waits for mapping). A dashboard with
   no tiles has no grid, so its header gets `isControlsEnabled={false}`.
 - `pages/Dashboard.tsx` Save: `getDimensionFiltersToSave` keeps a required
   filter's value as its default with the flag on; off, it strips it as before.
@@ -72,13 +71,14 @@ Openings (optional props, defaults are today's behaviour):
 - `FilterRequirements/RequiredFilterCard`: `onChangeOtherFilterRule`,
   `disabledReason`, `isListInPortal`, `withCard`.
 - `ActiveFilters/FilterPillButton`: `removeLabel`, `fieldIconOverride`,
-  `isLockSpaceReserved`, `areActionsHidden`, `isPlain` (the
+  `isLockSpaceReserved`, `areActionsHidden`, `dragHandle` (drag from the
+  grip only), `isPlain` (the
   pill looks below; `Filter` and `TemporaryFilters` pass it through, and
   `FilterRuleLabel` takes `isValueBold`).
 - `FilterConfiguration/FilterFieldSelect`: `defaultOpened`, `withLabel`,
   `placeholder`, `withinPortal`.
 - `FilterConfiguration/utils`: `getFilterRuleWithRequired` takes
-  `savedDefaultRule` (only the rail passes it).
+  `savedDefaultRule` (only the editor passes it).
 - Embed: `EmbedDashboardFilterBar` and `EmbedDashboardHeader` take
   `isControlsEnabled`.
 
@@ -97,13 +97,13 @@ Fix behaviour in the shared piece, once, never in a copy.
 | File | Owns |
 | --- | --- |
 | `ControlsSidebarProvider.tsx`, `useControlsSidebar.ts`, `sidebarState.ts` | The edit state, every write to filters, focus return; pure state helpers |
-| `ControlsSidebarPage.tsx` | Drop-in for `Page`: the provider plus overlays, tab counts, link prompts, field bar |
+| `ControlsSidebarPage.tsx` | Drop-in for `Page`: the provider plus tab counts, link prompts, field bar |
 | `ControlsBar.tsx` | The shipped bar with its openings; picks flat or `SectionedFilters` |
 | `AddControl.tsx`, `FilterBarMenu.tsx` | "Add filter" and the editor's "..." menu (viewers setting, "Filter rules"); `InertWhileEditing` |
-| `FilterPills.tsx`, `FilterPill.tsx`, `ViewerSavedPills.tsx`, `TemporaryFilterPills.tsx` | Bar pills: editor pills, a viewer's saved pills (shipped `Filter`), temporary pills |
+| `FilterPills.tsx`, `FilterPill.tsx`, `TemporaryFilterPills.tsx` | Bar pills: an editor's, a viewer's saved and own pills (each anchors the editor), an editor's temporary pills (shipped) |
 | `SettledFilterFields.tsx` | Keeps the last fields while tiles reload, so the bar does not flash a first load |
-| `ControlSidebar.tsx`, `EditorShell.tsx`, `useRailTop.ts`, `useRailIntoView.ts` | The rail: placement, sticky offset, scroll into view below `sm` |
-| `FilterSettings.tsx`, `FilterValueSettings.tsx`, `ViewerControls.tsx` | Rail body: value, "Tiles", "Rules" (lock, required) |
+| `FilterEditor.tsx` | `EditorPopover`, under a pill or "Add filter": the prompt, the body, Cancel and Apply |
+| `FilterSettings.tsx`, `FilterValueSettings.tsx`, `ViewerControls.tsx` | Popover body: value, "Applies to", the Settings view (name, section, required, lock) |
 | `FieldsAndTiles.tsx`, `FieldRow.tsx`, `fieldCandidates.ts` | The filter's fields list and field search |
 | `peers.ts` | Multi-field model on the saved shape, scopes, counts |
 | `FieldTilesBar.tsx`, `useFieldTileActions.ts`, `useBarHost.ts` | Floating field bar; the one place a field's counts and actions are computed |
@@ -115,14 +115,14 @@ Fix behaviour in the shared piece, once, never in a copy.
 | `sectionVersionChanges.ts` | Section rows for the version comparison page |
 | `DashboardHeaderGuard.tsx` | Edit mode band (Editing, name; Add tile, Save dashboard, Cancel, "...") in place of the header; inert while an editor's filter is edited |
 | `useEditorDismiss.ts` | Escape handling while a filter is edited |
-| `DropdownClass.tsx`, `railContractClasses.ts` | Embed class contract on the rail and portalled lists |
-| `requirements.ts`, `railSummaries.ts`, `fieldLabels.ts` | Requirement rules, disclosure summaries, count copy |
+| `DropdownClass.tsx`, `railContractClasses.ts` | Embed class contract on the editor popover and portalled lists |
+| `requirements.ts`, `fieldLabels.ts` | Requirement rules, count copy |
 
 ## Invariants
 
 Each one has broken before or would break silently.
 
-- **One filled button.** While a filter is edited the rail's Apply is the only
+- **One filled button.** While a filter is edited the editor's Apply is the only
   filled button on screen: the inert band draws Save dashboard as an outline, and the
   field bar, selection bar and follow-ups never use `filled`.
 - **No state reset in an effect.** Open/closed, highlighted field, pending
@@ -131,8 +131,9 @@ Each one has broken before or would break silently.
   URL, an embed's `isEditMode`), which closes the edit as Apply does.
 - **The provider is the only writer.** The editor writes the edited rule with
   `updateFilter` and any other rule with `updateOtherFilters`, never the
-  dashboard's `setDashboardFilters` directly; Cancel can only undo what it
-  recorded.
+  dashboard's `setDashboardFilters` directly. Those land in the provider's
+  draft; only Apply takes it to the dashboard, once, so tiles rerun only then.
+  A section move is the one write that reaches the dashboard at once.
 - **Callbacks are stable.** Provider callbacks read state from the `latest`
   ref and write through the `write*` helpers; a new callback does the same.
   Per-tile, per-pill and page-wide readers use `useControlsSidebarSelector`
@@ -146,11 +147,13 @@ Each one has broken before or would break silently.
 - **"Changed" compares rules as saved** (`isFilterRuleDirty`,
   `withoutDefaultTileTargets`), but never normalises away a `false` tile
   exclusion or the presence of `tileTargets`: shipped code reads both.
-- **A viewer never writes saved filters.** Outside edit mode every write goes
-  to the temporary filters, so the URL carries it; a viewer's saved pills
-  stay the shipped popover.
+- **A viewer never saves filters.** Outside edit mode a viewer's own filters
+  go to the temporary filters; a saved filter's Apply goes through the
+  shipped `updateDimensionDashboardFilter` / `updateMetricDashboardFilter`,
+  the view-mode override the URL carries.
 - **Overlays never stop events.** No `stopPropagation` on an overlay: Mantine
-  closes lists on a `mousedown` that reaches `document`. A caller that locks
+  closes lists on a `mousedown` that reaches `document`, and the editor's
+  click outside listens on `pointerdown` there. A caller that locks
   siblings (`usePortalTargets(..., lockSiblings)`) must portal an overlay
   into every target it gets.
 - **Focus return depends on DOM markers.** Keep `data-controls-pill` on each
@@ -158,11 +161,12 @@ Each one has broken before or would break silently.
   on "Add filter", and `data-controls-apply` on Apply.
 - **Escape does one thing per press.** Anything owning its own Escape marks
   itself `data-own-escape`; open lists are detected by `hasOpenLayer`.
-- **Embeds.** The rail goes through `contractClasses` and `DropdownClass`
-  (the embed class contract: `ld-dashboard-filter-rail`,
-  `ld-dashboard-filter`, `ld-dashboard-add-filter`,
-  `ld-dashboard-filter-dropdown`, `ld-dashboard-add-filter-dropdown`); keep
-  them on the equivalent element. An embed editor's Save sends the loaded
+- **Embeds.** The editor goes through `contractClasses` and `DropdownClass`
+  (the embed class contract: `ld-dashboard-filter-rail` and
+  `ld-dashboard-filter-dropdown` on the popover, `ld-dashboard-filter`,
+  `ld-dashboard-add-filter`, `ld-dashboard-filter-dropdown` and
+  `ld-dashboard-add-filter-dropdown` on lists); keep them on the equivalent
+  element. An embed editor's Save sends the loaded
   `dashboard.config` and the store's rules, so sections survive. The embed
   resolves the flag for the JWT's organisation
   (`FeatureFlagService.getForAccount`).
@@ -174,13 +178,13 @@ Each one has broken before or would break silently.
 
 ## Strings
 
-Viewers and embeds see the rail, tile cards, field bar and tab counts, so
+Viewers and embeds see the editor, tile cards, field bar and tab counts, so
 their copy lives in `DEFAULT_UI_STRINGS` (`filters.rail.*`,
 `filters.tileCard.*`, `filters.fieldBar.*`, or a shipped key that fits),
 read with `useUiStrings`; counts go through `formatTileCount` /
 `formatFieldCount` in `fieldLabels.ts`. Add every new key to both locale
 bundles in `packages/sdk-test-app/public/locales/`. Copy only an editor sees
-(label input, "Rules", link prompts, section controls, tips) stays literal.
+(Settings, "Applies to", link prompts, section controls, tips) stays literal.
 See `src/components/common/Filters/AGENTS.md`.
 
 ## Styling and motion
@@ -193,7 +197,7 @@ See `src/components/common/Filters/AGENTS.md`.
   properties on its root class; every stylesheet switches them off under
   `prefers-reduced-motion: reduce`.
 - No new `:has()` selectors.
-- Nothing changes width or reflows when the rail opens, a field row is
+- Nothing changes width or reflows when the editor opens, a field row is
   hovered or a drag starts: a locked pill's lock always shows (an unlocked
   pill has none), tab counts reserve their widest fraction. Keep any new
   piece to that.
@@ -205,7 +209,7 @@ Every flag-on pill is the default white pill; only these change it, all in
 
 - Not in effect (no value, or it reaches no tile): text, icons and border
   muted, "is any value". In effect (`data-in-effect`): the value bold.
-- Open (`data-open`, the filter in the rail or a viewer's popover): a 1.5px
+- Open (`data-open`, the filter in the editor): a 1.5px
   ink border, the extra 0.5px inset so the box keeps its size.
 - Not saved for everyone (`data-temporary`: a viewer's own filter, or an
   editor's filter not in the saved dashboard): dashed.
@@ -213,7 +217,7 @@ Every flag-on pill is the default white pill; only these change it, all in
 - Required, locked and "changed since save" have no cue; Save in the band is
   the one unsaved signal.
 
-Apply in the rail is disabled for an editor's required filter with no value
+Apply in the editor is disabled for an editor's required filter with no value
 and for a filter that reaches no tile.
 
 ## Tests

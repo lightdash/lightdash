@@ -116,7 +116,7 @@ export const haveOtherFilterRulesChanged = (
     });
 
 // Section membership applies to the dashboard at once, so it is never undone
-const withSectionOf = (
+export const withSectionOf = (
     saved: DashboardFilterRule,
     now: DashboardFilterRule,
 ): DashboardFilterRule => {
@@ -178,6 +178,20 @@ export const restoreFilterRules = (
             (next, saved) => putBackFilterRule(next, snapshot, saved),
             filters,
         );
+
+// Apply: the draft's version of the edited rule and of the other rules the
+// editor wrote goes onto the dashboard's filters, each in its current section
+export const applyDraft = (
+    filters: DashboardFilters,
+    draft: DashboardFilters,
+    filterId: string,
+    otherIds: string[],
+): DashboardFilters =>
+    restoreFilterRules(
+        restoreFilterRule(filters, draft, filterId),
+        draft,
+        otherIds,
+    );
 
 // What the dashboard's "changed" flag is once the editor is done
 export const haveFiltersChangedSince = (

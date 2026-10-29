@@ -3,6 +3,7 @@ import { type FC, type ReactNode } from 'react';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import AddFilterButton from '../dashboardFilters/AddFilterButton';
 import { FilterBarMenu } from './FilterBarMenu';
+import { EditorPopover } from './FilterEditor';
 import classes from './FilterPills.module.css';
 import { useControlsSidebarSelector } from './useControlsSidebar';
 
@@ -33,7 +34,7 @@ type Props = {
 };
 
 // The bar's shipped "Add filter" button, which starts a new filter in the
-// rail. An editor's carries the "..." menu (`FilterBarMenu`) in place of the
+// editor popover, anchored here until the filter is on the bar. An editor's carries the "..." menu (`FilterBarMenu`) in place of the
 // shipped eye; a viewer's is the shipped view-mode one, with the reset button. Its popover
 // is never given an id to open on, so a click only calls `onPopoverOpen`
 export const AddControl: FC<Props> = ({
@@ -43,26 +44,36 @@ export const AddControl: FC<Props> = ({
     const openNew = useControlsSidebarSelector((c) => c.openNew);
     const canAddFilters = useControlsSidebarSelector((c) => c.canAddFilters);
     const isViewer = useControlsSidebarSelector((c) => c.isViewer);
+    // A new filter is only in the draft, so it has no pill yet
+    const isNewOpen = useControlsSidebarSelector(
+        (c) => c.isSidebarOpen && c.isNew,
+    );
     const resetDashboardFilters = useDashboardContext(
         (c) => c.resetDashboardFilters,
     );
     if (!canAddFilters) return null;
     return (
         <InertWhileEditing>
-            <AddFilterButton
-                isEditMode={!isViewer}
-                triggerClassName={triggerClassName}
-                unsavedFiltersTooltip={unsavedFiltersTooltip}
-                editModeAction={isViewer ? undefined : <FilterBarMenu />}
-                activeTabUuid={undefined}
-                openPopoverId={undefined}
-                onPopoverOpen={() => openNew()}
-                onPopoverClose={noop}
-                onSave={noop}
-                onResetDashboardFilters={
-                    isViewer ? resetDashboardFilters : noop
-                }
-            />
+            <EditorPopover isOpen={isNewOpen}>
+                <Box>
+                    <AddFilterButton
+                        isEditMode={!isViewer}
+                        triggerClassName={triggerClassName}
+                        unsavedFiltersTooltip={unsavedFiltersTooltip}
+                        editModeAction={
+                            isViewer ? undefined : <FilterBarMenu />
+                        }
+                        activeTabUuid={undefined}
+                        openPopoverId={undefined}
+                        onPopoverOpen={() => openNew()}
+                        onPopoverClose={noop}
+                        onSave={noop}
+                        onResetDashboardFilters={
+                            isViewer ? resetDashboardFilters : noop
+                        }
+                    />
+                </Box>
+            </EditorPopover>
         </InertWhileEditing>
     );
 };

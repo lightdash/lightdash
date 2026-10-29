@@ -241,6 +241,7 @@ describe('FilterPills', () => {
         };
         mockSidebar.current = {
             editing: null,
+            editingRule: null,
             isSidebarOpen: false,
             isNew: false,
             open,
@@ -418,20 +419,57 @@ describe('FilterPills', () => {
         expect(pill(/^Region/).closest('[data-loose-end]')).toBeNull();
     });
 
-    it("keeps the sectioned bar's drag on while a filter is edited", () => {
+    it("keeps the sectioned bar's drag handle while a filter is edited, hidden", () => {
         mockSidebar.current = {
             ...mockSidebar.current,
             editing: { filterId: 'saved' },
             isSidebarOpen: true,
         };
-        const { container } = renderWithProviders(
+        renderWithProviders(
             <FilterPills activeTabUuid={undefined} sectionId={null} />,
         );
+        const handle = pill(/^Status/).querySelector('[data-drag-handle]');
+        expect(handle).not.toBeNull();
+        expect(handle).toHaveAttribute(
+            'class',
+            expect.stringMatching(/hiddenAction/),
+        );
+    });
 
-        const draggables = container.querySelectorAll('[aria-roledescription]');
-        expect(draggables.length).toBeGreaterThan(0);
-        draggables.forEach((draggable) =>
-            expect(draggable).toHaveAttribute('aria-disabled', 'false'),
+    describe('drag from the grip only', () => {
+        it.each([
+            ['flat', undefined],
+            ['sectioned', null],
+        ] as const)(
+            'on the %s bar the wrapper takes no focus and Enter or Space opens the pill',
+            async (_, sectionId) => {
+                const user = userEvent.setup();
+                const { container } = renderWithProviders(
+                    <FilterPills
+                        activeTabUuid={undefined}
+                        sectionId={sectionId}
+                    />,
+                );
+                expect(
+                    container.querySelectorAll(
+                        '[tabindex]:not(button):not(input)',
+                    ),
+                ).toHaveLength(0);
+                expect(
+                    container.querySelector('[aria-roledescription]'),
+                ).toBeNull();
+
+                await user.tab();
+                expect(pill(/^Status/)).toHaveFocus();
+                await user.keyboard('{Enter}');
+                expect(open).toHaveBeenLastCalledWith('saved');
+                open.mockClear();
+                await user.keyboard(' ');
+                expect(open).toHaveBeenLastCalledWith('saved');
+                expect(
+                    pill(/^Status/).querySelector('[data-drag-handle]'),
+                ).not.toBeNull();
+            },
         );
     });
 
@@ -1008,10 +1046,9 @@ describe('FilterPills', () => {
             );
             const status = pill(/^Status/);
             expect(
-                status.querySelector('.tabler-icon-grip-vertical'),
-            ).not.toBeNull();
-            expect(
-                status.closest('[aria-roledescription="draggable"]'),
+                status.querySelector(
+                    '[data-drag-handle] .tabler-icon-grip-vertical',
+                ),
             ).not.toBeNull();
             unmount();
 
@@ -1025,9 +1062,7 @@ describe('FilterPills', () => {
             expect(
                 disabled.querySelector('svg[cursor="grab"]'),
             ).toHaveAttribute('class', expect.stringMatching(/hiddenAction/));
-            expect(
-                disabled.closest('[aria-roledescription="draggable"]'),
-            ).toBeNull();
+            expect(disabled.querySelector('[data-drag-handle]')).toBeNull();
         });
     });
 
@@ -1126,19 +1161,12 @@ describe('FilterPills', () => {
             });
         });
 
-        it('opens a saved pill in the shipped popover, never the rail', async () => {
+        it('opens a saved pill in the editor, with no lock toggle or X', async () => {
             const user = userEvent.setup();
-            renderWithProviders(
-                <FilterPills
-                    activeTabUuid={undefined}
-                    dropdownClassName="ld-dashboard-filter-dropdown"
-                />,
-            );
+            renderWithProviders(<FilterPills activeTabUuid={undefined} />);
 
             await user.click(pill(/^Status/));
-            expect(open).not.toHaveBeenCalled();
-            const dialog = await screen.findByRole('dialog');
-            expect(dialog).toHaveClass('ld-dashboard-filter-dropdown');
+            expect(open).toHaveBeenCalledWith('saved');
             expect(
                 screen.queryByRole('button', { name: /ock filter/ }),
             ).not.toBeInTheDocument();
@@ -1147,21 +1175,28 @@ describe('FilterPills', () => {
                     name: 'Remove filter',
                 }),
             ).toBeNull();
+            expect(pill(/^Status/)).not.toHaveAttribute('data-temporary');
         });
 
-        it('marks a saved pill open while its popover is, with no badge', async () => {
-            const user = userEvent.setup();
+        it('marks a saved pill open while it is edited, with no badge', () => {
             renderWithProviders(<FilterPills activeTabUuid={undefined} />);
-
             expect(pill(/^Status/)).not.toHaveAttribute('data-open');
             expect(pill(/^Status/)).toHaveAttribute('data-in-effect');
-            await user.click(pill(/^Status/));
-            await screen.findByRole('dialog');
-            expect(pill(/^Status/)).toHaveAttribute('data-open');
-            expect(isFieldIcon(leadingIconsOf(pill(/^Status/))[0])).toBe(true);
+
+            mockSidebar.current = {
+                ...mockSidebar.current,
+                editing: { filterId: 'saved' },
+                isSidebarOpen: true,
+            };
+            renderWithProviders(<FilterPills activeTabUuid={undefined} />);
+            const opened = screen.getAllByRole('button', {
+                name: /^Status/,
+            })[1];
+            expect(opened).toHaveAttribute('data-open');
+            expect(isFieldIcon(leadingIconsOf(opened)[0])).toBe(true);
         });
 
-        it('dashes their own pill and marks it open in the rail', () => {
+        it('dashes their own pill and marks it open in the editor', () => {
             mockSidebar.current = {
                 ...mockSidebar.current,
                 editing: { filterId: 'own' },
@@ -1174,26 +1209,7 @@ describe('FilterPills', () => {
             expect(isFieldIcon(leadingIconsOf(own)[0])).toBe(true);
         });
 
-        it("applies a saved pill's value as the shipped view-mode write", async () => {
-            const user = userEvent.setup();
-            const updateDimensionDashboardFilter = vi.fn();
-            setContext({ updateDimensionDashboardFilter });
-            renderWithProviders(<FilterPills activeTabUuid={undefined} />);
-
-            await user.click(pill(/^Status/));
-            await user.click(
-                await screen.findByRole('button', { name: 'Apply' }),
-            );
-            // The dashboard keeps it as a `filters` URL override
-            expect(updateDimensionDashboardFilter).toHaveBeenCalledWith(
-                expect.objectContaining({ id: 'saved', values: ['done'] }),
-                0,
-                false,
-                false,
-            );
-        });
-
-        it('opens their own pill in the rail and removes it from its X', async () => {
+        it('opens their own pill in the editor and removes it from its X', async () => {
             const user = userEvent.setup();
             renderWithProviders(<FilterPills activeTabUuid={undefined} />);
 
@@ -1222,16 +1238,6 @@ describe('FilterPills', () => {
 
         describe('by section', () => {
             const inSection = { ...noDefaultRule, sectionId: 'a' };
-            const clickApply = async (
-                user: ReturnType<typeof userEvent.setup>,
-                name: RegExp,
-            ) => {
-                await user.click(pill(name));
-                await user.click(
-                    await screen.findByRole('button', { name: 'Apply' }),
-                );
-            };
-
             beforeEach(() => {
                 setContext({
                     dashboard: {
@@ -1262,44 +1268,16 @@ describe('FilterPills', () => {
                 expect(pill(/^Order region/)).toBeInTheDocument();
             });
 
-            it("renders a section's rules alone, writing on the saved index", async () => {
+            it("renders a section's rules alone, each opening the editor", async () => {
                 const user = userEvent.setup();
-                const updateDimensionDashboardFilter = vi.fn();
-                setContext({ updateDimensionDashboardFilter });
                 renderWithProviders(
                     <FilterPills activeTabUuid={undefined} sectionId="a" />,
                 );
                 expect(queryPill(/^Status/)).toBeNull();
                 expect(queryPill(/^Order region/)).toBeNull();
 
-                await clickApply(user, /^Region/);
-                expect(updateDimensionDashboardFilter).toHaveBeenCalledWith(
-                    expect.objectContaining({ id: 'no-default' }),
-                    1,
-                    false,
-                    false,
-                );
-            });
-
-            it('opens one popover across passes through the shared state', async () => {
-                const user = userEvent.setup();
-                const onPopoverOpen = vi.fn();
-                renderWithProviders(
-                    <FilterPills
-                        activeTabUuid={undefined}
-                        sectionId="a"
-                        popover={{
-                            openPopoverId: undefined,
-                            onPopoverOpen,
-                            onPopoverClose: vi.fn(),
-                        }}
-                    />,
-                );
-
                 await user.click(pill(/^Region/));
-                // The shipped pill names its popover with its own id
-                expect(onPopoverOpen).toHaveBeenCalledWith(expect.any(String));
-                expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+                expect(open).toHaveBeenCalledWith('no-default');
             });
         });
 

@@ -68,7 +68,6 @@ import {
 } from './tileSelector';
 import { useControlsSidebarSelector } from './useControlsSidebar';
 import { useFieldTileActions, type TileScope } from './useFieldTileActions';
-import { focusLabelInput } from './useLabelDraft';
 import { usePortalTargets } from './usePortalTargets';
 import { useScrollToHighlightedTile } from './useScrollToHighlightedTile';
 import { useSqlColumnsByTile } from './useSqlColumnsByTile';
@@ -476,11 +475,8 @@ const EditedTileOverlays: FC = () => {
                 const starter = fieldsByTile?.[tileUuid]?.find(
                     (candidate) => getItemId(candidate) === value,
                 );
-                if (starter !== undefined) {
+                if (starter !== undefined)
                     addFirstFieldOnTile(starter, tileUuid);
-                    // Naming it comes next
-                    focusLabelInput();
-                }
                 return;
             }
             const isSqlTile =

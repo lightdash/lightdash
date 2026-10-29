@@ -503,6 +503,7 @@
         "filters.rail.editingBadge": "Editando",
         "filters.rail.applyBeforeOpening": "¿Aplicar antes de abrir {filter}?",
         "filters.rail.createBeforeOpening": "¿Crear antes de abrir {filter}?",
+        "filters.rail.applyChangesFirst": "¿Aplicar primero los cambios en {filter}?",
         "filters.tileCard.locked": "Los mosaicos están bloqueados mientras se edita un filtro",
         "filters.tileCard.unreachable": "Este mosaico no tiene ningún campo que este filtro pueda usar",
         "filters.tileCard.filtered": "Este mosaico está filtrado",

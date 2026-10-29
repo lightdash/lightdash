@@ -60,10 +60,6 @@ import {
     useDashboardUnmetFilterRequirements,
 } from '../dashboard/store';
 import { ControlsBar } from '../dashboardControls/ControlsBar';
-import {
-    CONTROLS_RAIL_LAYOUT,
-    ControlSidebar,
-} from '../dashboardControls/ControlSidebar';
 import { getTabsStickyOffset } from '../dashboardControls/editBand';
 import { DashboardFiltersBar } from '../dashboardFilters/DashboardFiltersBar';
 import { DashboardFiltersBarSummary } from '../dashboardFilters/DashboardFiltersBarSummary';
@@ -1184,15 +1180,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                     grow
                                     pb={dashboardGridBottomPadding}
                                     px="xs"
-                                    className={
-                                        isDashboardControlsEnabled
-                                            ? CONTROLS_RAIL_LAYOUT
-                                            : undefined
-                                    }
                                 >
-                                    {isDashboardControlsEnabled && (
-                                        <ControlSidebar />
-                                    )}
                                     <div
                                         ref={gridWrapperRef}
                                         className={[

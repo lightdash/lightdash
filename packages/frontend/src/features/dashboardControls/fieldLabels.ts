@@ -14,19 +14,6 @@ export const formatTileCount = (
         { count },
     );
 
-export const formatFieldCount = (
-    getUiString: UiStringResolver,
-    count: number,
-): string =>
-    interpolateUiString(
-        getUiString(
-            count === 1
-                ? 'filters.rail.fieldCount.singular'
-                : 'filters.rail.fieldCount.plural',
-        ),
-        { count },
-    );
-
 export const formatSectionCount = (
     getUiString: UiStringResolver,
     count: number,

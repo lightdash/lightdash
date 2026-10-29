@@ -8,6 +8,7 @@ import { useOs } from '@mantine/hooks';
 import { IconCheck } from '@tabler/icons-react';
 import {
     memo,
+    useContext,
     useState,
     type FC,
     type MouseEvent,
@@ -24,13 +25,16 @@ import {
 } from '../dashboardFilters/ActiveFilters/filterLock';
 import { FilterPillButton } from '../dashboardFilters/ActiveFilters/FilterPillButton';
 import { useBarSelection } from './barSelection';
+import { EditorPopover } from './FilterEditor';
 import classes from './FilterPills.module.css';
+import { PillDragHandleContext } from './pillDragHandle';
 import { replaceFilterRule } from './sidebarState';
 import { useControlsSidebarSelector } from './useControlsSidebar';
 import { useTileHover } from './useTileHover';
 
-// An editor's pill, or a viewer's on a filter of their own (outline, with an X)
-export type FilterPillKind = 'editor' | 'viewerOwn';
+// An editor's pill, a viewer's on a saved filter, or a viewer's on a filter of
+// their own (dashed, with an X)
+export type FilterPillKind = 'editor' | 'viewerSaved' | 'viewerOwn';
 
 type Props = {
     kind: FilterPillKind;
@@ -85,6 +89,7 @@ export const FilterPill: FC<Props> = memo(
             (c) => c.setHaveFiltersChanged,
         );
         const selection = useBarSelection();
+        const dragHandle = useContext(PillDragHandleContext);
         const os = useOs();
         // On an editor's sectioned bar a modified click picks the pill
         const isSelectable =
@@ -106,6 +111,8 @@ export const FilterPill: FC<Props> = memo(
                         null,
             );
         const isLocked = isFilterLockedOnTab(filter, activeTabUuid, hasTabs);
+        // As the shipped view-mode pill: a locked saved filter opens nothing
+        const isReadOnlyLocked = kind === 'viewerSaved' && isLocked;
         const lockKey = getFilterLockKey({
             hasTabs,
             activeTabUuid,
@@ -130,6 +137,7 @@ export const FilterPill: FC<Props> = memo(
         // On an editor's sectioned bar a modified click picks the pill and a
         // plain one ends the selection before it opens the filter
         const handleClick = (event: MouseEvent<HTMLButtonElement>) => {
+            if (isReadOnlyLocked) return;
             if (isSelectable) {
                 if (event.metaKey || event.ctrlKey || event.shiftKey) {
                     selection.pick(filter.id, event.shiftKey);
@@ -141,69 +149,88 @@ export const FilterPill: FC<Props> = memo(
         };
 
         return (
-            <Tooltip
-                fz="xs"
-                maw={300}
-                disabled={(!isOrphaned && !isSelectable) || isOnAction}
-                openDelay={isOrphaned ? 0 : 500}
-                label={
-                    isOrphaned
-                        ? orphanedTooltip
-                        : `Click to edit · ${os === 'macos' ? '⌘' : 'Ctrl'} click to select`
-                }
-            >
-                <Box
-                    className={classes.pill}
-                    onPointerOver={trackAction}
-                    onPointerLeave={trackAction}
+            <EditorPopover isOpen={isSelected && isSidebarOpen}>
+                <Tooltip
+                    fz="xs"
+                    maw={300}
+                    disabled={(!isOrphaned && !isSelectable) || isOnAction}
+                    openDelay={isOrphaned ? 0 : 500}
+                    label={
+                        isOrphaned
+                            ? orphanedTooltip
+                            : `Click to edit · ${os === 'macos' ? '⌘' : 'Ctrl'} click to select`
+                    }
                 >
-                    <FilterPillButton
-                        {...tileHover}
-                        field={field}
-                        filterRule={filter}
-                        isOrphaned={isOrphaned}
-                        isPlain
-                        // Not saved for everyone: dashed
-                        isTemporary={kind === 'viewerOwn' || isDraft}
-                        // While a filter is edited the grip and lock stay in
-                        // place, hidden and inert, so no pill changes width.
-                        // The lock shows only on a locked filter
-                        isDraggable={kind === 'editor'}
-                        isLocked={isLocked}
-                        lockLabel={
-                            kind === 'editor' && lockKey && isLocked
-                                ? getFilterLockLabel(isLocked, hasTabs)
-                                : null
-                        }
-                        areActionsHidden={isSidebarOpen}
-                        onLockToggle={(e) => {
-                            e.stopPropagation();
-                            toggleLock();
-                        }}
-                        isLockSpaceReserved
-                        readOnlyLockLabel={null}
-                        onRemove={(e) => {
-                            e.stopPropagation();
-                            removeFilterById(filter.id);
-                        }}
-                        removeLabel={getUiString('filters.rail.removeFilter')}
-                        // One tooltip at a time: the hint takes the pill's
-                        isTablesTooltipDisabled={isSelected || isSelectable}
-                        triggerClassName={triggerClassName}
-                        aria-pressed={isSelected || isPicked}
-                        data-controls-pill={filter.id}
-                        data-open={isSelected || undefined}
-                        disabled={isDisabled}
-                        className={isPicked ? classes.pickedPill : undefined}
-                        fieldIconOverride={
-                            isPicked ? (
-                                <MantineIcon icon={IconCheck} size="sm" />
-                            ) : undefined
-                        }
-                        onClick={handleClick}
-                    />
-                </Box>
-            </Tooltip>
+                    <Box
+                        className={classes.pill}
+                        onPointerOver={trackAction}
+                        onPointerLeave={trackAction}
+                    >
+                        <FilterPillButton
+                            {...tileHover}
+                            field={field}
+                            filterRule={filter}
+                            isOrphaned={isOrphaned}
+                            isPlain
+                            // Not saved for everyone: dashed
+                            isTemporary={kind === 'viewerOwn' || isDraft}
+                            // While a filter is edited the grip and lock stay in
+                            // place, hidden and inert, so no pill changes width.
+                            // The lock shows only on a locked filter
+                            isDraggable={kind === 'editor'}
+                            dragHandle={dragHandle}
+                            isLocked={isLocked}
+                            lockLabel={
+                                kind === 'editor' && lockKey && isLocked
+                                    ? getFilterLockLabel(isLocked, hasTabs)
+                                    : null
+                            }
+                            areActionsHidden={isSidebarOpen}
+                            onLockToggle={(e) => {
+                                e.stopPropagation();
+                                toggleLock();
+                            }}
+                            isLockSpaceReserved
+                            readOnlyLockLabel={
+                                isReadOnlyLocked
+                                    ? getUiString(
+                                          hasTabs
+                                              ? 'filters.filterIsLockedOnTab'
+                                              : 'filters.filterIsLocked',
+                                      )
+                                    : null
+                            }
+                            onRemove={
+                                kind === 'viewerSaved'
+                                    ? null
+                                    : (e) => {
+                                          e.stopPropagation();
+                                          removeFilterById(filter.id);
+                                      }
+                            }
+                            removeLabel={getUiString(
+                                'filters.rail.removeFilter',
+                            )}
+                            // One tooltip at a time: the hint takes the pill's
+                            isTablesTooltipDisabled={isSelected || isSelectable}
+                            triggerClassName={triggerClassName}
+                            aria-pressed={isSelected || isPicked}
+                            data-controls-pill={filter.id}
+                            data-open={isSelected || undefined}
+                            disabled={isDisabled}
+                            className={
+                                isPicked ? classes.pickedPill : undefined
+                            }
+                            fieldIconOverride={
+                                isPicked ? (
+                                    <MantineIcon icon={IconCheck} size="sm" />
+                                ) : undefined
+                            }
+                            onClick={handleClick}
+                        />
+                    </Box>
+                </Tooltip>
+            </EditorPopover>
         );
     },
 );
