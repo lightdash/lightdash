@@ -305,6 +305,10 @@ port = 443
 host = "api.github.com"             # GitHub App: repo access for dbt projects
 port = 443
 
+[[egress.allow]]
+host = "lightdash.github.io"        # chart type registry (Chart library)
+port = 443
+
 # Runtime dbt deps needs the registry and the GitHub archive redirect destination.
 [[egress.allow]]
 host = "hub.getdbt.com"
