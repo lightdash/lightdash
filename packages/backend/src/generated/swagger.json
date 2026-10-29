@@ -14993,6 +14993,280 @@
                 ],
                 "type": "object"
             },
+            "ApiConnectorType": {
+                "description": "The external APIs an api query source can call live.",
+                "enum": ["posthog", "search_console"],
+                "type": "string"
+            },
+            "GoogleLiveSourceChoice": {
+                "properties": {
+                    "description": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Shown under the label, e.g. the account or permission level."
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "value": {
+                        "type": "string"
+                    }
+                },
+                "required": ["description", "label", "value"],
+                "type": "object",
+                "description": "A Google property the signed-in account can query, offered after sign-in."
+            },
+            "GoogleLiveSourcePendingChoice": {
+                "properties": {
+                    "choices": {
+                        "items": {
+                            "$ref": "#/components/schemas/GoogleLiveSourceChoice"
+                        },
+                        "type": "array"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "connector": {
+                        "$ref": "#/components/schemas/ApiConnectorType"
+                    }
+                },
+                "required": ["choices", "name", "connector"],
+                "type": "object",
+                "description": "A Google sign-in waiting for the admin to pick what the source reads."
+            },
+            "ExternalConnectionKind": {
+                "type": "string",
+                "enum": ["data_app", "live_source"],
+                "description": "Who a connection serves: data apps through the proxy, or live API queries."
+            },
+            "ApiConnectorType.POSTHOG": {
+                "enum": ["posthog"],
+                "type": "string"
+            },
+            "PostHogApiSource": {
+                "properties": {
+                    "projectId": {
+                        "type": "string",
+                        "description": "The PostHog project id, the number after /project/ in its URL."
+                    },
+                    "connector": {
+                        "$ref": "#/components/schemas/ApiConnectorType.POSTHOG"
+                    }
+                },
+                "required": ["projectId", "connector"],
+                "type": "object"
+            },
+            "ApiConnectorType.SEARCH_CONSOLE": {
+                "enum": ["search_console"],
+                "type": "string"
+            },
+            "SearchConsoleApiSource": {
+                "properties": {
+                    "siteUrl": {
+                        "type": "string",
+                        "description": "The Search Console property, such as https://example.com/ or sc-domain:example.com."
+                    },
+                    "connector": {
+                        "$ref": "#/components/schemas/ApiConnectorType.SEARCH_CONSOLE"
+                    }
+                },
+                "required": ["siteUrl", "connector"],
+                "type": "object"
+            },
+            "ExternalConnectionApiSource": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/PostHogApiSource"
+                    },
+                    {
+                        "$ref": "#/components/schemas/SearchConsoleApiSource"
+                    }
+                ],
+                "description": "Connector settings of a live source; the server fixes its access rules."
+            },
+            "ExternalConnection": {
+                "properties": {
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updatedByUserUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "createdByUserUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "hasSecret": {
+                        "type": "boolean"
+                    },
+                    "apiSource": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ExternalConnectionApiSource"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Optional for compatibility with older servers during rolling upgrades."
+                    },
+                    "kind": {
+                        "$ref": "#/components/schemas/ExternalConnectionKind",
+                        "description": "Optional for compatibility with older servers during rolling upgrades."
+                    },
+                    "customHeaders": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Record_string.string_"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "oauthClientAuthMethod": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/OAuthClientAuthMethod"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Optional for compatibility with older servers during rolling upgrades."
+                    },
+                    "oauthClientId": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Optional for compatibility with older servers during rolling upgrades."
+                    },
+                    "oauthTokenUrl": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Optional for compatibility with older servers during rolling upgrades."
+                    },
+                    "oauthScopes": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "nullable": true
+                    },
+                    "apiKeyLocation": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ApiKeyLocation"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "apiKeyName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "rateLimitPerMinute": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "timeoutMs": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "requestMaxBytes": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "responseMaxBytes": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "allowedContentTypes": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "allowedMethods": {
+                        "items": {
+                            "$ref": "#/components/schemas/ExternalConnectionMethod"
+                        },
+                        "type": "array"
+                    },
+                    "allowedPathPrefixes": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "instructions": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "forwardUserIdentity": {
+                        "type": "boolean",
+                        "description": "Send available viewer identity as backend-set headers. Defaults to false.\nOptional for compatibility with older servers during rolling upgrades."
+                    },
+                    "allowDataAppBuilderLinking": {
+                        "type": "boolean",
+                        "description": "Optional for compatibility with older servers during rolling upgrades."
+                    },
+                    "allowBrowserImages": {
+                        "type": "boolean",
+                        "description": "Optional for compatibility with older servers during rolling upgrades."
+                    },
+                    "origin": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/ExternalConnectionAuthType"
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "externalConnectionUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "updatedAt",
+                    "createdAt",
+                    "updatedByUserUuid",
+                    "createdByUserUuid",
+                    "hasSecret",
+                    "customHeaders",
+                    "oauthScopes",
+                    "apiKeyLocation",
+                    "apiKeyName",
+                    "rateLimitPerMinute",
+                    "timeoutMs",
+                    "requestMaxBytes",
+                    "responseMaxBytes",
+                    "allowedContentTypes",
+                    "allowedMethods",
+                    "allowedPathPrefixes",
+                    "instructions",
+                    "origin",
+                    "type",
+                    "slug",
+                    "name",
+                    "organizationUuid",
+                    "projectUuid",
+                    "externalConnectionUuid"
+                ],
+                "type": "object",
+                "description": "READ shape returned by the API — NEVER includes the secret value."
+            },
             "Record_string.ResultColumn_": {
                 "properties": {},
                 "additionalProperties": {
@@ -15323,214 +15597,6 @@
                 },
                 "required": ["results", "status"],
                 "type": "object"
-            },
-            "ExternalConnectionKind": {
-                "type": "string",
-                "enum": ["data_app", "live_source"],
-                "description": "Who a connection serves: data apps through the proxy, or live API queries."
-            },
-            "ApiConnectorType.POSTHOG": {
-                "enum": ["posthog"],
-                "type": "string"
-            },
-            "PostHogApiSource": {
-                "properties": {
-                    "projectId": {
-                        "type": "string",
-                        "description": "The PostHog project id, the number after /project/ in its URL."
-                    },
-                    "connector": {
-                        "$ref": "#/components/schemas/ApiConnectorType.POSTHOG"
-                    }
-                },
-                "required": ["projectId", "connector"],
-                "type": "object"
-            },
-            "ExternalConnectionApiSource": {
-                "$ref": "#/components/schemas/PostHogApiSource",
-                "description": "Connector settings of a live source; the server fixes its access rules."
-            },
-            "ExternalConnection": {
-                "properties": {
-                    "updatedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "createdAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "updatedByUserUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "createdByUserUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "hasSecret": {
-                        "type": "boolean"
-                    },
-                    "apiSource": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/ExternalConnectionApiSource"
-                            }
-                        ],
-                        "nullable": true,
-                        "description": "Optional for compatibility with older servers during rolling upgrades."
-                    },
-                    "kind": {
-                        "$ref": "#/components/schemas/ExternalConnectionKind",
-                        "description": "Optional for compatibility with older servers during rolling upgrades."
-                    },
-                    "customHeaders": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/Record_string.string_"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "oauthClientAuthMethod": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/OAuthClientAuthMethod"
-                            }
-                        ],
-                        "nullable": true,
-                        "description": "Optional for compatibility with older servers during rolling upgrades."
-                    },
-                    "oauthClientId": {
-                        "type": "string",
-                        "nullable": true,
-                        "description": "Optional for compatibility with older servers during rolling upgrades."
-                    },
-                    "oauthTokenUrl": {
-                        "type": "string",
-                        "nullable": true,
-                        "description": "Optional for compatibility with older servers during rolling upgrades."
-                    },
-                    "oauthScopes": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "nullable": true
-                    },
-                    "apiKeyLocation": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/ApiKeyLocation"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "apiKeyName": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "rateLimitPerMinute": {
-                        "type": "number",
-                        "format": "double",
-                        "nullable": true
-                    },
-                    "timeoutMs": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "requestMaxBytes": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "responseMaxBytes": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "allowedContentTypes": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "allowedMethods": {
-                        "items": {
-                            "$ref": "#/components/schemas/ExternalConnectionMethod"
-                        },
-                        "type": "array"
-                    },
-                    "allowedPathPrefixes": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "instructions": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "forwardUserIdentity": {
-                        "type": "boolean",
-                        "description": "Send available viewer identity as backend-set headers. Defaults to false.\nOptional for compatibility with older servers during rolling upgrades."
-                    },
-                    "allowDataAppBuilderLinking": {
-                        "type": "boolean",
-                        "description": "Optional for compatibility with older servers during rolling upgrades."
-                    },
-                    "allowBrowserImages": {
-                        "type": "boolean",
-                        "description": "Optional for compatibility with older servers during rolling upgrades."
-                    },
-                    "origin": {
-                        "type": "string"
-                    },
-                    "type": {
-                        "$ref": "#/components/schemas/ExternalConnectionAuthType"
-                    },
-                    "slug": {
-                        "type": "string"
-                    },
-                    "name": {
-                        "type": "string"
-                    },
-                    "organizationUuid": {
-                        "type": "string"
-                    },
-                    "projectUuid": {
-                        "type": "string"
-                    },
-                    "externalConnectionUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "updatedAt",
-                    "createdAt",
-                    "updatedByUserUuid",
-                    "createdByUserUuid",
-                    "hasSecret",
-                    "customHeaders",
-                    "oauthScopes",
-                    "apiKeyLocation",
-                    "apiKeyName",
-                    "rateLimitPerMinute",
-                    "timeoutMs",
-                    "requestMaxBytes",
-                    "responseMaxBytes",
-                    "allowedContentTypes",
-                    "allowedMethods",
-                    "allowedPathPrefixes",
-                    "instructions",
-                    "origin",
-                    "type",
-                    "slug",
-                    "name",
-                    "organizationUuid",
-                    "projectUuid",
-                    "externalConnectionUuid"
-                ],
-                "type": "object",
-                "description": "READ shape returned by the API — NEVER includes the secret value."
             },
             "ApiExternalConnectionResponse": {
                 "properties": {
@@ -15893,7 +15959,7 @@
                     "apiSource": {
                         "allOf": [
                             {
-                                "$ref": "#/components/schemas/PostHogApiSource"
+                                "$ref": "#/components/schemas/ExternalConnectionApiSource"
                             }
                         ],
                         "nullable": true
@@ -74314,7 +74380,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.100.0",
+        "version": "3.101.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"

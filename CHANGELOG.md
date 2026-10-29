@@ -1,3 +1,10 @@
+# [3.101.0](https://github.com/lightdash/lightdash/compare/3.100.0...3.101.0) (2026-10-29)
+
+
+### Features
+
+* **query-sources:** connect Google Search Console as a live source ([#31794](https://github.com/lightdash/lightdash/issues/31794)) ([3cae208](https://github.com/lightdash/lightdash/commit/3cae208ba7d39470adac6aa67bbb94fbd54162aa)), closes [#31761](https://github.com/lightdash/lightdash/issues/31761) [#31760](https://github.com/lightdash/lightdash/issues/31760)
+
 # [3.100.0](https://github.com/lightdash/lightdash/compare/3.99.0...3.100.0) (2026-10-29)
 
 

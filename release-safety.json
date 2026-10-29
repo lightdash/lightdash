@@ -1,29 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "3.100.0",
-  "previousVersion": "3.99.0",
-  "releaseDate": "2026-10-29T17:38:11.537Z",
+  "version": "3.101.0",
+  "previousVersion": "3.100.0",
+  "releaseDate": "2026-10-29T17:44:02.136Z",
   "migrations": {
-    "present": true,
-    "count": 1,
+    "present": false,
+    "count": 0,
     "coreCount": 0,
-    "eeCount": 1,
-    "files": [
-      {
-        "name": "20261028180000_add_api_source_call_limits.ts",
-        "edition": "ee",
-        "tables": [
-          "api_source_call_counters",
-          "api_source_call_leases",
-          "external_connections"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": true
-        }
-      }
-    ]
+    "eeCount": 0,
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,
