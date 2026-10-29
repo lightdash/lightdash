@@ -1,3 +1,11 @@
+## [3.93.1](https://github.com/lightdash/lightdash/compare/3.93.0...3.93.1) (2026-10-29)
+
+
+### Bug Fixes
+
+* **composer:** python node desc states typed inputs + output shape ([#31774](https://github.com/lightdash/lightdash/issues/31774)) ([f4c291e](https://github.com/lightdash/lightdash/commit/f4c291e8dc92effd8132f1d7c857ce2316f258e7))
+* **composer:** read truncated date dims as dates in python nodes ([#31775](https://github.com/lightdash/lightdash/issues/31775)) ([af7537f](https://github.com/lightdash/lightdash/commit/af7537fd7a787808ad562fc6e944e47d4cbdb5b4))
+
 # [3.93.0](https://github.com/lightdash/lightdash/compare/3.92.1...3.93.0) (2026-10-28)
 
 
