@@ -202,6 +202,7 @@ function buildService(opts: {
             invalidateAccessToken: vi.fn(),
         } as never,
         oauthAuthorizationCodeTokenClient: {} as never,
+        encryptionUtil: {} as never,
         lightdashConfig: lightdashConfigMock,
         orgAiCopilotConfigResolver: orgAiCopilotConfigResolver as never,
         featureFlagModel: {

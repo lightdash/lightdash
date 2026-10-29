@@ -41,7 +41,10 @@ export const toPostHogFormValues = (
               authMethod: isSignedInConnection(connection)
                   ? 'signIn'
                   : 'apiKey',
-              projectId: connection.apiSource?.projectId ?? '',
+              projectId:
+                  connection.apiSource?.connector === ApiConnectorType.POSTHOG
+                      ? connection.apiSource.projectId
+                      : '',
               apiKey: '',
           }
         : {

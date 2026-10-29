@@ -836,6 +836,7 @@ export type HealthState = {
     hasJira: boolean;
     hasLinear: boolean;
     hasPostHogOAuth: boolean;
+    hasGoogleLiveSources: boolean;
     hasHeadlessBrowser: boolean;
     hasExtendedUsageAnalytics: boolean;
     hasCacheAutocompleResults: boolean;

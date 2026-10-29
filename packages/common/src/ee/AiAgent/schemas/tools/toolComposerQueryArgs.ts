@@ -74,7 +74,7 @@ Node kinds:
 }${
     apiConnections.length > 0
         ? `
-- "api": a query sent live to an external API through a project connection, such as HogQL to PostHog. It reads no other results; join its rows with a duckdb node. Set "connectionUuid" to one of: ${apiConnections
+- "api": a query sent live to an external API through a project connection, such as HogQL to PostHog or a Search Analytics request to Google Search Console. It reads no other results; join its rows with a duckdb node. Set "connectionUuid" to one of: ${apiConnections
               .map(
                   ({ connectionUuid, name, connector }) =>
                       `"${connectionUuid}" (${name}, ${connector})`,
@@ -283,7 +283,7 @@ export const createToolComposerQueriesArgsSchemaV1 = ({
                 query: z
                     .string()
                     .describe(
-                        'For "posthog": one HogQL SELECT, the ClickHouse SQL dialect, over tables such as events (event, timestamp, distinct_id, person_id, properties), persons (id, created_at, properties) and sessions. Read a property as properties.$browser or properties.plan. Alias every column with AS using letters, digits and underscores. PostHog stops a query after 10 seconds, so aggregate in HogQL rather than fetching raw events. List event names first when unsure which exist.',
+                        'For "posthog": one HogQL SELECT, the ClickHouse SQL dialect, over tables such as events (event, timestamp, distinct_id, person_id, properties), persons (id, created_at, properties) and sessions. Read a property as properties.$browser or properties.plan. Alias every column with AS using letters, digits and underscores. PostHog stops a query after 10 seconds, so aggregate in HogQL rather than fetching raw events. List event names first when unsure which exist. For "search_console": one Search Analytics request as a JSON object with startDate and endDate (YYYY-MM-DD, required), dimensions from date, query, page, country, device and searchAppearance, and optionally type (web, image, video, news, discover, googleNews), dimensionFilterGroups and aggregationType. Rows carry the dimensions plus clicks, impressions, ctr and position; ctr and position are averages, so never sum them. Data lags about two days.',
                     ),
             })
             .describe('What the API runs.'),
