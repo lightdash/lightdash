@@ -11342,10 +11342,10 @@ export class AsyncQueryService extends ProjectService {
                                                   )
                                                 : (history.columns ?? {});
                                         inputMeta.inputs[name] = {
-                                            columns:
-                                                resultColumnsToPythonInput(
-                                                    columns,
-                                                ),
+                                            columns: resultColumnsToPythonInput(
+                                                columns,
+                                                history.fields,
+                                            ),
                                         };
                                         const storageClient =
                                             this.getResultsStorageClientForContext(

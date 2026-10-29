@@ -1,4 +1,5 @@
 import {
+    convertItemTypeToDimensionType,
     DimensionType,
     FieldType,
     ParameterError,
@@ -234,12 +235,23 @@ export const pythonResultToFields = (meta: PythonResultMeta): ItemsMap =>
 /** Column types of a referenced result, as the harness reads them. */
 export const resultColumnsToPythonInput = (
     columns: ResultColumns,
+    itemsMap: ItemsMap,
 ): Record<string, PythonColumnType> =>
     Object.fromEntries(
-        Object.values(columns).map((column) => [
-            column.reference,
-            toPythonColumnType(column.type),
-        ]),
+        Object.values(columns).map((column) => {
+            const item = itemsMap[column.reference];
+            // Truncating a date can return a warehouse timestamp (Postgres DATE_TRUNC).
+            const isTruncatedDate =
+                column.type === DimensionType.TIMESTAMP &&
+                item !== undefined &&
+                convertItemTypeToDimensionType(item) === DimensionType.DATE;
+            return [
+                column.reference,
+                toPythonColumnType(
+                    isTruncatedDate ? DimensionType.DATE : column.type,
+                ),
+            ];
+        }),
     );
 
 /**

@@ -1,4 +1,10 @@
-import { DimensionType, FieldType, ParameterError } from '@lightdash/common';
+import {
+    DimensionType,
+    FieldType,
+    ParameterError,
+    type CompiledDimension,
+    type ItemsMap,
+} from '@lightdash/common';
 import { execFileSync, spawnSync } from 'node:child_process';
 import {
     mkdirSync,
@@ -380,15 +386,59 @@ describe('column mapping', () => {
         expect(Object.keys(fields)).toEqual(['n', 'd', 't', 'f', 's']);
     });
 
+    it('reads warehouse timestamps of date fields as dates', () => {
+        const dimension = (name: string, type: DimensionType) =>
+            ({
+                fieldType: FieldType.DIMENSION,
+                name,
+                table: 'orders',
+                type,
+            }) as CompiledDimension;
+        // Postgres DATE_TRUNC on a date dimension returns timestamptz.
+        const itemsMap: ItemsMap = {
+            orders_order_date_day: dimension(
+                'order_date_day',
+                DimensionType.DATE,
+            ),
+            orders_created_raw: dimension(
+                'created_raw',
+                DimensionType.TIMESTAMP,
+            ),
+        };
+        expect(
+            resultColumnsToPythonInput(
+                {
+                    orders_order_date_day: {
+                        reference: 'orders_order_date_day',
+                        type: DimensionType.TIMESTAMP,
+                    },
+                    orders_created_raw: {
+                        reference: 'orders_created_raw',
+                        type: DimensionType.TIMESTAMP,
+                    },
+                    d_trunc: {
+                        reference: 'd_trunc',
+                        type: DimensionType.TIMESTAMP,
+                    },
+                },
+                itemsMap,
+            ),
+        ).toEqual({
+            orders_order_date_day: 'date',
+            orders_created_raw: 'timestamp',
+            d_trunc: 'timestamp',
+        });
+    });
+
     it('round-trips result columns into harness input types', () => {
-        expect(resultColumnsToPythonInput(pythonResultToColumns(meta))).toEqual(
-            {
-                n: 'number',
-                d: 'date',
-                t: 'timestamp',
-                f: 'boolean',
-                s: 'string',
-            },
-        );
+        expect(
+            resultColumnsToPythonInput(pythonResultToColumns(meta), {}),
+        ).toEqual({
+            n: 'number',
+            d: 'date',
+            t: 'timestamp',
+            f: 'boolean',
+            s: 'string',
+        });
     });
 });
