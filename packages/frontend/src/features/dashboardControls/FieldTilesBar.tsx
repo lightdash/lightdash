@@ -1,22 +1,18 @@
 import { interpolateUiString, type UiStringResolver } from '@lightdash/common';
 import { Button, Divider, Group, Paper, Text, Tooltip } from '@mantine/core';
-import { useLayoutEffect, useRef, type FC } from 'react';
+import { useLayoutEffect, useRef, useState, type FC } from 'react';
 import { createPortal } from 'react-dom';
 import FieldIcon from '../../components/common/Filters/FieldIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
-import {
-    selectActiveTabUuid,
-    selectDashboardTiles,
-    useDashboardSelector,
-} from '../dashboard/store';
-import { formatTileCount } from './fieldLabels';
+import { selectActiveTabUuid, useDashboardSelector } from '../dashboard/store';
+import { formatTileCount, formatTilesOf } from './fieldLabels';
 import classes from './FieldTilesBar.module.css';
 import {
     fieldBarMarker,
     findFieldBarStart,
     findSelectedChip,
 } from './mappingFocus';
-import { getFilterRows, type FieldScope } from './peers';
+import { type FieldScope } from './peers';
 import { useBarHost } from './useBarHost';
 import {
     useControlsSidebarSelector,
@@ -57,12 +53,15 @@ const Bar: FC<{
     onUndo: () => void;
     // The filter's only field: clearing it would leave no field
     isOnlyRow: boolean;
-}> = ({ fieldTiles, undo, onUndo, isOnlyRow }) => {
+    /** Shown for a new chip selection, not moved to another tab's grid. */
+    isArriving: boolean;
+}> = ({ fieldTiles, undo, onUndo, isOnlyRow, isArriving }) => {
+    // Kept from mount: a later render must not cut the slide short
+    const [arrives] = useState(isArriving);
     const {
         field,
         label,
         name,
-        isNameShared,
         tableLabel,
         everyTabScope,
         canAct,
@@ -71,6 +70,7 @@ const Bar: FC<{
     } = fieldTiles;
     const getUiString = useUiStrings();
     const { applied, possible } = everyTabScope;
+    const tilesOf = formatTilesOf(getUiString, applied, possible);
     const canFilterAll = canAct && getChangeCount(everyTabScope) > 0;
     const canClear = canAct && applied > 0 && !isOnlyRow;
     const replacesTooltip = getReplacesTooltip(
@@ -115,6 +115,7 @@ const Bar: FC<{
             shadow="md"
             radius="md"
             className={classes.bar}
+            data-arrive={arrives || undefined}
             data-controls-editor
             {...fieldBarMarker}
             // Shift+Tab from its start goes back to the chip it belongs to
@@ -137,7 +138,7 @@ const Bar: FC<{
                     {field !== null && (
                         <FieldIcon item={field} size={16} aria-hidden />
                     )}
-                    {isNameShared && (
+                    {field !== null && (
                         <Tooltip fz="xs" label={label}>
                             <Text fz="sm" c="dimmed" truncate maw={120}>
                                 {tableLabel}
@@ -156,16 +157,9 @@ const Bar: FC<{
                         ) : (
                             <>
                                 <Text span fw={600} className={classes.count}>
-                                    {interpolateUiString(
-                                        getUiString('filters.rail.countOf'),
-                                        { applied, total: possible },
-                                    )}
+                                    {tilesOf.count}
                                 </Text>
-                                {` ${getUiString(
-                                    possible === 1
-                                        ? 'filters.fieldBar.tilesOf.singular'
-                                        : 'filters.fieldBar.tilesOf.plural',
-                                )}`}
+                                {` ${tilesOf.noun}`}
                             </>
                         )}
                     </Text>
@@ -181,7 +175,7 @@ const Bar: FC<{
                                       getUiString(
                                           undo.kind === 'clear'
                                               ? 'filters.fieldBar.undoClearName'
-                                              : 'filters.fieldBar.undoApplyName',
+                                              : 'filters.fieldBar.undoFilterName',
                                       ),
                                       {
                                           field: label,
@@ -244,25 +238,32 @@ export const FieldTilesBar: FC = () => {
     const sqlColumnsByTile = useSqlColumnsByTile(editingRule);
     const fieldTileActions = useFieldTileActions(sqlColumnsByTile);
     const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
-    const dashboardTiles = useDashboardSelector(selectDashboardTiles);
 
     // The provider only names a field that still is one
     const fieldId =
         editingRule === null || !isMapping ? null : highlightedFieldId;
     const isShown = fieldTileActions !== null && fieldId !== null;
     const host = useBarHost(activeTabUuid, isShown);
+    // The field the bar was last drawn for: a tab switch draws it again in
+    // another grid, which must not replay its slide
+    const drawnFieldId = useRef<string | null>(null);
+    const isDrawn = isShown && host !== null;
+    useLayoutEffect(() => {
+        if (fieldId === null) drawnFieldId.current = null;
+        else if (isDrawn) drawnFieldId.current = fieldId;
+    });
 
     if (fieldTileActions === null || fieldId === null || host === null)
         return null;
     return createPortal(
         <Bar
+            // A new field draws a new bar, which slides in again
+            key={fieldId}
             fieldTiles={fieldTileActions.forField(fieldId)}
             undo={fieldUndo?.fieldId === fieldId ? fieldUndo : null}
             onUndo={undoApply}
-            isOnlyRow={
-                editingRule !== null &&
-                getFilterRows(editingRule, dashboardTiles).length <= 1
-            }
+            isArriving={drawnFieldId.current !== fieldId}
+            isOnlyRow={fieldTileActions.chips.length <= 1}
         />,
         host,
     );

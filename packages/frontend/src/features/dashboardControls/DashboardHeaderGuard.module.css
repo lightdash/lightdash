@@ -1,13 +1,12 @@
 /* display: contents keeps the header's own sticky positioning intact */
 .guard {
     display: contents;
-    --controls-duration-save: 250ms;
 }
 
-/* `EDIT_BAND_HEIGHT` in editBand.ts. On the header and tabs wrapper in edit
-   mode (flag on): the tabs and the rail stick under the shorter band */
+/* On the header and tabs wrapper in edit mode (flag on): the tabs and the
+   rail stick under the shorter band */
 .bandScope {
-    --dashboard-header-height: rem(44px);
+    --dashboard-header-height: var(--dashboard-edit-band-height);
 }
 
 /* Two classes: beats the sticky header's surface colour. A soft brand
@@ -24,8 +23,9 @@
     color: var(--mantine-color-text);
 }
 
-/* The pencil and "Editing": the one place the mode is named */
-.mode {
+/* The pencil and "Editing": the one place the mode is named. Over the
+   Title's own colour */
+.band .mode {
     color: var(--mantine-color-ldBrandViolet-7);
 }
 
@@ -42,8 +42,8 @@
 
 .save {
     transition:
-        background-color var(--controls-duration-save) ease,
-        color var(--controls-duration-save) ease;
+        background-color var(--ld-motion-duration) var(--ld-motion-easing),
+        color var(--ld-motion-duration) var(--ld-motion-easing);
 }
 
 :global([data-mantine-color-scheme='dark']) .guard > .band {
@@ -85,7 +85,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .guard {
-        --controls-duration-save: 0s;
+    .save {
+        transition: none;
     }
 }

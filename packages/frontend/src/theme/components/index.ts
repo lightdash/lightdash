@@ -43,6 +43,7 @@ import {
     type MantineThemeOverride,
 } from '@mantine/core';
 import { DotsLoader } from '../../ee/features/aiCopilot/components/ChatElements/DotsLoader/DotsLoader';
+import { DROPDOWN_DURATION, DROPDOWN_EASING } from '../motion';
 /* eslint-disable css-modules/no-unused-class */
 import accordionClasses from './Accordion.module.css';
 import actionIconClasses from './ActionIcon.module.css';
@@ -159,16 +160,17 @@ const isAlertTone = (variant: unknown): variant is AlertTone =>
     variant === 'light' || variant === 'filled' || variant === 'outline';
 
 /** Dropdowns pop out of their anchor; Dropdown.module.css sets the origin. */
-const dropdownTransition: NonNullable<PopoverProps['transitionProps']> = {
-    transition: {
-        in: { opacity: 1, transform: 'scale(1)' },
-        out: { opacity: 0, transform: 'scale(0.96)' },
-        transitionProperty: 'transform, opacity',
-    },
-    duration: 160,
-    exitDuration: 100,
-    timingFunction: 'cubic-bezier(0.32, 1.25, 0.6, 1)',
-};
+export const dropdownTransition: NonNullable<PopoverProps['transitionProps']> =
+    {
+        transition: {
+            in: { opacity: 1, transform: 'scale(1)' },
+            out: { opacity: 0, transform: 'scale(0.96)' },
+            transitionProperty: 'transform, opacity',
+        },
+        duration: DROPDOWN_DURATION,
+        exitDuration: 100,
+        timingFunction: DROPDOWN_EASING,
+    };
 
 /**
  * Component extensions: the app's variants live here, as CSS modules for the

@@ -10,6 +10,11 @@ const mockSidebar = vi.hoisted(() => ({
     current: { isSidebarOpen: true, isViewer: false },
 }));
 
+const mockAccess = vi.hoisted(() => ({ userCanManageDashboard: true }));
+
+vi.mock('../../components/common/Dashboard/useDashboardManageAccess', () => ({
+    useDashboardManageAccess: () => mockAccess,
+}));
 vi.mock('./useControlsSidebar', () => ({
     useControlsSidebarSelector: (
         selector: (value: typeof mockSidebar.current) => unknown,
@@ -67,6 +72,7 @@ const button = (name: string) =>
 describe('DashboardHeaderGuard', () => {
     beforeEach(() => {
         mockSidebar.current = { isSidebarOpen: false, isViewer: false };
+        mockAccess.userCanManageDashboard = true;
     });
 
     describe('edit mode band', () => {
@@ -129,6 +135,16 @@ describe('DashboardHeaderGuard', () => {
             mockSidebar.current = { isSidebarOpen: true, isViewer: true };
             renderGuard({});
             expect(document.querySelector('[inert]')).toBeNull();
+        });
+    });
+
+    describe('edit mode without manage access', () => {
+        it('renders the shipped header, as it does with the flag off', () => {
+            mockAccess.userCanManageDashboard = false;
+            renderGuard({});
+
+            expect(screen.queryByTestId('dashboard-edit-band')).toBeNull();
+            expect(button('Save changes')).toBeInTheDocument();
         });
     });
 

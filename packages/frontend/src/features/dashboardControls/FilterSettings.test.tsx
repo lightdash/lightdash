@@ -112,7 +112,7 @@ const mockListOpens = vi.hoisted(() => vi.fn());
 const startMapping = vi.hoisted(() => vi.fn());
 const updateOtherFilters = vi.hoisted(() => vi.fn());
 const mockViewer = vi.hoisted(() => ({
-    current: { isViewer: false },
+    current: { isViewer: false, canChooseTiles: true },
 }));
 const otherRules = vi.hoisted(
     () => [{ id: 'filter-2' }] as DashboardFilterRule[],
@@ -183,7 +183,7 @@ const Settings = ({
             view={view}
             onViewChange={setView}
             appliedTileCount={3}
-            nameInput={<input aria-label="Name" />}
+            title={<div data-testid="title" />}
             sectionSelect={<div data-testid="section-select" />}
         />
     );
@@ -209,7 +209,8 @@ describe('FilterSettings', () => {
         mockEmbedded.current = false;
         close.mockClear();
         updateOtherFilters.mockClear();
-        mockViewer.current = { isViewer: false };
+        mockViewer.current = { isViewer: false, canChooseTiles: true };
+        startMapping.mockClear();
         mockTileStatus.current = { sqlChartTilesMetadata: {} };
         mockDashboardContext.current = {
             allFilterableFieldsMap: {},
@@ -317,7 +318,8 @@ describe('FilterSettings', () => {
             screen.getByRole('button', { name: 'Settings' }),
         ).toBeInTheDocument();
         expect(screen.queryByTestId('viewer-controls')).not.toBeInTheDocument();
-        expect(screen.queryByLabelText('Name')).not.toBeInTheDocument();
+        // The name is the value view's title
+        expect(screen.getByTestId('title')).toBeInTheDocument();
     });
 
     it('focuses the value input after the operator when the value shows', () => {
@@ -362,7 +364,7 @@ describe('FilterSettings', () => {
 
         expect(screen.getByText('Settings')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Back' })).toHaveFocus();
-        expect(screen.getByLabelText('Name')).toBeInTheDocument();
+        expect(screen.queryByTestId('title')).not.toBeInTheDocument();
         expect(screen.getByTestId('section-select')).toBeInTheDocument();
         expect(screen.getByTestId('viewer-controls')).toBeInTheDocument();
         expect(screen.queryByTestId('value-settings')).not.toBeInTheDocument();
@@ -428,8 +430,22 @@ describe('FilterSettings', () => {
         ).not.toBeInTheDocument();
     });
 
-    it('gives a viewer the value alone: no rows, no Settings', () => {
-        mockViewer.current = { isViewer: true };
+    it("gives a viewer's own filter the tiles row, as the shipped Tiles tab, and no Settings", () => {
+        mockViewer.current = { isViewer: true, canChooseTiles: true };
+        renderSettings(
+            rule({ fieldId: 'orders_amount', tableName: 'orders' }),
+            amount,
+        );
+        expect(screen.getByText('Applies to 3 tiles')).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Choose tiles' }));
+        expect(startMapping).toHaveBeenCalledTimes(1);
+        expect(
+            screen.queryByRole('button', { name: 'Settings' }),
+        ).not.toBeInTheDocument();
+    });
+
+    it("gives a viewer's saved filter the value alone: no rows, no Settings", () => {
+        mockViewer.current = { isViewer: true, canChooseTiles: false };
         renderSettings(
             rule({ fieldId: 'orders_amount', tableName: 'orders' }),
             amount,

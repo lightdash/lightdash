@@ -18,6 +18,7 @@ import {
     type DashboardFilterableField,
     type DashboardFilterRule,
     type DashboardTile,
+    type Field,
     type FilterRule,
     type ResultColumn,
 } from '@lightdash/common';
@@ -505,4 +506,26 @@ export const hasSavedFilterValueChanged = (
         getComparableFilterRuleObject(originalFilterRule),
         getComparableFilterRuleObject(serializedInternalFilterRule),
     );
+};
+
+// A tile's fields the filter's field can map to, closest first: the same
+// type, then the same name, then the field itself. All of them without a field
+export const getTileFieldOptions = <T extends Field>(
+    field: Field | undefined,
+    filters: T[] | undefined,
+): T[] | undefined => {
+    if (!field) return filters;
+    const sortFieldsByMatch = (
+        fieldMatcher: (a: Field) => (b: Field) => boolean,
+        a: Field,
+        b: Field,
+    ) => {
+        const matchA = fieldMatcher(field)(a);
+        const matchB = fieldMatcher(field)(b);
+        return matchA === matchB ? 0 : matchA ? -1 : 1;
+    };
+    return filters
+        ?.filter(matchFieldByType(field))
+        .sort((a, b) => sortFieldsByMatch(matchFieldByTypeAndName, a, b))
+        .sort((a, b) => sortFieldsByMatch(matchFieldExact, a, b));
 };

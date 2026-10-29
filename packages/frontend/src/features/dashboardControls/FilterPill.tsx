@@ -178,7 +178,7 @@ export const FilterPill: FC<Props> = memo(
                             // place, hidden and inert, so no pill changes width.
                             // The lock shows only on a locked filter
                             isDraggable={kind === 'editor'}
-                            dragHandle={dragHandle}
+                            dragHandle={dragHandle ?? undefined}
                             isLocked={isLocked}
                             lockLabel={
                                 kind === 'editor' && lockKey && isLocked

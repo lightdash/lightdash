@@ -5,7 +5,13 @@ import {
     type DashboardTab,
     type DashboardTile,
 } from '@lightdash/common';
-import { act, fireEvent, screen, waitFor } from '@testing-library/react';
+import {
+    act,
+    fireEvent,
+    screen,
+    waitFor,
+    within,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type ReactElement, type ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -58,12 +64,12 @@ vi.mock('./FieldsAndTiles', () => ({
 vi.mock('./FilterSettings', () => ({
     FilterSettings: ({
         field,
-        nameInput,
+        title,
         sectionSelect,
         appliedTileCount,
     }: {
         field: { label: string } | null;
-        nameInput: ReactNode;
+        title: ReactNode;
         sectionSelect: ReactNode;
         appliedTileCount: number;
     }) => (
@@ -72,7 +78,7 @@ vi.mock('./FilterSettings', () => ({
                 <input aria-label="Operator" />
             </div>
             {field ? `Settings for ${field.label}` : 'Settings with no field'}
-            {nameInput}
+            <div data-testid="title">{title}</div>
             {sectionSelect}
             <span data-testid="applied-count">{appliedTileCount}</span>
         </div>
@@ -119,8 +125,10 @@ const setSidebar = (overrides: Partial<ControlsSidebarContextValue>) => {
         isNew: true,
         isPlaceholder: false,
         editingRule: makeRule({}),
+        editorFilters: { dimensions: [], metrics: [], tableCalculations: [] },
         isSidebarOpen: true,
         isMapping: false,
+        canChooseTiles: true,
         startMapping: vi.fn(),
         cancelMapping: vi.fn(),
         isAsking: false,
@@ -204,6 +212,25 @@ const Editor = () => (
     </EditorPopover>
 );
 const editor = () => document.querySelector('[data-controls-editor]');
+const title = () => screen.getByTestId('title');
+// The name is text; its pencil turns it into an input
+const renameButton = () =>
+    within(title()).getByRole('button', { name: 'Rename' });
+// The popover's focus trap places focus once, just after it opens; a click
+// on the name comes later
+const settleFocusTrap = async () => {
+    await act(() => new Promise((resolve) => setTimeout(resolve, 20)));
+};
+const nameInput = () => {
+    if (screen.queryByLabelText('Name') !== null)
+        return screen.getByLabelText('Name');
+    if (vi.isFakeTimers())
+        act(() => {
+            vi.advanceTimersByTime(20);
+        });
+    fireEvent.click(renameButton());
+    return screen.getByLabelText('Name');
+};
 
 describe('EditorPopover', () => {
     beforeEach(() => {
@@ -378,6 +405,56 @@ describe('EditorPopover', () => {
             expect(button('Apply')).toBeEnabled();
         });
 
+        it('disables Apply on a required group only while no member has a value', () => {
+            const a = makeRule({ id: 'filter-a', requiredGroupId: 'g' });
+            const b = makeRule({ requiredGroupId: 'g', values: [] });
+            setSidebar({
+                isNew: false,
+                editingRule: b,
+                editorFilters: filters([a, b]),
+            });
+            const { rerender } = renderWithProviders(<Editor />);
+            expect(button('Apply')).toBeEnabled();
+
+            setSidebar({
+                isNew: false,
+                editingRule: b,
+                editorFilters: filters([{ ...a, values: [] }, b]),
+            });
+            rerender(<Editor />);
+            expect(button('Apply')).toBeDisabled();
+        });
+
+        it('counts no disabled or required member towards the group', () => {
+            const b = makeRule({ requiredGroupId: 'g', values: [] });
+            const disabled = makeRule({
+                id: 'filter-a',
+                requiredGroupId: 'g',
+                disabled: true,
+                values: ['x'],
+            });
+            setSidebar({
+                isNew: false,
+                editingRule: b,
+                editorFilters: filters([disabled, b]),
+            });
+            const { rerender } = renderWithProviders(<Editor />);
+            expect(button('Apply')).toBeDisabled();
+
+            const required = makeRule({
+                id: 'filter-c',
+                requiredGroupId: 'g',
+                required: true,
+            });
+            setSidebar({
+                isNew: false,
+                editingRule: b,
+                editorFilters: filters([required, b]),
+            });
+            rerender(<Editor />);
+            expect(button('Apply')).toBeDisabled();
+        });
+
         it('disables Apply on a filter that reaches no tile', async () => {
             setSidebar({
                 isNew: false,
@@ -500,7 +577,7 @@ describe('EditorPopover', () => {
                 screen
                     .getAllByRole('option')
                     .map((option) => option.textContent),
-            ).toEqual(['None', 'Dates', 'Regions']);
+            ).toEqual(['No section', 'Dates', 'Regions']);
             await userEvent.click(
                 screen.getByRole('option', { name: 'Dates' }),
             );
@@ -510,7 +587,9 @@ describe('EditorPopover', () => {
             });
 
             await userEvent.click(select);
-            await userEvent.click(screen.getByRole('option', { name: 'None' }));
+            await userEvent.click(
+                screen.getByRole('option', { name: 'No section' }),
+            );
             const unsectioned = vi.mocked(updateFilter).mock.lastCall?.[0];
             expect(unsectioned && 'sectionId' in unsectioned).toBe(false);
         });
@@ -528,9 +607,11 @@ describe('EditorPopover', () => {
         setSidebar({});
         renderWithProviders(<Editor />);
 
-        const input = screen.getByLabelText('Name');
+        expect(title()).toHaveTextContent('Status');
+        const input = nameInput();
         expect(input).toHaveValue('');
-        expect(input).toHaveAttribute('placeholder', 'Status');
+        // As the shipped "Filter label" input
+        expect(input).toHaveAttribute('placeholder', 'Label for Status');
         expect(screen.getByTestId('filter-settings')).toHaveTextContent(
             'Settings for Status',
         );
@@ -544,10 +625,8 @@ describe('EditorPopover', () => {
         });
         renderWithProviders(<Editor />);
 
-        expect(screen.getByLabelText('Name')).toHaveAttribute(
-            'placeholder',
-            'Filter name',
-        );
+        expect(title()).toHaveTextContent('Filter name');
+        expect(nameInput()).toHaveAttribute('placeholder', 'Filter label');
     });
 
     describe('a metric filter', () => {
@@ -574,9 +653,10 @@ describe('EditorPopover', () => {
             setSidebar({ editingRule: metricRule });
             renderWithProviders(<Editor />);
 
-            expect(screen.getByLabelText('Name')).toHaveAttribute(
+            expect(title()).toHaveTextContent('Revenue');
+            expect(nameInput()).toHaveAttribute(
                 'placeholder',
-                'Revenue',
+                'Label for Revenue',
             );
             expect(screen.getByTestId('filter-settings')).toHaveTextContent(
                 'Settings for Revenue',
@@ -597,10 +677,8 @@ describe('EditorPopover', () => {
         });
         renderWithProviders(<Editor />);
 
-        expect(screen.getByLabelText('Name')).toHaveAttribute(
-            'placeholder',
-            'country',
-        );
+        expect(title()).toHaveTextContent('country');
+        expect(nameInput()).toHaveAttribute('placeholder', 'Filter label');
         expect(screen.getByTestId('filter-settings')).toHaveTextContent(
             'Settings with no field',
         );
@@ -633,7 +711,7 @@ describe('EditorPopover', () => {
         const { close } = setSidebar({});
         renderWithProviders(<Editor />);
 
-        fireEvent.keyDown(screen.getByLabelText('Name'), {
+        fireEvent.keyDown(nameInput(), {
             key: 'Enter',
         });
         expect(close).not.toHaveBeenCalled();
@@ -644,7 +722,7 @@ describe('EditorPopover', () => {
             vi.useRealTimers();
         });
 
-        const labelInput = () => screen.getByLabelText('Name');
+        const labelInput = nameInput;
         const typeLabel = (value: string) =>
             fireEvent.change(labelInput(), { target: { value } });
 
@@ -685,7 +763,11 @@ describe('EditorPopover', () => {
                 ...editingRule,
                 label: undefined,
             });
-            expect(labelInput()).toHaveAttribute('placeholder', 'Status');
+            expect(title()).toHaveTextContent('Status');
+            expect(labelInput()).toHaveAttribute(
+                'placeholder',
+                'Label for Status',
+            );
         });
 
         it('writes a label of spaces as no label', () => {
@@ -745,6 +827,7 @@ describe('EditorPopover', () => {
                 isNew: false,
             });
             renderWithProviders(<Editor />);
+            await settleFocusTrap();
 
             await userEvent.type(labelInput(), 'Order status');
             await userEvent.click(
@@ -813,6 +896,112 @@ describe('EditorPopover', () => {
         });
     });
 
+    describe('name', () => {
+        afterEach(() => {
+            vi.useRealTimers();
+        });
+
+        it('is the title as text at rest, an input only once its pencil is clicked', () => {
+            setSidebar({ editingRule: makeRule({ label: 'Order status' }) });
+            renderWithProviders(<Editor />);
+
+            expect(screen.queryByLabelText('Name')).not.toBeInTheDocument();
+            expect(title()).toHaveTextContent('Order status');
+            expect(
+                within(title()).getByText('Order status').closest('button'),
+            ).toBeNull();
+            expect(within(title()).queryByRole('textbox')).toBeNull();
+
+            fireEvent.click(renameButton());
+            const input = screen.getByLabelText('Name');
+            expect(input).toHaveFocus();
+            expect(input).toHaveValue('Order status');
+            // Focus and Escape logic find the label input by these
+            expect(input).toHaveAttribute('data-controls-label');
+            expect(input).toHaveAttribute('data-own-escape');
+        });
+
+        it('turns into the input from the keyboard with Enter', async () => {
+            setSidebar({});
+            renderWithProviders(<Editor />);
+            await settleFocusTrap();
+            act(() => renameButton().focus());
+            await userEvent.keyboard('{Enter}');
+            expect(screen.getByLabelText('Name')).toHaveFocus();
+        });
+
+        it('commits on Enter and is text again, focused', () => {
+            const { updateFilter, editingRule } = setSidebar({});
+            renderWithProviders(<Editor />);
+
+            fireEvent.change(nameInput(), {
+                target: { value: 'Order status' },
+            });
+            fireEvent.keyDown(screen.getByLabelText('Name'), { key: 'Enter' });
+
+            expect(updateFilter).toHaveBeenCalledWith({
+                ...editingRule,
+                label: 'Order status',
+            });
+            expect(screen.queryByLabelText('Name')).not.toBeInTheDocument();
+            expect(title()).toHaveTextContent('Order status');
+            expect(renameButton()).toHaveFocus();
+        });
+
+        it('commits on blur and is text again', () => {
+            const { updateFilter, editingRule } = setSidebar({});
+            renderWithProviders(<Editor />);
+
+            fireEvent.change(nameInput(), { target: { value: 'Order' } });
+            fireEvent.blur(screen.getByLabelText('Name'));
+
+            expect(updateFilter).toHaveBeenCalledWith({
+                ...editingRule,
+                label: 'Order',
+            });
+            expect(title()).toHaveTextContent('Order');
+        });
+
+        it('reverts on Escape, with no late write, and leaves the editor open', () => {
+            vi.useFakeTimers();
+            const { updateFilter, discard, editingRule } = setSidebar({
+                editingRule: makeRule({ label: 'Order status' }),
+            });
+            renderWithProviders(<Editor />);
+
+            fireEvent.change(nameInput(), { target: { value: 'Half' } });
+            act(() => {
+                vi.advanceTimersByTime(LABEL_COMMIT_DELAY);
+            });
+            expect(updateFilter).toHaveBeenLastCalledWith({
+                ...editingRule,
+                label: 'Half',
+            });
+            fireEvent.change(screen.getByLabelText('Name'), {
+                target: { value: 'Half typed' },
+            });
+            fireEvent.keyDown(screen.getByLabelText('Name'), {
+                key: 'Escape',
+            });
+            act(() => {
+                vi.advanceTimersByTime(LABEL_COMMIT_DELAY * 2);
+            });
+
+            expect(updateFilter).toHaveBeenLastCalledWith(editingRule);
+            expect(updateFilter).toHaveBeenCalledTimes(2);
+            expect(discard).not.toHaveBeenCalled();
+            expect(title()).toHaveTextContent('Order status');
+            expect(renameButton()).toHaveFocus();
+        });
+
+        it('writes nothing on Escape when nothing was typed', () => {
+            const { updateFilter } = setSidebar({});
+            renderWithProviders(<Editor />);
+            fireEvent.keyDown(nameInput(), { key: 'Escape' });
+            expect(updateFilter).not.toHaveBeenCalled();
+        });
+    });
+
     describe('for a viewer', () => {
         const own = makeRule({ id: 'own', label: undefined });
 
@@ -849,6 +1038,21 @@ describe('EditorPopover', () => {
             expect(close).toHaveBeenCalledTimes(1);
             fireEvent.click(button('Cancel'));
             expect(discard).toHaveBeenCalledTimes(1);
+        });
+
+        it('shows the name as text they cannot edit', () => {
+            setSidebar({
+                isViewer: true,
+                isNew: false,
+                editing: { filterId: 'own' },
+                editingRule: makeRule({ id: 'own', label: 'Order status' }),
+            });
+            renderWithProviders(<Editor />);
+            expect(title()).toHaveTextContent('Order status');
+            expect(
+                within(title()).queryByRole('button', { name: 'Rename' }),
+            ).toBeNull();
+            expect(screen.queryByLabelText('Name')).not.toBeInTheDocument();
         });
 
         it('creates a new filter of theirs with Apply', () => {

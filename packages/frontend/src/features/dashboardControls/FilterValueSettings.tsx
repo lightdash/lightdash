@@ -30,7 +30,7 @@ const getInputs = (root: HTMLElement | null): HTMLInputElement[] => [
 ];
 
 // The value section of the shipped settings form, with no default switch:
-// the value is always editable. No Apply: each edit is written at once,
+// the value is always editable. No Apply: each edit goes to the draft,
 // except the one the shipped Apply refuses
 export const FilterValueSettings: FC<Props> = ({
     isEditMode,
@@ -95,6 +95,10 @@ export const FilterValueSettings: FC<Props> = ({
                             : filterRule
                     }
                     withDefaultValueSwitch={false}
+                    // Save keeps a required filter's value as its default
+                    withRequiredSaveNote={false}
+                    // An open list would cover the popover's own Apply
+                    isListClosedOnPick
                     onChangeFilterRule={handleChange}
                 />
             </Stack>

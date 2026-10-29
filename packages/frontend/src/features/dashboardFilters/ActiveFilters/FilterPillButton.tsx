@@ -45,7 +45,7 @@ type Props = Omit<
     isTemporary: boolean;
     isDraggable: boolean;
     /** Drags from the grip only (default: the grip is a plain icon). */
-    dragHandle?: PillDragHandle | null;
+    dragHandle?: PillDragHandle;
     isLocked: boolean;
     /** The lock action's label; null leaves the action out. */
     lockLabel: string | null;
@@ -79,7 +79,7 @@ export const FilterPillButton = forwardRef<HTMLButtonElement, Props>(
             isOrphaned,
             isTemporary,
             isDraggable,
-            dragHandle = null,
+            dragHandle,
             isLocked,
             lockLabel,
             onLockToggle,
@@ -182,7 +182,7 @@ export const FilterPillButton = forwardRef<HTMLButtonElement, Props>(
                         fieldIconOverride) && (
                         <Group gap={4} wrap="nowrap">
                             {isDraggable &&
-                                (dragHandle === null ? (
+                                (dragHandle === undefined ? (
                                     <MantineIcon
                                         icon={IconGripVertical}
                                         cursor="grab"

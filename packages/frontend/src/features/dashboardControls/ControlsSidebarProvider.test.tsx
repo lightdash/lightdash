@@ -364,7 +364,9 @@ describe('ControlsSidebarProvider', () => {
 
         it('is entered from an open filter and keeps its draft', () => {
             const { result } = setup();
+            expect(result.current.canChooseTiles).toBe(false);
             act(() => result.current.open('a'));
+            expect(result.current.canChooseTiles).toBe(true);
             act(() => result.current.updateFilter(rule('a', ['9'])));
             expect(result.current.isMapping).toBe(false);
 
@@ -3330,6 +3332,54 @@ describe('ControlsSidebarProvider in view mode', () => {
         act(() => result.current.removeFilterById('own'));
         expect(latest.temporaryFilters.dimensions).toEqual([]);
         expect(latest.filters).toEqual(initialFilters);
+    });
+
+    describe('choosing tiles', () => {
+        it('maps their own filter and writes the tiles to their own filters only', () => {
+            const { result } = setup();
+            seedOwn([rule('own', ['x'])]);
+            act(() => result.current.open('own'));
+            expect(result.current.canChooseTiles).toBe(true);
+
+            act(() => result.current.startMapping());
+            expect(result.current.isMapping).toBe(true);
+            act(() =>
+                result.current.updateFilter({
+                    ...rule('own', ['x']),
+                    tileTargets: { t1: false },
+                }),
+            );
+            expect(latest.temporaryFilters.dimensions[0].tileTargets).toBe(
+                undefined,
+            );
+
+            act(() => result.current.close());
+            expect(latest.temporaryFilters.dimensions[0].tileTargets).toEqual({
+                t1: false,
+            });
+            expect(latest.filters).toEqual(initialFilters);
+            expect(result.current.isMapping).toBe(false);
+        });
+
+        it('maps a new filter of theirs once it has a field', () => {
+            const { result } = setup();
+            act(() => result.current.openNew());
+            expect(result.current.canChooseTiles).toBe(true);
+            act(() => result.current.startMapping());
+            expect(result.current.isMapping).toBe(false);
+
+            act(() => result.current.addFirstField(statusField));
+            act(() => result.current.startMapping());
+            expect(result.current.isMapping).toBe(true);
+        });
+
+        it('never maps a saved filter, as the shipped popover offers no tiles there', () => {
+            const { result } = setup();
+            act(() => result.current.open('a'));
+            expect(result.current.canChooseTiles).toBe(false);
+            act(() => result.current.startMapping());
+            expect(result.current.isMapping).toBe(false);
+        });
     });
 
     it('opens a saved filter and applies it as the shipped popover does, never to their own filters', () => {

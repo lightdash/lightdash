@@ -165,35 +165,46 @@ describe('AddControl', () => {
         ]);
     });
 
-    it('lets viewers add filters from a checkbox that keeps the menu open', async () => {
-        renderWithProviders(<AddControl />);
+    const openMenu = () =>
         fireEvent.click(
             screen.getByRole('button', { name: 'Filter bar settings' }),
         );
+
+    it('hides "Add filter" from viewers with an item named for the action, which closes the menu', async () => {
+        renderWithProviders(<AddControl />);
+        openMenu();
         const item = await screen.findByRole('menuitem', {
-            name: 'Viewers can add filters',
+            name: 'Hide for viewers',
         });
-        expect(screen.getByRole('checkbox')).toBeChecked();
+        expect(screen.queryByRole('menuitemcheckbox')).not.toBeInTheDocument();
+        expect(screen.queryByRole('switch')).not.toBeInTheDocument();
+        expect(item.querySelector('.tabler-icon-eye-off')).not.toBeNull();
 
         fireEvent.click(item);
 
+        expect(setIsAddFilterDisabled).toHaveBeenCalledTimes(1);
         expect(setIsAddFilterDisabled).toHaveBeenCalledWith(true);
-        expect(
-            screen.getByRole('menuitem', { name: 'Viewers can add filters' }),
-        ).toBeInTheDocument();
+        await waitFor(() =>
+            expect(
+                screen.queryByRole('menuitem', {
+                    name: 'Hide for viewers',
+                }),
+            ).not.toBeInTheDocument(),
+        );
     });
 
-    it('shows the box unchecked while viewers cannot add filters', async () => {
+    it('shows "Add filter" to viewers again while it is hidden from them', async () => {
         mockDashboardContext.current.isAddFilterDisabled = true;
         renderWithProviders(<AddControl />);
-        fireEvent.click(
-            screen.getByRole('button', { name: 'Filter bar settings' }),
-        );
-        fireEvent.click(
-            await screen.findByRole('menuitem', {
-                name: 'Viewers can add filters',
-            }),
-        );
+        openMenu();
+        const item = await screen.findByRole('menuitem', {
+            name: 'Show for viewers',
+        });
+        expect(item.querySelector('.tabler-icon-eye')).not.toBeNull();
+
+        item.focus();
+        await userEvent.keyboard('{Enter}');
+        expect(setIsAddFilterDisabled).toHaveBeenCalledTimes(1);
         expect(setIsAddFilterDisabled).toHaveBeenCalledWith(false);
     });
 
@@ -259,8 +270,12 @@ describe('AddControl', () => {
             const note = () =>
                 screen.getByLabelText<HTMLTextAreaElement>('Note for viewers');
             await userEvent.click(settings());
+            // Hidden to jsdom: the menu's floating reference has no size
             await userEvent.click(
-                await screen.findByRole('menuitem', { name: /Filter rules/ }),
+                await screen.findByRole('menuitem', {
+                    name: /Filter rules/,
+                    hidden: true,
+                }),
             );
             await userEvent.type(
                 await screen.findByLabelText('Note for viewers'),
@@ -270,7 +285,7 @@ describe('AddControl', () => {
             await userEvent.click(settings());
             await userEvent.click(
                 await screen.findByRole('menuitem', {
-                    name: 'Viewers can add filters',
+                    name: 'Hide for viewers',
                     hidden: true,
                 }),
             );
@@ -278,8 +293,10 @@ describe('AddControl', () => {
             expect(setIsAddFilterDisabled).toHaveBeenCalledWith(true);
             expect(note().value).toBe('Pick a region');
 
+            // The item closed the menu, as the shipped pin item does
+            await userEvent.click(settings());
             await userEvent.click(
-                screen.getByRole('menuitem', {
+                await screen.findByRole('menuitem', {
                     name: /Filter rules/,
                     hidden: true,
                 }),

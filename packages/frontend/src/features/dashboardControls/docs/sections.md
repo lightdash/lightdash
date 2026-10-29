@@ -99,7 +99,7 @@ _group_ (that is `requiredGroupId`).
 
 ## Naming
 
-`SectionNameInput` reports how naming ended (`NameExit`); the bar moves focus
-only when it is not `elsewhere`. Every way to start a section puts
+`SectionNameInput` reports how naming ended (`NameExit`, `nameFocus.ts`); the
+bar moves focus only when it is not `elsewhere`. Every way to start a section puts
 `NewSection` in the end slot; a committed name dispatches
 `addControlSection` and moves the picked pills in.

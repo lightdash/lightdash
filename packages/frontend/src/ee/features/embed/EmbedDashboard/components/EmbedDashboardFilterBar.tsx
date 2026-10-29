@@ -18,6 +18,7 @@ import {
     useDashboardTemporaryFilters,
 } from '../../../../../features/dashboard/store';
 import { AddControl } from '../../../../../features/dashboardControls/AddControl';
+import { MappingSwap } from '../../../../../features/dashboardControls/ControlsBar';
 import { FilterPills } from '../../../../../features/dashboardControls/FilterPills';
 import { SectionedFilters } from '../../../../../features/dashboardControls/SectionedFilters';
 import { SettledFilterFields } from '../../../../../features/dashboardControls/SettledFilterFields';
@@ -151,7 +152,7 @@ const EmbedDashboardFilterBar: FC<Props> = ({
         );
     }
 
-    return (
+    const bar = (
         <Group
             className={embedContractClass(
                 'ld-dashboard-filters',
@@ -230,6 +231,8 @@ const EmbedDashboardFilterBar: FC<Props> = ({
             </Group>
         </Group>
     );
+    // Choosing a filter's tiles: the mapping row takes the bar's place
+    return isControlsEnabled ? <MappingSwap>{bar}</MappingSwap> : bar;
 };
 
 export default EmbedDashboardFilterBar;

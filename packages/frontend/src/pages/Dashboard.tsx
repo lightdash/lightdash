@@ -40,6 +40,7 @@ import {
 import { v4 as uuid4 } from 'uuid';
 import styles from '../components/common/Dashboard/Dashboard.module.css';
 import DashboardHeader from '../components/common/Dashboard/DashboardHeader';
+import { useDashboardManageAccess } from '../components/common/Dashboard/useDashboardManageAccess';
 import ErrorState from '../components/common/ErrorState';
 import MantineIcon from '../components/common/MantineIcon';
 import MantineModal from '../components/common/MantineModal';
@@ -103,6 +104,7 @@ import {
 import { ControlsSidebarPage } from '../features/dashboardControls/ControlsSidebarPage';
 import { DashboardHeaderGuard } from '../features/dashboardControls/DashboardHeaderGuard';
 import guardClasses from '../features/dashboardControls/DashboardHeaderGuard.module.css';
+import { isEditBandShown } from '../features/dashboardControls/editBand';
 import { getDimensionFiltersToSave } from '../features/dashboardFilters/FilterConfiguration/utils';
 import { FilterBarPopoversProvider } from '../features/dashboardFilters/FilterRequirements/FilterBarPopoversProvider';
 import DashboardTabs from '../features/dashboardTabs';
@@ -996,6 +998,7 @@ const Dashboard: FC = () => {
     );
     const isDashboardControlsEnabled =
         dashboardControlsFlag.data?.enabled === true;
+    const { userCanManageDashboard } = useDashboardManageAccess(dashboard);
     const DashboardPage = isDashboardControlsEnabled
         ? ControlsSidebarPage
         : Page;
@@ -1549,7 +1552,11 @@ const Dashboard: FC = () => {
             >
                 <div
                     className={
-                        isDashboardControlsEnabled && isEditMode
+                        isEditBandShown(
+                            isEditMode,
+                            isDashboardControlsEnabled,
+                            userCanManageDashboard,
+                        )
                             ? guardClasses.bandScope
                             : undefined
                     }

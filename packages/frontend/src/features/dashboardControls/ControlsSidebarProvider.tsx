@@ -55,10 +55,12 @@ import { getLinkKey } from './linkCandidates';
 import {
     getFieldCount,
     getFilterFields,
-    getFilterRows,
+    getChipFieldId,
+    getFilterChips,
     isSqlColumnRow,
     removeField,
     withoutDefaultTileTargets,
+    type FieldsMap,
 } from './peers';
 import {
     RailContractClasses,
@@ -86,6 +88,7 @@ import {
     type ControlsSidebarContextValue,
 } from './useControlsSidebar';
 import { useEditorDismiss } from './useEditorDismiss';
+import { useFilterFieldsMap } from './useFilterFieldsMap';
 
 // The bar's "Add", and the pills, which carry their filter id
 const ADD_SELECTOR =
@@ -191,6 +194,11 @@ type SidebarState = {
     mappingStart: DashboardFilterRule | null;
 };
 
+// As the shipped popover's Tiles tab: an editor's filters and a viewer's own,
+// never a viewer's saved filter
+const canChooseTiles = (state: SidebarState): boolean =>
+    !state.isViewer || state.filterSet === 'temporary';
+
 // What Apply or Cancel would decide: a new filter with no field yet has
 // nothing to lose, and a section move is applied at once, so it is no edit
 const isEditUnapplied = (
@@ -262,6 +270,7 @@ type Latest = {
     isEmbedded: boolean;
     haveFiltersChanged: boolean;
     filterableFieldsByTileUuid: DashboardContextType['filterableFieldsByTileUuid'];
+    filterFieldsMap: FieldsMap;
     dashboardTiles: Dashboard['tiles'] | undefined;
     controlSectionIds: string[];
     highlightedFieldId: string | null;
@@ -297,6 +306,23 @@ const getOtherFilters = (current: Latest): DashboardFilters =>
     getFilterSet(current) === 'temporary'
         ? current.savedFilters
         : current.dashboardTemporaryFilters;
+
+// The field id the clicked chip filters by on the rule, else null
+const getClickedFieldId = (
+    current: Latest,
+    rule: DashboardFilterRule | null,
+): string | null =>
+    current.highlightedFieldId === null || rule === null
+        ? current.highlightedFieldId
+        : getChipFieldId(
+              getFilterChips(
+                  rule,
+                  current.dashboardTiles,
+                  current.filterableFieldsByTileUuid,
+                  current.filterFieldsMap,
+              ),
+              current.highlightedFieldId,
+          );
 
 // Fields of the filter on no tile yet, keyed by filter so a stale entry
 // never leaks into another filter
@@ -440,6 +466,7 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
     const filterableFieldsByTileUuid = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,
     );
+    const filterFieldsMap = useFilterFieldsMap();
     const savedTiles = useDashboardContext((c) => c.dashboard?.tiles);
     const dashboardTiles = useDashboardSelector(selectDashboardTiles);
     const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
@@ -489,6 +516,7 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         isEmbedded,
         haveFiltersChanged,
         filterableFieldsByTileUuid,
+        filterFieldsMap,
         dashboardTiles,
         controlSectionIds,
         highlightedFieldId,
@@ -867,7 +895,10 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
             const rule = isFirstFieldGone
                 ? removeField(next, firstFieldId, tiles, fieldsByTile)
                 : next;
-            if (isFirstFieldGone && current.highlightedFieldId === firstFieldId)
+            if (
+                isFirstFieldGone &&
+                getClickedFieldId(current, previous) === firstFieldId
+            )
                 clearHighlightedField();
             // A field on a tile no longer waits, so losing that tile drops it
             const fields = new Set(getFilterFields(rule, tiles));
@@ -1073,7 +1104,12 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         if (latest.current.state === null) return;
         const { filterId } = latest.current.state;
         // A stale click on this field would show it clicked again once it waits
-        if (latest.current.highlightedFieldId === fieldId) {
+        if (
+            getClickedFieldId(
+                latest.current,
+                getEditingRule(latest.current),
+            ) === fieldId
+        ) {
             latest.current.highlightedFieldId = null;
             setHighlightedFieldId(null);
         }
@@ -1113,7 +1149,7 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         const rule = getEditingRule(current);
         if (
             current.state === null ||
-            current.state.isViewer ||
+            !canChooseTiles(current.state) ||
             current.placeholder !== null ||
             rule === null
         )
@@ -1581,25 +1617,30 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
     // The clicked field, while it is one: a row of the filter, a waiting
     // field, or the field of a live undo. A clear that took it off its last
     // tile leaves it clicked only as long as that undo
-    const clickedFieldId = useMemo(
-        () =>
-            highlightedFieldId !== null &&
-            editingRule !== null &&
-            (getFilterRows(editingRule, dashboardTiles).includes(
-                highlightedFieldId,
-            ) ||
-                waitingFieldIds.includes(highlightedFieldId) ||
-                fieldUndo?.fieldId === highlightedFieldId)
-                ? highlightedFieldId
-                : null,
-        [
-            highlightedFieldId,
+    const clickedFieldId = useMemo(() => {
+        if (highlightedFieldId === null || editingRule === null) return null;
+        const chips = getFilterChips(
             editingRule,
             dashboardTiles,
-            waitingFieldIds,
-            fieldUndo,
-        ],
-    );
+            filterableFieldsByTileUuid,
+            filterFieldsMap,
+        );
+        return chips.some((chip) => chip.key === highlightedFieldId) ||
+            waitingFieldIds.includes(
+                getChipFieldId(chips, highlightedFieldId),
+            ) ||
+            fieldUndo?.fieldId === highlightedFieldId
+            ? highlightedFieldId
+            : null;
+    }, [
+        highlightedFieldId,
+        editingRule,
+        dashboardTiles,
+        filterableFieldsByTileUuid,
+        filterFieldsMap,
+        waitingFieldIds,
+        fieldUndo,
+    ]);
     useEditorDismiss({
         isOpen: isSidebarOpen,
         isFieldClicked: clickedFieldId !== null,
@@ -1626,8 +1667,10 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
             emptiedFieldLabel: state?.emptiedAt?.fieldLabel ?? null,
             isPlaceholder,
             editingRule,
+            editorFilters: dashboardFilters,
             isSidebarOpen,
             isMapping,
+            canChooseTiles: state !== null && canChooseTiles(state),
             startMapping,
             cancelMapping,
             isAsking,

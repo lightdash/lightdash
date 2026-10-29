@@ -78,6 +78,12 @@ vi.mock('../../../../../features/dashboardControls/SectionedFilters', () => ({
         </div>
     ),
 }));
+// Reads the rail's provider, which the page puts around the bar
+vi.mock('../../../../../features/dashboardControls/ControlsBar', () => ({
+    MappingSwap: ({ children }: { children: ReactNode }) => (
+        <div data-testid="mapping-swap">{children}</div>
+    ),
+}));
 vi.mock('./EmbedDashboardFilters', () => ({
     default: () => <div data-testid="shipped-filters" />,
     EmbedResetFiltersButton: () => <button type="button">Reset</button>,
@@ -163,6 +169,16 @@ describe('EmbedDashboardFilterBar', () => {
         renderBar(true, false);
         expect(screen.getByTestId('shipped-filters')).toBeInTheDocument();
         expect(screen.queryByTestId('rail-pills')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('mapping-swap')).not.toBeInTheDocument();
+    });
+
+    it("gives the rail's bar the mapping row's place, so a viewer can choose tiles", () => {
+        renderBar(true, true);
+        expect(
+            within(screen.getByTestId('mapping-swap')).getByTestId(
+                'rail-pills',
+            ),
+        ).toBeInTheDocument();
     });
 
     it('opens the rail from "Add filter" and the pills, with the class contract', () => {

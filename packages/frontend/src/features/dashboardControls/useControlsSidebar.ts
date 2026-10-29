@@ -1,6 +1,7 @@
 import {
     type DashboardFilterableField,
     type DashboardFilterRule,
+    type DashboardFilters,
     type ResultColumn,
 } from '@lightdash/common';
 import { type MutableRefObject } from 'react';
@@ -37,6 +38,8 @@ export type ControlsSidebarContextValue = {
     /** The edited control has no mapping yet, so it cannot be kept. */
     isPlaceholder: boolean;
     editingRule: DashboardFilterRule | null;
+    /** The edited filter's set: its draft while a filter is open. */
+    editorFilters: DashboardFilters;
     /**
      * A filter is being edited, so the rail is on screen: false as soon as
      * the edited filter is no longer in the dashboard.
@@ -44,6 +47,8 @@ export type ControlsSidebarContextValue = {
     isSidebarOpen: boolean;
     /** Choosing tiles: the mapping row stands in for the filter row and the popover. */
     isMapping: boolean;
+    /** "Choose tiles" is offered: an editor's filter or a viewer's own, not a viewer's saved one. */
+    canChooseTiles: boolean;
     /** "Choose tiles": enters mapping on the edited filter's draft. */
     startMapping: () => void;
     /** The mapping row's Cancel: tile targets back to where mapping started, and the popover again. */

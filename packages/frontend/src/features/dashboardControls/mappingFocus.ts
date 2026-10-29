@@ -10,6 +10,10 @@ export const fieldBarMarker = { [FIELD_BAR_ATTRIBUTE]: '' };
 export const addFieldMarker = { [ADD_FIELD_ATTRIBUTE]: '' };
 export const mappingRowMarker = { [MAPPING_ROW_ATTRIBUTE]: '' };
 
+// A ref callback: the node takes focus as it mounts, without scrolling
+export const focusOnMount = (node: HTMLElement | null) =>
+    node?.focus({ preventScroll: true });
+
 export const findChip = (fieldId: string): HTMLElement | null =>
     [...document.querySelectorAll<HTMLElement>(`[${CHIP_ATTRIBUTE}]`)].find(
         (chip) => chip.getAttribute(CHIP_ATTRIBUTE) === fieldId,

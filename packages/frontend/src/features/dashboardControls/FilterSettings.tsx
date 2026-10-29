@@ -1,4 +1,5 @@
 import {
+    interpolateUiString,
     type DashboardFilterableField,
     type DashboardFilterRule,
 } from '@lightdash/common';
@@ -9,12 +10,14 @@ import {
     Group,
     Stack,
     Text,
-    UnstyledButton,
+    Title,
+    Tooltip,
 } from '@mantine/core';
 import { IconArrowLeft, IconChevronRight } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC, type ReactNode } from 'react';
 import FiltersProvider from '../../components/common/Filters/FiltersProvider';
 import MantineIcon from '../../components/common/MantineIcon';
+import { PolymorphicGroupButton } from '../../components/common/PolymorphicGroupButton';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
@@ -35,6 +38,7 @@ import { DropdownClass } from './DropdownClass';
 import { formatTileCount } from './fieldLabels';
 import classes from './FilterEditor.module.css';
 import { FilterValueSettings } from './FilterValueSettings';
+import { focusOnMount } from './mappingFocus';
 import { useRailContractClasses } from './railContractClasses';
 import { useControlsSidebarSelector } from './useControlsSidebar';
 import { useFiltersStartOfWeek } from './useFiltersStartOfWeek';
@@ -66,9 +70,6 @@ const focusValueOnMount = (node: HTMLElement | null) => {
     input?.focus({ preventScroll: true });
 };
 
-const focusOnMount = (node: HTMLElement | null) =>
-    node?.focus({ preventScroll: true });
-
 type Props = {
     rule: DashboardFilterRule;
     field: DashboardFilterableField | null;
@@ -77,8 +78,8 @@ type Props = {
     onViewChange: (view: EditorView) => void;
     /** Tiles the filter is on, over every tab. */
     appliedTileCount: number;
-    /** Settings: the filter's name. */
-    nameInput: ReactNode;
+    /** The value view's title: the filter's name. */
+    title: ReactNode;
     /** Settings: the filter's section on the bar. */
     sectionSelect: ReactNode;
 };
@@ -90,7 +91,7 @@ export const FilterSettings: FC<Props> = ({
     view,
     onViewChange,
     appliedTileCount,
-    nameInput,
+    title,
     sectionSelect,
 }) => {
     const projectUuid = useProjectUuid();
@@ -126,6 +127,7 @@ export const FilterSettings: FC<Props> = ({
     );
     const isViewer = useControlsSidebarSelector((c) => c.isViewer);
     const isNew = useControlsSidebarSelector((c) => c.isNew);
+    const canChooseTiles = useControlsSidebarSelector((c) => c.canChooseTiles);
     const startMapping = useControlsSidebarSelector((c) => c.startMapping);
     const getUiString = useUiStrings();
     const contractClasses = useRailContractClasses();
@@ -156,19 +158,20 @@ export const FilterSettings: FC<Props> = ({
             {view === 'settings' ? (
                 <Stack gap="sm" className={classes.content}>
                     <Group gap="xs" wrap="nowrap">
-                        <ActionIcon
-                            size="sm"
-                            aria-label="Back"
-                            ref={focusOnMount}
-                            onClick={() => onViewChange('value')}
-                        >
-                            <MantineIcon icon={IconArrowLeft} />
-                        </ActionIcon>
-                        <Text fz="sm" fw={600}>
+                        <Tooltip fz="xs" label="Back">
+                            <ActionIcon
+                                size="sm"
+                                aria-label="Back"
+                                ref={focusOnMount}
+                                onClick={() => onViewChange('value')}
+                            >
+                                <MantineIcon icon={IconArrowLeft} />
+                            </ActionIcon>
+                        </Tooltip>
+                        <Title order={6} lh="sm">
                             Settings
-                        </Text>
+                        </Title>
                     </Group>
-                    {nameInput}
                     {sectionSelect}
                     <ViewerControls
                         rule={rule}
@@ -181,6 +184,7 @@ export const FilterSettings: FC<Props> = ({
                 </Stack>
             ) : (
                 <>
+                    <Box className={classes.title}>{title}</Box>
                     <DropdownClass
                         className={contractClasses?.filterDropdown ?? null}
                     >
@@ -199,41 +203,50 @@ export const FilterSettings: FC<Props> = ({
                             />
                         </Box>
                     </DropdownClass>
-                    {/* Where it applies and its settings are the dashboard's */}
+                    {/* As the shipped Tiles tab: not on a viewer's saved filter */}
+                    {canChooseTiles && (
+                        <Group
+                            justify="space-between"
+                            wrap="nowrap"
+                            className={classes.row}
+                        >
+                            <Text fz="xs">
+                                {interpolateUiString(
+                                    getUiString('filters.rail.appliesTo'),
+                                    {
+                                        tiles: formatTileCount(
+                                            getUiString,
+                                            appliedTileCount,
+                                        ),
+                                    },
+                                )}
+                            </Text>
+                            <Button
+                                variant="subtle"
+                                size="xs"
+                                onClick={startMapping}
+                            >
+                                {getUiString('filters.rail.chooseTiles')}
+                            </Button>
+                        </Group>
+                    )}
+                    {/* Its settings are the dashboard's */}
                     {!isViewer && (
-                        <>
-                            <Group
-                                justify="space-between"
-                                wrap="nowrap"
-                                className={classes.row}
-                            >
-                                <Text fz="xs">
-                                    Applies to{' '}
-                                    {formatTileCount(
-                                        getUiString,
-                                        appliedTileCount,
-                                    )}
-                                </Text>
-                                <Button
-                                    variant="subtle"
-                                    size="xs"
-                                    onClick={startMapping}
-                                >
-                                    Choose tiles
-                                </Button>
-                            </Group>
-                            <UnstyledButton
-                                className={classes.row}
-                                onClick={openSettings}
-                            >
-                                <Text fz="xs">Settings</Text>
-                                <MantineIcon
-                                    icon={IconChevronRight}
-                                    size={14}
-                                    color="dimmed"
-                                />
-                            </UnstyledButton>
-                        </>
+                        <PolymorphicGroupButton
+                            component="button"
+                            type="button"
+                            justify="space-between"
+                            wrap="nowrap"
+                            className={`${classes.row} mantine-focus-auto`}
+                            onClick={openSettings}
+                        >
+                            <Text fz="xs">Settings</Text>
+                            <MantineIcon
+                                icon={IconChevronRight}
+                                size={14}
+                                color="dimmed"
+                            />
+                        </PolymorphicGroupButton>
                     )}
                 </>
             )}

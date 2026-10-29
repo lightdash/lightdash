@@ -1,33 +1,33 @@
 import {
+    getDashboardFilterableFieldKey,
+    getDashboardFilterField,
     getItemId,
-    interpolateUiString,
     isMetric,
     type DashboardFilterableField,
     type DashboardFilterRule,
 } from '@lightdash/common';
-import {
-    Box,
-    Button,
-    Group,
-    Menu,
-    Text,
-    TextInput,
-    Tooltip,
-} from '@mantine/core';
-import { IconPlus, IconSearch } from '@tabler/icons-react';
+import { Box, Button, Group, Popover, Text, Tooltip } from '@mantine/core';
+import { IconPlus } from '@tabler/icons-react';
 import uniqBy from 'lodash/uniqBy';
 import { useLayoutEffect, useMemo, useRef, useState, type FC } from 'react';
+import FieldIcon from '../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import {
+    selectActiveTabUuid,
+    selectDashboardFilters,
     selectDashboardTabs,
     selectDashboardTiles,
     useDashboardSelector,
+    useDashboardTemporaryFilters,
 } from '../dashboard/store';
 import { FilterPillButton } from '../dashboardFilters/ActiveFilters/FilterPillButton';
-import { getCandidateOptions, getFieldCandidates } from './fieldCandidates';
-import { formatTileCount } from './fieldLabels';
+import addFilterClasses from '../dashboardFilters/AddFilterButton.module.css';
+import FilterFieldSelect from '../dashboardFilters/FilterConfiguration/FilterFieldSelect';
+import { DropdownClass } from './DropdownClass';
+import { getFieldCandidates } from './fieldCandidates';
+import { formatTilesOf } from './fieldLabels';
 import editorClasses from './FilterEditor.module.css';
 import {
     addFieldMarker,
@@ -35,171 +35,143 @@ import {
     findChip,
     findFieldBarStart,
     findMappingFallback,
+    focusOnMount,
     isFocusLost,
     mappingRowMarker,
 } from './mappingFocus';
 import classes from './MappingRow.module.css';
+import { MENU_TRANSITION } from './menuTransition';
 import {
     applyFieldToUnfilteredTiles,
     canTileTakeFilter,
     doesTileOfferField,
-    getFilterRows,
-    getTakeableTabCounts,
+    getFilterChips,
     getTileField,
+    isTileInRow,
 } from './peers';
+import { useRailContractClasses } from './railContractClasses';
 import { useApplyBlockedReason } from './useApplyBlockedReason';
 import { useControlsSidebarSelector } from './useControlsSidebar';
 import { useFieldTileActions } from './useFieldTileActions';
+import { useFilterFieldsMap } from './useFilterFieldsMap';
 import { useFilterRuleField } from './useFilterRuleField';
 import { useSqlColumnsByTile } from './useSqlColumnsByTile';
 
 const NO_FIELDS: DashboardFilterableField[] = [];
-// Past this many fields the menu is searchable, as a tile card's select
-const SEARCH_THRESHOLD = 8;
+const NO_TILE_FIELDS: Record<string, DashboardFilterableField[]> = {};
 const noop = () => {};
-// The popover that held focus is gone: the row takes it, so Tab reaches the
-// chips and Escape cancels from here
-const focusOnMount = (node: HTMLElement | null) =>
-    node?.focus({ preventScroll: true });
 
-// A field of the filter's kind and type that is not a chip yet, with the
-// tiles that have it and that the filter does not reach yet
-type AddableField = {
-    field: DashboardFilterableField;
-    label: string;
-    count: number;
-};
-
+// The fields of the filter's kind and type that are not chips yet, as the
+// tiles the filter does not reach yet label them
 const useAddableFields = (
     rule: DashboardFilterRule,
-    chipLabels: string[],
-): AddableField[] => {
+): DashboardFilterableField[] => {
     const dashboardTiles = useDashboardSelector(selectDashboardTiles);
     const fieldsByTile = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,
     );
-    const dimensions = useDashboardContext(
-        (c) => c.allFilterableFields ?? NO_FIELDS,
-    );
-    const metrics = useDashboardContext(
-        (c) => c.allFilterableMetrics ?? NO_FIELDS,
-    );
+    const fieldsMap = useFilterFieldsMap();
     const sqlColumnsByTile = useSqlColumnsByTile(rule);
     const targetField = useFilterRuleField(rule);
     return useMemo(() => {
         // Nothing is offered while what the tiles have is not known
         if (targetField === null || fieldsByTile === undefined) return [];
-        const tiles = dashboardTiles ?? [];
-        const unfiltered = tiles.filter(
-            (tile) =>
-                getTileField(rule, tile, fieldsByTile, sqlColumnsByTile) ===
-                null,
+        const chipKeys = new Set(
+            getFilterChips(
+                rule,
+                dashboardTiles,
+                fieldsByTile,
+                fieldsMap,
+                sqlColumnsByTile,
+            ).map((chip) => chip.key),
         );
-        const counted = uniqBy(
-            getFieldCandidates(
-                isMetric(targetField) ? metrics : dimensions,
-                getFilterRows(rule, dashboardTiles),
-                targetField,
-            ),
-            getItemId,
-        )
-            .map((field) => ({
-                field,
-                count: unfiltered.filter((tile) =>
-                    doesTileOfferField(tile, getItemId(field), fieldsByTile),
-                ).length,
-            }))
-            .filter(({ count }) => count > 0);
-        const options = getCandidateOptions(
-            counted.map(({ field }) => getItemId(field)),
-            chipLabels,
-            Object.fromEntries(
-                counted.map(({ field }) => [getItemId(field), field]),
-            ),
-        );
-        const labelled = counted.map((candidate, index) => ({
-            ...candidate,
-            label: options[index].label,
-        }));
-        // Two that still read the same say their table
-        const isShared = (label: string) =>
-            labelled.filter((candidate) => candidate.label === label).length >
-            1;
-        return labelled
-            .map((candidate) =>
-                isShared(candidate.label)
-                    ? {
-                          ...candidate,
-                          label: `${candidate.label} (${candidate.field.table})`,
-                      }
-                    : candidate,
+        const offered = (dashboardTiles ?? [])
+            .filter(
+                (tile) =>
+                    getTileField(rule, tile, fieldsByTile, sqlColumnsByTile) ===
+                    null,
             )
-            .sort(
-                (a, b) => b.count - a.count || a.label.localeCompare(b.label),
-            );
+            .flatMap((tile) => fieldsByTile[tile.uuid] ?? NO_FIELDS)
+            .filter((field) => isMetric(field) === isMetric(targetField));
+        return uniqBy(
+            getFieldCandidates(offered, [], targetField),
+            getDashboardFilterableFieldKey,
+        ).filter(
+            (field) => !chipKeys.has(getDashboardFilterableFieldKey(field)),
+        );
     }, [
         rule,
         targetField,
         fieldsByTile,
+        fieldsMap,
         dashboardTiles,
-        dimensions,
-        metrics,
         sqlColumnsByTile,
-        chipLabels,
     ]);
 };
 
-// "Add a field": the fitting fields on tiles not yet filtered. Picking one
-// filters only those tiles, selects its chip and leaves Undo on the bar
+// "Add a field": the shipped field picker over the fitting fields on tiles not
+// yet filtered. Picking one filters only those tiles, selects its chip and
+// leaves Undo on the bar
 const AddFieldMenu: FC<{
     rule: DashboardFilterRule;
-    chipLabels: string[];
     onPicked: (fieldId: string) => void;
-}> = ({ rule, chipLabels, onPicked }) => {
+}> = ({ rule, onPicked }) => {
     const getUiString = useUiStrings();
-    const [query, setQuery] = useState('');
+    const contractClasses = useRailContractClasses();
+    const [isOpen, setIsOpen] = useState(false);
     const applyWithUndo = useControlsSidebarSelector((c) => c.applyWithUndo);
     const setHighlightedFieldId = useControlsSidebarSelector(
         (c) => c.setHighlightedFieldId,
     );
     const dashboardTiles = useDashboardSelector(selectDashboardTiles);
+    const dashboardTabs = useDashboardSelector(selectDashboardTabs);
+    const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
     const fieldsByTile = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,
     );
     const sqlColumnsByTile = useSqlColumnsByTile(rule);
-    const addable = useAddableFields(rule, chipLabels);
+    const fieldsMap = useFilterFieldsMap();
+    const addable = useAddableFields(rule);
     const hasAddable = addable.length > 0;
-    const isSearchable = addable.length > SEARCH_THRESHOLD;
-    const shown = isSearchable
-        ? addable.filter(({ label }) =>
-              label.toLowerCase().includes(query.trim().toLowerCase()),
-          )
-        : addable;
 
-    const pick = ({ field, count }: AddableField) => {
+    const pick = (field: DashboardFilterableField) => {
         const fieldId = getItemId(field);
+        const rowKey = getDashboardFilterableFieldKey(field);
+        // Only the tiles that label the field as the picked one does
+        const tiles = (dashboardTiles ?? []).filter((tile) =>
+            isTileInRow(
+                tile,
+                { key: rowKey, fieldId },
+                fieldsByTile,
+                fieldsMap,
+            ),
+        );
+        const tileCount = tiles.filter(
+            (tile) =>
+                getTileField(rule, tile, fieldsByTile, sqlColumnsByTile) ===
+                    null && doesTileOfferField(tile, fieldId, fieldsByTile),
+        ).length;
+        setIsOpen(false);
         // Selected first, so the write leaves its Undo on the bar
-        setHighlightedFieldId(fieldId);
+        setHighlightedFieldId(rowKey);
         applyWithUndo(
             applyFieldToUnfilteredTiles(
                 rule,
                 { fieldId, tableName: field.table },
-                dashboardTiles ?? [],
+                tiles,
                 fieldsByTile,
                 sqlColumnsByTile,
             ),
             {
                 kind: 'add',
-                fieldId,
-                tileCount: count,
+                fieldId: rowKey,
+                tileCount,
                 replaced: 0,
                 acrossTabs: true,
             },
         );
-        onPicked(fieldId);
+        onPicked(rowKey);
     };
-
-    const searchRef = useRef<HTMLInputElement>(null);
 
     return (
         <Tooltip
@@ -208,97 +180,76 @@ const AddFieldMenu: FC<{
             disabled={hasAddable}
         >
             <Box>
-                <Menu
+                <Popover
+                    opened={isOpen && hasAddable}
+                    onChange={setIsOpen}
                     position="bottom-start"
                     offset={4}
-                    transitionProps={{ duration: 0 }}
-                    disabled={!hasAddable}
+                    width={300}
+                    transitionProps={MENU_TRANSITION}
+                    trapFocus
                     // Focus goes to the new chip, not back here
                     returnFocus={false}
-                    // The menu focuses its own dropdown on open: search wins
-                    onOpen={() =>
-                        requestAnimationFrame(() =>
-                            searchRef.current?.focus({ preventScroll: true }),
-                        )
-                    }
-                    onClose={() => setQuery('')}
                 >
-                    <Menu.Target>
+                    <Popover.Target>
                         <Button
                             size="xs"
                             variant="default"
                             radius="xs"
-                            className={classes.addChip}
+                            className={addFilterClasses.dashed}
                             {...addFieldMarker}
                             leftSection={
                                 <MantineIcon icon={IconPlus} size={14} />
                             }
                             disabled={!hasAddable}
+                            onClick={() => setIsOpen((open) => !open)}
                         >
-                            Add a field
+                            {getUiString('filters.rail.addField')}
                         </Button>
-                    </Menu.Target>
-                    <Menu.Dropdown
+                    </Popover.Target>
+                    <Popover.Dropdown
+                        p="xs"
                         data-controls-editor
-                        className={editorClasses.dropdown}
+                        className={editorClasses.menu}
                     >
-                        <Menu.Label>
-                            Fields on tiles not yet filtered
-                        </Menu.Label>
-                        {isSearchable && (
-                            <TextInput
-                                size="xs"
-                                m={4}
-                                aria-label="Search fields"
+                        <DropdownClass
+                            className={
+                                contractClasses?.addFilterDropdown ?? null
+                            }
+                        >
+                            {/* Its list stays inside, so a pick there is not
+                                a press outside this popover */}
+                            <FilterFieldSelect
+                                fields={addable}
+                                availableTileFilters={
+                                    fieldsByTile ?? NO_TILE_FIELDS
+                                }
+                                tiles={dashboardTiles ?? []}
+                                tabs={dashboardTabs}
+                                activeTabUuid={activeTabUuid}
+                                selectedField={undefined}
+                                withLabel={false}
                                 placeholder={getUiString(
                                     'filters.rail.searchFields',
                                 )}
-                                leftSection={
-                                    <MantineIcon icon={IconSearch} size={14} />
-                                }
-                                value={query}
-                                onChange={(event) =>
-                                    setQuery(event.currentTarget.value)
-                                }
-                                ref={searchRef}
+                                defaultOpened
+                                onChange={pick}
                             />
-                        )}
-                        {shown.length === 0 && (
-                            <Text fz="xs" c="dimmed" px="sm" py={6}>
-                                {getUiString('filters.tileCard.noFieldsMatch')}
-                            </Text>
-                        )}
-                        {shown.map((candidate) => (
-                            <Menu.Item
-                                key={getItemId(candidate.field)}
-                                rightSection={
-                                    <Text fz="xs" c="dimmed">
-                                        {formatTileCount(
-                                            getUiString,
-                                            candidate.count,
-                                        )}
-                                    </Text>
-                                }
-                                onClick={() => pick(candidate)}
-                            >
-                                {candidate.label}
-                            </Menu.Item>
-                        ))}
-                    </Menu.Dropdown>
-                </Menu>
+                        </DropdownClass>
+                    </Popover.Dropdown>
+                </Popover>
             </Box>
         </Tooltip>
     );
 };
 
-// "4 of 6 tiles · 2 tabs": every tile that can take the filter, and the tabs
-// the filter reaches; no tabs part on a dashboard without tabs
+// "4 of 6 tiles": every tile that can take the filter. The tabs show their
+// own counts while tiles are chosen
 const useMappingSummary = (
     rule: DashboardFilterRule,
 ): { summary: string; widest: string } => {
     const getUiString = useUiStrings();
     const dashboardTiles = useDashboardSelector(selectDashboardTiles);
-    const dashboardTabs = useDashboardSelector(selectDashboardTabs);
     const fieldsByTile = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,
     );
@@ -314,45 +265,55 @@ const useMappingSummary = (
                 getTileField(rule, tile, fieldsByTile, sqlColumnsByTile) !==
                 null,
         ).length;
-        const tabsReached =
-            dashboardTabs.length < 2
-                ? null
-                : Object.values(
-                      getTakeableTabCounts(
-                          rule,
-                          takeable,
-                          dashboardTabs,
-                          fieldsByTile,
-                          sqlColumnsByTile,
-                      ),
-                  ).filter((count) => count.applied > 0).length;
-        const format = (count: number, tabCount: number | null) => {
-            const tileCount = `${interpolateUiString(
-                getUiString('filters.rail.countOf'),
-                { applied: count, total },
-            )} ${getUiString(
-                total === 1
-                    ? 'filters.fieldBar.tilesOf.singular'
-                    : 'filters.fieldBar.tilesOf.plural',
-            )}`;
-            return tabCount === null
-                ? tileCount
-                : `${tileCount} · ${tabCount} ${tabCount === 1 ? 'tab' : 'tabs'}`;
+        const format = (count: number) => {
+            const tilesOf = formatTilesOf(getUiString, count, total);
+            return `${tilesOf.count} ${tilesOf.noun}`;
+        };
+        return { summary: format(applied), widest: format(total) };
+    }, [rule, dashboardTiles, fieldsByTile, sqlColumnsByTile, getUiString]);
+};
+
+// The filter as its pill on the bar shows it: the dashboard's rule (a
+// viewer's own from the temporary filters), or a new filter not in effect
+// until Apply, with the field resolved the same way
+const useBarPill = (
+    rule: DashboardFilterRule,
+): {
+    rule: DashboardFilterRule;
+    field: DashboardFilterableField | undefined;
+} => {
+    const dashboardFilters = useDashboardSelector(selectDashboardFilters);
+    const temporaryFilters = useDashboardTemporaryFilters();
+    const fieldsMap = useDashboardContext((c) => c.allFilterableFieldsMap);
+    const metricsMap = useDashboardContext((c) => c.allFilterableMetricsMap);
+    const fieldsByTile = useDashboardContext(
+        (c) => c.filterableFieldsByTileUuid,
+    );
+    return useMemo(() => {
+        const isMetricRule = metricsMap[rule.target.fieldId] !== undefined;
+        const group = isMetricRule ? 'metrics' : 'dimensions';
+        const barRule = [
+            ...dashboardFilters[group],
+            ...temporaryFilters[group],
+        ].find((filter) => filter.id === rule.id) ?? {
+            ...rule,
+            disabled: true,
         };
         return {
-            summary: format(applied, tabsReached),
-            widest: format(
-                total,
-                tabsReached === null ? null : dashboardTabs.length,
+            rule: barRule,
+            field: getDashboardFilterField<DashboardFilterableField>(
+                isMetricRule ? metricsMap : fieldsMap,
+                barRule,
+                fieldsByTile,
             ),
         };
     }, [
         rule,
-        dashboardTiles,
-        dashboardTabs,
+        dashboardFilters,
+        temporaryFilters,
+        fieldsMap,
+        metricsMap,
         fieldsByTile,
-        sqlColumnsByTile,
-        getUiString,
     ]);
 };
 
@@ -373,24 +334,21 @@ const MappingRowContent: FC<{ rule: DashboardFilterRule }> = ({ rule }) => {
     );
     const cancelMapping = useControlsSidebarSelector((c) => c.cancelMapping);
     const close = useControlsSidebarSelector((c) => c.close);
-    const dashboardTiles = useDashboardSelector(selectDashboardTiles);
     const savedFilters = useDashboardContext((c) => c.dashboard?.filters);
-    const field = useFilterRuleField(rule);
+    const pill = useBarPill(rule);
     const sqlColumnsByTile = useSqlColumnsByTile(rule);
     const fieldTileActions = useFieldTileActions(sqlColumnsByTile);
     const applyBlockedReason = useApplyBlockedReason(rule);
     const { summary, widest } = useMappingSummary(rule);
 
-    const rowIds = getFilterRows(rule, dashboardTiles);
-    const chips = rowIds.map((fieldId) => ({
-        fieldId,
-        label: fieldTileActions?.forField(fieldId).label ?? fieldId,
-    }));
-    const chipLabelsKey = chips.map((chip) => chip.label).join('\n');
-    const chipLabels = useMemo(
-        () => (chipLabelsKey === '' ? [] : chipLabelsKey.split('\n')),
-        [chipLabelsKey],
-    );
+    const chips = (fieldTileActions?.chips ?? []).map(({ key: fieldId }) => {
+        const tiles = fieldTileActions?.forField(fieldId);
+        return {
+            fieldId,
+            label: tiles?.label ?? fieldId,
+            field: tiles?.field ?? null,
+        };
+    });
     // Not saved for everyone yet: dashed, as on the bar
     const isDraft =
         savedFilters !== undefined &&
@@ -429,8 +387,8 @@ const MappingRowContent: FC<{ rule: DashboardFilterRule }> = ({ rule }) => {
             {/* The open pill names the filter; it does nothing here */}
             <Box inert className={classes.pill}>
                 <FilterPillButton
-                    field={field ?? undefined}
-                    filterRule={rule}
+                    field={pill.field}
+                    filterRule={pill.rule}
                     isOrphaned={false}
                     isPlain
                     isTemporary={isDraft}
@@ -445,24 +403,23 @@ const MappingRowContent: FC<{ rule: DashboardFilterRule }> = ({ rule }) => {
                     onClick={noop}
                 />
             </Box>
-            <Group gap="xs" wrap="nowrap" className={classes.title}>
-                <Text fz="sm" fw={600}>
-                    Choose the tiles it filters
-                </Text>
-                <Text
-                    fz="sm"
-                    c="dimmed"
-                    className={classes.summary}
-                    data-reserve={widest}
-                    aria-live="polite"
-                >
-                    <span>{summary}</span>
-                </Text>
-            </Group>
-            <Text fz="sm" c="dimmed">
-                via
+            {/* One sentence: "[pill] filters 4 of 6 tiles using [chips]" */}
+            <Text fz="sm" className={classes.words}>
+                {getUiString('filters.rail.mappingFilters')}
             </Text>
-            {chips.map(({ fieldId, label }) => {
+            <Text
+                fz="sm"
+                fw={600}
+                className={classes.summary}
+                data-reserve={widest}
+                aria-live="polite"
+            >
+                <span>{summary}</span>
+            </Text>
+            <Text fz="sm" className={classes.words}>
+                {getUiString('filters.rail.mappingUsing')}
+            </Text>
+            {chips.map(({ fieldId, label, field }) => {
                 const isSelected = highlightedFieldId === fieldId;
                 return (
                     <Button
@@ -471,6 +428,11 @@ const MappingRowContent: FC<{ rule: DashboardFilterRule }> = ({ rule }) => {
                         variant="default"
                         radius="xs"
                         className={classes.chip}
+                        leftSection={
+                            field !== null && (
+                                <FieldIcon item={field} size={14} aria-hidden />
+                            )
+                        }
                         aria-pressed={isSelected}
                         data-selected={isSelected || undefined}
                         {...chipMarker(fieldId)}
@@ -503,7 +465,6 @@ const MappingRowContent: FC<{ rule: DashboardFilterRule }> = ({ rule }) => {
             })}
             <AddFieldMenu
                 rule={rule}
-                chipLabels={chipLabels}
                 onPicked={(fieldId) => {
                     pendingChipFocus.current = fieldId;
                 }}
@@ -539,12 +500,20 @@ export const MappingRow: FC = () => {
     const rule = useControlsSidebarSelector((c) =>
         c.isMapping ? c.editingRule : null,
     );
+    const contractClasses = useRailContractClasses();
     if (rule === null) return null;
     return (
         <Group
-            className={classes.row}
+            // In the popover's place, so an embed's rail class goes with it
+            className={
+                contractClasses === null
+                    ? classes.row
+                    : `${classes.row} ${contractClasses.rail}`
+            }
             gap="xs"
             tabIndex={-1}
+            // The popover that held focus is gone: the row takes it, so Tab
+            // reaches the chips and Escape cancels from here
             ref={focusOnMount}
             data-controls-editor
             {...mappingRowMarker}
