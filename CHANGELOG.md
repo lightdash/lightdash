@@ -1,3 +1,10 @@
+# [3.102.0](https://github.com/lightdash/lightdash/compare/3.101.0...3.102.0) (2026-10-29)
+
+
+### Features
+
+* **query-sources:** connect Google Analytics 4 as a live source ([#31795](https://github.com/lightdash/lightdash/issues/31795)) ([c853908](https://github.com/lightdash/lightdash/commit/c853908573d5cadb3b9ee8614bee9dd56bea0b78)), closes [#31794](https://github.com/lightdash/lightdash/issues/31794) [#31761](https://github.com/lightdash/lightdash/issues/31761)
+
 # [3.101.0](https://github.com/lightdash/lightdash/compare/3.100.0...3.101.0) (2026-10-29)
 
 

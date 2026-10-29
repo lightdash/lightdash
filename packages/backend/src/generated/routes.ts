@@ -14566,7 +14566,7 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiConnectorType: {
         dataType: 'refEnum',
-        enums: ['posthog', 'search_console'],
+        enums: ['posthog', 'search_console', 'ga4'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     GoogleLiveSourceChoice: {
@@ -14658,6 +14658,23 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ApiConnectorType.GA4': {
+        dataType: 'refEnum',
+        enums: ['ga4'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    Ga4ApiSource: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                propertyId: { dataType: 'string', required: true },
+                connector: { ref: 'ApiConnectorType.GA4', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ExternalConnectionApiSource: {
         dataType: 'refAlias',
         type: {
@@ -14665,6 +14682,7 @@ const models: TsoaRoute.Models = {
             subSchemas: [
                 { ref: 'PostHogApiSource' },
                 { ref: 'SearchConsoleApiSource' },
+                { ref: 'Ga4ApiSource' },
             ],
             validators: {},
         },
