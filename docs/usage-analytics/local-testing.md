@@ -53,10 +53,10 @@ is found by its marker, never by a name or slug.
 
 Concurrent requests are serialized per organization using a database advisory
 lock. Re-running refreshes the models and repairs a failed model-save attempt
-without replacing the project or deleting saved charts. Analytics previews do
-not expire automatically. They are visible only to enabled org admins in the
-projects API (for slug resolution), and omitted from the normal switcher as
-previews with no upstream.
+without replacing the project or deleting saved charts. Managed Analytics
+projects do not expire automatically. Project discovery and reads require
+managed Analytics access plus normal project permissions; organization admins
+retain access. See [access](access.md) for explicit non-admin grants.
 
 ### Status and reset
 

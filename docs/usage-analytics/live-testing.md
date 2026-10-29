@@ -18,7 +18,7 @@ change is required. Read-only credential hardening is deferred in PROD-11103.
 3. After deploying this code, sign in as an organization admin.
    In Organization settings → Lightdash analytics, create the project, open its
    dashboards and Explore, and exercise Sync content.
-4. Verify both AI usage and query events, non-admin and cross-org denial, then
+4. Verify both AI usage and query events, unauthorized-reader and cross-org denial, then
    deployment opt-out denial for creation, status, sync, deletion and query/result
    access in an isolated test deployment.
    Do not delete a project with valuable custom content just to test the flow.

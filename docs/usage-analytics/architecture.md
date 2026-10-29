@@ -22,15 +22,15 @@ Explore. It does not reconstruct every past event or historical People summaries
 
 ## Current implementation versus rollout intent
 
-| Area                   | Implemented                                                                                       | Still required for production                                      |
-| ---------------------- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| Project                | New projects use `DEFAULT` with `provisioning_source=analytics`; older previews retain their type | Non-admin project access remains a separate follow-up              |
-| Entry point            | Organization analytics settings and session-authenticated, org-admin-only endpoints               | No configurable connector setup UI                                 |
-| Enablement             | Validated commercial license and usage storage; `LIGHTDASH_DISABLE_ANALYTICS=true` opt-out        | Controlled live verification before customer rollout               |
-| Source org             | Persisted, authorized project org; legacy local overrides ignored                                 | Live shared-instance isolation verification                        |
-| Storage authentication | Existing writer credentials retained in backend; signed GET URLs passed to DuckDB                 | Verify effective IAM; read-only hardening is deferred (PROD-11103) |
-| Models                 | Backend-owned Query Events, AI Usage, Data App Events and Export Events explores                  | Additional event coverage and named-entity lookups                 |
-| Current names          | Daily per-org charts, dashboards, users and agents snapshots with optional ID joins               | Other entity lookups; production-scale database load verification  |
+| Area                   | Implemented                                                                                       | Still required for production                                             |
+| ---------------------- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| Project                | New projects use `DEFAULT` with `provisioning_source=analytics`; older previews retain their type | Non-admin readers need explicit managed Analytics and project permissions |
+| Entry point            | Organization analytics settings and session-authenticated, org-admin-only endpoints               | No configurable connector setup UI                                        |
+| Enablement             | Validated commercial license and usage storage; `LIGHTDASH_DISABLE_ANALYTICS=true` opt-out        | Controlled live verification before customer rollout                      |
+| Source org             | Persisted, authorized project org; legacy local overrides ignored                                 | Live shared-instance isolation verification                               |
+| Storage authentication | Existing writer credentials retained in backend; signed GET URLs passed to DuckDB                 | Verify effective IAM; read-only hardening is deferred (PROD-11103)        |
+| Models                 | Backend-owned Query Events, AI Usage, Data App Events and Export Events explores                  | Additional event coverage and named-entity lookups                        |
+| Current names          | Daily per-org charts, dashboards, users and agents snapshots with optional ID joins               | Other entity lookups; production-scale database load verification         |
 
 Historical tickets and handover proposals may describe different designs. They
 are not evidence that production rollout or final role restrictions are complete.
