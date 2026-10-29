@@ -95,6 +95,37 @@ describe('SpacePermissionModel', () => {
                 '"groups"."organization_id" = "projects"."organization_id"',
             );
         });
+        it('returns a group grant without requiring any group members', async () => {
+            tracker.on.select(SpaceUserAccessTableName).responseOnce([]);
+            tracker.on.select(SpaceGroupAccessTableName).responseOnce([
+                {
+                    spaceUuid: 'space-uuid',
+                    groupUuid: 'empty-group-uuid',
+                    name: 'Empty',
+                    role: SpaceMemberRole.VIEWER,
+                },
+            ]);
+
+            await expect(
+                model.getRawDirectAccess(['space-uuid']),
+            ).resolves.toEqual({
+                'space-uuid': {
+                    users: [],
+                    groups: [
+                        {
+                            groupUuid: 'empty-group-uuid',
+                            name: 'Empty',
+                            role: SpaceMemberRole.VIEWER,
+                        },
+                    ],
+                },
+            });
+
+            const groupQuery = tracker.history.select.find(({ sql }) =>
+                sql.includes(`"${SpaceGroupAccessTableName}"`),
+            );
+            expect(groupQuery?.sql).not.toContain('"group_memberships"');
+        });
     });
 
     describe('getInheritanceChains', () => {
