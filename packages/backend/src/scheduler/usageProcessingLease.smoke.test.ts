@@ -1,4 +1,4 @@
-import { SCHEDULER_TASKS } from '@lightdash/common';
+import { SCHEDULER_TASKS, type SchedulerTaskName } from '@lightdash/common';
 import { randomUUID } from 'crypto';
 import { makeWorkerUtils, type Job, type WorkerUtils } from 'graphile-worker';
 import { Pool } from 'pg';
@@ -53,7 +53,7 @@ describe.skipIf(!process.env.USAGE_LEASE_SMOKE_PGPORT)(
             return rows[0] as Job;
         };
         const startTwo = async (
-            task = SCHEDULER_TASKS.COMPACT_USAGE_EVENTS,
+            task: SchedulerTaskName = SCHEDULER_TASKS.COMPACT_USAGE_EVENTS,
             queueName = 'usage-events-compaction',
         ) => {
             for (let i = 0; i < 2; i += 1) {
