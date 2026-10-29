@@ -1,14 +1,29 @@
 {
   "schemaVersion": "2",
-  "version": "3.99.0",
-  "previousVersion": "3.98.1",
-  "releaseDate": "2026-10-29T17:33:06.688Z",
+  "version": "3.100.0",
+  "previousVersion": "3.99.0",
+  "releaseDate": "2026-10-29T17:38:11.537Z",
   "migrations": {
-    "present": false,
-    "count": 0,
+    "present": true,
+    "count": 1,
     "coreCount": 0,
-    "eeCount": 0,
-    "files": []
+    "eeCount": 1,
+    "files": [
+      {
+        "name": "20261028180000_add_api_source_call_limits.ts",
+        "edition": "ee",
+        "tables": [
+          "api_source_call_counters",
+          "api_source_call_leases",
+          "external_connections"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": true
+        }
+      }
+    ]
   },
   "compatibility": {
     "rollingUpdateSafe": true,
@@ -20,10 +35,8 @@
       "breaking": false,
       "changes": [],
       "breakingCount": 0,
-      "advisories": [
-        "GET /api/v1/projects/{projectUuid}/code/externalConnections — added the new `oauth_authorization_code` enum value to the `results/externalConnections/items/authType` response property for the response status `200`"
-      ],
-      "advisoryCount": 1
+      "advisories": [],
+      "advisoryCount": 0
     },
     "mcp": {
       "checked": true,

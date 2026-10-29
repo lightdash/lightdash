@@ -1,3 +1,10 @@
+# [3.100.0](https://github.com/lightdash/lightdash/compare/3.99.0...3.100.0) (2026-10-29)
+
+
+### Features
+
+* **query-sources:** rate-limit live API source calls and reuse recent results ([#31761](https://github.com/lightdash/lightdash/issues/31761)) ([08ec9c4](https://github.com/lightdash/lightdash/commit/08ec9c4f9486d2c69dea49b88c118edb556e5c43)), closes [#31760](https://github.com/lightdash/lightdash/issues/31760)
+
 # [3.99.0](https://github.com/lightdash/lightdash/compare/3.98.1...3.99.0) (2026-10-29)
 
 
