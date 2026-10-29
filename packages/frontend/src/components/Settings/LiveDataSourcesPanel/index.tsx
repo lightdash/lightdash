@@ -1,6 +1,8 @@
 import {
+    formatEstimatedBytes,
     type ApiConnectorType,
     type ExternalConnection,
+    type ExternalConnectionApiUsage,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -23,6 +25,7 @@ import {
 } from '@tabler/icons-react';
 import { useEffect, useState, type FC } from 'react';
 import { useSearchParams } from 'react-router';
+import { useExternalConnectionApiUsage } from '../../../features/externalConnections/hooks/useExternalConnectionApiUsage';
 import { useExternalConnections } from '../../../features/externalConnections/hooks/useExternalConnections';
 import { getLiveSource } from '../../../features/externalConnections/liveSources/liveSourceCatalog';
 import { LiveSourceIcon } from '../../../features/externalConnections/liveSources/LiveSourceIcon';
@@ -45,33 +48,49 @@ type Props = {
     projectUuid: string;
 };
 
+const integrationLabel = (connection: ExternalConnection) =>
+    connection.apiSource
+        ? getLiveSource(connection.apiSource.connector).label
+        : '';
+
+const byIntegrationThenName = (a: ExternalConnection, b: ExternalConnection) =>
+    integrationLabel(a).localeCompare(integrationLabel(b)) ||
+    a.name.localeCompare(b.name);
+
 const SourceRow: FC<{
     connection: ExternalConnection;
+    usage: ExternalConnectionApiUsage | null;
     onEdit: () => void;
     onReconnect: (() => void) | null;
     onDelete: () => void;
-}> = ({ connection, onEdit, onReconnect, onDelete }) => (
+}> = ({ connection, usage, onEdit, onReconnect, onDelete }) => (
     <Table.Tr>
-        <Table.Td>
-            <Text fw={600} fz="sm">
-                {connection.name}
-            </Text>
-        </Table.Td>
         <Table.Td>
             {connection.apiSource ? (
                 <Group gap="xs" wrap="nowrap">
                     <LiveSourceIcon
                         connector={connection.apiSource.connector}
                     />
-                    <Text fz="sm">
-                        {getLiveSource(connection.apiSource.connector).label}
-                    </Text>
+                    <Text fz="sm">{integrationLabel(connection)}</Text>
                 </Group>
             ) : (
                 <Text fz="sm" c="dimmed">
                     —
                 </Text>
             )}
+        </Table.Td>
+        <Table.Td>
+            <Text fw={600} fz="sm">
+                {connection.name}
+            </Text>
+        </Table.Td>
+        <Table.Td ta="right">
+            <Text fz="sm">
+                {formatEstimatedBytes(usage?.responseBytes ?? 0)}
+            </Text>
+        </Table.Td>
+        <Table.Td ta="right">
+            <Text fz="sm">{(usage?.apiCalls ?? 0).toLocaleString()}</Text>
         </Table.Td>
         <Table.Td w="1%">
             <Menu position="bottom-end">
@@ -133,6 +152,7 @@ const modalConnector = (modal: ModalState): ApiConnectorType | null => {
 const LiveDataSourcesPanel: FC<Props> = ({ projectUuid }) => {
     const { data: connections, isLoading } =
         useExternalConnections(projectUuid);
+    const { data: usage } = useExternalConnectionApiUsage(projectUuid);
     const [modal, setModal] = useState<ModalState>({ kind: 'closed' });
     const closeModal = () => setModal({ kind: 'closed' });
     const { data: health } = useHealth();
@@ -164,9 +184,9 @@ const LiveDataSourcesPanel: FC<Props> = ({ projectUuid }) => {
         searchParams.delete('signInError');
         setSearchParams(searchParams, { replace: true });
     }, [searchParams, setSearchParams, showToastError, showToastSuccess]);
-    const sources = (connections ?? []).filter(
-        (connection) => connection.kind === 'live_source',
-    );
+    const sources = (connections ?? [])
+        .filter((connection) => connection.kind === 'live_source')
+        .sort(byIntegrationThenName);
 
     const addSourceButton = (
         <Button
@@ -235,8 +255,10 @@ const LiveDataSourcesPanel: FC<Props> = ({ projectUuid }) => {
                         >
                             <Table.Thead>
                                 <Table.Tr>
-                                    <Table.Th w={300}>Name</Table.Th>
-                                    <Table.Th>Integration</Table.Th>
+                                    <Table.Th w={260}>Integration</Table.Th>
+                                    <Table.Th>Name</Table.Th>
+                                    <Table.Th ta="right">Data read</Table.Th>
+                                    <Table.Th ta="right">API calls</Table.Th>
                                     <Table.Th></Table.Th>
                                 </Table.Tr>
                             </Table.Thead>
@@ -245,6 +267,13 @@ const LiveDataSourcesPanel: FC<Props> = ({ projectUuid }) => {
                                     <SourceRow
                                         key={connection.externalConnectionUuid}
                                         connection={connection}
+                                        usage={
+                                            usage?.find(
+                                                (row) =>
+                                                    row.externalConnectionUuid ===
+                                                    connection.externalConnectionUuid,
+                                            ) ?? null
+                                        }
                                         onEdit={() =>
                                             setModal({
                                                 kind: 'edit',

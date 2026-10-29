@@ -2,6 +2,7 @@ import {
     assertRegisteredAccount,
     ForbiddenError,
     type ApiErrorPayload,
+    type ApiExternalConnectionApiUsageResponse,
     type ApiListExternalConnectionLinkedAppsResponse,
     type ApiListExternalConnectionSamplesResponse,
     type ApiProposeExternalConnectionConfigRequest,
@@ -113,6 +114,29 @@ export class ExternalConnectionController extends BaseController {
         return {
             status: 'ok',
             results: await this.getService().list(req.account, projectUuid),
+        };
+    }
+
+    /**
+     * API calls and response bytes each live source has used, across every logged query
+     * @summary Get live source usage
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('external-connections/api-usage')
+    @OperationId('getExternalConnectionApiUsage')
+    async getExternalConnectionApiUsage(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+    ): Promise<ApiExternalConnectionApiUsageResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getService().getApiSourceUsage(
+                req.account,
+                projectUuid,
+            ),
         };
     }
 

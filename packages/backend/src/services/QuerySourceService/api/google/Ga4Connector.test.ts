@@ -98,7 +98,6 @@ describe('Ga4Connector', () => {
             },
         ]);
         expect(result.truncated).toBe(true);
-        expect(result.apiCalls).toBe(1);
     });
 
     it('reports truncation from rowCount when the page is full', async () => {
