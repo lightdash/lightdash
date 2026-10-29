@@ -27,10 +27,13 @@ ENV PATH="$PNPM_HOME/bin:/opt/pnpm:$PATH"
 COPY --from=pnpm-cli /opt/pnpm /opt/pnpm
 COPY --from=pnpm-cli --chmod=755 /pnpm /pnpm
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends libatomic1 libstdc++6 \
+    && apt-get install -y --no-install-recommends libatomic1 libstdc++6 ca-certificates \
     && groupadd --gid 1000 node \
     && useradd --uid 1000 --gid node --shell /bin/bash --create-home node \
     && rm -rf /var/lib/apt/lists/*
+COPY docker/update-python-certificates.py /usr/local/bin/update-python-certificates.py
+RUN --mount=type=cache,target=/root/.cache/pip \
+    python3 /usr/local/bin/update-python-certificates.py
 ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["node"]
 RUN pnpm config set store-dir /pnpm/store
@@ -61,13 +64,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Okteto previews only execute the latest fully supported dbt version.
 RUN --mount=type=cache,target=/root/.cache/pip \
     python3 -m venv /usr/local/dbt1.12 \
-    && /usr/local/dbt1.12/bin/pip install \
+    && python3 -m pip --python /usr/local/dbt1.12/bin/python install \
     "dbt-core==1.12.0" \
     "dbt-postgres~=1.10.0" \
-    "dbt-snowflake~=1.12.0" \
+    "dbt-snowflake~=1.12.4" \
     "dbt-bigquery~=1.12.0" \
     "dbt-databricks~=1.12.3" \
     "dbt-trino~=1.10.0"
+
+# Reapply patched trust bundles after resolving the adapters.
+RUN --mount=type=cache,target=/root/.cache/pip \
+    python3 /usr/local/bin/update-python-certificates.py
 
 FROM base AS package-manifests
 
