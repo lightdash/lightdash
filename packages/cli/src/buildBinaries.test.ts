@@ -102,14 +102,20 @@ describe('CLI binary archive checksums', () => {
         expect(result.stderr).toBe('');
     });
 
-    it('fails the build when combined checksum generation fails', () => {
+    it.each([
+        { scenario: 'without output', partialOutput: false },
+        { scenario: 'with partial output', partialOutput: true },
+    ])('keeps checksum failures nonfatal $scenario', ({ partialOutput }) => {
         const directory = fixture([linux, windows]);
         const result = spawnSync(
             'bash',
             [
                 '-c',
                 `shasum() {
-                    if [ "$#" -gt 3 ]; then return 23; fi
+                    if [ "$#" -gt 3 ]; then
+                        ${partialOutput ? "printf '%s\\n' partial-checksum" : ''}
+                        return 23
+                    fi
                     command shasum "$@"
                 }
 ${checksumScript}`,
@@ -117,7 +123,51 @@ ${checksumScript}`,
             { cwd: directory, encoding: 'utf8' },
         );
 
-        expect(result.status).toBe(23);
-        expect(result.stdout).not.toContain('Created checksums-all-sha256.txt');
+        expect(result.status).toBe(0);
+        if (partialOutput) {
+            expect(
+                readFileSync(
+                    path.join(directory, 'checksums-all-sha256.txt'),
+                    'utf8',
+                ),
+            ).toBe('partial-checksum\n');
+        } else {
+            expect(readdirSync(directory)).not.toContain(
+                'checksums-all-sha256.txt',
+            );
+            expect(result.stdout).not.toContain(
+                'Created checksums-all-sha256.txt',
+            );
+        }
+    });
+
+    it('keeps distribution listing failures nonfatal', () => {
+        const directory = fixture([linux, windows]);
+        const result = spawnSync(
+            'bash',
+            [
+                '-c',
+                `ls() {
+                    if [ "$1" = '-lah' ]; then return 17; fi
+                    command ls "$@"
+                }
+${checksumScript}`,
+            ],
+            { cwd: directory, encoding: 'utf8' },
+        );
+
+        expect(result.status).toBe(0);
+        expect(result.stdout).toContain('Created checksums-all-sha256.txt');
+    });
+
+    it('keeps per-platform checksum failures fatal', () => {
+        const directory = fixture([linux]);
+        const result = spawnSync(
+            'bash',
+            ['-c', `shasum() { return 29; }\n${checksumScript}`],
+            { cwd: directory, encoding: 'utf8' },
+        );
+
+        expect(result.status).toBe(29);
     });
 });

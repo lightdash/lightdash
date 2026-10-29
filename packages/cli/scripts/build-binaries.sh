@@ -314,14 +314,18 @@ if [ "$CREATE_ARCHIVES" = true ]; then
   shopt -s nullglob
   archives=(lightdash-cli-*.tar.gz lightdash-cli-*.zip)
   if ((${#archives[@]})); then
-    shasum -a 256 "${archives[@]}" > checksums-all-sha256.txt
-    echo "  Created checksums-all-sha256.txt"
+    shasum -a 256 "${archives[@]}" > checksums-all-sha256.txt 2>/dev/null || true
+    if [ -s checksums-all-sha256.txt ]; then
+      echo "  Created checksums-all-sha256.txt"
+    else
+      rm -f checksums-all-sha256.txt
+    fi
   fi
 
   echo ""
   echo "📁 Distribution files created:"
   if ((${#archives[@]})); then
-    ls -lah "${archives[@]}" checksums-*.txt
+    ls -lah "${archives[@]}" checksums-*.txt 2>/dev/null || true
   fi
 
   echo ""
