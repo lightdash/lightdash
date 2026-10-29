@@ -191,6 +191,7 @@ export type WarehouseConnectionLeaseRef =
 type WarehouseClientFactoryDependencies = {
     lightdashConfig: LightdashConfig;
     projectModel: ProjectModel;
+    isAnalyticsProjectEnabled?: () => boolean;
     featureFlagModel: FeatureFlagModel;
     aiAccessService: AiAccessService;
     credentialSource: WarehouseCredentialSource;
@@ -223,6 +224,8 @@ export class WarehouseClientFactory {
 
     private readonly featureFlagModel: FeatureFlagModel;
 
+    private readonly isAnalyticsProjectEnabled: () => boolean;
+
     private readonly aiAccessService: AiAccessService;
 
     private readonly credentialSource: WarehouseCredentialSource;
@@ -242,6 +245,8 @@ export class WarehouseClientFactory {
         this.credentialResolvers = deps.credentialResolvers;
         this.projectModel = deps.projectModel;
         this.featureFlagModel = deps.featureFlagModel;
+        this.isAnalyticsProjectEnabled =
+            deps.isAnalyticsProjectEnabled ?? (() => false);
         this.aiAccessService = deps.aiAccessService;
         this.credentialSource = deps.credentialSource;
         this.logger = deps.logger;
@@ -1039,7 +1044,7 @@ export class WarehouseClientFactory {
                 return {
                     warehouseClient: await createAnalyticsClient(
                         project.organizationUuid,
-                        this.featureFlagModel,
+                        this.isAnalyticsProjectEnabled,
                     ),
                     sshTunnel,
                     tunnelConnectMs: null,

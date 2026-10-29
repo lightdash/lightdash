@@ -47,6 +47,13 @@ export class UsageDimensionsModel {
                 this.database('organizations')
                     .select('organization_id', 'organization_uuid')
                     .where('organization_id', '>', cursor)
+                    .whereExists(
+                        this.database('projects')
+                            .select(this.database.raw('1'))
+                            .whereRaw(
+                                'projects.organization_id = organizations.organization_id',
+                            ),
+                    )
                     .modify((query) => {
                         if (organizationUuid)
                             query.where('organization_uuid', organizationUuid);

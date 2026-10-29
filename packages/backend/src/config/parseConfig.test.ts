@@ -3152,6 +3152,22 @@ describe('autopilot run limits', () => {
 });
 
 describe('usage capture infrastructure', () => {
+    afterEach(() => {
+        delete process.env.LIGHTDASH_DISABLE_ANALYTICS;
+    });
+    it.each([undefined, 'false', 'true'])(
+        'uses the explicit deployment opt-out (%s)',
+        (disabled) => {
+            process.env.LIGHTDASH_LICENSE_KEY = 'test-license';
+            if (disabled === undefined)
+                delete process.env.LIGHTDASH_DISABLE_ANALYTICS;
+            else process.env.LIGHTDASH_DISABLE_ANALYTICS = disabled;
+            expect(parseConfig().analyticsProject.disabled).toBe(
+                disabled === 'true',
+            );
+            expect(parseConfig().usageEvents.enabled).toBe(disabled !== 'true');
+        },
+    );
     it.each([undefined, 'false', 'true'])(
         'does not depend on the removed ENV gate (%s)',
         (legacy) => {

@@ -20,6 +20,7 @@ import { BaseService } from '../BaseService';
 import type { LearnSandboxService } from '../LearnSandboxService/LearnSandboxService';
 import { LicenseService } from '../LicenseService/LicenseService';
 import { resolveOrganizationExportLimits } from '../OrganizationSettingsService/resolveExportLimits';
+import { isAnalyticsProjectAvailable } from '../ProjectService/analyticsProject/analyticsProjectAvailability';
 import type { ReadinessService } from '../ReadinessService/ReadinessService';
 
 type HealthServiceArguments = {
@@ -272,6 +273,10 @@ export class HealthService extends BaseService {
             hasEmailWhitelabel: !!this.lightdashConfig.postmark.accountToken,
             hasHeadlessBrowser:
                 this.lightdashConfig.headlessBrowser?.host !== undefined,
+            hasManagedAnalytics: isAnalyticsProjectAvailable(
+                this.lightdashConfig,
+                this.licenseService,
+            ),
             hasExtendedUsageAnalytics:
                 this.lightdashConfig.extendedUsageAnalytics.enabled,
             hasCacheAutocompleResults:

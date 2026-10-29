@@ -38,8 +38,6 @@ type FeatureFlagQueryOptions = {
 };
 
 export class FeatureFlagModel {
-    protected readonly supportsAnalyticsProject: boolean = false;
-
     protected readonly database: Knex;
 
     protected readonly lightdashConfig: LightdashConfig;
@@ -93,14 +91,6 @@ export class FeatureFlagModel {
         args: FeatureFlagLogicArgs,
         options: FeatureFlagQueryOptions,
     ): Promise<FeatureFlag> {
-        // Availability is decided by the registered model before rollout overrides.
-        if (
-            args.featureFlagId === FeatureFlags.AnalyticsProject &&
-            !this.supportsAnalyticsProject
-        ) {
-            return { id: args.featureFlagId, enabled: false };
-        }
-
         // 1a. Env var enable-allowlist (self-hosted escape hatch) still wins
         // over the disable-allowlist when a flag is in both.
         const envEnabled = this.lightdashConfig.enabledFeatureFlags.has(

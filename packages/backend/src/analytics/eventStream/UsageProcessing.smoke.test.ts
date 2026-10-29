@@ -1,11 +1,8 @@
 import { DeleteObjectsCommand, S3 } from '@aws-sdk/client-s3';
-import { FeatureFlags } from '@lightdash/common';
 import { DuckdbWarehouseClient } from '@lightdash/warehouses';
 import { randomUUID } from 'crypto';
-import knex from 'knex';
 import { gzipSync } from 'zlib';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
-import { CommercialFeatureFlagModel } from '../../ee/models/CommercialFeatureFlagModel';
 import type PrometheusMetrics from '../../prometheus/PrometheusMetrics';
 import { createS3AnalyticsSourceResolver } from '../../services/ProjectService/analyticsProject/S3AnalyticsSource';
 import { createEventStreamWriter } from './createEventStreamWriter';
@@ -16,21 +13,8 @@ import { UsageEventsCompactor } from './UsageEventsCompactor';
 describe.skipIf(!process.env.USAGE_PROCESSING_SMOKE_PGPORT)(
     'organization usage processing live locally',
     () => {
-        it('captures all organizations but gates processing, bounds history, and recovers cleanup', async () => {
+        it('captures all organizations but processes only eligible projects, bounds history, and recovers cleanup', async () => {
             vi.unstubAllGlobals();
-            const schema = `usage_policy_${randomUUID().replaceAll('-', '')}`;
-            const db = knex({
-                client: 'pg',
-                connection: {
-                    host: '127.0.0.1',
-                    port: Number(process.env.USAGE_PROCESSING_SMOKE_PGPORT),
-                    user: process.env.PGUSER,
-                    password: process.env.PGPASSWORD,
-                    database: 'postgres',
-                },
-                searchPath: [schema],
-                pool: { min: 0, max: 2 },
-            });
             const storage = {
                 endpoint:
                     process.env.USAGE_EVENTS_S3_ENDPOINT ??
@@ -67,11 +51,7 @@ describe.skipIf(!process.env.USAGE_PROCESSING_SMOKE_PGPORT)(
                     bufferMaxSize: 100000,
                 },
             };
-            const flags = new CommercialFeatureFlagModel({
-                database: db,
-                lightdashConfig: config,
-            });
-            const get = vi.spyOn(flags, 'get');
+            const eligibleOrgs = new Set<string>();
             const metrics = {
                 incrementUsageEventsPushed: vi.fn(),
                 incrementUsageEventsFlushed: vi.fn(),
@@ -84,8 +64,13 @@ describe.skipIf(!process.env.USAGE_PROCESSING_SMOKE_PGPORT)(
             const failedContentOrganizations = new Set<string>();
             const model = {
                 async *getOrganizations() {
-                    yield { organization_id: 1, organization_uuid: org };
-                    yield { organization_id: 2, organization_uuid: otherOrg };
+                    if (eligibleOrgs.has(org))
+                        yield { organization_id: 1, organization_uuid: org };
+                    if (eligibleOrgs.has(otherOrg))
+                        yield {
+                            organization_id: 2,
+                            organization_uuid: otherOrg,
+                        };
                 },
                 async *getJsonLines(
                     organization: { organization_uuid: string },
@@ -108,7 +93,6 @@ describe.skipIf(!process.env.USAGE_PROCESSING_SMOKE_PGPORT)(
                     s3Config: storage,
                     prometheusMetrics: null,
                     usageDimensionsModel: model,
-                    featureFlagModel: flags,
                 }).run(now);
             const event = (orgId: string, date = '2026-10-07') => ({
                 org_id: orgId,
@@ -143,39 +127,15 @@ describe.skipIf(!process.env.USAGE_PROCESSING_SMOKE_PGPORT)(
                 );
             let created = false;
             try {
-                await db.raw('CREATE SCHEMA ??', [schema]);
-                await db.raw(
-                    'CREATE TABLE feature_flags (flag_id text PRIMARY KEY, default_enabled boolean); CREATE TABLE feature_flag_overrides (flag_id text, organization_uuid uuid, user_uuid uuid, enabled boolean)',
-                );
-                await db('feature_flags').insert({
-                    flag_id: FeatureFlags.AnalyticsProject,
-                    default_enabled: false,
-                });
-                await db('feature_flag_overrides').insert([
-                    {
-                        flag_id: FeatureFlags.AnalyticsProject,
-                        organization_uuid: org,
-                        enabled: false,
-                    },
-                    {
-                        flag_id: FeatureFlags.AnalyticsProject,
-                        organization_uuid: otherOrg,
-                        enabled: false,
-                    },
-                ]);
                 await s3.createBucket({ Bucket: storage.bucket });
                 created = true;
                 writer.push('query_events', event(org));
                 writer.push('query_events', event(otherOrg));
                 await writer.flush();
                 expect(await list('events/raw/')).toHaveLength(2);
-                expect(get).not.toHaveBeenCalled();
                 expect((await run()).dimensions.refreshed).toBe(0);
                 expect(dimensionsRead).toEqual([]);
-                await db('feature_flag_overrides')
-                    .where({ organization_uuid: org })
-                    .update({ enabled: true });
-                get.mockClear();
+                eligibleOrgs.add(org);
                 const captureStart = performance.now();
                 for (let index = 0; index < 10000; index += 1) {
                     writer.push(
@@ -188,7 +148,6 @@ describe.skipIf(!process.env.USAGE_PROCESSING_SMOKE_PGPORT)(
                 writer.push('query_events', event(org, '2026-10-08'));
                 await writer.flush();
                 const captureMs = performance.now() - captureStart;
-                expect(get).not.toHaveBeenCalled();
                 expect(
                     await list(`events/raw/org_id=${otherOrg}/`),
                 ).toHaveLength(2);
@@ -294,9 +253,7 @@ describe.skipIf(!process.env.USAGE_PROCESSING_SMOKE_PGPORT)(
                     Bucket: storage.bucket,
                     Key: usageDimensionKey(org, 'content'),
                 });
-                await db('feature_flag_overrides')
-                    .where({ organization_uuid: otherOrg })
-                    .update({ enabled: true });
+                eligibleOrgs.add(otherOrg);
                 failedContentOrganizations.add(org);
                 failedContentOrganizations.add(otherOrg);
                 await putRaw(1);
@@ -334,13 +291,9 @@ describe.skipIf(!process.env.USAGE_PROCESSING_SMOKE_PGPORT)(
                     await list(usageDimensionKey(otherOrg, 'content')),
                 ).toHaveLength(0);
                 failedContentOrganizations.clear();
-                await db('feature_flag_overrides')
-                    .where({ organization_uuid: otherOrg })
-                    .update({ enabled: false });
-                // Disabling processing leaves capture running on the existing writer.
-                await db('feature_flag_overrides')
-                    .where({ organization_uuid: org })
-                    .update({ enabled: false });
+                eligibleOrgs.delete(otherOrg);
+                // Organizations without projects leave the processing selection.
+                eligibleOrgs.delete(org);
                 const before = (await list()).length;
                 writer.push('query_events', event(org));
                 await writer.flush();
@@ -357,7 +310,6 @@ describe.skipIf(!process.env.USAGE_PROCESSING_SMOKE_PGPORT)(
                         processingMs,
                         recoveredTotal: 10023,
                         usersPublishedDespiteDimensionFailure: true,
-                        flagLookupsPerFlush: 0,
                     })}\n`,
                 );
             } finally {
@@ -373,8 +325,6 @@ describe.skipIf(!process.env.USAGE_PROCESSING_SMOKE_PGPORT)(
                     await s3.deleteBucket({ Bucket: storage.bucket });
                 }
                 s3.destroy();
-                await db.raw('DROP SCHEMA IF EXISTS ?? CASCADE', [schema]);
-                await db.destroy();
             }
         }, 60000);
     },

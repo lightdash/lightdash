@@ -1,43 +1,22 @@
-import {
-    FeatureFlags,
-    ForbiddenError,
-    MissingConfigError,
-} from '@lightdash/common';
+import { ForbiddenError, MissingConfigError } from '@lightdash/common';
 import { DuckdbWarehouseClient } from '@lightdash/warehouses';
 import { lightdashConfig } from '../../../config/lightdashConfig';
-import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { createS3AnalyticsSourceResolver } from './S3AnalyticsSource';
 
-export const isAnalyticsProjectEnabled = async (
-    featureFlagModel: Pick<FeatureFlagModel, 'get'>,
-    organizationUuid: string,
-): Promise<boolean> => {
-    const { enabled } = await featureFlagModel.get({
-        featureFlagId: FeatureFlags.AnalyticsProject,
-        user: { organizationUuid },
-    });
-    return enabled;
-};
-
 export const assertAnalyticsProjectEnabled = async (
-    featureFlagModel: Pick<FeatureFlagModel, 'get'>,
-    organizationUuid: string,
+    isAnalyticsProjectEnabled: () => boolean,
 ): Promise<void> => {
-    if (
-        !(await isAnalyticsProjectEnabled(featureFlagModel, organizationUuid))
-    ) {
-        throw new ForbiddenError(
-            'Internal analytics projects are not enabled for this organization',
-        );
+    if (!isAnalyticsProjectEnabled()) {
+        throw new ForbiddenError('Managed analytics is not enabled');
     }
 };
 
 export const createAnalyticsClient = async (
     organizationUuid: string,
-    featureFlagModel: Pick<FeatureFlagModel, 'get'>,
+    isAnalyticsProjectEnabled: () => boolean,
     options: { allowEmpty?: boolean } = {},
 ): Promise<DuckdbWarehouseClient> => {
-    await assertAnalyticsProjectEnabled(featureFlagModel, organizationUuid);
+    await assertAnalyticsProjectEnabled(isAnalyticsProjectEnabled);
     const storage = lightdashConfig.usageEvents.s3;
     if (!storage) {
         throw new MissingConfigError('Usage events storage is not configured');
@@ -50,10 +29,7 @@ export const createAnalyticsClient = async (
     return new DuckdbWarehouseClient({
         type: 'duckdb_parquet',
         resolveSource: async (referencedTables) => {
-            await assertAnalyticsProjectEnabled(
-                featureFlagModel,
-                organizationUuid,
-            );
+            await assertAnalyticsProjectEnabled(isAnalyticsProjectEnabled);
             return resolveSource(referencedTables);
         },
     });

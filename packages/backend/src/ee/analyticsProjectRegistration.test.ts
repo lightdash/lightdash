@@ -1,24 +1,27 @@
-import { FeatureFlags } from '@lightdash/common';
-import { type Knex } from 'knex';
 import { lightdashConfig } from '../config/lightdashConfig';
-import { ModelRepository } from '../models/ModelRepository';
+import { isAnalyticsProjectAvailable } from '../services/ProjectService/analyticsProject/analyticsProjectAvailability';
 import { ServiceRepository } from '../services/ServiceRepository';
-import { UtilRepository } from '../utils/UtilRepository';
 import LicenseClient from './clients/License/LicenseClient';
 import { getEnterpriseAppArguments } from './index';
 
 describe('analytics provider registration', () => {
+    const originalStorage = lightdashConfig.usageEvents.s3;
     const originalLicense = { ...lightdashConfig.license };
     const originalEnabledFlags = lightdashConfig.enabledFeatureFlags;
 
     beforeEach(() => {
+        lightdashConfig.usageEvents.s3 = {
+            endpoint: 'http://localhost:9000',
+            bucket: 'test',
+            region: 'us-east-1',
+        };
         lightdashConfig.license.licenseKey = 'test-key';
-        lightdashConfig.enabledFeatureFlags = new Set([
-            FeatureFlags.AnalyticsProject,
-        ]);
+        lightdashConfig.enabledFeatureFlags = new Set(['analytics-project']);
     });
 
     afterEach(() => {
+        lightdashConfig.usageEvents.s3 = originalStorage;
+        lightdashConfig.analyticsProject.disabled = false;
         lightdashConfig.license = { ...originalLicense };
         lightdashConfig.enabledFeatureFlags = originalEnabledFlags;
         vi.restoreAllMocks();
@@ -41,22 +44,24 @@ describe('analytics provider registration', () => {
             expect(Boolean(serviceProviders?.analyticsProjectService)).toBe(
                 license === 'valid',
             );
-            // The maintenance script uses these same lazy repositories.
-            const models = new ModelRepository({
-                database: {} as Knex,
-                lightdashConfig,
-                modelProviders,
-                utils: new UtilRepository({ lightdashConfig }),
-            });
-            await expect(
-                models.getFeatureFlagModel().get({
-                    featureFlagId: FeatureFlags.AnalyticsProject,
-                    user: { organizationUuid: 'org' },
-                }),
-            ).resolves.toEqual({
-                id: FeatureFlags.AnalyticsProject,
-                enabled: license === 'valid',
-            });
+            const repository = new ServiceRepository({
+                context: { lightdashConfig },
+                serviceProviders,
+            } as unknown as ConstructorParameters<typeof ServiceRepository>[0]);
+            expect(
+                isAnalyticsProjectAvailable(
+                    lightdashConfig,
+                    repository.getLicenseService(),
+                ),
+            ).toBe(license === 'valid');
+            lightdashConfig.analyticsProject.disabled = true;
+            expect(
+                isAnalyticsProjectAvailable(
+                    lightdashConfig,
+                    repository.getLicenseService(),
+                ),
+            ).toBe(false);
+            lightdashConfig.analyticsProject.disabled = false;
             expect(validate).toHaveBeenCalledTimes(
                 license === 'missing' ? 0 : 1,
             );

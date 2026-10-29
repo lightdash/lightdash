@@ -88,6 +88,7 @@ import { PivotTableService } from './PivotTableService/PivotTableService';
 import { ProjectCompileLogService } from './ProjectCompileLogService/ProjectCompileLogService';
 import { ProjectDbtSourcesService } from './ProjectDbtSourcesService';
 import { ProjectParametersService } from './ProjectParametersService';
+import { isAnalyticsProjectAvailable } from './ProjectService/analyticsProject/analyticsProjectAvailability';
 import { ProjectService } from './ProjectService/ProjectService';
 import { provisionTrainingProject } from './ProjectService/provisionTrainingProject';
 import { PromoteService } from './PromoteService/PromoteService';
@@ -791,6 +792,11 @@ export class ServiceRepository
             'organizationService',
             () =>
                 new OrganizationService({
+                    isAnalyticsProjectEnabled: () =>
+                        isAnalyticsProjectAvailable(
+                            this.context.lightdashConfig,
+                            this.getLicenseService(),
+                        ),
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
                     organizationModel: this.models.getOrganizationModel(),
@@ -1162,6 +1168,11 @@ export class ServiceRepository
             'projectService',
             () =>
                 new ProjectService({
+                    isAnalyticsProjectEnabled: () =>
+                        isAnalyticsProjectAvailable(
+                            this.context.lightdashConfig,
+                            this.getLicenseService(),
+                        ),
                     dbtSourceRefCatalogModel:
                         this.models.getDbtSourceRefCatalogModel(),
                     getAgentConnectionGrantService: () =>
@@ -1321,6 +1332,11 @@ export class ServiceRepository
             'asyncQueryService',
             () =>
                 new AsyncQueryService({
+                    isAnalyticsProjectEnabled: () =>
+                        isAnalyticsProjectAvailable(
+                            this.context.lightdashConfig,
+                            this.getLicenseService(),
+                        ),
                     dbtSourceRefCatalogModel:
                         this.models.getDbtSourceRefCatalogModel(),
                     refreshTokenRotation: this.models.getRefreshTokenRotation(),

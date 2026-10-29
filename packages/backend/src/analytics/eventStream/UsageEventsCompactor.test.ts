@@ -123,9 +123,6 @@ type MetricsMock = ReturnType<typeof createMetricsMock>;
 
 const createCompactor = (metrics: MetricsMock) =>
     new UsageEventsCompactor({
-        featureFlagModel: {
-            get: async () => ({ id: 'analytics-project', enabled: true }),
-        },
         s3Config,
         usageDimensionsModel: {
             async *getOrganizations(organizationUuid?: string) {
@@ -369,16 +366,13 @@ describe('UsageEventsCompactor.run', () => {
         expect(refresher).toHaveBeenCalledOnce();
     });
 
-    it('rechecks eligibility and leaves all storage untouched if the scoped org is disabled', async () => {
+    it('leaves storage untouched when the scoped org has no eligible project', async () => {
         const compactor = new UsageEventsCompactor({
             s3Config,
             prometheusMetrics: null,
-            featureFlagModel: {
-                get: async () => ({ id: 'analytics-project', enabled: false }),
-            },
             usageDimensionsModel: {
                 async *getOrganizations() {
-                    yield { organization_id: 1, organization_uuid: 'org-1' };
+                    yield* [];
                 },
                 async *getJsonLines() {},
             },
@@ -435,9 +429,6 @@ describe('UsageEventsCompactor.run', () => {
         const key = rawKey('org-1', 'query_events', '2026-07-01');
         mockListedKeys([key]);
         const compactor = new UsageEventsCompactor({
-            featureFlagModel: {
-                get: async () => ({ id: 'analytics-project', enabled: true }),
-            },
             s3Config: {
                 endpoint: 'https://storage.googleapis.com',
                 bucket: 'events-bucket',

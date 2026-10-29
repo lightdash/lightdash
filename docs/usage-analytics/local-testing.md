@@ -2,8 +2,8 @@
 
 For the architecture and trust boundaries, see [architecture](architecture.md).
 
-Feature-flagged internal preview, not a broadly enabled customer rollout. It
-creates a `PREVIEW` project with a backend-owned `analytics` provisioning marker
+Managed Analytics is enabled by default with validated commercial licensing and
+configured usage storage. It creates a `DEFAULT` project with a backend-owned `analytics` provisioning marker
 and an invisible DuckDB `analytics` connection.
 No MotherDuck account, dbt project, or configurable connector UI is required.
 
@@ -18,22 +18,18 @@ server-owned configuration to issue signed GET URLs; it requires no CLI login,
 OAuth exchange, or new cloud infrastructure. The usage-events endpoint defaults
 to `S3_ENDPOINT`; override it when analytics uses GCS and local storage uses MinIO.
 
-Add these values to that worktree's `.env.development.local` (never commit them):
-
-```dotenv
-LIGHTDASH_ENABLE_FEATURE_FLAGS=analytics-project
-```
-
-Preserve other enabled flags if needed. Explicitly disabling `analytics-project`
-takes precedence. Source data must belong to the persisted project's org, even
-locally; legacy org/source-org overrides are ignored. For production testing,
-follow [live testing](live-testing.md).
+Leave `LIGHTDASH_DISABLE_ANALYTICS` unset (or `false`) to enable Analytics.
+To test the deployment opt-out, set it to `true` in that worktree's
+`.env.development.local` and restart its processes. Legacy `analytics-project`
+feature-flag overrides no longer control availability. Source data must belong
+to the persisted project's org, even locally; legacy org/source-org overrides
+are ignored. For production testing, follow [live testing](live-testing.md).
 
 As a signed-in organization administrator, open **Organization settings →
 Lightdash analytics (Beta)** at `/generalSettings/lightdashAnalytics`. Click
 **Create** to provision and open the project, or **Open** if it already exists.
 The page shows the project's creation time, not its model-sync version or data
-freshness. Feature-flag and org-admin backend restrictions still apply.
+freshness. Deployment availability and org-admin backend restrictions still apply.
 
 Alternatively, call the same-origin endpoint from the browser console on your
 assigned local frontend:
@@ -57,10 +53,10 @@ is found by its marker, never by a name or slug.
 
 Concurrent requests are serialized per organization using a database advisory
 lock. Re-running refreshes the models and repairs a failed model-save attempt
-without replacing the project or deleting saved charts. Analytics previews do
-not expire automatically. They are visible only to enabled org admins in the
-projects API (for slug resolution), and omitted from the normal switcher as
-previews with no upstream.
+without replacing the project or deleting saved charts. Managed Analytics
+projects do not expire automatically. Project discovery and reads require
+managed Analytics access plus normal project permissions; organization admins
+retain access. See [access](access.md) for explicit non-admin grants.
 
 ### Status and reset
 
@@ -78,8 +74,8 @@ a new project; it does not restore deleted charts or dashboards.
 
 All three endpoints live in `AnalyticsProjectController`, backed by
 `AnalyticsProjectService`, and require a session-authenticated org administrator
-and the existing analytics feature flag. Broad customer enablement and
-versioned content sync remain separate follow-ups.
+and enabled managed Analytics. Read/query access uses the permissions in
+[managed analytics access](access.md).
 
 ## Read path and safeguards
 
@@ -104,9 +100,10 @@ writer keys never enter DuckDB; signed URLs are not persisted in project
 credentials or returned through the API.
 
 History, paginated results, streaming results and legacy result reads check the
-analytics flag and organization-admin access. Export and scheduled-download
-creation are unavailable for analytics previews, including for admins, so this
-slice does not issue export URLs that outlive these checks.
+deployment availability and managed analytics access. CSV and Excel downloads, including scheduled data exports, are supported when
+export file storage is configured. Protected downloads recheck access; deliberately
+shared signed delivery links can outlive permission changes until they expire.
+See [downloads and scheduled deliveries](access.md#downloads-and-scheduled-deliveries).
 
 ## Verify dimension refreshes and joins
 
@@ -143,9 +140,8 @@ instance and a dedicated bucket:
 - Review effective IAM and shared-instance isolation. Dedicated read-only
   credentials are deferred hardening (PROD-11103). Signed URLs keep broad keys
   out of DuckDB but still trust the signer. Folder separation is not an IAM boundary.
-- Review every permissions and cached/downloaded-results surface. Finish SQL
-  Runner, scheduling, AI and model-editing exclusions. Local org-admin checks are
-  not the final metadata-project role design.
+- Review permissions and cached/downloaded-results surfaces against the current
+  [managed analytics access rules](access.md), including signed delivery links.
 - Production provisioning and final project lifecycle/role design.
 - Additional entity-name lookups, domain metrics, schema evolution, empty
   streams, retention and query performance.
@@ -158,12 +154,12 @@ instance and a dedicated bucket:
 
 Actual GCS reads and isolated MinIO tests verify the signed-URL path; AWS S3 and
 production multi-tenant rollout remain unverified.
-Production execution supports Console organization flags or ENV enablement through
-the standard feature-flag resolver; see [live testing](live-testing.md).
+Production execution uses the same licensed default and deployment opt-out;
+see [live testing](live-testing.md).
 
 ## Original provisioning stack
 
-1. Internal Parquet connector, source resolver, and shared `analytics-project` flag.
+1. Internal Parquet connector and organization-bound source resolver.
 2. Signed-URL bucket access using the existing writer's backend credentials.
 3. Admin create-or-get endpoint, preview provisioning, signed-URL provider, and both
    system models (Query Events and AI Usage). Replaces the provisioning script.

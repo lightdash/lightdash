@@ -51,7 +51,7 @@ This makes newly shipped explores, dimensions and metrics available in existing
 analytics projects without recreating the project. After creation, settings stays open and shows dashboard
 shortcuts and the **Explore** button; it does not redirect automatically. Sync calls
 `POST /api/v1/org/analytics-project/sample-content`. Both paths require the existing
-analytics feature flag and org-admin guard. The server
+deployment availability and org-admin guard. The server
 resolves the organization and its marked analytics project; no target IDs or
 content definitions are accepted from the caller.
 

@@ -1,18 +1,17 @@
 # Usage capture and processing
 
-Usage capture runs for every organization on deployments with a commercial
-license and working usage S3 configuration. The organization `analytics-project`
-feature flag controls processing and analytics availability, not raw collection.
-Configure the flag through Console, or use the standard feature-flag ENV lists
-for a deployment-wide self-hosted override. The shared resolver's normal
-precedence applies; user overrides do not control organization jobs.
-Authorization and organization isolation remain separate from capture.
+Managed Analytics is available by default on deployments with a validated
+commercial license and configured usage storage. The retired `analytics-project`
+organization flag no longer controls availability or processing. Existing role
+and project authorization and organization isolation remain in force.
 
-`USAGE_EVENTS_ENABLED` is removed and ignored. Usage storage continues to inherit
-base S3 settings unless overridden by `USAGE_EVENTS_S3_*`. Disabling the
-`analytics-project` flag does not stop raw uploads. This behavior applies to all
-configured deployments, including self-hosted commercial deployments, not just
-shared Cloud instances.
+Set `LIGHTDASH_DISABLE_ANALYTICS=true` and restart API, scheduler and NATS workers
+to opt out of managed Analytics, new usage-event capture and processing. Unset or
+`false` enables the feature. This does not delete stored data or change unrelated
+telemetry and AI billing. See [access](usage-analytics/access.md).
+
+`USAGE_EVENTS_ENABLED` remains removed and ignored. Usage storage continues to
+inherit base S3 settings unless overridden by `USAGE_EVENTS_S3_*`.
 
 ## Capture
 
@@ -25,18 +24,17 @@ telemetry, not an audit ledger; process interruption or exhausted upload retries
 can lose buffered events.
 
 Collection starts when the configured deployment runs this code. There is no data
-from before capture starts. Flag-disabled organizations retain raw events for
-possible later processing, but the seven-day processing window below still
-applies. Other analytics destinations and AI billing/usage tracking are unchanged.
+from before capture starts. Previously captured raw events remain subject to the seven-day processing
+window below. Other analytics destinations and AI billing/usage tracking are unchanged.
 
 ## Nightly and manual processing
 
 The existing serial `usage-events-compaction` scheduler queue runs at 00:30 UTC,
-with no whole-job retries. At the start of every run, eligibility is resolved
-through the standard flag model for each organization. Only eligible orgs enter
-raw compaction, dimension export and user-summary generation. Eligibility is a
-run snapshot; changing a flag does not cancel a running pipeline. Access checks
-for subsequent user queries continue to evaluate their own flag and permissions.
+with no whole-job retries. Each run selects every organization with at least one
+project, including a retained managed Analytics project. Organizations without
+projects are skipped. There are no per-organization rollout queries. The worker
+checks deployment availability before processing; query access separately checks
+availability and permissions.
 
 Only the previous seven closed UTC dates are processed. For a run on 8 October,
 that is 1–7 October inclusive. Current-day events wait for the next run; raw events
@@ -52,11 +50,12 @@ The partition budget is not a runtime guarantee. Graphile Worker expires job and
 queue locks after four hours; monitor processing times and backlog before increasing
 rollout cohorts so that scheduled and initial processing jobs do not overlap.
 
-The explicit `build-usage-user-activity` command also checks the organization flag
-and rejects dates older than this window. It remains a privileged maintenance
-script, using the configured production database/usage storage. A newly enabled
-organization can receive the existing no-data error until a successful nightly
-run. Project creation does not enable capture or run a backfill.
+The explicit `build-usage-user-activity` command also checks validated commercial
+registration and the deployment opt-out, and rejects dates older than this window.
+It remains a privileged maintenance script using the configured usage storage.
+An organization can receive the existing no-data error until processing succeeds.
+Project creation can enqueue the initial processing and retained-history import;
+it does not control capture.
 
 ## Recovery and retention
 
@@ -72,12 +71,11 @@ until pending cleanup has completed.
 
 This prevents new partial-cleanup duplication; it does not identify or repair
 already duplicated parts from older releases. Raw objects whose dates leave the
-window will no longer be processed. Raw data for flag-disabled organizations is not compacted or cleaned up by this
-pipeline and accumulates under the existing bucket retention policy. Retaining
+window will no longer be processed. Raw data for organizations without projects
+is not compacted or cleaned up by this pipeline and remains under the existing bucket retention policy. Retaining
 months of raw data does not enable historical catch-up beyond seven days. This
 change adds no expiry policy, archive, or historical backfill; successful
 compaction still deletes its exact raw inputs after publishing Parquet.
 
-Canary a deployment before broad rollout: uploads now include flag-disabled orgs.
 Check failures, dropped events, backlog, memory and reconciliation. Local loopback
 benchmarks are correctness evidence, not production GCS latency predictions.

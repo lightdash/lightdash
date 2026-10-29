@@ -162,12 +162,9 @@ export const useSettingsContext = (): SettingsContext => {
     // out, matching what the backend actually authorizes.
     const { data: projects } = useProjects();
     const organizationUuid = organization?.organizationUuid;
-    const {
-        data: analyticsProjectFlag,
-        isInitialLoading: isAnalyticsProjectFlagLoading,
-    } = useServerFeatureFlag(FeatureFlags.AnalyticsProject);
+    const isAnalyticsProjectLoading = isHealthLoading;
     const canAccessAnalyticsSettings =
-        analyticsProjectFlag?.enabled === true &&
+        health?.hasManagedAnalytics === true &&
         !!organizationUuid &&
         (user?.ability.can(
             'manage',
@@ -230,7 +227,7 @@ export const useSettingsContext = (): SettingsContext => {
         isCustomRolesEnabled,
         isProLimitsEnabled,
         canAccessAnalyticsSettings,
-        isAnalyticsProjectFlagLoading,
+        isAnalyticsProjectLoading,
         isOrganizationRoadmapEnabled,
         canAccessAiCredits,
         isAiCreditsLoading: isAiCreditUsageLoading,

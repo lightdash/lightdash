@@ -1,4 +1,4 @@
-import { FeatureFlags, getErrorMessage } from '@lightdash/common';
+import { getErrorMessage } from '@lightdash/common';
 import { DuckdbWarehouseClient } from '@lightdash/warehouses';
 import { createHash, randomUUID } from 'crypto';
 import { performance } from 'perf_hooks';
@@ -6,7 +6,6 @@ import { z } from 'zod';
 import { S3BaseClient } from '../../clients/Aws/S3BaseClient';
 import { S3Config } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
-import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import type { UsageDimensionsModel } from '../../models/UsageDimensionsModel';
 import PrometheusMetrics from '../../prometheus/PrometheusMetrics';
 import type {
@@ -160,7 +159,6 @@ export type CompactionRunSummary = {
 export type UsageEventsCompactorArgs = {
     s3Config: Omit<S3Config, 'expirationTime'>;
     prometheusMetrics: PrometheusMetrics | null;
-    featureFlagModel: Pick<FeatureFlagModel, 'get'>;
     usageDimensionsModel: Pick<
         UsageDimensionsModel,
         'getOrganizations' | 'getJsonLines'
@@ -185,12 +183,9 @@ export class UsageEventsCompactor extends S3BaseClient {
         'getOrganizations' | 'getJsonLines'
     >;
 
-    private readonly featureFlagModel: Pick<FeatureFlagModel, 'get'>;
-
     constructor(args: UsageEventsCompactorArgs) {
         super(args.s3Config);
         this.bucket = args.s3Config.bucket;
-        this.featureFlagModel = args.featureFlagModel;
         this.s3Config = args.s3Config;
         this.prometheusMetrics = args.prometheusMetrics;
         this.usageDimensionsModel = args.usageDimensionsModel;
@@ -218,14 +213,7 @@ export class UsageEventsCompactor extends S3BaseClient {
                     for await (const organization of this.usageDimensionsModel.getOrganizations(
                         organizationUuid,
                     )) {
-                        const { enabled } = await this.featureFlagModel.get({
-                            featureFlagId: FeatureFlags.AnalyticsProject,
-                            user: {
-                                organizationUuid:
-                                    organization.organization_uuid,
-                            },
-                        });
-                        if (enabled) organizations.push(organization);
+                        organizations.push(organization);
                     }
                     const orgIds = organizations.map(
                         (organization) => organization.organization_uuid,
