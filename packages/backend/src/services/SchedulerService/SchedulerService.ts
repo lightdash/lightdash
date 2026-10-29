@@ -36,6 +36,7 @@ import {
     ParameterError,
     ScheduledJobs,
     Scheduler,
+    SCHEDULER_TASKS,
     SchedulerAndTargets,
     SchedulerCronUpdate,
     SchedulerFilters,
@@ -2376,6 +2377,10 @@ export class SchedulerService extends BaseService {
         let warningCount = 0;
 
         runningJobs.forEach((job) => {
+            // Usage processing deliberately spans hours and has its own lifecycle
+            // metrics/alerts. Marking its live job failed does not cancel it.
+            if (job.taskIdentifier === SCHEDULER_TASKS.COMPACT_USAGE_EVENTS)
+                return;
             const durationMs = now.getTime() - job.lockedAt.getTime();
             const durationMinutes = Math.round(durationMs / ONE_MINUTE_MS);
 

@@ -58,6 +58,7 @@ import { traceTasks } from './SchedulerTaskTracer';
 import schedulerWorkerEventEmitter from './SchedulerWorkerEventEmitter';
 import { SchedulerWorkerHealth } from './SchedulerWorkerHealth';
 import { TypedTaskList } from './types';
+import { withUsageProcessingLease } from './usageProcessingLease';
 
 export type SchedulerWorkerArguments = SchedulerTaskArguments & {
     agentActionLogModel: AgentActionLogModel;
@@ -2333,7 +2334,10 @@ export class SchedulerWorker extends SchedulerTask {
             [SCHEDULER_TASKS.CHECK_FOR_STUCK_JOBS]: async () => {
                 await this.schedulerService.checkForStuckJobs();
             },
-            [SCHEDULER_TASKS.COMPACT_USAGE_EVENTS]: async (payload) => {
+            [SCHEDULER_TASKS.COMPACT_USAGE_EVENTS]: async (
+                payload,
+                helpers,
+            ) => {
                 const { usageEvents } = this.lightdashConfig;
                 if (!usageEvents.enabled || usageEvents.s3 === null) {
                     Logger.debug(
@@ -2346,6 +2350,7 @@ export class SchedulerWorker extends SchedulerTask {
                     prometheusMetrics: this.prometheusMetrics,
                     usageDimensionsModel: this.usageDimensionsModel,
                     featureFlagModel: this.featureFlagModel,
+                    withLease: (run) => withUsageProcessingLease(helpers, run),
                 });
                 const summary = await compactor.run(
                     new Date(),

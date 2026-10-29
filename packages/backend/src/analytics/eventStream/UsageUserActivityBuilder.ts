@@ -1,4 +1,3 @@
-import { Upload } from '@aws-sdk/lib-storage';
 import { DuckdbWarehouseClient } from '@lightdash/warehouses';
 import { createHash } from 'crypto';
 import { createReadStream } from 'fs';
@@ -11,6 +10,7 @@ import Logger from '../../logging/logger';
 import { getDuckdbRuntimeConfig } from '../../utils/duckdb/getDuckdbRuntimeConfig';
 import type { StreamName } from './projection';
 import { compactedStreamSchemas } from './registry';
+import { uploadUsageParquet } from './uploadUsageParquet';
 import { MAX_PARTITIONS_PER_RUN } from './usageProcessingLimits';
 import { usageProcessingStartDate } from './usageProcessingWindow';
 import { analyticsStreams, userActivityKey } from './userActivity';
@@ -112,6 +112,7 @@ export class UsageUserActivityBuilder extends S3BaseClient {
     constructor(
         private readonly storage: Omit<S3Config, 'expirationTime'>,
         duckdb?: Pick<DuckdbWarehouseClient, 'runSqlWithMetrics'>,
+        private readonly signal?: AbortSignal,
     ) {
         super(storage);
         const runtime = getDuckdbRuntimeConfig(storage);
@@ -185,6 +186,7 @@ export class UsageUserActivityBuilder extends S3BaseClient {
                     const outcome = await this.refresh(orgId, stream, date);
                     summary[outcome] += 1;
                 } catch {
+                    this.signal?.throwIfAborted();
                     summary.failed += 1;
                     // Native/SDK error messages can include credentials or SQL data.
                     Logger.error(
@@ -203,6 +205,7 @@ export class UsageUserActivityBuilder extends S3BaseClient {
         const today = now.toISOString().slice(0, 10);
         const start = usageProcessingStartDate(now);
         for (const orgId of orgIds) {
+            this.signal?.throwIfAborted();
             validateUserActivityRange(orgId, start, start, now);
             for (const stream of analyticsStreams) {
                 const prefix = `events/compacted/org_id=${orgId}/stream=${stream}/`;
@@ -211,13 +214,16 @@ export class UsageUserActivityBuilder extends S3BaseClient {
                 let previousDate: string | undefined;
                 do {
                     // eslint-disable-next-line no-await-in-loop
-                    const page = await this.s3!.listObjectsV2({
-                        Bucket: this.storage.bucket,
-                        Prefix: prefix,
-                        StartAfter: `${prefix}dt=${start}/`,
-                        MaxKeys: 1000,
-                        ContinuationToken: token,
-                    });
+                    const page = await this.s3!.listObjectsV2(
+                        {
+                            Bucket: this.storage.bucket,
+                            Prefix: prefix,
+                            StartAfter: `${prefix}dt=${start}/`,
+                            MaxKeys: 1000,
+                            ContinuationToken: token,
+                        },
+                        { abortSignal: this.signal },
+                    );
                     for (const { Key: key } of page.Contents ?? []) {
                         if (!key?.startsWith(prefix))
                             throw new Error(
@@ -258,11 +264,14 @@ export class UsageUserActivityBuilder extends S3BaseClient {
         date: string,
     ): Promise<'published' | 'unchanged' | 'skipped' | 'deferred'> {
         if (!this.s3) throw new Error('Usage event storage is not configured');
-        const raw = await this.s3.listObjectsV2({
-            Bucket: this.storage.bucket,
-            Prefix: `events/raw/org_id=${orgId}/stream=${stream}/dt=${date}/`,
-            MaxKeys: 1,
-        });
+        const raw = await this.s3.listObjectsV2(
+            {
+                Bucket: this.storage.bucket,
+                Prefix: `events/raw/org_id=${orgId}/stream=${stream}/dt=${date}/`,
+                MaxKeys: 1,
+            },
+            { abortSignal: this.signal },
+        );
         if (raw.Contents?.length) return 'deferred';
         const prefix = `events/compacted/org_id=${orgId}/stream=${stream}/dt=${date}/`;
         const keys: string[] = [];
@@ -271,11 +280,14 @@ export class UsageUserActivityBuilder extends S3BaseClient {
         let pages = 0;
         do {
             // eslint-disable-next-line no-await-in-loop
-            const page = await this.s3.listObjectsV2({
-                Bucket: this.storage.bucket,
-                Prefix: prefix,
-                ContinuationToken: token,
-            });
+            const page = await this.s3.listObjectsV2(
+                {
+                    Bucket: this.storage.bucket,
+                    Prefix: prefix,
+                    ContinuationToken: token,
+                },
+                { abortSignal: this.signal },
+            );
             for (const object of page.Contents ?? []) {
                 if (
                     object.Key?.startsWith(prefix) &&
@@ -300,13 +312,17 @@ export class UsageUserActivityBuilder extends S3BaseClient {
         if (!keys.length) return 'skipped';
         const fingerprint = hash.digest('hex');
         try {
-            const existing = await this.s3.headObject({
-                Bucket: this.storage.bucket,
-                Key: userActivityKey(orgId, stream, date),
-            });
+            const existing = await this.s3.headObject(
+                {
+                    Bucket: this.storage.bucket,
+                    Key: userActivityKey(orgId, stream, date),
+                },
+                { abortSignal: this.signal },
+            );
             if (existing.Metadata?.['source-hash'] === fingerprint)
                 return 'unchanged';
         } catch (error) {
+            this.signal?.throwIfAborted();
             if (
                 (error as { $metadata?: { httpStatusCode?: number } }).$metadata
                     ?.httpStatusCode !== 404
@@ -340,22 +356,26 @@ export class UsageUserActivityBuilder extends S3BaseClient {
                     ),
                     output,
                 ),
+                { signal: this.signal },
             );
             const body = createReadStream(output);
             try {
-                await new Upload({
-                    client: this.s3!,
-                    queueSize: 1,
-                    partSize: 8 * 1024 * 1024,
-                    leavePartsOnError: false,
-                    params: {
-                        Bucket: this.storage.bucket,
-                        Key: userActivityKey(orgId, stream, date),
-                        Body: body,
-                        ContentType: 'application/vnd.apache.parquet',
-                        Metadata: { 'source-hash': fingerprint },
+                await uploadUsageParquet(
+                    {
+                        client: this.s3!,
+                        queueSize: 1,
+                        partSize: 8 * 1024 * 1024,
+                        leavePartsOnError: false,
+                        params: {
+                            Bucket: this.storage.bucket,
+                            Key: userActivityKey(orgId, stream, date),
+                            Body: body,
+                            ContentType: 'application/vnd.apache.parquet',
+                            Metadata: { 'source-hash': fingerprint },
+                        },
                     },
-                }).done();
+                    this.signal,
+                );
             } finally {
                 body.destroy();
             }

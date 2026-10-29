@@ -10,6 +10,12 @@ vi.mock('../analytics/eventStream/UsageEventsCompactor', () => ({
     UsageEventsCompactor: vi.fn(),
 }));
 
+vi.mock('./usageProcessingLease', () => ({
+    withUsageProcessingLease: vi.fn(async (_helpers, run) =>
+        run(new AbortController().signal),
+    ),
+}));
+
 class UsageTestWorker extends SchedulerWorker {
     getUsageTask() {
         return this.getTaskList()[SCHEDULER_TASKS.COMPACT_USAGE_EVENTS]!;

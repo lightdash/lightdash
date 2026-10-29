@@ -1,4 +1,3 @@
-import { Upload } from '@aws-sdk/lib-storage';
 import { getErrorMessage } from '@lightdash/common';
 import type { DuckdbWarehouseClient } from '@lightdash/warehouses';
 import { createReadStream, createWriteStream } from 'fs';
@@ -13,6 +12,7 @@ import Logger from '../../logging/logger';
 import type { UsageDimensionsModel } from '../../models/UsageDimensionsModel';
 import { quoteDuckdbIdentifier } from '../../utils/duckdb/duckdbSqlTables';
 import { peopleMembershipHistoryKey } from './peopleMembership';
+import { uploadUsageParquet } from './uploadUsageParquet';
 import {
     usageDimensionKey,
     usageDimensionNames,
@@ -38,6 +38,7 @@ export class UsageDimensionsRefresher extends S3BaseClient {
             DuckdbWarehouseClient,
             'runSqlWithMetrics'
         >,
+        private readonly signal?: AbortSignal,
     ) {
         super(storage);
     }
@@ -49,6 +50,7 @@ export class UsageDimensionsRefresher extends S3BaseClient {
             // eslint-disable-next-line no-restricted-syntax
             for await (const organization of this.model.getOrganizations()) {
                 for (const dimension of usageDimensionNames) {
+                    this.signal?.throwIfAborted();
                     try {
                         // eslint-disable-next-line no-await-in-loop
                         await this.refresh(
@@ -63,6 +65,7 @@ export class UsageDimensionsRefresher extends S3BaseClient {
                         );
                         summary.refreshed += 1;
                     } catch (error) {
+                        this.signal?.throwIfAborted();
                         summary.failed += 1;
                         Logger.error(
                             `Usage dimensions refresh failed for org_id=${organization.organization_uuid}/dim=${dimension}: ${getErrorMessage(error)}`,
@@ -97,6 +100,7 @@ export class UsageDimensionsRefresher extends S3BaseClient {
             await pipeline(
                 Readable.from(rows, { objectMode: false }),
                 createWriteStream(jsonFile, { mode: 0o600 }),
+                { signal: this.signal },
             );
             const { size } = await stat(jsonFile);
             const select =
@@ -105,6 +109,7 @@ export class UsageDimensionsRefresher extends S3BaseClient {
                     : `SELECT ${columns.map(({ name }) => quoteDuckdbIdentifier(name)).join(', ')} FROM read_json(${literal(jsonFile)}, format='newline_delimited', columns={${columns.map(({ name, type }) => `${quoteDuckdbIdentifier(name)}: '${type}'`).join(', ')}})`;
             await this.duckdb.runSqlWithMetrics(
                 `COPY (${select}) TO ${literal(parquetFile)} (FORMAT PARQUET, COMPRESSION zstd, ROW_GROUP_SIZE 16384)`,
+                { signal: this.signal },
             );
             // Publish only after the complete bounded export and conversion.
             // Save history first; failure never replaces the current snapshot.
@@ -118,18 +123,21 @@ export class UsageDimensionsRefresher extends S3BaseClient {
                 const body = createReadStream(parquetFile);
                 try {
                     // eslint-disable-next-line no-await-in-loop
-                    await new Upload({
-                        client: this.s3,
-                        queueSize: 1,
-                        partSize: 8 * 1024 * 1024,
-                        leavePartsOnError: false,
-                        params: {
-                            Bucket: this.storage.bucket,
-                            Key: key,
-                            Body: body,
-                            ContentType: 'application/vnd.apache.parquet',
+                    await uploadUsageParquet(
+                        {
+                            client: this.s3,
+                            queueSize: 1,
+                            partSize: 8 * 1024 * 1024,
+                            leavePartsOnError: false,
+                            params: {
+                                Bucket: this.storage.bucket,
+                                Key: key,
+                                Body: body,
+                                ContentType: 'application/vnd.apache.parquet',
+                            },
                         },
-                    }).done();
+                        this.signal,
+                    );
                 } finally {
                     body.destroy();
                 }

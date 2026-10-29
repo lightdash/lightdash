@@ -338,6 +338,7 @@ describe('user activity safeguards', () => {
         ).rejects.toThrow('conversion failed');
         expect(list).toHaveBeenLastCalledWith(
             expect.objectContaining({ ContinuationToken: 'next' }),
+            { abortSignal: undefined },
         );
         expect(runSqlWithMetrics.mock.calls[0][0]).toContain('first.parquet');
         expect(runSqlWithMetrics.mock.calls[0][0]).toContain('second.parquet');
