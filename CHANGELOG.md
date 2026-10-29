@@ -1,3 +1,10 @@
+## [3.93.6](https://github.com/lightdash/lightdash/compare/3.93.5...3.93.6) (2026-10-29)
+
+
+### Bug Fixes
+
+* **cli:** generate combined checksums for single-format archives ([#31776](https://github.com/lightdash/lightdash/issues/31776)) ([a83eb52](https://github.com/lightdash/lightdash/commit/a83eb522a8789ba2f2b97a458829bc300e0252e4))
+
 ## [3.93.5](https://github.com/lightdash/lightdash/compare/3.93.4...3.93.5) (2026-10-29)
 
 
