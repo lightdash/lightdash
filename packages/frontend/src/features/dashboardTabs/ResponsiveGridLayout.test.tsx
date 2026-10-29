@@ -106,4 +106,24 @@ describe('dashboard container resizing', () => {
         resize(700);
         expect(onBreakpointChange).toHaveBeenLastCalledWith('wide', 2);
     });
+
+    it('settles on the measured breakpoint when the grid renders before measuring', () => {
+        const resize = stubResizeObserver();
+        const onBreakpointChange = vi.fn();
+
+        render(
+            <ResponsiveGridLayout
+                breakpoints={{ wide: 600, narrow: 0 }}
+                cols={{ wide: 2, narrow: 1 }}
+                rowHeight={40}
+                layouts={{ wide: [], narrow: [] }}
+                onBreakpointChange={onBreakpointChange}
+            />,
+        );
+
+        resize(300);
+        expect(onBreakpointChange).toHaveBeenCalledWith('narrow', 1);
+        expect(onBreakpointChange).not.toHaveBeenCalledWith('wide', 2);
+        expect(onBreakpointChange).toHaveBeenLastCalledWith('narrow', 1);
+    });
 });
