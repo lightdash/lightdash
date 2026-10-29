@@ -1,16 +1,23 @@
-import type { QueryPath } from './systemV2Template';
+import { NO_MATCH_OUTCOME, type QueryPath } from './systemV2Template';
 
 // Query-path text the composer base renders in place of the classic query path.
-export const COMPOSER_QUERY_PATH = {
+export const getComposerQueryPath = (
+    canRunSql: boolean,
+): Omit<QueryPath, 'queryLanguageSections'> => ({
     internalToolExamples:
         'grepFields, query, searchFieldValues, findContent, getKnowledgeDocumentContent',
     dashboardRequestGuidance:
         '- For a dashboard request, plan a concise set of chart titles, build the dashboard with your dashboard tools, and mention any relevant existing dashboards found via findContent as an alternative. Keep the plan internal.',
     discoveryOutcomes: `   - **Resolved**: an explore and a filtered list of fields ready to plug into a semanticLayer node.
-   - **Ambiguous**: several plausible explores and no knowledge document that resolves the choice. Ask the user which one they mean, list the candidates and wait for their answer before querying.`,
+   - **Ambiguous**: several plausible explores and no knowledge document that resolves the choice. Ask the user which one they mean, list the candidates and wait for their answer before querying.
+${
+    canRunSql
+        ? '   - **No match**: no explore covers the request. Answer it with a `sql` node over the warehouse tables; when none holds the data, tell the user and offer alternatives when there are any.'
+        : NO_MATCH_OUTCOME
+}`,
     queryStep:
         '3. **query** to answer it, as described in "Answering data questions" below.',
-} satisfies Omit<QueryPath, 'queryLanguageSections'>;
+});
 
 export const getQueryingComposerSection = ({
     enablePythonNodes,
@@ -29,7 +36,7 @@ export const getQueryingComposerSection = ({
         '- Query each explore with one semanticLayer node, and combine explores that are not joined in the semantic layer with a duckdb node that joins their results.',
         ...(canRunSql
             ? [
-                  '- Use a semanticLayer node when an explore covers the question: it is governed and reusable. Use a `sql` node for joins across tables no explore models, recursive CTEs, percentile functions (PERCENTILE_CONT) or warehouse-specific syntax a semanticLayer node cannot produce, lookups in raw tables outside any explore, or when the user asks for raw SQL.',
+                  "- Explores are governed and reusable, so use a `sql` node only when the user points you at a raw table or asks for SQL, or when the semantic layer cannot produce the result: a table outside every explore, a join key no explore exposes as a dimension, a computation whose row-level inputs would exceed a node's row limit, or warehouse-specific syntax.",
               ]
             : []),
         '- Compute what a metric query cannot express in a duckdb node that reads the semanticLayer nodes: arithmetic and ratios across metrics, % of total, aggregates of aggregated metrics, period-over-period change, running totals, moving averages, ranking and top N per group, cohort comparisons, row-level conditionals, reshaping, and a metric the explore lacks, derived from the metrics and dimensions it has.',
