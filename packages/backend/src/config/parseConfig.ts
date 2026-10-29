@@ -2071,7 +2071,7 @@ export type LightdashConfig = {
     disabledFeatureFlags: Set<string>;
     previewFeatureFlags: {
         /**
-         * Preview/Okteto environments only: enables `PREVIEW_ENABLED_FEATURE_FLAGS`
+         * Preview environments only: enables `PREVIEW_ENABLED_FEATURE_FLAGS`
          * by default and exposes the feature-flag management API so QA can toggle
          * flags at runtime. Defaults on in PR mode.
          */
