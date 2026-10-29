@@ -24,11 +24,11 @@ import {
     type SavedMergeQuery,
 } from '@lightdash/common';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { ApiClient, Body } from '../helpers/api-client';
-import { login } from '../helpers/auth';
-import { getAvailableWarehouseConfigs } from '../helpers/projects';
-import { useSharedWarehouseProject } from '../helpers/shared-projects';
-import { uniqueName } from '../helpers/test-isolation';
+import { ApiClient, Body } from './api-client';
+import { login } from './auth';
+import { getAvailableWarehouseConfigs } from './projects';
+import { useSharedWarehouseProject } from './shared-projects';
+import { uniqueName } from './test-isolation';
 
 // Two independent aggregations of the jaffle dataset, joined on the order
 // month. The payments explore joins orders, so both sides expose the same
@@ -150,7 +150,7 @@ const MERGE_JOIN_TYPES = [
 // built `subscriptions` and Trino's build predates the mrr columns — so the
 // parameterized merge compiles everywhere but executes only where the model
 // exists.
-type MergeTestContext = {
+export type MergeTestContext = {
     client: ApiClient;
     projectUuid: string;
     hasSubscriptionsModel: boolean;
@@ -171,7 +171,7 @@ const nullsClause = (adapter: SupportedDbtAdapter, descending: boolean) =>
         ? ' NULLS FIRST'
         : ' NULLS LAST';
 
-function registerMergeQueryTests(getContext: () => MergeTestContext) {
+export function registerMergeQueryTests(getContext: () => MergeTestContext) {
     let admin: ApiClient;
     let projectUuid: string;
     let hasSubscriptionsModel: boolean;
@@ -1663,38 +1663,56 @@ function registerMergeQueryTests(getContext: () => MergeTestContext) {
 // Databricks is excluded to avoid starting serverless compute for this suite,
 // matching the pivot parity suite.
 // Trino is skipped: its CI host is intermittently unreachable (ETIMEDOUT).
-const mergeWarehouseEntries = getAvailableWarehouseConfigs({
-    includePostgres: false,
-    includeDatabricks: false,
-}).filter(({ name }) => name !== 'trino');
+const mergeWarehouseNames = new Set(
+    getAvailableWarehouseConfigs({
+        includePostgres: false,
+        includeDatabricks: false,
+    })
+        .map(({ name }) => name)
+        .filter((name) => name !== 'trino'),
+);
 
 // Staging datasets with a current build of the `subscriptions` model; see
 // MergeTestContext.hasSubscriptionsModel.
 const WAREHOUSES_WITH_SUBSCRIPTIONS = new Set(['snowflake']);
 
-describe('Merge queries on the project warehouse', () => {
+/**
+ * One test file per warehouse so the suites run on separate workers; a single
+ * file would run them back to back and hold the parallel group open alone.
+ */
+export function describeMergeQueriesOnWarehouse(name: string) {
     // Postgres: reuse the already-seeded project (no create/refresh needed).
-    describe('postgres (seed project)', () => {
-        let admin: ApiClient;
+    if (name === 'postgres') {
+        describe('Merge queries on postgres (seed project)', () => {
+            let admin: ApiClient;
 
-        beforeAll(async () => {
-            admin = await login();
+            beforeAll(async () => {
+                admin = await login();
+            });
+
+            registerMergeQueryTests(() => ({
+                client: admin,
+                projectUuid: SEED_PROJECT.project_uuid,
+                hasSubscriptionsModel: true,
+                adapter: SupportedDbtAdapter.POSTGRES,
+            }));
         });
+        return;
+    }
 
-        registerMergeQueryTests(() => ({
-            client: admin,
-            projectUuid: SEED_PROJECT.project_uuid,
-            hasSubscriptionsModel: true,
-            adapter: SupportedDbtAdapter.POSTGRES,
-        }));
-    });
+    const adapter = adapterByWarehouseName[name];
+    if (adapter === undefined) {
+        throw new Error(`No adapter known for warehouse "${name}"`);
+    }
 
     // Every other credentialed warehouse: run the same suite against the
     // shared project global setup created for it. Skipped when creds are absent.
-    for (const { name } of mergeWarehouseEntries) {
-        // Remote warehouses drop a connection now and then ("socket hang up");
-        // one retry keeps that transient from failing the run.
-        describe(name, { retry: 1 }, () => {
+    // Remote warehouses drop a connection now and then ("socket hang up");
+    // one retry keeps that transient from failing the run.
+    describe.skipIf(!mergeWarehouseNames.has(name))(
+        `Merge queries on ${name}`,
+        { retry: 1 },
+        () => {
             let admin: ApiClient;
             let projectUuid: string;
 
@@ -1703,16 +1721,12 @@ describe('Merge queries on the project warehouse', () => {
                 projectUuid = await useSharedWarehouseProject(admin, name);
             }, 420_000);
 
-            const adapter = adapterByWarehouseName[name];
-            if (adapter === undefined) {
-                throw new Error(`No adapter known for warehouse "${name}"`);
-            }
             registerMergeQueryTests(() => ({
                 client: admin,
                 projectUuid,
                 hasSubscriptionsModel: WAREHOUSES_WITH_SUBSCRIPTIONS.has(name),
                 adapter,
             }));
-        });
-    }
-});
+        },
+    );
+}
