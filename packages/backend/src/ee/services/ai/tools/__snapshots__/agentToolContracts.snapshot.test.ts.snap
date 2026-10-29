@@ -19418,7 +19418,7 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
 
 nodeId names a node from a successful query call in this thread, in this turn or an earlier one, so a result can be visualized again with a different vizConfig without rerunning query. vizConfig references are that node's result columns, as listed in its query result.
 
-Show related metrics that answer one comparison over the same x in one card, unless the user asks for separate charts: same-scale metrics in y, and a metric on a different scale in y2 instead. When they need more scales than y and y2 hold, or bars and lines together, use a custom chart type whose slots fit, when the project has one. Visualize the same node again for a different x or chart, not for one card per metric.
+Show related metrics that answer one comparison over the same x in one visualize call, unless the user asks for separate charts: same-scale metrics in y, and a metric on a different scale in y2 instead. When they need more scales than y and y2 hold, or bars and lines together, use a custom chart type whose slots fit, when the project has one. Call visualize on the same node again for a different x or chart, not once per metric.
 
 Pie and series-split charts return readability notes when they have many slices or series.",
     "inputSchema": {
