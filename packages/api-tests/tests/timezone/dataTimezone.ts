@@ -1,19 +1,19 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { ApiClient } from '../helpers/api-client';
-import { login } from '../helpers/auth';
-import { hasBigqueryCredentials } from '../helpers/projects';
+import { ApiClient } from '../../helpers/api-client';
+import { login } from '../../helpers/auth';
+import { hasBigqueryCredentials } from '../../helpers/projects';
 import {
     TIMEZONE_BIGQUERY_PROJECT,
     TIMEZONE_POSTGRES_PROJECT,
     useSharedWarehouseProject,
-} from '../helpers/shared-projects';
+} from '../../helpers/shared-projects';
 import {
     getRawBucketMap,
     getRowCount,
     getTotalCount,
     runTimezoneTestQuery,
     updateDataTimezone,
-} from '../helpers/timezone-test';
+} from '../../helpers/timezone-test';
 
 /**
  * Data timezone tests.

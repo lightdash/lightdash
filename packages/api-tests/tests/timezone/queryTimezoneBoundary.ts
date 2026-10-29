@@ -1,15 +1,15 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { ApiClient } from '../helpers/api-client';
-import { login } from '../helpers/auth';
+import { ApiClient } from '../../helpers/api-client';
+import { login } from '../../helpers/auth';
 import {
     TIMEZONE_POSTGRES_PROJECT,
     useSharedWarehouseProject,
-} from '../helpers/shared-projects';
+} from '../../helpers/shared-projects';
 import {
     getRawBucketMap,
     runTimezoneTestQuery,
     updateDataTimezone,
-} from '../helpers/timezone-test';
+} from '../../helpers/timezone-test';
 
 /**
  * Boundary-crossing tests for timezone-aware DATE_TRUNC (GLITCH-452).

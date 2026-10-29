@@ -25,15 +25,6 @@ const serialFiles = [
     'tests/contentAsCode.test.ts',
 ];
 
-// Change the data timezone of the dedicated timezone projects. They only
-// conflict with each other, so they run one at a time next to the parallel
-// group instead of after it.
-const timezoneFiles = [
-    'tests/dataTimezone.test.ts',
-    'tests/queryTimezone.test.ts',
-    'tests/queryTimezoneBoundary.test.ts',
-];
-
 const shared = {
     environment: 'node',
     testTimeout: 120_000,
@@ -54,24 +45,11 @@ export default defineConfig({
                     ...shared,
                     name: 'parallel',
                     include: ['tests/**/*.test.ts'],
-                    exclude: [
-                        ...configDefaults.exclude,
-                        ...serialFiles,
-                        ...timezoneFiles,
-                    ],
+                    exclude: [...configDefaults.exclude, ...serialFiles],
                     fileParallelism: true,
                     // The preview pod is shared with the Playwright jobs, so
                     // this is a balance between idle workers and contention.
                     maxWorkers: 6,
-                    sequence: { groupOrder: 0 },
-                },
-            },
-            {
-                test: {
-                    ...shared,
-                    name: 'timezone',
-                    include: timezoneFiles,
-                    fileParallelism: false,
                     sequence: { groupOrder: 0 },
                 },
             },
