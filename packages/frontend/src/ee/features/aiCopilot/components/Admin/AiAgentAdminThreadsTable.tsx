@@ -57,6 +57,7 @@ import {
 } from '../../hooks/useAiAgentAdmin';
 import { useAiAgentAdminFilters } from '../../hooks/useAiAgentAdminFilters';
 import { AgentNamePill } from '../AgentNamePill';
+import adminClasses from './AdminTable.module.css';
 import { AiAgentAdminTopToolbar } from './AiAgentAdminTopToolbar';
 import {
     getThreadReviewHeadline,
@@ -367,12 +368,7 @@ const AiAgentAdminThreadsTable = ({
                 return (
                     <Group gap="two">
                         {isSlack ? (
-                            <SlackSvg
-                                style={{
-                                    width: '12px',
-                                    height: '12px',
-                                }}
-                            />
+                            <SlackSvg width={12} height={12} />
                         ) : (
                             <MantineIcon
                                 icon={IconMessageCircleStar}
@@ -663,9 +659,7 @@ const AiAgentAdminThreadsTable = ({
                 fz="xs"
                 fw={500}
                 color="ldGray.8"
-                style={{
-                    borderTop: `1px solid ${theme.colors.ldGray[3]}`,
-                }}
+                className={adminClasses.loadMoreFooter}
             >
                 {isFetching ? (
                     <Text fz="xs">Loading more...</Text>

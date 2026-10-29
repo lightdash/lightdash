@@ -17,3 +17,8 @@
     position: relative;
     top: 1px;
 }
+
+.button[data-unavailable] {
+    opacity: 0.5;
+    cursor: not-allowed;
+}

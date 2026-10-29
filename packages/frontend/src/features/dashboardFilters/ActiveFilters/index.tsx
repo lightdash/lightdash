@@ -10,7 +10,7 @@ import {
     type DragStartEvent,
 } from '@dnd-kit/core';
 import { getDashboardFilterField } from '@lightdash/common';
-import { type FC, type ReactNode } from 'react';
+import { type CSSProperties, type FC, type ReactNode } from 'react';
 import { DroppableArea } from '../../../components/common/DndHelpers';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import {
@@ -18,6 +18,7 @@ import {
     useDashboardSelector,
 } from '../../dashboard/store';
 import Filter from './Filter';
+import classes from './Filter.module.css';
 import { moveFilterRule } from './filterOrder';
 import { FilterPillSkeletons } from './FilterPillSkeletons';
 import { TemporaryFilters } from './TemporaryFilters';
@@ -47,17 +48,19 @@ const DraggableItem: FC<{
         disabled,
     });
 
-    const style = transform
-        ? ({
-              position: 'relative',
-              zIndex: 1,
-              transform: `translate(${transform.x}px, ${transform.y}px)`,
-              opacity: 0.8,
-          } as const)
-        : undefined;
-
     return (
-        <div ref={setNodeRef} style={style} {...listeners} {...attributes}>
+        <div
+            ref={setNodeRef}
+            className={transform ? classes.dragging : undefined}
+            style={
+                {
+                    '--drag-x': `${transform?.x ?? 0}px`,
+                    '--drag-y': `${transform?.y ?? 0}px`,
+                } as CSSProperties
+            }
+            {...listeners}
+            {...attributes}
+        >
             {children}
         </div>
     );

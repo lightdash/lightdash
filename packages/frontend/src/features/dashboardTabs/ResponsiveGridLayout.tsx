@@ -26,6 +26,7 @@ export const ResponsiveGridLayout: FC<Props> = ({
             <div
                 ref={ref}
                 className={`react-grid-layout ${props.className ?? ''}`}
+                // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
                 style={props.style}
             />
         );

@@ -271,3 +271,7 @@
     text-overflow: ellipsis;
     white-space: nowrap;
 }
+
+.mirroredIcon {
+    transform: scaleX(-1);
+}

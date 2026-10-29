@@ -106,3 +106,11 @@
     top: rem(2px);
     right: rem(6px);
 }
+
+.virtualRow {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    transform: translateY(var(--row-start));
+}

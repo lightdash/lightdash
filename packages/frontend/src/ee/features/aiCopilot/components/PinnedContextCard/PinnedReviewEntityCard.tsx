@@ -44,7 +44,7 @@ const Row: FC<{
             icon={icon}
             size={13}
             color="dimmed"
-            style={{ marginTop: 2, flexShrink: 0 }}
+            className={styles.rowIcon}
         />
         <Box flex={1} miw={0}>
             {children}

@@ -33,3 +33,20 @@
     background-color: var(--mantine-color-ldGray-0);
     border-color: var(--mantine-color-ldGray-3);
 }
+
+.fontSizeTransition {
+    transition: font-size 0.1s ease-in-out;
+}
+
+.heading {
+    letter-spacing: -0.02em;
+}
+
+.clickable {
+    cursor: pointer;
+}
+
+.label {
+    --text-lh: 120%;
+    transition: font-size 0.1s ease-in-out;
+}

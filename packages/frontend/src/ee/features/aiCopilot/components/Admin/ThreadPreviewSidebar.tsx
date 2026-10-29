@@ -580,17 +580,8 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                                                         ? theme.colors.ldGray[0]
                                                         : 'white'
                                                 }
-                                                style={{
-                                                    border: `1px solid ${
-                                                        isSelected
-                                                            ? theme.colors
-                                                                  .violet[3]
-                                                            : theme.colors
-                                                                  .ldGray[2]
-                                                    }`,
-                                                    borderRadius:
-                                                        theme.radius.md,
-                                                }}
+                                                className={styles.reviewItem}
+                                                data-selected={isSelected}
                                             >
                                                 <Group
                                                     justify="space-between"

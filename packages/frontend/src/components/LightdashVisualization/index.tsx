@@ -1,6 +1,7 @@
 import { assertUnreachable, ChartType } from '@lightdash/common';
 import { Anchor, Skeleton, Text } from '@mantine/core';
 import { IconChartBarOff } from '@tabler/icons-react';
+import { clsx } from 'clsx';
 import {
     forwardRef,
     Fragment,
@@ -309,20 +310,13 @@ const LightdashVisualization = memo(
             return (
                 <div
                     ref={ref}
-                    className={className}
+                    className={clsx(classes.root, className)}
                     data-testid={props['data-testid']}
-                    style={{
-                        width: '100%',
-                        height: '100%',
-                        minHeight: 'inherit',
-                        display: 'flex',
-                        flexDirection: 'column',
-                    }}
                 >
                     {isVisible ? (
                         chartContent
                     ) : (
-                        <div ref={sentinelRef} style={{ flex: 1 }}>
+                        <div ref={sentinelRef} className={classes.sentinel}>
                             <Skeleton h="100%" w="100%" />
                         </div>
                     )}

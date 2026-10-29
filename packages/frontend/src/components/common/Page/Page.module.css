@@ -178,3 +178,7 @@
         padding: var(--mantine-spacing-sm);
     }
 }
+
+.drawerBodyFlush {
+    padding: 0;
+}

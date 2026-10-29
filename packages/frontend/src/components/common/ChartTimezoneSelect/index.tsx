@@ -75,10 +75,11 @@ const ChartTimezoneSelect: FC<Props> = ({ value, onChange, ...rest }) => {
                 <Group gap={6} wrap="nowrap" w="100%">
                     <CheckIcon
                         size={11}
-                        style={{
-                            flexShrink: 0,
-                            visibility: checked ? undefined : 'hidden',
-                        }}
+                        className={
+                            checked
+                                ? classes.checkIcon
+                                : classes.checkIconHidden
+                        }
                     />
                     <span>{getPrimaryLabel(option)}</span>
                     {option.value === PROJECT_TIMEZONE_SETTING &&

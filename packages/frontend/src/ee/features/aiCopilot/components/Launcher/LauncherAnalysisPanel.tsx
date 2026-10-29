@@ -195,10 +195,13 @@ const CompactAnomalyCard: FC<{
 
 type Props = {
     adapter: LauncherAnalysisAdapter;
-    style?: CSSProperties;
+    transitionStyle?: CSSProperties;
 };
 
-export const LauncherAnalysisPanel: FC<Props> = ({ adapter, style }) => {
+export const LauncherAnalysisPanel: FC<Props> = ({
+    adapter,
+    transitionStyle,
+}) => {
     const dispatch = useAiAgentStoreDispatch();
     const { availability, controller, targetName, targetKind } = adapter;
     const {
@@ -222,7 +225,7 @@ export const LauncherAnalysisPanel: FC<Props> = ({ adapter, style }) => {
         availability.status === 'available' && sources.length > 0 && !inFlight;
 
     return (
-        <LauncherPanelFrame style={style}>
+        <LauncherPanelFrame transitionStyle={transitionStyle}>
             <div className={launcherStyles.panelHeader}>
                 <Group
                     gap="xs"

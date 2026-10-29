@@ -72,15 +72,15 @@ const CodeBlock: FC<Props> = ({
             style={
                 {
                     '--code-block-line-numbers-width': `${String(lineCount).length}ch`,
+                    '--code-block-line-numbers-fz':
+                        typeof lineNumberFontSize === 'number'
+                            ? `${lineNumberFontSize}px`
+                            : lineNumberFontSize,
                 } as CSSProperties
             }
         >
             {withLineNumbers && (
-                <code
-                    aria-hidden
-                    className={classes.lineNumbers}
-                    style={{ fontSize: lineNumberFontSize }}
-                >
+                <code aria-hidden className={classes.lineNumbers}>
                     {lineNumbers}
                 </code>
             )}

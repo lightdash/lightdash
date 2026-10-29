@@ -1,0 +1,16 @@
+.description:global(.wmde-markdown) {
+    font-size: var(--mantine-font-size-sm);
+    background-color: transparent;
+    color: var(--mantine-color-text);
+}
+
+.description:global(.wmde-markdown) p {
+    margin: 0;
+    font-weight: 400;
+}
+
+.description:global(.wmde-markdown) ul,
+.description:global(.wmde-markdown) ol {
+    margin: 4px 0 0;
+    padding-left: 18px;
+}

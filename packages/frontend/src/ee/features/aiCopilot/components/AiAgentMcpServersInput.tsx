@@ -1704,15 +1704,7 @@ export const AiAgentMcpServersInput = ({
                                             }
                                             px="md"
                                             py="sm"
-                                            style={{
-                                                width: '100%',
-                                                background: 'transparent',
-                                                border: 0,
-                                                cursor: 'pointer',
-                                                font: 'inherit',
-                                                color: 'inherit',
-                                                textAlign: 'inherit',
-                                            }}
+                                            className={classes.toolsToggle}
                                         >
                                             <Group
                                                 justify="space-between"

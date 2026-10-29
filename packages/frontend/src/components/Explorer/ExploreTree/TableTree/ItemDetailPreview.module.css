@@ -37,3 +37,23 @@ table.markdownTable td.markdownCell {
     border: 1px solid var(--mantine-color-indigo-1);
     box-shadow: var(--mantine-shadow-subtle);
 }
+
+div.markdown {
+    font-size: var(--mantine-font-size-sm);
+    color: var(--mantine-color-ldGray-7);
+    background-color: transparent;
+}
+
+.description {
+    overflow: hidden;
+
+    /* If we're over the truncation limit, use a mask to fade out the bottom of the container. */
+    &[data-truncated] {
+        mask-image: linear-gradient(
+            180deg,
+            white 0%,
+            white 80%,
+            transparent 100%
+        );
+    }
+}

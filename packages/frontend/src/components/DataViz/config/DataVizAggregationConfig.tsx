@@ -104,16 +104,12 @@ export const DataVizAggregationConfig: FC<Props> = ({
                 classNames={{
                     option: `${classes.option} ${classes.indigoOption}`,
                     dropdown: classes.dropdown,
-                    input: `${classes.input} ${classes.indigoInput}`,
+                    input: `${classes.input} ${classes.indigoInput} ${
+                        aggregation === VizAggregationOptions.ANY
+                            ? classes.aggregationInputWide
+                            : classes.aggregationInput
+                    }`,
                     section: classes.section,
-                }}
-                styles={{
-                    input: {
-                        width:
-                            aggregation === VizAggregationOptions.ANY
-                                ? '70px'
-                                : '50px',
-                    },
                 }}
             />
         </Tooltip>

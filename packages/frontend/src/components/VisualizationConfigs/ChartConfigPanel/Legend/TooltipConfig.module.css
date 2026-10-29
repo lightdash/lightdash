@@ -24,6 +24,7 @@
 
 .placeholderText {
     pointer-events: none;
+    z-index: var(--mantine-z-index-overlay);
     font-family: monospace;
 }
 

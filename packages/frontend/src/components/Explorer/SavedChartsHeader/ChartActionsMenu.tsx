@@ -90,6 +90,7 @@ import ChartDuplicateModal from '../../common/modal/ChartDuplicateModal';
 import MoveChartThatBelongsToDashboardModal from '../../common/modal/MoveChartThatBelongsToDashboardModal';
 import TransferItemsModal from '../../common/TransferItemsModal/TransferItemsModal';
 import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
+import classes from './SavedChartsHeader.module.css';
 
 const ChangeChartExploreModal = lazy(
     () => import('../../common/modal/ChangeChartExploreModal'),
@@ -323,7 +324,7 @@ const ChartActionsMenu: FC<Props> = ({
             >
                 <Menu.Dropdown
                     mah="calc(100dvh - 24px)"
-                    style={{ overflowY: 'auto' }}
+                    className={classes.scrollableDropdown}
                 >
                     {children}
                     <AskAiAgentMenuItem

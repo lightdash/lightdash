@@ -29,7 +29,6 @@ import {
     markdownSanitizeRehypePlugins,
     mdEditorComponents,
     rehypeRemoveHeaderLinks,
-    useMdEditorStyle,
 } from '../../../../utils/markdownUtils';
 import {
     useAiAgentDocumentContent,
@@ -57,7 +56,7 @@ const LoadedDocumentModal = ({
     projectUuid,
 }: LoadedDocumentModalProps) => {
     const { colorScheme } = useMantineColorScheme();
-    const markdownStyle = useMdEditorStyle();
+
     const updateDocument = useUpdateAiAgentDocumentContent(
         projectUuid,
         agentUuid,
@@ -218,7 +217,7 @@ const LoadedDocumentModal = ({
                     >
                         <MDEditor.Markdown
                             source={form.values.content}
-                            style={markdownStyle}
+                            className={classes.markdown}
                             components={mdEditorComponents}
                             rehypePlugins={markdownSanitizeRehypePlugins}
                             rehypeRewrite={rehypeRemoveHeaderLinks}
@@ -230,10 +229,7 @@ const LoadedDocumentModal = ({
                         component="pre"
                         fz="sm"
                         ff="monospace"
-                        style={{
-                            whiteSpace: 'pre-wrap',
-                            overflowWrap: 'anywhere',
-                        }}
+                        className={classes.rawContent}
                     >
                         {form.values.content}
                     </Text>
@@ -271,7 +267,7 @@ const LoadedDocumentModal = ({
                             autosize
                             minRows={24}
                             maxRows={40}
-                            styles={{ input: { fontFamily: 'monospace' } }}
+                            classNames={{ input: classes.monospaceInput }}
                             {...form.getInputProps('content')}
                         />
                     )}

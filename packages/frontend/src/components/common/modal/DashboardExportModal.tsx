@@ -377,14 +377,6 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
                                     value: tab.uuid,
                                     label: tab.name,
                                 }))}
-                                clearButtonProps={{
-                                    style: {
-                                        display:
-                                            selectedTabs.length > 1
-                                                ? 'block'
-                                                : 'none',
-                                    },
-                                }}
                                 clearable={selectedTabs.length > 1}
                                 searchable
                                 onChange={setSelectedTabs}

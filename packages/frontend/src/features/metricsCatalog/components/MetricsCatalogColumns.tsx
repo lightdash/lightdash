@@ -3,15 +3,9 @@ import {
     SpotlightTableColumns,
     type CatalogField,
 } from '@lightdash/common';
-import {
-    Box,
-    Button,
-    Flex,
-    Group,
-    Text,
-    useComputedColorScheme,
-} from '@mantine/core';
+import { Box, Button, Flex, Group, Text } from '@mantine/core';
 import { IconPlus, IconUser } from '@tabler/icons-react';
+import { clsx } from 'clsx';
 import { useMemo } from 'react';
 import { type ContentTableColumnDef } from '../../../components/common/ContentTable';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -99,7 +93,6 @@ export const MetricsCatalogColumns: ContentTableColumnDef<CatalogField>[] = [
             const projectUuid = useAppSelector(
                 (state) => state.metricsCatalog.projectUuid,
             );
-            const colorScheme = useComputedColorScheme();
 
             const savedChartVersion = createMetricPreviewUnsavedChartVersion({
                 name: row.original.name,
@@ -125,19 +118,7 @@ export const MetricsCatalogColumns: ContentTableColumnDef<CatalogField>[] = [
                     fz="sm"
                     c="ldDark.7"
                     className={styles.tableButton}
-                    styles={(theme) => ({
-                        section: {
-                            marginRight: theme.spacing.xxs,
-                            color:
-                                colorScheme === 'dark'
-                                    ? theme.colors.ldDark[7]
-                                    : theme.colors.ldGray[4],
-                            '--table-icon-stroke':
-                                colorScheme === 'dark'
-                                    ? theme.colors.ldDark[4]
-                                    : 'white',
-                        },
-                    })}
+                    classNames={{ section: styles.tableButtonSection }}
                 >
                     {renderedCellValue}
                 </Button>
@@ -206,9 +187,8 @@ export const MetricsCatalogColumns: ContentTableColumnDef<CatalogField>[] = [
                     h="100%"
                     left={0}
                     top={0}
-                    style={{
-                        cursor: canManageTags ? 'pointer' : 'default',
-                    }}
+                    className={styles.categoryCursor}
+                    data-clickable={canManageTags || undefined}
                 >
                     <Group mx="md" gap="xxs">
                         {categories.map((category) => (
@@ -268,7 +248,7 @@ export const MetricsCatalogColumns: ContentTableColumnDef<CatalogField>[] = [
                         { metric: row.original.label },
                     )}
                     aria-haspopup="dialog"
-                    className={styles.categoryCell}
+                    className={clsx(styles.categoryCell, styles.categoryCursor)}
                     pos="absolute"
                     py={6}
                     px="md"
@@ -293,9 +273,7 @@ export const MetricsCatalogColumns: ContentTableColumnDef<CatalogField>[] = [
 
                         table.setEditingCell(cell);
                     }}
-                    style={{
-                        cursor: canManageTags ? 'pointer' : 'default',
-                    }}
+                    data-clickable={canManageTags || undefined}
                 >
                     {categories.length === 0 && canManageTags ? (
                         <Group gap={2} className={styles.categoryPlaceholder}>
@@ -314,9 +292,7 @@ export const MetricsCatalogColumns: ContentTableColumnDef<CatalogField>[] = [
                             pos="relative"
                             w="100%"
                             h="100%"
-                            style={{
-                                rowGap: 'unset',
-                            }}
+                            className={styles.categoryList}
                         >
                             {categories.map((category) => (
                                 <CatalogCategory

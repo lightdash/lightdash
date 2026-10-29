@@ -185,7 +185,7 @@ const ProjectRow: FC<{
                     </Highlight>
                 </Tooltip>
 
-                <Group gap="xs" wrap="nowrap" style={{ flexShrink: 0 }}>
+                <Group gap="xs" wrap="nowrap" flex="none">
                     {isActive && <CurrentBadge />}
                     {isPlaygroundProject(item) && <PlaygroundBadge />}
                     {previewCount > 0 && (
@@ -621,7 +621,7 @@ const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ portalTarget }) => {
                 <Menu.Dropdown
                     w="min(400px, calc(100vw - 24px))"
                     mah="calc(100dvh - 24px)"
-                    style={{ overflowY: 'auto' }}
+                    className={classes.scrollableDropdown}
                 >
                     {isLoadingProjects ? (
                         <Box p="lg" ta="center">

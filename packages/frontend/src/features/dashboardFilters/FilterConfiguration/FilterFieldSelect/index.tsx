@@ -345,13 +345,12 @@ const FilterFieldSelect: FC<FilterFieldSelectProps> = ({
                                             return (
                                                 <Box
                                                     key={virtualRow.key}
-                                                    pos="absolute"
-                                                    top={0}
-                                                    left={0}
-                                                    w="100%"
                                                     h={virtualRow.size}
+                                                    className={
+                                                        styles.virtualItem
+                                                    }
                                                     style={{
-                                                        transform: `translateY(${virtualRow.start}px)`,
+                                                        '--item-start': `${virtualRow.start}px`,
                                                     }}
                                                 >
                                                     {renderVirtualItem(item)}

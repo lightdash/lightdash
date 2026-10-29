@@ -3,3 +3,12 @@
     overflow: hidden;
     text-overflow: ellipsis;
 }
+
+.checkIcon {
+    flex-shrink: 0;
+}
+
+.checkIconHidden {
+    composes: checkIcon;
+    visibility: hidden;
+}

@@ -44,6 +44,7 @@ import { filterOperatorLabel } from '../common/Filters/FilterInputs/constants';
 import MantineIcon from '../common/MantineIcon';
 import { IconBox } from '../common/ResourceIcon';
 import TruncatedText from '../common/TruncatedText';
+import classes from './PreAggregateMaterializations.module.css';
 
 const TRIGGER_LABELS: Record<string, string> = {
     compile: 'Project compile',
@@ -128,11 +129,7 @@ const ColumnsSection: FC<{
                             justify="space-between"
                             px="xs"
                             py={4}
-                            style={{
-                                borderRadius: 'var(--mantine-radius-sm)',
-                                backgroundColor:
-                                    'var(--mantine-color-ldGray-0)',
-                            }}
+                            className={classes.detailRow}
                         >
                             <Text fz="xs" ff="monospace">
                                 {name}
@@ -170,11 +167,7 @@ const MaterializationRoleSection: FC<{
                                 key={attributeName}
                                 px="xs"
                                 py={6}
-                                style={{
-                                    borderRadius: 'var(--mantine-radius-sm)',
-                                    backgroundColor:
-                                        'var(--mantine-color-ldGray-0)',
-                                }}
+                                className={classes.detailRow}
                             >
                                 <Stack gap={6}>
                                     <Text fz="xs" ff="monospace">
@@ -216,9 +209,7 @@ const FiltersSection: FC<{
                         key={filter.id}
                         px="xs"
                         py={6}
-                        style={{
-                            borderRadius: 'var(--mantine-radius-sm)',
-                        }}
+                        className={classes.filterRow}
                     >
                         <Group gap={6} wrap="wrap" align="center">
                             <Badge size="xs" ff="monospace">
@@ -456,8 +447,8 @@ const MaterializationDetailDrawer: FC<Props> = ({
                         <DetailLabel>Warnings</DetailLabel>
                         <Callout variant="warning" p="xs" hideIcon>
                             <List
-                                styles={{
-                                    itemWrapper: { alignItems: 'flex-start' },
+                                classNames={{
+                                    itemWrapper: classes.warningItem,
                                 }}
                             >
                                 {summary.warnings.map(
@@ -492,13 +483,7 @@ const MaterializationDetailDrawer: FC<Props> = ({
 
                 {materialization && (
                     <>
-                        <Box
-                            style={{
-                                borderTop:
-                                    '1px dashed var(--mantine-color-ldGray-2)',
-                            }}
-                            pt="md"
-                        >
+                        <Box className={classes.detailSection} pt="md">
                             <Group justify="space-between" mb="sm">
                                 <Group gap="xs">
                                     <IconBox

@@ -31,28 +31,25 @@ export const ProjectContextDiffPreview: FC<ProjectContextDiffPreviewProps> = ({
     // overflow:auto here gives both vertical and horizontal scroll; colorScheme
     // pins the diff's light-dark() to the app theme; --diffs-font-size shrinks
     // the dense YAML (both CSS vars inherit through the diff's shadow DOM).
-    const viewportStyle = {
-        maxHeight: '60vh',
-        overflow: 'auto',
-        colorScheme,
-        '--diffs-font-size': '11px',
-        '--diffs-line-height': '17px',
-    } as CSSProperties;
-
     return (
         <WorkerPoolContextProvider
             poolOptions={PIERRE_POOL_OPTIONS}
             highlighterOptions={PIERRE_HIGHLIGHTER_OPTIONS}
         >
             <Paper shadow="sm" radius="md" className={classes.diffPanel}>
-                <Virtualizer style={viewportStyle}>
+                <Virtualizer
+                    className={classes.diffViewport}
+                    style={
+                        { '--diff-color-scheme': colorScheme } as CSSProperties
+                    }
+                >
                     <MultiFileDiff
                         oldFile={{ name: fileName, contents: before }}
                         newFile={{ name: fileName, contents: after }}
                         // color-scheme must sit on the diff host itself to override
                         // its `:host { color-scheme: light dark }` — otherwise the
                         // backgrounds follow the OS, not the app theme.
-                        style={{ colorScheme }}
+                        className={classes.diffHost}
                         // Surface the create/update intent in Pierre's own file
                         // header so the modal doesn't need a separate description.
                         renderHeaderMetadata={() => (

@@ -402,15 +402,7 @@ const MultipleItemsModalContent = ({
                         selected)
                     </Text>
 
-                    <Stack
-                        h="100%"
-                        p="sm"
-                        style={{
-                            border: '1px solid var(--mantine-color-ldGray-3)',
-                            borderRadius: '4px',
-                            overflowY: 'auto',
-                        }}
-                    >
+                    <Stack h="100%" p="sm" className={classes.itemList}>
                         {items.map((item) => {
                             const itemId = getItemId(item);
                             const itemLabel = getItemLabel(item);

@@ -270,7 +270,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                                         fz="xs"
                                         label={
                                             <Stack gap="one" fz="xs">
-                                                <Text c="dimmed" fz="xs">
+                                                <Text c="gray.5" fz="xs">
                                                     Schedule type:{' '}
                                                     <Text
                                                         c="white"
@@ -281,7 +281,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                                                     </Text>
                                                 </Text>
                                                 {!isUserScope && (
-                                                    <Text c="dimmed" fz="xs">
+                                                    <Text c="gray.5" fz="xs">
                                                         Created by:{' '}
                                                         <Text
                                                             c="white"
@@ -300,10 +300,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                                             fw={600}
                                             fz="xs"
                                             lineClamp={1}
-                                            style={{
-                                                overflowWrap: 'anywhere',
-                                                cursor: 'pointer',
-                                            }}
+                                            className={classes.itemName}
                                             ref={isTruncated.ref}
                                         >
                                             {item.name}
@@ -592,12 +589,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                             >
                                 <Group gap="two">
                                     <SlackSvg
-                                        style={{
-                                            margin: '5px 2px',
-                                            width: '12px',
-                                            height: '12px',
-                                            filter: 'grayscale(100%)',
-                                        }}
+                                        className={classes.destinationIcon}
                                     />
                                     <Text fz="xs" c="dimmed">
                                         Slack
@@ -610,12 +602,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                                 <Tooltip label={item.options.gdriveName}>
                                     <Group gap="two">
                                         <GSheetsSvg
-                                            style={{
-                                                margin: '5px 2px',
-                                                width: '12px',
-                                                height: '12px',
-                                                filter: 'grayscale(100%)',
-                                            }}
+                                            className={classes.destinationIcon}
                                         />
                                         <Anchor
                                             fz="xs"
@@ -640,12 +627,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                             >
                                 <Group gap="two">
                                     <GoogleChatSvg
-                                        style={{
-                                            margin: '5px 2px',
-                                            width: '12px',
-                                            height: '12px',
-                                            filter: 'grayscale(100%)',
-                                        }}
+                                        className={classes.destinationIcon}
                                     />
                                     <Text fz="xs" c="dimmed">
                                         Google Chat

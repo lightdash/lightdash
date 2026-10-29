@@ -84,6 +84,7 @@ import ShareShortLinkButton from '../../common/ShareShortLinkButton';
 import ExploreFromHereButton from '../../ExploreFromHereButton';
 import ChartActionsMenu from './ChartActionsMenu';
 import ChartEditActions from './ChartEditActions';
+import classes from './SavedChartsHeader.module.css';
 import { TitleBreadCrumbs } from './TitleBreadcrumbs';
 import { useVerifiedChartSavePending } from './useVerifiedChartSavePending';
 
@@ -499,9 +500,7 @@ const SavedChartsHeader: FC = () => {
                                     >
                                         <IconCircleCheckFilled
                                             size={16}
-                                            style={{
-                                                color: 'var(--mantine-color-green-6)',
-                                            }}
+                                            className={classes.verifiedIcon}
                                             {...verifiedTourProps}
                                         />
                                     </Tooltip>

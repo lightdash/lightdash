@@ -26,6 +26,7 @@ import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
 import { useInfiniteVerifiedArtifacts } from '../../hooks/useAiAgentAdmin';
 import { useSetArtifactVersionVerified } from '../../hooks/useAiAgentArtifacts';
 import { useAiAgentPermission } from '../../hooks/useAiAgentPermission';
+import adminClasses from './AdminTable.module.css';
 
 type Props = {
     onArtifactSelect: (artifact: AiAgentVerifiedArtifact) => void;
@@ -289,9 +290,7 @@ export const VerifiedArtifactsTable: FC<Props> = ({
                 p={`${theme.spacing.sm} ${theme.spacing.xl} ${theme.spacing.md} ${theme.spacing.xl}`}
                 fz="xs"
                 fw={500}
-                style={{
-                    borderTop: `1px solid ${theme.colors.ldGray[3]}`,
-                }}
+                className={adminClasses.loadMoreFooter}
             >
                 {isFetching ? (
                     <Text fz="xs">Loading more...</Text>

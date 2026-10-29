@@ -108,3 +108,7 @@
         min-height: 44px;
     }
 }
+
+.scrollableDropdown {
+    overflow-y: auto;
+}

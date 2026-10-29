@@ -70,12 +70,7 @@ export const FilterRuleLabel: FC<Props> = ({
     }, [filterRule, field, allFilterableFields, filterableFieldsByTileUuid]);
 
     return (
-        <Box
-            style={{
-                maxWidth: '100%',
-                overflow: 'hidden',
-            }}
-        >
+        <Box className={classes.ruleLabel}>
             <Text fz="xs" truncate>
                 <Tooltip
                     position="top-start"

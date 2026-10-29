@@ -29,6 +29,7 @@ import { useRunMetricTotal } from '../../../../hooks/useRunMetricExplorerQuery';
 import { MetricDetailPopover } from '../../../MetricDetailPopover';
 import { useCanvasYamlDrivers } from '../../CanvasYamlDriversContext';
 import classes from './ChangeIndicator.module.css';
+import nodeClasses from './ExpandedNode.module.css';
 
 const getComparisonLabel = (
     timeFrame: TimeFrames,
@@ -207,14 +208,8 @@ const ExpandedNode: React.FC<NodeProps<ExpandedNodeData>> = ({
         <Paper
             p="md"
             fz="sm"
-            style={(theme) => ({
-                borderColor: selected
-                    ? theme.colors.blue[5]
-                    : theme.colors.ldGray[3],
-                // Re-enable pointer events so tooltips work even when ReactFlow
-                // sets pointer-events:none on node wrappers (viewOnly mode)
-                pointerEvents: 'all',
-            })}
+            className={nodeClasses.expandedNode}
+            data-selected={selected || undefined}
         >
             <Handle
                 type="target"

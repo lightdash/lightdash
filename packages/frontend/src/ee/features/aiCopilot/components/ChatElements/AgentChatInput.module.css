@@ -337,3 +337,8 @@
 .dropOverlay[data-variant='inline'] {
     border-radius: rem(18px);
 }
+
+.contentMentionSuggestionName {
+    flex: 1;
+    min-width: 0;
+}

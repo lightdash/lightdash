@@ -85,3 +85,20 @@
         min-width: 0;
     }
 }
+
+.parseError {
+    word-break: break-word;
+    white-space: pre-wrap;
+}
+
+.hidden {
+    visibility: hidden;
+}
+
+.floatingActions {
+    z-index: 5;
+}
+
+.expandedContent {
+    min-width: 90vw;
+}

@@ -1,12 +1,5 @@
 import type { CatalogMetricsTreeEdge } from '@lightdash/common';
-import {
-    Box,
-    Group,
-    Stack,
-    Button,
-    useMantineTheme,
-    useMatches,
-} from '@mantine/core';
+import { Box, Group, Stack, Button, useMatches } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconLayoutGridRemove } from '@tabler/icons-react';
 import {
@@ -71,7 +64,6 @@ const SavedTreeCanvasFlow: FC<Props> = ({
     isLoadingMoreMetrics,
     onLoadMoreMetrics,
 }) => {
-    const theme = useMantineTheme();
     const getUiString = useUiStrings();
     const compact = useMatches(
         { base: true, sm: false },
@@ -165,7 +157,7 @@ const SavedTreeCanvasFlow: FC<Props> = ({
                     resizable={!compact}
                     sizes={compact && !viewOnly ? [0, 100] : undefined}
                     classNames={{ handle: sidebarStyles.resizeHandle }}
-                    style={{ flex: 1, minHeight: 0 }}
+                    flex={1}
                 >
                     {!viewOnly && (
                         <ResizableSplitter.Pane
@@ -201,7 +193,7 @@ const SavedTreeCanvasFlow: FC<Props> = ({
                         defaultSize={80}
                     >
                         <Stack h="100%" gap={0}>
-                            <Box style={{ flex: 1, minHeight: 0 }}>
+                            <Box flex={1} mih={0}>
                                 <ReactFlow
                                     className={clsx(
                                         reactFlowStyles.reactFlow,
@@ -245,10 +237,7 @@ const SavedTreeCanvasFlow: FC<Props> = ({
                                                     })
                                                 }
                                                 size="xs"
-                                                style={{
-                                                    boxShadow:
-                                                        theme.shadows.subtle,
-                                                }}
+                                                className={styles.cleanUpButton}
                                                 leftSection={
                                                     <MantineIcon
                                                         color="ldGray.5"

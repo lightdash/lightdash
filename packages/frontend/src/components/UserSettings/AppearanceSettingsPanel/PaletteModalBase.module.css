@@ -11,3 +11,7 @@
 .toggleColorsButton {
     align-self: flex-end;
 }
+
+.colorsViewport {
+    max-height: 260px;
+}

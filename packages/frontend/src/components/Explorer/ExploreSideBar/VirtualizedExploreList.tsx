@@ -13,6 +13,7 @@ import {
 } from './exploreTree';
 import GroupHeader from './GroupHeader';
 import SectionHeader from './SectionHeader';
+import classes from './VirtualizedExploreList.module.css';
 
 const INDENT_PER_DEPTH = 16;
 
@@ -292,12 +293,7 @@ const VirtualizedExploreList: FC<VirtualizedExploreListProps> = ({
                     );
                 case 'explore':
                     return (
-                        <Box
-                            key={item.id}
-                            style={{
-                                paddingLeft: `${item.depth * INDENT_PER_DEPTH}px`,
-                            }}
-                        >
+                        <Box key={item.id} pl={item.depth * INDENT_PER_DEPTH}>
                             <ExploreNavLink
                                 explore={item.explore}
                                 connectionName={getConnectionName(
@@ -335,17 +331,11 @@ const VirtualizedExploreList: FC<VirtualizedExploreListProps> = ({
     );
 
     return (
-        <Box
-            ref={parentRef}
-            style={{
-                height: '100%',
-                overflow: 'auto',
-            }}
-        >
+        <Box ref={parentRef} className={classes.scroller}>
             <Box
+                className={classes.sizer}
                 style={{
-                    height: virtualizer.getTotalSize() + 16,
-                    position: 'relative',
+                    '--list-height': `${virtualizer.getTotalSize() + 16}px`,
                 }}
             >
                 {virtualizer.getVirtualItems().map((virtualItem) => {
@@ -354,13 +344,10 @@ const VirtualizedExploreList: FC<VirtualizedExploreListProps> = ({
                     return (
                         <Box
                             key={virtualItem.key}
+                            className={classes.item}
                             style={{
-                                position: 'absolute',
-                                top: 0,
-                                left: 0,
-                                width: '100%',
-                                height: virtualItem.size,
-                                transform: `translateY(${virtualItem.start}px)`,
+                                '--item-height': `${virtualItem.size}px`,
+                                '--item-start': `${virtualItem.start}px`,
                             }}
                         >
                             {renderItem(item)}

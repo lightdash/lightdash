@@ -15,6 +15,7 @@ import {
 } from '@lightdash/common';
 import {
     Badge,
+    Box,
     Collapse,
     Flex,
     Group,
@@ -331,15 +332,15 @@ const TilesTable = ({ data }: { data: any[] }) => {
                 header: 'Difference',
                 size: 120,
                 Cell: ({ cell }) => (
-                    <div style={{ textAlign: 'right' }}>
+                    <Box ta="right">
                         <DifferenceBadge diff={cell.getValue<number>()} />
-                    </div>
+                    </Box>
                 ),
                 Footer: () =>
                     totals ? (
-                        <div style={{ textAlign: 'right' }}>
+                        <Box ta="right">
                             <DifferenceBadge diff={totals.difference} />
-                        </div>
+                        </Box>
                     ) : null,
             },
         ],
@@ -497,7 +498,7 @@ const ChartsTable = ({
                 header: 'Rollback Action',
                 size: 150,
                 Cell: ({ row }) => (
-                    <div style={{ textAlign: 'center' }}>
+                    <Box ta="center">
                         {!row.original.inCurrent && row.original.inVersion && (
                             <Badge color="green" size="sm">
                                 Add
@@ -520,7 +521,7 @@ const ChartsTable = ({
                             !row.original.hasDifferentVersion && (
                                 <Badge size="sm">No change</Badge>
                             )}
-                    </div>
+                    </Box>
                 ),
                 enableSorting: true,
             },
@@ -625,7 +626,7 @@ const FiltersTable = ({
                 header: 'Rollback Action',
                 size: 150,
                 Cell: ({ row }) => (
-                    <div style={{ textAlign: 'center' }}>
+                    <Box ta="center">
                         {!row.original.currentFilter &&
                             row.original.versionFilter && (
                                 <Badge color="green" size="sm">
@@ -650,7 +651,7 @@ const FiltersTable = ({
                             !row.original.hasChanged && (
                                 <Badge size="sm">No change</Badge>
                             )}
-                    </div>
+                    </Box>
                 ),
                 enableSorting: true,
             },

@@ -186,7 +186,6 @@ export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
                                             h={6}
                                             bg="indigo.5"
                                             className={styles.pulse}
-                                            style={{ borderRadius: '50%' }}
                                         />
                                     )}
                                     <Text fz="xs" c="dimmed">

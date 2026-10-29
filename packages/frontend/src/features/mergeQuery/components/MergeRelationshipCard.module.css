@@ -1,0 +1,4 @@
+.badgeLabel {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}

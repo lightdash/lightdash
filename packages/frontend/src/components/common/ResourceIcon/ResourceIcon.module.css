@@ -10,3 +10,7 @@
 .tooltipPointerEvents {
     pointer-events: auto;
 }
+
+.rotated {
+    rotate: 90deg;
+}

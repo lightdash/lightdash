@@ -18,7 +18,10 @@
     width: var(--code-block-line-numbers-width);
     color: var(--mantine-color-dimmed);
     font-family: var(--mantine-font-family-monospace);
-    font-size: calc(0.8125rem * var(--mantine-scale));
+    font-size: var(
+        --code-block-line-numbers-fz,
+        calc(0.8125rem * var(--mantine-scale))
+    );
     line-height: 1.7;
     text-align: end;
     white-space: pre;

@@ -23,18 +23,50 @@ module.exports = {
         return {
             JSXAttribute(node) {
                 if (node.name.type !== 'JSXIdentifier') return;
+                const nested =
+                    node.value &&
+                    node.value.type === 'JSXExpressionContainer' &&
+                    node.value.expression.type === 'ObjectExpression'
+                        ? node.value.expression.properties
+                        : [];
+                for (const property of nested) {
+                    if (
+                        property.type === 'Property' &&
+                        property.key.type === 'Identifier' &&
+                        (property.key.name === 'style' ||
+                            property.key.name === 'styles')
+                    ) {
+                        context.report({
+                            node: property,
+                            messageId:
+                                property.key.name === 'styles'
+                                    ? 'noStyles'
+                                    : 'noStyle',
+                        });
+                    }
+                }
                 if (node.name.name === 'styles') {
                     context.report({ node, messageId: 'noStyles' });
                     return;
                 }
                 if (node.name.name !== 'style') return;
                 const value = node.value;
+                let expression =
+                    value && value.type === 'JSXExpressionContainer'
+                        ? value.expression
+                        : null;
+                while (
+                    expression &&
+                    (expression.type === 'TSAsExpression' ||
+                        expression.type === 'TSSatisfiesExpression')
+                ) {
+                    expression = expression.expression;
+                }
                 if (
-                    value &&
-                    value.type === 'JSXExpressionContainer' &&
-                    value.expression.type === 'ObjectExpression' &&
-                    value.expression.properties.length > 0 &&
-                    value.expression.properties.every(isCssVariableKey)
+                    expression &&
+                    expression.type === 'ObjectExpression' &&
+                    expression.properties.length > 0 &&
+                    expression.properties.every(isCssVariableKey)
                 ) {
                     return;
                 }

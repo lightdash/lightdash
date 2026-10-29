@@ -185,7 +185,8 @@
     border-radius: 12px;
     background: var(--mantine-color-body);
     padding: 14px;
-    transition: opacity 0.12s ease-in-out;
+    transform: var(--block-drag-transform);
+    transition: var(--block-drag-transition, opacity 0.12s ease-in-out);
 }
 
 /* In-layout ghost while its clone rides the DragOverlay (Kanban-style) */

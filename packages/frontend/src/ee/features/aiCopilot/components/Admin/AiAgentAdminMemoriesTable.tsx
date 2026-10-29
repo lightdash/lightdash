@@ -360,12 +360,7 @@ const AiAgentAdminMemoriesTable = () => {
                             debounceMs={300}
                         />
 
-                        <Divider
-                            orientation="vertical"
-                            w={1}
-                            h={20}
-                            className={styles.toolbarDivider}
-                        />
+                        <Divider orientation="vertical" w={1} h={20} />
                         <ProjectsFilter
                             selectedProjectUuids={selectedProjectUuids}
                             setSelectedProjectUuids={setSelectedProjectUuids}
@@ -387,12 +382,7 @@ const AiAgentAdminMemoriesTable = () => {
 
                         {hasActiveFilters && (
                             <>
-                                <Divider
-                                    orientation="vertical"
-                                    w={1}
-                                    h={20}
-                                    className={styles.toolbarDivider}
-                                />
+                                <Divider orientation="vertical" w={1} h={20} />
                                 <Button
                                     variant="subtle"
                                     size="xs"

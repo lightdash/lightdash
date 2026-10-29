@@ -9,3 +9,7 @@
 .historyDropdown {
     overflow: scroll;
 }
+
+.historyTimestamp {
+    border-bottom: 1px solid var(--mantine-color-ldGray-3);
+}

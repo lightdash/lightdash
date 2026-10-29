@@ -13,19 +13,15 @@ export const DraggableItem: FC<{
         disabled,
     });
 
-    const style = transform
-        ? ({
-              position: 'relative',
-              zIndex: 1,
-              transform: `translate(${transform.x}px, ${transform.y}px)`,
-              opacity: 0.8,
-          } as const)
-        : undefined;
-
     return (
         <Box
             ref={setNodeRef}
-            style={style}
+            className={classes.draggable}
+            data-dragging={transform ? true : undefined}
+            style={{
+                '--drag-x': transform ? `${transform.x}px` : undefined,
+                '--drag-y': transform ? `${transform.y}px` : undefined,
+            }}
             {...(disabled ? {} : listeners)}
             {...(disabled ? {} : attributes)}
         >

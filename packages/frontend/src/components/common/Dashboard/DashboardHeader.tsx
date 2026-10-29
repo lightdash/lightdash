@@ -53,6 +53,7 @@ import {
     IconUpload,
     IconUsers,
 } from '@tabler/icons-react';
+import { clsx } from 'clsx';
 import dayjs from 'dayjs';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
@@ -118,7 +119,6 @@ import ShareShortLinkButton from '../ShareShortLinkButton';
 import SpaceActionModal from '../SpaceActionModal';
 import { ActionType } from '../SpaceActionModal/types';
 import TransferItemsModal from '../TransferItemsModal/TransferItemsModal';
-import { DASHBOARD_HEADER_ZINDEX } from './dashboard.constants';
 import headerClasses from './DashboardHeader.module.css';
 import DashboardPreAggRefreshModal from './DashboardPreAggRefreshModal';
 import { DashboardRefreshButton } from './DashboardRefreshButton';
@@ -473,8 +473,7 @@ const DashboardHeader = memo(
                 mobileLayout={!isEditMode ? 'content' : undefined}
                 variant="dashboard"
                 cardProps={{
-                    style: { zIndex: DASHBOARD_HEADER_ZINDEX },
-                    className,
+                    className: clsx(headerClasses.headerCard, className),
                 }}
             >
                 <HeaderTitle gap="xs" flex={1} wrap="nowrap">
@@ -502,7 +501,7 @@ const DashboardHeader = memo(
                                 color="yellow"
                                 variant="dot"
                                 size="sm"
-                                style={{ cursor: 'default' }}
+                                className={headerClasses.staticBadge}
                             >
                                 Unpublished changes
                             </Badge>
@@ -570,11 +569,10 @@ const DashboardHeader = memo(
                             }
                             zIndex={Z_INDEX_FLOATING}
                         >
-                            <IconCircleCheckFilled
+                            <MantineIcon
+                                icon={IconCircleCheckFilled}
                                 size={16}
-                                style={{
-                                    color: 'var(--mantine-color-green-6)',
-                                }}
+                                color="green.6"
                             />
                         </Tooltip>
                     )}
@@ -1001,7 +999,7 @@ const DashboardHeader = memo(
 
                                 <Menu.Dropdown
                                     mah="calc(100dvh - 24px)"
-                                    style={{ overflowY: 'auto' }}
+                                    className={headerClasses.scrollableDropdown}
                                 >
                                     {compact && (
                                         <>
@@ -1319,11 +1317,12 @@ const DashboardHeader = memo(
                                             <Menu.Item
                                                 leftSection={
                                                     isDashboardVerified ? (
-                                                        <IconCircleCheckFilled
+                                                        <MantineIcon
+                                                            icon={
+                                                                IconCircleCheckFilled
+                                                            }
                                                             size={16}
-                                                            style={{
-                                                                color: 'var(--mantine-color-green-6)',
-                                                            }}
+                                                            color="green.6"
                                                         />
                                                     ) : (
                                                         <MantineIcon

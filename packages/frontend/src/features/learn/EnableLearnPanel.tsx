@@ -63,6 +63,7 @@ export const EnableLearnPanel: FC<Props> = ({
                                 <Box
                                     key={group}
                                     className={styles.enableGroup}
+                                    // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
                                     style={groupVars(group)}
                                 >
                                     <Box

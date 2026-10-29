@@ -58,3 +58,17 @@
 .compact td:last-child {
     border-right: 1px solid var(--mantine-color-default-border);
 }
+
+.wrapper {
+    overflow: auto;
+    font-feature-settings: 'tnum';
+    flex-grow: 1;
+}
+
+.headerCell {
+    background-color: var(--mantine-color-ldGray-0);
+}
+
+.headerCell[data-sortable] {
+    cursor: pointer;
+}

@@ -96,7 +96,7 @@
     .day,
     .pickerControl,
     .headerControl,
-    .footerButton {
+    .footerButton[data-variant] {
         min-height: 44px;
     }
 
@@ -105,4 +105,17 @@
         bottom: 0;
         background: var(--mantine-color-body);
     }
+}
+
+.rangeInput {
+    box-shadow: var(--mantine-shadow-subtle);
+    border: 1px solid var(--mantine-color-ldGray-2);
+}
+
+.cancelButton[data-variant] {
+    border: 1px solid var(--mantine-color-ldGray-2);
+}
+
+.footerButton[data-variant] {
+    box-shadow: var(--mantine-shadow-subtle);
 }

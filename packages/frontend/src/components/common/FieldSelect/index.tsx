@@ -354,7 +354,7 @@ const FieldSelectComponent = <T extends Item = Item>({
                             span
                             fz="xs"
                             size={rest.size}
-                            style={{ wordBreak: 'normal' }}
+                            className={classes.optionLabel}
                         >
                             {fieldOption.tablePrefix && (
                                 <Text span inherit c="dimmed">

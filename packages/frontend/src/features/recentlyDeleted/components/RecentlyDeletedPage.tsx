@@ -557,11 +557,8 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
                                     </ActionIcon>
                                 )
                             }
-                            style={{
-                                minWidth: 200,
-                                maxWidth: 350,
-                                flexShrink: 1,
-                            }}
+                            miw={200}
+                            maw={350}
                         />
                     </Tooltip>
 

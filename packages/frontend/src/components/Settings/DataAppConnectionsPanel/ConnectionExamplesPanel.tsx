@@ -147,13 +147,7 @@ const SampleRow: FC<SampleRowProps> = ({
         });
 
     return (
-        <Box
-            p="sm"
-            style={{
-                borderRadius: 'var(--mantine-radius-sm)',
-                border: '1px solid var(--mantine-color-ldGray-2)',
-            }}
-        >
+        <Box p="sm" className={classes.exampleCard}>
             <Group justify="space-between" align="flex-start" wrap="nowrap">
                 <Stack gap={4} flex={1} miw={0}>
                     <Text fw={500} fz="sm" truncate>

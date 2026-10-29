@@ -55,6 +55,7 @@ import MantineIcon from '../../common/MantineIcon';
 import ConfirmAdminSelfDowngradeModal from './ConfirmAdminSelfDowngradeModal';
 import InviteSuccess from './InviteSuccess';
 import UsersActionMenu from './UsersActionMenu';
+import tableClasses from './UsersAndGroupsTable.module.css';
 import { UsersTopToolbar } from './UsersTopToolbar';
 
 const fetchSize = 50;
@@ -498,9 +499,7 @@ const UsersTable: FC = () => {
                 p={`${theme.spacing.sm} ${theme.spacing.xl} ${theme.spacing.md} ${theme.spacing.xl}`}
                 fz="xs"
                 fw={500}
-                style={{
-                    borderTop: `1px solid ${theme.colors.ldGray[3]}`,
-                }}
+                className={tableClasses.bottomToolbar}
             >
                 {isFetching ? (
                     <Text fz="xs">Loading more...</Text>

@@ -36,3 +36,7 @@
     color: var(--mantine-color-ldGray-8);
     background: var(--mantine-color-default-hover);
 }
+
+.rotatedIcon {
+    rotate: 90deg;
+}

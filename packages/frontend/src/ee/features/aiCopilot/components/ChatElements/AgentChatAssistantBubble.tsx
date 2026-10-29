@@ -1073,10 +1073,6 @@ export const AssistantBubble: FC<Props> = memo(
                 w="100%"
                 gap="xs"
                 bg={isActive ? 'ldGray.0' : 'transparent'}
-                style={{
-                    overflow: 'unset',
-                    borderStartStartRadius: '0px',
-                }}
                 data-message-id={`assistant-${message.uuid}`}
                 // Walkthrough result marker for create:AiAgentThread: the
                 // agent's answer is where sending a question lands, so no

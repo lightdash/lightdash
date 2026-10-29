@@ -292,10 +292,7 @@ const HeaderCell = <TData extends RowData>({
                 isRowSelectColumn(header.column.id) && classes.rowSelectCell,
                 headCellProps.className,
             )}
-            style={{
-                width: getColumnSizeVar('header', header.id),
-                ...headCellProps.style,
-            }}
+            w={getColumnSizeVar('header', header.id)}
         >
             {canSort ? (
                 <UnstyledButton
@@ -354,10 +351,7 @@ const FooterCell = <TData extends RowData>({
                 isRowSelectColumn(header.column.id) && classes.rowSelectCell,
                 footerCellProps.className,
             )}
-            style={{
-                width: getColumnSizeVar('header', header.id),
-                ...footerCellProps.style,
-            }}
+            w={getColumnSizeVar('header', header.id)}
         >
             {footerContent}
         </Table.Th>
@@ -387,10 +381,8 @@ const SkeletonRows = <TData extends RowData>({
                         classes.skeletonCell,
                         isRowSelectColumn(column.id) && classes.rowSelectCell,
                     )}
-                    style={{
-                        height: skeletonRowHeight,
-                        width: getColumnSizeVar('col', column.id),
-                    }}
+                    h={skeletonRowHeight}
+                    w={getColumnSizeVar('col', column.id)}
                 >
                     <div className={classes.skeletonStack}>
                         <Skeleton
@@ -458,8 +450,6 @@ const BodyRows = <TData extends RowData>({
                     }),
                 );
                 const isLastDataRow = row === rows[rows.length - 1];
-                const lastDataRowCellStyle: CSSProperties | undefined =
-                    isLastDataRow ? { borderBottom: 0 } : undefined;
 
                 return (
                     <Table.Tr
@@ -512,14 +502,7 @@ const BodyRows = <TData extends RowData>({
                                             classes.rowSelectCell,
                                         cellProps.className,
                                     )}
-                                    style={{
-                                        width: getColumnSizeVar(
-                                            'col',
-                                            cell.column.id,
-                                        ),
-                                        ...cellProps.style,
-                                        ...lastDataRowCellStyle,
-                                    }}
+                                    w={getColumnSizeVar('col', cell.column.id)}
                                 >
                                     {options.enableEditing &&
                                     columnDef?.Edit &&
@@ -804,6 +787,7 @@ export const ContentTable = <TData extends RowData>({
                     isEmpty && classes.containerEmpty,
                     containerProps.className,
                 )}
+                // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
                 style={{
                     ...columnSizeVars,
                     ...containerProps.style,
@@ -820,18 +804,14 @@ export const ContentTable = <TData extends RowData>({
                         withColumnBorders === true && classes.columnBorders,
                         tableProps.className,
                     )}
-                    style={{
-                        minWidth: table.getTotalSize(),
-                        ...tableProps.style,
-                    }}
+                    miw={table.getTotalSize()}
                 >
                     <colgroup>
                         {visibleColumns.map((column) => (
-                            <col
+                            <Box
+                                component="col"
                                 key={column.id}
-                                style={{
-                                    width: getColumnSizeVar('col', column.id),
-                                }}
+                                w={getColumnSizeVar('col', column.id)}
                             />
                         ))}
                     </colgroup>
@@ -843,7 +823,6 @@ export const ContentTable = <TData extends RowData>({
                                 : classes.head,
                             headProps.className,
                         )}
-                        style={headProps.style}
                     >
                         {table.getHeaderGroups().map((headerGroup) => (
                             <Table.Tr
@@ -873,11 +852,7 @@ export const ContentTable = <TData extends RowData>({
                                 <Table.Td
                                     className={classes.fillerCell}
                                     colSpan={visibleColumns.length}
-                                    style={{
-                                        border: 0,
-                                        height: paddingTop,
-                                        padding: 0,
-                                    }}
+                                    h={paddingTop}
                                 />
                             </Table.Tr>
                         ) : null}
@@ -917,11 +892,7 @@ export const ContentTable = <TData extends RowData>({
                                 <Table.Td
                                     className={classes.fillerCell}
                                     colSpan={visibleColumns.length}
-                                    style={{
-                                        border: 0,
-                                        height: paddingBottom,
-                                        padding: 0,
-                                    }}
+                                    h={paddingBottom}
                                 />
                             </Table.Tr>
                         ) : null}

@@ -156,19 +156,6 @@ const DebouncedSearchInput = memo(
                     w={{ base: '100%', sm: 309 }}
                     aria-label="Search by name"
                     classNames={{ input: classes.searchInput }}
-                    styles={(inputTheme) => ({
-                        input: {
-                            height: 32,
-                            width: '100%',
-                            textOverflow: 'ellipsis',
-                            fontSize: inputTheme.fontSizes.sm,
-                            fontWeight: 400,
-                            color: value
-                                ? inputTheme.colors.ldGray[8]
-                                : inputTheme.colors.ldGray[5],
-                            boxShadow: inputTheme.shadows.subtle,
-                        },
-                    })}
                     type="search"
                     variant="default"
                     placeholder="Search by name"
@@ -951,9 +938,7 @@ const InfiniteResourceTable = ({
                 p={`${theme.spacing.sm} ${theme.spacing.xl} ${theme.spacing.md} ${theme.spacing.xl}`}
                 fz="xs"
                 fw={500}
-                style={{
-                    borderTop: `1px solid ${theme.colors.ldGray[3]}`,
-                }}
+                className={classes.bottomToolbar}
             >
                 {isFetching ? (
                     <Text fz="xs">Loading more...</Text>

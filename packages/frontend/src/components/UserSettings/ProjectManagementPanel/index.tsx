@@ -770,13 +770,7 @@ const ProjectManagementPanel: FC = () => {
                                                 variant="filled"
                                                 color="indigo.6"
                                                 circle
-                                                styles={{
-                                                    root: {
-                                                        minWidth: 18,
-                                                        height: 18,
-                                                        padding: '0 4px',
-                                                    },
-                                                }}
+                                                className={classes.countBadge}
                                             >
                                                 {selectedWarehouses.length}
                                             </Badge>
@@ -865,13 +859,9 @@ const ProjectManagementPanel: FC = () => {
                                                     variant="filled"
                                                     color="indigo.6"
                                                     circle
-                                                    styles={{
-                                                        root: {
-                                                            minWidth: 18,
-                                                            height: 18,
-                                                            padding: '0 4px',
-                                                        },
-                                                    }}
+                                                    className={
+                                                        classes.countBadge
+                                                    }
                                                 >
                                                     {selectedCreators.length}
                                                 </Badge>

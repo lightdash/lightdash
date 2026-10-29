@@ -250,7 +250,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                     <ActionIcon
                         aria-label={getUiString('tileMenu.actions')}
                         size="sm"
-                        style={{ position: 'relative', zIndex: 1 }}
+                        className={styles.menuTrigger}
                     >
                         <MantineIcon
                             data-testid="tile-icon-more-vertical"
@@ -285,10 +285,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                 >
                     <IconCircleCheckFilled
                         size={14}
-                        style={{
-                            flexShrink: 0,
-                            color: 'var(--mantine-color-green-6)',
-                        }}
+                        className={styles.verifiedIcon}
                     />
                 </Tooltip>
             )}
@@ -324,10 +321,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                         <ActionIcon
                             aria-label={getUiString('tileMenu.actions')}
                             size="sm"
-                            style={{
-                                position: 'relative',
-                                zIndex: 1,
-                            }}
+                            className={styles.menuTrigger}
                         >
                             <MantineIcon
                                 data-testid="tile-icon-more"
@@ -399,7 +393,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                     disabled={!description}
                                     label={
                                         <Text
-                                            style={{ whiteSpace: 'pre-line' }}
+                                            className={styles.description}
                                             fz="sm"
                                         >
                                             {description}
@@ -420,7 +414,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                 disabled={!description}
                                 label={
                                     <Text
-                                        style={{ whiteSpace: 'pre-line' }}
+                                        className={styles.description}
                                         fz="sm"
                                     >
                                         {description}

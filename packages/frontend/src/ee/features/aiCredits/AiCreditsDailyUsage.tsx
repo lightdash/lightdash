@@ -116,6 +116,7 @@ const UsageChart: FC<{
             notMerge
             opts={{ renderer: 'svg' }}
             // The wrapper sizes the chart through an inline height.
+            // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
             style={{ height: CHART_HEIGHT, width: '100%' }}
         />
     );

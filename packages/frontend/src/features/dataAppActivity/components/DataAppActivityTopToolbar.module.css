@@ -1,0 +1,8 @@
+.resultsCount {
+    display: flex;
+    align-items: center;
+    height: 32px;
+    padding: var(--mantine-spacing-sm) var(--mantine-spacing-xs);
+    border-radius: 6px;
+    background-color: var(--mantine-color-ldGray-1);
+}

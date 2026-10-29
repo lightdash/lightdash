@@ -334,7 +334,7 @@ const SnowflakeForm: FC<{
                     disabled={
                         disabled || (isCliSsoMode && cliSsoCredentials !== null)
                     }
-                    labelProps={{ style: { marginTop: '8px' } }}
+                    labelProps={{ mt: 'xs' }}
                 />
 
                 <Group gap="sm">

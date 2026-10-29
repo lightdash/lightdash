@@ -1,3 +1,7 @@
 .schedulerList {
     overflow-y: auto;
 }
+
+.radioLabel {
+    padding-left: var(--mantine-spacing-xs);
+}

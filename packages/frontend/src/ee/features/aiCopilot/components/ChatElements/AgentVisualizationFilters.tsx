@@ -79,15 +79,7 @@ const FilterRuleDisplay: FC<{
             size="xs"
             variant="default"
             className={classes.filterButton}
-            styles={{
-                root: {
-                    cursor: 'default',
-                    pointerEvents: 'none',
-                },
-                label: {
-                    maxWidth: '100%',
-                },
-            }}
+            classNames={{ label: classes.filterButtonLabel }}
         >
             {label}
         </Button>

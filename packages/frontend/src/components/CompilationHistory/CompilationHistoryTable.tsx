@@ -1,4 +1,4 @@
-import { Group, Text, Tooltip, useMantineTheme } from '@mantine/core';
+import { Group, Text, Tooltip } from '@mantine/core';
 import {
     IconAlertTriangleFilled,
     IconCircleCheckFilled,
@@ -38,7 +38,6 @@ const fetchSize = 25;
 const CompilationHistoryTable: FC<CompilationHistoryTableProps> = ({
     projectUuid,
 }) => {
-    const theme = useMantineTheme();
     const rowVirtualizerInstanceRef =
         useRef<ContentTableVirtualizer<HTMLDivElement, HTMLTableRowElement>>(
             null,
@@ -215,23 +214,23 @@ const CompilationHistoryTable: FC<CompilationHistoryTableProps> = ({
                                               .join(', ')})`,
                                   )
                                   .join('\n'),
-                              color: theme.colors.red[6],
+                              color: 'red.6',
                               icon: IconAlertTriangleFilled,
                           }
                         : {
                               label: 'Compilation successful',
-                              color: theme.colors.green[6],
+                              color: 'green.6',
                               icon: IconCircleCheckFilled,
                           };
                     return (
                         <Tooltip label={label}>
-                            <MantineIcon icon={icon} style={{ color: color }} />
+                            <MantineIcon icon={icon} color={color} />
                         </Tooltip>
                     );
                 },
             },
         ],
-        [theme],
+        [],
     );
 
     const table = useContentTable({

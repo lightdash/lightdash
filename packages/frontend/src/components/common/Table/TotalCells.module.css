@@ -1,0 +1,9 @@
+.helpCursor {
+    cursor: help;
+}
+
+.fromSource {
+    text-decoration: underline dotted;
+    text-underline-offset: 3px;
+    cursor: help;
+}

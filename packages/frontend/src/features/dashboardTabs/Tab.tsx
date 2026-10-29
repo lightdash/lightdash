@@ -13,6 +13,7 @@ import {
 import { type Dispatch, type FC, type SetStateAction } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useIsTruncated } from '../../hooks/useIsTruncated';
+import styles from './tabs.module.css';
 
 type DraggableTabProps = {
     idx: number;
@@ -85,11 +86,7 @@ const DraggableTab: FC<DraggableTabProps> = ({
                                 100 / (sortedTabs.length || 1)
                             }vw)`}
                             opacity={isEditMode && tab.hidden ? 0.55 : 1}
-                            styles={{
-                                tabSection: {
-                                    flexShrink: 0,
-                                },
-                            }}
+                            classNames={{ tabSection: styles.tabSection }}
                             leftSection={
                                 // A quiet tab is its own handle: no grip
                                 isEditMode && !hasQuietActions ? (

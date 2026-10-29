@@ -86,10 +86,9 @@ const FunnelChartContextMenu: FC<FunnelChartContextMenuProps> = ({
             <Portal>
                 <Menu.Target>
                     <Box
-                        style={{
-                            position: 'absolute',
-                            ...(menuPosition ?? {}),
-                        }}
+                        pos="absolute"
+                        left={menuPosition?.left}
+                        top={menuPosition?.top}
                     />
                 </Menu.Target>
             </Portal>

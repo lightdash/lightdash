@@ -20,6 +20,7 @@ import {
 import MantineIcon from '../../common/MantineIcon';
 import GroupsActionMenu from './GroupsActionMenu';
 import { GroupsTopToolbar } from './GroupsTopToolbar';
+import tableClasses from './UsersAndGroupsTable.module.css';
 
 const fetchSize = 50;
 const GROUP_MEMBERS_PER_PAGE = 2000;
@@ -145,12 +146,7 @@ const GroupsTable: FC<GroupsTableProps> = ({ onEditGroup }) => {
                             gap="xxs"
                             maw={400}
                             mah={55}
-                            style={{
-                                overflow: 'auto',
-                                border: `1px solid ${theme.colors.ldGray[2]}`,
-                                borderRadius: theme.radius.xs,
-                                padding: theme.spacing.xxs,
-                            }}
+                            className={tableClasses.members}
                         >
                             {group.members.map((member) => (
                                 <Badge
@@ -200,7 +196,7 @@ const GroupsTable: FC<GroupsTableProps> = ({ onEditGroup }) => {
                 },
             },
         ],
-        [canManageGroups, flatData.length, onEditGroup, theme],
+        [canManageGroups, flatData.length, onEditGroup],
     );
 
     const table = useContentTable({
@@ -232,9 +228,7 @@ const GroupsTable: FC<GroupsTableProps> = ({ onEditGroup }) => {
                 p={`${theme.spacing.sm} ${theme.spacing.xl} ${theme.spacing.md} ${theme.spacing.xl}`}
                 fz="xs"
                 fw={500}
-                style={{
-                    borderTop: `1px solid ${theme.colors.ldGray[3]}`,
-                }}
+                className={tableClasses.bottomToolbar}
             >
                 {isFetching ? (
                     <Text fz="xs">Loading more...</Text>

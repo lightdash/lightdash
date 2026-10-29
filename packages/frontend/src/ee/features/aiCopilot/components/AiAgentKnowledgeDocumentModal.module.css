@@ -1,3 +1,17 @@
 .markdownViewer {
     overflow-y: auto;
 }
+
+.markdown:global(.wmde-markdown) {
+    font-size: var(--mantine-font-size-sm);
+    background-color: transparent;
+}
+
+.rawContent {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.monospaceInput {
+    font-family: monospace;
+}

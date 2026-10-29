@@ -1,6 +1,5 @@
 import {
     Collapse,
-    getDefaultZIndex,
     Group,
     Paper,
     Stack,
@@ -277,9 +276,6 @@ export const TooltipConfig: FC<Props> = ({ fields }) => {
                             c="dimmed"
                             fz="xs"
                             className={styles.placeholderText}
-                            style={{
-                                zIndex: getDefaultZIndex('overlay'),
-                            }}
                         >
                             {`- Total orders: \${orders_total_amount}`}
                         </Text>

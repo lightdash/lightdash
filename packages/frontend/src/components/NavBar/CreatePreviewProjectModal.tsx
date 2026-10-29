@@ -10,6 +10,7 @@ import {
 import {
     ActionIcon,
     Anchor,
+    Box,
     Button,
     Flex,
     Group,
@@ -52,6 +53,7 @@ import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
 import DocumentationHelpButton from '../DocumentationHelpButton';
 import FormCollapseButton from '../ProjectConnection/FormCollapseButton';
+import classes from './CreatePreviewProjectModal.module.css';
 
 const getProjectGitBranches = async (
     lightdashApi: LightdashApi,
@@ -119,16 +121,11 @@ const EnvironmentVariablesInput: FC<EnvironmentVariablesInputProps> = ({
 
     return (
         <Input.Wrapper
-            styles={{
-                label: {
-                    display: 'flex',
-                    alignItems: 'center',
-                },
-            }}
+            classNames={{ label: classes.label }}
             label={
                 <>
                     {label}
-                    <div style={{ flex: 1 }}></div>
+                    <Box flex={1} />
                     {documentationUrl && !labelHelp && (
                         <DocumentationHelpButton href={documentationUrl} />
                     )}

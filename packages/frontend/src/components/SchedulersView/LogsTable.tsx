@@ -13,7 +13,6 @@ import {
     Stack,
     Text,
     Tooltip,
-    useMantineTheme,
 } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import {
@@ -49,6 +48,7 @@ import {
 } from '../common/ContentTable';
 import EmptyStateLoader from '../common/EmptyStateLoader';
 import MantineIcon from '../common/MantineIcon';
+import classes from './LogsTable.module.css';
 import { LogsTopToolbar } from './LogsTopToolbar';
 import RunDetailsModal from './RunDetailsModal';
 import {
@@ -213,7 +213,6 @@ const LogsTable: FC<LogsTableProps> = ({
         return () => resizeObserver.disconnect();
     }, [isLoading, tableContainerRef]);
 
-    const theme = useMantineTheme();
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
     const [selectedScheduler, setSelectedScheduler] = useState<{
         uuid: string;
@@ -316,7 +315,7 @@ const LogsTable: FC<LogsTableProps> = ({
                                     <Tooltip
                                         label={
                                             <Stack gap="two" fz="xs">
-                                                <Text c="dimmed" fz="xs">
+                                                <Text c="gray.5" fz="xs">
                                                     Scheduler:{' '}
                                                     <Text
                                                         c="white"
@@ -326,7 +325,7 @@ const LogsTable: FC<LogsTableProps> = ({
                                                         {run.schedulerName}
                                                     </Text>
                                                 </Text>
-                                                <Text c="dimmed" fz="xs">
+                                                <Text c="gray.5" fz="xs">
                                                     Created by:{' '}
                                                     <Text
                                                         c="white"
@@ -343,10 +342,7 @@ const LogsTable: FC<LogsTableProps> = ({
                                             fw={600}
                                             fz="xs"
                                             lineClamp={1}
-                                            style={{
-                                                overflowWrap: 'anywhere',
-                                                cursor: 'pointer',
-                                            }}
+                                            className={classes.runName}
                                         >
                                             {run.schedulerName}
                                         </Text>
@@ -373,7 +369,6 @@ const LogsTable: FC<LogsTableProps> = ({
                                 <>
                                     {getLogStatusIconWithoutTooltip(
                                         SchedulerJobStatus.COMPLETED,
-                                        theme,
                                     )}
                                     <Text fz="xs" c="dimmed">
                                         Completed successfully
@@ -383,7 +378,6 @@ const LogsTable: FC<LogsTableProps> = ({
                                 <>
                                     {getLogStatusIconWithoutTooltip(
                                         SchedulerJobStatus.ERROR,
-                                        theme,
                                     )}
                                     <Text fz="xs" c="dimmed">
                                         Failed
@@ -395,9 +389,6 @@ const LogsTable: FC<LogsTableProps> = ({
                                     <MantineIcon
                                         icon={IconAlertTriangleFilled}
                                         color="orange.6"
-                                        style={{
-                                            color: theme.colors.orange[6],
-                                        }}
                                     />
                                     <Text fz="xs" c="dimmed">
                                         Partial failure
@@ -407,7 +398,6 @@ const LogsTable: FC<LogsTableProps> = ({
                                 <>
                                     {getLogStatusIconWithoutTooltip(
                                         SchedulerJobStatus.STARTED,
-                                        theme,
                                     )}
                                     <Text fz="xs" c="dimmed">
                                         Running
@@ -417,7 +407,6 @@ const LogsTable: FC<LogsTableProps> = ({
                                 <>
                                     {getLogStatusIconWithoutTooltip(
                                         SchedulerJobStatus.SCHEDULED,
-                                        theme,
                                     )}
                                     <Text fz="xs" c="dimmed">
                                         Scheduled
@@ -500,15 +489,7 @@ const LogsTable: FC<LogsTableProps> = ({
                                         closeOnClickOutside
                                     >
                                         <Menu.Target>
-                                            <ActionIcon
-                                                style={{
-                                                    ':hover': {
-                                                        backgroundColor:
-                                                            theme.colors
-                                                                .gray[1],
-                                                    },
-                                                }}
-                                            >
+                                            <ActionIcon>
                                                 <IconDots size={16} />
                                             </ActionIcon>
                                         </Menu.Target>
@@ -538,7 +519,7 @@ const LogsTable: FC<LogsTableProps> = ({
                 },
             },
         ],
-        [projectUuid, theme, setSelectedScheduler, setIsConfirmOpen],
+        [projectUuid, setSelectedScheduler, setIsConfirmOpen],
     );
 
     const columns = useMemo(

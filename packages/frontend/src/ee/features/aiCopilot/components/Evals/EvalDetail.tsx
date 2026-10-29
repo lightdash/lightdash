@@ -161,12 +161,7 @@ export const EvalDetail: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
                                     type="scroll"
                                     scrollbarSize={4}
                                 >
-                                    <Stack
-                                        gap="sm"
-                                        style={{
-                                            boxSizing: 'border-box',
-                                        }}
-                                    >
+                                    <Stack gap="sm">
                                         {evaluation.prompts.map((prompt) => (
                                             <Group
                                                 gap="sm"

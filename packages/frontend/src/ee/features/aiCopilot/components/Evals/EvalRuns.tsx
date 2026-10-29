@@ -1,7 +1,7 @@
 import type { AiAgentEvaluationRunSummary } from '@lightdash/common';
 import {
     Badge,
-    Box,
+    Center,
     Group,
     Loader,
     Paper,
@@ -29,6 +29,7 @@ import {
     useAiAgentEvaluationRuns,
     useEvaluationRunPolling,
 } from '../../hooks/useAiAgentEvaluations';
+import classes from './EvalRuns.module.css';
 import { isRunning, statusConfig } from './utils';
 
 type Props = {
@@ -91,7 +92,7 @@ export const EvalRuns: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
                                 variant="dot"
                                 size="sm"
                                 c="dimmed"
-                                style={{ border: 'none' }}
+                                className={classes.statusBadge}
                             >
                                 {evalStatus.label}
                             </Badge>
@@ -239,9 +240,9 @@ export const EvalRuns: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
 
     if (isLoadingRuns) {
         return (
-            <Box style={{ display: 'flex', justifyContent: 'center', p: 20 }}>
+            <Center>
                 <Loader />
-            </Box>
+            </Center>
         );
     }
 

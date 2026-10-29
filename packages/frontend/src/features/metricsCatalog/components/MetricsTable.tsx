@@ -364,9 +364,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({
             <Box
                 p={`${theme.spacing.sm} ${theme.spacing.xl} ${theme.spacing.md} ${theme.spacing.xl}`}
                 color="ldGray.8"
-                style={{
-                    borderTop: `1px solid ${theme.colors.ldGray[3]}`,
-                }}
+                className={classes.bottomToolbar}
             >
                 {isFetching ? (
                     <Text fz="sm" fw={500}>
