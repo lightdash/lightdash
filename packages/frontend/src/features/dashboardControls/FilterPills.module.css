@@ -3,18 +3,9 @@
     display: inline-flex;
 }
 
-/* `EditBadge`: a 16px circle, the pill's first icon. On an editor's pill
-   it takes the 12px grip's slot, its 4px overlap taken from the pill's
-   left padding, so the gap to the next icon stays and the pill keeps its
-   width */
-.editBadge {
-    margin-inline-start: -4px;
-}
-
 /* Picked on the sectioned bar to move or remove: solid blue with white
-   text, a check in place of the field icon, never mistaken for the edited
-   pill (its own look plus a pencil badge) or a hover */
-.pill > .pickedPill.pickedPill[aria-pressed='true']:not(:disabled) {
+   text, a check in place of the field icon; the only blue on a pill */
+.pill > .pickedPill.pickedPill.pickedPill[aria-pressed='true']:not(:disabled) {
     --mantine-color-dimmed: color-mix(
         in srgb,
         var(--mantine-color-white) 75%,
@@ -25,12 +16,11 @@
     color: var(--mantine-color-white);
 }
 
-.pill > .pickedPill.pickedPill[aria-pressed='true']:not(:disabled):hover {
+.pill
+    > .pickedPill.pickedPill.pickedPill[aria-pressed='true']:not(
+        :disabled
+    ):hover {
     background-color: var(--mantine-color-blue-filled-hover);
-}
-
-.draftPill {
-    border-style: dashed;
 }
 
 /* The bar's drag: the overlay carries the copy, the source stays put */
@@ -44,27 +34,6 @@
     opacity: 0.4;
 }
 
-/* `ChangedDot`: blue, the state colour, never the warning yellow */
-.changedDot {
-    flex: 0 0 auto;
-    width: var(--mantine-spacing-xs);
-    height: var(--mantine-spacing-xs);
-    border-radius: 50%;
-    background-color: var(--mantine-color-blue-filled);
-    /* A halo in the bar's colour, so it shows on a solid blue picked pill */
-    box-shadow: 0 0 0 2px var(--ld-color-page);
-    pointer-events: none;
-}
-
-/* Placed as the tile comments' Mantine `Indicator` (offset 3): its centre
-   3px in from the corner, so it sits on the rounded edge */
-.changedDot[data-corner] {
-    position: absolute;
-    top: 3px;
-    right: 3px;
-    transform: translate(50%, -50%);
-}
-
 /* The "..." joined to "Add filter", drawn as the shipped eye it replaces */
 .joinedMenuTrigger {
     border-left: 0;
@@ -73,8 +42,17 @@
 }
 
 /* On the "..." while the dashboard has filter rules: the shipped rules
-   badge's yellow, on `ChangedDot`'s corner */
+   badge's yellow, centred 3px in from the corner as the tile comments'
+   Mantine `Indicator` (offset 3) */
 .rulesDot {
-    composes: changedDot;
+    position: absolute;
+    top: 3px;
+    right: 3px;
+    width: var(--mantine-spacing-xs);
+    height: var(--mantine-spacing-xs);
+    border-radius: 50%;
     background-color: var(--mantine-color-yellow-filled);
+    box-shadow: 0 0 0 2px var(--ld-color-page);
+    transform: translate(50%, -50%);
+    pointer-events: none;
 }

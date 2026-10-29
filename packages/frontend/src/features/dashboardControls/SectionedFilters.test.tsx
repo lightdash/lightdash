@@ -2214,7 +2214,7 @@ describe('SectionedFilters', () => {
             expect(isInert(screen.getByTestId('pills-a'))).toBe(false);
         });
 
-        it('dots a section that differs from the saved dashboard', () => {
+        it('never dots a section that differs from the saved dashboard', () => {
             mockDashboardContext.current = {
                 ...mockDashboardContext.current,
                 dashboard: {
@@ -2228,18 +2228,10 @@ describe('SectionedFilters', () => {
                 },
             };
             renderSectioned([rule('one', 'a')], 'tab-1');
-            const dotIn = (name: string) =>
-                within(screen.getByRole('group', { name })).queryByRole('img', {
-                    name: 'Changed',
-                });
-            expect(dotIn('Dates')).toBeNull();
-            // Renamed, and not saved at all
-            expect(dotIn('Regions')).not.toBeNull();
-            expect(dotIn('Empty')).not.toBeNull();
-            // On the capsule's top right corner, as a pill's, not in its head
-            const dot = dotIn('Regions') as HTMLElement;
-            expect(dot).toHaveAttribute('data-corner');
-            expect(dot.parentElement).toBe(capsuleOf('Regions'));
+            // Renamed, and not saved at all: Save is the only unsaved signal
+            expect(
+                screen.queryByRole('img', { name: 'Changed' }),
+            ).not.toBeInTheDocument();
         });
 
         it('reorders sections by dragging a capsule onto another, and with Alt and an arrow on the name', async () => {
@@ -2301,33 +2293,6 @@ describe('SectionedFilters', () => {
             expect(remove.getAttribute('style') ?? '').not.toContain('red');
             await user.click(remove);
             expect(screen.getByRole('button', { name: 'Add' })).toHaveFocus();
-        });
-
-        it('leaves no dot once the saved way to start is put back', () => {
-            mockDashboardContext.current = {
-                ...mockDashboardContext.current,
-                dashboard: {
-                    config: {
-                        isDateZoomDisabled: false,
-                        controlSections: [
-                            { id: 'a', name: 'Dates' },
-                            { id: 'b', name: 'Regions' },
-                            { id: 'c', name: 'Empty' },
-                        ],
-                    },
-                },
-            };
-            renderSectioned([rule('one', 'a')], 'tab-1', [
-                // Toggled twice: saved open, the default of a small section
-                { id: 'a', name: 'Dates', collapsed: false },
-                { id: 'b', name: 'Regions', collapsed: true },
-                { id: 'c', name: 'Empty' },
-            ]);
-            const dotIn = (name: string) =>
-                within(capsuleOf(name)).queryByRole('img', { name: 'Changed' });
-            expect(dotIn('Dates')).toBeNull();
-            expect(dotIn('Regions')).not.toBeNull();
-            expect(dotIn('Empty')).toBeNull();
         });
 
         it('opens a new filter in the section from its +', async () => {

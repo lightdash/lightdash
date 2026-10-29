@@ -24,8 +24,6 @@ import {
 } from '../dashboardFilters/ActiveFilters/filterLock';
 import { FilterPillButton } from '../dashboardFilters/ActiveFilters/FilterPillButton';
 import { useBarSelection } from './barSelection';
-import { ChangedDot } from './ChangedDot';
-import { EditBadge } from './EditBadge';
 import classes from './FilterPills.module.css';
 import { replaceFilterRule } from './sidebarState';
 import { useControlsSidebarSelector } from './useControlsSidebar';
@@ -43,10 +41,8 @@ type Props = {
     isSelected: boolean;
     /** Its fields are not loaded yet, so it opens no editor. */
     isDisabled: boolean;
-    /** A new control that has no label yet. */
+    /** Edit mode: added in this session, not in the saved dashboard. */
     isDraft: boolean;
-    /** Edit mode: the rule differs from the saved dashboard. */
-    isChanged: boolean;
     /** While a filter is edited the grip and lock are hidden and inert. */
     isSidebarOpen: boolean;
     activeTabUuid: string | undefined;
@@ -69,7 +65,6 @@ export const FilterPill: FC<Props> = memo(
         isSelected,
         isDisabled,
         isDraft,
-        isChanged,
         isSidebarOpen,
         activeTabUuid,
         hasTabs,
@@ -101,16 +96,14 @@ export const FilterPill: FC<Props> = memo(
             kind === 'editor' && !isSidebarOpen,
             getFieldsByTile,
         );
-        // The lock, the X and the unmet requirement icon have tooltips of
-        // their own: the pill's waits meanwhile
+        // The lock and the X have tooltips of their own: the pill's waits meanwhile
         const [isOnAction, setIsOnAction] = useState(false);
         const trackAction = (event: PointerEvent<HTMLElement>) =>
             setIsOnAction(
                 event.type === 'pointerover' &&
                     event.target instanceof Element &&
-                    event.target.closest(
-                        'button:not([data-controls-pill]), [data-requirement-unmet] [data-requirement-icon]',
-                    ) !== null,
+                    event.target.closest('button:not([data-controls-pill])') !==
+                        null,
             );
         const isLocked = isFilterLockedOnTab(filter, activeTabUuid, hasTabs);
         const lockKey = getFilterLockKey({
@@ -169,13 +162,16 @@ export const FilterPill: FC<Props> = memo(
                         field={field}
                         filterRule={filter}
                         isOrphaned={isOrphaned}
-                        isTemporary={kind === 'viewerOwn'}
+                        isPlain
+                        // Not saved for everyone: dashed
+                        isTemporary={kind === 'viewerOwn' || isDraft}
                         // While a filter is edited the grip and lock stay in
-                        // place, hidden and inert, so no pill changes width
+                        // place, hidden and inert, so no pill changes width.
+                        // The lock shows only on a locked filter
                         isDraggable={kind === 'editor'}
                         isLocked={isLocked}
                         lockLabel={
-                            kind === 'editor' && lockKey
+                            kind === 'editor' && lockKey && isLocked
                                 ? getFilterLockLabel(isLocked, hasTabs)
                                 : null
                         }
@@ -196,27 +192,16 @@ export const FilterPill: FC<Props> = memo(
                         triggerClassName={triggerClassName}
                         aria-pressed={isSelected || isPicked}
                         data-controls-pill={filter.id}
+                        data-open={isSelected || undefined}
                         disabled={isDisabled}
-                        className={[
-                            isDraft ? classes.draftPill : '',
-                            isPicked ? classes.pickedPill : '',
-                        ]
-                            .filter(Boolean)
-                            .join(' ')}
+                        className={isPicked ? classes.pickedPill : undefined}
                         fieldIconOverride={
                             isPicked ? (
                                 <MantineIcon icon={IconCheck} size="sm" />
                             ) : undefined
                         }
-                        // The open pill's pencil takes the grip's slot, in edit mode only
-                        leadingIcon={
-                            isSelected && kind === 'editor' ? (
-                                <EditBadge />
-                            ) : undefined
-                        }
                         onClick={handleClick}
                     />
-                    {isChanged && <ChangedDot />}
                 </Box>
             </Tooltip>
         );

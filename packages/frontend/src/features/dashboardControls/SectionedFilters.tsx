@@ -71,7 +71,6 @@ import {
 } from '../dashboardFilters/ActiveFilters/useFilterTabPlacement';
 import { AddControl, InertWhileEditing } from './AddControl';
 import { BarSelectionContext, type BarSelection } from './barSelection';
-import { ChangedDot } from './ChangedDot';
 import { formatSectionCount } from './fieldLabels';
 import { FilterPills } from './FilterPills';
 import pillClasses from './FilterPills.module.css';
@@ -136,8 +135,6 @@ const useRefocusAfter = (isEditing: boolean) => {
 type CapsuleActions = {
     /** A filter is edited: the name, + and menu are inert. */
     isLocked: boolean;
-    /** Its name or saved fold differs from the saved dashboard. */
-    isUnsaved: boolean;
     /** Alt with an arrow on the name: one place before (-1) or after (1). */
     onMove: (delta: -1 | 1) => void;
     onRename: (name: string) => void;
@@ -367,7 +364,6 @@ const SectionCapsule: FC<CapsuleProps> = ({
                               )}
                     </Text>
                 )}
-                {actions?.isUnsaved && <ChangedDot />}
                 {actions !== null && (
                     <Group
                         gap={2}
@@ -605,17 +601,6 @@ export const SectionedFilters: FC<Props> = ({
     const savedSections = useDashboardContext(
         (c) => c.dashboard?.config?.controlSections,
     );
-    // What Save would keep: a new section, a rename or another way to start;
-    // the fold is compared as the bar reads it, so no key and its default agree
-    const isUnsaved = (section: DashboardControlSection, total: number) => {
-        const saved = savedSections?.find(({ id }) => id === section.id);
-        return (
-            saved === undefined ||
-            saved.name !== section.name ||
-            isCollapsedByDefault(saved, total) !==
-                isCollapsedByDefault(section, total)
-        );
-    };
     const dashboardFilters = useDashboardSelector(selectDashboardFilters);
     const eventBase = {
         dashboardUuid,
@@ -870,7 +855,6 @@ export const SectionedFilters: FC<Props> = ({
                     ? null
                     : {
                           isLocked: isEditing,
-                          isUnsaved: isUnsaved(section, rules.length),
                           onMove: (delta) =>
                               moveSection(
                                   section.id,

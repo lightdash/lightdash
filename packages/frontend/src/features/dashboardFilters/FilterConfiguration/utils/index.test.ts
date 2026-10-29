@@ -10,6 +10,7 @@ import {
 import { describe, expect, it } from 'vitest';
 import {
     doesFilterApplyToTile,
+    getDimensionFiltersToSave,
     getFilterTileRelation,
     getValidSqlColumnReferences,
     getTabsForFilterRule,
@@ -73,6 +74,28 @@ const createMockFilterableField = (
         fieldType: FieldType.DIMENSION,
         type: DimensionType.STRING,
     }) as FilterableDimension;
+
+describe('getDimensionFiltersToSave', () => {
+    const required = createMockFilterRule({ id: 'r', required: true });
+    const inGroup = createMockFilterRule({ id: 'g', requiredGroupId: 'grp' });
+    const optional = createMockFilterRule({ id: 'o' });
+
+    it('keeps every value when required filters keep their default', () => {
+        expect(
+            getDimensionFiltersToSave([required, inGroup, optional], true),
+        ).toEqual([required, inGroup, optional]);
+    });
+
+    it('strips required filters to any value otherwise, as Save always did', () => {
+        expect(
+            getDimensionFiltersToSave([required, inGroup, optional], false),
+        ).toEqual([
+            { ...required, disabled: true, values: [] },
+            { ...inGroup, disabled: true, values: [] },
+            optional,
+        ]);
+    });
+});
 
 describe('getValidSqlColumnReferences', () => {
     it('drops SQL columns that cannot be represented as Select options', () => {

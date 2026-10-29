@@ -49,6 +49,7 @@ const TemporaryPills: FC<Props> = ({ activeTabUuid }) => {
         >
             <TemporaryFilters
                 isEditMode
+                isPlain
                 activeTabUuid={activeTabUuid}
                 openPopoverId={openPopoverId}
                 onPopoverOpen={setOpenPopoverId}

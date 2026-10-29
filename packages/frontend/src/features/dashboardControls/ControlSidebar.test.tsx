@@ -373,6 +373,57 @@ describe('ControlSidebar', () => {
         expect(button('Apply')).toBeDisabled();
     });
 
+    describe('Apply guards', () => {
+        it('disables Apply on a required filter with no value, with the shipped wording', async () => {
+            setSidebar({
+                isNew: false,
+                editingRule: makeRule({
+                    required: true,
+                    values: [],
+                    disabled: true,
+                }),
+            });
+            const { rerender } = renderWithProviders(<ControlSidebar />);
+            expect(button('Apply')).toBeDisabled();
+            await userEvent.hover(button('Apply').parentElement!);
+            expect(
+                await screen.findByText('Filter field and value required'),
+            ).toBeInTheDocument();
+
+            setSidebar({
+                isNew: false,
+                editingRule: makeRule({ required: true }),
+            });
+            rerender(<ControlSidebar />);
+            expect(button('Apply')).toBeEnabled();
+        });
+
+        it('disables Apply on a filter that reaches no tile', async () => {
+            setSidebar({
+                isNew: false,
+                editingRule: makeRule({ tileTargets: { a: false, b: false } }),
+            });
+            renderWithProviders(<ControlSidebar />);
+            expect(button('Apply')).toBeDisabled();
+            await userEvent.hover(button('Apply').parentElement!);
+            expect(
+                await screen.findByText(
+                    'This filter is not applied to any tiles',
+                ),
+            ).toBeInTheDocument();
+        });
+
+        it("never blocks a viewer's own filter", () => {
+            setSidebar({
+                isViewer: true,
+                isNew: false,
+                editingRule: makeRule({ tileTargets: { a: false, b: false } }),
+            });
+            renderWithProviders(<ControlSidebar />);
+            expect(button('Apply')).toBeEnabled();
+        });
+    });
+
     describe('a pill clicked with changes unapplied', () => {
         const region = makeRule({ id: 'filter-2', label: 'Region' });
 
