@@ -56,6 +56,8 @@ type ScopedState = {
     lookedUpSignature: string | null;
     /** View signature whose lookup failed: no auto re-run is coming for it. */
     failedLookupSignature: string | null;
+    /** View signature whose lookup found no stored analysis. */
+    missedLookupSignature: string | null;
     investigations: Record<string, InvestigationState>;
 };
 
@@ -65,6 +67,7 @@ const freshState = (scope: string): ScopedState => ({
     analysedSignature: null,
     lookedUpSignature: null,
     failedLookupSignature: null,
+    missedLookupSignature: null,
     investigations: {},
 });
 
@@ -282,6 +285,11 @@ export const useAnalysisCore = ({
                             void analyse(sources, false, true, true);
                         } else if (autoAnalyseRef.current) {
                             void analyse(sources, false, true);
+                        } else {
+                            patch(scope, (prev) => ({
+                                ...prev,
+                                missedLookupSignature: signature,
+                            }));
                         }
                         return;
                     }
@@ -342,6 +350,20 @@ export const useAnalysisCore = ({
         analyse,
         lightdashApi,
     ]);
+
+    // Analysis on load switched on after this view's lookup already missed
+    // (a summary mounted late): no further lookup is coming, so run now.
+    const lateAutoRun =
+        enabled &&
+        autoAnalyse &&
+        !inFlight &&
+        current.missedLookupSignature === signature &&
+        (state.status === 'idle' || (state.status === 'ready' && stale));
+    useEffect(() => {
+        if (!lateAutoRun) return;
+        patch(scope, (prev) => ({ ...prev, missedLookupSignature: null }));
+        void analyse(sources, false, true);
+    }, [lateAutoRun, scope, sources, patch, analyse]);
 
     const investigate = useCallback(
         async (anomalyId: string, agentUuid: string) => {

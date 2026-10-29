@@ -578,6 +578,58 @@ describe('useDataAppAnalysis', () => {
         });
     });
 
+    describe('analysis on load declared after the lookup', () => {
+        const QUERIES = [readyQuery];
+        const renderLate = () =>
+            renderHook(
+                ({ autoAnalyse }: { autoAnalyse: boolean }) =>
+                    useDataAppAnalysis({
+                        projectUuid: 'proj-1',
+                        appUuid: 'app-a',
+                        queries: QUERIES,
+                        mountedQueryUuids: null,
+                        enabled: true,
+                        autoAnalyse,
+                    }),
+                { initialProps: { autoAnalyse: false } },
+            );
+
+        it('runs detect once when turned on after a lookup miss', async () => {
+            const { result, rerender } = renderLate();
+            await settle();
+            expect(lookupAnalysis).toHaveBeenCalledTimes(1);
+            expect(detectAnalysisAnomalies).not.toHaveBeenCalled();
+            expect(result.current.state.status).toBe('idle');
+
+            rerender({ autoAnalyse: true });
+            await settle();
+            expect(detectAnalysisAnomalies).toHaveBeenCalledTimes(1);
+            expect(result.current.state.status).toBe('ready');
+
+            // Toggling again for the same view never re-runs.
+            rerender({ autoAnalyse: false });
+            rerender({ autoAnalyse: true });
+            await settle();
+            expect(detectAnalysisAnomalies).toHaveBeenCalledTimes(1);
+            expect(lookupAnalysis).toHaveBeenCalledTimes(1);
+        });
+
+        it('keeps a stored analysis when turned on after a lookup hit', async () => {
+            vi.mocked(lookupAnalysis).mockResolvedValue({
+                analysis: analysis('app-a'),
+                investigations: [],
+            });
+            const { result, rerender } = renderLate();
+            await settle();
+            expect(result.current.state.status).toBe('ready');
+
+            rerender({ autoAnalyse: true });
+            await settle();
+            expect(detectAnalysisAnomalies).not.toHaveBeenCalled();
+            expect(result.current.state.status).toBe('ready');
+        });
+    });
+
     it('auto-runs once per view generation, not once per query event', async () => {
         const { rerender } = renderHook(
             ({ queries }: { queries: QueryEvent[] }) =>
