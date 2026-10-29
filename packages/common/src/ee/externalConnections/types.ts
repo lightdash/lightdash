@@ -380,3 +380,15 @@ export type ApiListExternalConnectionSamplesResponse = {
     status: 'ok';
     results: ExternalConnectionSample[];
 };
+
+/** What a live source has sent its integration across every logged query. */
+export type ExternalConnectionApiUsage = {
+    externalConnectionUuid: string;
+    apiCalls: number;
+    responseBytes: number;
+};
+
+export type ApiExternalConnectionApiUsageResponse = {
+    status: 'ok';
+    results: ExternalConnectionApiUsage[];
+};

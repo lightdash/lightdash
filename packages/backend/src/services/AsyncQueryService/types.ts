@@ -50,7 +50,7 @@ import type {
     TotalConfiguration,
 } from '../../utils/QueryBuilder/QueryComposer';
 import type { DocumentQueryContext } from '../DocumentService/DocumentQueryContext';
-import type { ApiConnector } from '../QuerySourceService/api/ApiConnector';
+import type { MeteredApiConnector } from '../QuerySourceService/api/ApiConnector';
 
 export type CommonAsyncQueryArgs = {
     querySurface?: QuerySurface;
@@ -250,7 +250,7 @@ export type ExecuteAsyncPythonQueryArgs = CommonAsyncQueryArgs & {
 export type ExecuteAsyncApiQueryArgs = CommonAsyncQueryArgs & {
     connectionUuid: string;
     /** Resolved through the connection, which checks the caller may use it. */
-    connector: ApiConnector;
+    connector: MeteredApiConnector;
     payload: ApiSourcePayload;
     limit?: number;
 };

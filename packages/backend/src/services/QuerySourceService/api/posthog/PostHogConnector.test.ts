@@ -124,7 +124,6 @@ describe('PostHogConnector', () => {
                 { week: '2026-10-25', wau: 3, events: 3 },
             ],
             truncated: false,
-            apiCalls: 1,
             bytesRead: 12392719,
         });
     });

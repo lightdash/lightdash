@@ -22,6 +22,7 @@ import {
     type ApiSaveExternalConnectionSampleRequest,
     type CreateExternalConnection,
     type ExternalConnection,
+    type ExternalConnectionApiUsage,
     type ExternalConnectionAuthType,
     type ExternalConnectionConfigProposal,
     type ExternalConnectionLinkedApps,
@@ -48,6 +49,8 @@ import { BaseService } from '../../../services/BaseService';
 import type {
     ApiConnector,
     ApiConnectorTransport,
+    ApiConnectorUsage,
+    MeteredApiConnector,
 } from '../../../services/QuerySourceService/api/ApiConnector';
 import { Ga4Connector } from '../../../services/QuerySourceService/api/google/Ga4Connector';
 import { SearchConsoleConnector } from '../../../services/QuerySourceService/api/google/SearchConsoleConnector';
@@ -998,6 +1001,22 @@ export class ExternalConnectionService extends BaseService {
         );
     }
 
+    /** What each live source in the project has sent its integration. */
+    async getApiSourceUsage(
+        account: RegisteredAccount,
+        projectUuid: string,
+    ): Promise<ExternalConnectionApiUsage[]> {
+        const organizationUuid =
+            await this.externalConnectionModel.getProjectOrganizationUuid(
+                projectUuid,
+            );
+        if (!organizationUuid) {
+            throw new NotFoundError('Project not found');
+        }
+        this.assertCanManage(account, projectUuid, organizationUuid);
+        return this.externalConnectionModel.getApiSourceUsage(projectUuid);
+    }
+
     /**
      * A connector for a live api query. The stored secret never leaves this
      * service: requests go through the same guarded fetch as the app proxy.
@@ -1006,7 +1025,7 @@ export class ExternalConnectionService extends BaseService {
         account: RegisteredAccount,
         projectUuid: string,
         connectionUuid: string,
-    ): Promise<ApiConnector> {
+    ): Promise<MeteredApiConnector> {
         const connection = await this.getViewableConnection(
             account,
             projectUuid,
@@ -1020,22 +1039,31 @@ export class ExternalConnectionService extends BaseService {
         }
         let connector: ApiConnector;
         let callsThisQuery = 0;
+        const usage: ApiConnectorUsage = {
+            apiCalls: 0,
+            responseBytes: 0,
+            providerStatus: null,
+        };
         const sendOnce: ApiConnectorTransport = async (request) => {
             const secret =
                 await this.externalConnectionModel.getDecryptedSecret(
                     connection.externalConnectionUuid,
                 );
+            usage.apiCalls += 1;
             try {
-                const { response } = await this.executeExternalFetch(
-                    connection,
-                    secret,
-                    {
-                        method: request.method,
-                        path: request.path,
-                        body: request.body,
-                    },
-                    { account, appUuid: null },
-                );
+                const { response, responseBytes } =
+                    await this.executeExternalFetch(
+                        connection,
+                        secret,
+                        {
+                            method: request.method,
+                            path: request.path,
+                            body: request.body,
+                        },
+                        { account, appUuid: null },
+                    );
+                usage.responseBytes += responseBytes;
+                usage.providerStatus = response.status;
                 return {
                     status: response.status,
                     headers: response.headers,
@@ -1075,22 +1103,54 @@ export class ExternalConnectionService extends BaseService {
                     projectId: apiSource.projectId,
                     send,
                 });
-                return connector;
+                break;
             case ApiConnectorType.SEARCH_CONSOLE:
                 connector = new SearchConsoleConnector({
                     siteUrl: apiSource.siteUrl,
                     send,
                 });
-                return connector;
+                break;
             case ApiConnectorType.GA4:
                 connector = new Ga4Connector({
                     propertyId: apiSource.propertyId,
                     send,
                 });
-                return connector;
+                break;
             default:
                 return assertUnreachable(apiSource, 'Unknown api connector');
         }
+        return {
+            describe: () => connector.describe(),
+            execute: (args) => connector.execute(args),
+            usage: () => ({ ...usage }),
+            logCall: async (call) => {
+                try {
+                    await this.externalConnectionModel.insertApiSourceCall({
+                        external_connection_uuid:
+                            connection.externalConnectionUuid,
+                        project_uuid: projectUuid,
+                        user_uuid: account.user.id,
+                        context: call.context,
+                        query_uuid: call.queryUuid,
+                        query: call.query,
+                        row_limit: call.rowLimit,
+                        outcome: call.outcome,
+                        error_message: call.errorMessage,
+                        provider_status: usage.providerStatus,
+                        api_calls: usage.apiCalls,
+                        duration_ms: call.durationMs,
+                        row_count: call.rowCount,
+                        column_count: call.columnCount,
+                        truncated: call.truncated,
+                        response_bytes: usage.responseBytes,
+                    });
+                } catch (error) {
+                    this.logger.error(
+                        `Failed to log api query ${call.queryUuid} for connection ${connection.externalConnectionUuid}: ${getErrorMessage(error)}`,
+                    );
+                }
+            },
+        };
     }
 
     private static isPostHogRegion(region: string): region is PostHogRegion {

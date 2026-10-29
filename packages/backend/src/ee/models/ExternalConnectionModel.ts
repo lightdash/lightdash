@@ -11,6 +11,7 @@ import {
     type CreateExternalConnection,
     type ExternalConnection,
     type ExternalConnectionApiSource,
+    type ExternalConnectionApiUsage,
     type ExternalConnectionKind,
     type ExternalConnectionLinkedApps,
     type ExternalConnectionListItem,
@@ -34,11 +35,13 @@ import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import {
     ApiSourceCallCountersTableName,
     ApiSourceCallLeasesTableName,
+    ApiSourceCallsTableName,
     AppExternalConnectionsTableName,
     ExternalConnectionRateCountersTableName,
     ExternalConnectionSamplesTableName,
     ExternalConnectionSecretsTableName,
     ExternalConnectionsTableName,
+    type ApiSourceCallsTable,
     type DbExternalConnection,
     type DbExternalConnectionSample,
 } from '../database/entities/externalConnections';
@@ -1386,5 +1389,36 @@ export class ExternalConnectionModel {
                 .delete(),
         ]);
         return counters + leases;
+    }
+
+    async insertApiSourceCall(
+        call: Knex.ResolveTableType<ApiSourceCallsTable, 'insert'>,
+    ): Promise<void> {
+        await this.database(ApiSourceCallsTableName).insert(call);
+    }
+
+    /** API calls and response bytes per connection, over every logged query in the project. */
+    async getApiSourceUsage(
+        projectUuid: string,
+    ): Promise<ExternalConnectionApiUsage[]> {
+        const rows = await this.database(ApiSourceCallsTableName)
+            .where('project_uuid', projectUuid)
+            .groupBy('external_connection_uuid')
+            .select<
+                {
+                    external_connection_uuid: string;
+                    api_calls: string | null;
+                    response_bytes: string | null;
+                }[]
+            >(
+                'external_connection_uuid',
+                this.database.raw('sum(api_calls) as api_calls'),
+                this.database.raw('sum(response_bytes) as response_bytes'),
+            );
+        return rows.map((row) => ({
+            externalConnectionUuid: row.external_connection_uuid,
+            apiCalls: Number(row.api_calls ?? 0),
+            responseBytes: Number(row.response_bytes ?? 0),
+        }));
     }
 }

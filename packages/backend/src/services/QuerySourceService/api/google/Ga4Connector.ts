@@ -237,7 +237,6 @@ export class Ga4Connector implements ApiConnector {
             truncated:
                 apiRows.length > rowLimit ||
                 (parsed.data.rowCount ?? 0) > rowLimit,
-            apiCalls: 1,
             bytesRead: null,
         };
     }

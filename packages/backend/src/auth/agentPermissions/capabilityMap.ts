@@ -867,6 +867,9 @@ export const REST_OPERATION_CAPABILITIES = {
     'ExternalConnectionController.getExternalConnection': [
         AgentCapability.ReadDiscover,
     ],
+    'ExternalConnectionController.getExternalConnectionApiUsage': [
+        AgentCapability.ReadDiscover,
+    ],
     'ExternalConnectionController.linkAppExternalConnection': [
         AgentCapability.Administration,
     ],

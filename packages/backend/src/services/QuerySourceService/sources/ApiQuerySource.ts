@@ -10,7 +10,7 @@ import {
     type SourceQuery,
 } from '@lightdash/common';
 import type { AsyncQueryService } from '../../AsyncQueryService/AsyncQueryService';
-import type { ApiConnector } from '../api/ApiConnector';
+import type { MeteredApiConnector } from '../api/ApiConnector';
 import type {
     QuerySourceClient,
     ScanSchemaArgs,
@@ -23,7 +23,7 @@ export type ApiConnectorResolver = (
     account: RegisteredAccount,
     projectUuid: string,
     connectionUuid: string,
-) => Promise<ApiConnector>;
+) => Promise<MeteredApiConnector>;
 
 type ApiQuerySourceArguments = {
     asyncQueryService: Pick<AsyncQueryService, 'executeAsyncApiQuery'>;
