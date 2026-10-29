@@ -517,6 +517,7 @@ export const MappingRow: FC = () => {
             ref={focusOnMount}
             data-controls-editor
             {...mappingRowMarker}
+            data-testid="controls-mapping-row"
         >
             <MappingRowContent rule={rule} />
         </Group>

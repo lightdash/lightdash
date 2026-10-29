@@ -254,3 +254,9 @@ in `ee/features/embed/EmbedDashboard/components/*.test.tsx`, and
 ```bash
 pnpm -F frontend test src/features/dashboardControls/ControlsSidebarProvider.test.tsx
 ```
+
+The flag-on flow end to end is `packages/e2e/tests/app/dashboardControls.spec.ts`.
+It turns the flag on per page by fulfilling the flag request (the flag gates
+only the frontend), so the flag-off dashboard specs keep running beside it.
+It selects by the DOM markers above, `DEFAULT_UI_STRINGS` names and
+`data-testid="controls-mapping-row"`; keep them when you rename copy.
