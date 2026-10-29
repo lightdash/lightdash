@@ -1133,39 +1133,32 @@ export class McpService extends BaseService {
             explore,
         );
 
-        return {
-            query: {
-                exploreName: queryTool.queryConfig.exploreName,
-                dimensions: queryTool.queryConfig.dimensions,
-                metrics: expandMetricsWithPopAdditionalMetrics(
-                    queryTool.queryConfig.metrics,
-                    additionalMetrics,
-                ),
-                sorts: queryTool.queryConfig.sorts.map((sort) => ({
-                    ...sort,
-                    nullsFirst: sort.nullsFirst ?? undefined,
-                })),
-                limit: getValidAiQueryLimit(
-                    queryTool.queryConfig.limit,
-                    maxLimit,
-                ),
-                filters: queryTool.queryConfig.filters,
+        const query = {
+            exploreName: queryTool.queryConfig.exploreName,
+            dimensions: queryTool.queryConfig.dimensions,
+            metrics: expandMetricsWithPopAdditionalMetrics(
+                queryTool.queryConfig.metrics,
                 additionalMetrics,
-                tableCalculations: convertAiTableCalcsSchemaToTableCalcs(
-                    queryTool.queryConfig.tableCalculations,
-                ),
-            },
+            ),
+            sorts: queryTool.queryConfig.sorts.map((sort) => ({
+                ...sort,
+                nullsFirst: sort.nullsFirst ?? undefined,
+            })),
+            limit: getValidAiQueryLimit(queryTool.queryConfig.limit, maxLimit),
+            filters: queryTool.queryConfig.filters,
+            additionalMetrics,
+            tableCalculations: convertAiTableCalcsSchemaToTableCalcs(
+                queryTool.queryConfig.tableCalculations,
+            ),
+        };
+        return {
+            query,
             userAttributeOverrides:
                 await this.getUserAttributeOverridesFromContext(ctx),
             appliedParametersNote: summarizeAppliedParameters(
                 explore,
                 projectParameterDefinitions,
-                {
-                    dimensions: queryTool.queryConfig.dimensions,
-                    metrics: queryTool.queryConfig.metrics,
-                    filters: queryTool.queryConfig.filters,
-                    additionalMetrics,
-                },
+                query,
                 queryTool.queryConfig.parameters,
             ),
         };

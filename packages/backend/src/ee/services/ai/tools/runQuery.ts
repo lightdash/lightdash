@@ -801,19 +801,6 @@ export const getRunQuery = ({
                     };
                 }
 
-                const appliedParametersQuery = {
-                    dimensions: queryTool.queryConfig.dimensions,
-                    metrics: queryTool.queryConfig.metrics,
-                    filters: queryTool.queryConfig.filters,
-                    additionalMetrics: populatedCustomMetrics,
-                };
-                const appliedParameters = getAppliedParameters(
-                    explore,
-                    projectParameterDefinitions,
-                    appliedParametersQuery,
-                    queryTool.queryConfig.parameters,
-                );
-
                 const requestedLimit = queryTool.queryConfig.limit;
                 const effectiveLimit = getValidAiQueryLimit(
                     requestedLimit,
@@ -836,6 +823,12 @@ export const getRunQuery = ({
                         queryTool.queryConfig.tableCalculations,
                     ),
                 };
+                const appliedParameters = getAppliedParameters(
+                    explore,
+                    projectParameterDefinitions,
+                    metricQuery,
+                    queryTool.queryConfig.parameters,
+                );
 
                 // Semantic checks advise the model; they must not reject a
                 // valid intermediate query. Overlap them with warehouse work.
@@ -907,7 +900,7 @@ export const getRunQuery = ({
                             summarizeAppliedParameters(
                                 explore,
                                 projectParameterDefinitions,
-                                appliedParametersQuery,
+                                metricQuery,
                                 queryTool.queryConfig.parameters,
                             ),
                         metadata: { status: 'success' },
@@ -1031,7 +1024,7 @@ export const getRunQuery = ({
                     summarizeAppliedParameters(
                         explore,
                         projectParameterDefinitions,
-                        appliedParametersQuery,
+                        metricQuery,
                         queryTool.queryConfig.parameters,
                     ) +
                     getExecutionStatsNote(queryResults.executionStats);

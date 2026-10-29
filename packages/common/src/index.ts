@@ -76,6 +76,7 @@ export * from './compiler/filtersCompiler';
 export * from './compiler/joinInflation';
 export * from './compiler/lightdashModelConverter';
 export * from './compiler/parameters';
+export * from './compiler/queryParameterReferences';
 export * from './compiler/referenceLookup';
 export * from './compiler/translator';
 export * from './compiler/writebackColumn';

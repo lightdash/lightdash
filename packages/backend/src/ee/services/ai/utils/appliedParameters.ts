@@ -1,53 +1,18 @@
 import {
     getExploreParameterDefinitions,
-    getItemId,
-    getMetricQueryParameterReferences,
+    getQueryParameterReferences,
     getReferencedParameterDefinitions,
-    getTotalFilterRules,
     type Explore,
     type ParameterDefinitions,
     type ParametersValuesMap,
-    type SemanticLayerSourceQuery,
+    type QueryParameterScope,
     type ToolRunQueryAppliedParameters,
 } from '@lightdash/common';
-
-export type AppliedParametersQuery = Pick<
-    SemanticLayerSourceQuery,
-    'dimensions' | 'metrics' | 'filters' | 'additionalMetrics'
->;
-
-const getQueryParameterReferences = (
-    explore: Explore,
-    { dimensions, metrics, filters, additionalMetrics }: AppliedParametersQuery,
-): string[] => {
-    const filterFieldIds = getTotalFilterRules(filters ?? {}).map(
-        (rule) => rule.target.fieldId,
-    );
-    const usedFieldIds = new Set([...metrics, ...filterFieldIds]);
-    return getMetricQueryParameterReferences(explore, {
-        // Custom metrics compile from their base dimension's SQL.
-        dimensions: [
-            ...dimensions,
-            ...(additionalMetrics ?? []).flatMap((metric) =>
-                metric.baseDimensionName && usedFieldIds.has(getItemId(metric))
-                    ? [
-                          getItemId({
-                              table: metric.table,
-                              name: metric.baseDimensionName,
-                          }),
-                      ]
-                    : [],
-            ),
-        ],
-        metrics,
-        filterFieldIds,
-    });
-};
 
 export const getAppliedParameters = (
     explore: Explore,
     projectParameterDefinitions: ParameterDefinitions,
-    query: AppliedParametersQuery,
+    query: QueryParameterScope,
     provided: ParametersValuesMap | null,
 ): ToolRunQueryAppliedParameters | null => {
     const definitions = getReferencedParameterDefinitions(
@@ -104,7 +69,7 @@ export const renderAppliedParameters = (
 export const summarizeAppliedParameters = (
     explore: Explore,
     projectParameterDefinitions: ParameterDefinitions,
-    query: AppliedParametersQuery,
+    query: QueryParameterScope,
     provided: ParametersValuesMap | null,
 ): string =>
     renderAppliedParameters(
