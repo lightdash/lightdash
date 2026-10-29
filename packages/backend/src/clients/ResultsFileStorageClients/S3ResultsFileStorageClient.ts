@@ -223,7 +223,11 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
         }
     }
 
-    async getFileUrl(cacheKey: string, fileExtension = 'jsonl') {
+    async getFileUrl(
+        cacheKey: string,
+        fileExtension = 'jsonl',
+        expiresInSeconds = this.s3ExpiresIn,
+    ) {
         if (!this.configuration || !this.s3 || !this.urlSigner) {
             throw new MissingConfigError('S3 configuration is not set');
         }
@@ -237,10 +241,26 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
         const url = await this.urlSigner.getSignedDownloadUrl(
             this.configuration.bucket,
             key,
-            this.s3ExpiresIn,
+            expiresInSeconds,
         );
 
         return url;
+    }
+
+    /** A JSONL PUT URL for one key, for an uploader without credentials. */
+    async getUploadUrl(
+        fileName: string,
+        expiresInSeconds: number,
+    ): Promise<string> {
+        if (!this.configuration || !this.urlSigner) {
+            throw new MissingConfigError('S3 configuration is not set');
+        }
+        return this.urlSigner.getSignedUploadUrl(
+            this.configuration.bucket,
+            S3ResultsFileStorageClient.sanitizeFileExtension(fileName),
+            'application/jsonl',
+            expiresInSeconds,
+        );
     }
 
     /**

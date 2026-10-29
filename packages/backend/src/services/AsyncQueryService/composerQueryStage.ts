@@ -6,6 +6,7 @@ import { traceSpan, type TraceSpan } from '../../tracing/tracing';
 export const COMPOSER_QUERY_STAGES = {
     python: [
         'wait_references',
+        'presign',
         'read_inputs',
         'create',
         'compile',
@@ -13,6 +14,7 @@ export const COMPOSER_QUERY_STAGES = {
         'run',
         'read_output',
         'destroy',
+        'read_result',
         'validate_output',
         'upload_result',
         'total',

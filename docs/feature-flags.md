@@ -440,3 +440,22 @@ An existing extra cannot change its type with either flag value; add a new
 connection instead. It does not remove
 saved connections or change query execution. Mixed-type extras keep their own
 user-credential requirement; same-type extras still inherit the original's.
+
+### Python presigned sandbox I/O
+
+`composer-optimization-python-presigned-io` is off by default on Cloud,
+self-hosted and previews. Python queries resolve it for the project's
+organization, without a user override, and only act on it with the E2B provider.
+Console changes affect the next query; ENV changes require an API/worker restart.
+
+When enabled, the backend presigns a GET per input and one PUT for the result,
+each valid for the run timeout plus two minutes. The sandbox gets no DNS: the
+backend resolves each storage host to IPv4 addresses, E2B egress allows only
+those IPs, and the harness connects to them with the original host for TLS and
+signing. The backend downloads the uploaded result, bounded as before, and
+validates it before marking the query ready; a rejected upload is deleted.
+Inputs no longer pass the backend's 64 MiB input cap.
+
+This breaks the no-egress invariant: the sandbox can reach anything served on
+the storage IPs, including other buckets on a shared host such as
+`storage.googleapis.com`. Keep it an experiment until that is accepted.

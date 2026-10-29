@@ -1,4 +1,4 @@
-import { type S3Client } from '@aws-sdk/client-s3';
+import { S3Client } from '@aws-sdk/client-s3';
 import {
     createObjectUrlSigner,
     GcsUrlSigner,
@@ -73,6 +73,36 @@ describe('ObjectUrlSigner', () => {
             }),
             { expiresIn: 60 },
         );
+    });
+
+    it('signs uploads without the empty-body checksum the SDK adds', async () => {
+        const actual = await vi.importActual<
+            typeof import('@aws-sdk/s3-request-presigner')
+        >('@aws-sdk/s3-request-presigner');
+        signerMocks.getSignedUrl.mockImplementationOnce(
+            actual.getSignedUrl as never,
+        );
+        const client = new S3Client({
+            region: 'auto',
+            endpoint: 'https://storage.example.com',
+            forcePathStyle: true,
+            credentials: { accessKeyId: 'a', secretAccessKey: 'b' },
+        });
+
+        const url = new URL(
+            await new S3PresignerUrlSigner(client).getSignedUploadUrl(
+                'a-bucket',
+                'a-key',
+                'application/jsonl',
+                60,
+            ),
+        );
+
+        expect(url.pathname).toEqual('/a-bucket/a-key');
+        expect(url.searchParams.get('x-id')).toEqual('PutObject');
+        expect(
+            [...url.searchParams.keys()].filter((key) => /checksum/i.test(key)),
+        ).toEqual([]);
     });
 
     it('asks Google for a v4 URL', async () => {

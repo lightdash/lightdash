@@ -115,6 +115,7 @@ describe('PythonSandboxRunner output limits', () => {
                     inputs: [],
                     inputMeta: { inputs: {}, params: {}, limit: 10 },
                     timeoutMs: 1000,
+                    transfer: null,
                 }),
             ).rejects.toEqual(
                 new PythonExecutionError(
@@ -155,6 +156,7 @@ describe('PythonSandboxRunner provider selection', () => {
             inputs: [],
             inputMeta: { inputs: {}, params: {}, limit: 10 },
             timeoutMs: 1000,
+            transfer: null,
         });
 
     beforeEach(() => {
@@ -369,6 +371,7 @@ describe('PythonSandboxRunner stage instrumentation', () => {
                 ],
                 inputMeta: { inputs: {}, params: {}, limit: 10 },
                 timeoutMs: 1000,
+                transfer: null,
             });
 
             expect(
@@ -448,6 +451,7 @@ describe('PythonSandboxRunner batching', () => {
             inputs: [{ name: 'a', jsonl: Buffer.from('{"x":1}\n') }],
             inputMeta: { inputs: {}, params: {}, limit: 10 },
             timeoutMs: 1000,
+            transfer: null,
         });
         expect(result.stdout).toBe('user logs');
         expect(handle.files.write).not.toHaveBeenCalled();
@@ -479,6 +483,65 @@ describe('PythonSandboxRunner batching', () => {
             ),
         );
     });
+    it('moves bytes through a transfer with egress pinned to its IPs', async () => {
+        const handle = {
+            sandboxId: 'transfer-test',
+            files: {
+                writeMany: vi.fn(
+                    async (
+                        _files: {
+                            path: string;
+                            contents: string | Uint8Array;
+                        }[],
+                    ) => {},
+                ),
+                readBytes: vi.fn(),
+                read: vi.fn(async () => '{}'),
+            },
+            commands: {
+                run: vi.fn(async () => ({
+                    stdout: '',
+                    stderr: '',
+                    exitCode: 0,
+                })),
+            },
+        };
+        create.mockResolvedValueOnce(handle);
+        destroy.mockResolvedValueOnce(undefined);
+        const transfer = {
+            hosts: { 'storage.example.com': ['203.0.113.7'] },
+            inputs: { a: 'https://storage.example.com/a?sig' },
+            result: 'https://storage.example.com/out?sig',
+        };
+        const result = await new PythonSandboxRunner({
+            lightdashConfig: {
+                ...lightdashConfigMock,
+                appRuntime: {
+                    ...lightdashConfigMock.appRuntime,
+                    sandboxProvider: 'e2b',
+                },
+            },
+            logger: silentLogger,
+            metrics: null,
+        }).run({
+            queryUuid: 'query',
+            code: 'code',
+            inputs: [],
+            inputMeta: { inputs: {}, params: {}, limit: 10 },
+            timeoutMs: 1000,
+            transfer,
+        });
+
+        expect(create).toHaveBeenLastCalledWith(
+            expect.objectContaining({ egress: { allow: ['203.0.113.7'] } }),
+        );
+        const meta = handle.files.writeMany.mock.calls[0][0].find(
+            ({ path }) => path === '/work/in/meta.json',
+        );
+        expect(JSON.parse(String(meta?.contents)).transfer).toEqual(transfer);
+        expect(handle.files.readBytes).not.toHaveBeenCalled();
+        expect(result.resultJsonl).toBeNull();
+    });
     it('destroys the sandbox when a batched upload fails', async () => {
         const error = new Error('upload failed');
         const handle = {
@@ -505,6 +568,7 @@ describe('PythonSandboxRunner batching', () => {
                 inputs: [],
                 inputMeta: { inputs: {}, params: {}, limit: 10 },
                 timeoutMs: 1000,
+                transfer: null,
             }),
         ).rejects.toBe(error);
         expect(destroy).toHaveBeenLastCalledWith('failed-upload');

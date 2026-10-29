@@ -1,4 +1,9 @@
-import { GetObjectCommand, type S3, type S3Client } from '@aws-sdk/client-s3';
+import {
+    GetObjectCommand,
+    PutObjectCommand,
+    type S3,
+    type S3Client,
+} from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { type Storage } from '@google-cloud/storage';
 import { type S3ConnectionConfig } from './S3BaseClient';
@@ -10,15 +15,20 @@ const DEFAULT_EXPIRES_IN_SECONDS = 900;
  * Creates a URL that grants time-limited access to an object in a bucket.
  *
  * S3 and GCS sign URLs in incompatible ways, so each storage backend provides
- * its own implementation. This interface covers downloads only, because
- * callers set Content-Disposition when they upload an object rather than when
- * they sign a URL.
+ * its own implementation.
  */
 export interface ObjectUrlSigner {
     getSignedDownloadUrl(
         bucket: string,
         key: string,
         expiresInSeconds?: number,
+    ): Promise<string>;
+    /** A PUT URL for one object; the uploader must send the same Content-Type. */
+    getSignedUploadUrl(
+        bucket: string,
+        key: string,
+        contentType: string,
+        expiresInSeconds: number,
     ): Promise<string>;
 }
 
@@ -40,6 +50,37 @@ export class S3PresignerUrlSigner implements ObjectUrlSigner {
             new GetObjectCommand({ Bucket: bucket, Key: key }),
             { expiresIn: expiresInSeconds },
         );
+    }
+
+    async getSignedUploadUrl(
+        bucket: string,
+        key: string,
+        contentType: string,
+        expiresInSeconds: number,
+    ): Promise<string> {
+        const command = new PutObjectCommand({
+            Bucket: bucket,
+            Key: key,
+            ContentType: contentType,
+        });
+        // The SDK signs a CRC32 of the empty presign body, which rejects any real upload
+        command.middlewareStack.add(
+            (next) => async (args) => {
+                const { headers } = args.request as {
+                    headers: Record<string, string>;
+                };
+                Object.keys(headers)
+                    .filter((name) =>
+                        /^x-amz-(checksum-|sdk-checksum-algorithm)/i.test(name),
+                    )
+                    .forEach((name) => delete headers[name]);
+                return next(args);
+            },
+            { step: 'build', priority: 'low' },
+        );
+        return getSignedUrl(this.client, command, {
+            expiresIn: expiresInSeconds,
+        });
     }
 }
 
@@ -83,6 +124,25 @@ export class GcsUrlSigner implements ObjectUrlSigner {
                 // a v2 URL.
                 version: 'v4',
                 action: 'read',
+                expires: Date.now() + expiresInSeconds * 1000,
+            });
+        return url;
+    }
+
+    async getSignedUploadUrl(
+        bucket: string,
+        key: string,
+        contentType: string,
+        expiresInSeconds: number,
+    ): Promise<string> {
+        const storage = await getGcsStorage();
+        const [url] = await storage
+            .bucket(bucket)
+            .file(key)
+            .getSignedUrl({
+                version: 'v4',
+                action: 'write',
+                contentType,
                 expires: Date.now() + expiresInSeconds * 1000,
             });
         return url;

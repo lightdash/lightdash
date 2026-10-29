@@ -32,6 +32,19 @@ const code = 'def run(inputs, params):\n    return inputs["orders"]';
 
 type Row = QueryHistory & { cacheKey: string };
 
+const resultMeta = JSON.stringify({
+    columns: [{ name: 'id', type: 'number' }],
+    rowCount: 1,
+    truncated: false,
+    timings: {
+        importMs: 0,
+        loadInputsMs: 0,
+        loadCodeMs: 0,
+        runMs: 0,
+        writeOutputMs: 0,
+    },
+});
+
 const readyResult = (
     queryUuid: string,
     resultsFileName: string,
@@ -62,9 +75,11 @@ const readyResult = (
 const buildHarness = ({
     flags = {},
     sandboxVersion = 'lightdash-python-runner:1.0.0',
+    sandboxProvider = lightdashConfigMock.appRuntime.sandboxProvider,
 }: {
     flags?: Partial<Record<FeatureFlags, boolean>>;
     sandboxVersion?: string;
+    sandboxProvider?: typeof lightdashConfigMock.appRuntime.sandboxProvider;
 } = {}) => {
     const rows = new Map<string, Row>([
         [ordersUuid, readyResult(ordersUuid, 'orders-file')],
@@ -191,11 +206,16 @@ const buildHarness = ({
     const uploads: string[] = [];
     const resultsStorageClient = {
         isEnabled: true,
-        getDownloadStream: vi.fn(async () => Readable.from(['{"id":1}\n'])),
+        getDownloadStream: vi.fn(async () =>
+            Readable.from([Buffer.from('{"id":1}\n')]),
+        ),
         createUploadStream: vi.fn((fileName: string) => {
             uploads.push(fileName);
             return { write: vi.fn(), close: vi.fn() };
         }),
+        getFileUrl: vi.fn(async (key: string) => `https://203.0.113.7/${key}`),
+        getUploadUrl: vi.fn(async () => 'https://203.0.113.7/upload'),
+        deleteFile: vi.fn(async () => {}),
     };
     const sandbox = {
         version: sandboxVersion,
@@ -204,24 +224,16 @@ const buildHarness = ({
                 _args: PythonSandboxRunArgs,
             ): Promise<PythonSandboxRunResult> => ({
                 resultJsonl: Buffer.from('{"id":1}\n'),
-                resultMeta: JSON.stringify({
-                    columns: [{ name: 'id', type: 'number' }],
-                    rowCount: 1,
-                    truncated: false,
-                    timings: {
-                        importMs: 0,
-                        loadInputsMs: 0,
-                        loadCodeMs: 0,
-                        runMs: 0,
-                        writeOutputMs: 0,
-                    },
-                }),
+                resultMeta,
                 stdout: '',
             }),
         ),
     };
     const service = new AsyncQueryService({
-        lightdashConfig: lightdashConfigMock,
+        lightdashConfig: {
+            ...lightdashConfigMock,
+            appRuntime: { ...lightdashConfigMock.appRuntime, sandboxProvider },
+        },
         analytics: analyticsMock,
         queryHistoryModel,
         cacheService,
@@ -273,8 +285,73 @@ const buildHarness = ({
         return rows.get(queryUuid)!;
     };
 
-    return { submit, sandbox, uploads, rows, service };
+    return {
+        submit,
+        sandbox,
+        uploads,
+        rows,
+        service,
+        storage: resultsStorageClient,
+    };
 };
+
+describe('python presigned io', () => {
+    const presigned = () => {
+        const harness = buildHarness({
+            flags: {
+                [FeatureFlags.ComposerOptimizationPythonPresignedIo]: true,
+            },
+            sandboxProvider: 'e2b',
+        });
+        harness.sandbox.run.mockResolvedValueOnce({
+            resultJsonl: null,
+            resultMeta,
+            stdout: '',
+        });
+        return harness;
+    };
+
+    test('the sandbox moves the bytes and the backend validates the uploaded result', async () => {
+        const { submit, sandbox, uploads, storage } = presigned();
+
+        const row = await submit();
+
+        expect(sandbox.run.mock.calls[0][0]).toMatchObject({
+            inputs: [],
+            transfer: {
+                hosts: { '203.0.113.7': ['203.0.113.7'] },
+                inputs: { orders: 'https://203.0.113.7/orders-file' },
+                result: 'https://203.0.113.7/upload',
+            },
+        });
+        expect(row).toMatchObject({
+            status: QueryHistoryStatus.READY,
+            totalRowCount: 1,
+        });
+        expect(storage.getDownloadStream).toHaveBeenLastCalledWith(
+            row.resultsFileName,
+        );
+        expect(uploads).toEqual([]);
+        expect(storage.deleteFile).not.toHaveBeenCalled();
+    });
+
+    test('a rejected upload is deleted and the query errors', async () => {
+        const { submit, storage } = presigned();
+        storage.getDownloadStream.mockImplementation(async () =>
+            Readable.from([Buffer.from('not json\n')]),
+        );
+
+        const row = await submit();
+
+        expect(row).toMatchObject({
+            status: QueryHistoryStatus.ERROR,
+            error: 'Python result row 1 is not valid JSON',
+        });
+        expect(storage.deleteFile).toHaveBeenCalledWith(
+            expect.stringMatching(/\.jsonl$/),
+        );
+    });
+});
 
 describe('python transformations and the results cache', () => {
     test('the same python node over the same result files is served from the results cache without a sandbox', async () => {

@@ -226,6 +226,7 @@ import {
     findSqlScopeViolations,
     formatSqlScopeError,
 } from '../../ee/services/ai/utils/sqlScope';
+import { readBoundedStream } from '../../ee/services/SandboxRuntime/boundedOutput';
 import Logger from '../../logging/logger';
 import { measureTime } from '../../logging/measureTime';
 import {
@@ -425,6 +426,7 @@ import {
 import { PythonInputReader } from './python/PythonInputReader';
 import {
     parsePythonResultMeta,
+    PYTHON_MAX_RESULT_BYTES,
     pythonColumnsToFields,
     pythonResultToColumns,
     pythonResultToFields,
@@ -436,6 +438,7 @@ import {
 import {
     PythonExecutionError,
     PythonSandboxRunner,
+    resolveStorageHosts,
     type PythonSandboxInput,
 } from './python/PythonSandboxRunner';
 import {
@@ -10933,6 +10936,10 @@ export class AsyncQueryService extends ProjectService {
     /** Python queries run for at most this long inside the sandbox. */
     static readonly PYTHON_RUN_TIMEOUT_MS = 5 * 60 * 1000;
 
+    /** Presigned python transfer URLs outlive the run by two minutes. */
+    static readonly PYTHON_TRANSFER_URL_EXPIRY_S =
+        AsyncQueryService.PYTHON_RUN_TIMEOUT_MS / 1000 + 120;
+
     private traceComposerQueryStage<S extends ComposerQuerySource, T>(
         source: S,
         stage: ComposerQueryStage<S>,
@@ -11316,92 +11323,193 @@ export class AsyncQueryService extends ProjectService {
                     }
 
                     const inputMeta: PythonInputMeta = {
-                        inputs: {},
+                        inputs: Object.fromEntries(
+                            inputResultFiles.map(({ name, history }) => [
+                                name,
+                                {
+                                    columns: resultColumnsToPythonInput(
+                                        Object.keys(history.columns ?? {})
+                                            .length === 0 &&
+                                            history.totalRowCount === 0
+                                            ? getColumnsFromItemsMap(
+                                                  history.fields,
+                                              )
+                                            : (history.columns ?? {}),
+                                        history.fields,
+                                    ),
+                                },
+                            ]),
+                        ),
                         params: parameters,
                         limit,
                     };
+                    const resultsStorageClient =
+                        this.getResultsStorageClientForContext(context);
+                    if (!resultsStorageClient.isEnabled) {
+                        throw new S3Error('S3 is not enabled');
+                    }
+                    const fileName =
+                        QueryHistoryModel.createUniqueResultsFileName(
+                            resultsKey,
+                        );
+                    const presignedIo =
+                        this.lightdashConfig.appRuntime.sandboxProvider ===
+                            'e2b' &&
+                        (
+                            await this.featureFlagModel.get({
+                                user: { organizationUuid },
+                                featureFlagId:
+                                    FeatureFlags.ComposerOptimizationPythonPresignedIo,
+                            })
+                        ).enabled;
+                    const transfer = presignedIo
+                        ? await this.traceComposerQueryStage(
+                              'python',
+                              'presign',
+                              { name: 'python.query.presign', attributes },
+                              async () => {
+                                  const expiry =
+                                      AsyncQueryService.PYTHON_TRANSFER_URL_EXPIRY_S;
+                                  const [inputUrls, result] = await Promise.all(
+                                      [
+                                          Promise.all(
+                                              inputResultFiles.map(
+                                                  async ({
+                                                      name,
+                                                      history,
+                                                      resultsFileName,
+                                                  }) => [
+                                                      name,
+                                                      await this.getResultsStorageClientForContext(
+                                                          history.context,
+                                                      ).getFileUrl(
+                                                          resultsFileName,
+                                                          'jsonl',
+                                                          expiry,
+                                                      ),
+                                                  ],
+                                              ),
+                                          ),
+                                          resultsStorageClient.getUploadUrl(
+                                              fileName,
+                                              expiry,
+                                          ),
+                                      ],
+                                  );
+                                  return {
+                                      inputs: Object.fromEntries(inputUrls),
+                                      result,
+                                      hosts: await resolveStorageHosts([
+                                          ...inputUrls.map(([, url]) => url),
+                                          result,
+                                      ]),
+                                  };
+                              },
+                          )
+                        : null;
                     const inputReader = new PythonInputReader();
-                    const inputs = await this.traceComposerQueryStage(
-                        'python',
-                        'read_inputs',
-                        { name: 'python.query.read_inputs', attributes },
-                        () =>
-                            Promise.all(
-                                inputResultFiles.map(
-                                    async ({
-                                        name,
-                                        history,
-                                        resultsFileName,
-                                    }): Promise<PythonSandboxInput> => {
-                                        const columns =
-                                            Object.keys(history.columns ?? {})
-                                                .length === 0 &&
-                                            history.totalRowCount === 0
-                                                ? getColumnsFromItemsMap(
-                                                      history.fields,
-                                                  )
-                                                : (history.columns ?? {});
-                                        inputMeta.inputs[name] = {
-                                            columns: resultColumnsToPythonInput(
-                                                columns,
-                                                history.fields,
-                                            ),
-                                        };
-                                        const storageClient =
-                                            this.getResultsStorageClientForContext(
-                                                history.context,
-                                            );
-                                        const stream =
-                                            await storageClient.getDownloadStream(
-                                                resultsFileName,
-                                            );
-                                        return {
-                                            name,
-                                            jsonl: await inputReader.read(
-                                                stream,
-                                            ),
-                                        };
-                                    },
-                                ),
-                            ).catch((error: unknown) => {
-                                inputReader.abort(error);
-                                throw error;
-                            }),
-                    );
+                    const inputs = transfer
+                        ? []
+                        : await this.traceComposerQueryStage(
+                              'python',
+                              'read_inputs',
+                              { name: 'python.query.read_inputs', attributes },
+                              () =>
+                                  Promise.all(
+                                      inputResultFiles.map(
+                                          async ({
+                                              name,
+                                              history,
+                                              resultsFileName,
+                                          }): Promise<PythonSandboxInput> => {
+                                              const storageClient =
+                                                  this.getResultsStorageClientForContext(
+                                                      history.context,
+                                                  );
+                                              const stream =
+                                                  await storageClient.getDownloadStream(
+                                                      resultsFileName,
+                                                  );
+                                              return {
+                                                  name,
+                                                  jsonl: await inputReader.read(
+                                                      stream,
+                                                  ),
+                                              };
+                                          },
+                                      ),
+                                  ).catch((error: unknown) => {
+                                      inputReader.abort(error);
+                                      throw error;
+                                  }),
+                          );
 
-                    const run = await sandbox.run({
-                        queryUuid,
-                        code,
-                        inputs,
-                        inputMeta,
-                        timeoutMs: AsyncQueryService.PYTHON_RUN_TIMEOUT_MS,
-                    });
-
-                    const { meta, rows } = await this.traceComposerQueryStage(
-                        'python',
-                        'validate_output',
-                        {
-                            name: 'python.query.validate_output',
-                            attributes: {
-                                ...attributes,
-                                'lightdash.resultBytes':
-                                    run.resultJsonl.byteLength,
+                    const resultKey =
+                        S3ResultsFileStorageClient.sanitizeFileExtension(
+                            fileName,
+                        );
+                    const { meta, rows } = await (async () => {
+                        const run = await sandbox.run({
+                            queryUuid,
+                            code,
+                            inputs,
+                            inputMeta,
+                            timeoutMs: AsyncQueryService.PYTHON_RUN_TIMEOUT_MS,
+                            transfer,
+                        });
+                        // An uploaded result is untrusted until validated below
+                        const resultJsonl =
+                            run.resultJsonl ??
+                            (await this.traceComposerQueryStage(
+                                'python',
+                                'read_result',
+                                {
+                                    name: 'python.query.read_result',
+                                    attributes,
+                                },
+                                async () =>
+                                    readBoundedStream(
+                                        Readable.toWeb(
+                                            await resultsStorageClient.getDownloadStream(
+                                                fileName,
+                                            ),
+                                        ) as ReadableStream<Uint8Array>,
+                                        PYTHON_MAX_RESULT_BYTES,
+                                    ),
+                            ));
+                        return this.traceComposerQueryStage(
+                            'python',
+                            'validate_output',
+                            {
+                                name: 'python.query.validate_output',
+                                attributes: {
+                                    ...attributes,
+                                    'lightdash.resultBytes':
+                                        resultJsonl.byteLength,
+                                },
                             },
-                        },
-                        async () => {
-                            const parsedMeta = parsePythonResultMeta(
-                                run.resultMeta,
-                            );
-                            return {
-                                meta: parsedMeta,
-                                rows: validatePythonResultRows(
-                                    run.resultJsonl,
-                                    parsedMeta,
-                                    limit,
-                                ),
-                            };
-                        },
-                    );
+                            async () => {
+                                const parsedMeta = parsePythonResultMeta(
+                                    run.resultMeta,
+                                );
+                                return {
+                                    meta: parsedMeta,
+                                    rows: validatePythonResultRows(
+                                        resultJsonl,
+                                        parsedMeta,
+                                        limit,
+                                    ),
+                                };
+                            },
+                        );
+                    })().catch(async (error: unknown) => {
+                        if (transfer) {
+                            await resultsStorageClient
+                                .deleteFile(resultKey)
+                                .catch(() => {});
+                        }
+                        throw error;
+                    });
                     span.setAttributes({
                         'lightdash.rowCount': rows.length,
                         'lightdash.truncated': meta.truncated,
@@ -11415,39 +11523,30 @@ export class AsyncQueryService extends ProjectService {
                         ),
                     });
 
-                    const resultsStorageClient =
-                        this.getResultsStorageClientForContext(context);
-                    if (!resultsStorageClient.isEnabled) {
-                        throw new S3Error('S3 is not enabled');
-                    }
-                    const fileName =
-                        QueryHistoryModel.createUniqueResultsFileName(
-                            resultsKey,
-                        );
                     const createdAt = new Date();
-                    await this.traceComposerQueryStage(
-                        'python',
-                        'upload_result',
-                        {
-                            op: 's3.upload',
-                            name: 'python.query.upload_result',
-                            attributes: {
-                                ...attributes,
-                                'lightdash.totalRows': rows.length,
+                    if (!transfer) {
+                        await this.traceComposerQueryStage(
+                            'python',
+                            'upload_result',
+                            {
+                                op: 's3.upload',
+                                name: 'python.query.upload_result',
+                                attributes: {
+                                    ...attributes,
+                                    'lightdash.totalRows': rows.length,
+                                },
                             },
-                        },
-                        async () => {
-                            const upload =
-                                resultsStorageClient.createUploadStream(
-                                    S3ResultsFileStorageClient.sanitizeFileExtension(
-                                        fileName,
-                                    ),
-                                    { contentType: 'application/jsonl' },
-                                );
-                            await upload.write(rows);
-                            await upload.close();
-                        },
-                    );
+                            async () => {
+                                const upload =
+                                    resultsStorageClient.createUploadStream(
+                                        resultKey,
+                                        { contentType: 'application/jsonl' },
+                                    );
+                                await upload.write(rows);
+                                await upload.close();
+                            },
+                        );
+                    }
 
                     const expiresAt = await this.getCacheExpiresAt(
                         projectUuid,

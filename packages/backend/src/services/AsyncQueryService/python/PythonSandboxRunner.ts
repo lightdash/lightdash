@@ -4,6 +4,8 @@ import {
     MissingConfigError,
 } from '@lightdash/common';
 import { createHash } from 'crypto';
+import { promises as dns } from 'dns';
+import { isIP } from 'net';
 import { type LightdashConfig } from '../../../config/parseConfig';
 import {
     createSandboxProvider,
@@ -35,6 +37,7 @@ import {
     PYTHON_RUNNER_PATH,
     PYTHON_RUNNER_SOURCE,
     type PythonInputMeta,
+    type PythonTransfer,
 } from './pythonQueryHarness';
 
 /** One referenced result, as bytes the sandbox will read. */
@@ -49,12 +52,30 @@ export type PythonSandboxRunArgs = {
     inputs: PythonSandboxInput[];
     inputMeta: PythonInputMeta;
     timeoutMs: number;
+    /** E2B only: the harness moves inputs and the result through these URLs instead of the file API. */
+    transfer: PythonTransfer | null;
 };
 
 export type PythonSandboxRunResult = {
-    resultJsonl: Buffer;
+    /** Null when the harness uploaded the result through `transfer`. */
+    resultJsonl: Buffer | null;
     resultMeta: string;
     stdout: string;
+};
+
+/** IPv4 addresses the sandbox may reach for each URL host; it gets no DNS. */
+export const resolveStorageHosts = async (
+    urls: string[],
+): Promise<Record<string, string[]>> => {
+    const hostnames = [...new Set(urls.map((url) => new URL(url).hostname))];
+    return Object.fromEntries(
+        await Promise.all(
+            hostnames.map(async (hostname) => [
+                hostname,
+                isIP(hostname) ? [hostname] : await dns.resolve4(hostname),
+            ]),
+        ),
+    );
 };
 
 /** Raised when the user's python fails to compile or run; the message is safe to show. */
@@ -74,7 +95,8 @@ const CLOUD_RUN_PYTHON_TEMPLATE_REF = 'gcp-cloud-run-python-gateway';
 /**
  * Runs one python query in a fresh sandbox: create, compile, feed inputs,
  * run the harness, read the output, destroy. The sandbox gets no credentials
- * and no egress; every byte crosses through the provider's file API.
+ * and no egress; every byte crosses through the provider's file API, unless a
+ * transfer opens egress to the storage IPs behind its presigned URLs.
  */
 export class PythonSandboxRunner {
     private readonly lightdashConfig: LightdashConfig;
@@ -238,20 +260,30 @@ export class PythonSandboxRunner {
         return `${this.lightdashConfig.appRuntime.sandboxProvider}:${this.getTemplateRef()}:${harness}`;
     }
 
-    private buildSpec(timeoutMs: number): SandboxSpec {
+    private buildSpec(
+        timeoutMs: number,
+        transfer: PythonTransfer | null,
+    ): SandboxSpec {
         return {
             templateRef: this.getTemplateRef(),
             timeoutMs: timeoutMs + SANDBOX_IDLE_MARGIN_MS,
-            egress: { allow: [] },
+            egress: {
+                allow: transfer
+                    ? [...new Set(Object.values(transfer.hosts).flat())]
+                    : [],
+            },
         };
     }
 
     async run(args: PythonSandboxRunArgs): Promise<PythonSandboxRunResult> {
-        const { queryUuid, code, inputs, inputMeta, timeoutMs } = args;
+        const { queryUuid, code, inputs, timeoutMs, transfer } = args;
+        const inputMeta = transfer
+            ? { ...args.inputMeta, transfer }
+            : args.inputMeta;
         const provider = this.getProvider();
         const batch = this.lightdashConfig.appRuntime.sandboxProvider === 'e2b';
         const spec = {
-            ...this.buildSpec(timeoutMs),
+            ...this.buildSpec(timeoutMs, transfer),
             ...(batch ? { onTimeout: 'kill' as const } : {}),
         };
         const attributes = {
@@ -315,9 +347,12 @@ export class PythonSandboxRunner {
                 sandboxAttributes,
                 () =>
                     Promise.all([
-                        handle.files.readBytes(PYTHON_OUTPUT_RESULT_PATH, {
-                            maxBytes: PYTHON_MAX_RESULT_BYTES,
-                        }),
+                        transfer
+                            ? null
+                            : handle.files.readBytes(
+                                  PYTHON_OUTPUT_RESULT_PATH,
+                                  { maxBytes: PYTHON_MAX_RESULT_BYTES },
+                              ),
                         handle.files.read(PYTHON_OUTPUT_META_PATH, {
                             maxBytes: MAX_META_BYTES,
                         }),

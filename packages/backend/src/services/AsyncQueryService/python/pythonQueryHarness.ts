@@ -76,6 +76,8 @@ const pythonResultMetaSchema = z.object({
         loadCodeMs: z.number().nonnegative(),
         runMs: z.number().nonnegative(),
         writeOutputMs: z.number().nonnegative(),
+        downloadInputsMs: z.number().nonnegative().optional(),
+        uploadOutputMs: z.number().nonnegative().optional(),
     }),
 });
 
@@ -86,6 +88,13 @@ export type PythonInputMeta = {
     inputs: Record<string, { columns: Record<string, PythonColumnType> }>;
     params: Record<string, unknown>;
     limit: number;
+};
+
+/** Presigned storage URLs the harness moves bytes through; hosts pin each URL host to the IPs egress allows. */
+export type PythonTransfer = {
+    hosts: Record<string, string[]>;
+    inputs: Record<string, string>;
+    result: string;
 };
 
 export const parsePythonResultMeta = (raw: string): PythonResultMeta => {
@@ -356,10 +365,54 @@ def timed(name, started):
     TIMINGS[name] = (time.perf_counter() - started) * 1000
 
 
+def transfer(method, url, hosts, body=None):
+    # Connects to a pinned IP: the sandbox has no DNS
+    import http.client
+    import socket
+    import ssl
+    import urllib.parse
+
+    parts = urllib.parse.urlsplit(url)
+    https = parts.scheme == "https"
+    port = parts.port or (443 if https else 80)
+    sock = None
+    for ip in hosts[parts.hostname]:
+        try:
+            sock = socket.create_connection((ip, port), timeout=60)
+            break
+        except OSError:
+            continue
+    if sock is None:
+        fail(f"Could not connect to storage for {method}")
+    if https:
+        sock = ssl.create_default_context().wrap_socket(sock, server_hostname=parts.hostname)
+        connection = http.client.HTTPSConnection(parts.hostname, port, timeout=60)
+    else:
+        connection = http.client.HTTPConnection(parts.hostname, port, timeout=60)
+    connection.sock = sock
+    headers = {} if body is None else {"Content-Type": "application/jsonl"}
+    target = parts.path + (f"?{parts.query}" if parts.query else "")
+    connection.request(method, target, body=body, headers=headers)
+    response = connection.getresponse()
+    data = response.read()
+    connection.close()
+    if response.status >= 300:
+        fail(f"Storage {method} failed with HTTP {response.status}")
+    return data
+
+
 def main():
     started = time.perf_counter()
     with open(f"{IN_DIR}/meta.json", encoding="utf-8") as handle:
         meta = json.load(handle)
+
+    moved = meta.get("transfer")
+    if moved:
+        for name, url in moved["inputs"].items():
+            with open(f"{IN_DIR}/{name}.jsonl", "wb") as handle:
+                handle.write(transfer("GET", url, moved["hosts"]))
+        timed("downloadInputsMs", started)
+        started = time.perf_counter()
 
     inputs = {name: load_input(name, spec) for name, spec in meta["inputs"].items()}
     timed("loadInputsMs", started)
@@ -413,6 +466,12 @@ def main():
             row = {name: to_json_value(record[name], kinds[name]) for name in names}
             handle.write(json.dumps(row, allow_nan=False) + "\\n")
     timed("writeOutputMs", started)
+
+    if moved:
+        started = time.perf_counter()
+        with open(f"{OUT_DIR}/result.jsonl", "rb") as handle:
+            transfer("PUT", moved["result"], moved["hosts"], handle.read())
+        timed("uploadOutputMs", started)
 
     with open(f"{OUT_DIR}/meta.json", "w", encoding="utf-8") as handle:
         json.dump(
