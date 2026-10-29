@@ -41,7 +41,19 @@ import { VALID_SCHEDULER_RUN_DESTINATIONS } from '../schedulerConstants';
 @Tags('v2', 'Dashboards')
 export class DashboardControllerV2 extends BaseController {
     /**
-     * Export dashboard content
+     * Export dashboard content as an image, PDF, CSV or XLSX. Schedules a job;
+     * poll `GET /api/v1/schedulers/job/{jobId}/status` until it is `completed`,
+     * then download the file from `details.url`.
+     *
+     * Embed tokens can call this with the `Lightdash-Embed-Token` header and a
+     * `projectUuid` query param. The export uses the viewer's access, filters,
+     * parameters, date zoom and tabs. Each format needs an embed permission:
+     * - `image`: `canExportImages` or `view:EmbedImageExport`
+     * - `pdf`: `canExportPagePdf` or `view:EmbedPagePdfExport`
+     * - `csv` / `xlsx`: `canExportDashboardCsv` or `view:EmbedDashboardCsvExport`
+     *
+     * Poll the job status with the same token. The file URL is a signed link
+     * that expires.
      * @summary Export dashboard content
      * @param dashboardUuid The uuid of the dashboard
      * @param req express request

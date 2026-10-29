@@ -344,6 +344,48 @@ describe('UnfurlService', () => {
             expect(page.goto).not.toHaveBeenCalled();
         });
 
+        it('renders images through the same minimal embed page', async () => {
+            const { service, page, getUserCookie } = setup();
+
+            await expect(
+                service.exportEmbedDashboardImage(exportArgs),
+            ).rejects.toThrow();
+
+            const navigatedUrl = new URL(page.goto.mock.calls[0][0]);
+            expect(navigatedUrl.pathname).toBe(`/embed/${PROJECT_UUID}`);
+            expect(navigatedUrl.searchParams.get('minimal')).toBe('true');
+            expect(navigatedUrl.hash).toBe('#embed.jwt.token');
+            expect(getUserCookie).not.toHaveBeenCalled();
+        });
+
+        it('returns an expiring storage URL for images, not a preview link', async () => {
+            const { service } = setup();
+            vi.spyOn(
+                service as unknown as {
+                    renderEmbedDashboard: () => Promise<unknown>;
+                },
+                'renderEmbedDashboard',
+            ).mockResolvedValue({
+                dashboard,
+                imageId: 'embed-image_id',
+                result: { imageBuffer: Buffer.from('png-bytes') },
+            });
+            mockFileStorageClient.uploadImage.mockResolvedValue(
+                'https://storage.example/embed-image_id.png?X-Amz-Expires=259200',
+            );
+
+            await expect(
+                service.exportEmbedDashboardImage(exportArgs),
+            ).resolves.toBe(
+                'https://storage.example/embed-image_id.png?X-Amz-Expires=259200',
+            );
+            expect(mockFileStorageClient.uploadImage).toHaveBeenCalledWith(
+                Buffer.from('png-bytes'),
+                'embed-image_id',
+            );
+            expect(mockSlackUnfurlImageModel.create).not.toHaveBeenCalled();
+        });
+
         it('rejects dashboards outside the token project', async () => {
             const { service } = setup();
 
