@@ -77,6 +77,9 @@ const buildService = ({
         getDecryptedSecret: vi.fn().mockResolvedValue('phx_secret'),
         create: vi.fn().mockResolvedValue(connections[0]),
         softDelete: vi.fn().mockResolvedValue(undefined),
+        tryAcquireApiSourceCallLease: vi.fn().mockResolvedValue(true),
+        tryCountApiSourceCall: vi.fn().mockResolvedValue(true),
+        releaseApiSourceCallLease: vi.fn().mockResolvedValue(undefined),
     };
     const analytics = { track: vi.fn() };
     const service = new ExternalConnectionService({

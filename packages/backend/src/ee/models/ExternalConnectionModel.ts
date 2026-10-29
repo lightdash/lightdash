@@ -32,6 +32,8 @@ import {
 } from '../../utils/credentialDestination';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import {
+    ApiSourceCallCountersTableName,
+    ApiSourceCallLeasesTableName,
     AppExternalConnectionsTableName,
     ExternalConnectionRateCountersTableName,
     ExternalConnectionSamplesTableName,
@@ -1293,5 +1295,88 @@ export class ExternalConnectionModel {
         return this.database(ExternalConnectionRateCountersTableName)
             .where('window_started_at', '<', cutoff)
             .delete();
+    }
+
+    /** Counts one call in the window unless it already holds `limit`; false when it does. */
+    async tryCountApiSourceCall(
+        externalConnectionUuid: string,
+        windowSeconds: number,
+        windowStartedAt: Date,
+        limit: number,
+    ): Promise<boolean> {
+        const rows = await this.database(ApiSourceCallCountersTableName)
+            .insert({
+                external_connection_uuid: externalConnectionUuid,
+                window_seconds: windowSeconds,
+                window_started_at: windowStartedAt,
+                call_count: 1,
+            })
+            .onConflict([
+                'external_connection_uuid',
+                'window_seconds',
+                'window_started_at',
+            ])
+            .merge({
+                call_count: this.database.raw(
+                    `${ApiSourceCallCountersTableName}.call_count + 1`,
+                ) as unknown as number,
+            })
+            .where(`${ApiSourceCallCountersTableName}.call_count`, '<', limit)
+            .returning('call_count');
+        return rows.length > 0;
+    }
+
+    /** Takes a free or expired slot out of `slots`; false when all are held. */
+    async tryAcquireApiSourceCallLease(
+        externalConnectionUuid: string,
+        slots: number,
+        leaseUuid: string,
+        expiresAt: Date,
+    ): Promise<boolean> {
+        /* eslint-disable no-await-in-loop */
+        for (let slot = 0; slot < slots; slot += 1) {
+            const rows = await this.database(ApiSourceCallLeasesTableName)
+                .insert({
+                    external_connection_uuid: externalConnectionUuid,
+                    slot,
+                    lease_uuid: leaseUuid,
+                    expires_at: expiresAt,
+                })
+                .onConflict(['external_connection_uuid', 'slot'])
+                .merge({ lease_uuid: leaseUuid, expires_at: expiresAt })
+                .where(
+                    `${ApiSourceCallLeasesTableName}.expires_at`,
+                    '<',
+                    this.database.fn.now(),
+                )
+                .returning('slot');
+            if (rows.length > 0) return true;
+        }
+        /* eslint-enable no-await-in-loop */
+        return false;
+    }
+
+    async releaseApiSourceCallLease(
+        externalConnectionUuid: string,
+        leaseUuid: string,
+    ): Promise<void> {
+        await this.database(ApiSourceCallLeasesTableName)
+            .where({
+                external_connection_uuid: externalConnectionUuid,
+                lease_uuid: leaseUuid,
+            })
+            .delete();
+    }
+
+    async deleteApiSourceCallWindowsBefore(cutoff: Date): Promise<number> {
+        const [counters, leases] = await Promise.all([
+            this.database(ApiSourceCallCountersTableName)
+                .where('window_started_at', '<', cutoff)
+                .delete(),
+            this.database(ApiSourceCallLeasesTableName)
+                .where('expires_at', '<', cutoff)
+                .delete(),
+        ]);
+        return counters + leases;
     }
 }

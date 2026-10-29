@@ -13,6 +13,8 @@ export const AppExternalConnectionsTableName = 'app_external_connections';
 export const ExternalConnectionRateCountersTableName =
     'external_connection_rate_counters';
 export const ExternalConnectionSamplesTableName = 'external_connection_samples';
+export const ApiSourceCallCountersTableName = 'api_source_call_counters';
+export const ApiSourceCallLeasesTableName = 'api_source_call_leases';
 
 export type DbExternalConnection = {
     external_connection_uuid: string;
@@ -173,6 +175,38 @@ export type ExternalConnectionRateCountersTable = Knex.CompositeTableType<
     > &
         Partial<Pick<DbExternalConnectionRateCounter, 'request_count'>>,
     Partial<Pick<DbExternalConnectionRateCounter, 'request_count'>>
+>;
+
+/** Calls a live source made in one window of `window_seconds`. */
+export type DbApiSourceCallCounter = {
+    external_connection_uuid: string;
+    window_seconds: number;
+    window_started_at: Date;
+    call_count: number;
+};
+
+export type ApiSourceCallCountersTable = Knex.CompositeTableType<
+    DbApiSourceCallCounter,
+    Pick<
+        DbApiSourceCallCounter,
+        'external_connection_uuid' | 'window_seconds' | 'window_started_at'
+    > &
+        Partial<Pick<DbApiSourceCallCounter, 'call_count'>>,
+    Partial<Pick<DbApiSourceCallCounter, 'call_count'>>
+>;
+
+/** One of a live source's concurrent call slots, held until `expires_at`. */
+export type DbApiSourceCallLease = {
+    external_connection_uuid: string;
+    slot: number;
+    lease_uuid: string;
+    expires_at: Date;
+};
+
+export type ApiSourceCallLeasesTable = Knex.CompositeTableType<
+    DbApiSourceCallLease,
+    DbApiSourceCallLease,
+    Partial<Pick<DbApiSourceCallLease, 'lease_uuid' | 'expires_at'>>
 >;
 
 export type DbExternalConnectionSample = {

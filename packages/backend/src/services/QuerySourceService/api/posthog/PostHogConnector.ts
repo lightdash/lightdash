@@ -23,6 +23,13 @@ import type {
 // more than the limit to detect truncation itself.
 const POSTHOG_MAX_ROWS = 50_000;
 const POSTHOG_TIMEOUT_MS = 10_000;
+// PostHog's query API limits per PostHog project: 3 at once, 240 a minute, 2,400 an hour.
+const POSTHOG_LIMITS = {
+    concurrentCalls: 3,
+    callsPerMinute: 240,
+    callsPerHour: 2_400,
+    callsPerQuery: 1,
+};
 const COLUMN_NAME = /^[A-Za-z_][A-Za-z0-9_]{0,62}$/;
 const WRAP_PREFIX = 'SELECT * FROM (\n';
 
@@ -95,6 +102,7 @@ export class PostHogConnector implements ApiConnector {
             queryLanguage: 'HogQL',
             maxRows: POSTHOG_MAX_ROWS - 1,
             timeoutMs: POSTHOG_TIMEOUT_MS,
+            limits: POSTHOG_LIMITS,
         };
     }
 
@@ -206,15 +214,18 @@ export class PostHogConnector implements ApiConnector {
                 const retryAfter = Number(
                     response.headers['retry-after'] ?? Number.NaN,
                 );
+                const retryAfterSeconds = Number.isFinite(retryAfter)
+                    ? retryAfter
+                    : null;
                 return new TooManyRequestsError(
                     `PostHog query budget exceeded${
                         detail ? `: ${detail}` : ''
+                    }. ${
+                        retryAfterSeconds !== null
+                            ? `Retry after ${retryAfterSeconds} seconds.`
+                            : 'Retry in a minute.'
                     }`,
-                    {
-                        retryAfterSeconds: Number.isFinite(retryAfter)
-                            ? retryAfter
-                            : null,
-                    },
+                    { retryAfterSeconds },
                 );
             }
             case 504:

@@ -696,6 +696,10 @@ import {
     DataAppAnalysisRateCountersTableName,
 } from '../ee/database/entities/dataAppAnalyses';
 import {
+    ApiSourceCallCountersTable,
+    ApiSourceCallCountersTableName,
+    ApiSourceCallLeasesTable,
+    ApiSourceCallLeasesTableName,
     AppExternalConnectionsTable,
     AppExternalConnectionsTableName,
     ExternalConnectionRateCountersTable,
@@ -1035,6 +1039,8 @@ declare module 'knex/types/tables' {
         [AppExternalConnectionsTableName]: AppExternalConnectionsTable;
         [ExternalConnectionRateCountersTableName]: ExternalConnectionRateCountersTable;
         [ExternalConnectionSamplesTableName]: ExternalConnectionSamplesTable;
+        [ApiSourceCallCountersTableName]: ApiSourceCallCountersTable;
+        [ApiSourceCallLeasesTableName]: ApiSourceCallLeasesTable;
         [AppUserStateTableName]: AppUserStateTable;
         [AppSharedStateTableName]: AppSharedStateTable;
         [AppSharedStateHistoryTableName]: AppSharedStateHistoryTable;

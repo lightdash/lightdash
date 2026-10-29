@@ -445,7 +445,7 @@ import {
     assertAgentQueryWithinEstimateLimit,
     QueryEstimateCache,
 } from './queryCostEstimate';
-import { canReuseQueryResult } from './queryResultReuse';
+import { canReuseApiResult, canReuseQueryResult } from './queryResultReuse';
 import { queryUsageProperties, queryWorkloadOrigin } from './queryUsage';
 import {
     EstimateAsyncMetricQueryArgs,
@@ -11677,14 +11677,20 @@ export class AsyncQueryService extends ProjectService {
             authMethod: account.authentication.type,
             agentIdentity: reader.kind === 'agent' ? reader.claim : null,
         };
+        // Reuse is per user: rows come straight from the source, unfiltered by
+        // anything Lightdash can check against another reader.
         const cacheKey = QueryHistoryModel.getCacheKey(projectUuid, {
             sql: JSON.stringify({
                 connectionUuid,
                 payload,
                 limit: effectiveLimit,
             }),
-            userUuid: null,
+            userUuid: account.user.id,
         });
+        const reusable = await this.findReusableApiResult(
+            projectUuid,
+            cacheKey,
+        );
 
         const queryCreatedAt = new Date();
         const { queryUuid } = await this.createQueryHistory(
@@ -11718,6 +11724,55 @@ export class AsyncQueryService extends ProjectService {
             QueryHistoryStatus.PENDING,
             context,
         );
+
+        if (reusable) {
+            await this.queryHistoryModel.update(
+                queryUuid,
+                projectUuid,
+                {
+                    status: QueryHistoryStatus.READY,
+                    error: null,
+                    warehouse_execution_time_ms: 0,
+                    total_row_count: reusable.totalRowCount,
+                    cache_key: cacheKey,
+                    results_file_name: reusable.resultsFileName,
+                    results_created_at: reusable.resultsCreatedAt,
+                    results_updated_at: reusable.resultsUpdatedAt,
+                    results_expires_at: reusable.resultsExpiresAt,
+                    columns: reusable.columns,
+                    fields: pythonColumnsToFields(reusable.columns ?? {}),
+                },
+                account,
+            );
+            this.prometheusMetrics?.trackQueryStateTransition(
+                QueryHistoryStatus.PENDING,
+                QueryHistoryStatus.READY,
+                context,
+            );
+            this.trackQueryTerminalStatus(
+                QueryHistoryStatus.READY,
+                queryCreatedAt,
+                context,
+            );
+            this.trackApiQueryCompleted({
+                account,
+                queryUuid,
+                projectUuid,
+                organizationUuid,
+                context,
+                connector: connector.describe().connector,
+                queryCreatedAt,
+                outcome: 'ok',
+                errorMessage: null,
+                totalRowCount: reusable.totalRowCount,
+                columnsCount: reusable.columns
+                    ? Object.keys(reusable.columns).length
+                    : null,
+                truncated: null,
+                cacheHit: true,
+            });
+            return { queryUuid };
+        }
 
         void this.runApiQuery({
             account,
@@ -11933,6 +11988,27 @@ export class AsyncQueryService extends ProjectService {
         );
     }
 
+    /** This user's latest rows for the same live query, if they are recent enough to reuse. */
+    private async findReusableApiResult(projectUuid: string, cacheKey: string) {
+        const latest = await this.queryHistoryModel.findMostRecentByCacheKey(
+            cacheKey,
+            projectUuid,
+            { excludeAgentProduced: false },
+        );
+        if (
+            !latest ||
+            !canReuseApiResult({
+                status: latest.queryHistory.status,
+                resultsFileName: latest.resultsFileName,
+                resultsCreatedAt: latest.resultsCreatedAt,
+                resultsExpiresAt: latest.resultsExpiresAt,
+            })
+        ) {
+            return null;
+        }
+        return latest;
+    }
+
     /** One connector call, measured by outcome; rethrows what it caught. */
     private async executeApiConnector(
         connector: ApiConnector,
@@ -11981,6 +12057,7 @@ export class AsyncQueryService extends ProjectService {
         totalRowCount,
         columnsCount,
         truncated,
+        cacheHit = false,
     }: {
         account: Account;
         queryUuid: string;
@@ -11994,6 +12071,7 @@ export class AsyncQueryService extends ProjectService {
         totalRowCount: number | null;
         columnsCount: number | null;
         truncated: boolean | null;
+        cacheHit?: boolean;
     }): void {
         const responseTimeMs = Date.now() - queryCreatedAt.getTime();
         void Promise.all([
@@ -12018,7 +12096,7 @@ export class AsyncQueryService extends ProjectService {
                         exploreName: null,
                         chartId: null,
                         dashboardId: null,
-                        cacheHit: false,
+                        cacheHit,
                         executionSource: 'api_source',
                         ...this.getQueryConnectionAnalyticsProperties({
                             warehouseConnectionUuid: null,
