@@ -11734,7 +11734,9 @@ export class AsyncQueryService extends ProjectService {
                 {
                     status: QueryHistoryStatus.READY,
                     error: null,
-                    warehouse_execution_time_ms: 0,
+                    // Reuse keeps the original fetch time instead of 0 ms.
+                    warehouse_execution_time_ms:
+                        reusable.queryHistory.warehouseExecutionTimeMs,
                     total_row_count: reusable.totalRowCount,
                     cache_key: cacheKey,
                     results_file_name: reusable.resultsFileName,
