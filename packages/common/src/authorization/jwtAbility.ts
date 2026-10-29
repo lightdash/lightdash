@@ -309,17 +309,17 @@ const exportAbilities: EmbeddedAbilityBuilder = ({
     const subjectType: 'Dashboard' | 'SavedChart' =
         content.type === 'dashboard' ? 'Dashboard' : 'SavedChart';
 
-    // Common abilities for both dashboard and chart
-    if (
+    const canExportImages =
         (useJwtPermissions && permissions.canExportImages) ||
-        canViewEmbedScope('EmbedImageExport', builder, embed)
-    ) {
-        can('export', subjectType, {
+        canViewEmbedScope('EmbedImageExport', builder, embed);
+    if (canExportImages && subjectType === 'SavedChart') {
+        can('export', 'SavedChart', {
             organizationUuid: organization.organizationUuid,
             type: 'images',
         });
     }
 
+    // Common abilities for both dashboard and chart
     if (
         (useJwtPermissions && permissions.canExportCsv) ||
         canViewEmbedScope('EmbedCsvExport', builder, embed)
@@ -336,6 +336,19 @@ const exportAbilities: EmbeddedAbilityBuilder = ({
     }
     // Dashboard specific abilities
     if (isDashboardContent(embedUser.content)) {
+        if (canExportImages) {
+            can('export', 'Dashboard', {
+                organizationUuid: organization.organizationUuid,
+                type: 'images',
+                'metadata.dashboardUuid': content.dashboardUuid,
+            });
+            can('view', 'JobStatus', {
+                organizationUuid: organization.organizationUuid,
+                projectUuid: embed.projectUuid,
+                createdByUserUuid: externalId,
+            });
+        }
+
         if (
             // Unset means enabled, matching the embed dashboard's default.
             (useJwtPermissions &&

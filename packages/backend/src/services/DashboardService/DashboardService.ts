@@ -284,15 +284,22 @@ export class DashboardService
         }
 
         const auditedAbility = this.createAuditedAbility(account);
-        if (isJwtUser(account) && data.format === SchedulerFormat.PDF) {
-            // Embed PDFs render the embed page with the viewer's token.
+        if (
+            isJwtUser(account) &&
+            (data.format === SchedulerFormat.PDF ||
+                data.format === SchedulerFormat.IMAGE)
+        ) {
+            // Embed PDFs and images render the embed page with the viewer's token.
             if (
                 auditedAbility.cannot(
                     'export',
                     subject('Dashboard', {
                         organizationUuid: dashboard.organizationUuid,
                         projectUuid: dashboard.projectUuid,
-                        type: 'pdf',
+                        type:
+                            data.format === SchedulerFormat.PDF
+                                ? 'pdf'
+                                : 'images',
                         metadata: {
                             dashboardUuid: dashboard.uuid,
                             dashboardName: dashboard.name,
@@ -306,8 +313,7 @@ export class DashboardService
             data.format === SchedulerFormat.IMAGE ||
             data.format === SchedulerFormat.PDF
         ) {
-            // Image export renders the dashboard in a headless browser using a
-            // real session, so it is not available to embed/JWT callers.
+            // Non-embed image/PDF exports render with the requester's session.
             assertRegisteredAccount(account);
             const { inheritsFromOrgOrProject, access } =
                 await this.spacePermissionService.resolveAccess(
