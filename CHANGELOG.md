@@ -1,3 +1,10 @@
+# [3.95.0](https://github.com/lightdash/lightdash/compare/3.94.1...3.95.0) (2026-10-29)
+
+
+### Features
+
+* expose primary email in analytics metadata ([#31791](https://github.com/lightdash/lightdash/issues/31791)) ([53838aa](https://github.com/lightdash/lightdash/commit/53838aad3b4641b9a2531ed69e3bfda05b5d2116))
+
 ## [3.94.1](https://github.com/lightdash/lightdash/compare/3.94.0...3.94.1) (2026-10-29)
 
 
