@@ -3806,6 +3806,29 @@ describe('AiAgentToolsService runComposerQueries', () => {
         );
     });
 
+    it('returns running with every submission when the terminal outlives the deadline', async () => {
+        const executeSourceQueries = vi
+            .fn()
+            .mockResolvedValue({ queries: submissions });
+        const getAsyncQueryResults = vi
+            .fn()
+            .mockResolvedValue({ status: QueryHistoryStatus.EXECUTING });
+        const service = makeService({
+            querySourceService: { executeSourceQueries },
+            asyncQueryService: { getAsyncQueryResults },
+        });
+
+        await expect(
+            service
+                .createRuntime(makeRuntimeContext())
+                .runComposerQueriesUntilDeadline({
+                    queries: composerQueries,
+                    terminalNodeId: 'joined',
+                    deadlineMs: Date.now() - 1,
+                }),
+        ).resolves.toEqual({ status: 'running', submissions });
+    });
+
     it('carries the runtime user attribute overrides into the pipeline', async () => {
         const executeSourceQueries = vi
             .fn()

@@ -802,6 +802,16 @@ export type RunComposerQueriesFn = (args: {
     onNodeStatus?: (update: ComposerNodeStatusUpdate) => void;
 }) => Promise<ComposerRunOutcome>;
 
+/** RunComposerQueriesFn that returns running once deadlineMs passes instead of failing. */
+export type RunComposerQueriesUntilDeadlineFn = (args: {
+    queries: SourceQuery[];
+    terminalNodeId: string;
+    deadlineMs: number;
+}) => Promise<
+    | ComposerRunOutcome
+    | { status: 'running'; submissions: SourceQuerySubmission[] }
+>;
+
 export type ListWarehouseTablesFn = (
     context?: QueryExecutionContext,
 ) => Promise<WarehouseTablesCatalog>;
