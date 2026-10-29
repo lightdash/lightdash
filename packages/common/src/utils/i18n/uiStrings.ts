@@ -545,6 +545,7 @@ export const DEFAULT_UI_STRINGS = {
     'aiAgent.composer.semanticNode.descending': 'descending',
     'aiAgent.composer.semanticNode.rows.singular': '{count} row',
     'aiAgent.composer.semanticNode.rows.plural': '{count} rows',
+    'aiAgent.composer.node.rowsReachedLimit': '{rows} · reached limit',
     'aiAgent.thread.boundDashboard': 'Linked dashboard',
     'aiAgent.thread.boundDashboardUnavailable': 'Dashboard no longer available',
     'aiAgent.thread.boundChart': 'Linked chart',
