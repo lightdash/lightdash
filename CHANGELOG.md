@@ -1,3 +1,10 @@
+# [3.103.0](https://github.com/lightdash/lightdash/compare/3.102.0...3.103.0) (2026-10-29)
+
+
+### Features
+
+* **live-sources:** show integration icons and an add-source catalog ([#31817](https://github.com/lightdash/lightdash/issues/31817)) ([f9a62d4](https://github.com/lightdash/lightdash/commit/f9a62d4cff4a4eeba0e36574237a8f12216490a3)), closes [#31795](https://github.com/lightdash/lightdash/issues/31795)
+
 # [3.102.0](https://github.com/lightdash/lightdash/compare/3.101.0...3.102.0) (2026-10-29)
 
 
