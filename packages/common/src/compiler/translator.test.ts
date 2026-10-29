@@ -2025,26 +2025,39 @@ describe('merged manifest model qualification', () => {
         ].flatMap((versions) =>
             [false, true].flatMap((additional) =>
                 [false, true].flatMap((deferExploreNaming) =>
-                    [1, 2].map((latestVersion) => ({
-                        versions,
-                        additional,
-                        deferExploreNaming,
-                        latestVersion,
-                    })),
+                    [1, 2].flatMap((latestVersion) =>
+                        ['own', 'bare', 'qualified'].map((lookup) => ({
+                            versions,
+                            additional,
+                            deferExploreNaming,
+                            latestVersion,
+                            lookup,
+                        })),
+                    ),
                 ),
             ),
         ),
     )(
-        'uses declared latest for qualified versioned joins: %j',
-        async ({ versions, additional, deferExploreNaming, latestVersion }) => {
+        'uses declared latest across versioned join lookups: %j',
+        async ({
+            versions,
+            additional,
+            deferExploreNaming,
+            latestVersion,
+            lookup,
+        }) => {
             const orders = buildMergedModel({
-                sourceName: 'analytics',
+                sourceName:
+                    lookup === 'own' ? 'shared_dimensions' : 'analytics',
                 packageName: 'pkg_a',
                 name: 'fct_orders',
             });
             const joins = [
                 {
-                    join: 'shared_dimensions__dim_calendar',
+                    join:
+                        lookup === 'qualified'
+                            ? 'shared_dimensions__dim_calendar'
+                            : 'dim_calendar',
                     alias: 'calendar',
                     sql_on: '${fct_orders.id} = ${calendar.id}',
                 },
@@ -2082,6 +2095,7 @@ describe('merged manifest model qualification', () => {
                     : item.dbtModelIdentity?.modelName === 'fct_orders',
             ) as Explore;
             expect(explore.joinedTables).toHaveLength(1);
+            expect(explore.warnings ?? []).toHaveLength(0);
             expect(explore.tables.calendar.sqlTable).toContain(
                 `calendar_v${latestVersion}`,
             );
@@ -2127,6 +2141,87 @@ describe('merged manifest model qualification', () => {
                     deferExploreNaming: true,
                     allowPartialCompilation: true,
                     modelInventory: [orders, old, latest],
+                },
+            );
+            const explore = explores.find(
+                (item) => item.dbtModelIdentity?.modelName === 'fct_orders',
+            ) as Explore;
+            expect(explore.joinedTables).toHaveLength(0);
+            expect(explore.warnings).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({
+                        type: InlineErrorType.MISSING_TABLE,
+                        message: expect.stringContaining('latest version'),
+                    }),
+                ]),
+            );
+        },
+    );
+
+    it.each(
+        [
+            [2, 10],
+            [10, 2],
+        ].flatMap((versions) =>
+            ['own', 'bare', 'qualified'].flatMap((lookup) =>
+                ['absent', 'excluded', 'inconsistent'].map((declaration) => ({
+                    versions,
+                    lookup,
+                    declaration,
+                })),
+            ),
+        ),
+    )(
+        'refuses absent, excluded and inconsistent latest declarations: %j',
+        async ({ versions, lookup, declaration }) => {
+            const orders = buildMergedModel({
+                sourceName:
+                    lookup === 'own' ? 'shared_dimensions' : 'analytics',
+                packageName: 'pkg_a',
+                name: 'fct_orders',
+                joins: [
+                    {
+                        join:
+                            lookup === 'qualified'
+                                ? 'shared_dimensions__dim_calendar'
+                                : 'dim_calendar',
+                        alias: 'calendar',
+                        sql_on: '${fct_orders.id} = ${calendar.id}',
+                    },
+                ],
+            });
+            const calendar = buildMergedModel({
+                sourceName: 'shared_dimensions',
+                packageName: 'pkg_b',
+                name: 'dim_calendar',
+            });
+            const inventory = versions.map((version) => {
+                let latestVersion: number | undefined;
+                if (declaration === 'excluded') latestVersion = 10;
+                else if (declaration === 'inconsistent')
+                    latestVersion = version;
+                return {
+                    ...calendar,
+                    unique_id: `${calendar.unique_id}.v${version}`,
+                    version,
+                    latest_version: latestVersion,
+                    relation_name: `calendar_v${version}`,
+                };
+            });
+            const models =
+                declaration === 'excluded'
+                    ? inventory.filter((candidate) => candidate.version !== 10)
+                    : inventory;
+            const explores = await convertExplores(
+                [orders, ...models],
+                false,
+                SupportedDbtAdapter.POSTGRES,
+                warehouseClientMock,
+                { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
+                {
+                    deferExploreNaming: true,
+                    allowPartialCompilation: true,
+                    modelInventory: [orders, ...inventory],
                 },
             );
             const explore = explores.find(
@@ -2234,7 +2329,7 @@ describe('merged manifest model qualification', () => {
     });
 
     it.each(['duplicate', 'versions', 'excluded'] as const)(
-        'does not guess a bare target: %s',
+        'resolves versions but refuses duplicate or excluded bare targets: %s',
         async (scenario) => {
             const orders = buildMergedModel({
                 sourceName: 'analytics',
@@ -2283,6 +2378,14 @@ describe('merged manifest model qualification', () => {
             const explore = explores.find(
                 (item) => item.dbtModelIdentity?.modelName === 'fct_orders',
             ) as Explore;
+            if (scenario === 'versions') {
+                expect(explore.joinedTables).toHaveLength(1);
+                expect(explore.tables.dim_calendar.dbtModelUniqueId).toBe(
+                    `${calendar.unique_id}.v2`,
+                );
+                expect(explore.warnings ?? []).toHaveLength(0);
+                return;
+            }
             expect(explore.joinedTables).toHaveLength(0);
             expect(explore.warnings).toEqual(
                 expect.arrayContaining([

@@ -645,10 +645,11 @@ export const allocateStagedExploreNames = async (
         )
             throw unresolved();
         if (matching.length === 0 && !table.dbtModelUniqueId) return fallback;
-        const resolved =
+        const resolved = selectedIdentity(
             matching.length === 1
                 ? matching[0]
-                : { ...fallback, sourceUuid, sourceName, modelName };
+                : { ...fallback, sourceUuid, sourceName, modelName },
+        );
         Object.assign(table, {
             canonicalName: table.canonicalName ?? table.originalName ?? name,
             dbtSourceUuid: resolved.sourceUuid ?? primaryUuid,

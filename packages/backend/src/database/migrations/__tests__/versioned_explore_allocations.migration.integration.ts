@@ -35,16 +35,19 @@ test.each(
         [2, 1],
     ].flatMap((versions) =>
         [false, true].flatMap((additional) =>
-            [false, true].map((legacyOwners) => ({
-                versions,
-                additional,
-                legacyOwners,
-            })),
+            [false, true].flatMap((legacyOwners) =>
+                (['refresh', 'deploy'] as const).map((mode) => ({
+                    versions,
+                    additional,
+                    legacyOwners,
+                    mode,
+                })),
+            ),
         ),
     ),
 )(
     'keeps versioned qualified joins and persisted allocation consistent across refreshes: %j',
-    async ({ versions, additional, legacyOwners }) => {
+    async ({ versions, additional, legacyOwners, mode }) => {
         const organization = await database('organizations').first();
         if (!organization) throw new Error('Missing fixture organization');
         const [project] = await database('projects')
@@ -109,7 +112,15 @@ test.each(
             },
             meta: {},
         });
-        const orders = node('fct_orders', 'pkg_a', 'analytics', primaryUuid);
+        const orders =
+            mode === 'deploy'
+                ? node(
+                      'fct_orders',
+                      'pkg_b',
+                      'shared_dimensions',
+                      source.project_dbt_source_uuid,
+                  )
+                : node('fct_orders', 'pkg_a', 'analytics', primaryUuid);
         const joins = [
             {
                 join: 'shared_dimensions__dim_calendar',
@@ -199,6 +210,12 @@ test.each(
                     { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
                     { deferExploreNaming: true, allowPartialCompilation: true },
                 );
+                if (mode === 'deploy')
+                    compiled.forEach((explore) => {
+                        const joined = explore.tables?.calendar;
+                        if (joined)
+                            joined.dbtModelUniqueId = `${calendarId}.v1`;
+                    });
                 await database.transaction(async (trx) => {
                     const saveUuid = randomUUID();
                     await trx('cached_explore_staging').insert(
@@ -215,7 +232,7 @@ test.each(
                         project.project_uuid,
                         saveUuid,
                         {
-                            mode: 'refresh',
+                            mode,
                             models: models.map((model) => ({
                                 sourceUuid: model.lightdash_source_uuid ?? null,
                                 sourceName: model.lightdash_source_name ?? null,
@@ -259,6 +276,13 @@ test.each(
                     expect(allocated[0].model_unique_id).toBe(
                         `${calendarId}.v2`,
                     );
+                    if (legacyOwners)
+                        expect(
+                            await trx('explore_name_allocations').where({
+                                project_uuid: project.project_uuid,
+                                name: 'dim_calendar',
+                            }),
+                        ).toHaveLength(0);
                     const explore = result.explores.find(
                         (item) =>
                             item.dbtModelIdentity?.modelName ===

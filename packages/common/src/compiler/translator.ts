@@ -1609,21 +1609,26 @@ export async function* iterateExplores(
         );
         return latest.length === 1 ? latest[0] : null;
     };
+    const versionGroups = new Map<string, DbtModelNode[]>();
+    models.forEach((model) => {
+        const key = getManifestNamespaceKey(model, model.name);
+        if (key !== undefined)
+            versionGroups.set(key, [...(versionGroups.get(key) ?? []), model]);
+    });
+    const joinTargets = [...versionGroups.values()].map((candidates) => ({
+        representative: candidates[0],
+        target: selectJoinTarget(candidates),
+    }));
     const buildJoinLookup = (
         keyFor: (model: DbtModelNode) => string | undefined,
     ) => {
-        const groups = new Map<string, DbtModelNode[]>();
-        models.forEach((model) => {
-            const key = keyFor(model);
+        const lookup = new Map<string, DbtModelNode | null>();
+        joinTargets.forEach(({ representative, target }) => {
+            const key = keyFor(representative);
             if (key !== undefined)
-                groups.set(key, [...(groups.get(key) ?? []), model]);
+                lookup.set(key, lookup.has(key) ? null : target);
         });
-        return new Map(
-            [...groups].map(([key, candidates]) => [
-                key,
-                selectJoinTarget(candidates),
-            ]),
-        );
+        return lookup;
     };
     const modelsByNamespaceAndName = buildJoinLookup((model) =>
         getManifestNamespaceKey(model, model.name),
@@ -1632,15 +1637,7 @@ export async function* iterateExplores(
         (model) =>
             `${model.lightdash_source_name ?? model.package_name}__${model.name}`,
     );
-    const modelsByPlainName = new Map<string, DbtModelNode | null>();
-    models.forEach((model) => {
-        modelsByPlainName.set(
-            model.name,
-            modelsByPlainName.has(model.name)
-                ? null
-                : selectJoinTarget([model]),
-        );
-    });
+    const modelsByPlainName = buildJoinLookup((model) => model.name);
     const inventoryNamespaceKeys = new Set(
         modelInventory.map((model) =>
             getManifestNamespaceKey(model, model.name),
