@@ -55,6 +55,7 @@ export enum QuerySourceType {
 /** The external APIs an api query source can call live. */
 export enum ApiConnectorType {
     POSTHOG = 'posthog',
+    SEARCH_CONSOLE = 'search_console',
 }
 
 /**

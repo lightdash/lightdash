@@ -21,8 +21,31 @@ export type PostHogApiSource = {
     projectId: string;
 };
 
+export type SearchConsoleApiSource = {
+    connector: ApiConnectorType.SEARCH_CONSOLE;
+    /** The Search Console property, such as https://example.com/ or sc-domain:example.com. */
+    siteUrl: string;
+};
+
 /** Connector settings of a live source; the server fixes its access rules. */
-export type ExternalConnectionApiSource = PostHogApiSource;
+export type ExternalConnectionApiSource =
+    | PostHogApiSource
+    | SearchConsoleApiSource;
+
+/** A Google property the signed-in account can query, offered after sign-in. */
+export type GoogleLiveSourceChoice = {
+    value: string;
+    label: string;
+    /** Shown under the label, e.g. the account or permission level. */
+    description: string | null;
+};
+
+/** A Google sign-in waiting for the admin to pick what the source reads. */
+export type GoogleLiveSourcePendingChoice = {
+    connector: ApiConnectorType;
+    name: string;
+    choices: GoogleLiveSourceChoice[];
+};
 
 export const POSTHOG_REGION_ORIGINS = {
     us: 'https://us.posthog.com',

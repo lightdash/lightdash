@@ -1139,7 +1139,12 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     projectModel: models.getProjectModel(),
                     rolesModel: models.getRolesModel(),
                 }),
-            externalConnectionService: ({ models, context, repository }) =>
+            externalConnectionService: ({
+                models,
+                context,
+                repository,
+                utils,
+            }) =>
                 new ExternalConnectionService({
                     allowedPrivateHostCidrs:
                         context.lightdashConfig.appRuntime
@@ -1149,6 +1154,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getExternalConnectionModel(),
                     appModel: models.getAppModel(),
                     featureFlagModel: models.getFeatureFlagModel(),
+                    encryptionUtil: utils.getEncryptionUtil(),
                     appGenerateService:
                         repository.getAppGenerateService<AppGenerateService>(),
                     embedService: repository.getEmbedService<EmbedService>(),

@@ -53,6 +53,10 @@ const apiSourceSchema = z.discriminatedUnion('connector', [
         connector: z.literal(ApiConnectorType.POSTHOG),
         projectId: z.string(),
     }),
+    z.object({
+        connector: z.literal(ApiConnectorType.SEARCH_CONSOLE),
+        siteUrl: z.string(),
+    }),
 ]);
 
 // A stored shape no connector understands reads as no api source, so the
