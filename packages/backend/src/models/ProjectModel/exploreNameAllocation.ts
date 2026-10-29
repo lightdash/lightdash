@@ -420,12 +420,21 @@ export const allocateStagedExploreNames = async (
         });
         return selectedStaged.map((row) => results.get(row.name)!);
     };
+    const versionOwnerKeys = new Set(
+        existingOwners.map((allocation) =>
+            ownerKey(allocationIdentity(allocation)),
+        ),
+    );
     const versionUpdates = existingOwners.flatMap((allocation) => {
         const identity = allocationIdentity(allocation);
         const selected = selectedIdentity(identity);
-        return selected.uniqueId !== identity.uniqueId
-            ? [{ allocation, selected }]
-            : [];
+        if (
+            selected.uniqueId === identity.uniqueId ||
+            versionOwnerKeys.has(ownerKey(selected))
+        )
+            return [];
+        versionOwnerKeys.add(ownerKey(selected));
+        return [{ allocation, selected }];
     });
     await versionUpdates.reduce(async (previous, { allocation, selected }) => {
         await previous;
@@ -590,7 +599,7 @@ export const allocateStagedExploreNames = async (
             naming.mode !== 'deploy' ||
             (sources.length === 0 && existingOwners.length === 0)
         )
-            return fallback;
+            return selectedIdentity(fallback);
         const reference = table.canonicalName ?? table.originalName ?? name;
         const unresolved = () =>
             new ConflictError(

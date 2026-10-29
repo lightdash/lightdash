@@ -1563,24 +1563,82 @@ export async function* iterateExplores(
               })),
               'model',
           );
-    const modelsByNamespaceAndName = new Map<string, DbtModelNode>();
-    models.forEach((model) => {
-        const namespaceKey = getManifestNamespaceKey(model, model.name);
-        if (namespaceKey !== undefined) {
-            modelsByNamespaceAndName.set(namespaceKey, model);
-        }
+    const inventoryByNamespaceAndName = new Map<
+        string,
+        ModelInventoryEntry[]
+    >();
+    modelInventory.forEach((model) => {
+        const key = getManifestNamespaceKey(model, model.name);
+        if (key !== undefined)
+            inventoryByNamespaceAndName.set(key, [
+                ...(inventoryByNamespaceAndName.get(key) ?? []),
+                model,
+            ]);
     });
-    const modelsByQualifiedName = new Map(
-        models.map((model) => [
+    const selectJoinTarget = (
+        candidates: DbtModelNode[],
+    ): DbtModelNode | null => {
+        const first = candidates[0];
+        if (candidates.every((model) => model.version == null))
+            return candidates.length === 1 ? first : null;
+        const key = getManifestNamespaceKey(first, first.name);
+        if (
+            candidates.some(
+                (model) =>
+                    model.version == null ||
+                    model.package_name !== first.package_name ||
+                    getManifestNamespaceKey(model, model.name) !== key,
+            )
+        )
+            return null;
+        const declarations = new Set(
+            [
+                ...candidates,
+                ...(key === undefined
+                    ? []
+                    : (inventoryByNamespaceAndName.get(key) ?? [])),
+            ].flatMap((model) =>
+                model.latest_version == null
+                    ? []
+                    : [String(model.latest_version)],
+            ),
+        );
+        if (declarations.size !== 1) return null;
+        const latest = candidates.filter(
+            (model) => String(model.version) === [...declarations][0],
+        );
+        return latest.length === 1 ? latest[0] : null;
+    };
+    const buildJoinLookup = (
+        keyFor: (model: DbtModelNode) => string | undefined,
+    ) => {
+        const groups = new Map<string, DbtModelNode[]>();
+        models.forEach((model) => {
+            const key = keyFor(model);
+            if (key !== undefined)
+                groups.set(key, [...(groups.get(key) ?? []), model]);
+        });
+        return new Map(
+            [...groups].map(([key, candidates]) => [
+                key,
+                selectJoinTarget(candidates),
+            ]),
+        );
+    };
+    const modelsByNamespaceAndName = buildJoinLookup((model) =>
+        getManifestNamespaceKey(model, model.name),
+    );
+    const modelsByQualifiedName = buildJoinLookup(
+        (model) =>
             `${model.lightdash_source_name ?? model.package_name}__${model.name}`,
-            model,
-        ]),
     );
     const modelsByPlainName = new Map<string, DbtModelNode | null>();
     models.forEach((model) => {
         modelsByPlainName.set(
             model.name,
-            modelsByPlainName.has(model.name) ? null : model,
+            modelsByPlainName.has(model.name)
+                ? null
+                : selectJoinTarget([model]),
         );
     });
     const inventoryNamespaceKeys = new Set(
@@ -1598,10 +1656,20 @@ export async function* iterateExplores(
             if (namespaceKey === undefined) {
                 return join;
             }
-            let joinedModel =
-                modelsByNamespaceAndName.get(namespaceKey) ??
-                modelsByQualifiedName.get(join.join);
+            let joinedModel = modelsByNamespaceAndName.has(namespaceKey)
+                ? modelsByNamespaceAndName.get(namespaceKey)
+                : modelsByQualifiedName.get(join.join);
             if (!joinedModel) {
+                if (
+                    modelsByNamespaceAndName.has(namespaceKey) ||
+                    modelsByQualifiedName.has(join.join)
+                ) {
+                    joinResolutionErrors.set(
+                        join,
+                        'the declared latest version is unavailable or the model name is ambiguous',
+                    );
+                    return join;
+                }
                 if (inventoryNamespaceKeys.has(namespaceKey)) {
                     joinResolutionErrors.set(
                         join,
@@ -1626,6 +1694,7 @@ export async function* iterateExplores(
                     const candidates = [...modelsByQualifiedName.entries()]
                         .filter(
                             ([qualifiedName, candidate]) =>
+                                candidate !== null &&
                                 candidate.name === join.join &&
                                 modelsByNamespaceAndName.get(
                                     getManifestNamespaceKey(
@@ -1638,7 +1707,9 @@ export async function* iterateExplores(
                         .sort();
                     joinResolutionErrors.set(
                         join,
-                        `the bare model name is ambiguous.${candidates.length > 0 ? ` Use one of: ${candidates.join(', ')}` : ' No unambiguous qualified target is available'}`,
+                        candidates.length > 0
+                            ? `the bare model name is ambiguous. Use one of: ${candidates.join(', ')}`
+                            : 'the declared latest version is unavailable or the model name is ambiguous',
                     );
                 }
             }
@@ -1688,6 +1759,7 @@ export async function* iterateExplores(
         lightdashProjectConfig.defaults?.granularity_labels,
     );
     const tables: Table[] = [];
+    const preferredVersionTables = new WeakSet<Table>();
     const exploreErrors: ExploreError[] = [];
     // eslint-disable-next-line no-restricted-syntax
     for (const [modelIndex, model] of resolvedModels.entries()) {
@@ -1739,6 +1811,17 @@ export async function* iterateExplores(
                 ...tableLineage[model.name],
             };
 
+            if (
+                model.version != null &&
+                modelsByNamespaceAndName.get(
+                    getManifestNamespaceKey(
+                        model,
+                        originalNamesByUniqueId.get(model.unique_id) ??
+                            model.name,
+                    ) ?? '',
+                )?.unique_id === model.unique_id
+            )
+                preferredVersionTables.add(tableWithLineage);
             tables.push(tableWithLineage);
             const templates = getNestedTableTemplates(model);
             if (templates.length > 0) {
@@ -1779,7 +1862,13 @@ export async function* iterateExplores(
     }
     const tableLookup: Record<string, Table> = {};
     tables.forEach((table) => {
-        tableLookup[table.name] = table;
+        const existing = tableLookup[table.name];
+        if (
+            existing === undefined ||
+            !preferredVersionTables.has(existing) ||
+            preferredVersionTables.has(table)
+        )
+            tableLookup[table.name] = table;
     });
     // Virtual tables are instantiated per explore, once for the base model
     // and once per join, named after the join alias; their joins go right

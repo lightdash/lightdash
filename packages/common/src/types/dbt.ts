@@ -1029,7 +1029,11 @@ export const getDbtManifestPackageNames = (manifest: DbtManifest): string[] => {
 
 export type ModelInventoryEntry = Pick<
     DbtRawModelNode,
-    'name' | 'package_name' | 'lightdash_source_name'
+    | 'name'
+    | 'package_name'
+    | 'lightdash_source_name'
+    | 'version'
+    | 'latest_version'
 >;
 
 export const getModelInventoryFromManifest = (
@@ -1042,11 +1046,21 @@ export const getModelInventoryFromManifest = (
         .filter((node) => ['model', 'seed'].includes(node.resource_type))
         .map((node) => node as DbtRawModelNode)
         .filter((node) => !isExternalDbtNode(node))
-        .map(({ name, package_name, lightdash_source_name }) => ({
-            name,
-            package_name,
-            lightdash_source_name,
-        }));
+        .map(
+            ({
+                name,
+                package_name,
+                lightdash_source_name,
+                version,
+                latest_version,
+            }) => ({
+                name,
+                package_name,
+                lightdash_source_name,
+                version,
+                latest_version,
+            }),
+        );
 
 export const getModelsFromManifest = (
     manifest: DbtManifest,

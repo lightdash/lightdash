@@ -556,6 +556,8 @@ describe('external dbt model nodes', () => {
                 [local.unique_id]: {
                     ...local,
                     lightdash_model_inventory_complete: true,
+                    version: 2,
+                    latest_version: 2,
                 },
             },
             disabled: {
@@ -580,6 +582,10 @@ describe('external dbt model nodes', () => {
             getModelInventoryFromManifest(projected).map((node) => node.name),
         ).not.toContain('dim_stub');
         expect(projected.lightdash_model_inventory_complete).toBe(false);
+        expect(projected.nodes[local.unique_id]).toMatchObject({
+            version: 2,
+            latest_version: 2,
+        });
         expect(
             projected.nodes[local.unique_id].lightdash_model_inventory_complete,
         ).toBe(true);

@@ -2018,6 +2018,132 @@ describe('merged manifest model qualification', () => {
         );
     });
 
+    it.each(
+        [
+            [1, 2],
+            [2, 1],
+        ].flatMap((versions) =>
+            [false, true].flatMap((additional) =>
+                [false, true].flatMap((deferExploreNaming) =>
+                    [1, 2].map((latestVersion) => ({
+                        versions,
+                        additional,
+                        deferExploreNaming,
+                        latestVersion,
+                    })),
+                ),
+            ),
+        ),
+    )(
+        'uses declared latest for qualified versioned joins: %j',
+        async ({ versions, additional, deferExploreNaming, latestVersion }) => {
+            const orders = buildMergedModel({
+                sourceName: 'analytics',
+                packageName: 'pkg_a',
+                name: 'fct_orders',
+            });
+            const joins = [
+                {
+                    join: 'shared_dimensions__dim_calendar',
+                    alias: 'calendar',
+                    sql_on: '${fct_orders.id} = ${calendar.id}',
+                },
+            ];
+            orders.meta = additional
+                ? { explores: { orders_trend: { joins } } }
+                : { joins };
+            const calendar = buildMergedModel({
+                sourceName: 'shared_dimensions',
+                packageName: 'pkg_b',
+                name: 'dim_calendar',
+            });
+            const models = versions.map((version) => ({
+                ...calendar,
+                version,
+                latest_version: latestVersion,
+                unique_id: `${calendar.unique_id}.v${version}`,
+                relation_name: `calendar_v${version}`,
+            }));
+            const explores = await convertExplores(
+                [orders, ...models],
+                false,
+                SupportedDbtAdapter.POSTGRES,
+                warehouseClientMock,
+                { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
+                {
+                    deferExploreNaming,
+                    includeModelIdentity: true,
+                    allowPartialCompilation: true,
+                },
+            );
+            const explore = explores.find((item) =>
+                additional
+                    ? item.name === 'orders_trend'
+                    : item.dbtModelIdentity?.modelName === 'fct_orders',
+            ) as Explore;
+            expect(explore.joinedTables).toHaveLength(1);
+            expect(explore.tables.calendar.sqlTable).toContain(
+                `calendar_v${latestVersion}`,
+            );
+            expect(explore.tables.calendar.dbtModelUniqueId).toBe(
+                `${calendar.unique_id}.v${latestVersion}`,
+            );
+        },
+    );
+
+    it.each(['dim_calendar', 'shared_dimensions__dim_calendar'])(
+        'does not join an old version when latest is excluded: %s',
+        async (target) => {
+            const orders = buildMergedModel({
+                sourceName: 'analytics',
+                packageName: 'pkg_a',
+                name: 'fct_orders',
+                joins: [{ join: target, sql_on: 'TRUE' }],
+            });
+            const calendar = buildMergedModel({
+                sourceName: 'shared_dimensions',
+                packageName: 'pkg_b',
+                name: 'dim_calendar',
+            });
+            const old = {
+                ...calendar,
+                unique_id: `${calendar.unique_id}.v1`,
+                version: 1,
+                latest_version: 2,
+            };
+            const latest = {
+                ...calendar,
+                unique_id: `${calendar.unique_id}.v2`,
+                version: 2,
+                latest_version: 2,
+            };
+            const explores = await convertExplores(
+                [orders, old],
+                false,
+                SupportedDbtAdapter.POSTGRES,
+                warehouseClientMock,
+                { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
+                {
+                    deferExploreNaming: true,
+                    allowPartialCompilation: true,
+                    modelInventory: [orders, old, latest],
+                },
+            );
+            const explore = explores.find(
+                (item) => item.dbtModelIdentity?.modelName === 'fct_orders',
+            ) as Explore;
+            expect(explore.joinedTables).toHaveLength(0);
+            expect(explore.warnings).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({
+                        type: InlineErrorType.MISSING_TABLE,
+                        message: expect.stringContaining('latest version'),
+                    }),
+                ]),
+            );
+        },
+    );
+
     it('reports deterministic qualified candidates for an ambiguous bare target', async () => {
         const orders = buildMergedModel({
             sourceName: 'analytics',

@@ -3,6 +3,8 @@ import { type DbtManifest } from '../types/dbt';
 
 const MODEL_FIELDS = [
     'unique_id',
+    'version',
+    'latest_version',
     'name',
     'database',
     'schema',
