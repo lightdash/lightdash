@@ -118,6 +118,13 @@ queries without recreating the project. Cached results may still show the old
 values. **Sync content** compiles models and updates managed content definitions;
 it does not refresh snapshots or verify that event data is available.
 
+Built-in person tables display a nonblank name, then a nonblank primary email,
+then `User <ID>` (or `No user recorded` when no identifier was captured). Name
+and email remain separate Explore fields. The AI token attribution table keeps
+embedded viewers labeled `Embedded viewers`; email is not inferred for external
+identities. After the metadata refresh makes email available, **Sync content**
+updates these managed tables. Custom charts and copies are not rewritten.
+
 To use the join in Explore, select **Query Events → Total queries** and
 **Users → User name**. Add **User ID** to distinguish people with identical
 display names. Chart and dashboard names are available from their joined tables.
