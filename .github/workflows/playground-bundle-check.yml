@@ -32,7 +32,7 @@ jobs:
               with:
                   egress-policy: audit
             - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-            - uses: ./.github/workflows/_setup_node_pnpm_cypress
+            - uses: ./.github/workflows/_setup_node_pnpm
             # The build copies the retained previous bundle from the base branch.
             - name: Fetch the base branch
               run: git fetch --no-tags --depth=1 origin "+refs/heads/${BASE_BRANCH}:refs/remotes/origin/${BASE_BRANCH}"

@@ -50,7 +50,7 @@ export default defineConfig({
                     include: ['tests/**/*.test.ts'],
                     exclude: [...configDefaults.exclude, ...serialFiles],
                     fileParallelism: true,
-                    // The preview pod is shared with the Cypress jobs; the
+                    // The preview pod is shared with the Playwright jobs; the
                     // merge suite bounds this group, so more workers only add
                     // contention.
                     maxWorkers: 4,

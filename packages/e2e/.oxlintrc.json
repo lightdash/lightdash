@@ -2,8 +2,11 @@
     "$schema": "../../node_modules/oxlint/configuration_schema.json",
     "extends": ["../../.oxlintrc.base.json"],
     "rules": {
-        "import/prefer-default-export": "error",
+        "import/prefer-default-export": "off",
         "jest/no-standalone-expect": "off",
-        "vitest/valid-expect": "off"
+        "vitest/valid-expect": "off",
+        "vitest/expect-expect": "off",
+        "vitest/valid-title": "off",
+        "no-await-in-loop": "off"
     }
 }

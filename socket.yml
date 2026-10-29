@@ -11,7 +11,7 @@ triggerPaths:
 projectIgnorePaths:
   - "examples/**"
   - "**/node_modules"
-  - "packages/e2e/cypress/**"
+  - "packages/e2e/tests/**"
   - "packages/formula-tests/**"
 
 githubApp:

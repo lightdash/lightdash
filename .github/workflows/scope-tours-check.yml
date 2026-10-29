@@ -33,7 +33,7 @@ jobs:
               with:
                   egress-policy: audit
             - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-            - uses: ./.github/workflows/_setup_node_pnpm_cypress
+            - uses: ./.github/workflows/_setup_node_pnpm
             # After the setup action: it cleans the workspace, which would remove
             # a docs checkout made before it.
             - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
