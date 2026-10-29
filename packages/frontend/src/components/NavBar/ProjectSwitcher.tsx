@@ -597,7 +597,7 @@ const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ portalTarget }) => {
                         resetMenuState();
                     }
                 }}
-                classNames={{ dropdown: classes.dropdown }}
+                classNames={{ dropdown: classes.dropdown, item: classes.item }}
                 zIndex={getDefaultZIndex('max')}
                 {...getNavBarMenuProps(portalTarget)}
             >

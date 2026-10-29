@@ -71,11 +71,7 @@
 .listCol,
 .resultsArea {
     scrollbar-width: thin;
-    scrollbar-color: light-dark(
-            var(--mantine-color-ldGray-3),
-            var(--mantine-color-ldDark-6)
-        )
-        transparent;
+    scrollbar-color: var(--mantine-color-ldGray-3) transparent;
 }
 
 .listCol::-webkit-scrollbar,
@@ -85,10 +81,7 @@
 
 .listCol::-webkit-scrollbar-thumb,
 .resultsArea::-webkit-scrollbar-thumb {
-    background: light-dark(
-        var(--mantine-color-ldGray-3),
-        var(--mantine-color-ldDark-6)
-    );
+    background: var(--mantine-color-ldGray-3);
     border-radius: 999px;
 }
 
@@ -100,10 +93,7 @@
 .footer {
     padding: var(--mantine-spacing-xs) var(--mantine-spacing-md);
     border-top: 1px solid var(--mantine-color-default-border);
-    background-color: light-dark(
-        var(--mantine-color-ldGray-0),
-        var(--mantine-color-ldDark-1)
-    );
+    background-color: var(--mantine-color-ldGray-0);
 
     @mixin smaller-than $mantine-breakpoint-sm {
         flex-wrap: wrap;

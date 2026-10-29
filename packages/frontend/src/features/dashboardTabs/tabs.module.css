@@ -86,18 +86,10 @@
     &::before {
         border-bottom: 0;
     }
-    @mixin dark {
-        background-color: var(
-            --ld-embed-header-surface-color,
-            var(--mantine-color-background-0)
-        );
-    }
-    @mixin light {
-        background-color: var(
-            --ld-embed-header-surface-color,
-            var(--mantine-color-white)
-        );
-    }
+    background-color: var(
+        --ld-embed-header-surface-color,
+        var(--mantine-color-body)
+    );
 
     align-items: center;
 

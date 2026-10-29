@@ -41,6 +41,10 @@ const GaugeSections: FC = memo(() => {
                             value={openItems}
                             onChange={handleAccordionChange}
                             className={accordionClasses.containedList}
+                            classNames={{
+                                control: accordionClasses.containedControl,
+                                label: accordionClasses.containedLabel,
+                            }}
                         >
                             {sections.map((section, index) => (
                                 <GaugeSectionComponent

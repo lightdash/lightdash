@@ -39,6 +39,7 @@ const SortButton: FC<Props> = ({ sorts, isEditMode }) => {
                     color="blue"
                     variant="transparent"
                     className={`${classes.badge} ${isEditMode ? classes.interactive : ''}`}
+                    classNames={{ label: classes.badgeLabel }}
                     rightSection={
                         isEditMode ? (
                             <MantineIcon icon={IconChevronDown} size="sm" />

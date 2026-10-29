@@ -168,6 +168,7 @@ export const MetricExploreDatePicker: FC<Props> = ({
                             variant="default"
                             size="xs"
                             className={styles.rangeButton}
+                            classNames={{ label: styles.rangeButtonLabel }}
                             disabled={isFetching || disabled}
                             onClick={() => handleOpen(!isOpen)}
                             aria-expanded={isOpen}
@@ -272,6 +273,13 @@ export const MetricExploreDatePicker: FC<Props> = ({
                                     mih={180}
                                     w="100%"
                                     size="xs"
+                                    classNames={{
+                                        levelsGroup: styles.levelsGroup,
+                                        yearsList: styles.pickerList,
+                                        yearsListControl: styles.pickerControl,
+                                        calendarHeaderControl:
+                                            styles.headerControl,
+                                    }}
                                 />
                             ) : calendarConfig?.type === TimeFrames.MONTH ? (
                                 <MonthRangePicker
@@ -279,6 +287,13 @@ export const MetricExploreDatePicker: FC<Props> = ({
                                     numberOfColumns={compact ? 1 : 2}
                                     mih={180}
                                     size="xs"
+                                    classNames={{
+                                        levelsGroup: styles.levelsGroup,
+                                        monthsList: styles.pickerList,
+                                        monthsListControl: styles.pickerControl,
+                                        calendarHeaderControl:
+                                            styles.headerControl,
+                                    }}
                                 />
                             ) : calendarConfig ? (
                                 <CalendarRangePicker
@@ -287,6 +302,13 @@ export const MetricExploreDatePicker: FC<Props> = ({
                                     mih={225}
                                     size="xs"
                                     withCellSpacing={false}
+                                    classNames={{
+                                        levelsGroup: styles.levelsGroup,
+                                        monthsList: styles.pickerList,
+                                        day: styles.day,
+                                        calendarHeaderControl:
+                                            styles.headerControl,
+                                    }}
                                 />
                             ) : null}
                         </Box>
@@ -335,6 +357,7 @@ export const MetricExploreDatePicker: FC<Props> = ({
                                     <Button
                                         size="xs"
                                         variant="default"
+                                        className={styles.footerButton}
                                         onClick={() => handleOpen(false)}
                                         style={(theme) => ({
                                             boxShadow: theme.shadows.subtle,
@@ -345,6 +368,7 @@ export const MetricExploreDatePicker: FC<Props> = ({
                                     </Button>
                                     <Button
                                         size="xs"
+                                        className={styles.footerButton}
                                         onClick={() => {
                                             handleApply();
 

@@ -25,10 +25,7 @@
     }
 
     &:active {
-        background-color: light-dark(
-            var(--mantine-color-ldGray-2),
-            var(--mantine-color-ldDark-6)
-        );
+        background-color: var(--mantine-color-ldGray-2);
     }
 }
 
@@ -45,19 +42,13 @@
 .title {
     flex-shrink: 1;
     min-width: 0;
-    color: light-dark(
-        var(--mantine-color-ldGray-8),
-        var(--mantine-color-ldGray-9)
-    );
+    color: var(--mantine-color-ldGray-8);
 }
 
 .secondaryText {
     flex: 1;
     min-width: 0;
-    color: light-dark(
-        var(--mantine-color-ldGray-6),
-        var(--mantine-color-ldGray-7)
-    );
+    color: var(--mantine-color-ldGray-6);
 }
 
 .verifiedBadge {

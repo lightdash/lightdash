@@ -80,7 +80,7 @@ export const CommentForm: FC<Props> = ({
     });
 
     return (
-        <form className={styles.form} onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit}>
             <Stack gap="xs" mt="xs">
                 <Grid columns={20}>
                     <Grid.Col span={2}>
@@ -125,6 +125,7 @@ export const CommentForm: FC<Props> = ({
                 <Group justify="flex-end" gap="xs">
                     {onCancel && (
                         <Button
+                            className={styles.cancelButton}
                             variant="default"
                             size="compact-xs"
                             onClick={onCancel}
