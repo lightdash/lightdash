@@ -1,3 +1,10 @@
+## [3.93.4](https://github.com/lightdash/lightdash/compare/3.93.3...3.93.4) (2026-10-29)
+
+
+### Bug Fixes
+
+* **ai-agent:** collapse live composer nodes unless awaiting approval, hide failed indicator ([#31781](https://github.com/lightdash/lightdash/issues/31781)) ([0e1cc25](https://github.com/lightdash/lightdash/commit/0e1cc25756d39602870bdf4392f906576c165511))
+
 ## [3.93.3](https://github.com/lightdash/lightdash/compare/3.93.2...3.93.3) (2026-10-29)
 
 
