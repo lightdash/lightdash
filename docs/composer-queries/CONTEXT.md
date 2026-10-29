@@ -12,13 +12,16 @@ in the Explorer.
 
 **Composer query**:
 One submission of a pipeline by the AI agent in a single call to the
-composer query tool. Each submission runs its pipeline once and registers its
-nodes as thread composer query nodes; it creates no artifact by itself.
+composer query tool. Each submission runs its pipeline once and registers the
+nodes that succeeded as thread composer query nodes, even when another node
+failed; it creates no artifact by itself.
 _Avoid_: multi-source query (the API layer under it), composed query, merge
 
 **Composer query tool**:
-The agent tool that submits a composer query, named `query`. Its result names
-the terminal node and tells the agent to visualize it. Calls recorded before
+The agent tool that submits a composer query, named `query`. Its result gives
+the node status of every node, flags nodes that reached their limit and the
+nodes that read them, names the terminal node and tells the agent to visualize
+it. On failure it names the nodes it saved and the nodes it did not. Calls recorded before
 the rename carry `runComposerQueries` and still parse and render.
 _Avoid_: runComposerQueries (the legacy name)
 
@@ -56,7 +59,7 @@ _Avoid_: step (in code; "N steps" is the user-facing count only), query
 
 **Source node**:
 A node that reads data from outside the pipeline: the semantic layer,
-warehouse SQL, or external data. Grouped under "Sources" in the pipeline panel.
+warehouse SQL, or external data. Grouped under "Sources" in the Lineage.
 _Avoid_: input, leaf, root
 
 **Transformation**:
@@ -67,8 +70,9 @@ _Avoid_: duckdb node, python node (in user-facing copy), join node,
 post-processing step
 
 **Thread composer query nodes**:
-The nodes a thread has defined through successful composer queries, each
-under its node id. A submission may read any of them by node id. The thread
+The nodes that succeeded in a thread's composer queries, each under its node
+id, with its node columns. A failed node is never registered, so its node id
+can be resubmitted corrected. A submission may read any of them by node id. The thread
 is one scope; an MCP session is another.
 _Avoid_: registry (in user-facing copy), node store, artifact nodes
 
@@ -87,7 +91,7 @@ _Avoid_: depends on, inputs, references (in user-facing copy)
 
 **Terminal node**:
 The node whose result the tool returns to the agent. The unique sink by
-default, or chosen explicitly. Suffixed "result" in the pipeline panel.
+default, or chosen explicitly. Labelled "Final result" in the Lineage.
 _Avoid_: output node, final node, sink (in user-facing copy)
 
 **Present**:
@@ -116,10 +120,16 @@ can be displayed and visualized the same way. Results are creator-scoped and
 expire.
 _Avoid_: intermediate result, step output, preview
 
+**Node status**:
+How one node did in a run: its state, error, row count and result columns,
+read from the node's query history row and never stored on its own. A node
+whose row count equals its limit reached its limit, so its result may be cut.
+_Avoid_: node run, query status, limit reached flag
+
 **Node columns**:
 The result column references and types of a node, stored beside its
-definition in the thread composer query nodes by a run that had it as its
-terminal node. They hold no query id. visualize checks a viz config against
+definition in the thread composer query nodes by the run that registered it,
+from its node status. They hold no query id. visualize checks a viz config against
 them; a node without them is visualized unchecked. Rendering never reads them.
 _Avoid_: schema, node fields, result metadata
 
@@ -169,17 +179,19 @@ per presented node. A version is declarative: its snapshot, presented node
 and viz config. It holds no results, and a run never changes it.
 _Avoid_: composer chart, result artifact
 
-**Pipeline panel**:
-The collapsible, resizable panel at the bottom of the composer artifact that
-lists the pipeline, with a List and a Graph mode.
-_Avoid_: footer, pipeline card (that is the live tool-call card), drawer
+**Lineage**:
+The composer artifact view beside the chart that shows the pipeline: a graph
+on top and one step per node below, with each node's row count and whether it
+reached its limit.
+_Avoid_: pipeline panel (the retired bottom panel), footer, drawer, pipeline
+card (that is the live tool-call card)
 
 **Pipeline card**:
 The body of the "Ran query" tool-call row ("Ran composer queries" on calls
 recorded before the rename), shown for every
 submission: expanded while its run is in flight or has failed, collapsed once
 it completes. The only record of a submission the agent did not present.
-_Avoid_: tool-call description, pipeline panel
+_Avoid_: tool-call description, Lineage
 
 ## Boundaries
 
