@@ -36,7 +36,8 @@ export function InsightsSummary({
     const [pendingAutoRun, setPendingAutoRun] = useState(!!analyseOnLoad);
     useEffect(() => {
         if (!pendingAutoRun) return undefined;
-        if (view.status !== 'idle') {
+        // `unavailable` is also the SDK's state before the host's first push.
+        if (view.status !== 'idle' && view.status !== 'unavailable') {
             setPendingAutoRun(false);
             return undefined;
         }
