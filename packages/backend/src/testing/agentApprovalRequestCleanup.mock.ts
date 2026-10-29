@@ -24,6 +24,7 @@ export const approvalRequestCleanupWorker = (
 ) =>
     new ApprovalRequestCleanupWorker({
         lightdashConfig: {
+            usageEvents: { enabled: false },
             scheduler: {
                 tasks: [...tasks],
                 queryHistory: { cleanup: { schedule: '0 0 * * *' } },
