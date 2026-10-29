@@ -1,9 +1,12 @@
 import { type ApiConnectorType } from '@lightdash/common';
-import { Image } from '@mantine/core';
+import { Box, Image, Tooltip } from '@mantine/core';
 import { IconApi } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { useMemo, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
+import { useExternalConnections } from '../hooks/useExternalConnections';
 import { getLiveSource } from './liveSourceCatalog';
+import styles from './LiveSourceIcon.module.css';
 import { useLiveSourceConnection } from './useLiveSourceConnection';
 
 type Props = {
@@ -34,5 +37,58 @@ export const LiveSourceConnectionIcon: FC<{
     const connection = useLiveSourceConnection(connectionUuid);
     return (
         <LiveSourceIcon connector={connection?.connector ?? null} size={size} />
+    );
+};
+
+/** Overlapping integration icons for the given connections, spread apart on hover; nothing until they load. */
+export const LiveSourceConnectionIcons: FC<{
+    connectionUuids: string[];
+    size?: number;
+}> = ({ connectionUuids, size = 10 }) => {
+    const projectUuid = useProjectUuid();
+    const { data } = useExternalConnections(
+        connectionUuids.length > 0 ? projectUuid : undefined,
+    );
+    const connectors = useMemo(
+        () => [
+            ...new Set(
+                (data ?? []).flatMap((connection) =>
+                    connection.apiSource &&
+                    connectionUuids.includes(connection.externalConnectionUuid)
+                        ? [connection.apiSource.connector]
+                        : [],
+                ),
+            ),
+        ],
+        [data, connectionUuids],
+    );
+    if (connectors.length === 0) return null;
+    const circleSize = size + 5;
+    return (
+        <Box
+            component="span"
+            className={styles.stack}
+            style={{ '--circle-size': `${circleSize}px` }}
+        >
+            {connectors.map((connector, index) => (
+                <Tooltip
+                    key={connector}
+                    label={getLiveSource(connector).label}
+                    withinPortal
+                >
+                    <Box
+                        component="span"
+                        className={styles.circle}
+                        w={circleSize}
+                        h={circleSize}
+                        style={{ '--circle-z': connectors.length - index }}
+                        role="img"
+                        aria-label={getLiveSource(connector).label}
+                    >
+                        <LiveSourceIcon connector={connector} size={size} />
+                    </Box>
+                </Tooltip>
+            ))}
+        </Box>
     );
 };

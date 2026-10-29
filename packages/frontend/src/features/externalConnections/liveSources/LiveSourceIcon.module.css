@@ -1,0 +1,34 @@
+.stack {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    padding: 1px;
+}
+
+.circle {
+    position: relative;
+    z-index: var(--circle-z);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    border-radius: 50%;
+    background-color: var(--mantine-color-white);
+    box-shadow: inset 0 0 0 1px var(--mantine-color-ldGray-3);
+    transition: margin-left 160ms ease;
+}
+
+.circle + .circle {
+    margin-left: calc(var(--circle-size) * -0.3);
+}
+
+.stack:hover .circle + .circle,
+.stack:focus-within .circle + .circle {
+    margin-left: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .circle {
+        transition: none;
+    }
+}

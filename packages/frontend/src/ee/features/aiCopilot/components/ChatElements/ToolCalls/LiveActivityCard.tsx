@@ -6,6 +6,7 @@ import {
     type AiMcpServer,
     type AiWritebackStep,
     isToolName,
+    QuerySourceType,
 } from '@lightdash/common';
 import {
     Box,
@@ -23,6 +24,7 @@ import {
 import { useState, type FC } from 'react';
 import { AiMarkdown } from '../../../../../../components/common/AiMarkdown';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
+import { LiveSourceConnectionIcons } from '../../../../../../features/externalConnections/liveSources/LiveSourceIcon';
 import { type StepProgressMessage } from '../../../store/aiAgentThreadStreamSlice';
 import { type ComposerQueryNodeStatus } from '../composerNodeStatus';
 import { AgentStepGroups } from './AgentStepGroups';
@@ -171,6 +173,20 @@ const McpSummaryIconStack: FC<{
         </Group>
     );
 };
+
+const getLiveSourceConnectionUuids = (toolGroups: LiveActivityToolGroup[]) => [
+    ...new Set(
+        toolGroups
+            .filter((group) => isComposerQueryToolName(group.toolName))
+            .flatMap((group) => group.calls)
+            .flatMap((call) => getComposerQueryNodes(call.toolArgs))
+            .flatMap((node) =>
+                node.sourceType === QuerySourceType.API
+                    ? [node.connectionUuid]
+                    : [],
+            ),
+    ),
+];
 
 export const ReasoningHistoryRow: FC<{
     texts: string[];
@@ -717,6 +733,12 @@ export const LiveActivityCard: FC<Props> = ({
                                         <McpSummaryIconStack
                                             toolGroups={toolGroups}
                                             mcpServers={mcpServers}
+                                        />
+                                        <LiveSourceConnectionIcons
+                                            connectionUuids={getLiveSourceConnectionUuids(
+                                                toolGroups,
+                                            )}
+                                            size={10}
                                         />
                                     </Group>
                                 );
