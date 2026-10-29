@@ -21,6 +21,7 @@ import {
     SpacePermissionModel,
     type OrganizationSpaceAccessWithCustomRole,
     type ProjectSpaceAccessWithCustomRole,
+    type RawSpaceDirectAccess,
 } from '../../models/SpacePermissionModel';
 import { type DirectAccessFeatureGate } from '../DirectAccess/DirectAccessFeatureGate';
 import {
@@ -43,6 +44,13 @@ const createMockSpacePermissionModel = () => ({
                 filters?: { userUuid?: string; userUuids?: string[] },
                 options?: { trx?: Knex },
             ) => Promise<Record<string, DirectSpaceAccess[]>>
+        >(),
+    getRawDirectAccess:
+        vi.fn<
+            (
+                spaceUuids: string[],
+                options?: { trx?: Knex },
+            ) => Promise<Record<string, RawSpaceDirectAccess>>
         >(),
     getProjectSpaceAccess:
         vi.fn<
@@ -1145,8 +1153,37 @@ describe('SpacePermissionService', () => {
     });
 
     describe('getInheritedPermissionsToCopy', () => {
-        const projectUuid = 'project-uuid';
-        const organizationUuid = 'org-uuid';
+        const childSpaceUuid = 'child-space';
+        const parentSpaceUuid = 'parent-space';
+        const grandparentSpaceUuid = 'grandparent-space';
+
+        const userGrant = (userUuid: string, role: SpaceMemberRole) => ({
+            userUuid,
+            email: `${userUuid}@example.com`,
+            isInternal: false,
+            role,
+        });
+
+        const groupGrant = (groupUuid: string, role: SpaceMemberRole) => ({
+            groupUuid,
+            name: groupUuid,
+            role,
+        });
+
+        /** Leaf first, root last; only the root is detached from its parent. */
+        const mockChain = (...spaceUuids: string[]) => {
+            mockPermissionModel.getInheritanceChains.mockResolvedValue({
+                [spaceUuids[0]]: {
+                    chain: spaceUuids.map((spaceUuid, index) => ({
+                        spaceUuid,
+                        spaceName: spaceUuid,
+                        inheritParentPermissions:
+                            index < spaceUuids.length - 1,
+                    })),
+                    inheritsFromOrgOrProject: false,
+                },
+            });
+        };
 
         test.each([{}, undefined, null])(
             'throws NotFoundError for missing inheritance data (%j)',
@@ -1161,366 +1198,121 @@ describe('SpacePermissionService', () => {
                 ).rejects.toEqual(
                     new NotFoundError('Space missing-space not found'),
                 );
-
-                expect(
-                    mockPermissionModel.getInheritanceChains,
-                ).toHaveBeenCalledWith(['missing-space']);
-                expect(
-                    mockPermissionModel.getDirectSpaceAccess,
-                ).not.toHaveBeenCalled();
             },
         );
 
-        test('returns user and group entries from ancestor spaces', async () => {
-            const childSpaceUuid = 'child-space';
-            const parentSpaceUuid = 'parent-space';
-            const userOnParent = 'user-on-parent';
-
-            // Chain: child → parent (root, inherits from org/project)
-            mockPermissionModel.getInheritanceChains.mockResolvedValue({
-                [childSpaceUuid]: {
-                    chain: [
-                        {
-                            spaceUuid: childSpaceUuid,
-                            spaceName: 'Child',
-                            inheritParentPermissions: true,
-                        },
-                        {
-                            spaceUuid: parentSpaceUuid,
-                            spaceName: 'Parent',
-                            inheritParentPermissions: true,
-                        },
-                    ],
-                    inheritsFromOrgOrProject: true,
+        test('copies user and group grants from the parent', async () => {
+            mockChain(childSpaceUuid, parentSpaceUuid);
+            mockPermissionModel.getRawDirectAccess.mockResolvedValue({
+                [parentSpaceUuid]: {
+                    users: [userGrant('user-on-parent', SpaceMemberRole.EDITOR)],
+                    groups: [groupGrant('group-1', SpaceMemberRole.VIEWER)],
                 },
-            });
-
-            // Parent has user access and group access
-            mockPermissionModel.getDirectSpaceAccess.mockResolvedValue({
-                [parentSpaceUuid]: [
-                    {
-                        userUuid: userOnParent,
-                        spaceUuid: parentSpaceUuid,
-                        groupUuid: null,
-                        role: SpaceMemberRole.EDITOR,
-                        from: DirectSpaceAccessOrigin.USER_ACCESS,
-                    },
-                    {
-                        userUuid: userOnParent,
-                        spaceUuid: parentSpaceUuid,
-                        groupUuid: 'group-1',
-                        role: SpaceMemberRole.EDITOR,
-                        from: DirectSpaceAccessOrigin.GROUP_ACCESS,
-                    },
-                ],
             });
 
             const result =
                 await service.getInheritedPermissionsToCopy(childSpaceUuid);
 
-            // User entry from parent
-            expect(result.userAccessEntries).toHaveLength(1);
-            expect(result.userAccessEntries[0]).toEqual({
-                userUuid: userOnParent,
-                role: SpaceMemberRole.EDITOR,
-            });
-
-            // Group entry from parent
-            expect(result.groupAccessEntries).toHaveLength(1);
-            expect(result.groupAccessEntries[0]).toEqual({
-                groupUuid: 'group-1',
-                role: SpaceMemberRole.EDITOR,
-            });
+            expect(result.userAccessEntries).toEqual([
+                { userUuid: 'user-on-parent', role: SpaceMemberRole.EDITOR },
+            ]);
+            expect(result.groupAccessEntries).toEqual([
+                { groupUuid: 'group-1', role: SpaceMemberRole.VIEWER },
+            ]);
         });
 
-        test('includes ancestor entries regardless of leaf access', async () => {
-            const childSpaceUuid = 'child-space';
-            const parentSpaceUuid = 'parent-space';
-            const directUser = 'direct-user';
-
-            mockPermissionModel.getInheritanceChains.mockResolvedValue({
-                [childSpaceUuid]: {
-                    chain: [
-                        {
-                            spaceUuid: childSpaceUuid,
-                            spaceName: 'Child',
-                            inheritParentPermissions: true,
-                        },
-                        {
-                            spaceUuid: parentSpaceUuid,
-                            spaceName: 'Parent',
-                            inheritParentPermissions: false,
-                        },
+        test('copies every persisted group grant, with or without members', async () => {
+            mockChain(childSpaceUuid, parentSpaceUuid);
+            mockPermissionModel.getRawDirectAccess.mockResolvedValue({
+                [parentSpaceUuid]: {
+                    users: [],
+                    groups: [
+                        groupGrant('empty-group', SpaceMemberRole.VIEWER),
+                        groupGrant('populated-group', SpaceMemberRole.EDITOR),
                     ],
-                    inheritsFromOrgOrProject: false,
                 },
-            });
-
-            // Only ancestor (parent) entries are returned — leaf entries are excluded
-            mockPermissionModel.getDirectSpaceAccess.mockResolvedValue({
-                [parentSpaceUuid]: [
-                    {
-                        userUuid: directUser,
-                        spaceUuid: parentSpaceUuid,
-                        groupUuid: null,
-                        role: SpaceMemberRole.EDITOR,
-                        from: DirectSpaceAccessOrigin.USER_ACCESS,
-                    },
-                ],
             });
 
             const result =
                 await service.getInheritedPermissionsToCopy(childSpaceUuid);
 
-            // Ancestor user entry is included (DB-level ON CONFLICT MERGE
-            // handles dedup with any existing leaf access)
-            expect(result.userAccessEntries).toHaveLength(1);
-            expect(result.userAccessEntries[0]).toEqual({
-                userUuid: directUser,
-                role: SpaceMemberRole.EDITOR,
-            });
+            expect(result.groupAccessEntries).toEqual([
+                { groupUuid: 'empty-group', role: SpaceMemberRole.VIEWER },
+                { groupUuid: 'populated-group', role: SpaceMemberRole.EDITOR },
+            ]);
+            expect(result.userAccessEntries).toEqual([]);
         });
 
-        test('only includes entries from ancestors, not the leaf space', async () => {
-            const childSpaceUuid = 'child-space';
-            const parentSpaceUuid = 'parent-space';
-            const directUser = 'direct-user';
-
-            mockPermissionModel.getInheritanceChains.mockResolvedValue({
-                [childSpaceUuid]: {
-                    chain: [
-                        {
-                            spaceUuid: childSpaceUuid,
-                            spaceName: 'Child',
-                            inheritParentPermissions: true,
-                        },
-                        {
-                            spaceUuid: parentSpaceUuid,
-                            spaceName: 'Parent',
-                            inheritParentPermissions: false,
-                        },
-                    ],
-                    inheritsFromOrgOrProject: false,
-                },
-            });
-
-            // No ancestor entries — parent has no direct access
-            mockPermissionModel.getDirectSpaceAccess.mockResolvedValue({});
-
-            const result =
-                await service.getInheritedPermissionsToCopy(childSpaceUuid);
-
-            // Nothing from ancestors to copy
-            expect(result.userAccessEntries).toHaveLength(0);
-            expect(result.groupAccessEntries).toHaveLength(0);
-        });
-
-        test('includes all ancestor group entries (DB handles dedup)', async () => {
-            const childSpaceUuid = 'child-space';
-            const parentSpaceUuid = 'parent-space';
-
-            mockPermissionModel.getInheritanceChains.mockResolvedValue({
-                [childSpaceUuid]: {
-                    chain: [
-                        {
-                            spaceUuid: childSpaceUuid,
-                            spaceName: 'Child',
-                            inheritParentPermissions: true,
-                        },
-                        {
-                            spaceUuid: parentSpaceUuid,
-                            spaceName: 'Parent',
-                            inheritParentPermissions: false,
-                        },
-                    ],
-                    inheritsFromOrgOrProject: false,
-                },
-            });
-
-            // Parent has two groups
-            mockPermissionModel.getDirectSpaceAccess.mockResolvedValue({
-                [parentSpaceUuid]: [
-                    {
-                        userUuid: 'user-in-group-1',
-                        spaceUuid: parentSpaceUuid,
-                        groupUuid: 'group-1',
-                        role: SpaceMemberRole.EDITOR,
-                        from: DirectSpaceAccessOrigin.GROUP_ACCESS,
-                    },
-                    {
-                        userUuid: 'user-in-group-2',
-                        spaceUuid: parentSpaceUuid,
-                        groupUuid: 'group-2',
-                        role: SpaceMemberRole.VIEWER,
-                        from: DirectSpaceAccessOrigin.GROUP_ACCESS,
-                    },
-                ],
+        test('copies nothing when the ancestors hold no grants', async () => {
+            mockChain(childSpaceUuid, parentSpaceUuid);
+            mockPermissionModel.getRawDirectAccess.mockResolvedValue({
+                [parentSpaceUuid]: { users: [], groups: [] },
             });
 
             const result =
                 await service.getInheritedPermissionsToCopy(childSpaceUuid);
 
-            // Both ancestor groups are included; ON CONFLICT MERGE at DB
-            // level handles any duplicates with existing child groups
-            expect(result.groupAccessEntries).toHaveLength(2);
-            expect(result.groupAccessEntries).toEqual(
-                expect.arrayContaining([
-                    { groupUuid: 'group-1', role: SpaceMemberRole.EDITOR },
-                    { groupUuid: 'group-2', role: SpaceMemberRole.VIEWER },
-                ]),
-            );
+            expect(result).toEqual({
+                userAccessEntries: [],
+                groupAccessEntries: [],
+            });
         });
 
-        test('returns empty when no inherited users or ancestor groups', async () => {
+        test('copies nothing for a root space, which has no ancestors', async () => {
             const rootSpaceUuid = 'root-space';
-
-            mockPermissionModel.getInheritanceChains.mockResolvedValue({
-                [rootSpaceUuid]: {
-                    chain: [
-                        {
-                            spaceUuid: rootSpaceUuid,
-                            spaceName: 'Root',
-                            inheritParentPermissions: true,
-                        },
-                    ],
-                    inheritsFromOrgOrProject: true,
-                },
-            });
-
-            // Root has no ancestors, so getDirectSpaceAccess is called with []
-            mockPermissionModel.getDirectSpaceAccess.mockResolvedValue({});
+            mockChain(rootSpaceUuid);
+            mockPermissionModel.getRawDirectAccess.mockResolvedValue({});
 
             const result =
                 await service.getInheritedPermissionsToCopy(rootSpaceUuid);
 
-            expect(result.userAccessEntries).toHaveLength(0);
-            expect(result.groupAccessEntries).toHaveLength(0);
+            expect(result).toEqual({
+                userAccessEntries: [],
+                groupAccessEntries: [],
+            });
         });
 
         test('deduplicates same group across ancestors, keeping highest role', async () => {
-            const childSpaceUuid = 'child-space';
-            const parentSpaceUuid = 'parent-space';
-            const grandparentSpaceUuid = 'grandparent-space';
-
-            mockPermissionModel.getInheritanceChains.mockResolvedValue({
-                [childSpaceUuid]: {
-                    chain: [
-                        {
-                            spaceUuid: childSpaceUuid,
-                            spaceName: 'Child',
-                            inheritParentPermissions: true,
-                        },
-                        {
-                            spaceUuid: parentSpaceUuid,
-                            spaceName: 'Parent',
-                            inheritParentPermissions: true,
-                        },
-                        {
-                            spaceUuid: grandparentSpaceUuid,
-                            spaceName: 'Grandparent',
-                            inheritParentPermissions: false,
-                        },
-                    ],
-                    inheritsFromOrgOrProject: false,
+            mockChain(childSpaceUuid, parentSpaceUuid, grandparentSpaceUuid);
+            mockPermissionModel.getRawDirectAccess.mockResolvedValue({
+                [parentSpaceUuid]: {
+                    users: [],
+                    groups: [groupGrant('group-1', SpaceMemberRole.VIEWER)],
                 },
-            });
-
-            // Same group on parent (VIEWER) and grandparent (EDITOR)
-            mockPermissionModel.getDirectSpaceAccess.mockResolvedValue({
-                [parentSpaceUuid]: [
-                    {
-                        userUuid: 'user-in-group',
-                        spaceUuid: parentSpaceUuid,
-                        groupUuid: 'group-1',
-                        role: SpaceMemberRole.VIEWER,
-                        from: DirectSpaceAccessOrigin.GROUP_ACCESS,
-                    },
-                ],
-                [grandparentSpaceUuid]: [
-                    {
-                        userUuid: 'user-in-group',
-                        spaceUuid: grandparentSpaceUuid,
-                        groupUuid: 'group-1',
-                        role: SpaceMemberRole.EDITOR,
-                        from: DirectSpaceAccessOrigin.GROUP_ACCESS,
-                    },
-                ],
+                [grandparentSpaceUuid]: {
+                    users: [],
+                    groups: [groupGrant('group-1', SpaceMemberRole.EDITOR)],
+                },
             });
 
             const result =
                 await service.getInheritedPermissionsToCopy(childSpaceUuid);
 
-            // Same group appears on two ancestors — deduplicated to one entry
-            // with the highest role (EDITOR > VIEWER)
-            expect(result.groupAccessEntries).toHaveLength(1);
-            expect(result.groupAccessEntries[0]).toEqual({
-                groupUuid: 'group-1',
-                role: SpaceMemberRole.EDITOR,
-            });
+            expect(result.groupAccessEntries).toEqual([
+                { groupUuid: 'group-1', role: SpaceMemberRole.EDITOR },
+            ]);
         });
 
         test('deduplicates same user across ancestors, keeping highest role', async () => {
-            const childSpaceUuid = 'child-space';
-            const parentSpaceUuid = 'parent-space';
-            const grandparentSpaceUuid = 'grandparent-space';
-            const duplicateUser = 'duplicate-user';
-
-            mockPermissionModel.getInheritanceChains.mockResolvedValue({
-                [childSpaceUuid]: {
-                    chain: [
-                        {
-                            spaceUuid: childSpaceUuid,
-                            spaceName: 'Child',
-                            inheritParentPermissions: true,
-                        },
-                        {
-                            spaceUuid: parentSpaceUuid,
-                            spaceName: 'Parent',
-                            inheritParentPermissions: true,
-                        },
-                        {
-                            spaceUuid: grandparentSpaceUuid,
-                            spaceName: 'Grandparent',
-                            inheritParentPermissions: false,
-                        },
-                    ],
-                    inheritsFromOrgOrProject: false,
+            mockChain(childSpaceUuid, parentSpaceUuid, grandparentSpaceUuid);
+            mockPermissionModel.getRawDirectAccess.mockResolvedValue({
+                [parentSpaceUuid]: {
+                    users: [userGrant('duplicate-user', SpaceMemberRole.VIEWER)],
+                    groups: [],
                 },
-            });
-
-            // Same user on parent (VIEWER) and grandparent (ADMIN)
-            mockPermissionModel.getDirectSpaceAccess.mockResolvedValue({
-                [parentSpaceUuid]: [
-                    {
-                        userUuid: duplicateUser,
-                        spaceUuid: parentSpaceUuid,
-                        groupUuid: null,
-                        role: SpaceMemberRole.VIEWER,
-                        from: DirectSpaceAccessOrigin.USER_ACCESS,
-                    },
-                ],
-                [grandparentSpaceUuid]: [
-                    {
-                        userUuid: duplicateUser,
-                        spaceUuid: grandparentSpaceUuid,
-                        groupUuid: null,
-                        role: SpaceMemberRole.ADMIN,
-                        from: DirectSpaceAccessOrigin.USER_ACCESS,
-                    },
-                ],
+                [grandparentSpaceUuid]: {
+                    users: [userGrant('duplicate-user', SpaceMemberRole.ADMIN)],
+                    groups: [],
+                },
             });
 
             const result =
                 await service.getInheritedPermissionsToCopy(childSpaceUuid);
 
-            // Same user appears on two ancestors — deduplicated to one entry
-            // with the highest role (ADMIN > VIEWER)
-            expect(result.userAccessEntries).toHaveLength(1);
-            expect(result.userAccessEntries[0]).toEqual({
-                userUuid: duplicateUser,
-                role: SpaceMemberRole.ADMIN,
-            });
-            expect(result.groupAccessEntries).toHaveLength(0);
+            expect(result.userAccessEntries).toEqual([
+                { userUuid: 'duplicate-user', role: SpaceMemberRole.ADMIN },
+            ]);
+            expect(result.groupAccessEntries).toEqual([]);
         });
     });
 
