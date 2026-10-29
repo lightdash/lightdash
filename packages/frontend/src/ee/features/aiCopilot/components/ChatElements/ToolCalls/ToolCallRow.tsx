@@ -28,24 +28,8 @@ import {
     getMcpToolDisplayName,
 } from './utils/mcpToolDisplay';
 import { type ToolCallGroupDisplay } from './utils/toolCallGrouping';
+import { isToolWithoutDescription } from './utils/toolsWithoutDescription';
 import { type ToolCallSummary } from './utils/types';
-
-// Tools whose ToolCallDescription returns an empty fragment. Tracked here
-// so the row doesn't render a chevron + clickable header that expand into
-// blank space. Keep in sync with the empty `return <></>` cases in
-// ToolCallDescription.tsx.
-const TOOLS_WITHOUT_DESCRIPTION = new Set<ToolName>([
-    'generateHashes',
-    'generateUuids',
-    'getProjectInfo',
-    'listDataAppThemes',
-    'listDataAppConnections',
-    'listKnowledgeDocuments',
-    'listProjects',
-    'loadProjectContext',
-    'editDbtProject',
-    'runSavedChart',
-]);
 
 // Tools whose description renders something tall (e.g. a code block) and can't
 // be sensibly clipped to a single-line preview — collapse to verb + chevron.
@@ -113,7 +97,7 @@ export const ToolCallRow: FC<Props> = ({
         : null;
     const hasCallDescription = (toolCall: ToolCallSummary) =>
         isToolName(toolCall.toolName) &&
-        !TOOLS_WITHOUT_DESCRIPTION.has(toolCall.toolName);
+        !isToolWithoutDescription(toolCall.toolName);
     const hasDescription =
         toolCalls.some(hasCallDescription) || Boolean(extraBody);
     const isGrouped = toolCalls.length > 1;
