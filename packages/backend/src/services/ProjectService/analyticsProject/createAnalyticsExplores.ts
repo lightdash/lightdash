@@ -383,6 +383,9 @@ export const createAnalyticsExplores = (): Explore[] => {
             table.dimensions.org_id.hidden = true;
             table.dimensions.project_id.hidden = true;
             table.dimensions.name.label = 'User name';
+            table.dimensions.email.label = 'User email';
+            table.dimensions.email.description =
+                'Current primary email at the latest membership refresh, not the email at event time. Unavailable emails are NULL.';
             table.dimensions.group_ids.description =
                 'JSON array of current group UUIDs. Filter by a quoted UUID to select a group without multiplying people. Groups are not inferred HR teams.';
             table.dimensions.group_names.description =
@@ -473,8 +476,12 @@ export const createAnalyticsExplores = (): Explore[] => {
                 });
                 fields.org_id.hidden = true;
                 fields.name.label = dimensionFields[dimension].label;
-                if (dimension === 'users')
+                if (dimension === 'users') {
                     fields.name.sql = "COALESCE(${TABLE}.name, 'Unknown user')";
+                    fields.email.label = 'User email';
+                    fields.email.description =
+                        'Current primary email at the latest user metadata refresh, not the email at event time. Unavailable emails are NULL.';
+                }
                 if (dimension === 'agents')
                     fields.name.sql =
                         "COALESCE(${TABLE}.name, 'Unknown agent')";

@@ -12,7 +12,7 @@ Each organization has one current Parquet object per dimension:
 | `dim=charts/charts.parquet`                    | org_id, chart_id, name, slug, chart_kind, space_name, is_deleted |
 | `dim=dashboards/dashboards.parquet`            | org_id, dashboard_id, name, slug, space_name, is_deleted         |
 | `dim=agents/agents.parquet`                    | org_id, agent_id, name                                           |
-| `dim=users/users.parquet`                      | org_id, user_id, name                                            |
+| `dim=users/users.parquet`                      | org_id, user_id, name, email                                     |
 | `dim=projects/projects.parquet`                | org_id, project_id, name                                         |
 
 Charts include saved metric and SQL charts, including charts owned by a
@@ -20,11 +20,25 @@ dashboard. Soft-deleted content remains identifiable through `is_deleted`;
 hard-deleted or unknown content resolves to NULL. Users are active, non-internal
 members of the source organization. Removed, inactive, internal, unnamed and
 unknown users display `Unknown user`, with the original event User ID available
-for disambiguation. No email addresses or historical identities are exported.
+for disambiguation. **User email** is a separate, nullable field containing only
+the current primary email (`emails.is_primary = true`). Alternate addresses are
+excluded. Users without a primary email remain in the snapshot with NULL email;
+removed or unmatched users are not assigned an email from their events.
+
+The People adoption Explore also exposes **User email** from its current
+organization-membership snapshot, retaining its existing eligibility rules.
+Email is metadata, not an event field: it does not change event files, compaction
+or summary grouping. Existing snapshots without the column return NULL until the
+next successful metadata refresh. Changing the primary email is reflected by that
+refresh; no historical event rebuild is required.
 
 Names reflect current source values after the next successful refresh, including
 when querying older event partitions. Event files are not rewritten. This is
-current metadata, not an audit of names at event time.
+current metadata, not an audit of names or email addresses at event time.
+
+Email uses the same [managed analytics permissions](access.md) as other
+organization-wide metadata. Grant access only to users and service accounts
+trusted to see that information.
 
 ## Export and failure behavior
 

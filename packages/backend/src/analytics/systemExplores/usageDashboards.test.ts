@@ -664,7 +664,7 @@ describe('built-in usage dashboards', () => {
                 );
             }
             await db.run(
-                `INSERT INTO lightdash_users VALUES ('org','a','Alex'),('org','b','Alex'),('other','a','Wrong tenant')`,
+                `INSERT INTO lightdash_users (org_id,user_id,name) VALUES ('org','a','Alex'),('org','b','Alex'),('other','a','Wrong tenant')`,
             );
             await db.run(`INSERT INTO user_activity (org_id, project_id, user_id, activity_date, event_count) VALUES
                 ('org','project','a','2026-01-05',2),('org','project','a','2026-01-06',3),('org','project','b','2026-01-05',1),('org','project',NULL,'2026-01-05',4)`);
