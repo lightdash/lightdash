@@ -10461,7 +10461,7 @@ When building an HTML/React artifact that calls MCP, load the mcp-artifact-integ
         "readOnlyHint": true,
         "title": "Run composer queries",
       },
-      "description": "Run a pipeline: one or more nodes submitted together, where duckdb and python nodes join or transform other nodes' results. Use it when an answer joins, transforms or mixes sources, or needs Python; for one semantic-layer query use run_metric_query.
+      "description": "Run a pipeline: one or more nodes submitted together, where duckdb and python nodes join or transform other nodes' results. For one semantic-layer query use run_metric_query; for one SQL query use run_sql. Use query when an answer joins, transforms or mixes sources, or needs Python.
 
 Node kinds:
 - "semanticLayer": a metric query against an explore. Result columns are the requested field ids.
@@ -10472,9 +10472,9 @@ Node kinds:
 
 A node reads only the rows its references returned, so a referenced result that reached its limit is incomplete: before totalling, averaging or ranking over it, give that node a limit that holds its whole population, or aggregate there.
 
-Reuse across calls: the result carries a sessionId. Pass it back as sessionId to read nodes of earlier calls by node id in "references" without resubmitting them; omit it to start a new session. A node id names one node for the whole session, so give a changed node a new node id.
+Reuse earlier nodes: every result returns a sessionId. On a follow-up, pass that sessionId and read earlier nodes by node id in "references", submitting only the new nodes. Reused nodes come with everything they read and are served from cache when possible, so results come back faster. A node id names one node for the whole session, so give a changed node a new node id. Omit sessionId to start a new session.
 
-Returns a preview of the terminal node's rows and every node's queryUuid. If running, call get_query_result with the terminal node's queryUuid; never resubmit the pipeline. get_query_result also returns the result of any other node by its queryUuid.",
+Returns a preview of the terminal node's rows and every node's queryUuid. If the result is running, follow up with get_query_result on the terminal node's queryUuid; it also fetches the first page of any node's result by its queryUuid. query computes data only; it saves and charts nothing.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "properties": {
@@ -10864,7 +10864,7 @@ Returns a preview of the terminal node's rows and every node's queryUuid. If run
             "type": "array",
           },
           "sessionId": {
-            "description": "sessionId from an earlier query result, to read its nodes by node id. Omit it to start a new session.",
+            "description": "The sessionId of an earlier query result: pass it to reuse that session's nodes by node id in "references". Omit it to start a new session.",
             "type": "string",
           },
           "terminalNodeId": {
