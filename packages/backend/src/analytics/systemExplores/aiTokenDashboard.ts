@@ -6,6 +6,7 @@ import {
     DashboardTileTypes,
     FilterOperator,
     MetricType,
+    TableCalculationType,
     UnitOfTime,
     type ChartAsCode,
     type DashboardAsCode,
@@ -540,7 +541,13 @@ const chart = (
     tableName: 'ai_usage',
     metricQuery: query,
     chartConfig,
-    tableConfig: { columnOrder: [...query.dimensions, ...query.metrics] },
+    tableConfig: {
+        columnOrder: [
+            ...query.tableCalculations.map(({ name: field }) => field),
+            ...query.dimensions,
+            ...query.metrics,
+        ],
+    },
 });
 
 const number = (
@@ -619,6 +626,7 @@ export const buildAiTokenDashboard = (): AnalyticsContentBundle => {
             metricQuery(true, {
                 dimensions: [
                     'ai_usage_user_name',
+                    'ai_usage_user_email',
                     'ai_usage_user_id',
                     'ai_usage_project_name',
                     'ai_usage_project_id',
@@ -629,10 +637,33 @@ export const buildAiTokenDashboard = (): AnalyticsContentBundle => {
                     'ai_usage_model',
                 ],
                 metrics: [tokens, 'ai_usage_total_ai_calls'],
+                tableCalculations: [
+                    {
+                        name: 'user_display_name',
+                        displayName: 'User name',
+                        type: TableCalculationType.STRING,
+                        sql: `CASE
+                            WHEN \${ai_usage.channel} = 'embed' THEN 'Embedded viewers'
+                            WHEN NULLIF(TRIM(\${ai_usage.user_name}), '') IS NOT NULL AND \${ai_usage.user_name} <> 'Unknown user' THEN \${ai_usage.user_name}
+                            WHEN NULLIF(TRIM(\${ai_usage.user_email}), '') IS NOT NULL THEN TRIM(\${ai_usage.user_email})
+                            WHEN NULLIF(TRIM(\${ai_usage.user_id}), '') IS NOT NULL THEN 'User ' || \${ai_usage.user_id}
+                            ELSE 'No user recorded'
+                        END`,
+                    },
+                ],
                 sorts: [{ fieldId: tokens, descending: true }],
                 limit: 1000,
             }),
-            tableConfig,
+            {
+                ...tableConfig,
+                config: {
+                    ...tableConfig.config,
+                    columns: {
+                        ai_usage_user_name: { visible: false },
+                        ai_usage_user_email: { visible: false },
+                    },
+                },
+            },
             `${scopeDescription} Up to 1,000 grouped rows. Usage records are not human questions or an exact provider-call count.`,
         ),
         chart(
