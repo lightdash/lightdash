@@ -303,7 +303,7 @@ export const EvalRunDetails: FC<Props> = ({
                             color={evalStatus.color}
                             variant="dot"
                             size="lg"
-                            c="ldGray.7"
+                            c="dimmed"
                         >
                             {evalStatus.label}
                         </Badge>

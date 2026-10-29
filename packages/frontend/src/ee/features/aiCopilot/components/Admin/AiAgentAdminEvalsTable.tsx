@@ -253,7 +253,7 @@ const AiAgentAdminEvalsTable = ({
                 const { latestRun } = row.original;
                 if (!latestRun) {
                     return (
-                        <Text fz="xs" c="ldGray.5" fw={500}>
+                        <Text fz="xs" c="dimmed" fw={500}>
                             Never run
                         </Text>
                     );
@@ -283,7 +283,7 @@ const AiAgentAdminEvalsTable = ({
                 </Group>
             ),
             Cell: ({ row }) => (
-                <Text fz="sm" c="ldGray.7">
+                <Text fz="sm" c="dimmed">
                     {new Date(row.original.createdAt).toLocaleDateString()}
                 </Text>
             ),
@@ -393,7 +393,6 @@ const AiAgentAdminEvalsTable = ({
 
                     <Box
                         bg="ldGray.1"
-                        c="ldGray.9"
                         style={{
                             borderRadius: 6,
                             padding: `${theme.spacing.sm} ${theme.spacing.xs}`,
@@ -425,12 +424,10 @@ const AiAgentAdminEvalsTable = ({
                 }}
             >
                 {isFetching ? (
-                    <Text c="ldGray.8" fz="xs">
-                        Loading more...
-                    </Text>
+                    <Text fz="xs">Loading more...</Text>
                 ) : (
                     <Group gap="two">
-                        <Text fz="xs" c="ldGray.8">
+                        <Text fz="xs">
                             {hasNextPage
                                 ? 'Scroll for more results'
                                 : 'All results loaded'}

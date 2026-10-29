@@ -524,7 +524,7 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                     >
                         <MantineIcon icon={IconGitPullRequest} size={14} />
                     </ThemeIcon>
-                    <Text size="xs" c="ldGray.7">
+                    <Text size="xs" c="dimmed">
                         Working on the change — this can take a few minutes.
                     </Text>
                 </Group>
@@ -550,7 +550,7 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                     >
                         <MantineIcon icon={IconGitPullRequest} size={14} />
                     </ThemeIcon>
-                    <Text size="xs" c="ldGray.7">
+                    <Text size="xs" c="dimmed">
                         No file changes were needed — no pull request was
                         opened.
                     </Text>
@@ -608,7 +608,7 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                                     </Text>
                                     {shortCommitSha && (
                                         <>
-                                            <Text size="xs" c="ldGray.4">
+                                            <Text size="xs" c="dimmed">
                                                 ·
                                             </Text>
                                             <Text

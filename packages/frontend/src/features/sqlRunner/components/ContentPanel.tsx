@@ -1162,7 +1162,7 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
                                                 size={12}
                                                 color="ldGray.9"
                                             />
-                                            <Text fz="xs" c="ldGray.7">
+                                            <Text fz="xs" c="dimmed">
                                                 Running · <ElapsedTime />
                                             </Text>
                                         </Group>
@@ -1255,7 +1255,7 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
                                                                     <Text
                                                                         fz="xs"
                                                                         fw={400}
-                                                                        c="ldGray.7"
+                                                                        c="dimmed"
                                                                         ta="center"
                                                                     >
                                                                         This

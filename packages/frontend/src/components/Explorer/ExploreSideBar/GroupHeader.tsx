@@ -59,7 +59,7 @@ const GroupHeader: FC<GroupHeaderProps> = ({
                         offset={0}
                     >
                         <Group>
-                            <Text fz="sm" fw={500} c="ldGray.7">
+                            <Text fz="sm" fw={500} c="dimmed">
                                 {label}
                             </Text>
                         </Group>

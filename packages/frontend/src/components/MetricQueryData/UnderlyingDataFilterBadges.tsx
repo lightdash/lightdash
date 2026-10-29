@@ -60,7 +60,7 @@ const UnderlyingDataFilterBadges: FC<Props> = ({ filterRules, fields }) => {
                 </Badge>
             </HoverCard.Target>
             <HoverCard.Dropdown maw={500}>
-                <Text c="ldGray.7" fw={500} fz="xs" mb="xs">
+                <Text c="dimmed" fw={500} fz="xs" mb="xs">
                     Underlying data is filtered to:
                 </Text>
                 <Stack gap="xs" align="flex-start">

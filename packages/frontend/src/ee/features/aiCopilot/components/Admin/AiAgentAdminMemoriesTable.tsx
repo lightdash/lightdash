@@ -221,7 +221,7 @@ const AiAgentAdminMemoriesTable = () => {
                     const { agent } = row.original;
                     if (!agent) {
                         return (
-                            <Text c="ldGray.5" fz="xs" fs="italic">
+                            <Text c="dimmed" fz="xs" fs="italic">
                                 Deleted agent
                             </Text>
                         );
@@ -249,7 +249,7 @@ const AiAgentAdminMemoriesTable = () => {
                     const { user } = row.original;
                     if (!user) {
                         return (
-                            <Text c="ldGray.5" fz="xs" fs="italic">
+                            <Text c="dimmed" fz="xs" fs="italic">
                                 Unknown
                             </Text>
                         );
@@ -297,7 +297,7 @@ const AiAgentAdminMemoriesTable = () => {
                     </Group>
                 ),
                 Cell: ({ row }) => (
-                    <Text fz="sm" c="ldGray.7">
+                    <Text fz="sm" c="dimmed">
                         {formatDate(row.original.generatedAt)}
                     </Text>
                 ),
@@ -412,7 +412,6 @@ const AiAgentAdminMemoriesTable = () => {
 
                     <Box
                         bg="ldGray.1"
-                        c="ldGray.9"
                         py="sm"
                         px="xs"
                         className={styles.resultCount}
@@ -434,9 +433,7 @@ const AiAgentAdminMemoriesTable = () => {
                 p={`${theme.spacing.sm} ${theme.spacing.xl} ${theme.spacing.md} ${theme.spacing.xl}`}
                 className={styles.bottomToolbar}
             >
-                <Text fz="xs" c="ldGray.8">
-                    {bottomToolbarLabel}
-                </Text>
+                <Text fz="xs">{bottomToolbarLabel}</Text>
             </Box>
         ),
         state: {

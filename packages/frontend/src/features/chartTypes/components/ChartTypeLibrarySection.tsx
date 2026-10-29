@@ -116,7 +116,7 @@ const ChartTypeLibrarySection: FC<Props> = ({
             {withHeader && (
                 <Group justify="space-between" align="center">
                     <Group gap={6} align="baseline">
-                        <Text size="md" fw={600} c="ldGray.8">
+                        <Text size="md" fw={600}>
                             Chart type library
                         </Text>
                         {registryQuery.data && (

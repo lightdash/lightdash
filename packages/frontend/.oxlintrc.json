@@ -7,6 +7,7 @@
   "ignorePatterns": ["**/*.css"],
   "plugins": ["typescript", "react", "jsx-a11y", "import", "vitest"],
   "jsPlugins": [
+    { "name": "lightdash-ui", "specifier": "./eslint-rules/eslint-plugin-lightdash-ui.cjs" },
     "eslint-plugin-jest-dom",
     "eslint-plugin-lodash",
     { "name": "vitest-js", "specifier": "@vitest/eslint-plugin" }
@@ -163,7 +164,10 @@
     "jest-dom/prefer-to-have-attribute": "error",
 
 /* ── lodash (via jsPlugin) ────────────────────────────────────── */
-    "lodash/import-scope": ["error", "method"]
+    "lodash/import-scope": ["error", "method"],
+
+    /* ── lightdash-ui (local plugin, see eslint-rules/) ───────────── */
+    "lightdash-ui/no-ldgray-text-color": "error"
   },
   "overrides": [
     {

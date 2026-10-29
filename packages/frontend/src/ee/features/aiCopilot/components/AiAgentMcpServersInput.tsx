@@ -693,7 +693,7 @@ const McpToolPermissionsSummary = ({
     return (
         <Text size="sm" c="dimmed">
             {enabledCount}/{data.length} enabled
-            <Text span c="ldGray.4">
+            <Text span c="dimmed">
                 {' '}
                 ·{' '}
             </Text>

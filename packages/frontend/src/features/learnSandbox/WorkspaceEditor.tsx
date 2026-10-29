@@ -486,7 +486,7 @@ const WorkspaceEditor: FC<WorkspaceEditorProps> = ({
                 <Text
                     className={styles.editorPath}
                     fz="sm"
-                    c="ldGray.6"
+                    c="dimmed"
                     title={path}
                 >
                     {path}

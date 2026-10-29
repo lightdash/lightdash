@@ -90,7 +90,7 @@ export const EvalRuns: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
                                 color={evalStatus.color}
                                 variant="dot"
                                 size="sm"
-                                c="ldGray.7"
+                                c="dimmed"
                                 style={{ border: 'none' }}
                             >
                                 {evalStatus.label}

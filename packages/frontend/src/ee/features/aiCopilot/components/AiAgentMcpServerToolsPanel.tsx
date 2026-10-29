@@ -434,7 +434,6 @@ export const AiAgentMcpServerToolsPanel: FC<Props> = ({
                                                         maxWidth="100%"
                                                         fz="sm"
                                                         fw={600}
-                                                        c="ldGray.9"
                                                     >
                                                         {tool.title ||
                                                             tool.toolName}

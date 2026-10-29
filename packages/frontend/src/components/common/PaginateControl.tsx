@@ -22,7 +22,7 @@ const PaginateControl: FC<PaginateControlProps> = ({
 }) => {
     return (
         <Group {...rest}>
-            <Text c="ldGray.7" size="xs">
+            <Text c="dimmed" size="xs">
                 Page{' '}
                 <Text span fw={600}>
                     {currentPage}

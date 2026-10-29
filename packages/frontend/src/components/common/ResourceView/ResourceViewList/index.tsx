@@ -289,7 +289,7 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
 
                     return space ? (
                         <Anchor
-                            c="ldGray.7"
+                            c="dimmed"
                             component={Link}
                             to={`/projects/${projectUrlIdentifier}/spaces/${space.uuid}`}
                             onClick={(e: React.MouseEvent<HTMLAnchorElement>) =>

@@ -160,7 +160,6 @@ export const AiAgentAdminTopToolbar: FC<AiAgentAdminTopToolbarProps> = memo(
                     <Group gap="xs">
                         <Box
                             bg="ldGray.1"
-                            c="ldGray.9"
                             style={{
                                 borderRadius: 6,
                                 padding: `${theme.spacing.sm} ${theme.spacing.xs}`,

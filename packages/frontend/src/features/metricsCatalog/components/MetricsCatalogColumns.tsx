@@ -304,7 +304,7 @@ export const MetricsCatalogColumns: ContentTableColumnDef<CatalogField>[] = [
                                 icon={IconPlus}
                                 size={12}
                             />
-                            <Text span fz="sm" c="ldGray.4">
+                            <Text span fz="sm" c="dimmed">
                                 {getUiString('metrics.addCategory')}
                             </Text>
                         </Group>

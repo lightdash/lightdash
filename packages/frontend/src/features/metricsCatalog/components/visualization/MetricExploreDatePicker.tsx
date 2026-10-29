@@ -332,7 +332,7 @@ export const MetricExploreDatePicker: FC<Props> = ({
                                             },
                                         })}
                                     />
-                                    <Text size="xs" c="ldGray.5">
+                                    <Text size="xs" c="dimmed">
                                         -
                                     </Text>
                                     <TextInput

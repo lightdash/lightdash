@@ -78,7 +78,7 @@ const ParameterItem: FC<SchedulerParameterItemProps> = ({
                     )}
 
                     {isEditing || hasChanged ? null : (
-                        <Text fw={400} span c="ldGray.7" fz="xs">
+                        <Text fw={400} span c="dimmed" fz="xs">
                             = {displayValue}
                         </Text>
                     )}

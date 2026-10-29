@@ -204,7 +204,7 @@ export const ViewerControls: FC<Props> = ({
                         }}
                     />
                 </Group>
-                <Text size="xs" c="ldGray.7">
+                <Text size="xs" c="dimmed">
                     Viewers see the value but can&apos;t change it.
                 </Text>
                 {hasTabs && isLockedSomewhere && (

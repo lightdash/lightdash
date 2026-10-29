@@ -621,7 +621,7 @@ export const AiAgentFormSetup = ({
                                 <Box>
                                     <Title
                                         order={6}
-                                        c="ldGray.7"
+                                        c="dimmed"
                                         size="sm"
                                         fw={500}
                                     >
@@ -1328,7 +1328,7 @@ export const AiAgentFormSetup = ({
                                 <Box>
                                     <Title
                                         order={6}
-                                        c="ldGray.7"
+                                        c="dimmed"
                                         size="sm"
                                         fw={500}
                                     >

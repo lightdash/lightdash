@@ -249,7 +249,7 @@ const PreviewRow: FC<{
                         </Highlight>
                     </Tooltip>
                     {upstreamName && (
-                        <Text fz="xs" c="ldGray.5" truncate maw={120}>
+                        <Text fz="xs" c="dimmed" truncate maw={120}>
                             {upstreamName}
                         </Text>
                     )}
@@ -648,10 +648,10 @@ const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ portalTarget }) => {
                                         size="sm"
                                         color="dimmed"
                                     />
-                                    <Text fz="xs" fw={500} c="ldGray.5">
+                                    <Text fz="xs" fw={500} c="dimmed">
                                         Projects
                                     </Text>
-                                    <Text fz="xs" c="ldGray.4">
+                                    <Text fz="xs" c="dimmed">
                                         /
                                     </Text>
                                     <Text fz="xs" fw={600} c="ldDark.9">
@@ -772,7 +772,7 @@ const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ portalTarget }) => {
                                                     <Text
                                                         fz="xs"
                                                         fw={600}
-                                                        c="ldGray.5"
+                                                        c="dimmed"
                                                         tt="uppercase"
                                                     >
                                                         Matching previews ·{' '}

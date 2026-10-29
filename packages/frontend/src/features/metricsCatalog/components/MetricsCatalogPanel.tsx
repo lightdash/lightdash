@@ -101,7 +101,7 @@ const LearnMorePopover: FC<{ buttonStyles?: ButtonProps['style'] }> = ({
             </Popover.Target>
             <Popover.Dropdown
                 bg="ldDark.9"
-                c="ldGray.0"
+                c="var(--mantine-color-body)"
                 p={16}
                 className={classes.spotlightDropdown}
             >
@@ -119,7 +119,7 @@ const LearnMorePopover: FC<{ buttonStyles?: ButtonProps['style'] }> = ({
                         </ActionIcon>
                     </Group>
                     <LearnMoreContent width="100%" height="100%" />
-                    <Text fz="sm" c="ldGray.3">
+                    <Text fz="sm" c="dimmed">
                         Explore and curate your key Metrics in the{' '}
                         <Text span fw={600} inherit>
                             Catalog
@@ -134,7 +134,7 @@ const LearnMorePopover: FC<{ buttonStyles?: ButtonProps['style'] }> = ({
                         <Button
                             variant="outline"
                             bg="ldDark.4"
-                            c="ldGray.0"
+                            c="var(--mantine-color-body)"
                             hidden={true}
                             disabled={true}
                             style={{
@@ -478,7 +478,7 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
                 style={{ display: isEmbed ? 'none' : undefined }}
             >
                 <Box>
-                    <Text c="ldGray.8" fw={600} size="xl">
+                    <Text fw={600} size="xl">
                         Metrics Catalog
                     </Text>
                     <Text c="dimmed" size="sm" fw={400}>

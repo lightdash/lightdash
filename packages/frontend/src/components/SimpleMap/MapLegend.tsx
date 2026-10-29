@@ -51,7 +51,7 @@ const MapLegend: FC<MapLegendProps> = ({
                 {color && (
                     <Box>
                         {color.label && (
-                            <Text fz="xs" fw={500} c="ldGray.7" mb={4}>
+                            <Text fz="xs" fw={500} c="dimmed" mb={4}>
                                 {color.label}
                             </Text>
                         )}
@@ -76,7 +76,7 @@ const MapLegend: FC<MapLegendProps> = ({
                 {categoricalColor && (
                     <Box>
                         {categoricalColor.label && (
-                            <Text fz="xs" fw={500} c="ldGray.7" mb={4}>
+                            <Text fz="xs" fw={500} c="dimmed" mb={4}>
                                 {categoricalColor.label}
                             </Text>
                         )}
@@ -112,7 +112,7 @@ const MapLegend: FC<MapLegendProps> = ({
                 {bubbleSize && (
                     <Box>
                         {bubbleSize.label && (
-                            <Text fz="xs" fw={500} c="ldGray.7" mb={4}>
+                            <Text fz="xs" fw={500} c="dimmed" mb={4}>
                                 {bubbleSize.label}
                             </Text>
                         )}

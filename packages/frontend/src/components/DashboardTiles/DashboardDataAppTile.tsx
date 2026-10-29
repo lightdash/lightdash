@@ -94,7 +94,7 @@ const DashboardFiltersIndicator: FC<{
                 style={{ overflowY: 'auto' }}
             >
                 <Stack gap="xs" align="flex-start">
-                    <Text c="ldGray.7" fw={500} fz="xs">
+                    <Text c="dimmed" fw={500} fz="xs">
                         Dashboard filter{filterRules.length === 1 ? '' : 's'}{' '}
                         available to this Data App:
                     </Text>

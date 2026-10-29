@@ -455,7 +455,7 @@ export const ServiceAccountsTable: FC<Props> = ({
                             position="top"
                             label={formatTimestamp(row.original.createdAt)}
                         >
-                            <Text fz="sm" c="ldGray.7">
+                            <Text fz="sm" c="dimmed">
                                 {formatDate(row.original.createdAt)}
                             </Text>
                         </Tooltip>
@@ -488,7 +488,7 @@ export const ServiceAccountsTable: FC<Props> = ({
                         const { expiresAt, rotatedAt } = row.original;
                         return (
                             <Group align="center" gap="xs" wrap="nowrap">
-                                <Text fz="sm" c="ldGray.7">
+                                <Text fz="sm" c="dimmed">
                                     {expiresAt
                                         ? formatDate(expiresAt)
                                         : 'No expiration'}
@@ -539,7 +539,7 @@ export const ServiceAccountsTable: FC<Props> = ({
                         const lastUsedAt = row.original.lastUsedAt;
                         if (!lastUsedAt) {
                             return (
-                                <Text fz="sm" c="ldGray.5">
+                                <Text fz="sm" c="dimmed">
                                     Never
                                 </Text>
                             );
@@ -549,7 +549,7 @@ export const ServiceAccountsTable: FC<Props> = ({
                                 position="top"
                                 label={formatTimestamp(lastUsedAt)}
                             >
-                                <Text fz="sm" c="ldGray.7">
+                                <Text fz="sm" c="dimmed">
                                     {formatDate(lastUsedAt)}
                                 </Text>
                             </Tooltip>

@@ -173,7 +173,7 @@ const RecentItem: FC<{
                 aria-label={typeDisplay.label}
             />
             <TableName table={tableRef.table} search="" />
-            <Text fz="xs" c="ldGray.5" ml="auto" flex="0 0 auto">
+            <Text fz="xs" c="dimmed" ml="auto" flex="0 0 auto">
                 {tableRef.schema}
             </Text>
         </UnstyledButton>
@@ -265,7 +265,7 @@ const SchemaItem: FC<{
                         </Text>
                     </Box>
                 </Tooltip>
-                <Text fz="xs" c="ldGray.5" ml="auto" flex="0 0 auto">
+                <Text fz="xs" c="dimmed" ml="auto" flex="0 0 auto">
                     {count}
                 </Text>
             </UnstyledButton>
@@ -293,7 +293,7 @@ const GroupItem: FC<{
         <Text fz="sm" fw={500} truncate>
             {label}
         </Text>
-        <Text fz="xs" c="ldGray.5" ml="auto" flex="0 0 auto">
+        <Text fz="xs" c="dimmed" ml="auto" flex="0 0 auto">
             {count}
         </Text>
     </UnstyledButton>

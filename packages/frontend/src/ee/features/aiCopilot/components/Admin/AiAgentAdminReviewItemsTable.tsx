@@ -246,7 +246,7 @@ const SuggestedStep = ({ children }: { children: string }) => (
                 size="xs"
                 className={styles.suggestedStepArrow}
             />
-            <Text fz="xs" fw={600} c="ldGray.8" lineClamp={1}>
+            <Text fz="xs" fw={600} lineClamp={1}>
                 {children}
             </Text>
         </Group>
@@ -343,7 +343,7 @@ const ReviewConceptHelp = () => (
                             <Text fz="xs" c="dimmed">
                                 {rootCauseHelp[cause].desc}
                                 {rootCauseHelp[cause].opensPr && (
-                                    <Text span c="ldGray.7" fw={600}>
+                                    <Text span c="dimmed" fw={600}>
                                         {' '}
                                         · fixable here
                                     </Text>
@@ -1187,7 +1187,7 @@ const AiAgentAdminReviewItemsTable = ({
                                 wrap="nowrap"
                                 justify="space-between"
                             >
-                                <Text fz="xs" c="ldGray.7" fw={500}>
+                                <Text fz="xs" c="dimmed" fw={500}>
                                     {formatReviewDate(signal.createdAt)}
                                 </Text>
                                 <Tooltip label="Open AI thread preview">

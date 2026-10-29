@@ -186,7 +186,7 @@ export const MetricExploreFilter: FC<Props> = ({
         <Stack gap="xs">
             <Group justify="space-between">
                 <Group gap="xs" align="normal">
-                    <Text fw={500} c="ldGray.7">
+                    <Text fw={500} c="dimmed">
                         Filter
                     </Text>
                 </Group>

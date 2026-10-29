@@ -316,7 +316,7 @@ const LogsTable: FC<LogsTableProps> = ({
                                     <Tooltip
                                         label={
                                             <Stack gap="two" fz="xs">
-                                                <Text c="ldGray.5" fz="xs">
+                                                <Text c="dimmed" fz="xs">
                                                     Scheduler:{' '}
                                                     <Text
                                                         c="white"
@@ -326,7 +326,7 @@ const LogsTable: FC<LogsTableProps> = ({
                                                         {run.schedulerName}
                                                     </Text>
                                                 </Text>
-                                                <Text c="ldGray.5" fz="xs">
+                                                <Text c="dimmed" fz="xs">
                                                     Created by:{' '}
                                                     <Text
                                                         c="white"
@@ -375,7 +375,7 @@ const LogsTable: FC<LogsTableProps> = ({
                                         SchedulerJobStatus.COMPLETED,
                                         theme,
                                     )}
-                                    <Text fz="xs" c="ldGray.7">
+                                    <Text fz="xs" c="dimmed">
                                         Completed successfully
                                     </Text>
                                 </>
@@ -385,7 +385,7 @@ const LogsTable: FC<LogsTableProps> = ({
                                         SchedulerJobStatus.ERROR,
                                         theme,
                                     )}
-                                    <Text fz="xs" c="ldGray.7">
+                                    <Text fz="xs" c="dimmed">
                                         Failed
                                     </Text>
                                 </>
@@ -399,7 +399,7 @@ const LogsTable: FC<LogsTableProps> = ({
                                             color: theme.colors.orange[6],
                                         }}
                                     />
-                                    <Text fz="xs" c="ldGray.7">
+                                    <Text fz="xs" c="dimmed">
                                         Partial failure
                                     </Text>
                                 </>
@@ -409,7 +409,7 @@ const LogsTable: FC<LogsTableProps> = ({
                                         SchedulerJobStatus.STARTED,
                                         theme,
                                     )}
-                                    <Text fz="xs" c="ldGray.7">
+                                    <Text fz="xs" c="dimmed">
                                         Running
                                     </Text>
                                 </>
@@ -419,7 +419,7 @@ const LogsTable: FC<LogsTableProps> = ({
                                         SchedulerJobStatus.SCHEDULED,
                                         theme,
                                     )}
-                                    <Text fz="xs" c="ldGray.7">
+                                    <Text fz="xs" c="dimmed">
                                         Scheduled
                                     </Text>
                                 </>

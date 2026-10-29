@@ -393,7 +393,7 @@ const AiAgentAdminThreadsTable = ({
                                 {label}
                             </Anchor>
                         ) : (
-                            <Text fz="xs" c="ldGray.7" fw={500}>
+                            <Text fz="xs" c="dimmed" fw={500}>
                                 {label}
                             </Text>
                         )}
@@ -505,7 +505,7 @@ const AiAgentAdminThreadsTable = ({
                     !latestReviewItem
                 ) {
                     return (
-                        <Text fz="xs" c="ldGray.5" fw={500}>
+                        <Text fz="xs" c="dimmed" fw={500}>
                             Clean
                         </Text>
                     );
@@ -577,7 +577,7 @@ const AiAgentAdminThreadsTable = ({
             Cell: ({ row }) => {
                 const thread = row.original;
                 return (
-                    <Text fz="sm" c="ldGray.7">
+                    <Text fz="sm" c="dimmed">
                         {new Date(thread.createdAt).toLocaleDateString()}
                     </Text>
                 );
@@ -668,12 +668,10 @@ const AiAgentAdminThreadsTable = ({
                 }}
             >
                 {isFetching ? (
-                    <Text c="ldGray.8" fz="xs">
-                        Loading more...
-                    </Text>
+                    <Text fz="xs">Loading more...</Text>
                 ) : (
                     <Group gap="two">
-                        <Text fz="xs" c="ldGray.8">
+                        <Text fz="xs">
                             {hasNextPage
                                 ? 'Scroll for more results'
                                 : 'All results loaded'}

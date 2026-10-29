@@ -223,7 +223,7 @@ const ExpandedNode: React.FC<NodeProps<ExpandedNodeData>> = ({
             />
             <Stack key={data.label} gap="xs">
                 <Group justify="space-between">
-                    <Title fz="sm" fw={500} c="ldGray.7">
+                    <Title fz="sm" fw={500} c="dimmed">
                         {title}
                     </Title>
                     <Group gap="xs" wrap="nowrap">
@@ -270,7 +270,7 @@ const ExpandedNode: React.FC<NodeProps<ExpandedNodeData>> = ({
                 <Stack gap="xxs">
                     <Skeleton visible={totalQuery.isFetching}>
                         <Group justify="space-between">
-                            <Text fz={24} fw={500} c="ldGray.8">
+                            <Text fz={24} fw={500}>
                                 {formattedValue}
                             </Text>
                             {change && (

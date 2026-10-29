@@ -41,7 +41,7 @@ const formatCost = (costUsd: number) =>
  * tracking, and those that never called the model, are unknown — not free.
  */
 const NotRecorded: FC = () => (
-    <Text fz="sm" c="ldGray.5">
+    <Text fz="sm" c="dimmed">
         -
     </Text>
 );

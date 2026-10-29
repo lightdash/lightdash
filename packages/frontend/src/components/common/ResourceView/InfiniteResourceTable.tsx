@@ -299,7 +299,7 @@ const InfiniteResourceTable = ({
                 if (space) {
                     return (
                         <Anchor
-                            c="ldGray.7"
+                            c="dimmed"
                             component={Link}
                             to={`/projects/${projectUrlIdentifier}/spaces/${space.uuid}`}
                             onClick={(e: React.MouseEvent<HTMLAnchorElement>) =>
@@ -336,7 +336,7 @@ const InfiniteResourceTable = ({
                     : undefined;
                 if (inaccessibleSpaceName) {
                     return (
-                        <Text fz="xs" fw={500} c="ldGray.7">
+                        <Text fz="xs" fw={500} c="dimmed">
                             {inaccessibleSpaceName}
                         </Text>
                     );
@@ -353,7 +353,7 @@ const InfiniteResourceTable = ({
             Cell: ({ row }) => {
                 if (isResourceViewSpaceItem(row.original))
                     return (
-                        <Text fz="xs" fw={500} c="ldGray.7">
+                        <Text fz="xs" fw={500} c="dimmed">
                             -
                         </Text>
                     );
@@ -385,7 +385,7 @@ const InfiniteResourceTable = ({
                 const ownerName =
                     `${firstName} ${lastName}`.trim() || email || '-';
                 return (
-                    <Text fz="xs" fw={500} c="ldGray.7">
+                    <Text fz="xs" fw={500} c="dimmed">
                         {ownerName}
                     </Text>
                 );
@@ -403,7 +403,7 @@ const InfiniteResourceTable = ({
                     isResourceViewDocumentItem(row.original)
                 )
                     return (
-                        <Text fz="xs" fw={500} c="ldGray.7">
+                        <Text fz="xs" fw={500} c="dimmed">
                             -
                         </Text>
                     );
@@ -414,7 +414,7 @@ const InfiniteResourceTable = ({
                         projectUuid={filters.projectUuid}
                         views={row.original.data.views}
                     >
-                        <Text fz="xs" fw={500} c="ldGray.7">
+                        <Text fz="xs" fw={500} c="dimmed">
                             {row.original.data.views}
                         </Text>
                     </ViewsCountPopover>
@@ -951,7 +951,6 @@ const InfiniteResourceTable = ({
                 p={`${theme.spacing.sm} ${theme.spacing.xl} ${theme.spacing.md} ${theme.spacing.xl}`}
                 fz="xs"
                 fw={500}
-                c="ldGray.8"
                 style={{
                     borderTop: `1px solid ${theme.colors.ldGray[3]}`,
                 }}

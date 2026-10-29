@@ -270,7 +270,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                                         fz="xs"
                                         label={
                                             <Stack gap="one" fz="xs">
-                                                <Text c="ldGray.5" fz="xs">
+                                                <Text c="dimmed" fz="xs">
                                                     Schedule type:{' '}
                                                     <Text
                                                         c="white"
@@ -281,7 +281,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                                                     </Text>
                                                 </Text>
                                                 {!isUserScope && (
-                                                    <Text c="ldGray.5" fz="xs">
+                                                    <Text c="dimmed" fz="xs">
                                                         Created by:{' '}
                                                         <Text
                                                             c="white"
@@ -444,13 +444,13 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                                         ).toLocaleString()}
                                     </Text>
                                     {latestRun.logCounts && (
-                                        <Text fz="xs" c="ldGray.5">
+                                        <Text fz="xs" c="dimmed">
                                             {latestRun.logCounts.completed}{' '}
                                             completed,{' '}
                                             {latestRun.logCounts.error} failed
                                         </Text>
                                     )}
-                                    <Text fz="xs" c="ldGray.4" fs="italic">
+                                    <Text fz="xs" c="dimmed" fs="italic">
                                         Click to view run history
                                     </Text>
                                 </Stack>
@@ -495,7 +495,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                                     ).toLocaleString()}
                                 </Text>
                                 {latestRun.logCounts && (
-                                    <Text fz="xs" c="ldGray.5">
+                                    <Text fz="xs" c="dimmed">
                                         {latestRun.logCounts.completed}{' '}
                                         completed, {latestRun.logCounts.error}{' '}
                                         failed

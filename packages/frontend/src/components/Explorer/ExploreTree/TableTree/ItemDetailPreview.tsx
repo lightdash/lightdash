@@ -92,7 +92,7 @@ const SourceFieldRow: FC<{ label: string; field: Dimension | Metric }> = ({
             </Text>
             <Group gap="xs" wrap="nowrap">
                 <FieldIcon item={field} size="sm" />
-                <Text fz="xs" c="ldGray.7">
+                <Text fz="xs" c="dimmed">
                     {field.tableLabel}
                 </Text>
                 <Text fz="xs" fw={500} c="ldDark.7">

@@ -56,7 +56,6 @@ const SuboptimalState: FC<Props> = ({
             )}
             {title && (
                 <Text
-                    c="ldGray.8"
                     size="md"
                     fw={600}
                     style={{ whiteSpace: 'pre-wrap' }}

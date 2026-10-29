@@ -190,7 +190,7 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
                 enableSorting: false,
                 size: 150,
                 Cell: ({ row }) => (
-                    <Text fz="sm" c="ldGray.7">
+                    <Text fz="sm" c="dimmed">
                         {row.original.projectName}
                     </Text>
                 ),
@@ -255,7 +255,7 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
                 enableSorting: false,
                 size: 120,
                 Cell: ({ row }) => (
-                    <Text fz="sm" c="ldGray.7">
+                    <Text fz="sm" c="dimmed">
                         {new Date(row.original.createdAt).toLocaleDateString()}
                     </Text>
                 ),
