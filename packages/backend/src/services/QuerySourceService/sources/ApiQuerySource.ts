@@ -37,7 +37,7 @@ type ApiQuerySourceArguments = {
 export class ApiQuerySource implements QuerySourceClient {
     readonly definition: QuerySourceDefinition = {
         sourceType: QuerySourceType.API,
-        label: 'Live API',
+        label: 'Live data source',
         description:
             'A query sent live to an external API when the pipeline runs, through one of the project\'s API connections named by connectionUuid. A PostHog connection takes {"kind": "query", "query": "<HogQL>"}: HogQL is ClickHouse SQL over PostHog tables such as events, persons and sessions. Name every column with AS using letters, digits and underscores. Results are capped at limit rows and PostHog stops queries after 10 seconds. Api queries read no other results; join them with a referencing duckdb query.',
     };

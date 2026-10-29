@@ -245,7 +245,7 @@ const LiveDataSourcesPanel: FC<Props> = ({ projectUuid }) => {
                     <SettingsEmptyState
                         icon={IconBroadcast}
                         title="No live data sources"
-                        description="Connect PostHog or a Google source to let AI agents query it alongside your warehouse."
+                        description="Connect PostHog, Google Analytics or Search Console so AI agents can query them alongside your warehouse."
                     />
                 ) : (
                     <Paper className={tableStyles.paper}>

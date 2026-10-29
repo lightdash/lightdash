@@ -675,7 +675,7 @@ type QueryExecutionSource =
     | 'pre_aggregate_warehouse'
     | 'external_source_duckdb'
     | 'composer_duckdb'
-    | 'api_source';
+    | 'live_source';
 
 type QueryReadyEvent = BaseTrack & {
     event: 'query.ready';
@@ -750,7 +750,7 @@ export type QueryCompletedEvent = BaseTrack & {
         warehousePhaseTimings: WarehousePhaseTimings | null;
         totalRowCount: number | null;
         columnsCount: number | null;
-        // Set only when executionSource is 'api_source'.
+        // Set only when executionSource is 'live_source'.
         apiConnector?: ApiConnectorType;
         apiQueryOutcome?: ApiQueryOutcome;
         truncated?: boolean;

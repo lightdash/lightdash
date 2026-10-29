@@ -11621,7 +11621,7 @@ export class AsyncQueryService extends ProjectService {
             featureFlagId: FeatureFlags.ApiQuerySources,
         });
         if (!enabled) {
-            throw new ForbiddenError('API query sources are not enabled');
+            throw new ForbiddenError('Live data sources are not enabled');
         }
 
         const { organizationUuid } =
@@ -12149,7 +12149,7 @@ export class AsyncQueryService extends ProjectService {
                         chartId: null,
                         dashboardId: null,
                         cacheHit,
-                        executionSource: 'api_source',
+                        executionSource: 'live_source',
                         ...this.getQueryConnectionAnalyticsProperties({
                             warehouseConnectionUuid: null,
                             warehouseType: null,
