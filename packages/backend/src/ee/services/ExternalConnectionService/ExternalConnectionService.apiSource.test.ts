@@ -141,7 +141,7 @@ describe('ExternalConnectionService api sources', () => {
         expect(init.timeoutMs).toBe(45_000);
     });
 
-    it('refuses a connection that is not set up for live queries', async () => {
+    it('refuses a connection that is not a live data source', async () => {
         const { service } = buildService({
             connections: [posthogConnection({ apiSource: null })],
         });

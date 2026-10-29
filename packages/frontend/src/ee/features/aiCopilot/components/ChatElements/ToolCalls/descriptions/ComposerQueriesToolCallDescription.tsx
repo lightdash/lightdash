@@ -10,6 +10,7 @@ import {
     Group,
     Stack,
     Text,
+    Tooltip,
     UnstyledButton,
 } from '@mantine/core';
 import {
@@ -110,8 +111,8 @@ const getNodePresentation = (
         case QuerySourceType.API:
             return {
                 icon: IconApi,
-                badge: 'Live API',
-                detail: 'Project connection',
+                badge: 'Live data source',
+                detail: '',
             } as const;
     }
 };
@@ -229,10 +230,31 @@ const ComposerQueryNode: FC<{
                         <NodeStatusIndicator status={nodeStatus.status} />
                     ) : null}
                     {node.sourceType === QuerySourceType.API ? (
-                        <LiveSourceIcon
-                            connector={liveSource?.connector ?? null}
-                            size={13}
-                        />
+                        <Tooltip
+                            label={
+                                liveSource
+                                    ? getLiveSource(liveSource.connector).label
+                                    : null
+                            }
+                            disabled={!liveSource}
+                        >
+                            <Box
+                                component="span"
+                                display="inline-flex"
+                                role="img"
+                                aria-label={
+                                    liveSource
+                                        ? getLiveSource(liveSource.connector)
+                                              .label
+                                        : presentation.badge
+                                }
+                            >
+                                <LiveSourceIcon
+                                    connector={liveSource?.connector ?? null}
+                                    size={13}
+                                />
+                            </Box>
+                        </Tooltip>
                     ) : (
                         <MantineIcon
                             icon={presentation.icon}
@@ -245,11 +267,7 @@ const ComposerQueryNode: FC<{
                     <Text size="xs" className={rowStyles.label} truncate>
                         {node.title ?? node.nodeId}
                     </Text>
-                    <ToolCallChip>
-                        {liveSource
-                            ? getLiveSource(liveSource.connector).label
-                            : presentation.badge}
-                    </ToolCallChip>
+                    <ToolCallChip>{presentation.badge}</ToolCallChip>
                     <Text
                         size="xs"
                         c="dimmed"
