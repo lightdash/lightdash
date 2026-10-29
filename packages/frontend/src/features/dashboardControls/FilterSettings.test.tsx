@@ -60,14 +60,17 @@ vi.mock('./FilterValueSettings', () => ({
     FilterValueSettings: ({
         filterType,
         field,
+        filterRule,
     }: {
         filterType: FilterType;
         field: DashboardFilterableField | null;
+        filterRule: DashboardFilterRule;
     }) => (
         <div data-testid="value-settings">
             {`${filterType} for ${field?.label ?? 'no field'}`}
             <input aria-label="Operator" />
-            <input aria-label="Value" />
+            {/* Stands in for a value input that cannot take focus */}
+            <input aria-label="Value" disabled={!!filterRule.disabled} />
         </div>
     ),
 }));
@@ -308,6 +311,17 @@ describe('FilterSettings', () => {
             amount,
         );
         expect(screen.getByLabelText('Value')).toHaveFocus();
+    });
+
+    it('falls back to the first enabled input when the value input cannot take focus', () => {
+        renderSettings(
+            {
+                ...rule({ fieldId: 'orders_amount', tableName: 'orders' }),
+                disabled: true,
+            },
+            amount,
+        );
+        expect(screen.getByLabelText('Operator')).toHaveFocus();
     });
 
     it('switches to Settings in place, and its back arrow returns to the value', () => {

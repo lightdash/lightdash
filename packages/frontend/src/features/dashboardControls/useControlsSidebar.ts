@@ -42,11 +42,11 @@ export type ControlsSidebarContextValue = {
      */
     isSidebarOpen: boolean;
     /**
-     * A pill or a click outside met unapplied changes: the editor asks to
+     * A pill, Add or a click outside met unapplied changes: the editor asks to
      * Apply or Discard first.
      */
     isAsking: boolean;
-    /** Applies (true) or discards (false) the edit, then opens the pill clicked, if one was. */
+    /** Applies (true) or discards (false) the edit, then opens the pill clicked or the new filter, if any. */
     resolvePending: (isApply: boolean) => void;
     /**
      * A pill's click. Opens the filter; on the edited one it closes a clean
@@ -54,7 +54,7 @@ export type ControlsSidebarContextValue = {
      * and asks (`isAsking`) otherwise.
      */
     open: (filterId: string) => void;
-    /** A new filter (a placeholder until its first field), in a section when one is given. */
+    /** A new filter (a placeholder until its first field), in a section when one is given; asks first on unapplied changes. */
     openNew: (sectionId?: string) => void;
     /** Turns the placeholder into a filter control on the given field. */
     addFirstField: (field: DashboardFilterableField) => void;
@@ -65,14 +65,6 @@ export type ControlsSidebarContextValue = {
     addFirstSqlColumn: (
         column: ResultColumn,
         availableTileColumns: Record<string, ResultColumn[]>,
-    ) => void;
-    /**
-     * Like `addFirstField`, started from a tile: the filter is on that tile
-     * only, and every other tile it would reach is left out.
-     */
-    addFirstFieldOnTile: (
-        field: DashboardFilterableField,
-        tileUuid: string,
     ) => void;
     /**
      * Takes the edited control's fields away and leaves it open as a

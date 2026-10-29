@@ -52,21 +52,24 @@ edited: there is no separate list or open state.
 
 ## Opening and switching
 
-- `openNew()` opens a placeholder (no field, never on the bar, the popover
-  anchored on "Add filter"). It applies any current edit first.
+- `openNew()` opens a placeholder (no field, no pill, the popover anchored
+  on "Add filter"). A clean edit is applied first; one with unapplied changes
+  asks as a pill switch does (`pending = { kind: 'new', sectionId }`).
   `addFirstField` / `addFirstSqlColumn` turn it into a filter on every tile
-  that offers the field; `addFirstFieldOnTile` puts it on that tile only
-  (`setTileField(rule, tile, null)` for the rest). Until Apply it is only in
-  the draft, so it has no pill.
+  that offers the field. Until Apply it is only in the draft; `FilterPills`
+  draws it last in its group as the open, dashed draft pill, from the rule
+  with `disabled: true` (the bar shows the dashboard as it is), and the
+  popover moves to it.
 - `open(id)` on a pill: nothing edited, it opens. Same pill: closes if no
   unapplied changes, else focuses Apply. Another pill: closes and opens if
-  clean; with unapplied changes keeps `pending = { filterId }` (`getPending`
-  treats a vanished rule as none) and the popover asks at its top (`isAsking`).
+  clean; with unapplied changes keeps `pending = { kind: 'open', filterId }`
+  (`getPending` treats a vanished rule as none) and the popover asks at its
+  top (`isAsking`).
 - A press outside the editor (`useEditorDismiss`, `pointerdown`, never on a
   pill or while a list is open) closes a clean edit, else asks with
-  `pending = { filterId: null }`.
-- `resolvePending(isApply)` applies or discards, then opens the pill clicked,
-  if one was.
+  `pending = { kind: 'close' }`.
+- `resolvePending(isApply)` applies or discards, then opens the pill clicked
+  or the new filter asked for, if any.
 - "Unapplied changes" is `hasUnappliedChanges`, i.e. `isDirty`: a new filter
   without a field has none.
 

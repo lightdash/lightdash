@@ -1,6 +1,4 @@
 import {
-    DashboardTileTypes,
-    getItemId,
     getItemLabel,
     interpolateUiString,
     isDashboardDataAppTileType,
@@ -37,7 +35,6 @@ import { DropdownClass } from './DropdownClass';
 import {
     getCandidateOptions,
     getTileFieldCandidateIds,
-    getTileStarterFieldIds,
 } from './fieldCandidates';
 import { formatTileCount } from './fieldLabels';
 import { LazySelect } from './LazySelect';
@@ -94,9 +91,6 @@ type FollowUp = {
     kind: 'filter' | 'clear';
 };
 
-// The fields a new control can start from, by tile
-const NO_STARTERS_BY_TILE: Record<string, string[]> = {};
-
 const getFieldLabel = (fieldId: string, fieldsMap: FieldsMap): string =>
     fieldsMap[fieldId]?.label ?? fieldId;
 
@@ -144,8 +138,6 @@ const MissingFieldWarning: FC<{ fieldId: string }> = ({ fieldId }) => {
 type TileOverlayProps = {
     tileUuid: string;
     selectLabel: string;
-    // The control has no field yet: the card offers what it could start from
-    isPlaceholder: boolean;
     // False: the control cannot reach the tile, which only gets the veil
     isReachable: boolean;
     isSqlTile: boolean;
@@ -157,8 +149,7 @@ type TileOverlayProps = {
     options: string[];
     // Rows whose name another row has too: their options say the table
     sharedNameFieldIds: string[];
-    // Fields the tile offers that the filter could take, never on a SQL tile.
-    // For a placeholder, every field the tile offers
+    // Fields the tile offers that the filter could take, never on a SQL tile
     candidates: string[];
     fieldsMap: FieldsMap;
     highlight: TileHighlight | null;
@@ -177,7 +168,6 @@ const TileOverlay = memo<TileOverlayProps>(
     ({
         tileUuid,
         selectLabel,
-        isPlaceholder,
         isReachable,
         isSqlTile,
         isDataAppTile,
@@ -245,19 +235,13 @@ const TileOverlay = memo<TileOverlayProps>(
             ownLabels,
             fieldsMap,
         );
-        // A new control lists the tile's fields as one plain list
-        const firstGroup = isPlaceholder
-            ? {
-                  label: getUiString('filters.tileCard.fieldsOnTile'),
-                  items: fieldOptions,
-              }
-            : {
-                  label: getUiString('filters.tileCard.inThisFilter'),
-                  items: ownOptions,
-              };
+        const firstGroup = {
+            label: getUiString('filters.tileCard.inThisFilter'),
+            items: ownOptions,
+        };
         const secondGroup = {
             label: getUiString('filters.tileCard.otherFields'),
-            items: isPlaceholder ? [] : fieldOptions,
+            items: fieldOptions,
         };
 
         return (
@@ -422,9 +406,6 @@ const EditedTileOverlays: FC = () => {
         (c) => c.clearHighlightedField,
     );
     const isPlaceholder = useControlsSidebarSelector((c) => c.isPlaceholder);
-    const addFirstFieldOnTile = useControlsSidebarSelector(
-        (c) => c.addFirstFieldOnTile,
-    );
     const waitingFieldIds = useControlsSidebarSelector(
         (c) => c.waitingFieldIds,
     );
@@ -468,17 +449,8 @@ const EditedTileOverlays: FC = () => {
     const handleSelect = useCallbackRef(
         (tileUuid: string, value: string | null) => {
             const tile = tiles.find((candidate) => candidate.uuid === tileUuid);
-            if (editingRule === null || tile === undefined) return;
-            // A new control started from a tile is on that tile only
-            if (isPlaceholder) {
-                if (value === null) return;
-                const starter = fieldsByTile?.[tileUuid]?.find(
-                    (candidate) => getItemId(candidate) === value,
-                );
-                if (starter !== undefined)
-                    addFirstFieldOnTile(starter, tileUuid);
+            if (editingRule === null || isPlaceholder || tile === undefined)
                 return;
-            }
             const isSqlTile =
                 (sqlColumnsByTile[tileUuid] ?? NO_COLUMNS).length > 0;
             // Nothing is written while what the tile offers is not known
@@ -658,73 +630,8 @@ const EditedTileOverlays: FC = () => {
         );
     }, [takenKey, targetField, tiles, fieldsByTile, sqlColumnsByTile]);
 
-    // Keyed on the dashboard, not the placeholder: typing its label hands
-    // every tile the lists it already had
-    const startersByTile = useMemo(() => {
-        if (!isPlaceholder) return NO_STARTERS_BY_TILE;
-        return Object.fromEntries(
-            tiles
-                // A SQL chart tile has no explore fields to start from
-                .filter((tile) => tile.type !== DashboardTileTypes.SQL_CHART)
-                .map((tile): [string, string[]] => [
-                    tile.uuid,
-                    getTileStarterFieldIds(fieldsByTile?.[tile.uuid] ?? []),
-                ]),
-        );
-    }, [isPlaceholder, tiles, fieldsByTile]);
-
-    if (editingRule === null) return null;
-
-    if (isPlaceholder) {
-        return (
-            <>
-                {tiles.map((tile, index) => {
-                    const element = targets[tile.uuid];
-                    if (!element) return null;
-                    const starters = startersByTile[tile.uuid] ?? NO_FIELD_IDS;
-                    const isReachable = starters.length > 0;
-                    return createPortal(
-                        <TileOverlay
-                            tileUuid={tile.uuid}
-                            // Not the label: typing it must not reach the tiles
-                            selectLabel={interpolateUiString(
-                                getUiString(
-                                    'filters.tileCard.newFilterSelectName',
-                                ),
-                                {
-                                    tile: getTileTitle(
-                                        tile,
-                                        getUiString(
-                                            'filters.tileCard.thisTile',
-                                        ),
-                                    ),
-                                },
-                            )}
-                            isPlaceholder
-                            isReachable={isReachable}
-                            isSqlTile={false}
-                            isDataAppTile={false}
-                            tileFieldId={null}
-                            missingFieldId={null}
-                            options={NO_FIELD_IDS}
-                            sharedNameFieldIds={NO_FIELD_IDS}
-                            candidates={starters}
-                            fieldsMap={fieldsMap}
-                            highlight={isReachable ? 'available' : null}
-                            scrollFieldId={null}
-                            wave={index % WAVE_BUCKETS}
-                            followUpLabel={null}
-                            followUpName={null}
-                            onSelect={handleSelect}
-                            onFollowUp={handleFollowUp}
-                        />,
-                        element,
-                        tile.uuid,
-                    );
-                })}
-            </>
-        );
-    }
+    // Nothing on the canvas until the filter has a field
+    if (editingRule === null || isPlaceholder) return null;
 
     const filterLabel =
         editingRule.label ??
@@ -803,7 +710,6 @@ const EditedTileOverlays: FC = () => {
                                 ),
                             },
                         )}
-                        isPlaceholder={false}
                         isReachable={isReachable}
                         isSqlTile={isSqlTile}
                         isDataAppTile={isDataAppTile}

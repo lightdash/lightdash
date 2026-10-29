@@ -40,6 +40,8 @@ type Props = {
     field?: DashboardFilterableField;
     filterRule: DashboardFilterRule;
     popoverProps?: Omit<PopoverProps, 'children'>;
+    /** Edit mode's "Provide default value" switch (default shown). */
+    withDefaultValueSwitch?: boolean;
     onChangeFilterRule: (value: DashboardFilterRule) => void;
 };
 
@@ -51,6 +53,7 @@ export const FilterValueSection: FC<Props> = ({
     field,
     filterRule,
     popoverProps,
+    withDefaultValueSwitch = true,
     onChangeFilterRule,
 }) => {
     const { user } = useApp();
@@ -234,7 +237,7 @@ export const FilterValueSection: FC<Props> = ({
                                 will be removed on dashboard save
                             </Text>
                         )}
-                    {!hasRequirement && (
+                    {!hasRequirement && withDefaultValueSwitch && (
                         <Tooltip
                             position="right"
                             label={

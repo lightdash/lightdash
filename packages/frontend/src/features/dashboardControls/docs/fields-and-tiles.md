@@ -71,8 +71,8 @@ editing a value leaves every tile at full prominence. Mapping mounts them.
   joined field ids, not the rule.
 - `LazySelect` mounts the real select only on open; focus alone never opens
   it, and its clear button works without mounting.
-- A placeholder shows cards too (`getTileStarterFieldIds`), built in one
-  `useMemo` keyed on the dashboard so typing the label re-renders no card.
+- A placeholder has no overlay: nothing is on the canvas until a field is
+  picked in the editor's field search, the one way to start a filter.
 
 ## Follow-up on a tile card
 

@@ -17,6 +17,7 @@ import {
 import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
 import { renderWithProviders as renderWithAppProviders } from '../../testing/testUtils';
 import { EditorPopover } from './FilterEditor';
+import classes from './FilterEditor.module.css';
 import { RailContractClasses } from './railContractClasses';
 import { type ControlsSidebarContextValue } from './useControlsSidebar';
 import { LABEL_COMMIT_DELAY } from './useLabelDraft';
@@ -128,7 +129,6 @@ const setSidebar = (overrides: Partial<ControlsSidebarContextValue>) => {
         openNew: vi.fn(),
         addFirstField: vi.fn(),
         addFirstSqlColumn: vi.fn(),
-        addFirstFieldOnTile: vi.fn(),
         removeLastField: vi.fn(),
         emptiedFieldLabel: null,
         highlightedFieldId: null,
@@ -230,6 +230,21 @@ describe('EditorPopover', () => {
     const placeholder = makeRule({ target: { fieldId: '', tableName: '' } });
     const button = (name: string) => screen.getByRole('button', { name });
 
+    it('draws nothing at its target the moment it closes, and arrives through its own CSS', () => {
+        setSidebar({});
+        const { rerender } = renderWithProviders(<Editor />);
+        expect(editor()).toHaveClass(classes.dropdown);
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+        rerender(
+            <EditorPopover isOpen={false}>
+                <button type="button">Pill</button>
+            </EditorPopover>,
+        );
+        expect(editor()).toBeNull();
+        expect(screen.queryByRole('dialog')).toBeNull();
+    });
+
     it('hands the settings the tiles the filter is on, over every tab', () => {
         setSidebar({});
         const { rerender } = renderWithProviders(<Editor />);
@@ -291,8 +306,8 @@ describe('EditorPopover', () => {
         expect(discard).toHaveBeenCalledTimes(1);
     });
 
-    it('opens a new filter on its field search, with Create disabled until a field', () => {
-        const { discard } = setSidebar({
+    it('opens a new filter on its field search alone, then the value view once a field is picked', () => {
+        setSidebar({
             isPlaceholder: true,
             editingRule: placeholder,
         });
@@ -303,13 +318,18 @@ describe('EditorPopover', () => {
         ).toBeInTheDocument();
         expect(screen.getByTestId('fields-and-tiles')).toBeInTheDocument();
         expect(screen.queryByTestId('filter-settings')).not.toBeInTheDocument();
-        expect(button('Create')).toBeDisabled();
+        expect(screen.queryByRole('button', { name: 'Apply' })).toBeNull();
+        expect(screen.queryByRole('button', { name: 'Cancel' })).toBeNull();
+
+        const { discard } = setSidebar({
+            isPlaceholder: false,
+            editingRule: makeRule({}),
+        });
+        rerender(<Editor />);
+        expect(screen.getByTestId('filter-settings')).toBeInTheDocument();
+        expect(button('Apply')).toBeEnabled();
         fireEvent.click(button('Cancel'));
         expect(discard).toHaveBeenCalledTimes(1);
-
-        setSidebar({ isPlaceholder: false, editingRule: makeRule({}) });
-        rerender(<Editor />);
-        expect(button('Create')).toBeEnabled();
     });
 
     it('keeps the name of an existing control left with no field, Apply disabled', () => {
@@ -828,7 +848,7 @@ describe('EditorPopover', () => {
             expect(discard).toHaveBeenCalledTimes(1);
         });
 
-        it('creates a new filter of theirs with Create', () => {
+        it('creates a new filter of theirs with Apply', () => {
             setSidebar({
                 isViewer: true,
                 isNew: true,
@@ -836,7 +856,7 @@ describe('EditorPopover', () => {
                 editingRule: own,
             });
             renderWithProviders(<Editor />);
-            expect(button('Create')).toBeEnabled();
+            expect(button('Apply')).toBeEnabled();
         });
     });
 });

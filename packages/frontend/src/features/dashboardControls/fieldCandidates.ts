@@ -80,11 +80,6 @@ export const getTileFieldCandidateIds = (
 ): string[] =>
     toSortedFieldIds(getFieldCandidates(tileFields, takenFieldIds, target));
 
-// What a new control can start from on one tile: its fields of every kind.
-export const getTileStarterFieldIds = (
-    tileFields: DashboardFilterableField[],
-): string[] => toSortedFieldIds(tileFields);
-
 // A candidate that would read like another entry of the dropdown carries its
 // table label
 export const getCandidateOptions = (

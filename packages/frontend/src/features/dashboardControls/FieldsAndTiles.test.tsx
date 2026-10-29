@@ -183,9 +183,13 @@ const Editor = () => {
         isOpen: true,
         isFieldClicked: false,
         isAsking: false,
+        isPristineNew: false,
         clearField: clearHighlightedField,
         dismiss: close,
-        dismissOutside: close,
+        dismissOutside: () => {
+            close();
+            return false;
+        },
     });
     return (
         <Box data-controls-editor>
@@ -277,7 +281,7 @@ describe('FieldsAndTiles', () => {
     afterEach(() => vi.restoreAllMocks());
 
     describe('a new control', () => {
-        it('picks its first field in the shipped field search', async () => {
+        it('picks its first field in the shipped field search, opened, with nothing else', async () => {
             setSidebar(rule(''), { isPlaceholder: true });
             renderWithProviders(<FieldsAndTiles />);
 
@@ -289,13 +293,10 @@ describe('FieldsAndTiles', () => {
                 screen.queryByText("Change a tile's field on the tile itself."),
             ).not.toBeInTheDocument();
             expect(
-                screen.getByText(
-                    'Select the field to filter tiles by, or pick one on a tile.',
-                ),
-            ).toBeVisible();
+                screen.queryByText(/Select the field to filter tiles by/),
+            ).not.toBeInTheDocument();
 
-            await userEvent.click(screen.getByTestId(FIELD_SEARCH));
-            // Grouped by table, as in "Add filter"
+            // Open without a click, grouped by table as in "Add filter"
             expect(await screen.findByText('Orders')).toBeVisible();
             expect(optionNames()).toEqual(['Region', 'Status']);
 
@@ -311,9 +312,9 @@ describe('FieldsAndTiles', () => {
             renderWithProviders(<Editor />);
 
             const search = screen.getByTestId(FIELD_SEARCH);
-            expect(search).not.toHaveAttribute('data-expanded');
-            await userEvent.click(search);
             await screen.findByText('Orders');
+            // As the editor focuses it on mount
+            act(() => search.focus());
             // What the editor's Escape handling reads to leave the list alone
             expect(search).toHaveAttribute('data-expanded');
             await userEvent.keyboard('{Escape}');
@@ -407,9 +408,6 @@ describe('FieldsAndTiles', () => {
             renderWithProviders(<FieldsAndTiles />);
 
             expect(fieldSearch()).not.toBeInTheDocument();
-            expect(
-                screen.getByText('Select the column to filter tiles by.'),
-            ).toBeVisible();
             expect(screen.getByText('Select a column to filter')).toBeVisible();
             await userEvent.click(
                 screen.getByPlaceholderText('Search column...'),
