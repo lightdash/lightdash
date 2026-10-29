@@ -1,3 +1,10 @@
+## [3.95.1](https://github.com/lightdash/lightdash/compare/3.95.0...3.95.1) (2026-10-29)
+
+
+### Bug Fixes
+
+* **charts:** remove tooltip and axis pointer animations ([#31799](https://github.com/lightdash/lightdash/issues/31799)) ([e3f5fc6](https://github.com/lightdash/lightdash/commit/e3f5fc649de9b1c80a608bfee09830e45ab710cf))
+
 # [3.95.0](https://github.com/lightdash/lightdash/compare/3.94.1...3.95.0) (2026-10-29)
 
 
