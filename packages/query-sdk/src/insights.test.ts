@@ -12,6 +12,7 @@ import {
     postInsightAction,
     registerMountedQuery,
     resetInsightsState,
+    setInsightAnalyseOnLoad,
     setInsightInstructions,
     subscribeInsights,
     insightIsForField,
@@ -147,6 +148,26 @@ describe('insights channel', () => {
         expect(requests()).toEqual([
             { type: INSIGHTS_REQUEST_MESSAGE, inUse: true },
         ]);
+    });
+
+    it('announces analyse-on-load, including an explicit false, and clears it', () => {
+        mountInsights(host);
+        posted.length = 0;
+        setInsightAnalyseOnLoad(true);
+        expect(requests()).toEqual([
+            { type: INSIGHTS_REQUEST_MESSAGE, analyseOnLoad: true },
+        ]);
+        posted.length = 0;
+        setInsightAnalyseOnLoad(true);
+        expect(requests()).toEqual([]);
+        setInsightAnalyseOnLoad(false);
+        expect(requests()).toEqual([
+            { type: INSIGHTS_REQUEST_MESSAGE, analyseOnLoad: false },
+        ]);
+        posted.length = 0;
+        // Not declared: the field is absent so the host falls back.
+        setInsightAnalyseOnLoad(undefined);
+        expect(requests()).toEqual([{ type: INSIGHTS_REQUEST_MESSAGE }]);
     });
 
     it('is unavailable until the host pushes, then stores the payload', () => {

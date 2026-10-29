@@ -49,7 +49,7 @@ const view = useInsights();
 // view.analyse()    ask Lightdash to (re)run the analysis
 ```
 
-Render `<InsightsSummary />` near the top of the page. It handles every status (idle, analysing, ready, error, stale) and renders nothing when unavailable. Props: `title`, `idleText`, `instructions`, `className`. Write your own block only when the user asks for a layout the component cannot give, and then keep every status branch.
+Render `<InsightsSummary />` near the top of the page. It handles every status (idle, analysing, ready, error, stale) and renders nothing when unavailable. Props: `title`, `idleText`, `instructions`, `analyseOnLoad`, `className`. Write your own block only when the user asks for a layout the component cannot give, and then keep every status branch.
 
 ### Author instructions for the analysis
 
@@ -62,6 +62,16 @@ When the user wants the summary written a certain way — a language or locale (
 Or equivalently `useInsights({ instructions })` in a custom block. One string per app (the last value set wins), applied to every analysis of the app, max 2000 characters — keep it to a few short sentences. It guides wording and interpretation only; it cannot grant data access or change which rows are analysed. Do not restate what the data already shows, and do not set it unless the user asked for specific guidance.
 
 The organization may also set default instructions in its settings; those apply first and the app's instructions are added after them, so keep app instructions to app-specific guidance (domain vocabulary) and leave org-wide style (language, currency) to the org default when the user says it should apply everywhere.
+
+### Analyse on load
+
+By default the analysis runs when the viewer clicks **Analyse**. When the user wants it to run on its own ("analyse as soon as it loads", "show the summary when the page opens"), set `analyseOnLoad`:
+
+```tsx
+<InsightsSummary analyseOnLoad />
+```
+
+Or equivalently `useInsights({ analyseOnLoad: true })` in a custom block. One value per app (the last value set wins). The host runs the analysis once the page's queries settle and again when the view changes; a stored analysis of the same rows is reused instead of re-run. Do not set it unless the user asked for it.
 
 Rules for the block:
 

@@ -144,11 +144,15 @@ export default function AppPreviewTest() {
     const [insightInstructions, setInsightInstructions] = useState<
         string | null
     >(null);
+    const [insightAnalyseOnLoad, setInsightAnalyseOnLoad] = useState<
+        boolean | null
+    >(null);
     const analysisController = useDataAppAnalysisController({
         projectUuid,
         appUuid,
         queries: inspector.panelProps.queries,
         availability: analysisAvailability,
+        analyseOnLoad: insightAnalyseOnLoad ?? false,
         instructions: insightInstructions,
         onNeedsAgent: openAnalysis,
         // Expired sources: reload the app once so its queries re-run.
@@ -309,6 +313,7 @@ export default function AppPreviewTest() {
                     }
                     onInsightAction={analysisController.handleAction}
                     onInsightInstructionsChange={setInsightInstructions}
+                    onInsightAnalyseOnLoadChange={setInsightAnalyseOnLoad}
                     onMountedQueriesChange={
                         analysisController.setMountedQueryUuids
                     }
