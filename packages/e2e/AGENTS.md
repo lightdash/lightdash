@@ -39,6 +39,8 @@ import { expect, loginAs, SEED_USERS, test } from '../../support/test';
   for calls the test makes itself so created content is tracked for cleanup.
   Helpers in `support/api.ts` take an `APIRequestContext`; pass `api.raw`.
 - Third-party hosts (analytics, intercom, loom) are blocked automatically.
+- Hashed `/assets/*` chunks are fetched once per worker and replayed from memory
+  (`support/assetCache.ts`); set `E2E_ASSET_CACHE=off` to bypass it.
 - Timezone comes from `TZ`; the config passes it to the browser as `timezoneId`.
 
 ## Conventions
