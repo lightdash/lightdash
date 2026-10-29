@@ -254,6 +254,41 @@ describe('TileOverlays', () => {
         setSidebar();
     });
 
+    it('names a field with its table when another field of the filter has its name', async () => {
+        mockDashboardContext.current = {
+            ...mockDashboardContext.current,
+            allFilterableFieldsMap: {
+                orders_status: statusField,
+                orders_region: regionField,
+                customers_status: customerStatusField,
+            },
+            filterableFieldsByTileUuid: {
+                [both.uuid]: [statusField, regionField],
+                [statusOnly.uuid]: [customerStatusField],
+                [otherTab.uuid]: [statusField],
+            },
+        };
+        setSidebar({
+            editingRule: rule({
+                tileTargets: {
+                    [statusOnly.uuid]: {
+                        fieldId: 'customers_status',
+                        tableName: 'customers',
+                    },
+                },
+            }),
+        });
+        renderWithProviders(<TileOverlays />);
+
+        expect(select(statusOnly.uuid)).toHaveTextContent('Customers Status');
+        expect(select(both.uuid)).toHaveTextContent('Orders Status');
+
+        // The real select keeps the name once it has taken over
+        await userEvent.click(select(statusOnly.uuid));
+        await userEvent.keyboard('{Escape}');
+        expect(select(statusOnly.uuid)).toHaveValue('Customers Status');
+    });
+
     it('shows the field a filterable tile is filtered by', () => {
         renderWithProviders(<TileOverlays />);
 

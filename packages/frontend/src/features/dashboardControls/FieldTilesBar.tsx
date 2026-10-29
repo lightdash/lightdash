@@ -98,6 +98,9 @@ const Bar: FC<{
     const {
         field,
         label,
+        name,
+        isNameShared,
+        tableLabel,
         thisTabScope,
         everyTabScope,
         canAct,
@@ -173,8 +176,15 @@ const Bar: FC<{
                     {field !== null && (
                         <FieldIcon item={field} size={16} aria-hidden />
                     )}
+                    {isNameShared && (
+                        <Tooltip fz="xs" label={label}>
+                            <Text fz="sm" c="dimmed" truncate maw={120}>
+                                {tableLabel}
+                            </Text>
+                        </Tooltip>
+                    )}
                     <Text fz="sm" fw={600} truncate maw={240}>
-                        {label}
+                        {name}
                     </Text>
                 </Group>
                 <Divider orientation="vertical" />

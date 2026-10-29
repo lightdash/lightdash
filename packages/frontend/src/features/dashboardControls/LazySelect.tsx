@@ -164,7 +164,14 @@ export const LazySelect: FC<Props> = ({
         const items = filled.flatMap((group) =>
             group.items.flatMap((option) => {
                 const field = fieldsMap[option.value];
-                return field ? [field] : [];
+                if (!field) return [];
+                // The chosen field keeps a name given its table once the
+                // real select takes over; the list goes by table groups
+                return [
+                    option.value === value && option.label !== field.label
+                        ? { ...field, label: option.label }
+                        : field,
+                ];
             }),
         );
         return (

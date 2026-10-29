@@ -19,6 +19,9 @@ import classes from './FieldsAndTiles.module.css';
 type Props = {
     field: DashboardFilterableField | null;
     label: string;
+    name: string;
+    // Another row has the same name: its table goes in front, dimmed
+    isNameShared: boolean;
     tableLabel: string;
     // Tiles on the field, of the tiles that offer it, over every tab
     applied: number;
@@ -37,6 +40,8 @@ type Props = {
 export const FieldRow: FC<Props> = ({
     field,
     label,
+    name,
+    isNameShared,
     tableLabel,
     applied,
     possible,
@@ -59,23 +64,38 @@ export const FieldRow: FC<Props> = ({
             onMouseEnter={() => onHoverChange(true)}
             onMouseLeave={() => onHoverChange(false)}
         >
-            <UnstyledButton
-                className={classes.rowMain}
-                data-highlighted={isHighlighted || undefined}
-                aria-pressed={isHighlighted}
-                onClick={onToggleHighlight}
-                onFocus={() => onHoverChange(true)}
-                onBlur={() => onHoverChange(false)}
-            >
-                <Group gap="xs" wrap="nowrap" className={classes.rowLabel}>
-                    {field !== null && (
-                        <FieldIcon item={field} size={14} aria-hidden />
-                    )}
-                    <Text fz="sm" truncate>
-                        {label}
-                    </Text>
-                </Group>
-            </UnstyledButton>
+            {/* A table name cut short is read in full here */}
+            <Tooltip label={label} disabled={!isNameShared}>
+                <UnstyledButton
+                    className={classes.rowMain}
+                    data-highlighted={isHighlighted || undefined}
+                    aria-pressed={isHighlighted}
+                    onClick={onToggleHighlight}
+                    onFocus={() => onHoverChange(true)}
+                    onBlur={() => onHoverChange(false)}
+                >
+                    <Group gap="xs" wrap="nowrap" className={classes.rowLabel}>
+                        {field !== null && (
+                            <FieldIcon item={field} size={14} aria-hidden />
+                        )}
+                        {/* The table takes what the field's name leaves */}
+                        {isNameShared && (
+                            <Text
+                                fz="sm"
+                                c="dimmed"
+                                truncate
+                                miw={40}
+                                flex="1 1 0"
+                            >
+                                {tableLabel}
+                            </Text>
+                        )}
+                        <Text fz="sm" truncate>
+                            {name}
+                        </Text>
+                    </Group>
+                </UnstyledButton>
+            </Tooltip>
             <Tooltip
                 label={interpolateUiString(
                     getUiString(

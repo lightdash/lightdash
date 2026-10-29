@@ -10,6 +10,7 @@ import { describe, expect, it } from 'vitest';
 import {
     getCandidateOptions,
     getFieldCandidates,
+    getSharedNameFieldIds,
     getTileFieldCandidateIds,
     getTileStarterFieldIds,
 } from './fieldCandidates';
@@ -242,5 +243,20 @@ describe('getCandidateOptions', () => {
         expect(getCandidateOptions(['gone'], [], fieldsMap)).toEqual([
             { value: 'gone', label: 'gone' },
         ]);
+    });
+});
+
+describe('getSharedNameFieldIds', () => {
+    const fieldsMap: Record<string, FilterableDimension> = Object.fromEntries(
+        all.map((field) => [`${field.table}_${field.name}`, field]),
+    );
+
+    it('lists only the rows whose name another row has, never an unknown one', () => {
+        expect(
+            getSharedNameFieldIds(
+                ['orders_status', 'orders_region', 'customers_status', 'gone'],
+                (fieldId) => fieldsMap[fieldId],
+            ),
+        ).toEqual(['orders_status', 'customers_status']);
     });
 });
