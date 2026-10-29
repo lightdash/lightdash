@@ -50,12 +50,6 @@ export const generateExposuresHandler = async (
         },
     });
 
-    console.info(
-        styles.warning(
-            `This is an experimental feature and may change in future versions`,
-        ),
-    );
-
     // Log current project info
     GlobalState.logProjectInfo(config);
 
@@ -136,7 +130,7 @@ export const generateExposuresHandler = async (
                 error: `${getErrorMessage(e)}`,
             },
         });
-        spinner.fail(`  Failed to generate exposures file'`);
+        spinner.fail(`  Failed to generate exposures file`);
         throw e;
     }
 };

@@ -36,7 +36,7 @@ Commands:
   generate [options]                      Generates a new schema.yml file for model
   rename [options]                        Rename models and fields on Lightdash content
   slug-update [options]                   Rename a chart or dashboard slug and update its local references
-  generate-exposures [options]            [Experimental command] Generates a .yml file for Lightdash exposures
+  generate-exposures [options]            Generates a YAML file for Lightdash exposures
   diagnostics [options]                   Shows diagnostic information about the CLI environment
   lint [options]                          Validates Lightdash Code files (models, charts, dashboards) against JSON schemas
   warehouse-catalog [options]             Explore the selected project's raw warehouse databases, schemas, tables, and fields
