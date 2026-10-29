@@ -703,7 +703,7 @@ export class ExternalConnectionService extends BaseService {
         }
         if (isLiveSource && data.apiSource === null) {
             throw new ParameterError(
-                'A live data source cannot drop its connector settings',
+                'A live data source cannot drop its integration settings',
             );
         }
         if (data.type !== undefined && data.type !== existing.type) {
@@ -1034,7 +1034,7 @@ export class ExternalConnectionService extends BaseService {
         const { apiSource } = connection;
         if (connection.kind !== 'live_source' || !apiSource) {
             throw new ParameterError(
-                `Connection "${connection.name}" is not set up for live queries`,
+                `"${connection.name}" is not a live data source`,
             );
         }
         let connector: ApiConnector;
@@ -1073,13 +1073,13 @@ export class ExternalConnectionService extends BaseService {
                 if (error instanceof SecureFetchError) {
                     if (error.reason === 'timeout') {
                         throw new TimeoutError(
-                            `Connection "${connection.name}" did not respond within ${
+                            `Live data source "${connection.name}" did not respond within ${
                                 connection.timeoutMs / 1000
                             } seconds`,
                         );
                     }
                     throw new ParameterError(
-                        `Request to connection "${connection.name}" was blocked (${error.reason})`,
+                        `Request to live data source "${connection.name}" was blocked (${error.reason})`,
                     );
                 }
                 throw error;
@@ -1252,7 +1252,7 @@ export class ExternalConnectionService extends BaseService {
             );
             if (existing.apiSource?.connector !== ApiConnectorType.POSTHOG) {
                 throw new ParameterError(
-                    `Connection "${existing.name}" is not a PostHog source`,
+                    `Live data source "${existing.name}" does not use PostHog`,
                 );
             }
         }
@@ -1482,7 +1482,9 @@ export class ExternalConnectionService extends BaseService {
         await this.assertCanManageLiveSources(account, projectUuid);
         const { connector, connectionUuid } = request;
         if (!isGoogleConnector(connector)) {
-            throw new ParameterError(`${connector} is not a Google source`);
+            throw new ParameterError(
+                `${connector} is not a Google integration`,
+            );
         }
         const name = request.name.trim();
         if (!name) {
@@ -1496,7 +1498,7 @@ export class ExternalConnectionService extends BaseService {
             );
             if (existing.apiSource?.connector !== connector) {
                 throw new ParameterError(
-                    `Connection "${existing.name}" is not a ${GOOGLE_CONNECTORS[connector].label} source`,
+                    `Live data source "${existing.name}" does not use ${GOOGLE_CONNECTORS[connector].label}`,
                 );
             }
         }
@@ -1750,7 +1752,7 @@ export class ExternalConnectionService extends BaseService {
 
     private static signInExpiredError(connection: ExternalConnection) {
         return new WarehouseConnectionError(
-            `The sign-in for connection "${connection.name}" expired or was revoked. Reconnect it in Live data sources.`,
+            `The sign-in for live data source "${connection.name}" expired or was revoked. Reconnect it in Live data sources.`,
         );
     }
 
@@ -1818,7 +1820,7 @@ export class ExternalConnectionService extends BaseService {
                 } failed: ${getErrorMessage(error)}`,
             );
             throw new UnexpectedServerError(
-                `Could not refresh the sign-in for connection "${connection.name}". Try again shortly.`,
+                `Could not refresh the sign-in for live data source "${connection.name}". Try again shortly.`,
             );
         }
         const latest = parseStoredOAuthTokens(latestSecret);
