@@ -8,7 +8,13 @@ import {
     QueryHistoryStatus,
     QuerySourceType,
     type SourceQuery,
+    type ThreadComposerQueryNode,
 } from '@lightdash/common';
+import { v4 as uuidv4 } from 'uuid';
+import {
+    composerSessionScope,
+    type ComposerQueryNodeScope,
+} from '../../database/entities/composerQueryNodes';
 import { McpService, McpToolName } from './McpService';
 import { makeMcpServerOptions } from './McpService.mock';
 
@@ -108,6 +114,68 @@ const nodeQueryUuids: Record<string, string> = {
 };
 const queryUuidFor = (nodeId: string) => nodeQueryUuids[nodeId];
 
+type SessionOwner = {
+    userUuid: string;
+    organizationUuid: string;
+    projectUuid: string;
+};
+
+// In-memory stand-in for the session and node tables; ownership and expiry
+// rules are covered by the model integration tests.
+const makeComposerSessionStore = () => {
+    const sessions = new Map<string, SessionOwner & { expired: boolean }>();
+    const nodesByScope = new Map<string, ThreadComposerQueryNode[]>();
+    const scopeKey = ({ scopeType, scopeUuid }: ComposerQueryNodeScope) =>
+        `${scopeType}:${scopeUuid}`;
+    return {
+        sessions,
+        expire: (sessionUuid: string) => {
+            const session = sessions.get(sessionUuid);
+            if (session) session.expired = true;
+        },
+        model: {
+            createComposerSession: async (owner: SessionOwner) => {
+                const sessionUuid = uuidv4();
+                sessions.set(sessionUuid, { ...owner, expired: false });
+                return sessionUuid;
+            },
+            useComposerSession: async ({
+                sessionUuid,
+                ...owner
+            }: SessionOwner & { sessionUuid: string }) => {
+                const session = sessions.get(sessionUuid);
+                return (
+                    !!session &&
+                    !session.expired &&
+                    session.userUuid === owner.userUuid &&
+                    session.organizationUuid === owner.organizationUuid &&
+                    session.projectUuid === owner.projectUuid
+                );
+            },
+            listComposerQueryNodes: async (scope: ComposerQueryNodeScope) =>
+                nodesByScope.get(scopeKey(scope)) ?? [],
+            registerComposerQueryNodes: async ({
+                scope,
+                nodes,
+            }: {
+                scope: ComposerQueryNodeScope;
+                nodes: ThreadComposerQueryNode[];
+            }) => {
+                const registered = nodesByScope.get(scopeKey(scope)) ?? [];
+                nodesByScope.set(scopeKey(scope), [
+                    ...registered,
+                    ...nodes.filter(
+                        (node) =>
+                            !registered.some(
+                                ({ nodeId }) => nodeId === node.nodeId,
+                            ),
+                    ),
+                ]);
+            },
+        },
+    };
+};
+
 type Agent = {
     uuid: string;
     name: string;
@@ -201,7 +269,7 @@ const makeService = ({
                 submissions,
                 terminal: {
                     queryUuid: queryUuidFor(terminalNodeId),
-                    columns: nodeColumns[terminalNodeId],
+                    columns: nodeColumns[terminalNodeId] ?? nodeColumns.totals,
                     rows: [
                         { orders_status: 'completed', total: 3 },
                         { orders_status: 'placed', total: 1 },
@@ -217,6 +285,7 @@ const makeService = ({
         getAsyncQueryResults: vi.fn(),
         pollQueryHistoryUntilDeadline: vi.fn(),
     };
+    const composerSessions = makeComposerSessionStore();
     const deniedSubjects = new Set(canManageSqlRunner ? [] : ['SqlRunner']);
     const ability = {
         relevantRuleFor: vi.fn((_action: string, subject: unknown) => ({
@@ -232,6 +301,7 @@ const makeService = ({
     const user = { userUuid, organizationUuid, ability };
     const service = new McpService({
         agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
+        aiAgentModel: composerSessions.model,
         aiAgentToolsService: {
             listMcpSkillResources: () => [],
             createRuntime: ({ tags }: { tags: string[] | null }) => {
@@ -286,34 +356,42 @@ const makeService = ({
             getProject: vi.fn().mockResolvedValue({ organizationUuid }),
         },
     } as unknown as ConstructorParameters<typeof McpService>[0]);
-    const extra = {
+    const extraFor = (callerUuid: string) => ({
         signal: new AbortController().signal,
         requestId: 'request-id',
         sendNotification: vi.fn(),
         sendRequest: vi.fn(),
         authInfo: {
             extra: {
-                user,
+                user: { ...user, userUuid: callerUuid },
                 account: {
                     isRegisteredUser: () => true,
                     isServiceAccount: () => false,
                     authentication: { type: 'pat' },
-                    user: { id: userUuid },
+                    user: { id: callerUuid },
                     organization: { organizationUuid },
                 },
             },
         },
-    };
-    const call = async (tool: string, args: Record<string, unknown>) => {
+    });
+    const callAs = async (
+        callerUuid: string,
+        tool: string,
+        args: Record<string, unknown>,
+    ) => {
         const callback = mockRegisteredMcpTools.get(tool);
         if (!callback) throw new Error(`${tool} not registered`);
-        return callback({ projectUuid, ...args }, extra);
+        return callback({ projectUuid, ...args }, extraFor(callerUuid));
     };
+    const call = (tool: string, args: Record<string, unknown>) =>
+        callAs(userUuid, tool, args);
     return {
         service,
         user,
         deniedSubjects,
         call,
+        callAs,
+        composerSessions,
         asyncQueryService,
         runComposerQueriesUntilDeadline,
     };
@@ -425,6 +503,7 @@ describe('McpService query tool', () => {
         expect(
             mcpQueryStructuredOutputSchema.parse(result.structuredContent),
         ).toEqual({
+            sessionId: expect.any(String),
             status: 'done',
             terminalNodeId: 'totals',
             rowCount: 2,
@@ -637,6 +716,187 @@ describe('McpService query tool', () => {
         expect(textOf(result)).toContain('- orders: "Orders by status"');
         expect(textOf(result)).toContain(
             '- totals: "Totals" (duckdb): error: Binder Error: column "nope" not found',
+        );
+    });
+
+    describe('composer sessions', () => {
+        const topNode = {
+            sourceType: QuerySourceType.DUCKDB,
+            nodeId: 'top',
+            title: 'Top status',
+            description: 'Keeps the largest status.',
+            sql: 'SELECT * FROM totals ORDER BY total DESC LIMIT 1',
+            references: ['totals'],
+            limit: 1,
+        };
+
+        const startSession = async (
+            call: (
+                tool: string,
+                args: Record<string, unknown>,
+            ) => Promise<ToolResult>,
+        ) => {
+            const first = await call(
+                McpToolName.QUERY,
+                pipelineArgs([ordersNode, totalsNode]),
+            );
+            expect(first.isError).toBeUndefined();
+            return first.structuredContent?.sessionId as string;
+        };
+
+        it('returns a new session id from a call without one', async () => {
+            const { service, call, composerSessions } = makeService();
+            await createServer(service);
+
+            const result = await call(
+                McpToolName.QUERY,
+                pipelineArgs([ordersNode, totalsNode]),
+            );
+
+            const { sessionId } = mcpQueryStructuredOutputSchema.parse(
+                result.structuredContent,
+            );
+            expect(composerSessions.sessions.has(sessionId)).toBe(true);
+            expect(textOf(result)).toContain(`sessionId: ${sessionId}`);
+        });
+
+        it('starts no session when the pipeline is rejected', async () => {
+            const { service, call, composerSessions } = makeService();
+            await createServer(service);
+
+            const result = await call(
+                McpToolName.QUERY,
+                pipelineArgs([{ ...totalsNode, references: ['missing'] }]),
+            );
+
+            expect(result.isError).toBe(true);
+            expect(composerSessions.sessions.size).toBe(0);
+        });
+
+        it('reads a node of an earlier call in the session by its node id', async () => {
+            const { service, call, runComposerQueriesUntilDeadline } =
+                makeService();
+            await createServer(service);
+            const sessionId = await startSession(call);
+
+            const result = await call(McpToolName.QUERY, {
+                ...pipelineArgs([topNode]),
+                sessionId,
+            });
+
+            expect(result.isError).toBeUndefined();
+            expect(result.structuredContent).toMatchObject({
+                sessionId,
+                terminalNodeId: 'top',
+            });
+            expect(
+                runComposerQueriesUntilDeadline.mock.lastCall?.[0].queries.map(
+                    ({ nodeId }) => nodeId,
+                ),
+            ).toEqual(['orders', 'totals', 'top']);
+        });
+
+        it('keeps the ready nodes of a failed call in the session', async () => {
+            const { service, call, composerSessions } = makeService({
+                terminalOutcome: 'failure',
+            });
+            await createServer(service);
+
+            const result = await call(
+                McpToolName.QUERY,
+                pipelineArgs([ordersNode, totalsNode]),
+            );
+
+            expect(result.isError).toBe(true);
+            const [sessionId] = [...composerSessions.sessions.keys()];
+            expect(textOf(result)).toContain(
+                'Saved from this call: orders. Not saved: totals (failed: Binder Error: column "nope" not found).',
+            );
+            expect(textOf(result)).toContain(`sessionId: ${sessionId}`);
+            expect(
+                (
+                    await composerSessions.model.listComposerQueryNodes(
+                        composerSessionScope(sessionId),
+                    )
+                ).map(({ nodeId }) => nodeId),
+            ).toEqual(['orders']);
+        });
+
+        it('lists the readable nodes of the session when a node reads an unknown node id', async () => {
+            const { service, call } = makeService();
+            await createServer(service);
+            const sessionId = await startSession(call);
+
+            const result = await call(McpToolName.QUERY, {
+                ...pipelineArgs([{ ...topNode, references: ['missing'] }]),
+                sessionId,
+            });
+
+            expect(result.isError).toBe(true);
+            expect(textOf(result)).toContain(
+                'Node "top" reads "missing", which is not a node of this submission or of an earlier call in this session. Nodes defined earlier in this session: orders ("Orders by status"), totals ("Totals").',
+            );
+        });
+
+        it('rejects a different definition under a node id of the session', async () => {
+            const { service, call } = makeService();
+            await createServer(service);
+            const sessionId = await startSession(call);
+
+            const result = await call(McpToolName.QUERY, {
+                ...pipelineArgs([{ ...ordersNode, limit: 10 }]),
+                sessionId,
+            });
+
+            expect(result.isError).toBe(true);
+            expect(textOf(result)).toContain(
+                'Node id "orders" already names a different node in this session ("Orders by status").',
+            );
+        });
+
+        it.each([
+            ['another user', { caller: 'other-user-uuid' }],
+            [
+                'another project',
+                { projectUuid: '33333333-3333-4333-8333-333333333333' },
+            ],
+            ['an expired session', { expire: true }],
+            ['an unknown session', { sessionId: uuidv4() }],
+        ])(
+            'rejects the session id of %s without starting a new one',
+            async (_case, overrides) => {
+                const {
+                    service,
+                    call,
+                    callAs,
+                    composerSessions,
+                    runComposerQueriesUntilDeadline,
+                } = makeService();
+                await createServer(service);
+                const sessionId = await startSession(call);
+                if ('expire' in overrides) composerSessions.expire(sessionId);
+                runComposerQueriesUntilDeadline.mockClear();
+
+                const result = await callAs(
+                    'caller' in overrides ? overrides.caller : userUuid,
+                    McpToolName.QUERY,
+                    {
+                        ...pipelineArgs([topNode]),
+                        sessionId:
+                            'sessionId' in overrides
+                                ? overrides.sessionId
+                                : sessionId,
+                        ...('projectUuid' in overrides
+                            ? { projectUuid: overrides.projectUuid }
+                            : {}),
+                    },
+                );
+
+                expect(result.isError).toBe(true);
+                expect(textOf(result)).toContain('omit sessionId');
+                expect(composerSessions.sessions.size).toBe(1);
+                expect(runComposerQueriesUntilDeadline).not.toHaveBeenCalled();
+            },
         );
     });
 });

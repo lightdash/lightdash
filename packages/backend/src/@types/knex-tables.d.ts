@@ -686,6 +686,8 @@ import {
 import {
     ComposerQueryNodesTable,
     ComposerQueryNodesTableName,
+    ComposerSessionsTable,
+    ComposerSessionsTableName,
 } from '../ee/database/entities/composerQueryNodes';
 import {
     DataAppAnalysesTable,
@@ -932,6 +934,7 @@ declare module 'knex/types/tables' {
         [AiArtifactsTableName]: AiArtifactsTable;
         [AiArtifactVersionsTableName]: AiArtifactVersionsTable;
         [ComposerQueryNodesTableName]: ComposerQueryNodesTable;
+        [ComposerSessionsTableName]: ComposerSessionsTable;
         [AiSlackPromptTableName]: AiSlackPromptTable;
         [AiSlackArtifactDeliveriesTableName]: AiSlackArtifactDeliveriesTable;
         [AiWebAppPromptTableName]: AiWebAppPromptTable;

@@ -5733,6 +5733,10 @@ export class AiAgentService extends BaseService {
         };
     }
 
+    cleanExpiredComposerSessions() {
+        return this.aiAgentModel.deleteExpiredComposerSessions();
+    }
+
     async cleanExpiredThreads(batchSize: number): Promise<{
         threadsDeleted: number;
         memoriesDeleted: number;

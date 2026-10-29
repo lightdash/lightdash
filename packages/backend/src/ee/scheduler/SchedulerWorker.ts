@@ -416,6 +416,14 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                 },
             },
             {
+                task: EE_SCHEDULER_TASKS.CLEAN_COMPOSER_SESSIONS,
+                pattern: '23 * * * *',
+                options: {
+                    backfillPeriod: 2 * 60 * 60 * 1000,
+                    maxAttempts: 3,
+                },
+            },
+            {
                 task: EE_SCHEDULER_TASKS.CLEAN_SCIM_REQUEST_LOGS,
                 pattern: '10 2 * * *', // 02:10 UTC daily
                 options: {
@@ -555,6 +563,13 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                         { maxAttempts: 3 },
                     );
                 }
+            },
+            [EE_SCHEDULER_TASKS.CLEAN_COMPOSER_SESSIONS]: async () => {
+                const result =
+                    await this.aiAgentService.cleanExpiredComposerSessions();
+                Logger.info(
+                    `Composer session cleanup completed. Sessions deleted: ${result.sessionsDeleted}; nodes deleted: ${result.nodesDeleted}`,
+                );
             },
             [EE_SCHEDULER_TASKS.CLEAN_SCIM_REQUEST_LOGS]: async () => {
                 const cleanupConfig =

@@ -10472,6 +10472,8 @@ Node kinds:
 
 A node reads only the rows its references returned, so a referenced result that reached its limit is incomplete: before totalling, averaging or ranking over it, give that node a limit that holds its whole population, or aggregate there.
 
+Reuse across calls: the result carries a sessionId. Pass it back as sessionId to read nodes of earlier calls by node id in "references" without resubmitting them; omit it to start a new session. A node id names one node for the whole session, so give a changed node a new node id.
+
 Returns a preview of the terminal node's rows and every node's queryUuid. If running, call get_query_result with the terminal node's queryUuid; never resubmit the pipeline. get_query_result also returns the result of any other node by its queryUuid.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -10861,6 +10863,10 @@ Returns a preview of the terminal node's rows and every node's queryUuid. If run
             "minItems": 1,
             "type": "array",
           },
+          "sessionId": {
+            "description": "sessionId from an earlier query result, to read its nodes by node id. Omit it to start a new session.",
+            "type": "string",
+          },
           "terminalNodeId": {
             "description": "The terminal node. Null picks the unique sink, the one submitted node no other submitted node reads; name a node when there are several sinks.",
             "type": "string",
@@ -11008,6 +11014,10 @@ Returns a preview of the terminal node's rows and every node's queryUuid. If run
             ],
             "description": "Total rows in the terminal result; null while running.",
           },
+          "sessionId": {
+            "description": "Composer session of these nodes; pass it as sessionId to read them by node id in a later call.",
+            "type": "string",
+          },
           "status": {
             "description": "running when the terminal node outlived the wait; poll get_query_result with its queryUuid.",
             "enum": [
@@ -11023,6 +11033,7 @@ Returns a preview of the terminal node's rows and every node's queryUuid. If run
           },
         },
         "required": [
+          "sessionId",
           "status",
           "terminalNodeId",
           "rowCount",
