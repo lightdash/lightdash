@@ -499,3 +499,90 @@ describe('SlackClient.postMessage custom icon fallback', () => {
         expect(postMessageMock).toHaveBeenCalledTimes(2);
     });
 });
+
+describe('SlackClient.joinChannels', () => {
+    const clientWithConversations = (conversations: {
+        info: ReturnType<typeof vi.fn>;
+        join: ReturnType<typeof vi.fn>;
+    }) => {
+        const client = new SlackClient({
+            slackAuthenticationModel: {
+                getInstallationFromOrganizationUuid: vi
+                    .fn()
+                    .mockResolvedValue({ scopes: [] }),
+            },
+            slackChannelCacheModel: {},
+            lightdashConfig: { slack: {} },
+            analytics: {},
+            schedulerClient: {},
+        } as unknown as ConstructorParameters<typeof SlackClient>[0]);
+        vi.spyOn(client, 'getWebClient').mockResolvedValue({
+            conversations,
+        } as unknown as WebClient);
+        vi.spyOn(client, 'resolveChannelToId').mockImplementation(
+            async (_org, channel) => channel,
+        );
+        return client;
+    };
+
+    it('does not fail the caller when the app lacks the channels:join scope', async () => {
+        const join = vi
+            .fn()
+            .mockRejectedValue({ data: { error: 'missing_scope' } });
+        const client = clientWithConversations({
+            info: vi.fn().mockResolvedValue({ channel: { is_member: false } }),
+            join,
+        });
+        vi.spyOn(Logger, 'warn').mockImplementation(() => Logger);
+
+        await expect(
+            client.joinChannels('org', ['C123']),
+        ).resolves.toBeUndefined();
+        expect(join).toHaveBeenCalled();
+    });
+
+    it('does not try to join channels the app is already in', async () => {
+        const join = vi.fn();
+        const client = clientWithConversations({
+            info: vi.fn().mockResolvedValue({ channel: { is_member: true } }),
+            join,
+        });
+
+        await client.joinChannels('org', ['C123']);
+
+        expect(join).not.toHaveBeenCalled();
+    });
+});
+
+describe('SlackClient.updateAppCustomSettings', () => {
+    it('explains that the app must be invited when Slack rejects the confirmation post', async () => {
+        const client = new SlackClient({
+            slackAuthenticationModel: {
+                getInstallationFromOrganizationUuid: vi.fn().mockResolvedValue({
+                    scopes: [],
+                    notificationChannel: 'C_OLD',
+                }),
+                updateAppCustomSettings: vi.fn().mockResolvedValue(undefined),
+            },
+            slackChannelCacheModel: {},
+            lightdashConfig: { slack: {} },
+            analytics: {},
+            schedulerClient: {},
+        } as unknown as ConstructorParameters<typeof SlackClient>[0]);
+        vi.spyOn(client, 'getWebClient').mockResolvedValue({
+            chat: {
+                postMessage: vi
+                    .fn()
+                    .mockRejectedValue({ data: { error: 'not_in_channel' } }),
+            },
+        } as unknown as WebClient);
+        vi.spyOn(client, 'joinChannels').mockResolvedValue(undefined);
+
+        await expect(
+            client.updateAppCustomSettings('Ada', 'org', {
+                notificationChannel: 'C_NEW',
+                appProfilePhotoUrl: null,
+            }),
+        ).rejects.toThrow("isn't a member of this channel");
+    });
+});
