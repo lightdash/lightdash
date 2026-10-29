@@ -74267,7 +74267,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.93.6",
+        "version": "3.94.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -117588,7 +117588,7 @@
                         }
                     }
                 },
-                "description": "Export dashboard content",
+                "description": "Export dashboard content as an image, PDF, CSV or XLSX. Schedules a job;\npoll `GET /api/v1/schedulers/job/{jobId}/status` until it is `completed`,\nthen download the file from `details.url`.\n\nEmbed tokens can call this with the `Lightdash-Embed-Token` header and a\n`projectUuid` query param. The export uses the viewer's access, filters,\nparameters, date zoom and tabs. Each format needs an embed permission:\n- `image`: `canExportImages` or `view:EmbedImageExport`\n- `pdf`: `canExportPagePdf` or `view:EmbedPagePdfExport`\n- `csv` / `xlsx`: `canExportDashboardCsv` or `view:EmbedDashboardCsvExport`\n\nPoll the job status with the same token. The file URL is a signed link\nthat expires.",
                 "summary": "Export dashboard content",
                 "tags": ["v2", "Dashboards"],
                 "security": [],

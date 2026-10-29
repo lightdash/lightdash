@@ -1,3 +1,15 @@
+# [3.94.0](https://github.com/lightdash/lightdash/compare/3.93.6...3.94.0) (2026-10-29)
+
+
+### Bug Fixes
+
+* **ai:** hint visualize to combine shared-x measures in one chart ([#31786](https://github.com/lightdash/lightdash/issues/31786)) ([e9c20ec](https://github.com/lightdash/lightdash/commit/e9c20ecde86c121a42fe71c71a27ed259a3d5efd))
+
+
+### Features
+
+* **embed:** export embedded dashboards as images with the embed token ([#31788](https://github.com/lightdash/lightdash/issues/31788)) ([acdf4c4](https://github.com/lightdash/lightdash/commit/acdf4c4a9e5c25992287a9cb0c906415f6d2c10f))
+
 ## [3.93.6](https://github.com/lightdash/lightdash/compare/3.93.5...3.93.6) (2026-10-29)
 
 
