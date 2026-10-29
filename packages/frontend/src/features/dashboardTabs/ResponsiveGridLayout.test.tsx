@@ -1,43 +1,44 @@
 import { act, render, screen } from '@testing-library/react';
 import { ResponsiveGridLayout } from './ResponsiveGridLayout';
 
+const stubResizeObserver = () => {
+    const observers = new Map<Element, ResizeObserverCallback>();
+    vi.stubGlobal(
+        'ResizeObserver',
+        class {
+            constructor(private callback: ResizeObserverCallback) {}
+            observe(node: Element) {
+                observers.set(node, this.callback);
+            }
+            disconnect() {}
+        },
+    );
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+        callback(0);
+        return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', () => {});
+
+    return (width: number) => {
+        act(() => {
+            for (const [node, callback] of observers) {
+                if (!node.isConnected) continue;
+                callback(
+                    [
+                        { contentRect: { width, height: 80 } },
+                    ] as ResizeObserverEntry[],
+                    {} as ResizeObserver,
+                );
+            }
+        });
+    };
+};
+
 describe('dashboard container resizing', () => {
     afterEach(() => vi.unstubAllGlobals());
 
     it('reflows on container resize without a window event and keeps hidden tabs stable', () => {
-        const observers = new Map<Element, ResizeObserverCallback>();
-        vi.stubGlobal(
-            'ResizeObserver',
-            class {
-                constructor(private callback: ResizeObserverCallback) {}
-                observe(node: Element) {
-                    observers.set(node, this.callback);
-                }
-                disconnect() {}
-            },
-        );
-        vi.stubGlobal(
-            'requestAnimationFrame',
-            (callback: FrameRequestCallback) => {
-                callback(0);
-                return 1;
-            },
-        );
-        vi.stubGlobal('cancelAnimationFrame', () => {});
-
-        const resize = (width: number) => {
-            act(() => {
-                for (const [node, callback] of observers) {
-                    if (!node.isConnected) continue;
-                    callback(
-                        [
-                            { contentRect: { width, height: 80 } },
-                        ] as ResizeObserverEntry[],
-                        {} as ResizeObserver,
-                    );
-                }
-            });
-        };
+        const resize = stubResizeObserver();
 
         render(
             <ResponsiveGridLayout
@@ -81,5 +82,28 @@ describe('dashboard container resizing', () => {
             width: '300px',
             top: '40px',
         });
+    });
+
+    it('reports the breakpoint the grid mounts at, not only later changes', () => {
+        const resize = stubResizeObserver();
+        const onBreakpointChange = vi.fn();
+
+        render(
+            <ResponsiveGridLayout
+                measureBeforeMount
+                breakpoints={{ wide: 600, narrow: 0 }}
+                cols={{ wide: 2, narrow: 1 }}
+                rowHeight={40}
+                layouts={{ wide: [], narrow: [] }}
+                onBreakpointChange={onBreakpointChange}
+            />,
+        );
+
+        expect(onBreakpointChange).not.toHaveBeenCalled();
+        resize(300);
+        expect(onBreakpointChange).toHaveBeenCalledTimes(1);
+        expect(onBreakpointChange).toHaveBeenCalledWith('narrow', 1);
+        resize(700);
+        expect(onBreakpointChange).toHaveBeenLastCalledWith('wide', 2);
     });
 });
