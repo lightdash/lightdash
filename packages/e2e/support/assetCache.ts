@@ -34,7 +34,8 @@ export const cacheImmutableAssets = async (context: BrowserContext) => {
             if (asset.status === 200) cache.set(url, asset);
             await route.fulfill(asset);
         } catch {
-            // The page closed mid-flight; nothing is waiting for this response any more
+            // Let the browser fetch it itself; this only throws if the page already closed
+            await route.continue().catch(() => undefined);
         }
     });
 };
