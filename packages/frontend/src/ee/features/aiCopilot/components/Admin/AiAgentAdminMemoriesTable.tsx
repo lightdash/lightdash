@@ -317,14 +317,13 @@ const AiAgentAdminMemoriesTable = () => {
         enableTopToolbar: true,
         mantineTableContainerProps: {
             ref: tableContainerRef,
-            style: {
-                maxHeight: 'calc(100dvh - 350px)',
-            },
+            mah: 'calc(100dvh - 350px)',
             onScroll,
         },
         mantineTableProps: {
             highlightOnHover: true,
         },
+        mantineTableHeadCellProps: { px: 'xl' },
         mantineTableBodyRowProps: ({ row, table: mantineTable }) => {
             if (mantineTable.getState().showSkeletons) {
                 return {};
@@ -336,7 +335,6 @@ const AiAgentAdminMemoriesTable = () => {
             }
 
             return {
-                style: { cursor: 'pointer' },
                 onClick: () =>
                     setSelectedMemory({
                         projectUuid: project.uuid,
@@ -346,16 +344,7 @@ const AiAgentAdminMemoriesTable = () => {
                     }),
             };
         },
-        mantineTableBodyCellProps: {
-            h: 72,
-            style: {
-                padding: `${theme.spacing.md} ${theme.spacing.xl}`,
-                borderRight: 'none',
-                borderLeft: 'none',
-                borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                borderTop: 'none',
-            },
-        },
+        mantineTableBodyCellProps: { h: 72, py: 'md', px: 'xl' },
         renderTopToolbar: () => (
             <Box>
                 <Group

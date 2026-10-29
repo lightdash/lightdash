@@ -735,35 +735,16 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
         enableBottomToolbar: true,
         enableRowActions: false,
         mantineTableContainerProps: {
-            style: { maxHeight: 'calc(100dvh - 450px)' },
+            mah: 'calc(100dvh - 450px)',
         },
         mantineTableBodyRowProps: ({ row }) => ({
             onClick: () => handleRowClick(row.original),
-            className: classes.clickableRow,
         }),
         mantineTableProps: {
             highlightOnHover: true,
             withColumnBorders: false,
         },
-        mantineTableHeadCellProps: {
-            h: '3xl',
-            pos: 'relative',
-            style: {
-                padding: 'var(--mantine-spacing-xs) var(--mantine-spacing-md)',
-                backgroundColor: 'var(--mantine-color-ldGray-0)',
-                fontWeight: 600,
-                fontSize: 'var(--mantine-font-size-xs)',
-                verticalAlign: 'middle',
-                whiteSpace: 'nowrap',
-            },
-        },
-        mantineTableBodyCellProps: {
-            style: {
-                padding: 'var(--mantine-spacing-xs) var(--mantine-spacing-md)',
-                fontSize: 'var(--mantine-font-size-xs)',
-                color: 'var(--mantine-color-ldGray-7)',
-            },
-        },
+        mantineTableBodyCellProps: { fz: 'xs' },
         state: {
             isLoading,
             showAlertBanner: isError,

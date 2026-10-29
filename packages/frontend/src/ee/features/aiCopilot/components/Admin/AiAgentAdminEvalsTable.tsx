@@ -315,9 +315,7 @@ const AiAgentAdminEvalsTable = ({
         },
         mantineTableContainerProps: {
             ref: tableContainerRef,
-            style: {
-                maxHeight: 'calc(100dvh - 320px)',
-            },
+            mah: 'calc(100dvh - 320px)',
             onScroll,
         },
         mantineTableProps: {
@@ -332,24 +330,11 @@ const AiAgentAdminEvalsTable = ({
             const isSelected = selectedEval?.evalUuid === evalSummary.evalUuid;
 
             return {
-                style: {
-                    cursor: 'pointer',
-                    backgroundColor: isSelected
-                        ? theme.colors.ldGray[1]
-                        : undefined,
-                },
+                'data-selected': isSelected || undefined,
                 onClick: () => onEvalSelect(evalSummary),
             };
         },
-        mantineTableBodyCellProps: {
-            style: {
-                padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                borderRight: 'none',
-                borderLeft: 'none',
-                borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                borderTop: 'none',
-            },
-        },
+        mantineTableBodyCellProps: { py: 'sm' },
         renderTopToolbar: () => (
             <Box>
                 <Group

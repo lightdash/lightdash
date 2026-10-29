@@ -9,3 +9,8 @@
 .searchInput:focus-visible {
     border-color: var(--mantine-color-blue-5);
 }
+
+/* The container keeps a min-height for infinite scroll, so the last row ends without a rule. */
+.table tbody tr:last-of-type td {
+    border-bottom: 0;
+}

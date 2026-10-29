@@ -583,75 +583,18 @@ const LogsTable: FC<LogsTableProps> = ({
         ),
         mantineTableContainerProps: {
             ref: tableContainerRef,
-            style: {
-                maxHeight: isResourceScoped
-                    ? 'calc(80vh - 220px)'
-                    : 'calc(100dvh - 420px)',
-            },
+            mah: isResourceScoped
+                ? 'calc(80vh - 220px)'
+                : 'calc(100dvh - 420px)',
             onScroll,
         },
         mantineTableProps: {
             highlightOnHover: true,
             withColumnBorders: Boolean(tableData.length),
         },
-        mantineTableHeadCellProps: (props) => {
-            const isLastColumn =
-                props.table.getAllColumns().indexOf(props.column) ===
-                props.table.getAllColumns().length - 1;
-
-            const isAnyColumnResizing = props.table
-                .getAllColumns()
-                .some((c) => c.getIsResizing());
-            const canResize = props.column.getCanResize();
-
-            return {
-                bg: 'ldGray.0',
-                h: '3xl',
-                pos: 'relative',
-                style: {
-                    userSelect: 'none',
-                    justifyContent: 'center',
-                    padding: `${theme.spacing.xs} ${theme.spacing.xl}`,
-                    borderTop: `1px solid ${theme.colors.ldGray[2]}`,
-                    borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                    borderRight: props.column.getIsResizing()
-                        ? `2px solid ${theme.colors.blue[3]}`
-                        : `1px solid ${
-                              isLastColumn
-                                  ? 'transparent'
-                                  : theme.colors.ldGray[2]
-                          }`,
-                    borderLeft: 'none',
-                },
-                sx: {
-                    '&:hover': canResize
-                        ? {
-                              borderRight: !isAnyColumnResizing
-                                  ? `2px solid ${theme.colors.blue[3]} !important`
-                                  : undefined,
-                              transition: `border-right ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
-                          }
-                        : {},
-                },
-            };
-        },
-        mantineTableBodyCellProps: () => {
-            return {
-                h: 48,
-                style: {
-                    padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-                    borderRight: 'none',
-                    borderLeft: 'none',
-                    borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                    borderTop: 'none',
-                },
-            };
-        },
+        mantineTableBodyCellProps: { h: 48 },
         mantineTableBodyRowProps: ({ row }) => ({
             onClick: () => handleRowClick(row.original.run),
-            style: {
-                cursor: 'pointer',
-            },
         }),
         rowVirtualizerInstanceRef,
         rowVirtualizerProps: { estimateSize: () => 48, overscan: 10 },

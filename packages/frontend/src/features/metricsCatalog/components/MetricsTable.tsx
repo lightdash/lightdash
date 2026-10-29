@@ -55,6 +55,7 @@ import {
 import { MetricCatalogView, type MetricsCatalogFilter } from '../types';
 import { MetricExploreModal } from './MetricExploreModal';
 import { MetricsCatalogColumns } from './MetricsCatalogColumns';
+import classes from './MetricsTable.module.css';
 import { MetricsTableTopToolbar } from './MetricsTableTopToolbar';
 import SavedTreesContainer from './SavedTrees/SavedTreesContainer';
 
@@ -233,19 +234,8 @@ export const MetricsTable: FC<MetricsTableProps> = ({
 
     // Reusable paper props to avoid duplicate when rendering tree view
     const mantinePaperProps = useMemo(
-        () => ({
-            shadow: undefined,
-            style: {
-                border: `1px solid ${theme.colors.ldGray[2]}`,
-                borderRadius: theme.spacing.sm, // ! radius doesn't have rem(12) -> 0.75rem
-                boxShadow: theme.shadows.subtle,
-                display: 'flex',
-                flexDirection: 'column' as const,
-                height: isEmbed ? '100%' : undefined,
-                minHeight: isEmbed ? 0 : undefined,
-            },
-        }),
-        [isEmbed, theme],
+        () => (isEmbed ? { h: '100%', mih: 0 } : {}),
+        [isEmbed],
     );
 
     const flatData = useMemo(
@@ -331,119 +321,20 @@ export const MetricsTable: FC<MetricsTableProps> = ({
         mantinePaperProps,
         mantineTableContainerProps: {
             ref: tableContainerRef,
-            sx: {
-                maxHeight: isEmbed ? 'none' : 'calc(100dvh - 350px)',
-                minHeight: isEmbed ? 0 : 600,
-                display: 'flex',
-                flexDirection: 'column',
-            },
+            mah: isEmbed ? undefined : 'calc(100dvh - 350px)',
+            mih: isEmbed ? 0 : 600,
             onScroll,
         },
         mantineTableProps: {
             highlightOnHover: true,
             withColumnBorders: Boolean(flatData.length),
-            sx: {
-                flexGrow: 1,
-                display: 'flex',
-                flexDirection: 'column',
-            },
         },
-        mantineTableHeadProps: {
-            sx: {
-                flexShrink: 1,
-            },
-        },
-        mantineTableHeadCellProps: (props) => {
-            const isAnyColumnResizing = props.table
-                .getAllColumns()
-                .some((c) => c.getIsResizing());
-
-            const isLastVisibleColumn =
-                props.table
-                    .getVisibleLeafColumns()
-                    .findIndex((col) => col.id === props.column.id) ===
-                props.table.getVisibleLeafColumns().length - 1;
-
-            return {
-                bg: 'ldGray.0',
-                h: '3xl',
-                pos: 'relative',
-                // Adding to inline styles to override the default ones which can't be overridden with sx
-                style: {
-                    padding: `${theme.spacing.xs} ${theme.spacing.xl}`,
-                    borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                    borderRight: props.column.getIsResizing()
-                        ? `2px solid ${theme.colors.blue[3]}`
-                        : `1px solid ${
-                              isLastVisibleColumn
-                                  ? 'transparent'
-                                  : theme.colors.ldGray[2]
-                          }`,
-                    borderTop: 'none',
-                    borderLeft: 'none',
-                },
-                sx: {
-                    justifyContent: 'center',
-                    'tr > th:last-of-type': {
-                        borderLeft: `2px solid ${theme.colors.blue[3]}`,
-                    },
-                    '&:hover': {
-                        borderRight: !isAnyColumnResizing
-                            ? `2px solid ${theme.colors.blue[3]} !important` // This is needed to override the default inline styles
-                            : undefined,
-                        transition: `border-right ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
-                    },
-                },
-            };
-        },
-        mantineTableBodyProps: {
-            sx: {
-                flexGrow: 1,
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                // This is needed to remove the bottom border of the last row when there are no rows (cell props are not used)
-                // It doesn't work when there are rows because they more specific selectors for default styles, so TableBodyCellProps are used instead
-                'tr:last-of-type > td': {
-                    borderBottom: 'none',
-                },
-            },
-        },
-        mantineTableBodyCellProps: (props) => {
-            const isLastVisibleColumn =
-                props.table
-                    .getVisibleLeafColumns()
-                    .findIndex((col) => col.id === props.column.id) ===
-                props.table.getVisibleLeafColumns().length - 1;
-
-            const isLastRow = flatData.length === props.row.index + 1;
-            const hasScroll = tableContainerRef.current
-                ? tableContainerRef.current.scrollHeight >
-                  tableContainerRef.current.clientHeight
-                : false;
-
-            return {
-                h: 72,
-                // Adding to inline styles to override the default ones which can't be overridden with sx
-                style: {
-                    padding: `${theme.spacing.md} ${theme.spacing.xl}`,
-                    borderRight: isLastVisibleColumn
-                        ? 'none'
-                        : `1px solid ${theme.colors.ldGray[2]}`,
-                    // This is needed to remove the bottom border of the last row when there are rows
-                    borderBottom:
-                        isLastRow && hasScroll
-                            ? 'none'
-                            : `1px solid ${theme.colors.ldGray[2]}`,
-                    borderTop: 'none',
-                    borderLeft: 'none',
-                },
-                sx: {
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    flexShrink: 0,
-                },
-            };
+        mantineTableHeadCellProps: { px: 'xl' },
+        mantineTableBodyCellProps: {
+            h: 72,
+            py: 'md',
+            px: 'xl',
+            className: classes.bodyCell,
         },
         renderTopToolbar: () => (
             <Box>

@@ -661,9 +661,7 @@ export const ServiceAccountsTable: FC<Props> = ({
         enableSorting: true,
         enableTopToolbar: true,
         enableBottomToolbar: false,
-        mantinePaperProps: { className: classes.tablePaper },
-        mantineTableHeadCellProps: { className: classes.headCell },
-        mantineTableBodyCellProps: { className: classes.bodyCell },
+        mantineTableBodyCellProps: { py: 'sm' },
         mantineTableProps: { highlightOnHover: true },
         state: { isLoading },
         renderEmptyRowsFallback: () => (

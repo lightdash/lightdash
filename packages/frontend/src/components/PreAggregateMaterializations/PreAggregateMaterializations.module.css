@@ -10,22 +10,15 @@
 }
 
 .filterButtonSelected {
-    border: 1px solid var(--mantine-color-indigo-2);
+    border: 1px solid
+        light-dark(var(--mantine-color-indigo-2), var(--mantine-color-indigo-4));
     background: var(--mantine-color-indigo-light);
     box-shadow: var(--mantine-shadow-subtle);
-
-    @mixin dark {
-        border-color: var(--mantine-color-indigo-4);
-    }
 }
 
 .filterButtonSelected:hover {
     border: 1px solid var(--mantine-color-indigo-3);
     background: var(--mantine-color-indigo-light);
-}
-
-.clickableRow {
-    cursor: pointer;
 }
 
 .triggerChipDisabled {

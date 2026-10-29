@@ -9,7 +9,6 @@ import {
     Text,
     Title,
     Tooltip,
-    useMantineTheme,
 } from '@mantine/core';
 import {
     IconCheck,
@@ -40,7 +39,6 @@ type Props = {
 
 export const EvalRuns: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
     const navigate = useNavigate();
-    const theme = useMantineTheme();
 
     const { data: runsData, isLoading: isLoadingRuns } =
         useAiAgentEvaluationRuns(projectUuid, agentUuid, evalUuid);
@@ -225,59 +223,18 @@ export const EvalRuns: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
         enableStickyHeader: true,
         mantineTableBodyRowProps: ({ row }) => ({
             onClick: () => handleSelectRun(row.original),
-            style: {
-                cursor: 'pointer',
-            },
         }),
         state: {
             isLoading: isLoadingRuns,
         },
         mantineTableContainerProps: {
-            style: { maxHeight: '320px' },
+            mah: '320px',
         },
         mantineTableProps: {
             highlightOnHover: true,
             withColumnBorders: Boolean(runs.length),
         },
-        mantineTableHeadCellProps: (props) => {
-            const isFirstColumn =
-                props.table.getAllColumns().indexOf(props.column) === 0;
-            const isLastColumn =
-                props.table.getAllColumns().indexOf(props.column) ===
-                props.table.getAllColumns().length - 1;
-
-            return {
-                bg: 'ldGray.0',
-                h: '3xl',
-                pos: 'relative',
-                style: {
-                    userSelect: 'none',
-                    padding: `${theme.spacing.xs} ${theme.spacing.xl}`,
-                    borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                    borderRight: props.column.getIsResizing()
-                        ? `2px solid ${theme.colors.blue[3]}`
-                        : `1px solid ${
-                              isLastColumn || isFirstColumn
-                                  ? 'transparent'
-                                  : theme.colors.ldGray[2]
-                          }`,
-                    borderTop: 'none',
-                    borderLeft: 'none',
-                },
-            };
-        },
-        mantineTableBodyCellProps: () => {
-            return {
-                h: 48,
-                style: {
-                    padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-                    borderRight: 'none',
-                    borderLeft: 'none',
-                    borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                    borderTop: 'none',
-                },
-            };
-        },
+        mantineTableBodyCellProps: { h: 48 },
     });
 
     if (isLoadingRuns) {

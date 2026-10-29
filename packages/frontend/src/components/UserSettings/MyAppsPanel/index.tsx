@@ -385,7 +385,7 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
         },
         mantineTableContainerProps: {
             ref: tableContainerRef,
-            style: { maxHeight: 'calc(100dvh - 420px)' },
+            mah: 'calc(100dvh - 420px)',
             onScroll,
         },
         mantineTableProps: {

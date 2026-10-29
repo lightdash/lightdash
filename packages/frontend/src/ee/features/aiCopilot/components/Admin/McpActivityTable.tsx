@@ -458,9 +458,7 @@ const McpActivityTable = ({
             enableSorting: true,
             enableEditing: false,
             size: 120,
-            mantineTableHeadCellProps: {
-                className: styles.durationHeadCell,
-            },
+            mantineTableHeadCellProps: { ta: 'right' },
             mantineTableBodyCellProps: { ta: 'right' },
             Header: ({ column }) => (
                 <Group gap="two">
@@ -504,22 +502,13 @@ const McpActivityTable = ({
         enableTopToolbar: true,
         mantineTableContainerProps: {
             ref: tableContainerRef,
-            sx: {
-                maxHeight: 'calc(100dvh - 420px)',
-                minHeight: '400px',
-                display: 'flex',
-                flexDirection: 'column',
-            },
+            mah: 'calc(100dvh - 420px)',
+            mih: 400,
             onScroll,
         },
         mantineTableProps: {
             highlightOnHover: true,
             withColumnBorders: Boolean(flatData.length),
-            sx: {
-                flexGrow: 1,
-                display: 'flex',
-                flexDirection: 'column',
-            },
         },
         getRowId: (row) =>
             row.type === 'session' ? `session:${row.groupKey}` : row.call.uuid,
@@ -530,22 +519,14 @@ const McpActivityTable = ({
             if (row.original.type === 'session') {
                 const { groupKey } = row.original;
                 return {
-                    style: {
-                        cursor: 'pointer',
-                        backgroundColor: theme.colors.ldGray[0],
-                    },
+                    className: styles.sessionRow,
                     onClick: () => toggleGroup(groupKey),
                 };
             }
             const toolCall = row.original.call;
             const isSelected = selectedCall?.uuid === toolCall.uuid;
             return {
-                style: {
-                    cursor: 'pointer',
-                    backgroundColor: isSelected
-                        ? theme.colors.ldGray[1]
-                        : undefined,
-                },
+                'data-selected': isSelected || undefined,
                 onClick: () => onCallSelect?.(toolCall),
             };
         },

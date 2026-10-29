@@ -377,7 +377,7 @@ const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
         },
         mantineTableContainerProps: {
             ref: tableContainerRef,
-            sx: { maxHeight: 'calc(100dvh - 260px)' },
+            mah: 'calc(100dvh - 260px)',
             onScroll,
         },
         mantineTableProps: {

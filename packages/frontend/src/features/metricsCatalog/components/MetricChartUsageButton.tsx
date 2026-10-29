@@ -70,6 +70,7 @@ export const MetricChartUsageButton = ({
                 fz="sm"
                 c="ldGray.7"
                 className={styles.button}
+                classNames={{ section: styles.section }}
             >
                 {row.original.chartUsage}
             </Button>

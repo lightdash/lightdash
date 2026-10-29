@@ -512,66 +512,15 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
         enableBottomToolbar: false,
         mantineTableContainerProps: {
             ref: tableContainerRef,
-            style: { maxHeight: 'calc(100dvh - 420px)' },
+            mah: 'calc(100dvh - 420px)',
             onScroll,
         },
         mantineTableProps: {
             highlightOnHover: true,
             withColumnBorders: Boolean(flatData.length),
         },
-        mantineTableHeadCellProps: (props) => {
-            const isLastColumn =
-                props.table.getAllColumns().indexOf(props.column) ===
-                props.table.getAllColumns().length - 1;
-
-            const isAnyColumnResizing = props.table
-                .getAllColumns()
-                .some((c) => c.getIsResizing());
-            const canResize = props.column.getCanResize();
-
-            return {
-                bg: 'ldGray.0',
-                h: '3xl',
-                pos: 'relative',
-                style: {
-                    userSelect: 'none',
-                    justifyContent: 'center',
-                    padding: `${theme.spacing.xs} ${theme.spacing.xl}`,
-                    borderTop: `1px solid ${theme.colors.ldGray[2]}`,
-                    borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                    borderRight: props.column.getIsResizing()
-                        ? `2px solid ${theme.colors.blue[3]}`
-                        : `1px solid ${
-                              isLastColumn
-                                  ? 'transparent'
-                                  : theme.colors.ldGray[2]
-                          }`,
-                    borderLeft: 'none',
-                },
-                sx: {
-                    '&:hover': canResize
-                        ? {
-                              borderRight: !isAnyColumnResizing
-                                  ? `2px solid ${theme.colors.blue[3]} !important`
-                                  : undefined,
-                              transition: `border-right ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
-                          }
-                        : {},
-                },
-            };
-        },
-        mantineTableBodyCellProps: () => {
-            return {
-                h: 72,
-                style: {
-                    padding: `${theme.spacing.md} ${theme.spacing.xl}`,
-                    borderRight: 'none',
-                    borderLeft: 'none',
-                    borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                    borderTop: 'none',
-                },
-            };
-        },
+        mantineTableHeadCellProps: { px: 'xl' },
+        mantineTableBodyCellProps: { h: 72, py: 'md', px: 'xl' },
         renderTopToolbar: () => (
             <Group
                 justify="space-between"

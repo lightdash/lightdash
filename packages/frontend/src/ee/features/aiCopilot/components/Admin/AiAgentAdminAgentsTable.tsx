@@ -520,13 +520,12 @@ const AiAgentAdminAgentsTable = () => {
         enableTopToolbar: true,
         enableBottomToolbar: false,
         mantineTableContainerProps: {
-            style: {
-                maxHeight: 'calc(100dvh - 350px)',
-            },
+            mah: 'calc(100dvh - 350px)',
         },
         mantineTableProps: {
             highlightOnHover: true,
         },
+        mantineTableHeadCellProps: { px: 'xl' },
 
         mantineTableBodyRowProps: ({ row, table: mantineTable }) => {
             if (mantineTable.getState().showSkeletons) {
@@ -543,16 +542,7 @@ const AiAgentAdminAgentsTable = () => {
                 },
             };
         },
-        mantineTableBodyCellProps: {
-            h: 72,
-            style: {
-                padding: `${theme.spacing.md} ${theme.spacing.xl}`,
-                borderRight: 'none',
-                borderLeft: 'none',
-                borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                borderTop: 'none',
-            },
-        },
+        mantineTableBodyCellProps: { h: 72, py: 'md', px: 'xl' },
         renderTopToolbar: () => (
             <Box>
                 <Group
