@@ -290,6 +290,14 @@ export const SDK_FEATURES: SdkFeature[] = [
             "Result columns carry the semantic layer's url link patterns, so values with configured links render as links, matching dashboards.",
         wiring: 'In cell renderers (tables, underlying-data dialogs), call resolveColumnUrls({ column, row, columns, format }) and render the value as a link when it returns entries, styled visibly as a link.',
     },
+    {
+        key: 'space-charts',
+        appliesTo: ['data_app'],
+        label: 'List charts in a space',
+        description:
+            'List the saved charts in a Lightdash space at runtime, so chart galleries update as charts are saved — limited to spaces the viewer can already access.',
+        wiring: "Call useSpaceCharts('<space slug or uuid>') where the app needs the list, render from its charts array (uuid, name, description, chartKind), and pass chart.uuid to savedChart(...) to show one. Check available first — it stays false on hosts without the capability.",
+    },
 ];
 
 export const SDK_FEATURE_KEYS: string[] = SDK_FEATURES.map((f) => f.key);

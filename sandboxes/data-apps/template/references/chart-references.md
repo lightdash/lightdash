@@ -87,6 +87,19 @@ A linked chart stays in sync with Lightdash and appears in the Queries panel
 like any other query. If it can't be run (deleted / no access), the app should
 show its normal error state — don't fabricate data.
 
+### Discovering charts at runtime (`useSpaceCharts`)
+
+When the user wants a gallery or "my charts" page that picks up charts saved
+to a space **after** the app is built, don't hardcode a UUID list — list the
+space at runtime: `useSpaceCharts('<space slug or uuid>')` returns
+`{ available, space, charts, loading, error, refresh }`, scoped to what the
+viewer can access (an inaccessible space answers `space: null` with no
+charts). Pass an entry's `uuid` to `savedChart(...)` to render it, and treat
+every such chart as LINKED: data-driven and crash-proof per the rules below,
+since its shape is unknown at build time. Render an empty state for zero
+charts and hide the section when `available` is false. The recipe lives in
+the `sdk-features` skill under `space-charts`.
+
 ### Linked charts must be DATA-DRIVEN and crash-proof
 
 A linked chart's query can change in Lightdash *after* the app is generated (the

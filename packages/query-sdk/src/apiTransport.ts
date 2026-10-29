@@ -50,8 +50,12 @@ import {
     VIZ_UNDERLYING_DATA_PATH,
     VIZ_SUBTOTALS_PATH,
     EXPLORE_BASE_TABLE_PATH,
+    SPACE_CHARTS_PATH,
     type ExploreBaseTableRequest,
     type ExploreBaseTableResult,
+    type SpaceChartsRequest,
+    type SpaceChartsResult,
+    type SpaceChartSummary,
 } from './types';
 
 // Mirrors the explorer's `useInfiniteQueryResults` polling rhythm so the
@@ -244,6 +248,8 @@ export type ExploreBaseTableResolver = (
 
 export type ApiTransportOptions = {
     resolveExploreBaseTable: ExploreBaseTableResolver | null;
+    /** Omitted/null = the transport reports the capability unavailable. */
+    listSpaceCharts?: SpaceChartsResolver | null;
 };
 
 const toBaseTable = (value: unknown): string | null =>
@@ -270,6 +276,125 @@ export const createHostExploreBaseTableResolver =
             body,
         );
         return toBaseTable(result?.baseTable);
+    };
+
+// ---------------------------------------------------------------------------
+// Space charts (useSpaceCharts)
+// ---------------------------------------------------------------------------
+
+/** Lists the saved charts the viewer can see in a space (slug or uuid). */
+export type SpaceChartsResolver = (
+    space: string,
+) => Promise<SpaceChartsResult>;
+
+/**
+ * Thrown when the transport has the capability but the running host does not
+ * (a current SDK bundle on an older Lightdash). `useSpaceCharts` maps it to
+ * `available: false` instead of an error, so galleries hide cleanly.
+ */
+export class SpaceChartsUnsupportedError extends Error {
+    constructor() {
+        super('Space charts listing is not supported by this Lightdash host');
+        this.name = 'SpaceChartsUnsupportedError';
+    }
+}
+
+const EMPTY_SPACE_CHARTS: SpaceChartsResult = { space: null, charts: [] };
+
+const toNullableString = (value: unknown): string | null =>
+    typeof value === 'string' && value.length > 0 ? value : null;
+
+/** Normalize an untrusted body into a `SpaceChartsResult`. */
+export const normalizeSpaceChartsResult = (
+    value: unknown,
+): SpaceChartsResult => {
+    if (typeof value !== 'object' || value === null)
+        return EMPTY_SPACE_CHARTS;
+    const { space, charts } = value as { space?: unknown; charts?: unknown };
+    let spaceInfo: SpaceChartsResult['space'] = null;
+    if (typeof space === 'object' && space !== null) {
+        const { uuid, name, slug } = space as Record<string, unknown>;
+        if (
+            typeof uuid === 'string' &&
+            typeof name === 'string' &&
+            typeof slug === 'string'
+        ) {
+            spaceInfo = { uuid, name, slug };
+        }
+    }
+    const chartList: SpaceChartSummary[] = (
+        Array.isArray(charts) ? charts : []
+    ).flatMap((chart: unknown) => {
+        if (typeof chart !== 'object' || chart === null) return [];
+        const entry = chart as Record<string, unknown>;
+        if (typeof entry.uuid !== 'string' || typeof entry.name !== 'string') {
+            return [];
+        }
+        return [
+            {
+                uuid: entry.uuid,
+                name: entry.name,
+                description: toNullableString(entry.description),
+                chartKind: toNullableString(entry.chartKind),
+                slug: toNullableString(entry.slug),
+                updatedAt: toNullableString(entry.updatedAt),
+            },
+        ];
+    });
+    return { space: spaceInfo, charts: chartList };
+};
+
+/** Asks the host (app bridge or CLI preview proxy) via its virtual route. */
+export const createHostSpaceChartsResolver =
+    (fetchFn: FetchAdapter): SpaceChartsResolver =>
+    async (space) => {
+        const body: SpaceChartsRequest = { space };
+        const result = await fetchFn<unknown>('POST', SPACE_CHARTS_PATH, body);
+        return normalizeSpaceChartsResult(result);
+    };
+
+/**
+ * Resolves against the real API (local dev with a PAT): the spaces list to
+ * match the slug/uuid, then the space detail for its chart summaries — the
+ * same two calls the host makes when answering the virtual route.
+ */
+export const createApiSpaceChartsResolver =
+    (fetchFn: FetchAdapter, projectUuid: string): SpaceChartsResolver =>
+    async (space) => {
+        try {
+            const spaces = await fetchFn<unknown>(
+                'GET',
+                `/api/v1/projects/${projectUuid}/spaces`,
+            );
+            const match = (Array.isArray(spaces) ? spaces : []).find(
+                (entry: unknown) => {
+                    if (typeof entry !== 'object' || entry === null)
+                        return false;
+                    const { uuid, slug } = entry as Record<string, unknown>;
+                    return uuid === space || slug === space;
+                },
+            ) as { uuid?: unknown } | undefined;
+            if (typeof match?.uuid !== 'string') return EMPTY_SPACE_CHARTS;
+            const detail = await fetchFn<Record<string, unknown> | null>(
+                'GET',
+                `/api/v1/projects/${projectUuid}/spaces/${match.uuid}`,
+            );
+            if (typeof detail !== 'object' || detail === null)
+                return EMPTY_SPACE_CHARTS;
+            return normalizeSpaceChartsResult({
+                space: detail,
+                charts: detail.queries,
+            });
+        } catch (e) {
+            // Same face as the host route: no access answers like not found.
+            if (
+                e instanceof LightdashApiError &&
+                (e.status === 403 || e.status === 404)
+            ) {
+                return EMPTY_SPACE_CHARTS;
+            }
+            throw e;
+        }
     };
 
 function buildUnderlyingDataFilters(
@@ -1001,15 +1126,23 @@ export function createApiTransport(
     // endpoint, so only the default adapter looks base tables up by default.
     // Behind a dev proxy (CLI preview) the proxy answers the host route.
     let defaultResolver: ExploreBaseTableResolver | null = null;
+    let defaultSpaceCharts: SpaceChartsResolver | null = null;
     if (adapter === undefined) {
         defaultResolver = config.useProxy
             ? createHostExploreBaseTableResolver(fetchFn)
             : createApiExploreBaseTableResolver(fetchFn, config.projectUuid);
+        defaultSpaceCharts = config.useProxy
+            ? createHostSpaceChartsResolver(fetchFn)
+            : createApiSpaceChartsResolver(fetchFn, config.projectUuid);
     }
     const resolveExploreBaseTable =
         options === undefined
             ? defaultResolver
             : options.resolveExploreBaseTable;
+    const listSpaceCharts =
+        options === undefined
+            ? defaultSpaceCharts
+            : (options.listSpaceCharts ?? null);
     const baseTableByExplore = new Map<string, Promise<string | null>>();
 
     const getFieldQualifier = async (query: QueryDefinition) => {
@@ -1546,5 +1679,9 @@ export function createApiTransport(
                 intent,
             );
         },
+
+        // Left absent (not a thrower) when no resolver exists, so
+        // `useSpaceCharts().available` honestly reports the capability.
+        ...(listSpaceCharts ? { listSpaceCharts } : {}),
     };
 }

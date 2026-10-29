@@ -16,9 +16,14 @@ import {
     APP_SDK_VIZ_UNDERLYING_DATA_OPEN_PATH,
     APP_SDK_VIZ_UNDERLYING_DATA_PATH,
     APP_SDK_EXPLORE_BASE_TABLE_PATH,
+    APP_SDK_SPACE_CHARTS_PATH,
+    emptyAppSdkSpaceCharts,
     extractAppSdkRouteProjectUuid,
+    extractAppSdkSpaceCharts,
     extractExploreBaseTable,
     isAllowedAppSdkRoute,
+    parseAppSdkSpaceChartsRequest,
+    resolveAppSdkSpaceUuid,
     isAppSdkScheduleDownloadRoute,
     JWT_HEADER_NAME,
     LightdashAppPreviewTokenHeader,
@@ -26,6 +31,7 @@ import {
     LightdashSignedDownloadHeader,
     parseAppSdkExploreBaseTableRequest,
     type AppColorScheme,
+    type AppSdkSpaceChartsResult,
     type AppSdkExploreBaseTableResult,
     type DashboardFilters,
     type DataAppInsightAction,
@@ -230,6 +236,50 @@ const fetchExploreBaseTable = async ({
         return extractExploreBaseTable(await res.json());
     } catch {
         return null;
+    }
+};
+
+/**
+ * Resolve a slug-or-uuid space reference to its trimmed chart list with the
+ * viewer's credentials. Any failure — unknown space, no access, network —
+ * answers uniformly empty, so apps can't probe for spaces they can't see.
+ */
+const fetchSpaceCharts = async ({
+    projectUuid,
+    spaceRef,
+    embedToken,
+    appUuid,
+}: {
+    projectUuid: string;
+    spaceRef: string;
+    embedToken: string | undefined;
+    appUuid: string;
+}): Promise<AppSdkSpaceChartsResult> => {
+    const headers = getAppSdkRequestHeaders(embedToken, appUuid);
+    try {
+        const listRes = await fetch(
+            resolveFetchUrl(`/api/v1/projects/${projectUuid}/spaces`),
+            { method: 'GET', headers },
+        );
+        if (!listRes.ok) return emptyAppSdkSpaceCharts();
+        const spaceUuid = resolveAppSdkSpaceUuid(
+            await listRes.json(),
+            spaceRef,
+        );
+        if (spaceUuid === null) return emptyAppSdkSpaceCharts();
+        const res = await fetch(
+            resolveFetchUrl(
+                `/api/v1/projects/${projectUuid}/spaces/${spaceUuid}`,
+            ),
+            { method: 'GET', headers },
+        );
+        if (!res.ok) return emptyAppSdkSpaceCharts();
+        return (
+            extractAppSdkSpaceCharts(await res.json()) ??
+            emptyAppSdkSpaceCharts()
+        );
+    } catch {
+        return emptyAppSdkSpaceCharts();
     }
 };
 
@@ -1258,6 +1308,25 @@ export function useAppSdkBridge({
                 return;
             }
 
+            // Host-answered virtual route: only the trimmed chart list leaves
+            // the host — space access/member data never enters the iframe.
+            if (path === APP_SDK_SPACE_CHARTS_PATH) {
+                const request = parseAppSdkSpaceChartsRequest(body);
+                if (request === null) {
+                    respond({ error: 'Invalid space-charts request.' });
+                    return;
+                }
+                respond({
+                    result: await fetchSpaceCharts({
+                        projectUuid,
+                        spaceRef: request.space,
+                        embedToken,
+                        appUuid,
+                    }),
+                });
+                return;
+            }
+
             // Host-answered virtual route: only the base table leaves the
             // host, never the explore itself.
             if (path === APP_SDK_EXPLORE_BASE_TABLE_PATH) {
@@ -1678,6 +1747,11 @@ export function useAppSdkBridge({
                 ...(captureRender ? { deliveryRender: true } : {}),
                 // Lets the SDK address app-scoped routes (AI prompts).
                 ...(appUuid ? { appUuid } : {}),
+                // Negotiates the space-charts virtual route: SDKs only call
+                // it on hosts that announce it, so `useSpaceCharts` can
+                // report `available: false` on older hosts instead of
+                // hitting a blocked route.
+                spaceCharts: true,
             },
             '*',
         );
