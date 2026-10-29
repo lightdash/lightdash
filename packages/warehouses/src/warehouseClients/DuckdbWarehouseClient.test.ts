@@ -296,51 +296,6 @@ describe('internal Parquet projects', () => {
         rm.mockRestore();
     });
 
-    it('interrupts and awaits a canceled internal SQL operation', async () => {
-        const controller = new AbortController();
-        let rejectQuery!: (error: Error) => void;
-        const native = new Promise<never>((_resolve, reject) => {
-            rejectQuery = reject;
-        });
-        const interrupt = vi.fn(() =>
-            rejectQuery(new Error('native interrupted')),
-        );
-        const connection = {
-            run: vi.fn(() => native),
-            interrupt,
-        };
-        const client = new DuckdbWarehouseClient({
-            type: 'duckdb_parquet',
-            resolveSource: async () => source(),
-        });
-        vi.spyOn(
-            client as unknown as {
-                withSession: (
-                    callback: (db: typeof connection) => Promise<unknown>,
-                ) => Promise<unknown>;
-            },
-            'withSession',
-        ).mockImplementation(
-            async (callback: (db: typeof connection) => Promise<unknown>) =>
-                callback(connection),
-        );
-        vi.spyOn(
-            client as unknown as { validateInternalSql: () => Promise<void> },
-            'validateInternalSql',
-        ).mockResolvedValue(undefined);
-        const running = client.runSqlWithMetrics('SELECT 1', {
-            signal: controller.signal,
-        });
-        const rejected = running.catch((error: unknown) => error);
-        await Promise.resolve();
-        await Promise.resolve();
-        controller.abort(new Error('lease lost'));
-        expect(await rejected).toEqual(new Error('native interrupted'));
-        expect(interrupt).toHaveBeenCalledOnce();
-        expect(connection.run).toHaveBeenCalledOnce();
-        vi.restoreAllMocks();
-    });
-
     it('interrupts active queries after 120 seconds, leaves queued queries untimed, and releases capacity', async () => {
         vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
         const interrupts: Mock[] = [];

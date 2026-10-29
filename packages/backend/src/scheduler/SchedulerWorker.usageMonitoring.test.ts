@@ -6,14 +6,12 @@ import {
     type SchedulerWorkerArguments,
 } from './SchedulerWorker';
 
-vi.mock('../analytics/eventStream/UsageEventsCompactor', () => ({
-    UsageEventsCompactor: vi.fn(),
+vi.mock('./usageProcessingLease', () => ({
+    extendUsageProcessingLease: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock('./usageProcessingLease', () => ({
-    withUsageProcessingLease: vi.fn(async (_helpers, run) =>
-        run(new AbortController().signal),
-    ),
+vi.mock('../analytics/eventStream/UsageEventsCompactor', () => ({
+    UsageEventsCompactor: vi.fn(),
 }));
 
 class UsageTestWorker extends SchedulerWorker {

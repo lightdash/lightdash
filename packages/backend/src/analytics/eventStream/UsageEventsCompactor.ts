@@ -1,10 +1,6 @@
 import { FeatureFlags, getErrorMessage } from '@lightdash/common';
 import { DuckdbWarehouseClient } from '@lightdash/warehouses';
 import { createHash, randomUUID } from 'crypto';
-import { createReadStream } from 'fs';
-import { mkdtemp, rm } from 'fs/promises';
-import { tmpdir } from 'os';
-import path from 'path';
 import { performance } from 'perf_hooks';
 import { z } from 'zod';
 import { S3BaseClient } from '../../clients/Aws/S3BaseClient';
@@ -21,7 +17,6 @@ import { quoteDuckdbIdentifier } from '../../utils/duckdb/duckdbSqlTables';
 import { getDuckdbRuntimeConfig } from '../../utils/duckdb/getDuckdbRuntimeConfig';
 import { getCompactedStreamColumns } from './registry';
 import { CompactedStreamColumn } from './types';
-import { uploadUsageParquet } from './uploadUsageParquet';
 import {
     UsageDimensionsRefresher,
     type DimensionRefreshSummary,
@@ -122,13 +117,11 @@ export const buildCompactionSql = ({
     partition,
     columns,
     storageScheme = 's3',
-    outputPath,
 }: {
     bucket: string;
     partition: RawPartition;
     columns: CompactedStreamColumn[];
     storageScheme?: 's3' | 'gs';
-    outputPath?: string;
 }): { sql: string; compactedKey: string } => {
     const compactedKey = `${COMPACTED_KEY_PREFIX}/org_id=${partition.orgId}/stream=${
         partition.stream
@@ -150,7 +143,9 @@ export const buildCompactionSql = ({
                 `'${storageScheme}://${escapeSqlString(`${bucket}/${key}`)}'`,
         )
         .join(', ');
-    const sql = `COPY (SELECT ${selectList} FROM read_json([${fileList}], format='newline_delimited', columns={${columnDefs}})) TO '${escapeSqlString(outputPath ?? `${storageScheme}://${bucket}/${compactedKey}`)}' (FORMAT PARQUET, COMPRESSION zstd)`;
+    const sql = `COPY (SELECT ${selectList} FROM read_json([${fileList}], format='newline_delimited', columns={${columnDefs}})) TO '${storageScheme}://${escapeSqlString(
+        `${bucket}/${compactedKey}`,
+    )}' (FORMAT PARQUET, COMPRESSION zstd)`;
     return { sql, compactedKey };
 };
 
@@ -163,8 +158,6 @@ export type CompactionRunSummary = {
 };
 
 export type UsageEventsCompactorArgs = {
-    signal?: AbortSignal;
-    withLease?: <T>(run: (signal: AbortSignal) => Promise<T>) => Promise<T>;
     s3Config: Omit<S3Config, 'expirationTime'>;
     prometheusMetrics: PrometheusMetrics | null;
     featureFlagModel: Pick<FeatureFlagModel, 'get'>;
@@ -183,10 +176,6 @@ export type UsageEventsCompactorArgs = {
 export class UsageEventsCompactor extends S3BaseClient {
     private readonly bucket: string;
 
-    private signal?: AbortSignal;
-
-    private readonly lease?: UsageEventsCompactorArgs['withLease'];
-
     private readonly s3Config: Omit<S3Config, 'expirationTime'>;
 
     private readonly prometheusMetrics: PrometheusMetrics | null;
@@ -200,8 +189,6 @@ export class UsageEventsCompactor extends S3BaseClient {
 
     constructor(args: UsageEventsCompactorArgs) {
         super(args.s3Config);
-        this.signal = args.signal;
-        this.lease = args.withLease;
         this.bucket = args.s3Config.bucket;
         this.featureFlagModel = args.featureFlagModel;
         this.s3Config = args.s3Config;
@@ -218,93 +205,84 @@ export class UsageEventsCompactor extends S3BaseClient {
             users: UserActivitySummary;
         }
     > {
-        this.signal?.throwIfAborted();
         const runId = randomUUID();
         try {
             return await this.monitorStage(
                 runId,
                 'pipeline',
-                () =>
-                    this.withLease(async () => {
-                        const organizations: {
-                            organization_id: number;
-                            organization_uuid: string;
-                        }[] = [];
-                        for await (const organization of this.usageDimensionsModel.getOrganizations(
-                            organizationUuid,
-                        )) {
-                            this.signal?.throwIfAborted();
-                            const { enabled } = await this.featureFlagModel.get(
+                async () => {
+                    const organizations: {
+                        organization_id: number;
+                        organization_uuid: string;
+                    }[] = [];
+                    for await (const organization of this.usageDimensionsModel.getOrganizations(
+                        organizationUuid,
+                    )) {
+                        const { enabled } = await this.featureFlagModel.get({
+                            featureFlagId: FeatureFlags.AnalyticsProject,
+                            user: {
+                                organizationUuid:
+                                    organization.organization_uuid,
+                            },
+                        });
+                        if (enabled) organizations.push(organization);
+                    }
+                    const orgIds = organizations.map(
+                        (organization) => organization.organization_uuid,
+                    );
+                    const summary = await this.monitorStage(
+                        runId,
+                        'compaction',
+                        () => this.compactEvents(now, orgIds),
+                        UsageEventsCompactor.compactionOutcome,
+                    );
+                    const dimensions = await this.monitorStage(
+                        runId,
+                        'dimensions',
+                        () =>
+                            new UsageDimensionsRefresher(
+                                this.s3Config,
                                 {
-                                    featureFlagId:
-                                        FeatureFlags.AnalyticsProject,
-                                    user: {
-                                        organizationUuid:
-                                            organization.organization_uuid,
+                                    async *getOrganizations() {
+                                        yield* organizations;
                                     },
+                                    getJsonLines:
+                                        this.usageDimensionsModel.getJsonLines.bind(
+                                            this.usageDimensionsModel,
+                                        ),
                                 },
-                            );
-                            if (enabled) organizations.push(organization);
-                        }
-                        const orgIds = organizations.map(
-                            (organization) => organization.organization_uuid,
+                                this.createDuckdbClient(),
+                            ).run(),
+                        (result) => ({
+                            outcome: result.failed > 0 ? 'failed' : 'success',
+                            failed: result.failed,
+                            remaining: result.failed,
+                        }),
+                    );
+                    const users = await this.monitorStage(
+                        runId,
+                        'users',
+                        () =>
+                            new UsageUserActivityBuilder(this.s3Config).runAll(
+                                now,
+                                orgIds,
+                            ),
+                        UsageEventsCompactor.usersOutcome,
+                    );
+                    // User activity depends on compacted events, not dimension
+                    // snapshots. Finish this independent stage for every tenant
+                    // before reporting failures to the scheduler and monitoring.
+                    if (dimensions.failed > 0) {
+                        throw new Error(
+                            `Usage dimensions: ${dimensions.failed} refreshes failed; previous snapshots retained`,
                         );
-                        const summary = await this.monitorStage(
-                            runId,
-                            'compaction',
-                            () => this.compactEvents(now, orgIds),
-                            UsageEventsCompactor.compactionOutcome,
+                    }
+                    if (users.failed > 0)
+                        throw new Error(
+                            `User activity: ${users.failed} partitions failed; previous output retained`,
                         );
-                        const dimensions = await this.monitorStage(
-                            runId,
-                            'dimensions',
-                            () =>
-                                new UsageDimensionsRefresher(
-                                    this.s3Config,
-                                    {
-                                        async *getOrganizations() {
-                                            yield* organizations;
-                                        },
-                                        getJsonLines:
-                                            this.usageDimensionsModel.getJsonLines.bind(
-                                                this.usageDimensionsModel,
-                                            ),
-                                    },
-                                    this.createDuckdbClient(),
-                                    this.signal,
-                                ).run(),
-                            (result) => ({
-                                outcome:
-                                    result.failed > 0 ? 'failed' : 'success',
-                                failed: result.failed,
-                                remaining: result.failed,
-                            }),
-                        );
-                        const users = await this.monitorStage(
-                            runId,
-                            'users',
-                            () =>
-                                new UsageUserActivityBuilder(
-                                    this.s3Config,
-                                    undefined,
-                                    this.signal,
-                                ).runAll(now, orgIds),
-                            UsageEventsCompactor.usersOutcome,
-                        );
-                        // User activity depends on compacted events, not dimension
-                        // snapshots. Finish this independent stage for every tenant
-                        // before reporting failures to the scheduler and monitoring.
-                        if (dimensions.failed > 0) {
-                            throw new Error(
-                                `Usage dimensions: ${dimensions.failed} refreshes failed; previous snapshots retained`,
-                            );
-                        }
-                        if (users.failed > 0)
-                            throw new Error(
-                                `User activity: ${users.failed} partitions failed; previous output retained`,
-                            );
-                        return { ...summary, dimensions, users };
-                    }),
+                    return { ...summary, dimensions, users };
+                },
                 (result) => {
                     const rawOutcome =
                         UsageEventsCompactor.compactionOutcome(result).outcome;
@@ -324,14 +302,6 @@ export class UsageEventsCompactor extends S3BaseClient {
         } finally {
             this.s3?.destroy();
         }
-    }
-
-    private async withLease<T>(run: () => Promise<T>): Promise<T> {
-        if (!this.lease) return run();
-        return this.lease(async (signal) => {
-            this.signal = signal;
-            return run();
-        });
     }
 
     private static compactionOutcome(
@@ -385,9 +355,7 @@ export class UsageEventsCompactor extends S3BaseClient {
         );
         Logger.info('Usage processing stage started', { runId, stage });
         try {
-            this.signal?.throwIfAborted();
             const value = await run();
-            this.signal?.throwIfAborted();
             result = summarize(value);
             return value;
         } finally {
@@ -484,7 +452,6 @@ export class UsageEventsCompactor extends S3BaseClient {
                         `Usage events compaction: processed ${partitionLabel}; ${deleted} raw objects deleted in ${Date.now() - partitionStart}ms`,
                     );
                 } catch (error) {
-                    this.signal?.throwIfAborted();
                     summary.partitionsFailed += 1;
                     this.recordMetrics(() => {
                         this.prometheusMetrics?.incrementUsageEventsCompactionFailures();
@@ -542,96 +509,42 @@ export class UsageEventsCompactor extends S3BaseClient {
         const checkpoint = `events/compaction/org_id=${partition.orgId}/stream=${partition.stream}/dt=${partition.dt}/pending.json`;
         let keys: string[];
         try {
-            const pending = await this.s3!.getObject(
-                {
-                    Bucket: this.bucket,
-                    Key: checkpoint,
-                },
-                { abortSignal: this.signal },
-            );
+            const pending = await this.s3!.getObject({
+                Bucket: this.bucket,
+                Key: checkpoint,
+            });
             keys = z
                 .array(z.string().startsWith(prefix).endsWith('.jsonl.gz'))
                 .nonempty()
                 .parse(JSON.parse(await pending.Body!.transformToString()));
         } catch (error) {
-            this.signal?.throwIfAborted();
             if (!UsageEventsCompactor.isMissingObject(error)) throw error;
             keys = partition.keys;
             // Persist the exact input set before publishing; cleanup may only partly succeed.
-            await this.s3!.putObject(
-                {
-                    Bucket: this.bucket,
-                    Key: checkpoint,
-                    Body: JSON.stringify(keys),
-                    ContentType: 'application/json',
-                },
-                { abortSignal: this.signal },
-            );
+            await this.s3!.putObject({
+                Bucket: this.bucket,
+                Key: checkpoint,
+                Body: JSON.stringify(keys),
+                ContentType: 'application/json',
+            });
         }
-        const sqlOptions = {
+        const { sql, compactedKey } = buildCompactionSql({
             bucket: this.bucket,
             partition: { ...partition, keys },
             columns,
-            storageScheme:
-                this.s3Config.authMode === 'gcp_oauth'
-                    ? ('gs' as const)
-                    : ('s3' as const),
-        };
-        const { compactedKey } = buildCompactionSql(sqlOptions);
+            storageScheme: this.s3Config.authMode === 'gcp_oauth' ? 'gs' : 's3',
+        });
         try {
-            await this.s3!.headObject(
-                {
-                    Bucket: this.bucket,
-                    Key: compactedKey,
-                },
-                { abortSignal: this.signal },
-            );
+            await this.s3!.headObject({
+                Bucket: this.bucket,
+                Key: compactedKey,
+            });
         } catch (error) {
-            this.signal?.throwIfAborted();
             if (!UsageEventsCompactor.isMissingObject(error)) throw error;
-            const directory = await mkdtemp(
-                path.join(tmpdir(), 'usage-compaction-'),
-            );
-            const output = path.join(directory, 'part.parquet');
-            try {
-                // Keep interrupted native writes away from the final key that
-                // checkpoint recovery trusts. Publish only a completed local file.
-                const { sql } = buildCompactionSql({
-                    ...sqlOptions,
-                    outputPath: output,
-                });
-                await duckdb.runSqlWithMetrics(sql, { signal: this.signal });
-                this.signal?.throwIfAborted();
-                const body = createReadStream(output);
-                try {
-                    await uploadUsageParquet(
-                        {
-                            client: this.s3!,
-                            queueSize: 1,
-                            partSize: 8 * 1024 * 1024,
-                            leavePartsOnError: false,
-                            params: {
-                                Bucket: this.bucket,
-                                Key: compactedKey,
-                                Body: body,
-                                ContentType: 'application/vnd.apache.parquet',
-                            },
-                        },
-                        this.signal,
-                    );
-                } finally {
-                    body.destroy();
-                }
-            } finally {
-                await rm(directory, { recursive: true, force: true });
-            }
+            await duckdb.runSqlWithMetrics(sql);
         }
-        this.signal?.throwIfAborted();
         await this.deleteRawKeys(keys);
-        await this.s3!.deleteObject(
-            { Bucket: this.bucket, Key: checkpoint },
-            { abortSignal: this.signal },
-        );
+        await this.s3!.deleteObject({ Bucket: this.bucket, Key: checkpoint });
         // Late arrivals are excluded from the recovered input set and remain for the next run.
         const published = new Set(keys);
         return partition.keys.filter((key) => published.has(key)).length;
@@ -683,14 +596,11 @@ export class UsageEventsCompactor extends S3BaseClient {
             let continuationToken: string | undefined;
             do {
                 // eslint-disable-next-line no-await-in-loop
-                const response = await this.s3.listObjectsV2(
-                    {
-                        Bucket: this.bucket,
-                        Prefix: `${RAW_KEY_PREFIX}org_id=${orgId}/`,
-                        ContinuationToken: continuationToken,
-                    },
-                    { abortSignal: this.signal },
-                );
+                const response = await this.s3.listObjectsV2({
+                    Bucket: this.bucket,
+                    Prefix: `${RAW_KEY_PREFIX}org_id=${orgId}/`,
+                    ContinuationToken: continuationToken,
+                });
                 (response.Contents ?? []).forEach((object) => {
                     if (object.Key) {
                         if (
@@ -749,16 +659,13 @@ export class UsageEventsCompactor extends S3BaseClient {
             const batch = keys.slice(i, i + DELETE_BATCH_SIZE);
             try {
                 // eslint-disable-next-line no-await-in-loop
-                const response = await this.s3.deleteObjects(
-                    {
-                        Bucket: this.bucket,
-                        Delete: {
-                            Objects: batch.map((Key) => ({ Key })),
-                            Quiet: true,
-                        },
+                const response = await this.s3.deleteObjects({
+                    Bucket: this.bucket,
+                    Delete: {
+                        Objects: batch.map((Key) => ({ Key })),
+                        Quiet: true,
                     },
-                    { abortSignal: this.signal },
-                );
+                });
                 const responseErrors = response.Errors ?? [];
                 responseErrors.forEach((error) => {
                     if (error.Key) failedKeys.push(error.Key);
@@ -769,7 +676,6 @@ export class UsageEventsCompactor extends S3BaseClient {
                     .pop();
                 if (lastMessage) lastError = lastMessage;
             } catch (error) {
-                this.signal?.throwIfAborted();
                 // Request-level failure: deletes are idempotent, retry the whole batch
                 failedKeys.push(...batch);
                 lastError = getErrorMessage(error);

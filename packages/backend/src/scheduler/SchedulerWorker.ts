@@ -58,7 +58,7 @@ import { traceTasks } from './SchedulerTaskTracer';
 import schedulerWorkerEventEmitter from './SchedulerWorkerEventEmitter';
 import { SchedulerWorkerHealth } from './SchedulerWorkerHealth';
 import { TypedTaskList } from './types';
-import { withUsageProcessingLease } from './usageProcessingLease';
+import { extendUsageProcessingLease } from './usageProcessingLease';
 
 export type SchedulerWorkerArguments = SchedulerTaskArguments & {
     agentActionLogModel: AgentActionLogModel;
@@ -2345,12 +2345,12 @@ export class SchedulerWorker extends SchedulerTask {
                     );
                     return;
                 }
+                await extendUsageProcessingLease(helpers);
                 const compactor = new UsageEventsCompactor({
                     s3Config: usageEvents.s3,
                     prometheusMetrics: this.prometheusMetrics,
                     usageDimensionsModel: this.usageDimensionsModel,
                     featureFlagModel: this.featureFlagModel,
-                    withLease: (run) => withUsageProcessingLease(helpers, run),
                 });
                 const summary = await compactor.run(
                     new Date(),

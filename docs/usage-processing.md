@@ -48,32 +48,24 @@ window. Processing remains serial, with one DuckDB thread and a 256 MB managed-m
 limit; SQL timeouts and query resource limits remain. Missing several nights can consume
 the catch-up window; this is a deliberate limit, not unlimited historical repair.
 
-The partition budget is not a runtime guarantee. Graphile Worker 0.13 expires job
-and queue locks after four hours without a heartbeat. Usage processing renews both
-owned locks every minute, including a fresh ownership check before successful
-completion. Renewal is conditional on the exact job, worker and queue identity;
-a mismatch or database failure cancels processing. SQL renewal has a 10-second
-statement timeout and a 5-second lock timeout; a 15-second watchdog also cancels
-work if acquiring a connection or renewal stalls. No other task's lease changes.
-Normal crashes still recover through Graphile's four-hour expiry, with no durable
-orphan marker or manual unlock requirement.
+The partition budget is not a runtime guarantee. Graphile Worker expires job and
+queue locks after four hours; monitor processing times and backlog before increasing
+rollout cohorts so that scheduled and initial processing jobs do not overlap.
 
-Cancellation interrupts active native SQL and aborts storage requests. It is
-awaited before returning the task; no timeout races an uncanceled pipeline.
-Raw conversion stages one partition's Parquet file on local temporary disk, then
-publishes it through the SDK. Only successful publication permits raw deletion.
-This avoids relying on the validity of interrupted native remote COPY output
-when checkpoint recovery checks whether publication completed. Final object names and
-pending input manifests remain unchanged, and temporary files are removed after
-native work settles. Allow temporary disk for one partition per processing worker.
+Graphile Worker 0.13 normally expires job and queue locks after four hours.
+Usage processing reserves both owned locks once at startup for twelve hours,
+allowing multi-hour catch-up without changing other queues. There is no per-task
+expiry option in this version: the reservation moves both `locked_at` timestamps
+eight hours forward. Normal completion or failure releases the queue immediately.
+An abrupt worker crash can leave it blocked until twelve hours after reservation;
+a run that exceeds twelve hours can overlap again. This is a bounded allowance,
+not a job timeout or an unlimited lease. Recheck this integration when upgrading
+Graphile Worker and review actual runtime before increasing workload.
 
-Usage processing is exempt from the generic scheduler's one-hour stuck-job
-failure rule; its dedicated lifecycle metrics and runtime/failure alerts remain
-the monitoring source. Metric start times remain independent of renewed queue
-lock timestamps. Recheck the renewal SQL and cancellation tests before upgrading
-Graphile Worker: this helper intentionally depends on the installed 0.13 schema.
-Deploy the guard to all workers before expanding processing; old workers do not
-renew their leases.
+Usage processing is exempt from the generic one-hour stuck-job rule; its
+lifecycle metrics and dedicated runtime/failure alerts measure actual elapsed
+time. Do not use the future queue lock timestamps to measure processing duration.
+Deploy to all workers before relying on the longer reservation.
 
 The explicit `build-usage-user-activity` command also checks the organization flag
 and rejects dates older than this window. It remains a privileged maintenance

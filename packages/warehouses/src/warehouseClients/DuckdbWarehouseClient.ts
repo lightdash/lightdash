@@ -3281,10 +3281,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         });
     }
 
-    async runSqlWithMetrics(
-        sql: string,
-        options?: { signal?: AbortSignal },
-    ): Promise<{
+    async runSqlWithMetrics(sql: string): Promise<{
         bootstrapMs: number;
         queryMs: number;
         totalMs: number;
@@ -3293,23 +3290,12 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         let bootstrapMs = 0;
         let queryMs = 0;
 
-        options?.signal?.throwIfAborted();
         await this.withSession(async (db) => {
-            const signal = options?.signal;
-            const interrupt = () => db.interrupt();
-            signal?.throwIfAborted();
-            signal?.addEventListener('abort', interrupt, { once: true });
-            try {
-                await this.validateInternalSql(db, sql);
-                signal?.throwIfAborted();
-                bootstrapMs = performance.now() - totalStart;
-                const queryStart = performance.now();
-                await db.run(sql);
-                signal?.throwIfAborted();
-                queryMs = performance.now() - queryStart;
-            } finally {
-                signal?.removeEventListener('abort', interrupt);
-            }
+            await this.validateInternalSql(db, sql);
+            bootstrapMs = performance.now() - totalStart;
+            const queryStart = performance.now();
+            await db.run(sql);
+            queryMs = performance.now() - queryStart;
         });
 
         return {

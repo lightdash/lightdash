@@ -1,10 +1,8 @@
-import { writeFile } from 'fs/promises';
 import prometheus from 'prom-client';
 import Logger from '../../logging/logger';
 import PrometheusMetrics from '../../prometheus/PrometheusMetrics';
 import { UsageProcessingMetrics } from '../../prometheus/UsageProcessingMetrics';
 import { queryEventsCompactedColumns } from './queryEventsStream';
-import { uploadUsageParquet } from './uploadUsageParquet';
 import { UsageDimensionsRefresher } from './UsageDimensionsRefresher';
 import {
     buildCompactionSql,
@@ -13,7 +11,6 @@ import {
     groupRawKeysIntoPartitions,
     parseRawKey,
     UsageEventsCompactor,
-    type UsageEventsCompactorArgs,
 } from './UsageEventsCompactor';
 import { UsageUserActivityBuilder } from './UsageUserActivityBuilder';
 
@@ -27,10 +24,6 @@ vi.mock('./usageProcessingLimits', async (importOriginal) => {
         },
     };
 });
-
-vi.mock('./uploadUsageParquet', () => ({
-    uploadUsageParquet: vi.fn().mockResolvedValue(undefined),
-}));
 
 vi.mock('../../logging/logger', () => ({
     __esModule: true,
@@ -128,14 +121,8 @@ let listedOrgs = ['org-1'];
 
 type MetricsMock = ReturnType<typeof createMetricsMock>;
 
-const createCompactor = (
-    metrics: MetricsMock,
-    signal?: AbortSignal,
-    withLease?: UsageEventsCompactorArgs['withLease'],
-) =>
+const createCompactor = (metrics: MetricsMock) =>
     new UsageEventsCompactor({
-        signal,
-        withLease,
         featureFlagModel: {
             get: async () => ({ id: 'analytics-project', enabled: true }),
         },
@@ -321,14 +308,11 @@ describe('UsageEventsCompactor.run', () => {
         workLimit.override = null;
         vi.clearAllMocks();
         metrics = createMetricsMock();
-        duckdbMocks.runSqlWithMetrics.mockImplementation(
-            async (sql: string) => {
-                const output = /TO '([^']+)'/.exec(sql)?.[1];
-                if (output?.startsWith('/'))
-                    await writeFile(output, 'parquet fixture');
-                return { bootstrapMs: 1, queryMs: 1, totalMs: 2 };
-            },
-        );
+        duckdbMocks.runSqlWithMetrics.mockResolvedValue({
+            bootstrapMs: 1,
+            queryMs: 1,
+            totalMs: 2,
+        });
         s3Mocks.deleteObjects.mockResolvedValue({});
         s3Mocks.getObject.mockRejectedValue({
             $metadata: { httpStatusCode: 404 },
@@ -371,7 +355,6 @@ describe('UsageEventsCompactor.run', () => {
             expect.objectContaining({
                 Prefix: 'events/raw/org_id=org-2/',
             }),
-            { abortSignal: undefined },
         );
         expect(s3Mocks.listObjectsV2).not.toHaveBeenCalledWith(
             expect.objectContaining({
@@ -478,8 +461,7 @@ describe('UsageEventsCompactor.run', () => {
         expect(summary.partitionsCompacted).toBe(1);
         const sql = duckdbMocks.runSqlWithMetrics.mock.calls[0][0];
         expect(sql).toContain(`read_json(['gs://events-bucket/${key}']`);
-        expect(sql).toMatch(/TO '[^']+usage-compaction-[^']+part\.parquet'/);
-        expect(sql).not.toContain("TO 'gs://");
+        expect(sql).toContain("TO 'gs://events-bucket/events/compacted/");
         expect(sql).not.toContain('s3://');
         expect(duckdbMocks.constructor).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -508,9 +490,6 @@ describe('UsageEventsCompactor.run', () => {
             .mockResolvedValueOnce({});
 
         const runPromise = createCompactor(metrics).run(NOW);
-        await vi.waitFor(() =>
-            expect(s3Mocks.deleteObjects).toHaveBeenCalled(),
-        );
         await vi.runAllTimersAsync();
         const summary = await runPromise;
 
@@ -524,7 +503,6 @@ describe('UsageEventsCompactor.run', () => {
                     Objects: [{ Key: keys[1] }],
                 }),
             }),
-            { abortSignal: undefined },
         );
     });
 
@@ -537,9 +515,6 @@ describe('UsageEventsCompactor.run', () => {
         });
 
         const runPromise = createCompactor(metrics).run(NOW);
-        await vi.waitFor(() =>
-            expect(s3Mocks.deleteObjects).toHaveBeenCalled(),
-        );
         await vi.runAllTimersAsync();
         const summary = await runPromise;
 
@@ -615,42 +590,6 @@ describe('UsageEventsCompactor.run', () => {
             );
         }
     });
-
-    it.each(['initial', 'final'] as const)(
-        'reports %s lease failure as exactly one failed pipeline completion',
-        async (phase) => {
-            mockListedKeys([]);
-            const error = new Error(
-                'Usage processing lost its job or queue lease',
-            );
-            const withLease: NonNullable<
-                UsageEventsCompactorArgs['withLease']
-            > = async (run) => {
-                if (phase === 'initial') throw error;
-                await run(new AbortController().signal);
-                throw error;
-            };
-            await expect(
-                createCompactor(metrics, undefined, withLease).run(NOW),
-            ).rejects.toBe(error);
-            expect(
-                metrics.usageProcessing.finish.mock.calls.filter(
-                    ([stage]) => stage === 'pipeline',
-                ),
-            ).toEqual([
-                ['pipeline', { outcome: 'failed' }, expect.any(Number)],
-            ]);
-            expect(Logger.info).toHaveBeenCalledWith(
-                'Usage processing stage finished',
-                expect.objectContaining({
-                    stage: 'pipeline',
-                    outcome: 'failed',
-                }),
-            );
-            if (phase === 'initial')
-                expect(s3Mocks.listObjectsV2).not.toHaveBeenCalled();
-        },
-    );
 
     it.each(['compaction', 'dimensions', 'users'] as const)(
         'preserves thrown %s errors and reports failed pipeline',
@@ -794,34 +733,6 @@ describe('UsageEventsCompactor.run', () => {
             );
         },
     );
-
-    it('stops after canceled conversion without deleting inputs or continuing later partitions', async () => {
-        const controller = new AbortController();
-        mockListedKeys([
-            rawKey('org-1', 'query_events', '2026-07-01'),
-            rawKey('org-2', 'query_events', '2026-07-01'),
-        ]);
-        duckdbMocks.runSqlWithMetrics.mockImplementation(
-            async (_sql, options) => {
-                expect(options.signal).toBe(controller.signal);
-                controller.abort(new Error('lease lost'));
-                throw new Error('native interrupted');
-            },
-        );
-        await expect(
-            createCompactor(metrics, controller.signal).run(NOW),
-        ).rejects.toThrow('lease lost');
-        expect(duckdbMocks.runSqlWithMetrics).toHaveBeenCalledOnce();
-        expect(s3Mocks.deleteObjects).not.toHaveBeenCalled();
-        expect(uploadUsageParquet).not.toHaveBeenCalled();
-        expect(s3Mocks.deleteObject).not.toHaveBeenCalled();
-        expect(s3Mocks.putObject).toHaveBeenCalledOnce(); // pending manifest retained
-        expect(metrics.usageProcessing.finish).toHaveBeenLastCalledWith(
-            'pipeline',
-            { outcome: 'failed' },
-            expect.any(Number),
-        );
-    });
 
     it('counts failed raw partitions toward the work budget without deleting their inputs', async () => {
         workLimit.override = 2;
