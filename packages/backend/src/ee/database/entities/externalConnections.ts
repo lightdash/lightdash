@@ -15,6 +15,7 @@ export const ExternalConnectionRateCountersTableName =
 export const ExternalConnectionSamplesTableName = 'external_connection_samples';
 export const ApiSourceCallCountersTableName = 'api_source_call_counters';
 export const ApiSourceCallLeasesTableName = 'api_source_call_leases';
+export const ApiSourceCallsTableName = 'api_source_calls';
 
 export type DbExternalConnection = {
     external_connection_uuid: string;
@@ -207,6 +208,34 @@ export type ApiSourceCallLeasesTable = Knex.CompositeTableType<
     DbApiSourceCallLease,
     DbApiSourceCallLease,
     Partial<Pick<DbApiSourceCallLease, 'lease_uuid' | 'expires_at'>>
+>;
+
+/** One query a live source sent to its integration, written once it finished. */
+export type DbApiSourceCall = {
+    api_source_call_uuid: string;
+    external_connection_uuid: string;
+    project_uuid: string;
+    user_uuid: string | null;
+    context: string;
+    query_uuid: string;
+    query: string;
+    row_limit: number;
+    outcome: string;
+    error_message: string | null;
+    provider_status: number | null;
+    api_calls: number;
+    duration_ms: number;
+    row_count: number | null;
+    column_count: number | null;
+    truncated: boolean | null;
+    response_bytes: number | null;
+    created_at: Date;
+};
+
+export type ApiSourceCallsTable = Knex.CompositeTableType<
+    DbApiSourceCall,
+    Omit<DbApiSourceCall, 'api_source_call_uuid' | 'created_at'>,
+    never
 >;
 
 export type DbExternalConnectionSample = {

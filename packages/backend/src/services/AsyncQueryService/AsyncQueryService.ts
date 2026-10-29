@@ -348,7 +348,9 @@ import {
 } from '../ProjectService/resultsPagination';
 import type {
     ApiConnector,
+    ApiConnectorCall,
     ApiConnectorResult,
+    MeteredApiConnector,
 } from '../QuerySourceService/api/ApiConnector';
 import {
     getApiQueryOutcome,
@@ -11771,6 +11773,20 @@ export class AsyncQueryService extends ProjectService {
                 truncated: null,
                 cacheHit: true,
             });
+            void connector.logCall({
+                queryUuid,
+                context,
+                query: payload.query,
+                rowLimit: effectiveLimit,
+                outcome: 'ok',
+                errorMessage: null,
+                durationMs: Date.now() - queryCreatedAt.getTime(),
+                rowCount: reusable.totalRowCount,
+                columnCount: reusable.columns
+                    ? Object.keys(reusable.columns).length
+                    : null,
+                truncated: null,
+            });
             return { queryUuid };
         }
 
@@ -11812,7 +11828,7 @@ export class AsyncQueryService extends ProjectService {
         queryUuid: string;
         projectUuid: string;
         organizationUuid: string;
-        connector: ApiConnector;
+        connector: MeteredApiConnector;
         payload: ApiSourcePayload;
         limit: number;
         cacheKey: string;
@@ -11833,6 +11849,26 @@ export class AsyncQueryService extends ProjectService {
             { name: 'api.query.run', attributes },
             async (span) => {
                 const startedAt = Date.now();
+                // The API's share of the run; uploading the rows is ours.
+                let executeMs: number | null = null;
+                const logCall = (
+                    call: Pick<
+                        ApiConnectorCall,
+                        | 'outcome'
+                        | 'errorMessage'
+                        | 'rowCount'
+                        | 'columnCount'
+                        | 'truncated'
+                    >,
+                ) =>
+                    void connector.logCall({
+                        queryUuid,
+                        context,
+                        query: payload.query,
+                        rowLimit: limit,
+                        durationMs: executeMs ?? Date.now() - startedAt,
+                        ...call,
+                    });
                 try {
                     const result = await this.traceComposerQueryStage(
                         'api',
@@ -11850,10 +11886,11 @@ export class AsyncQueryService extends ProjectService {
                                 limit,
                             ),
                     );
+                    executeMs = Date.now() - startedAt;
                     span.setAttributes({
                         'lightdash.rowCount': result.rows.length,
                         'lightdash.truncated': result.truncated,
-                        'lightdash.apiCalls': result.apiCalls,
+                        'lightdash.apiCalls': connector.usage().apiCalls,
                         ...(result.bytesRead !== null
                             ? { 'lightdash.bytesRead': result.bytesRead }
                             : {}),
@@ -11942,6 +11979,13 @@ export class AsyncQueryService extends ProjectService {
                         columnsCount: result.columns.length,
                         truncated: result.truncated,
                     });
+                    logCall({
+                        outcome: 'ok',
+                        errorMessage: null,
+                        rowCount: result.rows.length,
+                        columnCount: result.columns.length,
+                        truncated: result.truncated,
+                    });
                     this.logger.info(
                         `Api query ${queryUuid} ready: ${result.rows.length} rows${
                             result.truncated ? ' (truncated)' : ''
@@ -11949,6 +11993,7 @@ export class AsyncQueryService extends ProjectService {
                     );
                 } catch (e) {
                     const message = getErrorMessage(e);
+                    const outcome = getApiQueryOutcome(e);
                     span.setAttributes({ 'lightdash.error': message });
                     this.logger.warn(
                         `Api query ${queryUuid} failed: ${message}`,
@@ -11977,10 +12022,17 @@ export class AsyncQueryService extends ProjectService {
                         context,
                         connector: connectorType,
                         queryCreatedAt,
-                        outcome: getApiQueryOutcome(e),
+                        outcome,
                         errorMessage: message,
                         totalRowCount: null,
                         columnsCount: null,
+                        truncated: null,
+                    });
+                    logCall({
+                        outcome,
+                        errorMessage: message,
+                        rowCount: null,
+                        columnCount: null,
                         truncated: null,
                     });
                 }

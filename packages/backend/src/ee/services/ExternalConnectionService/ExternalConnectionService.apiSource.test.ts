@@ -2,6 +2,7 @@ import {
     ApiConnectorType,
     ForbiddenError,
     ParameterError,
+    QueryExecutionContext,
     TimeoutError,
     type CreateExternalConnection,
     type ExternalConnection,
@@ -80,6 +81,8 @@ const buildService = ({
         tryAcquireApiSourceCallLease: vi.fn().mockResolvedValue(true),
         tryCountApiSourceCall: vi.fn().mockResolvedValue(true),
         releaseApiSourceCallLease: vi.fn().mockResolvedValue(undefined),
+        insertApiSourceCall: vi.fn().mockResolvedValue(undefined),
+        getApiSourceUsage: vi.fn().mockResolvedValue([]),
     };
     const analytics = { track: vi.fn() };
     const service = new ExternalConnectionService({
@@ -179,6 +182,102 @@ describe('ExternalConnectionService api sources', () => {
                 limit: 10,
             }),
         ).rejects.toThrow(TimeoutError);
+    });
+
+    it('logs a finished query with what its calls cost', async () => {
+        const { service, externalConnectionModel } = buildService();
+        const connector = await service.getApiConnector(
+            account,
+            'proj-1',
+            'conn-1',
+        );
+        await connector.execute({
+            payload: { kind: 'query', query: 'SELECT 1 AS a' },
+            limit: 10,
+        });
+        const { bodyText } = await mockSecureFetch.mock.results[0].value;
+
+        await connector.logCall({
+            queryUuid: 'query-1',
+            context: QueryExecutionContext.AI,
+            query: 'SELECT 1 AS a',
+            rowLimit: 10,
+            outcome: 'ok',
+            errorMessage: null,
+            durationMs: 120,
+            rowCount: 1,
+            columnCount: 2,
+            truncated: false,
+        });
+
+        expect(
+            externalConnectionModel.insertApiSourceCall,
+        ).toHaveBeenCalledExactlyOnceWith({
+            external_connection_uuid: 'conn-1',
+            project_uuid: 'proj-1',
+            user_uuid: account.user.id,
+            context: QueryExecutionContext.AI,
+            query_uuid: 'query-1',
+            query: 'SELECT 1 AS a',
+            row_limit: 10,
+            outcome: 'ok',
+            error_message: null,
+            provider_status: 200,
+            api_calls: 1,
+            duration_ms: 120,
+            row_count: 1,
+            column_count: 2,
+            truncated: false,
+            response_bytes: Buffer.byteLength(bodyText, 'utf8'),
+        });
+    });
+
+    it('counts a call that never got a response, and never fails on logging', async () => {
+        mockSecureFetch.mockRejectedValue(
+            new SecureFetchError('timeout', 'timed out'),
+        );
+        const { service, externalConnectionModel } = buildService();
+        externalConnectionModel.insertApiSourceCall.mockRejectedValue(
+            new Error('database is down'),
+        );
+        const connector = await service.getApiConnector(
+            account,
+            'proj-1',
+            'conn-1',
+        );
+        await expect(
+            connector.execute({
+                payload: { kind: 'query', query: 'SELECT 1 AS a' },
+                limit: 10,
+            }),
+        ).rejects.toThrow(TimeoutError);
+
+        expect(connector.usage()).toEqual({
+            apiCalls: 1,
+            responseBytes: 0,
+            providerStatus: null,
+        });
+        await expect(
+            connector.logCall({
+                queryUuid: 'query-1',
+                context: QueryExecutionContext.AI,
+                query: 'SELECT 1 AS a',
+                rowLimit: 10,
+                outcome: 'timeout',
+                errorMessage: 'timed out',
+                durationMs: 45_000,
+                rowCount: null,
+                columnCount: null,
+                truncated: null,
+            }),
+        ).resolves.toBeUndefined();
+    });
+
+    it('shows usage only to accounts that manage connections', async () => {
+        const { service } = buildService({ canView: false });
+        await expect(
+            service.getApiSourceUsage(account, 'proj-1'),
+        ).rejects.toThrow(ForbiddenError);
     });
 
     it('lists only api source connections', async () => {
