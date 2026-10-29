@@ -50,6 +50,7 @@ import {
     RequestMethod,
     SessionUser,
     shouldUseStaticFilterAutocomplete,
+    SourceQuerySubmission,
     TimeoutError,
     toMcpCustomChartTypeVizSchema,
     UnexpectedServerError,
@@ -4750,6 +4751,31 @@ export class AiAgentToolsService extends BaseService {
                         errorMessage: null,
                     }),
                 );
+                // Only a ready, errored or cancelled query has settled.
+                const emitSettledNodeStatus = (
+                    { nodeId, queryUuid }: SourceQuerySubmission,
+                    state: QueryHistoryStatus,
+                    error: string | null,
+                ) => {
+                    if (state === QueryHistoryStatus.READY) {
+                        emitNodeStatus({
+                            nodeId,
+                            queryUuid,
+                            status: 'success',
+                            errorMessage: null,
+                        });
+                    } else if (
+                        state === QueryHistoryStatus.ERROR ||
+                        state === QueryHistoryStatus.CANCELLED
+                    ) {
+                        emitNodeStatus({
+                            nodeId,
+                            queryUuid,
+                            status: 'error',
+                            errorMessage: error,
+                        });
+                    }
+                };
                 const pollNodeStatuses = async () => {
                     if (!onNodeStatus) return;
                     const pending = submissions.filter((submission) => {
@@ -4774,24 +4800,11 @@ export class AiAgentToolsService extends BaseService {
                                     candidate.queryUuid === status.queryUuid,
                             );
                             if (!submission) return;
-                            if (status.status === QueryHistoryStatus.READY) {
-                                emitNodeStatus({
-                                    nodeId: submission.nodeId,
-                                    queryUuid: submission.queryUuid,
-                                    status: 'success',
-                                    errorMessage: null,
-                                });
-                            } else if (
-                                status.status === QueryHistoryStatus.ERROR ||
-                                status.status === QueryHistoryStatus.CANCELLED
-                            ) {
-                                emitNodeStatus({
-                                    nodeId: submission.nodeId,
-                                    queryUuid: submission.queryUuid,
-                                    status: 'error',
-                                    errorMessage: status.error ?? null,
-                                });
-                            }
+                            emitSettledNodeStatus(
+                                submission,
+                                status.status,
+                                status.error ?? null,
+                            );
                         });
                     } catch {
                         // status polling is best-effort; keep executing
@@ -4863,25 +4876,8 @@ export class AiAgentToolsService extends BaseService {
                     const submission = submissions.find(
                         (candidate) => candidate.nodeId === nodeId,
                     );
-                    if (!submission) return;
-                    if (state === QueryHistoryStatus.READY) {
-                        emitNodeStatus({
-                            nodeId,
-                            queryUuid: submission.queryUuid,
-                            status: 'success',
-                            errorMessage: null,
-                        });
-                    } else if (
-                        state === QueryHistoryStatus.ERROR ||
-                        state === QueryHistoryStatus.CANCELLED
-                    ) {
-                        emitNodeStatus({
-                            nodeId,
-                            queryUuid: submission.queryUuid,
-                            status: 'error',
-                            errorMessage: error,
-                        });
-                    }
+                    if (submission)
+                        emitSettledNodeStatus(submission, state, error);
                 });
                 if (outcome.status === 'failure') {
                     emitUnfinishedAsError(outcome.error);
@@ -5015,7 +5011,7 @@ export class AiAgentToolsService extends BaseService {
     /** A failure outcome with one status read of every node; an unreadable read yields none. */
     private async failComposerRun(
         context: AiAgentToolsRuntimeContext,
-        submissions: { nodeId: string; queryUuid: string }[],
+        submissions: SourceQuerySubmission[],
         error: string,
     ): Promise<Extract<ComposerRunOutcome, { status: 'failure' }>> {
         return {
@@ -5030,7 +5026,7 @@ export class AiAgentToolsService extends BaseService {
 
     private async readComposerNodeStatuses(
         context: AiAgentToolsRuntimeContext,
-        submissions: { nodeId: string; queryUuid: string }[],
+        submissions: SourceQuerySubmission[],
     ): Promise<ComposerNodeStatus[]> {
         const { statuses } =
             await this.querySourceService.getSourceQueryStatuses(

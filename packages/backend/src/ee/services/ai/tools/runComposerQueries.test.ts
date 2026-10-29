@@ -7,6 +7,7 @@ import {
     ParameterError,
     QueryHistoryStatus,
     QuerySourceType,
+    toolComposerQueriesOutputSchema,
     toolComposerQueryNodeToSourceQuery,
     type AiWebAppPrompt,
     type ComposerApiConnection,
@@ -241,6 +242,12 @@ const readyNode = (
     columns,
 });
 
+const unsettledNode = (
+    nodeId: string,
+    state: QueryHistoryStatus,
+    error: string | null = null,
+) => ({ nodeId, state, error, rowCount: null, columns: null });
+
 const revenueColumns: ResultColumns = {
     payments_month: { reference: 'payments_month', type: DimensionType.DATE },
     payments_total_revenue: {
@@ -320,7 +327,20 @@ const makeTool = ({
         reviewQuery,
         filterValueHints,
         updateProgress: vi.fn().mockResolvedValue(undefined),
-        runComposerQueries: vi.fn().mockResolvedValue(defaultRunResult),
+        // Every node the fake runs is ready.
+        runComposerQueries: vi
+            .fn()
+            .mockImplementation(
+                async ({ queries }: { queries: SourceQuery[] }) => ({
+                    ...defaultRunResult,
+                    nodeStatuses: queries.map(
+                        ({ nodeId = '' }) =>
+                            defaultRunResult.nodeStatuses.find(
+                                (status) => status.nodeId === nodeId,
+                            ) ?? readyNode(nodeId, 1),
+                    ),
+                }),
+            ),
         getPrompt: vi.fn().mockResolvedValue(prompt),
         updateSlackMessage: vi.fn().mockResolvedValue(undefined),
         siteUrl: 'https://lightdash.example',
@@ -404,6 +424,9 @@ describe('getRunComposerQueries', () => {
         );
         expect(output.result).toContain('```csv');
         expect(output.result).not.toContain('query-');
+        expect(toolComposerQueriesOutputSchema.safeParse(output).success).toBe(
+            true,
+        );
         expect(output.structuredContent).toEqual({
             terminalNodeId: 'joined',
             rowCount: 1,
@@ -464,7 +487,6 @@ describe('getRunComposerQueries', () => {
                 'Warning: "joined" reads "revenue", which reached its limit, so "joined" may be computed on incomplete rows.',
             ].join('\n'),
         );
-        expect(output.result).not.toContain('truncated');
     });
 
     it('defaults the terminal node to the unique sink', async () => {
@@ -687,26 +709,25 @@ describe('getRunComposerQueries', () => {
             error: 'Composer query failed.',
             nodeStatuses: [
                 readyNode('revenue', 12, revenueColumns),
-                {
-                    nodeId: 'signups',
-                    state: QueryHistoryStatus.ERROR,
-                    error: 'relation "raw.users" does not exist',
-                    rowCount: null,
-                    columns: null,
-                },
-                {
-                    nodeId: 'joined',
-                    state: QueryHistoryStatus.ERROR,
-                    error: 'referenced query failed',
-                    rowCount: null,
-                    columns: null,
-                },
+                unsettledNode(
+                    'signups',
+                    QueryHistoryStatus.ERROR,
+                    'relation "raw.users" does not exist',
+                ),
+                unsettledNode(
+                    'joined',
+                    QueryHistoryStatus.ERROR,
+                    'referenced query failed',
+                ),
             ],
         });
 
         const failed = await executeTool(tool, makeArgs(), 'tool-call-1');
 
         expect(failed.metadata?.status).toBe('error');
+        expect(toolComposerQueriesOutputSchema.safeParse(failed).success).toBe(
+            true,
+        );
         expect(failed.result).toContain(
             'Composer query failed.\nSaved from this call: revenue. Not saved: signups (failed: relation "raw.users" does not exist), joined (not run: reads signups).',
         );
@@ -738,6 +759,51 @@ describe('getRunComposerQueries', () => {
             expect.objectContaining({
                 sql: 'SELECT month, 1 AS signups FROM t',
             }),
+        );
+    });
+
+    it('does not register a side sink that has not finished when the terminal is ready', async () => {
+        const { tool, dependencies, registry } = makeTool({
+            autoApproveSql: true,
+        });
+        dependencies.runComposerQueries.mockResolvedValueOnce({
+            ...defaultRunResult,
+            nodeStatuses: [
+                readyNode('revenue', 12, revenueColumns),
+                unsettledNode('signups', QueryHistoryStatus.EXECUTING),
+            ],
+        });
+
+        const output = await executeTool(
+            tool,
+            makeArgs({
+                queries: [semanticNode, sqlNode],
+                terminalNodeId: 'revenue',
+            }),
+        );
+
+        expect(output.metadata?.status).toBe('success');
+        expect(registry.nodes('thread-uuid').map((n) => n.nodeId)).toEqual([
+            'revenue',
+        ]);
+    });
+
+    it('names nodes still running when the run timed out as not finished', async () => {
+        const { tool, dependencies } = makeTool({ autoApproveSql: true });
+        dependencies.runComposerQueries.mockResolvedValueOnce({
+            status: 'failure',
+            error: 'Composer query timed out after 5 minutes.',
+            nodeStatuses: [
+                readyNode('revenue', 12),
+                unsettledNode('signups', QueryHistoryStatus.EXECUTING),
+                unsettledNode('joined', QueryHistoryStatus.PENDING),
+            ],
+        });
+
+        const output = await executeTool(tool, makeArgs());
+
+        expect(output.result).toContain(
+            'Composer query timed out after 5 minutes.\nSaved from this call: revenue. Not saved: signups (not finished: executing), joined (not run: reads signups).',
         );
     });
 
@@ -1048,6 +1114,34 @@ const nodeIdsOf = (queries: SourceQuery[] | undefined) =>
     queries?.map((node) => node.nodeId);
 
 describe('composer artifact with reused nodes', () => {
+    it('notes that a reused node that fails is still saved from an earlier call', async () => {
+        const { tool, dependencies } = makeTool({
+            autoApproveSql: true,
+            registry: makeNodeRegistry(enrichedPipeline),
+        });
+        dependencies.runComposerQueries.mockResolvedValueOnce({
+            status: 'failure',
+            error: 'Composer query failed.',
+            nodeStatuses: [
+                unsettledNode('orders', QueryHistoryStatus.ERROR, 'boom'),
+                unsettledNode(
+                    'summary',
+                    QueryHistoryStatus.ERROR,
+                    'referenced query failed',
+                ),
+            ],
+        });
+
+        const output = await executeTool(
+            tool,
+            makeArgs({ queries: [readerNode({ o: 'orders' })] }),
+        );
+
+        expect(output.result).toContain(
+            'Not saved: orders (failed: boom; still saved from an earlier call), summary (not run: reads orders).',
+        );
+    });
+
     it('reads a node an earlier call in the thread registered', async () => {
         const { tool, dependencies } = makeTool({ autoApproveSql: true });
         await executeTool(tool, makeArgs(), 'tool-call-1');

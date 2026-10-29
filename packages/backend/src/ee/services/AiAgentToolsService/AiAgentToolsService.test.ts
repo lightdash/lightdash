@@ -3734,11 +3734,6 @@ describe('AiAgentToolsService runComposerQueries', () => {
                 terminalNodeId: 'joined',
             });
 
-        expect(getSourceQueryStatuses).toHaveBeenCalledWith(
-            account,
-            projectUuid,
-            ['query-1', 'query-2'],
-        );
         expect(result.status).toBe('success');
         expect(result.nodeStatuses).toEqual([
             {

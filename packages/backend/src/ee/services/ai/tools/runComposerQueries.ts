@@ -20,6 +20,7 @@ import {
     type SemanticLayerSourceQuery,
     type SourceQuery,
     type SubmittedSourceQuery,
+    type ThreadComposerQueryNode,
     type ToolComposerQueriesStructuredContent,
     type ToolComposerQueriesSuccessMetadata,
 } from '@lightdash/common';
@@ -272,6 +273,7 @@ const isSaved = ({ state }: ComposerNodeStatus) =>
 const renderSavedNodes = (
     queries: ComposerPipelineNode[],
     nodeStatuses: ComposerNodeStatus[],
+    threadNodes: ThreadComposerQueryNode[],
 ): string => {
     const saved = new Set(
         nodeStatuses.filter(isSaved).map(({ nodeId }) => nodeId),
@@ -285,14 +287,23 @@ const renderSavedNodes = (
             const unsavedReads = Object.values(
                 getSourceQueryResultReferences(node),
             ).filter((reference) => !saved.has(reference));
-            if (unsavedReads.length > 0)
-                return `${node.nodeId} (not run: reads ${unsavedReads.join(', ')})`;
             const status = nodeStatuses.find(
                 ({ nodeId }) => nodeId === node.nodeId,
             );
-            if (status?.error)
-                return `${node.nodeId} (failed: ${status.error})`;
-            return `${node.nodeId} (not run${status ? `: ${status.state}` : ''})`;
+            let reason: string;
+            if (unsavedReads.length > 0) {
+                reason = `not run: reads ${unsavedReads.join(', ')}`;
+            } else if (status?.error) {
+                reason = `failed: ${status.error}`;
+            } else {
+                reason = `not finished${status ? `: ${status.state}` : ''}`;
+            }
+            const earlier = threadNodes.some(
+                ({ nodeId }) => nodeId === node.nodeId,
+            )
+                ? '; still saved from an earlier call'
+                : '';
+            return `${node.nodeId} (${reason}${earlier})`;
         });
     return [
         savedNodeIds.length > 0
@@ -429,11 +440,12 @@ export const getRunComposerQueries = ({
                         }),
                     ),
                 );
+                const threadNodes = await listThreadComposerQueryNodes(
+                    prompt.threadUuid,
+                );
                 const queries = buildComposerArtifactPipeline({
                     queries: submitted,
-                    threadNodes: await listThreadComposerQueryNodes(
-                        prompt.threadUuid,
-                    ),
+                    threadNodes,
                 });
                 // Reused nodes run with the values they were defined with.
                 const appliedParameters = queries.flatMap((node) => {
@@ -579,18 +591,19 @@ export const getRunComposerQueries = ({
                         : '',
                 ]);
 
+                // Only ready nodes are saved; other node ids stay free to resubmit corrected.
+                const saved = run.nodeStatuses.filter(isSaved);
+                const savedNodes = queries.filter((node) =>
+                    saved.some(({ nodeId }) => nodeId === node.nodeId),
+                );
                 if (run.status === 'failure') {
-                    // Failed and not-run node ids stay free to resubmit corrected.
-                    const saved = run.nodeStatuses.filter(isSaved);
                     await registerThreadComposerQueryNodes({
                         threadUuid: prompt.threadUuid,
-                        nodes: queries.filter((node) =>
-                            saved.some(({ nodeId }) => nodeId === node.nodeId),
-                        ),
+                        nodes: savedNodes,
                         nodeColumns: toNodeColumns(saved),
                     });
                     throw new WarehouseQueryError(
-                        `${run.error}\n${renderSavedNodes(queries, run.nodeStatuses)}`,
+                        `${run.error}\n${renderSavedNodes(queries, run.nodeStatuses, threadNodes)}`,
                     );
                 }
                 const { terminal, nodeStatuses } = run;
@@ -736,9 +749,9 @@ export const getRunComposerQueries = ({
                 // Last fallible step: a failure anywhere above registers nothing.
                 await registerThreadComposerQueryNodes({
                     threadUuid: prompt.threadUuid,
-                    nodes: queries,
+                    nodes: savedNodes,
                     nodeColumns: {
-                        ...toNodeColumns(nodeStatuses),
+                        ...toNodeColumns(saved),
                         [resolvedTerminalNodeId]: toComposerNodeColumns(
                             terminal.columns,
                         ),
