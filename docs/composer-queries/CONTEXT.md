@@ -18,12 +18,13 @@ failed; it creates no artifact by itself.
 _Avoid_: multi-source query (the API layer under it), composed query, merge
 
 **Composer query tool**:
-The agent tool that submits a composer query, named `query`. Its result gives
+The agent tool that submits a composer query, named `query` both in the
+in-app agent and on the MCP server. Its result gives
 the node status of every node, flags nodes that reached their limit and the
 nodes that read them, names the terminal node and tells the agent to visualize
 it. On failure it names the nodes it saved and the nodes it did not. Calls recorded before
 the rename carry `runComposerQueries` and still parse and render.
-_Avoid_: runComposerQueries (the legacy name)
+_Avoid_: runComposerQueries (the legacy name), run_composer_queries
 
 **Visualize**:
 The agent tool that presents a node, named `visualize`: a node id from the
@@ -73,11 +74,20 @@ post-processing step
 The nodes that succeeded in a thread's composer queries, each under its node
 id, with its node columns. A failed node is never registered, so its node id
 can be resubmitted corrected. A submission may read any of them by node id. The thread
-is one scope; an MCP session is another.
+is one scope; a composer session is another.
 _Avoid_: registry (in user-facing copy), node store, artifact nodes
 
+**Composer session**:
+The scope of nodes an MCP client builds across composer queries, owned by
+one user in one project. Started by a submission without a session id; the
+server returns the id and the client passes it back to reuse nodes. It
+expires after a day idle. An unknown, expired, foreign or other-project id is
+rejected, never replaced.
+_Avoid_: MCP session (the transport's analytics token, removed from the
+protocol), pipeline scope, thread
+
 **Reused node**:
-A thread composer query node that a submission reads by its node id instead
+A node of the submission's thread or composer session that it reads by its node id instead
 of writing it again. It is copied, with everything it reads, into the
 submission's pipeline, where it is an ordinary node, indistinguishable from
 the submission's own.
@@ -196,5 +206,7 @@ _Avoid_: tool-call description, Lineage
 ## Boundaries
 
 - Composer queries run in web chat and Slack, gated by the compose SQL runner flag plus the agent's data access setting.
+- On the MCP server they compute only: no artifact, no presenting. Reuse
+  rides on a composer session instead of a thread.
 - The public query-sources API accepts the same node shapes, including node
   titles, but owns no user interface.
