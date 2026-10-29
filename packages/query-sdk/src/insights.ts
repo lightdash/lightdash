@@ -89,6 +89,8 @@ export type InsightsRequestMessage = {
     /** Author guidance the host forwards to the analysis model, set via
      *  `useInsights({ instructions })`. One string per app. */
     instructions?: string;
+    /** Set via `useInsights({ analyseOnLoad })`; absent = not declared. */
+    analyseOnLoad?: boolean;
 };
 
 export type InsightAction =
@@ -245,12 +247,17 @@ let activeCleanup: (() => void) | null = null;
 let inUse = false;
 // App-wide author guidance for the analysis model; last writer wins.
 let authorInstructions: string | null = null;
+// App-wide analyse-on-load choice; null = not declared, last writer wins.
+let authorAnalyseOnLoad: boolean | null = null;
 
 const requestMessage = (): InsightsRequestMessage => ({
     type: INSIGHTS_REQUEST_MESSAGE,
     ...(inUse ? { inUse: true } : {}),
     ...(authorInstructions !== null
         ? { instructions: authorInstructions }
+        : {}),
+    ...(authorAnalyseOnLoad !== null
+        ? { analyseOnLoad: authorAnalyseOnLoad }
         : {}),
 });
 
@@ -265,6 +272,14 @@ export const setInsightInstructions = (value: string | undefined) => {
     const next = value?.trim() || null;
     if (next === authorInstructions) return;
     authorInstructions = next;
+    hostWindow?.postMessage(requestMessage(), '*');
+};
+
+/** Module-internal (exported for tests); `useInsights({ analyseOnLoad })` wraps it. */
+export const setInsightAnalyseOnLoad = (value: boolean | undefined) => {
+    const next = value ?? null;
+    if (next === authorAnalyseOnLoad) return;
+    authorAnalyseOnLoad = next;
     hostWindow?.postMessage(requestMessage(), '*');
 };
 
@@ -386,6 +401,9 @@ export type ViewInsightsOptions = {
      *  line or two of domain vocabulary. One string per app (the last value
      *  set wins); the host caps its length. */
     instructions?: string;
+    /** Analyse the view as soon as its queries settle, without a click.
+     *  A stored analysis of the same rows is reused. One value per app. */
+    analyseOnLoad?: boolean;
 };
 
 export type ViewInsights = InsightsPayload & {
@@ -471,6 +489,7 @@ export function useHostAiAvailable(): boolean {
  *
  *   const view = useInsights();               // executive summary + every anomaly
  *   const view = useInsights({ instructions: 'Use British English.' });
+ *   const view = useInsights({ analyseOnLoad: true });
  *   const orders = useLightdash(ordersQuery);
  *   const insights = useInsights(orders);     // anomalies on this chart's rows
  *
@@ -503,6 +522,22 @@ export function useInsights(
         declaredInstructionsRef.current = true;
         setInsightInstructions(instructions);
     }, [instructions]);
+    const analyseOnLoad =
+        source === undefined
+            ? (sourceOrOptions as ViewInsightsOptions | undefined)
+                  ?.analyseOnLoad
+            : undefined;
+    const declaredAnalyseOnLoadRef = useRef(false);
+    useEffect(() => {
+        if (analyseOnLoad === undefined) {
+            if (!declaredAnalyseOnLoadRef.current) return;
+            declaredAnalyseOnLoadRef.current = false;
+            setInsightAnalyseOnLoad(undefined);
+            return;
+        }
+        declaredAnalyseOnLoadRef.current = true;
+        setInsightAnalyseOnLoad(analyseOnLoad);
+    }, [analyseOnLoad]);
     const payload = useInsightsPayload();
     const investigate = useCallback(
         (anomalyId: string) =>
@@ -585,6 +620,7 @@ export function resetInsightsState(): void {
     hostWindow = null;
     inUse = false;
     authorInstructions = null;
+    authorAnalyseOnLoad = null;
     mounted.clear();
     flushScheduled = false;
 }

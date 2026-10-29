@@ -541,6 +541,9 @@ export type UseAppSdkBridgeParams = {
     /** Author guidance for the analysis model declared in app code, or null
      *  when the running bundle declares none. */
     onInsightInstructionsChange?: (instructions: string | null) => void;
+    /** Whether app code asks to analyse on load, or null when the running
+     *  bundle declares nothing. */
+    onInsightAnalyseOnLoadChange?: (analyseOnLoad: boolean | null) => void;
     /** Which query uuids the app currently has on screen (SDKs that report). */
     onMountedQueriesChange?: (queryUuids: string[]) => void;
 };
@@ -583,6 +586,7 @@ export function useAppSdkBridge({
     onInsightAction,
     onInsightsInUse,
     onInsightInstructionsChange,
+    onInsightAnalyseOnLoadChange,
     onMountedQueriesChange,
 }: UseAppSdkBridgeParams) {
     const lightdashApi = useLightdashApi();
@@ -756,9 +760,10 @@ export function useAppSdkBridge({
             }
 
             if (data?.type === APP_SDK_INSIGHTS_REQUEST_MESSAGE) {
-                const { inUse, instructions } = data as {
+                const { inUse, instructions, analyseOnLoad } = data as {
                     inUse?: unknown;
                     instructions?: unknown;
+                    analyseOnLoad?: unknown;
                 };
                 if (inUse === true) {
                     onInsightsInUse?.();
@@ -774,6 +779,9 @@ export function useAppSdkBridge({
                                   DATA_APP_ANALYSIS_INSTRUCTIONS_MAX_CHARS,
                               ) || null
                         : null,
+                );
+                onInsightAnalyseOnLoadChange?.(
+                    typeof analyseOnLoad === 'boolean' ? analyseOnLoad : null,
                 );
                 pushInsights();
                 return;
@@ -1633,6 +1641,7 @@ export function useAppSdkBridge({
             onInsightAction,
             onInsightsInUse,
             onInsightInstructionsChange,
+            onInsightAnalyseOnLoadChange,
             onMountedQueriesChange,
             lightdashApi,
         ],

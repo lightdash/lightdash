@@ -15,6 +15,8 @@ type Props = {
     /** Guidance for the analysis model: language/format rules and a line or
      *  two of domain vocabulary. One string per app. */
     instructions?: string;
+    /** Run the analysis when the view loads, without a click. */
+    analyseOnLoad?: boolean;
     className?: string;
 };
 
@@ -22,11 +24,12 @@ export function InsightsSummary({
     title = 'Executive summary',
     idleText = 'Click Analyse for an AI-generated read of everything on this page.',
     instructions,
+    analyseOnLoad,
     className,
 }: Props) {
     // Always pass the options object so clearing the prop clears the
     // guidance instead of leaving the previous value in force.
-    const view = useInsights({ instructions });
+    const view = useInsights({ instructions, analyseOnLoad });
     if (view.status === 'unavailable') return null;
     const busy = view.status === 'analysing';
 

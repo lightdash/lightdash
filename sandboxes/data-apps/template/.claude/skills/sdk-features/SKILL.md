@@ -197,6 +197,10 @@ order, `sortBy` describes result ordering, `totalColumnCount` exposes truncation
   `instructions` prop on `InsightsSummary` (or `useInsights({ instructions })`
   in a custom block). One string per app, max 2000 characters. See "Author
   instructions" in `/app/references/ai-analysis.md`.
+- `analysis-on-load`: only when the user asks for the analysis to run on its
+  own ("analyse as soon as it loads"): set the `analyseOnLoad` prop on
+  `InsightsSummary` (or `useInsights({ analyseOnLoad: true })` in a custom
+  block). See "Analyse on load" in `/app/references/ai-analysis.md`.
 - `ai-prompt`: `useAiPrompt()` returns `{ available, ask, loading, text, error }`;
   `ask({ prompt, sources: [{ result, label }], focus?: { row } })` sends an
   author-written question over loaded `useLightdash` results and resolves to
