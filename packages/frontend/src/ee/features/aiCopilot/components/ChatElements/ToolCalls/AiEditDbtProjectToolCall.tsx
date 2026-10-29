@@ -5,6 +5,7 @@ import {
 import {
     Box,
     Button,
+    getDefaultZIndex,
     Group,
     Menu,
     Paper,
@@ -191,7 +192,7 @@ export const PullRequestActionButtons: FC<{
                 gravity: 0.9,
                 scalar: 0.85,
                 ticks: 120,
-                zIndex: 400,
+                zIndex: getDefaultZIndex('overlay'),
                 colors: ['#7048e8', '#9775fa', '#b197fc', '#d0bfff', '#e5dbff'],
                 origin: confettiOrigin.current,
             });

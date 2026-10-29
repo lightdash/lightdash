@@ -30,6 +30,7 @@ import React, {
 } from 'react';
 import { formatDisplayValue } from '../../../components/common/Filters/FilterInputs/utils';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { Z_INDEX_FLOATING } from '../../../components/common/Page/constants';
 import {
     MAX_AUTOCOMPLETE_RESULTS,
     useFieldValuesSafely,
@@ -573,7 +574,7 @@ export const ParameterInput: FC<ParameterInputProps> = ({
                 renderOption={renderOption}
                 comboboxProps={{
                     withinPortal: false,
-                    zIndex: 10000,
+                    zIndex: Z_INDEX_FLOATING,
                     position: 'bottom-start',
                     offset: 5,
                 }}
@@ -615,7 +616,7 @@ export const ParameterInput: FC<ParameterInputProps> = ({
             renderOption={renderOption}
             comboboxProps={{
                 withinPortal: false,
-                zIndex: 10000,
+                zIndex: Z_INDEX_FLOATING,
                 position: 'bottom-start',
                 offset: 5,
             }}

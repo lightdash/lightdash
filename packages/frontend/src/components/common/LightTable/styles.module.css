@@ -134,13 +134,13 @@
 .sectionSticky[data-section-type='head'] {
     top: 0;
     position: sticky;
-    z-index: 110;
+    z-index: var(--ld-z-sticky-header);
 }
 
 .sectionSticky[data-section-type='footer'] {
     bottom: 0;
     position: sticky;
-    z-index: 110;
+    z-index: var(--ld-z-sticky-header);
 }
 
 /* -------------------------------------------------------------------- rows */

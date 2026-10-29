@@ -52,7 +52,7 @@
     position: absolute;
     bottom: 24px;
     right: 10px;
-    z-index: 1000;
+    z-index: var(--ld-z-floating);
     padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
     border-radius: var(--mantine-radius-sm);
     min-width: 120px;
