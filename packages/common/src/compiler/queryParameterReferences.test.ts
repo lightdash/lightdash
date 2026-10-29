@@ -139,6 +139,32 @@ describe('getQueryParameterReferences', () => {
                 query({}),
             ),
         ).toEqual(['date_range']);
+        expect(
+            references(
+                withBaseTable({
+                    requiredFilters: [
+                        {
+                            id: 'r2',
+                            target: {
+                                fieldRef: 'customers.city',
+                                tableName: 'customers',
+                            },
+                            operator: FilterOperator.EQUALS,
+                            values: ['Paris'],
+                            required: false,
+                        },
+                        {
+                            id: 'r3',
+                            target: { fieldRef: 'date_range' },
+                            operator: FilterOperator.EQUALS,
+                            values: [true],
+                            required: false,
+                        },
+                    ],
+                }),
+                query({}),
+            ),
+        ).toEqual(['env', 'region']);
     });
 
     it('reports references from selected custom dimensions, custom metrics and table calculations', () => {

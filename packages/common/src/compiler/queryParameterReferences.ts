@@ -59,17 +59,15 @@ export const getQueryParameterReferences = (
     if (baseTable?.uncompiledSqlWhere) {
         addSql(baseTable.uncompiledSqlWhere, explore.baseTable);
     }
-    baseTable?.requiredFilters
-        ?.filter((filter) => filter.required !== false)
-        .forEach((filter) => {
-            const table = isJoinModelRequiredFilter(filter)
-                ? filter.target.tableName
-                : explore.baseTable;
-            tableNames.add(table);
-            fieldIds.add(
-                convertFieldRefToFieldId(filter.target.fieldRef, table),
-            );
-        });
+    // Join required filters always join their table; only enforced ones add WHERE SQL.
+    baseTable?.requiredFilters?.forEach((filter) => {
+        const table = isJoinModelRequiredFilter(filter)
+            ? filter.target.tableName
+            : explore.baseTable;
+        tableNames.add(table);
+        if (filter.required === false) return;
+        fieldIds.add(convertFieldRefToFieldId(filter.target.fieldRef, table));
+    });
 
     customDimensions
         .filter((dimension) => fieldIds.has(dimension.id))
