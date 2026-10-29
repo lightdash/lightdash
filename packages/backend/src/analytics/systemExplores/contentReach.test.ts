@@ -177,7 +177,7 @@ describe('Content reach', () => {
             'CREATE TABLE lightdash_users (org_id VARCHAR, user_id VARCHAR, name VARCHAR)',
         );
         await db.run(
-            "INSERT INTO lightdash_users VALUES ('org','reader','Alex'), ('other','reader','Other tenant')",
+            "INSERT INTO lightdash_users (org_id, user_id, name) VALUES ('org','reader','Alex'), ('other','reader','Other tenant')",
         );
         const first = backendView('one', '2026-09-01');
         const preview = backendView('preview', '2026-09-09');

@@ -29,7 +29,7 @@ An organization administrator can:
 **The analytics project contains organization-wide usage data.** A project-level
 analytics grant does not filter that data to the other projects the recipient
 can access. Only grant it to people or agents trusted to see the organization's
-usage data, including user and content names.
+usage data, including user names, primary email addresses and content names.
 
 Creating, syncing and deleting the managed project through analytics settings
 still require organization administration. The new scope does not grant those

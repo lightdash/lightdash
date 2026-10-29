@@ -7,6 +7,7 @@ export const peopleMembershipColumns: CompactedStreamColumn[] = [
         'org_id',
         'user_id',
         'name',
+        'email',
         'organization_role',
         'role_id',
         'group_ids',

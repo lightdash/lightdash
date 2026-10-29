@@ -148,6 +148,12 @@ export class UsageDimensionsModel {
                             'g.user_id',
                             'p.user_id',
                         )
+                        .leftJoin('emails as e', function joinPrimaryEmail() {
+                            this.on('e.user_id', '=', 'p.user_id').andOnVal(
+                                'e.is_primary',
+                                true,
+                            );
+                        })
                         .orderBy('p.user_id')
                         .select(
                             'p.user_id',
@@ -155,6 +161,7 @@ export class UsageDimensionsModel {
                                 `json_build_object(
                             'org_id', ?::text, 'user_id', p.user_uuid,
                             'name', NULLIF(trim(concat_ws(' ', p.first_name, p.last_name)), ''),
+                            'email', e.email,
                             'organization_role', p.role, 'role_id', p.role_uuid,
                             'membership_created_at', p.created_at, 'snapshot_at', ?::timestamptz,
                             'is_active', p.is_active, 'is_setup_complete', p.is_setup_complete,
@@ -324,6 +331,12 @@ export class UsageDimensionsModel {
             case 'users': {
                 const users = this.database('organization_memberships as m')
                     .join('users as u', 'u.user_id', 'm.user_id')
+                    .leftJoin('emails as e', function joinPrimaryEmail() {
+                        this.on('e.user_id', '=', 'u.user_id').andOnVal(
+                            'e.is_primary',
+                            true,
+                        );
+                    })
                     .where('m.organization_id', orgId)
                     .where('u.is_active', true)
                     .where('u.is_internal', false)
@@ -331,7 +344,8 @@ export class UsageDimensionsModel {
                         this.database.raw(
                             `json_build_object(
                         'org_id', ?::text, 'user_id', u.user_uuid,
-                        'name', NULLIF(trim(concat_ws(' ', u.first_name, u.last_name)), '')
+                        'name', NULLIF(trim(concat_ws(' ', u.first_name, u.last_name)), ''),
+                        'email', e.email
                     )::text AS json`,
                             [orgUuid],
                         ),
