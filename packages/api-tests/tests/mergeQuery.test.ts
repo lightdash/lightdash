@@ -1662,10 +1662,11 @@ function registerMergeQueryTests(getContext: () => MergeTestContext) {
 
 // Databricks is excluded to avoid starting serverless compute for this suite,
 // matching the pivot parity suite.
+// Trino is skipped: its CI host is intermittently unreachable (ETIMEDOUT).
 const mergeWarehouseEntries = getAvailableWarehouseConfigs({
     includePostgres: false,
     includeDatabricks: false,
-});
+}).filter(({ name }) => name !== 'trino');
 
 // Staging datasets with a current build of the `subscriptions` model; see
 // MergeTestContext.hasSubscriptionsModel.
