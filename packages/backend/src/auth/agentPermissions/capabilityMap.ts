@@ -456,7 +456,6 @@ export const REST_OPERATION_CAPABILITIES = {
     'AiAgentSkillController.validateSkill': [AgentCapability.ReadDiscover],
     'AiController.generateChartMetadata': [AgentCapability.Query],
     'AiController.generateCustomDimension': [AgentCapability.Query],
-    'AiController.generateCustomViz': [AgentCapability.Query],
     'AiController.generateFormulaTableCalculation': [AgentCapability.Query],
     'AiController.generateGoogleSheetsExtensionReportDraft': [
         AgentCapability.Administration,

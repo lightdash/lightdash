@@ -6,11 +6,6 @@ import {
 import { type MetricQuery } from '../../types/metricQuery';
 import { type DataAppVizField } from '../apps/types';
 
-export type ApiAiGenerateCustomVizResponse = {
-    status: 'ok';
-    results: string;
-};
-
 export type GenerateChartMetadataRequest = {
     tableName: string;
     chartType: string;

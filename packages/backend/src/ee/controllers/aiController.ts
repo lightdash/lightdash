@@ -1,7 +1,6 @@
 import {
     ApiAiGenerateChartMetadataResponse,
     ApiAiGenerateCustomDimensionResponse,
-    ApiAiGenerateCustomVizResponse,
     ApiAiGenerateFormulaTableCalculationResponse,
     ApiAiGenerateTableCalculationResponse,
     ApiAiGenerateTooltipResponse,
@@ -14,7 +13,6 @@ import {
     GenerateFormulaTableCalculationRequest,
     GenerateTableCalculationRequest,
     GenerateTooltipRequest,
-    ItemsMap,
     SuggestChartTypeExploreRequest,
     SuggestChartTypeFieldsRequest,
     UUID,
@@ -71,35 +69,6 @@ export class AiController extends BaseController {
                     projectUuid,
                     body,
                 ),
-        };
-    }
-
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
-    @Post('/custom-viz')
-    @OperationId('generateCustomViz')
-    async generateCustomViz(
-        @Request() req: express.Request,
-        @Path() projectUuid: string,
-        @Body()
-        body: {
-            prompt: string;
-            itemsMap: ItemsMap;
-            sampleResults: {
-                [k: string]: unknown;
-            }[];
-            currentVizConfig: string;
-        },
-    ): Promise<ApiAiGenerateCustomVizResponse> {
-        assertRegisteredAccount(req.account);
-        this.setStatus(200);
-        return {
-            status: 'ok',
-            results: await this.getAiService().generateCustomViz({
-                user: toSessionUser(req.account),
-                projectUuid,
-                ...body,
-            }),
         };
     }
 
