@@ -36,7 +36,7 @@ export const getQueryingComposerSection = ({
         '- Query each explore with one semanticLayer node, and combine explores that are not joined in the semantic layer with a duckdb node that joins their results.',
         ...(canRunSql
             ? [
-                  "- An explore discovery found wins over the user's claim that the data lives only in a raw table: it is governed and reusable. Say which explore you used. Use a `sql` node only when the semantic layer cannot produce the result: a table outside every explore, a join key no explore exposes as a dimension, a join whose inputs would exceed a node's row limit, recursive CTEs, percentile functions (PERCENTILE_CONT) or warehouse-specific syntax, or an explicit request for raw SQL.",
+                  "- Explores are governed and reusable, so use a `sql` node only when the user points you at a raw table or asks for SQL, or when the semantic layer cannot produce the result: a table outside every explore, a join key no explore exposes as a dimension, a join whose inputs would exceed a node's row limit, recursive CTEs, percentile functions (PERCENTILE_CONT) or warehouse-specific syntax.",
               ]
             : []),
         '- Compute what a metric query cannot express in a duckdb node that reads the semanticLayer nodes: arithmetic and ratios across metrics, % of total, aggregates of aggregated metrics, period-over-period change, running totals, moving averages, ranking and top N per group, cohort comparisons, row-level conditionals, reshaping, and a metric the explore lacks, derived from the metrics and dimensions it has.',
