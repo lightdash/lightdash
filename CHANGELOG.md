@@ -1,3 +1,10 @@
+# [3.97.0](https://github.com/lightdash/lightdash/compare/3.96.1...3.97.0) (2026-10-29)
+
+
+### Features
+
+* **data-apps:** analyse on load, declared in app code ([#31793](https://github.com/lightdash/lightdash/issues/31793)) ([3bc0ec6](https://github.com/lightdash/lightdash/commit/3bc0ec6713d9a9d785691c34ab550db9cb2fe37a))
+
 ## [3.96.1](https://github.com/lightdash/lightdash/compare/3.96.0...3.96.1) (2026-10-29)
 
 
