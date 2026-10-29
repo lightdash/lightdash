@@ -1,3 +1,10 @@
+## [3.93.5](https://github.com/lightdash/lightdash/compare/3.93.4...3.93.5) (2026-10-29)
+
+
+### Bug Fixes
+
+* **ai-agent:** hide chevron on tool rows with no details ([#31782](https://github.com/lightdash/lightdash/issues/31782)) ([ae251c3](https://github.com/lightdash/lightdash/commit/ae251c31c5924c60c1b391d83c49f20d94b7e768))
+
 ## [3.93.4](https://github.com/lightdash/lightdash/compare/3.93.3...3.93.4) (2026-10-29)
 
 
