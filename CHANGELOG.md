@@ -1,3 +1,10 @@
+## [3.93.3](https://github.com/lightdash/lightdash/compare/3.93.2...3.93.3) (2026-10-29)
+
+
+### Bug Fixes
+
+* **ai:** scope applied-parameter note to fields the query uses ([#31742](https://github.com/lightdash/lightdash/issues/31742)) ([8c794b2](https://github.com/lightdash/lightdash/commit/8c794b29645e1c660970bdf23b97fc8c09fc83e5))
+
 ## [3.93.2](https://github.com/lightdash/lightdash/compare/3.93.1...3.93.2) (2026-10-29)
 
 
