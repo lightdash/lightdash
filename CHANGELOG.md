@@ -1,3 +1,10 @@
+## [3.104.1](https://github.com/lightdash/lightdash/compare/3.104.0...3.104.1) (2026-10-29)
+
+
+### Bug Fixes
+
+* **live-sources:** call them live data sources across the UI and errors ([#31819](https://github.com/lightdash/lightdash/issues/31819)) ([9726acd](https://github.com/lightdash/lightdash/commit/9726acdd3712c295831e7e6f8f47f725f919e69a)), closes [#31818](https://github.com/lightdash/lightdash/issues/31818)
+
 # [3.104.0](https://github.com/lightdash/lightdash/compare/3.103.0...3.104.0) (2026-10-29)
 
 
