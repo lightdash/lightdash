@@ -15,8 +15,8 @@ import { useKeySpaces } from './hooks/useKeySpaces';
 import { useHomepageOpening } from './hooks/useOrgHomepageSettings';
 import {
     useCreateHomepageWithDraft,
-    useHomepageBuilderFlag,
     useHomepageForBuilder,
+    useNewHomepageEnabled,
     useProjectHomepages,
 } from './hooks/useProjectHomepage';
 import { buildStarterHomepage } from './starterHomepage';
@@ -93,17 +93,17 @@ export const HomepageBuilderPage: FC = () => {
         searchParams.get('create') === '1',
     );
     const selectedHomepageUuid = searchParams.get('homepage') ?? undefined;
-    const { isEnabled: isFlagEnabled, isLoading: isFlagLoading } =
-        useHomepageBuilderFlag();
+    const { isEnabled: isNewHomepageEnabled, isLoading: isNewHomepageLoading } =
+        useNewHomepageEnabled();
     const { opening, isLoading: isAiStateLoading } =
         useHomepageOpening(projectUuid);
     const canManage = useCanManageHomepage(projectUuid);
     const homepage = useHomepageForBuilder(projectUuid, {
-        enabled: isFlagEnabled,
+        enabled: isNewHomepageEnabled,
         homepageUuid: selectedHomepageUuid,
     });
     const homepages = useProjectHomepages(projectUuid, {
-        enabled: isFlagEnabled,
+        enabled: isNewHomepageEnabled,
     });
     const homepageList = homepages.data ?? [];
 
@@ -121,7 +121,7 @@ export const HomepageBuilderPage: FC = () => {
     useAutoCreateStarterHomepage({
         projectUuid,
         enabled:
-            isFlagEnabled &&
+            isNewHomepageEnabled &&
             !isAiStateLoading &&
             canManage &&
             !isLeaving.current,
@@ -130,17 +130,17 @@ export const HomepageBuilderPage: FC = () => {
         onCreated: openHomepage,
     });
 
-    if (isFlagLoading || isAiStateLoading) {
+    if (isNewHomepageLoading || isAiStateLoading) {
         return <PageSpinner />;
     }
 
     // Wait for a fresh fetch: the editor snapshots the draft on mount, so
     // seeding it from a stale cache would autosave old state over the server
-    if (isFlagEnabled && !homepage.isFetchedAfterMount) {
+    if (isNewHomepageEnabled && !homepage.isFetchedAfterMount) {
         return <PageSpinner />;
     }
 
-    if (!isFlagEnabled || !canManage || !projectUuid) {
+    if (!isNewHomepageEnabled || !canManage || !projectUuid) {
         return <ForbiddenPanel />;
     }
 

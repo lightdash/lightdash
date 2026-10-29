@@ -1,5 +1,5 @@
 import { Ability } from '@casl/ability';
-import { CommercialFeatureFlags, FeatureFlags } from '@lightdash/common';
+import { FeatureFlags } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
@@ -84,12 +84,6 @@ const setup = ({
                 enabled: true,
             });
         }
-        if (url === `/feature-flag/${CommercialFeatureFlags.HomepageBuilder}`) {
-            return Promise.resolve({
-                id: CommercialFeatureFlags.HomepageBuilder,
-                enabled: false,
-            });
-        }
         return Promise.resolve(null);
     });
 
@@ -100,10 +94,6 @@ const setup = ({
         { updatedAt: Date.now() - cacheAgeMs },
     );
     if (primeFlagCache) {
-        queryClient.setQueryData(
-            ['feature-flag', CommercialFeatureFlags.HomepageBuilder],
-            { id: CommercialFeatureFlags.HomepageBuilder, enabled: false },
-        );
         queryClient.setQueryData(['feature-flag', FeatureFlags.NewOnboarding], {
             id: FeatureFlags.NewOnboarding,
             enabled: true,

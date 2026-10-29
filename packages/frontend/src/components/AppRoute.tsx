@@ -7,7 +7,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { useRef, type FC } from 'react';
 import { Navigate, useLocation } from 'react-router';
-import { useHomepageBuilderFlag } from '../ee/features/homepageBuilder/hooks/useProjectHomepage';
+import { useNewHomepageEnabled } from '../ee/features/homepageBuilder/hooks/useProjectHomepage';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import useApp from '../providers/App/useApp';
@@ -31,7 +31,7 @@ const AppRoute: FC<React.PropsWithChildren> = ({ children }) => {
             ? { refetchOnMount: 'always' }
             : undefined,
     );
-    const homepageBuilderFlag = useHomepageBuilderFlag();
+    const newHomepage = useNewHomepageEnabled();
     const orgSetupPageFlag = useServerFeatureFlag(FeatureFlags.NewOnboarding);
 
     if (health.isInitialLoading || orgRequest.isInitialLoading) {
@@ -51,7 +51,7 @@ const AppRoute: FC<React.PropsWithChildren> = ({ children }) => {
         // above before redirecting, or a stale value strands the user.
         if (
             (mustConfirmNoProjectRef.current && orgRequest.isFetching) ||
-            homepageBuilderFlag.isLoading ||
+            newHomepage.isLoading ||
             orgSetupPageFlag.isLoading ||
             user.isInitialLoading
         ) {
@@ -71,7 +71,7 @@ const AppRoute: FC<React.PropsWithChildren> = ({ children }) => {
             const isNewOnboardingEnabled =
                 orgSetupPageFlag.data?.enabled ?? false;
             const showGetStarted =
-                homepageBuilderFlag.isEnabled && isNewOnboardingEnabled;
+                newHomepage.isEnabled && isNewOnboardingEnabled;
             const pathname = showGetStarted
                 ? '/get-started'
                 : isNewOnboardingEnabled

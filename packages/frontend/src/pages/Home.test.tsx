@@ -38,7 +38,7 @@ vi.mock(
     '../ee/features/homepageBuilder/hooks/useProjectHomepage',
     async (importOriginal) => ({
         ...(await importOriginal<typeof homepageHooks>()),
-        useHomepageBuilderFlag: () => homepageFlag,
+        useNewHomepageEnabled: () => homepageFlag,
     }),
 );
 vi.mock('../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility', () => ({

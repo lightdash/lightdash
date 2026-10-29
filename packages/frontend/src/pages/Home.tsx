@@ -17,7 +17,7 @@ import { AdminHomepageControls } from '../ee/features/homepageBuilder/AdminHomep
 import { PersonalFavoritesBar } from '../ee/features/homepageBuilder/blocks/FavoritesBlock';
 import { DayOneHomepage } from '../ee/features/homepageBuilder/DayOneHomepage';
 import {
-    useHomepageBuilderFlag,
+    useNewHomepageEnabled,
     useResolvedHomepage,
 } from '../ee/features/homepageBuilder/hooks/useProjectHomepage';
 import { PublishedHomepage } from '../ee/features/homepageBuilder/PublishedHomepage';
@@ -56,23 +56,21 @@ const Home: FC = () => {
 
     const { user } = useApp();
     const isAiAgentsEnabled = useAiAgentButtonVisibility();
-    // The commercial flag (per-org, default-off) is the only gate — AI-less
-    // orgs get the day-0/builder experience with the non-AI hero variant.
-    const {
-        isEnabled: isHomepageBuilderEnabled,
-        isLoading: isHomepageBuilderFlagLoading,
-    } = useHomepageBuilderFlag();
+    // The org homepage setting is the only gate — AI-less orgs get the
+    // day-0/builder experience with the non-AI hero variant.
+    const { isEnabled: isNewHomepageEnabled, isLoading: isNewHomepageLoading } =
+        useNewHomepageEnabled();
     const resolvedHomepage = useResolvedHomepage(selectedProjectUuid, {
-        enabled: isHomepageBuilderEnabled,
+        enabled: isNewHomepageEnabled,
     });
     const hasPublishedHomepage =
-        isHomepageBuilderEnabled && resolvedHomepage.data?.type === 'homepage';
+        isNewHomepageEnabled && resolvedHomepage.data?.type === 'homepage';
 
     // Published blocks handle their own loading; fallback pages need these queries.
     const isLoading =
         onboarding.isInitialLoading ||
         project.isInitialLoading ||
-        isHomepageBuilderFlagLoading ||
+        isNewHomepageLoading ||
         resolvedHomepage.isInitialLoading ||
         (!hasPublishedHomepage &&
             (isMostPopularAndRecentlyUpdatedLoading ||
@@ -121,10 +119,7 @@ const Home: FC = () => {
     const projectUrlIdentifier = getProjectUrlIdentifier(project.data);
 
     let body: ReactNode;
-    if (
-        isHomepageBuilderEnabled &&
-        resolvedHomepage.data?.type === 'homepage'
-    ) {
+    if (isNewHomepageEnabled && resolvedHomepage.data?.type === 'homepage') {
         const { homepage } = resolvedHomepage.data;
         const hasFavoritesBlock = homepage.config.rows.some((row) =>
             row.blocks.some((block) => block.type === 'favorites'),
@@ -150,7 +145,7 @@ const Home: FC = () => {
             </Page>
         );
     } else if (
-        isHomepageBuilderEnabled &&
+        isNewHomepageEnabled &&
         resolvedHomepage.data === null &&
         onboarding.data.ranQuery
     ) {
@@ -195,7 +190,7 @@ const Home: FC = () => {
                             />
                             {/* Below the greeting on purpose: an admin-only promo
                             shouldn't outrank the page's own hero */}
-                            {!isHomepageBuilderEnabled && (
+                            {!isNewHomepageEnabled && (
                                 <TryNewHomepageCard
                                     organizationUuid={
                                         project.data.organizationUuid

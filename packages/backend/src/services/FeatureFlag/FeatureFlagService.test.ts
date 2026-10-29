@@ -109,13 +109,13 @@ describe('FeatureFlagService', () => {
             await expect(
                 service.ensureOrganizationOverrideEnabled({
                     user,
-                    featureFlagId: 'homepage-builder',
+                    featureFlagId: 'org-scoped-flag',
                 }),
             ).resolves.toBe('enabled');
             expect(
                 ensureOrganizationOverrideEnabled,
             ).toHaveBeenCalledExactlyOnceWith(
-                'homepage-builder',
+                'org-scoped-flag',
                 organizationUuid,
             );
         });
@@ -132,7 +132,7 @@ describe('FeatureFlagService', () => {
             expect(() =>
                 service.ensureOrganizationOverrideEnabled({
                     user,
-                    featureFlagId: 'homepage-builder',
+                    featureFlagId: 'org-scoped-flag',
                 }),
             ).toThrow("You don't have access to this resource or action");
             expect(ensureOrganizationOverrideEnabled).not.toHaveBeenCalled();
@@ -153,7 +153,7 @@ describe('FeatureFlagService', () => {
             expect(() =>
                 service.ensureOrganizationOverrideEnabled({
                     user,
-                    featureFlagId: 'homepage-builder',
+                    featureFlagId: 'org-scoped-flag',
                 }),
             ).toThrow('User is not part of an organization');
             expect(ensureOrganizationOverrideEnabled).not.toHaveBeenCalled();

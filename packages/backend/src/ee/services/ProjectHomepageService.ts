@@ -9,6 +9,7 @@ import {
     ForbiddenError,
     getErrorMessage,
     getHighestProjectRole,
+    isOrgHomepageEnabled,
     isSystemRole,
     NotFoundError,
     ParameterError,
@@ -273,15 +274,14 @@ export class ProjectHomepageService extends BaseService {
         this.schedulerClient = args.schedulerClient;
     }
 
-    // On by default; an org is off only after an admin switched back to the
-    // classic homepage. Must match useHomepageBuilderFlag in the frontend.
+    // Must match useNewHomepageEnabled in the frontend.
     private async isHomepageEnabled(user: SessionUser): Promise<boolean> {
         if (!user.organizationUuid) return false;
         const settings =
             await this.projectHomepageModel.findOrgHomepageSettings(
                 user.organizationUuid,
             );
-        return settings?.enabled ?? true;
+        return isOrgHomepageEnabled(settings);
     }
 
     private async assertFlagEnabled(user: SessionUser): Promise<void> {

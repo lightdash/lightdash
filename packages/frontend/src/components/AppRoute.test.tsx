@@ -54,7 +54,7 @@ vi.mock('../hooks/useServerOrClientFeatureFlag', () => ({
 }));
 
 vi.mock('../ee/features/homepageBuilder/hooks/useProjectHomepage', () => ({
-    useHomepageBuilderFlag: () => ({
+    useNewHomepageEnabled: () => ({
         isEnabled: state.isHomepageBuilderEnabled,
         isLoading: false,
     }),

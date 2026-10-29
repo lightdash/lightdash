@@ -16,12 +16,12 @@ import { useRecommendedActions } from './blocks/useRecommendedActions';
 import { DayOneAskInput, DayOneAskInputPlaceholder } from './DayOneAskInput';
 import layout from './homepageLayout.module.css';
 import HomepageStars from './HomepageStars';
-import { useHomepageBuilderFlag } from './hooks/useProjectHomepage';
+import { useNewHomepageEnabled } from './hooks/useProjectHomepage';
 
 const NoProjectHomepage: FC = () => {
     const { data: organization, isInitialLoading } = useOrganization();
     const orgSetupPageFlag = useServerFeatureFlag(FeatureFlags.NewOnboarding);
-    const homepageBuilderFlag = useHomepageBuilderFlag();
+    const newHomepage = useNewHomepageEnabled();
     const { isCopilotEnabled, isLoading: isCopilotLoading } =
         useIsCopilotEnabled();
     const actions = useRecommendedActions(null);
@@ -31,7 +31,7 @@ const NoProjectHomepage: FC = () => {
     if (
         isInitialLoading ||
         orgSetupPageFlag.isLoading ||
-        homepageBuilderFlag.isLoading
+        newHomepage.isLoading
     ) {
         return <PageSpinner />;
     }
@@ -40,7 +40,7 @@ const NoProjectHomepage: FC = () => {
         return <Navigate to="/" replace />;
     }
 
-    if (!homepageBuilderFlag.isEnabled) {
+    if (!newHomepage.isEnabled) {
         return <Navigate to="/" replace />;
     }
 

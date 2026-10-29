@@ -146,10 +146,11 @@ const updateGroupPrioritiesApi = async (
         body: JSON.stringify({ groupUuids }),
     });
 
-// The server defaults to enabled; an unlicensed instance has no settings
+// Whether the org uses the new homepage rather than the classic one. The
+// server defaults to enabled; an unlicensed instance has no settings
 // endpoint, so the failed request leaves this off. Must match the backend
-// rule in ProjectHomepageService.isHomepageEnabled.
-export const useHomepageBuilderFlag = () => {
+// rule in isOrgHomepageEnabled.
+export const useNewHomepageEnabled = () => {
     const settings = useOrgHomepageSettings();
     return {
         isEnabled: !!settings.data?.enabled,

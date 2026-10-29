@@ -94,7 +94,6 @@ import { type ExternalConnectionEvent } from '../ee/analytics';
 import { type SuggestionFallbackReason } from '../ee/services/ai/agents/suggestionErrors';
 import Logger from '../logging/logger';
 import type { ExecutionContextInfo } from '../logging/winston';
-import type { EnsureOrganizationOverrideOutcome } from '../models/FeatureFlagModel/FeatureFlagModel';
 import type { FeatureFlagCheckAggregateEntry } from '../models/FeatureFlagModel/flagCheckAggregator';
 import { type PersistentDownloadFileSource } from '../services/PersistentDownloadFileService/PersistentDownloadFileService';
 import type { ApiQueryOutcome } from '../services/QuerySourceService/api/apiQueryOutcome';
@@ -1365,8 +1364,6 @@ type OnboardingHomepageProvisionedEvent = BaseTrack & {
         projectId: string;
         homepageUuid: string;
         onboardingFlow: OnboardingFlow;
-        homepageBuilderEnablement: HomepageBuilderEnablement | null;
-        codingAgentOnboardingEnablement: CodingAgentOnboardingEnablement | null;
     };
 };
 
@@ -1396,7 +1393,7 @@ type HomepagePublishedEvent = BaseTrack & {
 
 export type OnboardingHomepageSkippedReason =
     | 'new_onboarding_flag_disabled'
-    | 'homepage_builder_flag_disabled'
+    | 'org_homepage_disabled'
     | 'not_first_project'
     | 'homepage_already_exists';
 
@@ -1407,8 +1404,6 @@ type OnboardingHomepageSkippedEvent = BaseTrack & {
         organizationId: string;
         projectId: string;
         onboardingFlow: OnboardingFlow;
-        homepageBuilderEnablement: HomepageBuilderEnablement | null;
-        codingAgentOnboardingEnablement: CodingAgentOnboardingEnablement | null;
         reason: OnboardingHomepageSkippedReason;
     };
 };
@@ -1420,30 +1415,9 @@ type OnboardingHomepageFailedEvent = BaseTrack & {
         organizationId: string;
         projectId: string;
         onboardingFlow: OnboardingFlow;
-        homepageBuilderEnablement: HomepageBuilderEnablement | null;
-        codingAgentOnboardingEnablement: CodingAgentOnboardingEnablement | null;
         errorType: string;
     };
 };
-
-type OnboardingOrgFlagsProvisionedEvent = BaseTrack & {
-    event: 'onboarding_org_flags.provisioned';
-    userId: string;
-    properties: {
-        organizationId: string;
-        onboardingFlow: OnboardingFlow;
-        homepageBuilderEnablement: HomepageBuilderEnablement;
-        codingAgentOnboardingEnablement: CodingAgentOnboardingEnablement | null;
-    };
-};
-
-export type HomepageBuilderEnablement =
-    | EnsureOrganizationOverrideOutcome
-    | 'failed';
-
-export type CodingAgentOnboardingEnablement =
-    | EnsureOrganizationOverrideOutcome
-    | 'failed';
 
 type PlaygroundProjectProvisionedEvent = BaseTrack & {
     event: 'playground_project.provisioned';
@@ -4925,7 +4899,6 @@ type TypedEvent =
     | OnboardingHomepageFailedEvent
     | OrganizationHomepageSettingsUpdatedEvent
     | HomepagePublishedEvent
-    | OnboardingOrgFlagsProvisionedEvent
     | PlaygroundProjectProvisionedEvent
     | PlaygroundProjectSkippedEvent
     | PlaygroundProjectFailedEvent

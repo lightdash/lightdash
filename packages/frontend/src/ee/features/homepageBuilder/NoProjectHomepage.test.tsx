@@ -38,7 +38,7 @@ vi.mock('../aiCopilot/hooks/useIsCopilotEnabled', () => ({
 }));
 
 vi.mock('./hooks/useProjectHomepage', () => ({
-    useHomepageBuilderFlag: () => ({
+    useNewHomepageEnabled: () => ({
         isEnabled: state.isHomepageBuilderEnabled,
         isLoading: false,
     }),

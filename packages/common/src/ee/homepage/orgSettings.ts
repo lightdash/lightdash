@@ -14,14 +14,20 @@ export const isHomepageOpening = (value: unknown): value is HomepageOpening =>
     HOMEPAGE_OPENINGS.includes(value as HomepageOpening);
 
 /** Org-wide homepage v2 state. `enabled` turns the new homepage on for every
- * project in the organization; the commercial flag remains as a kill-switch.
- * `opening: null` means "auto" — AI availability decides, which is the legacy
- * behaviour for orgs enabled via the flag before this setting existed. */
+ * project in the organization. `opening: null` means "auto" — AI availability
+ * decides, which is the legacy behaviour for orgs enabled via the flag before
+ * this setting existed. */
 export type OrganizationHomepageSettings = {
     organizationUuid: string;
     enabled: boolean;
     opening: HomepageOpening | null;
 };
+
+/** On by default: an org is off only after an admin switched back to the
+ * classic homepage. A missing settings row means the default. */
+export const isOrgHomepageEnabled = (
+    settings: Pick<OrganizationHomepageSettings, 'enabled'> | null | undefined,
+): boolean => settings?.enabled ?? true;
 
 export type UpdateOrganizationHomepageSettings = {
     enabled: boolean;

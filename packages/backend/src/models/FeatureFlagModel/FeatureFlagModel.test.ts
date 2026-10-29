@@ -731,7 +731,7 @@ describe('FeatureFlagModel', () => {
     });
 
     describe('ensureOrganizationOverrideEnabled', () => {
-        const FLAG_ID = 'homepage-builder';
+        const FLAG_ID = 'org-scoped-flag';
         const ORG_UUID = 'org-uuid';
 
         it('inserts an enabled override and the flag row when none exist', async () => {
