@@ -5,6 +5,7 @@ import {
     PlaywrightWorkerArgs,
 } from '@playwright/test';
 import { loginAs, SEED_USERS } from './api';
+import { cacheImmutableAssets } from './assetCache';
 import { deleteCreated, matchesTrackedRequest, trackCreated } from './cleanup';
 
 export { expect } from '@playwright/test';
@@ -87,6 +88,7 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
     blockThirdParty: [
         async ({ context }, use) => {
             await context.route(THIRD_PARTY_HOSTS, (route) => route.abort());
+            await cacheImmutableAssets(context);
             // First-run notices open as dialogs and make `getByRole('dialog')` ambiguous
             await context.addInitScript(() => {
                 window.localStorage.setItem(
