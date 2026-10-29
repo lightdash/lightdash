@@ -2,6 +2,11 @@ import { type Knex } from 'knex';
 
 const ApiSourceCallsTableName = 'api_source_calls';
 
+export const classification = {
+    kind: 'safe',
+    reason: 'Creates a new empty api_source_calls table and its index; existing tables and readers are unaffected.',
+};
+
 export async function up(knex: Knex): Promise<void> {
     await knex.raw(`SET lock_timeout = '5s'`);
     try {
