@@ -386,6 +386,8 @@ export type ExternalConnectionApiUsage = {
     externalConnectionUuid: string;
     apiCalls: number;
     responseBytes: number;
+    /** Median time to fetch from the integration; null until it has been called. */
+    medianDurationMs: number | null;
 };
 
 export type ApiExternalConnectionApiUsageResponse = {

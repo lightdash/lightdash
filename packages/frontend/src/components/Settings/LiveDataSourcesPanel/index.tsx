@@ -32,6 +32,7 @@ import { LiveSourceIcon } from '../../../features/externalConnections/liveSource
 import useHealth from '../../../hooks/health/useHealth';
 import tableStyles from '../../../hooks/styles/tableStyles.module.css';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { formatDuration } from '../../../utils/formatters';
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsCard } from '../../common/Settings/SettingsCard';
 import { SettingsEmptyState } from '../../common/Settings/SettingsEmptyState';
@@ -91,6 +92,15 @@ const SourceRow: FC<{
         </Table.Td>
         <Table.Td ta="right">
             <Text fz="sm">{(usage?.apiCalls ?? 0).toLocaleString()}</Text>
+        </Table.Td>
+        <Table.Td ta="right">
+            {usage && usage.medianDurationMs !== null ? (
+                <Text fz="sm">{formatDuration(usage.medianDurationMs)}</Text>
+            ) : (
+                <Text fz="sm" c="dimmed">
+                    —
+                </Text>
+            )}
         </Table.Td>
         <Table.Td w="1%">
             <Menu position="bottom-end">
@@ -259,6 +269,9 @@ const LiveDataSourcesPanel: FC<Props> = ({ projectUuid }) => {
                                     <Table.Th>Name</Table.Th>
                                     <Table.Th ta="right">Data read</Table.Th>
                                     <Table.Th ta="right">API calls</Table.Th>
+                                    <Table.Th ta="right">
+                                        Median latency
+                                    </Table.Th>
                                     <Table.Th></Table.Th>
                                 </Table.Tr>
                             </Table.Thead>

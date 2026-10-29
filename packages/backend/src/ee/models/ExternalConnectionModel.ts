@@ -1397,7 +1397,7 @@ export class ExternalConnectionModel {
         await this.database(ApiSourceCallsTableName).insert(call);
     }
 
-    /** API calls and response bytes per connection, over every logged query in the project. */
+    /** API calls, response bytes and median fetch time per connection, over every logged query in the project. */
     async getApiSourceUsage(
         projectUuid: string,
     ): Promise<ExternalConnectionApiUsage[]> {
@@ -1409,16 +1409,25 @@ export class ExternalConnectionModel {
                     external_connection_uuid: string;
                     api_calls: string | null;
                     response_bytes: string | null;
+                    median_duration_ms: number | null;
                 }[]
             >(
                 'external_connection_uuid',
                 this.database.raw('sum(api_calls) as api_calls'),
                 this.database.raw('sum(response_bytes) as response_bytes'),
+                // Reused results never reach the integration, so they'd drag the median to 0.
+                this.database.raw(
+                    'percentile_cont(0.5) within group (order by duration_ms) filter (where api_calls > 0) as median_duration_ms',
+                ),
             );
         return rows.map((row) => ({
             externalConnectionUuid: row.external_connection_uuid,
             apiCalls: Number(row.api_calls ?? 0),
             responseBytes: Number(row.response_bytes ?? 0),
+            medianDurationMs:
+                row.median_duration_ms === null
+                    ? null
+                    : Math.round(Number(row.median_duration_ms)),
         }));
     }
 }
