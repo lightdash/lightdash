@@ -349,6 +349,7 @@ export const getRunComposerQueries = ({
                         ? getAppliedParameters(
                               explore,
                               projectParameterDefinitions,
+                              node,
                               node.parameters ?? null,
                           )
                         : null;
