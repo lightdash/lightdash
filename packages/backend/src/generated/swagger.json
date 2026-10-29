@@ -60487,6 +60487,11 @@
             },
             "ResultsCacheProjectSettings": {
                 "properties": {
+                    "lastInvalidatedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
                     "instanceDefaultTtlSeconds": {
                         "type": "number",
                         "format": "double"
@@ -60501,6 +60506,7 @@
                     }
                 },
                 "required": [
+                    "lastInvalidatedAt",
                     "instanceDefaultTtlSeconds",
                     "cacheTtlSeconds",
                     "projectUuid"
@@ -60534,6 +60540,36 @@
                 },
                 "required": ["cacheTtlSeconds"],
                 "type": "object"
+            },
+            "ResultsCacheInvalidation": {
+                "properties": {
+                    "invalidatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["invalidatedAt", "projectUuid"],
+                "type": "object"
+            },
+            "ApiSuccess_ResultsCacheInvalidation_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ResultsCacheInvalidation"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiResultsCacheInvalidationResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_ResultsCacheInvalidation_"
             },
             "PreviewExpiresAt": {
                 "properties": {
@@ -74277,7 +74313,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.97.0",
+        "version": "3.98.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -103511,6 +103547,47 @@
                 }
             }
         },
+        "/api/v1/projects/{projectUuid}/results-cache/invalidate": {
+            "post": {
+                "operationId": "invalidateProjectResultsCache",
+                "responses": {
+                    "200": {
+                        "description": "Invalidated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiResultsCacheInvalidationResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Invalidate every cached query result in the project. The next run of\neach chart, dashboard tile or API query executes against the warehouse\nand repopulates the cache. Query history and existing result files are\nkept. Requires project admin access.\n\nCall this from a data pipeline once a dbt run or load finishes, e.g.\n`curl -X POST -H \"Authorization: ApiKey $LIGHTDASH_API_KEY\"\n\"$LIGHTDASH_URL/api/v1/projects/$PROJECT_UUID/results-cache/invalidate\"`",
+                "summary": "Invalidate results cache",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v1/projects/{projectUuid}/preview-expiration": {
             "patch": {
                 "operationId": "updatePreviewExpiresAt",
@@ -115603,6 +115680,48 @@
                 ]
             }
         },
+        "/api/v2/saved/{chartUuid}/results-cache/invalidate": {
+            "post": {
+                "operationId": "invalidateChartResultsCache",
+                "responses": {
+                    "200": {
+                        "description": "Invalidated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiResultsCacheInvalidationResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Invalidate the cached results of this chart for every user. Covers the chart wherever it is viewed, including dashboards and embeds.\nQueries that share a cache key are invalidated too, and the next run\nqueries the warehouse. Requires project admin access.",
+                "summary": "Invalidate chart results cache",
+                "tags": ["v2", "Charts"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "The uuid of the chart",
+                        "in": "path",
+                        "name": "chartUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v2/content/recently-viewed": {
             "get": {
                 "operationId": "GetRecentlyViewed",
@@ -117818,6 +117937,48 @@
                         "required": false,
                         "schema": {
                             "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v2/dashboards/{dashboardUuid}/results-cache/invalidate": {
+            "post": {
+                "operationId": "invalidateDashboardResultsCache",
+                "responses": {
+                    "200": {
+                        "description": "Invalidated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiResultsCacheInvalidationResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Invalidate the cached results of this dashboard for every user. Covers every tile, including for embedded viewers.\nQueries that share a cache key are invalidated too, and the next run\nqueries the warehouse. Requires project admin access.",
+                "summary": "Invalidate dashboard results cache",
+                "tags": ["v2", "Dashboards"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "The uuid of the dashboard",
+                        "in": "path",
+                        "name": "dashboardUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
                         }
                     }
                 ]

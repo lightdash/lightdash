@@ -1,3 +1,11 @@
+# [3.98.0](https://github.com/lightdash/lightdash/compare/3.97.0...3.98.0) (2026-10-29)
+
+
+### Features
+
+* clear the results cache for a project, chart or dashboard ([#31809](https://github.com/lightdash/lightdash/issues/31809)) ([3918094](https://github.com/lightdash/lightdash/commit/391809465fa5351b14148d05c6410ae2b7e5ecea))
+* **data-apps:** list a space's saved charts at runtime (useSpaceCharts) ([#31816](https://github.com/lightdash/lightdash/issues/31816)) ([65d2220](https://github.com/lightdash/lightdash/commit/65d2220da58ec4ecf28c1054d22123f4e27ba4be)), closes [#31047](https://github.com/lightdash/lightdash/issues/31047)
+
 # [3.97.0](https://github.com/lightdash/lightdash/compare/3.96.1...3.97.0) (2026-10-29)
 
 
