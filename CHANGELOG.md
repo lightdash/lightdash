@@ -1,3 +1,10 @@
+## [3.96.1](https://github.com/lightdash/lightdash/compare/3.96.0...3.96.1) (2026-10-29)
+
+
+### Bug Fixes
+
+* use primary email for unnamed analytics users ([#31792](https://github.com/lightdash/lightdash/issues/31792)) ([57f12a6](https://github.com/lightdash/lightdash/commit/57f12a65235aff8439a702ac9c1f288a59809d09))
+
 # [3.96.0](https://github.com/lightdash/lightdash/compare/3.95.2...3.96.0) (2026-10-29)
 
 
