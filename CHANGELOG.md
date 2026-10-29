@@ -1,3 +1,10 @@
+## [3.105.1](https://github.com/lightdash/lightdash/compare/3.105.0...3.105.1) (2026-10-29)
+
+
+### Bug Fixes
+
+* preserve deferred additional and cross-source explore joins ([#31811](https://github.com/lightdash/lightdash/issues/31811)) ([0aba20a](https://github.com/lightdash/lightdash/commit/0aba20afcdd97ac8ddccdb60e85b10ba0b73a834))
+
 # [3.105.0](https://github.com/lightdash/lightdash/compare/3.104.2...3.105.0) (2026-10-29)
 
 
