@@ -1,3 +1,10 @@
+## [3.104.2](https://github.com/lightdash/lightdash/compare/3.104.1...3.104.2) (2026-10-29)
+
+
+### Bug Fixes
+
+* **query-sources:** keep fetch time on reused live data source results ([#31822](https://github.com/lightdash/lightdash/issues/31822)) ([027bc9a](https://github.com/lightdash/lightdash/commit/027bc9adba56f7f50f7e6f121a3f675d83efbe23)), closes [#31819](https://github.com/lightdash/lightdash/issues/31819)
+
 ## [3.104.1](https://github.com/lightdash/lightdash/compare/3.104.0...3.104.1) (2026-10-29)
 
 
