@@ -6,7 +6,9 @@ export type ExternalConnectionAuthType =
     | 'api_key'
     | 'bearer_token'
     | 'google_service_account'
-    | 'oauth_client_credentials';
+    | 'oauth_client_credentials'
+    /** Signed in through the source's OAuth flow; never set through the API. */
+    | 'oauth_authorization_code';
 
 export type OAuthClientAuthMethod = 'basic' | 'body';
 

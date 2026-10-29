@@ -838,6 +838,7 @@ export type HealthState = {
     hasGitlab: boolean;
     hasJira: boolean;
     hasLinear: boolean;
+    hasPostHogOAuth: boolean;
     hasHeadlessBrowser: boolean;
     hasExtendedUsageAnalytics: boolean;
     hasCacheAutocompleResults: boolean;

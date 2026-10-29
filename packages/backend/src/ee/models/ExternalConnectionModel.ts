@@ -361,7 +361,9 @@ export class ExternalConnectionModel {
                     .first<{ encrypted_payload: Buffer } | undefined>(
                         'encrypted_payload',
                     );
-                if (secret) {
+                // Signed-in tokens stay with one connection: refresh tokens
+                // rotate, so a shared copy would break whichever refreshes last.
+                if (secret && src.type !== 'oauth_authorization_code') {
                     await trx(ExternalConnectionSecretsTableName).insert({
                         external_connection_uuid: targetUuid,
                         encrypted_payload: secret.encrypted_payload,
@@ -876,6 +878,35 @@ export class ExternalConnectionModel {
             this.encryptionUtil.encrypt(secret),
             true,
         );
+    }
+
+    /**
+     * Runs `update` with the current secret while holding its row lock, and
+     * stores what it returns unless that is null. Returns the stored secret.
+     */
+    async updateSecretLocked(
+        uuid: string,
+        update: (current: string | null) => Promise<string | null>,
+    ): Promise<string | null> {
+        return this.database.transaction(async (trx) => {
+            const row = await trx(ExternalConnectionSecretsTableName)
+                .where('external_connection_uuid', uuid)
+                .forUpdate()
+                .first<{ encrypted_payload: Buffer } | undefined>(
+                    'encrypted_payload',
+                );
+            const current = row
+                ? this.encryptionUtil.decrypt(row.encrypted_payload)
+                : null;
+            const next = await update(current);
+            if (next === null) return current;
+            await ExternalConnectionModel.upsertSecret(
+                trx,
+                uuid,
+                this.encryptionUtil.encrypt(next),
+            );
+            return next;
+        });
     }
 
     private static async upsertSecret(

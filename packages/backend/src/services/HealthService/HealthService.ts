@@ -210,6 +210,9 @@ export class HealthService extends BaseService {
                 this.lightdashConfig.gitlab.clientSecret !== undefined,
             hasJira: true,
             hasLinear: true,
+            hasPostHogOAuth:
+                this.lightdashConfig.liveSources.posthog.oauthClientId !==
+                undefined,
             auth: {
                 disablePasswordAuthentication:
                     this.lightdashConfig.auth.disablePasswordAuthentication,

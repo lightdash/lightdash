@@ -13,12 +13,16 @@ import {
     MissingConfigError,
     NotFoundError,
     ParameterError,
+    POSTHOG_REGION_ORIGINS,
     TimeoutError,
     TooManyRequestsError,
+    UnexpectedServerError,
+    WarehouseConnectionError,
     type Account,
     type ApiSaveExternalConnectionSampleRequest,
     type CreateExternalConnection,
     type ExternalConnection,
+    type ExternalConnectionAuthType,
     type ExternalConnectionConfigProposal,
     type ExternalConnectionLinkedApps,
     type ExternalConnectionListItem,
@@ -30,9 +34,11 @@ import {
     type RegisteredAccount,
     type UpdateExternalConnection,
 } from '@lightdash/common';
+import { createHash, randomBytes } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
 import { toSessionUser } from '../../../auth/account';
+import { type LightdashConfig } from '../../../config/parseConfig';
 import { type AppModel } from '../../../models/AppModel';
 import type { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { BaseService } from '../../../services/BaseService';
@@ -74,9 +80,24 @@ import {
 } from './externalConnectionConfigValidation';
 import { type GoogleServiceAccountTokenProvider } from './GoogleServiceAccountTokenProvider';
 import {
+    isAccessTokenFresh,
+    OAuthGrantRejectedError,
+    parseStoredOAuthTokens,
+    serializeStoredOAuthTokens,
+    type OAuthAuthorizationCodeClientConfig,
+    type OAuthAuthorizationCodeTokenClient,
+} from './OAuthAuthorizationCodeTokenClient';
+import {
     type OAuthClientCredentialsConfig,
     type OAuthClientCredentialsTokenProvider,
 } from './OAuthClientCredentialsTokenProvider';
+import {
+    buildPostHogAuthorizeUrl,
+    getPostHogClientMetadata,
+    getPostHogGrantedProjectId,
+    getPostHogOAuthEndpoints,
+    getPostHogOAuthRedirectUri,
+} from './postHogOAuth';
 import {
     assertSafeApiKeyHeaderName,
     buildOutboundUrl,
@@ -97,8 +118,23 @@ type ExternalConnectionServiceArguments = {
     spacePermissionService: SpacePermissionService;
     googleTokenProvider: GoogleServiceAccountTokenProvider;
     oauthClientCredentialsTokenProvider: OAuthClientCredentialsTokenProvider;
+    oauthAuthorizationCodeTokenClient: OAuthAuthorizationCodeTokenClient;
     orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
     featureFlagModel: FeatureFlagModel;
+    lightdashConfig: Pick<LightdashConfig, 'siteUrl' | 'liveSources'>;
+};
+
+export type PostHogRegion = keyof typeof POSTHOG_REGION_ORIGINS;
+
+/** What the sign-in callback needs from the request that started it. */
+export type PostHogOAuthSession = {
+    projectUuid: string;
+    region: PostHogRegion;
+    name: string;
+    connectionUuid: string | null;
+    clientId: string;
+    redirectUri: string;
+    codeVerifier: string;
 };
 
 export class ExternalConnectionService extends BaseService {
@@ -120,6 +156,13 @@ export class ExternalConnectionService extends BaseService {
 
     private readonly oauthClientCredentialsTokenProvider: OAuthClientCredentialsTokenProvider;
 
+    private readonly oauthAuthorizationCodeTokenClient: OAuthAuthorizationCodeTokenClient;
+
+    private readonly lightdashConfig: Pick<
+        LightdashConfig,
+        'siteUrl' | 'liveSources'
+    >;
+
     private readonly orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
 
     private readonly featureFlagModel: FeatureFlagModel;
@@ -140,6 +183,9 @@ export class ExternalConnectionService extends BaseService {
         this.googleTokenProvider = args.googleTokenProvider;
         this.oauthClientCredentialsTokenProvider =
             args.oauthClientCredentialsTokenProvider;
+        this.oauthAuthorizationCodeTokenClient =
+            args.oauthAuthorizationCodeTokenClient;
+        this.lightdashConfig = args.lightdashConfig;
         this.orgAiCopilotConfigResolver = args.orgAiCopilotConfigResolver;
         this.featureFlagModel = args.featureFlagModel;
     }
@@ -157,6 +203,14 @@ export class ExternalConnectionService extends BaseService {
         if (!enabled) {
             throw new ForbiddenError(
                 'Live data sources are not enabled for this organization',
+            );
+        }
+    }
+
+    private static assertNotSignInType(type: ExternalConnectionAuthType) {
+        if (type === 'oauth_authorization_code') {
+            throw new ParameterError(
+                'Signed-in connections are set up by signing in from Live data sources',
             );
         }
     }
@@ -276,6 +330,7 @@ export class ExternalConnectionService extends BaseService {
         }
         this.assertCanManage(account, projectUuid, organizationUuid);
         if (data.apiSource) await this.assertLiveSourcesEnabled(account);
+        ExternalConnectionService.assertNotSignInType(data.type);
         const config = withApiSourceAccessRules(data);
         validateExternalConnectionConfig(config, Boolean(config.secret));
         validateApiSourceConnection(config);
@@ -494,13 +549,16 @@ export class ExternalConnectionService extends BaseService {
             data.oauthScopes,
             existing.oauthScopes,
         );
+        const usesOAuthClient =
+            resultingType === 'oauth_client_credentials' ||
+            resultingType === 'oauth_authorization_code';
         const oauthTokenUrl = resolveTypeField(
-            resultingType === 'oauth_client_credentials',
+            usesOAuthClient,
             data.oauthTokenUrl,
             existing.oauthTokenUrl,
         );
         const oauthClientId = resolveTypeField(
-            resultingType === 'oauth_client_credentials',
+            usesOAuthClient,
             data.oauthClientId,
             existing.oauthClientId,
         );
@@ -594,6 +652,25 @@ export class ExternalConnectionService extends BaseService {
                 'A live data source cannot drop its connector settings',
             );
         }
+        if (data.type !== undefined && data.type !== existing.type) {
+            ExternalConnectionService.assertNotSignInType(data.type);
+        }
+        if (
+            existing.type === 'oauth_authorization_code' &&
+            (data.type ?? existing.type) === existing.type &&
+            (data.secret !== undefined ||
+                data.oauthTokenUrl !== undefined ||
+                data.oauthClientId !== undefined ||
+                (data.origin !== undefined &&
+                    data.origin !== existing.origin) ||
+                (data.apiSource !== undefined &&
+                    data.apiSource?.projectId !==
+                        existing.apiSource?.projectId))
+        ) {
+            throw new ParameterError(
+                'Reconnect this source to change its sign-in, region or project',
+            );
+        }
         const resolved = ExternalConnectionService.resolveConnectionUpdate(
             existing,
             data,
@@ -669,6 +746,7 @@ export class ExternalConnectionService extends BaseService {
             projectUuid,
             connectionUuid,
         );
+        ExternalConnectionService.assertNotSignInType(existing.type);
         await this.externalConnectionModel.rotateSecret(connectionUuid, secret);
         this.analytics.track({
             event: 'external_connection.secret_rotated',
@@ -939,6 +1017,314 @@ export class ExternalConnectionService extends BaseService {
                     `Unknown api connector: ${apiSource.connector}`,
                 );
         }
+    }
+
+    private static isPostHogRegion(region: string): region is PostHogRegion {
+        return Object.hasOwn(POSTHOG_REGION_ORIGINS, region);
+    }
+
+    private getPostHogClientSecret(clientId: string): string | null {
+        const { oauthClientId, oauthClientSecret } =
+            this.lightdashConfig.liveSources.posthog;
+        return clientId === oauthClientId ? (oauthClientSecret ?? null) : null;
+    }
+
+    getPostHogClientMetadata(): Record<string, unknown> | null {
+        if (!this.lightdashConfig.liveSources.posthog.oauthClientId)
+            return null;
+        return getPostHogClientMetadata(this.lightdashConfig.siteUrl);
+    }
+
+    /** Where the sign-in callback lands, with its outcome for the settings page to show. */
+    getLiveDataSourcesUrl(
+        projectUuid: string,
+        result: { connectionUuid: string } | { error: string },
+    ): string {
+        const url = new URL(
+            `/generalSettings/projectManagement/${projectUuid}/liveDataSources`,
+            this.lightdashConfig.siteUrl,
+        );
+        if ('error' in result) {
+            url.searchParams.set('signInError', result.error);
+        } else {
+            url.searchParams.set('connected', result.connectionUuid);
+        }
+        return url.href;
+    }
+
+    /** Starts the PostHog sign-in that creates a source, or reconnects one. */
+    async startPostHogOAuth(
+        account: RegisteredAccount,
+        projectUuid: string,
+        request: {
+            region: string;
+            name: string;
+            connectionUuid: string | null;
+        },
+    ): Promise<{
+        authorizeUrl: string;
+        state: string;
+        session: PostHogOAuthSession;
+    }> {
+        const { oauthClientId } = this.lightdashConfig.liveSources.posthog;
+        if (!oauthClientId) {
+            throw new MissingConfigError(
+                'Signing in to PostHog is not configured on this server',
+            );
+        }
+        const organizationUuid =
+            await this.externalConnectionModel.getProjectOrganizationUuid(
+                projectUuid,
+            );
+        if (!organizationUuid) {
+            throw new NotFoundError('Project not found');
+        }
+        this.assertCanManage(account, projectUuid, organizationUuid);
+        await this.assertLiveSourcesEnabled(account);
+        const { region, connectionUuid } = request;
+        if (!ExternalConnectionService.isPostHogRegion(region)) {
+            throw new ParameterError('Pick the US or EU PostHog region');
+        }
+        const name = request.name.trim();
+        if (!name) {
+            throw new ParameterError('Name is required');
+        }
+        if (connectionUuid) {
+            const existing = await this.getOwnedConnection(
+                account,
+                projectUuid,
+                connectionUuid,
+            );
+            if (existing.apiSource?.connector !== ApiConnectorType.POSTHOG) {
+                throw new ParameterError(
+                    `Connection "${existing.name}" is not a PostHog source`,
+                );
+            }
+        }
+
+        const state = randomBytes(24).toString('base64url');
+        const codeVerifier = randomBytes(32).toString('base64url');
+        const redirectUri = getPostHogOAuthRedirectUri(
+            this.lightdashConfig.siteUrl,
+        );
+        return {
+            authorizeUrl: buildPostHogAuthorizeUrl({
+                origin: POSTHOG_REGION_ORIGINS[region],
+                clientId: oauthClientId,
+                redirectUri,
+                state,
+                codeChallenge: createHash('sha256')
+                    .update(codeVerifier)
+                    .digest('base64url'),
+            }),
+            state,
+            session: {
+                projectUuid,
+                region,
+                name,
+                connectionUuid,
+                clientId: oauthClientId,
+                redirectUri,
+                codeVerifier,
+            },
+        };
+    }
+
+    /** Exchanges the sign-in code and stores the tokens on a new or reconnected source. */
+    async completePostHogOAuth(
+        account: RegisteredAccount,
+        session: PostHogOAuthSession,
+        code: string,
+    ): Promise<ExternalConnection> {
+        const { projectUuid } = session;
+        const organizationUuid =
+            await this.externalConnectionModel.getProjectOrganizationUuid(
+                projectUuid,
+            );
+        if (!organizationUuid) {
+            throw new NotFoundError('Project not found');
+        }
+        this.assertCanManage(account, projectUuid, organizationUuid);
+        await this.assertLiveSourcesEnabled(account);
+
+        const origin = POSTHOG_REGION_ORIGINS[session.region];
+        const client: OAuthAuthorizationCodeClientConfig = {
+            tokenUrl: getPostHogOAuthEndpoints(origin).tokenUrl,
+            clientId: session.clientId,
+            clientSecret: this.getPostHogClientSecret(session.clientId),
+        };
+        let grant: Awaited<
+            ReturnType<OAuthAuthorizationCodeTokenClient['exchangeCode']>
+        >;
+        try {
+            grant = await this.oauthAuthorizationCodeTokenClient.exchangeCode(
+                client,
+                {
+                    code,
+                    redirectUri: session.redirectUri,
+                    codeVerifier: session.codeVerifier,
+                },
+            );
+        } catch (error) {
+            this.logger.warn(
+                `PostHog sign-in failed: ${getErrorMessage(error)}`,
+            );
+            throw new WarehouseConnectionError(
+                'PostHog did not accept the sign-in. Try connecting again.',
+            );
+        }
+        const projectId = getPostHogGrantedProjectId(grant.response);
+        if (!projectId) {
+            throw new ParameterError(
+                'Pick a single PostHog project when signing in',
+            );
+        }
+
+        const config = withApiSourceAccessRules<CreateExternalConnection>({
+            name: session.name,
+            type: 'oauth_authorization_code',
+            origin,
+            secret: serializeStoredOAuthTokens(grant.tokens),
+            apiSource: { connector: ApiConnectorType.POSTHOG, projectId },
+            oauthTokenUrl: client.tokenUrl,
+            oauthClientId: client.clientId,
+            oauthClientAuthMethod: null,
+            oauthScopes: null,
+            apiKeyName: null,
+            apiKeyLocation: null,
+            allowedPathPrefixes: [],
+            allowedMethods: [],
+            allowedContentTypes: [],
+            allowBrowserImages: false,
+            allowDataAppBuilderLinking: false,
+            forwardUserIdentity: false,
+            instructions: null,
+        });
+        validateExternalConnectionConfig(config, true);
+        validateApiSourceConnection(config);
+
+        if (session.connectionUuid) {
+            const existing = await this.getOwnedConnection(
+                account,
+                projectUuid,
+                session.connectionUuid,
+            );
+            const updated = await this.externalConnectionModel.update(
+                existing.externalConnectionUuid,
+                account.user.id,
+                config,
+            );
+            this.analytics.track({
+                event: 'external_connection.updated',
+                userId: account.user.id,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    externalConnectionUuid: existing.externalConnectionUuid,
+                    ...ExternalConnectionService.kindProperties(updated),
+                },
+            });
+            return updated;
+        }
+
+        const connection = await this.externalConnectionModel.create(
+            projectUuid,
+            organizationUuid,
+            account.user.id,
+            config,
+        );
+        this.analytics.track({
+            event: 'external_connection.created',
+            userId: account.user.id,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                externalConnectionUuid: connection.externalConnectionUuid,
+                ...ExternalConnectionService.kindProperties(connection),
+                authType: connection.type,
+            },
+        });
+        return connection;
+    }
+
+    private static signInExpiredError(connection: ExternalConnection) {
+        return new WarehouseConnectionError(
+            `The sign-in for connection "${connection.name}" expired or was revoked. Reconnect it in Live data sources.`,
+        );
+    }
+
+    /**
+     * A usable access token. Refreshes run under the secret's row lock:
+     * refresh tokens rotate, so two concurrent refreshes would lock each other out.
+     */
+    private async getAuthorizationCodeAccessToken(
+        connection: ExternalConnection,
+        secret: string | null,
+        rejectedAccessToken: string | null,
+    ): Promise<string> {
+        const stored = parseStoredOAuthTokens(secret);
+        if (!stored || !connection.oauthTokenUrl || !connection.oauthClientId) {
+            throw ExternalConnectionService.signInExpiredError(connection);
+        }
+        if (
+            rejectedAccessToken === null &&
+            isAccessTokenFresh(stored, Date.now())
+        ) {
+            return stored.accessToken;
+        }
+        const knownAccessToken = rejectedAccessToken ?? stored.accessToken;
+        const client: OAuthAuthorizationCodeClientConfig = {
+            tokenUrl: connection.oauthTokenUrl,
+            clientId: connection.oauthClientId,
+            clientSecret: this.getPostHogClientSecret(connection.oauthClientId),
+        };
+
+        let latestSecret: string | null;
+        try {
+            latestSecret =
+                await this.externalConnectionModel.updateSecretLocked(
+                    connection.externalConnectionUuid,
+                    async (current) => {
+                        const latest = parseStoredOAuthTokens(current);
+                        // Another request refreshed while this one waited for the lock.
+                        if (
+                            latest &&
+                            latest.accessToken !== knownAccessToken &&
+                            isAccessTokenFresh(latest, Date.now())
+                        ) {
+                            return null;
+                        }
+                        if (!latest?.refreshToken) {
+                            throw new OAuthGrantRejectedError(
+                                'No refresh token is stored',
+                            );
+                        }
+                        return serializeStoredOAuthTokens(
+                            await this.oauthAuthorizationCodeTokenClient.refresh(
+                                client,
+                                latest.refreshToken,
+                            ),
+                        );
+                    },
+                );
+        } catch (error) {
+            if (error instanceof OAuthGrantRejectedError) {
+                throw ExternalConnectionService.signInExpiredError(connection);
+            }
+            this.logger.warn(
+                `Refreshing the access token of connection ${
+                    connection.externalConnectionUuid
+                } failed: ${getErrorMessage(error)}`,
+            );
+            throw new UnexpectedServerError(
+                `Could not refresh the sign-in for connection "${connection.name}". Try again shortly.`,
+            );
+        }
+        const latest = parseStoredOAuthTokens(latestSecret);
+        if (!latest) {
+            throw ExternalConnectionService.signInExpiredError(connection);
+        }
+        return latest.accessToken;
     }
 
     async proxyFetch(
@@ -1215,6 +1601,13 @@ export class ExternalConnectionService extends BaseService {
             } catch {
                 throw new ParameterError('Failed to obtain OAuth access token');
             }
+        } else if (connection.type === 'oauth_authorization_code') {
+            oauthAccessToken = await this.getAuthorizationCodeAccessToken(
+                connection,
+                secret,
+                null,
+            );
+            headers.Authorization = `Bearer ${oauthAccessToken}`;
         }
         // type === 'none' → no auth injected.
 
@@ -1322,6 +1715,18 @@ export class ExternalConnectionService extends BaseService {
                         oauthConfig,
                         secret,
                     );
+                headers.Authorization = `Bearer ${oauthAccessToken}`;
+                fetched = await fetchResource();
+            } else if (
+                fetched.status === 401 &&
+                connection.type === 'oauth_authorization_code' &&
+                oauthAccessToken
+            ) {
+                oauthAccessToken = await this.getAuthorizationCodeAccessToken(
+                    connection,
+                    secret,
+                    oauthAccessToken,
+                );
                 headers.Authorization = `Bearer ${oauthAccessToken}`;
                 fetched = await fetchResource();
             }
@@ -1711,6 +2116,7 @@ export class ExternalConnectionService extends BaseService {
         }
         this.assertCanManage(account, projectUuid, organizationUuid);
         if (requested.apiSource) await this.assertLiveSourcesEnabled(account);
+        ExternalConnectionService.assertNotSignInType(requested.type);
 
         // Same validation create runs, so a test can never exercise a config we
         // would refuse to store (SSRF guard, auth invariants, bounded limits).

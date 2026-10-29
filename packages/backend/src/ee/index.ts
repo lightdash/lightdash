@@ -116,6 +116,7 @@ import { EmbedService } from './services/EmbedService/EmbedService';
 import { ExternalConnectionCoderService } from './services/ExternalConnectionCoderService/ExternalConnectionCoderService';
 import { ExternalConnectionService } from './services/ExternalConnectionService/ExternalConnectionService';
 import { GoogleServiceAccountTokenProvider } from './services/ExternalConnectionService/GoogleServiceAccountTokenProvider';
+import { OAuthAuthorizationCodeTokenClient } from './services/ExternalConnectionService/OAuthAuthorizationCodeTokenClient';
 import { OAuthClientCredentialsTokenProvider } from './services/ExternalConnectionService/OAuthClientCredentialsTokenProvider';
 import { ExternalQuerySource } from './services/ExternalSourceService/ExternalQuerySource';
 import { ExternalSourceService } from './services/ExternalSourceService/ExternalSourceService';
@@ -1161,6 +1162,13 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                                 context.lightdashConfig.appRuntime
                                     .externalConnectionAllowedPrivateHostCidrs,
                         }),
+                    oauthAuthorizationCodeTokenClient:
+                        new OAuthAuthorizationCodeTokenClient({
+                            allowedPrivateHostCidrs:
+                                context.lightdashConfig.appRuntime
+                                    .externalConnectionAllowedPrivateHostCidrs,
+                        }),
+                    lightdashConfig: context.lightdashConfig,
                     orgAiCopilotConfigResolver: new OrgAiCopilotConfigResolver({
                         lightdashConfig: context.lightdashConfig,
                         featureFlagModel: models.getFeatureFlagModel(),

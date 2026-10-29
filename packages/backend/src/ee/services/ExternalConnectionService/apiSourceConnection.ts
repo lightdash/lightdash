@@ -8,6 +8,7 @@ import {
     type ExternalConnectionAuthType,
 } from '@lightdash/common';
 import { getPostHogQueryPath } from '../../../services/QuerySourceService/api/posthog/PostHogConnector';
+import { getPostHogOAuthEndpoints } from './postHogOAuth';
 
 const POSTHOG_PROJECT_ID = /^\d{1,12}$/;
 // PostHog can queue a query for 30s before running it for up to 10s.
@@ -59,12 +60,21 @@ export const validateApiSourceConnection = ({
     apiSource,
     type,
     origin,
+    oauthTokenUrl,
 }: {
     apiSource?: ExternalConnectionApiSource | null;
     type: ExternalConnectionAuthType;
     origin: string;
+    oauthTokenUrl?: string | null;
 }): void => {
-    if (!apiSource) return;
+    if (!apiSource) {
+        if (type === 'oauth_authorization_code') {
+            throw new ParameterError(
+                'Only live data sources can sign in with OAuth',
+            );
+        }
+        return;
+    }
     switch (apiSource.connector) {
         case ApiConnectorType.POSTHOG: {
             if (!POSTHOG_PROJECT_ID.test(apiSource.projectId)) {
@@ -80,9 +90,19 @@ export const validateApiSourceConnection = ({
                     `PostHog connections must use ${regionOrigins.join(' or ')}`,
                 );
             }
+            if (type === 'oauth_authorization_code') {
+                if (
+                    oauthTokenUrl !== getPostHogOAuthEndpoints(origin).tokenUrl
+                ) {
+                    throw new ParameterError(
+                        "PostHog sign-in must use the region's token endpoint",
+                    );
+                }
+                return;
+            }
             if (type !== 'bearer_token') {
                 throw new ParameterError(
-                    'PostHog connections authenticate with a personal API key sent as a bearer token',
+                    'PostHog connections authenticate with a personal API key or by signing in to PostHog',
                 );
             }
             return;
