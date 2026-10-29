@@ -696,7 +696,7 @@ export type ListThreadComposerQueryNodesFn = (
     threadUuid: string,
 ) => Promise<ThreadComposerQueryNode[]>;
 
-/** Null when the node never ran as the terminal of a query. */
+/** Null when the node was registered without node columns. */
 export type GetThreadComposerNodeColumnsFn = (args: {
     threadUuid: string;
     nodeId: string;
@@ -764,32 +764,43 @@ export type ComposerNodeStatus = {
     error: string | null;
     /** Null until the node's query is ready. */
     rowCount: number | null;
+    /** Result columns; null until the node's query is ready. */
+    columns: ResultColumns | null;
 };
+
+/** Every submitted node's status, read once after the terminal node settles. */
+export type ComposerRunOutcome =
+    | {
+          status: 'success';
+          submissions: SourceQuerySubmission[];
+          terminal: {
+              queryUuid: string;
+              columns: ResultColumns;
+              /** First COMPOSER_QUERY_PREVIEW_ROW_LIMIT rows; rowCount is the full count. */
+              rows: Record<string, AnyType>[];
+              rowCount: number;
+          };
+          nodeStatuses: ComposerNodeStatus[];
+      }
+    | {
+          status: 'failure';
+          error: string;
+          nodeStatuses: ComposerNodeStatus[];
+      };
 
 /**
  * Submits a composer query (multi-source pipeline) and waits for the terminal
- * node's results. Submissions carry the pinned nodeId → queryUuid mapping for
+ * node to settle. Submissions carry the pinned nodeId → queryUuid mapping for
  * every node; the terminal snapshot is the first page of the terminal node's
  * results, capped at that node's limit. `onNodeStatus` receives per-node
  * lifecycle transitions (running on submission, then success/error) while the
- * pipeline executes.
+ * pipeline executes. Throws only when submission fails before any query id exists.
  */
 export type RunComposerQueriesFn = (args: {
     queries: SourceQuery[];
     terminalNodeId: string;
     onNodeStatus?: (update: ComposerNodeStatusUpdate) => void;
-}) => Promise<{
-    submissions: SourceQuerySubmission[];
-    terminal: {
-        queryUuid: string;
-        columns: ResultColumns;
-        /** First COMPOSER_QUERY_PREVIEW_ROW_LIMIT rows; rowCount is the full count. */
-        rows: Record<string, AnyType>[];
-        rowCount: number;
-    };
-    /** Every submitted node, read once after the terminal node is ready. */
-    nodeStatuses: ComposerNodeStatus[];
-}>;
+}) => Promise<ComposerRunOutcome>;
 
 export type ListWarehouseTablesFn = (
     context?: QueryExecutionContext,

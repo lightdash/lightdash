@@ -18,6 +18,7 @@ import {
 import { type ParametersValuesMap } from './parameters';
 import { type PivotConfiguration } from './pivot';
 import { type QueryHistoryStatus } from './queryHistory';
+import { type ResultColumns } from './results';
 
 /**
  * Discriminator for every query source a project can execute queries against.
@@ -368,6 +369,8 @@ export type SourceQueryStatus = {
     totalRowCount: number | null;
     /** Warehouse run time; null while unknown or not recorded. */
     warehouseExecutionTimeMs: number | null;
+    /** Result columns; null until the query is ready. */
+    columns: ResultColumns | null;
 };
 
 export type ApiGetSourceQueryStatusResults = {
