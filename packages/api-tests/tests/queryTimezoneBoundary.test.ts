@@ -2,6 +2,10 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { ApiClient } from '../helpers/api-client';
 import { login } from '../helpers/auth';
 import {
+    TIMEZONE_POSTGRES_PROJECT,
+    useSharedWarehouseProject,
+} from '../helpers/shared-projects';
+import {
     getRawBucketMap,
     runTimezoneTestQuery,
     updateDataTimezone,
@@ -28,6 +32,7 @@ import {
  */
 
 let admin: ApiClient;
+let projectUuid: string;
 
 const DAY = 'timezone_test_event_timestamp_day';
 const MONTH = 'timezone_test_event_timestamp_month';
@@ -40,6 +45,7 @@ const bucket = async (
     timezone: string,
 ): Promise<Record<string, number>> => {
     const rows = await runTimezoneTestQuery(admin, {
+        projectUuid,
         dimensions: [dim],
         metrics: [COUNT],
         eventIds,
@@ -51,7 +57,11 @@ const bucket = async (
 describe('Timezone boundary crossings (GLITCH-452)', () => {
     beforeAll(async () => {
         admin = await login();
-        await updateDataTimezone(admin, undefined);
+        projectUuid = await useSharedWarehouseProject(
+            admin,
+            TIMEZONE_POSTGRES_PROJECT,
+        );
+        await updateDataTimezone(admin, undefined, projectUuid);
     });
 
     describe('year boundary — #17 (2024-01-01 00:00Z)', () => {

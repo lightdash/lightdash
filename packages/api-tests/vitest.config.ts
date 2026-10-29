@@ -7,9 +7,6 @@ import { configDefaults, defineConfig } from 'vitest/config';
 const serialFiles = [
     'tests/aiAgentMarkerPostgres.test.ts',
     'tests/agentConnectSnowflakeStub.test.ts',
-    'tests/dataTimezone.test.ts',
-    'tests/queryTimezone.test.ts',
-    'tests/queryTimezoneBoundary.test.ts',
     'tests/userTimezone.test.ts',
     'tests/embedManagement.test.ts',
     'tests/embedChart.test.ts',
@@ -26,6 +23,15 @@ const serialFiles = [
     'tests/catalog.test.ts',
     'tests/resultsCacheSettings.test.ts',
     'tests/contentAsCode.test.ts',
+];
+
+// Change the data timezone of the dedicated timezone projects. They only
+// conflict with each other, so they run one at a time next to the parallel
+// group instead of after it.
+const timezoneFiles = [
+    'tests/dataTimezone.test.ts',
+    'tests/queryTimezone.test.ts',
+    'tests/queryTimezoneBoundary.test.ts',
 ];
 
 const shared = {
@@ -48,12 +54,24 @@ export default defineConfig({
                     ...shared,
                     name: 'parallel',
                     include: ['tests/**/*.test.ts'],
-                    exclude: [...configDefaults.exclude, ...serialFiles],
+                    exclude: [
+                        ...configDefaults.exclude,
+                        ...serialFiles,
+                        ...timezoneFiles,
+                    ],
                     fileParallelism: true,
-                    // The preview pod is shared with the Playwright jobs; the
-                    // merge suite bounds this group, so more workers only add
-                    // contention.
-                    maxWorkers: 4,
+                    // The preview pod is shared with the Playwright jobs, so
+                    // this is a balance between idle workers and contention.
+                    maxWorkers: 6,
+                    sequence: { groupOrder: 0 },
+                },
+            },
+            {
+                test: {
+                    ...shared,
+                    name: 'timezone',
+                    include: timezoneFiles,
+                    fileParallelism: false,
                     sequence: { groupOrder: 0 },
                 },
             },

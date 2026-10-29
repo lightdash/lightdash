@@ -1,13 +1,12 @@
-import { WeekDay } from '@lightdash/common';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ApiClient } from '../helpers/api-client';
 import { login } from '../helpers/auth';
+import { hasBigqueryCredentials } from '../helpers/projects';
 import {
-    bigqueryWarehouseConfig,
-    createAndRefreshProject,
-    deleteProjectsByName,
-    hasBigqueryCredentials,
-} from '../helpers/projects';
+    TIMEZONE_BIGQUERY_PROJECT,
+    TIMEZONE_POSTGRES_PROJECT,
+    useSharedWarehouseProject,
+} from '../helpers/shared-projects';
 import {
     getRowCount,
     getTotalCount,
@@ -45,6 +44,7 @@ import {
  */
 
 let admin: ApiClient;
+let projectUuid: string;
 
 const DIMENSION_KEY = 'timezone_test_event_timestamp_day';
 const HOUR_DIMENSION_KEY = 'timezone_test_event_timestamp_hour';
@@ -125,7 +125,11 @@ const GREATER_THAN_FILTER = (day: string) => ({
 describe('Query timezone (timezone-aware DATE_TRUNC)', () => {
     beforeAll(async () => {
         admin = await login();
-        await updateDataTimezone(admin, undefined);
+        projectUuid = await useSharedWarehouseProject(
+            admin,
+            TIMEZONE_POSTGRES_PROJECT,
+        );
+        await updateDataTimezone(admin, undefined, projectUuid);
     });
 
     // ── Grouping ──────────────────────────────────────────────────────
@@ -133,6 +137,7 @@ describe('Query timezone (timezone-aware DATE_TRUNC)', () => {
     describe('grouping by query timezone', () => {
         it('UTC (default): Jan 15=6, Jan 16=4', async () => {
             const rows = await runTimezoneTestQuery(admin, {
+                projectUuid,
                 dimensions: DIMENSIONS,
                 metrics: METRICS,
             });
@@ -147,6 +152,7 @@ describe('Query timezone (timezone-aware DATE_TRUNC)', () => {
 
         it('Pacific/Pago_Pago: Jan 14=4, Jan 15=4, Jan 16=2', async () => {
             const rows = await runTimezoneTestQuery(admin, {
+                projectUuid,
                 dimensions: DIMENSIONS,
                 metrics: METRICS,
                 timezone: 'Pacific/Pago_Pago',
@@ -165,6 +171,7 @@ describe('Query timezone (timezone-aware DATE_TRUNC)', () => {
 
         it('America/New_York: Jan 14=1, Jan 15=6, Jan 16=3', async () => {
             const rows = await runTimezoneTestQuery(admin, {
+                projectUuid,
                 dimensions: DIMENSIONS,
                 metrics: METRICS,
                 timezone: 'America/New_York',
@@ -183,6 +190,7 @@ describe('Query timezone (timezone-aware DATE_TRUNC)', () => {
 
         it('America/Chicago: Jan 14=2, Jan 15=5, Jan 16=3', async () => {
             const rows = await runTimezoneTestQuery(admin, {
+                projectUuid,
                 dimensions: DIMENSIONS,
                 metrics: METRICS,
                 timezone: 'America/Chicago',
@@ -201,6 +209,7 @@ describe('Query timezone (timezone-aware DATE_TRUNC)', () => {
 
         it('Asia/Tokyo: Jan 15=5, Jan 16=4, Jan 17=1', async () => {
             const rows = await runTimezoneTestQuery(admin, {
+                projectUuid,
                 dimensions: DIMENSIONS,
                 metrics: METRICS,
                 timezone: 'Asia/Tokyo',
@@ -223,6 +232,7 @@ describe('Query timezone (timezone-aware DATE_TRUNC)', () => {
     describe('filter alignment — equals day = Jan 15', () => {
         it('UTC: 6 events on Jan 15', async () => {
             const rows = await runTimezoneTestQuery(admin, {
+                projectUuid,
                 dimensions: DIMENSIONS,
                 metrics: METRICS,
                 filters: EQUALS_FILTER('2024-01-15'),
@@ -233,6 +243,7 @@ describe('Query timezone (timezone-aware DATE_TRUNC)', () => {
 
         it('Pacific/Pago_Pago: 4 events on Jan 15', async () => {
             const rows = await runTimezoneTestQuery(admin, {
+                projectUuid,
                 dimensions: DIMENSIONS,
                 metrics: METRICS,
                 timezone: 'Pacific/Pago_Pago',
@@ -244,6 +255,7 @@ describe('Query timezone (timezone-aware DATE_TRUNC)', () => {
 
         it('America/New_York: 6 events on Jan 15', async () => {
             const rows = await runTimezoneTestQuery(admin, {
+                projectUuid,
                 dimensions: DIMENSIONS,
                 metrics: METRICS,
                 timezone: 'America/New_York',
@@ -255,6 +267,7 @@ describe('Query timezone (timezone-aware DATE_TRUNC)', () => {
 
         it('America/Chicago: 5 events on Jan 15', async () => {
             const rows = await runTimezoneTestQuery(admin, {
+                projectUuid,
                 dimensions: DIMENSIONS,
                 metrics: METRICS,
                 timezone: 'America/Chicago',
@@ -266,6 +279,7 @@ describe('Query timezone (timezone-aware DATE_TRUNC)', () => {
 
         it('Asia/Tokyo: 5 events on Jan 15', async () => {
             const rows = await runTimezoneTestQuery(admin, {
+                projectUuid,
                 dimensions: DIMENSIONS,
                 metrics: METRICS,
                 timezone: 'Asia/Tokyo',
@@ -283,6 +297,7 @@ describe('Query timezone (timezone-aware DATE_TRUNC)', () => {
     describe('filter alignment — inBetween Jan 14 to Jan 15', () => {
         it('UTC: 6 events in Jan 14–15', async () => {
             const rows = await runTimezoneTestQuery(admin, {
+                projectUuid,
                 dimensions: DIMENSIONS,
                 metrics: METRICS,
                 filters: IN_BETWEEN_FILTER('2024-01-14', '2024-01-15'),
@@ -292,6 +307,7 @@ describe('Query timezone (timezone-aware DATE_TRUNC)', () => {
 
         it('America/New_York: 7 events in Jan 14–15', async () => {
             const rows = await runTimezoneTestQuery(admin, {
+                projectUuid,
                 dimensions: DIMENSIONS,
                 metrics: METRICS,
                 timezone: 'America/New_York',
@@ -302,6 +318,7 @@ describe('Query timezone (timezone-aware DATE_TRUNC)', () => {
 
         it('America/Chicago: 7 events in Jan 14–15', async () => {
             const rows = await runTimezoneTestQuery(admin, {
+                projectUuid,
                 dimensions: DIMENSIONS,
                 metrics: METRICS,
                 timezone: 'America/Chicago',
@@ -312,6 +329,7 @@ describe('Query timezone (timezone-aware DATE_TRUNC)', () => {
 
         it('Asia/Tokyo: 5 events in Jan 14–15', async () => {
             const rows = await runTimezoneTestQuery(admin, {
+                projectUuid,
                 dimensions: DIMENSIONS,
                 metrics: METRICS,
                 timezone: 'Asia/Tokyo',
@@ -322,6 +340,7 @@ describe('Query timezone (timezone-aware DATE_TRUNC)', () => {
 
         it('Pacific/Pago_Pago: 8 events in Jan 14–15', async () => {
             const rows = await runTimezoneTestQuery(admin, {
+                projectUuid,
                 dimensions: DIMENSIONS,
                 metrics: METRICS,
                 timezone: 'Pacific/Pago_Pago',
@@ -333,6 +352,7 @@ describe('Query timezone (timezone-aware DATE_TRUNC)', () => {
         // Single-day inBetween — same as equals, catches off-by-one boundary shifts
         it('America/New_York: 6 events in Jan 15–15 (single day)', async () => {
             const rows = await runTimezoneTestQuery(admin, {
+                projectUuid,
                 dimensions: DIMENSIONS,
                 metrics: METRICS,
                 timezone: 'America/New_York',
@@ -347,6 +367,7 @@ describe('Query timezone (timezone-aware DATE_TRUNC)', () => {
     describe('filter alignment — greaterThan day > Jan 15', () => {
         it('UTC: 4 events after Jan 15', async () => {
             const rows = await runTimezoneTestQuery(admin, {
+                projectUuid,
                 dimensions: DIMENSIONS,
                 metrics: METRICS,
                 filters: GREATER_THAN_FILTER('2024-01-15'),
@@ -356,6 +377,7 @@ describe('Query timezone (timezone-aware DATE_TRUNC)', () => {
 
         it('Pacific/Pago_Pago: 2 events after Jan 15', async () => {
             const rows = await runTimezoneTestQuery(admin, {
+                projectUuid,
                 dimensions: DIMENSIONS,
                 metrics: METRICS,
                 timezone: 'Pacific/Pago_Pago',
@@ -366,6 +388,7 @@ describe('Query timezone (timezone-aware DATE_TRUNC)', () => {
 
         it('America/New_York: 3 events after Jan 15', async () => {
             const rows = await runTimezoneTestQuery(admin, {
+                projectUuid,
                 dimensions: DIMENSIONS,
                 metrics: METRICS,
                 timezone: 'America/New_York',
@@ -376,6 +399,7 @@ describe('Query timezone (timezone-aware DATE_TRUNC)', () => {
 
         it('America/Chicago: 3 events after Jan 15', async () => {
             const rows = await runTimezoneTestQuery(admin, {
+                projectUuid,
                 dimensions: DIMENSIONS,
                 metrics: METRICS,
                 timezone: 'America/Chicago',
@@ -386,6 +410,7 @@ describe('Query timezone (timezone-aware DATE_TRUNC)', () => {
 
         it('Asia/Tokyo: 5 events after Jan 15', async () => {
             const rows = await runTimezoneTestQuery(admin, {
+                projectUuid,
                 dimensions: DIMENSIONS,
                 metrics: METRICS,
                 timezone: 'Asia/Tokyo',
@@ -401,6 +426,7 @@ describe('Query timezone (timezone-aware DATE_TRUNC)', () => {
     describe('fractional-offset zones — sub-day buckets', () => {
         it('Asia/Kathmandu (+05:45): groups into 10 hourly buckets', async () => {
             const rows = await runTimezoneTestQuery(admin, {
+                projectUuid,
                 dimensions: [HOUR_DIMENSION_KEY],
                 metrics: METRICS,
                 timezone: 'Asia/Kathmandu',
@@ -411,6 +437,7 @@ describe('Query timezone (timezone-aware DATE_TRUNC)', () => {
 
         it('Asia/Kathmandu (+05:45): bucket aligns to :15, not :00 or :30', async () => {
             const aligned = await runTimezoneTestQuery(admin, {
+                projectUuid,
                 dimensions: [HOUR_DIMENSION_KEY],
                 metrics: METRICS,
                 timezone: 'Asia/Kathmandu',
@@ -419,6 +446,7 @@ describe('Query timezone (timezone-aware DATE_TRUNC)', () => {
             expect(getTotalCount(aligned, METRIC_KEY)).toBe(1);
 
             const wholeHour = await runTimezoneTestQuery(admin, {
+                projectUuid,
                 dimensions: [HOUR_DIMENSION_KEY],
                 metrics: METRICS,
                 timezone: 'Asia/Kathmandu',
@@ -429,6 +457,7 @@ describe('Query timezone (timezone-aware DATE_TRUNC)', () => {
 
         it('Pacific/Marquesas (-09:30): groups into 10 hourly buckets', async () => {
             const rows = await runTimezoneTestQuery(admin, {
+                projectUuid,
                 dimensions: [HOUR_DIMENSION_KEY],
                 metrics: METRICS,
                 timezone: 'Pacific/Marquesas',
@@ -439,6 +468,7 @@ describe('Query timezone (timezone-aware DATE_TRUNC)', () => {
 
         it('Pacific/Marquesas (-09:30): bucket aligns to :30, not :00', async () => {
             const aligned = await runTimezoneTestQuery(admin, {
+                projectUuid,
                 dimensions: [HOUR_DIMENSION_KEY],
                 metrics: METRICS,
                 timezone: 'Pacific/Marquesas',
@@ -447,6 +477,7 @@ describe('Query timezone (timezone-aware DATE_TRUNC)', () => {
             expect(getTotalCount(aligned, METRIC_KEY)).toBe(1);
 
             const wholeHour = await runTimezoneTestQuery(admin, {
+                projectUuid,
                 dimensions: [HOUR_DIMENSION_KEY],
                 metrics: METRICS,
                 timezone: 'Pacific/Marquesas',
@@ -457,7 +488,7 @@ describe('Query timezone (timezone-aware DATE_TRUNC)', () => {
     });
 
     afterAll(async () => {
-        await updateDataTimezone(admin, undefined);
+        await updateDataTimezone(admin, undefined, projectUuid);
     });
 });
 
@@ -467,7 +498,6 @@ describe('Query timezone (timezone-aware DATE_TRUNC)', () => {
 describe.skipIf(!hasBigqueryCredentials())(
     'Query timezone — BigQuery filters',
     () => {
-        const projectName = 'bigQuery timezone fractional test';
         // Cold BigQuery queries can exceed the default 15s poll window.
         const BIGQUERY_MAX_ATTEMPTS = 120;
         let bqAdmin: ApiClient;
@@ -475,23 +505,11 @@ describe.skipIf(!hasBigqueryCredentials())(
 
         beforeAll(async () => {
             bqAdmin = await login();
-            // Clean up any project leaked by a previously interrupted run
-            // before creating a fresh one (names are not unique).
-            await deleteProjectsByName(bqAdmin, [projectName]);
-            bigqueryProjectUuid = await createAndRefreshProject(
+            bigqueryProjectUuid = await useSharedWarehouseProject(
                 bqAdmin,
-                projectName,
-                // Monday start makes row #11 (Sun 14 Jan 15:00 UTC) cross a
-                // week boundary in Asia/Tokyo.
-                { ...bigqueryWarehouseConfig(), startOfWeek: WeekDay.MONDAY },
+                TIMEZONE_BIGQUERY_PROJECT,
             );
         }, 420_000);
-
-        afterAll(async () => {
-            if (bqAdmin) {
-                await deleteProjectsByName(bqAdmin, [projectName]);
-            }
-        });
 
         it.each([
             {

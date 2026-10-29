@@ -1,23 +1,46 @@
+import { WeekDay } from '@lightdash/common';
 import type { TestProject } from 'vitest/node';
 import { login } from './helpers/auth';
 import waitForServerHealth from './helpers/health';
 import {
+    bigqueryWarehouseConfig,
     createProject,
     deleteProjectsByName,
     getAvailableWarehouseConfigs,
+    hasBigqueryCredentials,
+    postgresWarehouseConfig,
     startProjectRefresh,
 } from './helpers/projects';
 import {
     SharedWarehouseProject,
     sharedWarehouseProjectName,
+    TIMEZONE_BIGQUERY_PROJECT,
+    TIMEZONE_POSTGRES_PROJECT,
 } from './helpers/shared-projects';
 
 // Databricks is excluded to avoid starting serverless compute; Postgres is
 // covered by the seed project.
-const warehouseEntries = getAvailableWarehouseConfigs({
-    includePostgres: false,
-    includeDatabricks: false,
-});
+const warehouseEntries = [
+    ...getAvailableWarehouseConfigs({
+        includePostgres: false,
+        includeDatabricks: false,
+    }),
+    // Owned by the timezone suites, which change its data timezone; keeps
+    // those writes off the seed project so they need not trail every other
+    // file. Monday start makes row #11 cross a week boundary in Asia/Tokyo.
+    { name: TIMEZONE_POSTGRES_PROJECT, config: postgresWarehouseConfig() },
+    ...(hasBigqueryCredentials()
+        ? [
+              {
+                  name: TIMEZONE_BIGQUERY_PROJECT,
+                  config: {
+                      ...bigqueryWarehouseConfig(),
+                      startOfWeek: WeekDay.MONDAY,
+                  },
+              },
+          ]
+        : []),
+];
 
 export default async function setup(project: TestProject) {
     await waitForServerHealth();

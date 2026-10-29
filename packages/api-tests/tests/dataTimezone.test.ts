@@ -1,12 +1,12 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ApiClient } from '../helpers/api-client';
 import { login } from '../helpers/auth';
+import { hasBigqueryCredentials } from '../helpers/projects';
 import {
-    bigqueryWarehouseConfig,
-    createAndRefreshProject,
-    deleteProjectsByName,
-    hasBigqueryCredentials,
-} from '../helpers/projects';
+    TIMEZONE_BIGQUERY_PROJECT,
+    TIMEZONE_POSTGRES_PROJECT,
+    useSharedWarehouseProject,
+} from '../helpers/shared-projects';
 import {
     getRawBucketMap,
     getRowCount,
@@ -39,6 +39,7 @@ import {
  */
 
 let admin: ApiClient;
+let projectUuid: string;
 
 const DIMENSION_KEY = 'timezone_test_event_timestamp_day';
 const METRIC_KEY = 'timezone_test_count';
@@ -48,15 +49,20 @@ const METRICS = [METRIC_KEY];
 describe('Data timezone', () => {
     beforeAll(async () => {
         admin = await login();
+        projectUuid = await useSharedWarehouseProject(
+            admin,
+            TIMEZONE_POSTGRES_PROJECT,
+        );
     });
 
     describe('without dataTimezone (UTC default)', () => {
         beforeAll(async () => {
-            await updateDataTimezone(admin, undefined);
+            await updateDataTimezone(admin, undefined, projectUuid);
         });
 
         it('should group events by UTC day boundaries', async () => {
             const rows = await runTimezoneTestQuery(admin, {
+                projectUuid,
                 dimensions: DIMENSIONS,
                 metrics: METRICS,
             });
@@ -71,6 +77,7 @@ describe('Data timezone', () => {
 
         it('should filter by UTC day for equals filter', async () => {
             const rows = await runTimezoneTestQuery(admin, {
+                projectUuid,
                 dimensions: DIMENSIONS,
                 metrics: METRICS,
                 filters: {
@@ -95,6 +102,7 @@ describe('Data timezone', () => {
 
         it('should filter by UTC day for greaterThan filter', async () => {
             const rows = await runTimezoneTestQuery(admin, {
+                projectUuid,
                 dimensions: DIMENSIONS,
                 metrics: METRICS,
                 filters: {
@@ -120,11 +128,12 @@ describe('Data timezone', () => {
 
     describe('with dataTimezone = Pacific/Pago_Pago (UTC-11)', () => {
         beforeAll(async () => {
-            await updateDataTimezone(admin, 'Pacific/Pago_Pago');
+            await updateDataTimezone(admin, 'Pacific/Pago_Pago', projectUuid);
         });
 
         it('should still group by UTC day boundaries (queryTimezone defaults to UTC)', async () => {
             const rows = await runTimezoneTestQuery(admin, {
+                projectUuid,
                 dimensions: DIMENSIONS,
                 metrics: METRICS,
             });
@@ -141,6 +150,7 @@ describe('Data timezone', () => {
 
         it('should filter by UTC day for equals filter (queryTimezone defaults to UTC)', async () => {
             const rows = await runTimezoneTestQuery(admin, {
+                projectUuid,
                 dimensions: DIMENSIONS,
                 metrics: METRICS,
                 filters: {
@@ -166,6 +176,7 @@ describe('Data timezone', () => {
 
         it('should filter by UTC day for greaterThan filter (queryTimezone defaults to UTC)', async () => {
             const rows = await runTimezoneTestQuery(admin, {
+                projectUuid,
                 dimensions: DIMENSIONS,
                 metrics: METRICS,
                 filters: {
@@ -192,12 +203,13 @@ describe('Data timezone', () => {
 
     describe('dataTimezone + queryTimezone interaction', () => {
         beforeAll(async () => {
-            await updateDataTimezone(admin, 'Pacific/Pago_Pago');
+            await updateDataTimezone(admin, 'Pacific/Pago_Pago', projectUuid);
         });
 
         it('dataTz=Pago_Pago, queryTz=UTC: groups by UTC despite non-UTC session', async () => {
             // queryTimezone controls grouping, not dataTimezone
             const rows = await runTimezoneTestQuery(admin, {
+                projectUuid,
                 dimensions: DIMENSIONS,
                 metrics: METRICS,
                 timezone: 'UTC',
@@ -215,6 +227,7 @@ describe('Data timezone', () => {
             // When dataTimezone === queryTimezone, bare DATE_TRUNC is used
             // (session TZ already produces correct grouping)
             const rows = await runTimezoneTestQuery(admin, {
+                projectUuid,
                 dimensions: DIMENSIONS,
                 metrics: METRICS,
                 timezone: 'Pacific/Pago_Pago',
@@ -233,6 +246,7 @@ describe('Data timezone', () => {
 
         it('dataTz=Pago_Pago, queryTz=Pago_Pago: filter day=Jan15 returns 4 events', async () => {
             const rows = await runTimezoneTestQuery(admin, {
+                projectUuid,
                 dimensions: DIMENSIONS,
                 metrics: METRICS,
                 timezone: 'Pacific/Pago_Pago',
@@ -258,12 +272,12 @@ describe('Data timezone', () => {
         });
 
         afterAll(async () => {
-            await updateDataTimezone(admin, undefined);
+            await updateDataTimezone(admin, undefined, projectUuid);
         });
     });
 
     afterAll(async () => {
-        await updateDataTimezone(admin, undefined);
+        await updateDataTimezone(admin, undefined, projectUuid);
     });
 });
 
@@ -303,31 +317,42 @@ function runNaiveDayQuery(
 describe('Data timezone — naive timestamps (Postgres)', () => {
     beforeAll(async () => {
         admin = await login();
+        projectUuid = await useSharedWarehouseProject(
+            admin,
+            TIMEZONE_POSTGRES_PROJECT,
+        );
     });
 
     afterAll(async () => {
-        await updateDataTimezone(admin, undefined);
+        await updateDataTimezone(admin, undefined, projectUuid);
     });
 
     it('without dataTimezone: naive values are read as UTC', async () => {
-        await updateDataTimezone(admin, undefined);
-        const rows = await runNaiveDayQuery(admin, { timezone: 'Asia/Tokyo' });
+        await updateDataTimezone(admin, undefined, projectUuid);
+        const rows = await runNaiveDayQuery(admin, {
+            projectUuid,
+            timezone: 'Asia/Tokyo',
+        });
         expect(
             getRawBucketMap(rows, NTZ_DIMENSION_KEY, NTZ_METRIC_KEY),
         ).toEqual({ '2024-01-15': 5, '2024-01-16': 4, '2024-01-17': 1 });
     });
 
     it('dataTz=Asia/Tokyo, queryTz=Asia/Tokyo: groups by stored wall-clock day', async () => {
-        await updateDataTimezone(admin, 'Asia/Tokyo');
-        const rows = await runNaiveDayQuery(admin, { timezone: 'Asia/Tokyo' });
+        await updateDataTimezone(admin, 'Asia/Tokyo', projectUuid);
+        const rows = await runNaiveDayQuery(admin, {
+            projectUuid,
+            timezone: 'Asia/Tokyo',
+        });
         expect(
             getRawBucketMap(rows, NTZ_DIMENSION_KEY, NTZ_METRIC_KEY),
         ).toEqual({ '2024-01-15': 6, '2024-01-16': 4 });
     });
 
     it('dataTz=Asia/Tokyo, queryTz=Pacific/Pago_Pago: naive values are read in the data timezone', async () => {
-        await updateDataTimezone(admin, 'Asia/Tokyo');
+        await updateDataTimezone(admin, 'Asia/Tokyo', projectUuid);
         const rows = await runNaiveDayQuery(admin, {
+            projectUuid,
             timezone: 'Pacific/Pago_Pago',
         });
         expect(
@@ -370,15 +395,20 @@ function runNaiveRawQuery(
 describe('Data timezone — raw time frame on naive timestamps (Postgres)', () => {
     beforeAll(async () => {
         admin = await login();
+        projectUuid = await useSharedWarehouseProject(
+            admin,
+            TIMEZONE_POSTGRES_PROJECT,
+        );
     });
 
     afterAll(async () => {
-        await updateDataTimezone(admin, undefined);
+        await updateDataTimezone(admin, undefined, projectUuid);
     });
 
     it('dataTz=Asia/Tokyo, queryTz=Asia/Tokyo: raw equals the hour bucket and shows the stored wall clock', async () => {
-        await updateDataTimezone(admin, 'Asia/Tokyo');
+        await updateDataTimezone(admin, 'Asia/Tokyo', projectUuid);
         const [row] = await runNaiveRawQuery(admin, {
+            projectUuid,
             timezone: 'Asia/Tokyo',
         });
         expect(toInstant(row, NTZ_RAW_KEY)).toBe('2024-01-14T17:00:00.000Z');
@@ -390,16 +420,20 @@ describe('Data timezone — raw time frame on naive timestamps (Postgres)', () =
     });
 
     it('dataTz=Asia/Tokyo, queryTz=UTC: raw equals the hour bucket', async () => {
-        await updateDataTimezone(admin, 'Asia/Tokyo');
-        const [row] = await runNaiveRawQuery(admin, { timezone: 'UTC' });
+        await updateDataTimezone(admin, 'Asia/Tokyo', projectUuid);
+        const [row] = await runNaiveRawQuery(admin, {
+            projectUuid,
+            timezone: 'UTC',
+        });
         expect(toInstant(row, NTZ_RAW_KEY)).toBe('2024-01-14T17:00:00.000Z');
         expect(toInstant(row, NTZ_RAW_KEY)).toBe(toInstant(row, NTZ_HOUR_KEY));
         expect(row[NTZ_RAW_KEY].value.formatted).toContain('2024-01-14');
     });
 
     it('without dataTimezone: raw naive values are read as UTC (unchanged baseline)', async () => {
-        await updateDataTimezone(admin, undefined);
+        await updateDataTimezone(admin, undefined, projectUuid);
         const [row] = await runNaiveRawQuery(admin, {
+            projectUuid,
             timezone: 'Asia/Tokyo',
         });
         expect(toInstant(row, NTZ_RAW_KEY)).toBe('2024-01-15T02:00:00.000Z');
@@ -411,7 +445,6 @@ describe('Data timezone — raw time frame on naive timestamps (Postgres)', () =
 describe.skipIf(!hasBigqueryCredentials())(
     'Data timezone — naive timestamps (BigQuery)',
     () => {
-        const projectName = 'bigQuery data timezone test';
         // Cold BigQuery queries can exceed the default 15s poll window.
         const BIGQUERY_MAX_ATTEMPTS = 120;
         let bqAdmin: ApiClient;
@@ -419,20 +452,14 @@ describe.skipIf(!hasBigqueryCredentials())(
 
         beforeAll(async () => {
             bqAdmin = await login();
-            // Clean up any project leaked by a previously interrupted run
-            // before creating a fresh one (names are not unique).
-            await deleteProjectsByName(bqAdmin, [projectName]);
-            bigqueryProjectUuid = await createAndRefreshProject(
+            bigqueryProjectUuid = await useSharedWarehouseProject(
                 bqAdmin,
-                projectName,
-                bigqueryWarehouseConfig(),
+                TIMEZONE_BIGQUERY_PROJECT,
             );
         }, 420_000);
 
         afterAll(async () => {
-            if (bqAdmin) {
-                await deleteProjectsByName(bqAdmin, [projectName]);
-            }
+            await updateDataTimezone(bqAdmin, undefined, bigqueryProjectUuid);
         });
 
         it('without dataTimezone: naive DATETIME values are read as UTC', async () => {

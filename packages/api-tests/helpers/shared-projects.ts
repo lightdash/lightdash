@@ -8,7 +8,12 @@ import { waitForProjectRefresh } from './projects';
  * refresh job is still running when tests start; `useSharedWarehouseProject`
  * waits for it. Suites must not mutate these projects (settings, timezone,
  * connection): a suite that needs its own configuration creates its own.
+ * The exception is the timezone projects below, mutated only by the
+ * `timezone` vitest project, whose files run one at a time.
  */
+export const TIMEZONE_POSTGRES_PROJECT = 'timezone-postgres';
+export const TIMEZONE_BIGQUERY_PROJECT = 'timezone-bigquery';
+
 export type SharedWarehouseProject = {
     name: string;
     projectUuid: string;
