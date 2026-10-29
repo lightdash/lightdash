@@ -166,8 +166,9 @@ const ComposerQueryNode: FC<{
 }> = ({ node, titlesByNodeId, nodeStatus, approval }) => {
     const presentation = getNodePresentation(node, titlesByNodeId);
     const active = isActiveStatus(nodeStatus);
-    // Only active nodes open by default; a user toggle wins until the status changes.
-    const defaultOpen = active;
+    // Only nodes awaiting approval open by default; a user toggle wins until
+    // the status changes.
+    const defaultOpen = nodeStatus?.status === 'awaiting_approval';
     const [userToggle, setUserToggle] = useState<{
         status: ComposerQueryNodeStatus['status'] | undefined;
         open: boolean;
