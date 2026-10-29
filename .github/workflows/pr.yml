@@ -123,7 +123,7 @@ jobs:
         with:
           egress-policy: audit
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2.0.2
+      - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
         with:
           cache: true
           install: false
@@ -180,15 +180,15 @@ jobs:
           - name: cli
             filter: --filter=@lightdash/cli
             args: ""
-          - name: common, visualization, warehouses, e2e, api-tests, query-sdk
-            filter: --filter=@lightdash/common --filter=@lightdash/visualization --filter=@lightdash/warehouses --filter=e2e --filter=api-tests --filter=@lightdash/query-sdk
+          - name: common, visualization, warehouses, api-tests, query-sdk
+            filter: --filter=@lightdash/common --filter=@lightdash/visualization --filter=@lightdash/warehouses --filter=api-tests --filter=@lightdash/query-sdk
             args: ""
     steps:
       - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2.0.2
+      - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
         with:
           cache: true
           install: false
@@ -210,7 +210,7 @@ jobs:
         with:
           egress-policy: audit
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2.0.2
+      - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
         with:
           cache: true
           install: false
@@ -232,7 +232,7 @@ jobs:
         with:
           egress-policy: audit
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2.0.2
+      - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
         with:
           cache: true
           install: false
@@ -261,7 +261,7 @@ jobs:
         with:
           egress-policy: audit
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2.0.2
+      - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
         with:
           cache: true
           install: false
@@ -280,66 +280,18 @@ jobs:
     name: Select Tests to Run
     runs-on: depot-ubuntu-24.04-4
     outputs:
-      # Which preview the E2E suites run against (see "Select preview backend").
-      # Only an explicit `rainbow-parity` run forces every suite; a PR the
-      # rollout picked keeps the usual change-based selection.
-      preview_backend: ${{ steps.backend.outputs.backend }}
-      # Must equal the backend's SNOWFLAKE_AI_TEST_ACCOUNT_URL_ORIGIN; the backend dials it, not the runner.
-      snowflake_ai_stub_url: ${{ steps.backend.outputs.backend == 'rainbow' && 'http://localhost:3900' || 'http://snowflake-ai-stub:3900' }}
-      preview: ${{ steps.backend.outputs.all_suites == 'true' || (steps.changes.outputs.preview == 'true' && github.event.pull_request.user.login != 'lightdash-renovate-bot[bot]' && !startsWith(github.event.pull_request.title, 'docs')) || contains(github.event.pull_request.body, 'deploy-preview') || contains(github.event.pull_request.body, 'test-all') }}
-      frontend: ${{ steps.backend.outputs.all_suites == 'true' || steps.changes.outputs.frontend == 'true' || contains(github.event.pull_request.body, 'test-frontend') || contains(github.event.pull_request.body, 'test-all') }}
-      backend: ${{ steps.backend.outputs.all_suites == 'true' || steps.changes.outputs.backend == 'true' || contains(github.event.pull_request.body, 'test-backend') || contains(github.event.pull_request.body, 'test-all') }}
+      # Rainbow builds a preview for same-repo PRs only; forks get no preview
+      # and no E2E suites (they would have no secrets anyway).
+      preview: ${{ github.event.pull_request.head.repo.full_name == github.repository && ((steps.changes.outputs.preview == 'true' && github.event.pull_request.user.login != 'lightdash-renovate-bot[bot]' && !startsWith(github.event.pull_request.title, 'docs')) || contains(github.event.pull_request.body, 'deploy-preview') || contains(github.event.pull_request.body, 'test-all')) }}
+      frontend: ${{ steps.changes.outputs.frontend == 'true' || contains(github.event.pull_request.body, 'test-frontend') || contains(github.event.pull_request.body, 'test-all') }}
+      backend: ${{ steps.changes.outputs.backend == 'true' || contains(github.event.pull_request.body, 'test-backend') || contains(github.event.pull_request.body, 'test-all') }}
       api_schema: ${{ steps.changes.outputs.api_schema == 'true' }}
-      timezone: ${{ steps.backend.outputs.all_suites == 'true' || steps.changes.outputs.timezone == 'true' || contains(github.event.pull_request.body, 'test-timezone') || contains(github.event.pull_request.body, 'test-all') }}
-      cli: ${{ steps.backend.outputs.all_suites == 'true' || steps.changes.outputs.cli == 'true' || contains(github.event.pull_request.body, 'test-cli') || contains(github.event.pull_request.body, 'test-all') }}
-      db_divert: ${{ steps.changes.outputs.preview_db_full != 'true' }}
+      timezone: ${{ steps.changes.outputs.timezone == 'true' || contains(github.event.pull_request.body, 'test-timezone') || contains(github.event.pull_request.body, 'test-all') }}
+      cli: ${{ steps.changes.outputs.cli == 'true' || contains(github.event.pull_request.body, 'test-cli') || contains(github.event.pull_request.body, 'test-all') }}
     steps:
       - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
-      # Okteto, or Rainbow for a same-repo PR that either asks for it
-      # (`rainbow-parity` in the body: every suite runs) or is picked by the
-      # rollout: half of the PRs opened after RAINBOW_ROLLOUT_AFTER, by PR
-      # number, so a PR keeps its backend for its whole life. `okteto-only`
-      # in the body opts out. Bots stay on Okteto. This selects a path; it is
-      # not a security boundary (a PR can edit this file). Fork PRs get no
-      # secrets anyway.
-      - name: Select preview backend
-        id: backend
-        env:
-          RAINBOW_ROLLOUT_AFTER: "31583"
-          NUMBER: ${{ github.event.pull_request.number }}
-          AUTHOR: ${{ github.event.pull_request.user.login }}
-          REQUESTED: ${{ github.event_name == 'pull_request' && contains(github.event.pull_request.body, 'rainbow-parity') }}
-          OPTED_OUT: ${{ github.event_name == 'pull_request' && contains(github.event.pull_request.body, 'okteto-only') }}
-          SAME_REPO: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
-        run: |
-          backend=okteto all_suites=false picked=false
-          if [ "$SAME_REPO" != true ]; then
-            [ "$REQUESTED" = true ] && echo "::warning::rainbow-parity requested, but this PR comes from a fork; using Okteto."
-          elif [ "$REQUESTED" = true ]; then
-            backend=rainbow all_suites=true
-          elif [ "$OPTED_OUT" != true ] && [[ "$AUTHOR" != *"[bot]" ]] \
-               && [ "$NUMBER" -gt "$RAINBOW_ROLLOUT_AFTER" ] && [ $((NUMBER % 2)) -eq 0 ]; then
-            backend=rainbow picked=true
-          fi
-          echo "Preview backend: $backend (all suites: $all_suites, picked by rollout: $picked)"
-          {
-            echo "backend=$backend"
-            echo "all_suites=$all_suites"
-            echo "picked=$picked"
-          } >> "$GITHUB_OUTPUT"
-      - name: Tell the author this PR runs on Rainbow
-        if: steps.backend.outputs.picked == 'true' && github.event.action == 'opened'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          NUMBER: ${{ github.event.pull_request.number }}
-        run: |
-          gh pr comment "$NUMBER" --repo "$GITHUB_REPOSITORY" --body "🌈 **This PR was picked to run on Rainbow Machine.**
-
-          Half of new PRs now run their E2E tests against a Rainbow preview instead of Okteto, while we compare the two. Your tests and checks are the same; the preview link is in the Rainbow comment on this PR.
-
-          Something looks off? Add \`okteto-only\` to the PR description and push to go back to Okteto, and reply here with what you saw."
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - name: Check for files changes
         uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4
@@ -367,7 +319,7 @@ jobs:
         id: node-version
         run: echo "version=$(tr -d '[:space:]' < .nvmrc)" >> "$GITHUB_OUTPUT"
 
-      - uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2.0.2
+      - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
         with:
           runtime: node@${{ steps.node-version.outputs.version }}
           cache: true
@@ -422,7 +374,7 @@ jobs:
                 name: 'Frontend E2E Tests',
                 selected: ${{ needs.files-changed.outputs.frontend }},
                 trigger: 'test-frontend',
-                description: 'Runs Cypress app tests'
+                description: 'Runs Playwright app tests'
               },
               {
                 name: 'Backend API Tests',
@@ -502,199 +454,62 @@ jobs:
     outputs:
       url: ${{ steps.preview-url.outputs.url }}
     env:
-      RAINBOW: ${{ needs.files-changed.outputs.preview_backend == 'rainbow' }}
-      PREVIEW_URL: ${{ needs.files-changed.outputs.preview_backend == 'rainbow' && format('https://lightdash--pr-{0}.lightdash.rainbowmachine.dev', github.event.number) || format('https://lightdash-preview-pr-{0}.lightdash.okteto.dev', github.event.number) }}
+      PREVIEW_URL: https://lightdash--pr-${{ github.event.number }}.lightdash.rainbowmachine.dev
     steps:
       - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
-
-      - name: Context
-        if: env.RAINBOW != 'true'
-        uses: okteto/context@5212ce5ebf9d3584bafd33f4a295a8521fc5abe7 # latest
-        with:
-          url: ${{ secrets.OKTETO_CONTEXT }}
-          token: ${{ secrets.OKTETO_TOKEN }}
-
-      - name: Create GitHub deployment
-        if: env.RAINBOW != 'true'
-        id: deployment
-        uses: chrnorm/deployment-action@500aa6a23c81ffa1acf71072aee3cfa2cc2e556a # v2
-        with:
-          token: ${{ secrets.CI_GITHUB_TOKEN }}
-          initial-status: pending
-          environment: pr-${{ github.event.number }}
-          environment-url: ${{ env.PREVIEW_URL }}
-
-      - name: Deploy preview environment
-        if: env.RAINBOW != 'true'
-        id: deploy
-        uses: okteto/deploy-preview@86c45b05007dbdd42a5c8c74372f7a5912608827 # latest
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          name: pr-${{ github.event.number }}
-          # Covers a bounded diverted attempt (18m) plus the blank-volume
-          # retry with a full migrate + seed (see okteto.preview.yaml)
-          timeout: 40m
-          file: okteto.preview.yaml
-          variables: SITE_URL=${{ env.PREVIEW_URL }},DB_DIVERT=${{ needs.files-changed.outputs.db_divert }},TURBO_TEAM=${{ vars.TURBO_TEAM }},TURBO_TOKEN=${{ secrets.TURBO_TOKEN }}
-
-      - name: Collect failed preview diagnostics
-        if: ${{ env.RAINBOW != 'true' && failure() && steps.deploy.outcome == 'failure' }}
-        continue-on-error: true
-        timeout-minutes: 3
-        env:
-          OKTETO_CONTEXT: ${{ secrets.OKTETO_CONTEXT }}
-          OKTETO_TOKEN: ${{ secrets.OKTETO_TOKEN }}
-          PREVIEW_NAMESPACE: pr-${{ github.event.number }}
-        run: |
-          curl -sSfL -o okteto https://github.com/okteto/okteto/releases/download/3.21.0/okteto-Linux-x86_64
-          echo "f1fc644e2c2d2285a557577eafc6d4494410dce17b36bac6c3c269fc04c573ef  okteto" | sha256sum --check
-          chmod +x okteto
-          sudo mv okteto /usr/local/bin/okteto
-
-          okteto context use "$OKTETO_CONTEXT" --token "$OKTETO_TOKEN" --namespace "$PREVIEW_NAMESPACE"
-          okteto kubeconfig
-
-          echo "::group::Preview pod status"
-          kubectl -n "$PREVIEW_NAMESPACE" get pods -o wide || true
-          echo "::endgroup::"
-
-          echo "::group::Recent warning events"
-          kubectl -n "$PREVIEW_NAMESPACE" get events \
-            --field-selector type=Warning \
-            --sort-by=.lastTimestamp | tail -n 100 || true
-          echo "::endgroup::"
-
-          preview_pods=$(kubectl -n "$PREVIEW_NAMESPACE" get pods \
-            -l stack.okteto.com/service=lightdash-preview \
-            -o name 2>/dev/null || true)
-
-          if [ -z "$preview_pods" ]; then
-            echo "No lightdash-preview pods found"
-            exit 0
-          fi
-
-          while IFS= read -r preview_pod; do
-            echo "::group::Current logs for $preview_pod"
-            kubectl -n "$PREVIEW_NAMESPACE" logs "$preview_pod" \
-              --all-containers=true --tail=300 --timestamps || true
-            echo "::endgroup::"
-
-            echo "::group::Previous logs for $preview_pod"
-            kubectl -n "$PREVIEW_NAMESPACE" logs "$preview_pod" \
-              --all-containers=true --previous --tail=300 --timestamps || true
-            echo "::endgroup::"
-          done <<< "$preview_pods"
 
       # Rainbow builds the preview itself on every push (GitHub App). Its
       # verdict is the `rainbow-machine/preview` commit status on the head
       # commit, so waiting on that status is the deploy, and the commit it
       # reports on is the commit the suites check out.
       - name: Wait for the Rainbow preview
-        if: env.RAINBOW == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           for i in $(seq 1 90); do
-            status=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${SHA}/status" --jq '.statuses[] | select(.context == "rainbow-machine/preview") | "\(.state) \(.description)"' | head -1)
+            if ! status=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${SHA}/status" --jq '[.statuses[] | select(.context == "rainbow-machine/preview")][0].state // "pending"'); then
+              status=pending
+            fi
             case "$status" in
-              success*) echo "$status"; break ;;
-              failure*|error*) echo "::error::$status"; exit 1 ;;
+              success) echo "$status"; break ;;
+              failure|error) echo "::error::Rainbow preview status: $status"; exit 1 ;;
               *) echo "waiting (${i}/90): ${status:-no status yet}"; sleep 20 ;;
             esac
           done
-          [ "${status#success}" != "$status" ] || { echo "::error::Rainbow preview not ready after 30 minutes"; exit 1; }
-          # The dev service re-execs after Rainbow injects SITE_URL, so the first
-          # probes after "success" can hit a backend still booting.
-          curl -sSf --connect-timeout 5 --max-time 20 --retry 36 --retry-delay 5 --retry-all-errors -o /dev/null "$PREVIEW_URL/api/v1/health"
+          [ "$status" = success ] || { echo "::error::Rainbow preview not ready after 30 minutes"; exit 1; }
+          # Require stable application readiness after the service re-execs with its preview origin.
+          deadline=$((SECONDS + 300))
+          consecutive=0
+          while [ "$SECONDS" -lt "$deadline" ]; do
+            if health=$(curl -fsS --connect-timeout 5 --max-time 20 "$PREVIEW_URL/api/v1/health") &&
+               jq -se --arg url "$PREVIEW_URL" '
+                 length == 1 and (.[0] |
+                   .status == "ok" and .results.healthy == true and
+                   .results.requiresMigration == false and
+                   .results.requiresOrgRegistration == false and
+                   .results.mode == "pr" and
+                   (.results.siteUrl | rtrimstr("/")) == ($url | rtrimstr("/"))
+                 )
+               ' <<< "$health" > /dev/null 2>&1; then
+              consecutive=$((consecutive + 1))
+              [ "$consecutive" -lt 3 ] || break
+            else
+              consecutive=0
+              echo "Waiting for healthy, seeded Lightdash JSON with the preview origin"
+            fi
+            sleep 5
+          done
+          [ "$consecutive" -eq 3 ] || { echo "::error::Rainbow application readiness failed at $PREVIEW_URL"; exit 1; }
       - name: Set preview URL output
         id: preview-url
         run: echo "url=$PREVIEW_URL" >> "$GITHUB_OUTPUT"
 
-      - name: Update deployment status
-        if: env.RAINBOW != 'true'
-        uses: chrnorm/deployment-status@6df8d036fd2fee9eb82936733953da1f8382b41e # v2
-        with:
-          token: ${{ secrets.CI_GITHUB_TOKEN }}
-          state: success
-          deployment-id: ${{ steps.deployment.outputs.deployment_id }}
-          environment-url: ${{ env.PREVIEW_URL }}
-
-      - name: Comment PR with preview info
-        if: env.RAINBOW != 'true'
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        with:
-          script: |
-            const marker = '<!-- preview-environment-comment -->';
-            const body = `${marker}
-            ## Preview Environment
-
-            🌐 **URL:** ${process.env.PREVIEW_URL}
-
-            📋 **Logs:** [View in GCP Console](https://console.cloud.google.com/logs/query;query=resource.labels.namespace_name%3D%22pr-${context.issue.number}%22;duration=PT30M?project=lightdash-previews)
-
-            🔧 **SSH:** \`./scripts/okteto-ssh.sh ${context.issue.number}\`
-            `;
-
-            const { data: comments } = await github.rest.issues.listComments({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-            });
-
-            const existing = comments.find(c => c.body.includes(marker));
-
-            if (existing) {
-              await github.rest.issues.updateComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                comment_id: existing.id,
-                body: body
-              });
-            } else {
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: context.issue.number,
-                body: body
-              });
-            }
-
   # ============================================================================
   # Stage 3: E2E and CLI tests (only after preview is up)
   # ============================================================================
-
-  # Build cypress e2e image (only when E2E tests that use it will run)
-  build-cypress-e2e-image:
-    runs-on: depot-ubuntu-24.04-4
-    needs: files-changed
-    if: needs.files-changed.outputs.frontend == 'true' || needs.files-changed.outputs.timezone == 'true'
-    name: Build E2E Image
-    steps:
-      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
-        with:
-          egress-policy: audit
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4
-      - name: GitHub Registry Login
-        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7
-        with:
-          file: ./packages/e2e/dockerfile
-          context: .
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          tags: ghcr.io/lightdash/lightdash-cypress-e2e:latest
-          push: true
 
   api-tests:
     if: needs.files-changed.outputs.backend == 'true'
@@ -705,14 +520,15 @@ jobs:
     env:
       PREVIEW_URL: ${{ needs.preview.outputs.url }}
       NODE_OPTIONS: "--max-old-space-size=8192"
-      SNOWFLAKE_AI_STUB_URL: ${{ needs.files-changed.outputs.snowflake_ai_stub_url }}
+      # Must equal the backend's SNOWFLAKE_AI_TEST_ACCOUNT_URL_ORIGIN (rainbow.toml); the backend dials it, not the runner.
+      SNOWFLAKE_AI_STUB_URL: http://localhost:3900
     steps:
       - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2.0.2
+      - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
         with:
           cache: true
           install: false
@@ -727,7 +543,7 @@ jobs:
         with:
           name: "credentials.json"
           json: ${{ secrets.GCP_CREDENTIALS }}
-          dir: "./packages/e2e/cypress/fixtures/"
+          dir: "./packages/e2e/fixtures/"
       - name: Run API tests
         run: pnpm -F api-tests test:api
         env:
@@ -749,27 +565,40 @@ jobs:
           REQUIRED_WAREHOUSES: "snowflake,bigquery,trino"
           TZ: "UTC"
 
+      - name: Diagnose Rainbow availability after API failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.number }}
+        run: |
+          gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" \
+            --jq '{state, merged_at, closed_at, head_sha: .head.sha}' || true
+          curl -sS --connect-timeout 5 --max-time 20 -o /dev/null \
+            -w 'Rainbow health HTTP %{http_code}\n' "$PREVIEW_URL/api/v1/health" || true
+
   app-tests:
     if: needs.files-changed.outputs.frontend == 'true'
     timeout-minutes: 30
     runs-on: depot-ubuntu-24.04-4
-    needs: [preview, files-changed, build-cypress-e2e-image]
-    container:
-      image: ghcr.io/lightdash/lightdash-cypress-e2e:latest
-      options: --user 1001
+    needs: [preview, files-changed]
     strategy:
       fail-fast: false
       matrix:
-        containers: [1, 2, 3, 4, 5]
-    name: "E2E: App (${{ matrix.containers }}/${{ strategy.job-total }})"
+        shard: [1, 2, 3, 4, 5]
+    name: "E2E: App (${{ matrix.shard }}/${{ strategy.job-total }})"
     env:
       PREVIEW_URL: ${{ needs.preview.outputs.url }}
       NODE_OPTIONS: "--max-old-space-size=8192"
     steps:
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - name: Setup Node, PNPM, and Cypress
-        uses: ./.github/workflows/_setup_node_pnpm_cypress
+      - name: Setup Node, PNPM, and Playwright
+        uses: ./.github/workflows/_setup_node_pnpm
+        with:
+          install-playwright-browsers: true
       - name: Build packages/common module
         run: pnpm common-build
       - name: create-json
@@ -778,50 +607,40 @@ jobs:
         with:
           name: "credentials.json"
           json: ${{ secrets.GCP_CREDENTIALS }}
-          dir: "./packages/e2e/cypress/fixtures/"
+          dir: "./packages/e2e/fixtures/"
       - name: Warm preview
         run: node packages/e2e/warm-preview.mjs "$PREVIEW_URL"
-      - name: Run Cypress
-        uses: cypress-io/github-action@783cb3f07983868532cabaedaa1e6c00ff4786a8 # v7
-        with:
-          install: false
-          browser: firefox
-          working-directory: packages/e2e
-          config: "baseUrl=${{ env.PREVIEW_URL }},specPattern=cypress/e2e/app/**/*.cy.{js,jsx,ts,tsx},video=false"
+      - name: Run Playwright
+        run: pnpm -F e2e test tests/app tests/api --shard=${{ matrix.shard }}/${{ strategy.job-total }}
         env:
-          SPLIT: ${{ strategy.job-total }}
-          SPLIT_INDEX: ${{ strategy.job-index }}
-          CYPRESS_PGHOST: ${{ secrets.PGHOST }}
-          CYPRESS_PGPASSWORD: ${{ secrets.PGPASSWORD }}
-          CYPRESS_DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
-          CYPRESS_DATABRICKS_PATH: ${{ secrets.DATABRICKS_PATH }}
-          CYPRESS_DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
-          CYPRESS_SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
-          CYPRESS_SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
-          CYPRESS_SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
-          CYPRESS_TRINO_HOST: ${{ secrets.TRINO_HOST }}
-          CYPRESS_TRINO_PORT: ${{ secrets.TRINO_PORT }}
-          CYPRESS_TRINO_USER: ${{ secrets.TRINO_USER }}
-          CYPRESS_TRINO_PASSWORD: ${{ secrets.TRINO_PASSWORD }}
+          PLAYWRIGHT_BASE_URL: ${{ env.PREVIEW_URL }}
+          PGHOST: ${{ secrets.PGHOST }}
+          PGPASSWORD: ${{ secrets.PGPASSWORD }}
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_PATH: ${{ secrets.DATABRICKS_PATH }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+          SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
+          SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
+          TRINO_HOST: ${{ secrets.TRINO_HOST }}
+          TRINO_PORT: ${{ secrets.TRINO_PORT }}
+          TRINO_USER: ${{ secrets.TRINO_USER }}
+          TRINO_PASSWORD: ${{ secrets.TRINO_PASSWORD }}
           TZ: "UTC"
-          CYPRESS_TZ: "UTC"
       - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         if: failure()
         with:
-          name: cypress-screenshots-and-videos-${{ strategy.job-index }}
+          name: playwright-app-${{ matrix.shard }}
           path: |
-            packages/e2e/cypress/screenshots
-            packages/e2e/cypress/videos
+            packages/e2e/test-results
+            packages/e2e/playwright-report
           if-no-files-found: ignore
 
   timezone-tests:
     if: needs.files-changed.outputs.timezone == 'true'
     timeout-minutes: 30
     runs-on: depot-ubuntu-24.04-4
-    needs: [preview, files-changed, build-cypress-e2e-image]
-    container:
-      image: ghcr.io/lightdash/lightdash-cypress-e2e:latest
-      options: --user 1001
+    needs: [preview, files-changed]
     strategy:
       fail-fast: false
       matrix:
@@ -831,39 +650,31 @@ jobs:
       PREVIEW_URL: ${{ needs.preview.outputs.url }}
       NODE_OPTIONS: "--max-old-space-size=8192"
     steps:
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - name: Setup Node, PNPM, and Cypress
-        uses: ./.github/workflows/_setup_node_pnpm_cypress
+      - name: Setup Node, PNPM, and Playwright
+        uses: ./.github/workflows/_setup_node_pnpm
+        with:
+          install-playwright-browsers: true
       - name: Build packages/common module
         run: pnpm common-build
-      - name: create-json
-        id: create-json
-        uses: jsdaniell/create-json@b8e77fa01397ca39cc4a6198cc29a3be5481afef # v1.2.3
-        with:
-          name: "credentials.json"
-          json: ${{ secrets.GCP_CREDENTIALS }}
-          dir: "./packages/e2e/cypress/fixtures/"
       - name: Warm preview
         run: node packages/e2e/warm-preview.mjs "$PREVIEW_URL"
-      - name: Run Cypress
-        uses: cypress-io/github-action@783cb3f07983868532cabaedaa1e6c00ff4786a8 # v7
-        with:
-          install: false
-          browser: firefox
-          working-directory: packages/e2e
-          spec: cypress/e2e/app/dates.cy.ts
-          config: "baseUrl=${{ env.PREVIEW_URL }},video=false"
+      - name: Run Playwright
+        run: pnpm -F e2e test tests/app/dates.spec.ts
         env:
+          PLAYWRIGHT_BASE_URL: ${{ env.PREVIEW_URL }}
           TZ: ${{ matrix.timezone }}
-          CYPRESS_TZ: ${{ matrix.timezone }}
       - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         if: failure()
         with:
-          name: cypress-screenshots-and-videos-timezone-${{ strategy.job-index }}
+          name: playwright-timezone-${{ strategy.job-index }}
           path: |
-            packages/e2e/cypress/screenshots
-            packages/e2e/cypress/videos
+            packages/e2e/test-results
+            packages/e2e/playwright-report
           if-no-files-found: ignore
 
   # CLI tests without dbt
@@ -882,10 +693,11 @@ jobs:
           egress-policy: audit
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - name: Setup Node, PNPM, and Cypress
-        uses: ./.github/workflows/_setup_node_pnpm_cypress
+      - name: Setup Node, PNPM, and Playwright
+        uses: ./.github/workflows/_setup_node_pnpm
         with:
           install-npm: true
+          install-playwright-browsers: true
       - name: Build packages/common module
         run: pnpm common-build
       - name: Build packages/warehouses module
@@ -899,13 +711,16 @@ jobs:
           if [ $package_version = $lightdash_version ]; then exit 0 ; else echo "Version mismatch"; exit 1; fi
       - name: Warm preview
         run: node packages/e2e/warm-preview.mjs "$PREVIEW_URL"
-      - name: Run Cypress
-        uses: cypress-io/github-action@783cb3f07983868532cabaedaa1e6c00ff4786a8 # v7
+      - name: Run Playwright
+        run: pnpm -F e2e test tests/cli/api tests/cli/yaml-only
+        env:
+          PLAYWRIGHT_BASE_URL: ${{ env.PREVIEW_URL }}
+      - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        if: failure()
         with:
-          install: false
-          working-directory: packages/e2e
-          spec: cypress/cli/api,cypress/cli/yaml-only
-          config: "baseUrl=${{ env.PREVIEW_URL }}"
+          name: playwright-cli-without-dbt
+          path: packages/e2e/test-results
+          if-no-files-found: ignore
 
   # CLI tests with dbt
   cli-tests:
@@ -923,10 +738,11 @@ jobs:
           egress-policy: audit
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - name: Setup Node, PNPM, and Cypress
-        uses: ./.github/workflows/_setup_node_pnpm_cypress
+      - name: Setup Node, PNPM, and Playwright
+        uses: ./.github/workflows/_setup_node_pnpm
         with:
           install-npm: true
+          install-playwright-browsers: true
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
         with:
           python-version: "3.10.x"
@@ -966,17 +782,19 @@ jobs:
           if [ $package_version = $lightdash_version ]; then exit 0 ; else echo "Version mismatch"; exit 1; fi
       - name: Warm preview
         run: node packages/e2e/warm-preview.mjs "$PREVIEW_URL"
-      - name: Run Cypress
-        uses: cypress-io/github-action@783cb3f07983868532cabaedaa1e6c00ff4786a8 # v7
-        with:
-          install: false
-          working-directory: packages/e2e
-          spec: cypress/cli/integration/*
-          config: "baseUrl=${{ env.PREVIEW_URL }}"
+      - name: Run Playwright
+        run: pnpm -F e2e test tests/cli/integration
         env:
-          CYPRESS_PGHOST: ${{ secrets.PGHOST }}
-          CYPRESS_PGPASSWORD: ${{ secrets.PGPASSWORD }}
-          CYPRESS_SEED_SCHEMA: jaffle_cli_tests_${{ github.run_id }}
+          PLAYWRIGHT_BASE_URL: ${{ env.PREVIEW_URL }}
+          PGHOST: ${{ secrets.PGHOST }}
+          PGPASSWORD: ${{ secrets.PGPASSWORD }}
+          SEED_SCHEMA: jaffle_cli_tests_${{ github.run_id }}
+      - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        if: failure()
+        with:
+          name: playwright-cli-integration
+          path: packages/e2e/test-results
+          if-no-files-found: ignore
 
   # CLI dbt version tests
   cli-dbt-tests:
@@ -998,10 +816,11 @@ jobs:
           egress-policy: audit
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - name: Setup Node, PNPM, and Cypress
-        uses: ./.github/workflows/_setup_node_pnpm_cypress
+      - name: Setup Node, PNPM, and Playwright
+        uses: ./.github/workflows/_setup_node_pnpm
         with:
           install-npm: true
+          install-playwright-browsers: true
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
         with:
           python-version: "3.10.x"
@@ -1046,17 +865,19 @@ jobs:
           if [ $package_version = $lightdash_version ]; then exit 0 ; else echo "Version mismatch"; exit 1; fi
       - name: Warm preview
         run: node packages/e2e/warm-preview.mjs "$PREVIEW_URL"
-      - name: Run Cypress
-        uses: cypress-io/github-action@783cb3f07983868532cabaedaa1e6c00ff4786a8 # v7
-        with:
-          install: false
-          working-directory: packages/e2e
-          spec: cypress/cli/dbt/*
-          config: "baseUrl=${{ env.PREVIEW_URL }}"
+      - name: Run Playwright
+        run: pnpm -F e2e test tests/cli/dbt
         env:
-          CYPRESS_PGHOST: ${{ secrets.PGHOST }}
-          CYPRESS_PGPASSWORD: ${{ secrets.PGPASSWORD }}
-          CYPRESS_SEED_SCHEMA: jaffle_dbt_tests_${{ github.run_id }}_${{ strategy.job-index }}
+          PLAYWRIGHT_BASE_URL: ${{ env.PREVIEW_URL }}
+          PGHOST: ${{ secrets.PGHOST }}
+          PGPASSWORD: ${{ secrets.PGPASSWORD }}
+          SEED_SCHEMA: jaffle_dbt_tests_${{ github.run_id }}_${{ strategy.job-index }}
+      - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        if: failure()
+        with:
+          name: playwright-cli-dbt-${{ strategy.job-index }}
+          path: packages/e2e/test-results
+          if-no-files-found: ignore
 
   # Cleanup job to drop all schemas created during CLI tests
   cleanup-schemas:

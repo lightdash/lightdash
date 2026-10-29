@@ -223,6 +223,34 @@ describe('hardenMcpToolDefinition', () => {
         }
     });
 
+    it('keeps a tool whose schema strings contain line breaks or tabs', () => {
+        const hardened = hardenMcpToolDefinition({
+            description: 'Create a page',
+            inputSchema: jsonSchema({
+                type: 'object',
+                properties: {
+                    title: {
+                        type: 'string',
+                        description: 'Page title.\nSecond line.\tIndented.\r\n',
+                    },
+                    state: { enum: ['draft\nreview', 'published'] },
+                },
+            }),
+        } as never);
+        const schema = (
+            hardened.inputSchema as {
+                jsonSchema: { properties: Record<string, unknown> };
+            }
+        ).jsonSchema;
+
+        expect(schema.properties.title).toMatchObject({
+            description: expect.stringContaining('Second line.\tIndented.'),
+        });
+        expect(schema.properties.state).toEqual({
+            enum: ['draft\nreview', 'published'],
+        });
+    });
+
     it('preserves ordinary bounded string enums and constants', () => {
         expect(() =>
             hardenMcpToolDefinition({

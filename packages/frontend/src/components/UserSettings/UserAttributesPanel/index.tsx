@@ -10,7 +10,6 @@ import {
     Stack,
     Text,
     Tooltip,
-    useMantineTheme,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
@@ -45,7 +44,6 @@ import UserAttributeModal from './UserAttributeModal';
 import { UserAttributesTopToolbar } from './UserAttributesTopToolbar';
 
 const UserAttributesPanel: FC = () => {
-    const theme = useMantineTheme();
     const { user } = useApp();
     const userGroupsFeatureFlagQuery = useServerFeatureFlag(
         FeatureFlags.UserGroupsEnabled,
@@ -188,48 +186,14 @@ const UserAttributesPanel: FC = () => {
         enableTopToolbar: true,
         enableBottomToolbar: false,
         mantineTableContainerProps: {
-            style: { maxHeight: 'calc(100dvh - 420px)' },
+            mah: 'calc(100dvh - 420px)',
         },
         mantineTableProps: {
             highlightOnHover: true,
             withColumnBorders: Boolean(tableData.length),
         },
-        mantineTableHeadCellProps: (props) => {
-            const isLastColumn =
-                props.table.getAllColumns().indexOf(props.column) ===
-                props.table.getAllColumns().length - 1;
-
-            return {
-                bg: 'ldGray.0',
-                h: '3xl',
-                pos: 'relative',
-                style: {
-                    userSelect: 'none',
-                    padding: `${theme.spacing.xs} ${theme.spacing.xl}`,
-                    borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                    borderRight: props.column.getIsResizing()
-                        ? `2px solid ${theme.colors.blue[3]}`
-                        : `1px solid ${
-                              isLastColumn
-                                  ? 'transparent'
-                                  : theme.colors.ldGray[2]
-                          }`,
-                    borderTop: 'none',
-                    borderLeft: 'none',
-                },
-            };
-        },
-        mantineTableBodyCellProps: () => {
-            return {
-                style: {
-                    padding: `${theme.spacing.md} ${theme.spacing.xl}`,
-                    borderRight: 'none',
-                    borderLeft: 'none',
-                    borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                    borderTop: 'none',
-                },
-            };
-        },
+        mantineTableHeadCellProps: { px: 'xl' },
+        mantineTableBodyCellProps: { py: 'md', px: 'xl' },
         renderTopToolbar: () => (
             <UserAttributesTopToolbar
                 searchQuery={searchQuery}

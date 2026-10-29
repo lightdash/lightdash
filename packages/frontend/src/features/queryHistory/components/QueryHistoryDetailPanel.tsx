@@ -460,8 +460,9 @@ export const QueryHistoryDetailPanel: FC<Props> = ({
                                 }`}
                             </Text>
                         </Group>
-                        <Box className={styles.sql}>
+                        <Box>
                             <CodeBlock
+                                classNames={{ code: styles.sqlCode }}
                                 code={item.compiledSql}
                                 language="sql"
                                 radius="md"

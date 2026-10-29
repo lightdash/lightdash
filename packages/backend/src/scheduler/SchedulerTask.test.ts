@@ -1214,12 +1214,69 @@ describe('PDF content export', () => {
         );
     });
 
+    it('renders embed image exports with the embed token instead of a user session', async () => {
+        const { task, logSchedulerJob, getNotificationPageData } = setup();
+        const exportEmbedDashboardImage = vi
+            .fn()
+            .mockResolvedValue('https://storage.example/embed.png');
+        Object.assign(task, { unfurlService: { exportEmbedDashboardImage } });
+        const jwtAccount = { isJwtUser: () => true } as unknown as Account;
+
+        await task.exportContentForTest(
+            {
+                ...payload,
+                format: SchedulerFormat.IMAGE,
+                userUuid: 'external::viewer',
+                encodedJwt: 'jwt',
+            },
+            jwtAccount,
+        );
+
+        expect(getNotificationPageData).not.toHaveBeenCalled();
+        expect(exportEmbedDashboardImage).toHaveBeenCalledWith(
+            expect.objectContaining({
+                dashboardUuid: 'dashboard-1',
+                embedToken: 'jwt',
+                externalId: 'external::viewer',
+                selectedTabs: ['tab-1'],
+            }),
+        );
+        expect(logSchedulerJob).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                status: SchedulerJobStatus.COMPLETED,
+                details: expect.objectContaining({
+                    url: 'https://storage.example/embed.png',
+                    fileType: SchedulerFormat.IMAGE,
+                }),
+            }),
+        );
+    });
+
     it('rejects exports without storage before rendering a local-only file', async () => {
         const { task, getNotificationPageData } = setup(false);
         await expect(task.exportContentForTest(payload)).rejects.toThrow(
             'Cloud storage is not enabled',
         );
         expect(getNotificationPageData).not.toHaveBeenCalled();
+    });
+
+    it('rejects embed image exports without storage so links can expire', async () => {
+        const { task } = setup(false);
+        const exportEmbedDashboardImage = vi.fn();
+        Object.assign(task, { unfurlService: { exportEmbedDashboardImage } });
+        const jwtAccount = { isJwtUser: () => true } as unknown as Account;
+
+        await expect(
+            task.exportContentForTest(
+                {
+                    ...payload,
+                    format: SchedulerFormat.IMAGE,
+                    encodedJwt: 'jwt',
+                },
+                jwtAccount,
+            ),
+        ).rejects.toThrow('Cloud storage is not enabled');
+        expect(exportEmbedDashboardImage).not.toHaveBeenCalled();
     });
 });
 
@@ -2168,6 +2225,7 @@ describe('getNotificationPageData — app CSV/XLSX branch', () => {
             projectUuid: 'project-1',
             queryUuid: 'query-a',
             type: DownloadFileType.CSV,
+            accessMode: PersistentDownloadFileAccessMode.SIGNED,
             onlyRaw: false,
             expirationSecondsOverride: 604800,
         });

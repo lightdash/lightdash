@@ -53,6 +53,7 @@ import {
     IconUpload,
     IconUsers,
 } from '@tabler/icons-react';
+import { clsx } from 'clsx';
 import dayjs from 'dayjs';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
@@ -99,11 +100,16 @@ import { type TilePreAggregateStatus } from '../../../providers/Dashboard/types'
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import AddTileButton from '../../DashboardTiles/AddTileButton';
+import {
+    ClearCachedResultsMenuItem,
+    ClearCachedResultsModal,
+} from '../../ProjectResultsCache/ClearCachedResultsMenuItem';
 import ContentSlugRenameModal from '../ContentSlugRenameModal/ContentSlugRenameModal';
 import { FavoriteActionIcon } from '../FavoriteActionIcon';
 import MantineIcon from '../MantineIcon';
 import MantineModal from '../MantineModal';
 import DashboardUpdateModal from '../modal/DashboardUpdateModal';
+import { Z_INDEX_FLOATING } from '../Page/constants';
 import {
     HeaderActions,
     HeaderHeading,
@@ -117,7 +123,6 @@ import ShareShortLinkButton from '../ShareShortLinkButton';
 import SpaceActionModal from '../SpaceActionModal';
 import { ActionType } from '../SpaceActionModal/types';
 import TransferItemsModal from '../TransferItemsModal/TransferItemsModal';
-import { DASHBOARD_HEADER_ZINDEX } from './dashboard.constants';
 import headerClasses from './DashboardHeader.module.css';
 import DashboardPreAggRefreshModal from './DashboardPreAggRefreshModal';
 import { DashboardRefreshButton } from './DashboardRefreshButton';
@@ -236,6 +241,8 @@ const DashboardHeader = memo(
             grantRoles: [],
         });
         const [isPreAggAuditOpen, preAggAuditHandlers] = useDisclosure(false);
+        const [isClearCacheModalOpen, clearCacheModalHandlers] =
+            useDisclosure(false);
         const [isCommentsPanelOpen, commentsPanelHandlers] =
             useDisclosure(false);
         const {
@@ -472,8 +479,7 @@ const DashboardHeader = memo(
                 mobileLayout={!isEditMode ? 'content' : undefined}
                 variant="dashboard"
                 cardProps={{
-                    style: { zIndex: DASHBOARD_HEADER_ZINDEX },
-                    className,
+                    className: clsx(headerClasses.headerCard, className),
                 }}
             >
                 <HeaderTitle gap="xs" flex={1} wrap="nowrap">
@@ -501,7 +507,7 @@ const DashboardHeader = memo(
                                 color="yellow"
                                 variant="dot"
                                 size="sm"
-                                style={{ cursor: 'default' }}
+                                className={headerClasses.staticBadge}
                             >
                                 Unpublished changes
                             </Badge>
@@ -567,13 +573,12 @@ const DashboardHeader = memo(
                                     ? `Verified by ${dashboard.verification.verifiedBy.firstName} ${dashboard.verification.verifiedBy.lastName}`
                                     : 'Verified'
                             }
-                            zIndex={10000}
+                            zIndex={Z_INDEX_FLOATING}
                         >
-                            <IconCircleCheckFilled
+                            <MantineIcon
+                                icon={IconCircleCheckFilled}
                                 size={16}
-                                style={{
-                                    color: 'var(--mantine-color-green-6)',
-                                }}
+                                color="green.6"
                             />
                         </Tooltip>
                     )}
@@ -635,6 +640,16 @@ const DashboardHeader = memo(
                             contentName={dashboard.name}
                             opened={isRequestReviewModalOpen}
                             onClose={requestReviewModalHandlers.close}
+                        />
+                    )}
+                    {isClearCacheModalOpen && (
+                        <ClearCachedResultsModal
+                            opened={isClearCacheModalOpen}
+                            onClose={clearCacheModalHandlers.close}
+                            content={{
+                                type: 'dashboard',
+                                uuid: dashboard.uuid,
+                            }}
                         />
                     )}
                     {isTransferToSpaceModalOpen && projectUuid && (
@@ -745,7 +760,6 @@ const DashboardHeader = memo(
                                     disabled={!hasDashboardChanged}
                                     loading={isSaving}
                                     onClick={onSaveDashboard}
-                                    data-dashboard-edit-action
                                     // Walkthrough marker for manage:Dashboard:
                                     // a new dashboard with a saved chart on
                                     // it, then saved. The name is typed (the
@@ -770,7 +784,6 @@ const DashboardHeader = memo(
                             size="xs"
                             disabled={isSaving}
                             onClick={onCancel}
-                            data-dashboard-edit-action
                         >
                             Cancel
                         </Button>
@@ -1002,7 +1015,7 @@ const DashboardHeader = memo(
 
                                 <Menu.Dropdown
                                     mah="calc(100dvh - 24px)"
-                                    style={{ overflowY: 'auto' }}
+                                    className={headerClasses.scrollableDropdown}
                                 >
                                     {compact && (
                                         <>
@@ -1191,6 +1204,15 @@ const DashboardHeader = memo(
                                                 Move dashboard
                                             </Menu.Item>
 
+                                            <ClearCachedResultsMenuItem
+                                                projectUuid={
+                                                    dashboard.projectUuid
+                                                }
+                                                onClick={
+                                                    clearCacheModalHandlers.open
+                                                }
+                                            />
+
                                             {contentReview.canRequest && (
                                                 <Menu.Item
                                                     leftSection={
@@ -1320,11 +1342,12 @@ const DashboardHeader = memo(
                                             <Menu.Item
                                                 leftSection={
                                                     isDashboardVerified ? (
-                                                        <IconCircleCheckFilled
+                                                        <MantineIcon
+                                                            icon={
+                                                                IconCircleCheckFilled
+                                                            }
                                                             size={16}
-                                                            style={{
-                                                                color: 'var(--mantine-color-green-6)',
-                                                            }}
+                                                            color="green.6"
                                                         />
                                                     ) : (
                                                         <MantineIcon

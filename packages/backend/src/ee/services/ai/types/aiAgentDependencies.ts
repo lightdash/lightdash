@@ -9,7 +9,6 @@ import {
     AiMetricQueryWithFilters,
     AiPromptSteer,
     AiWebAppPrompt,
-    AiWritebackRunResult,
     AllChartsSearchResult,
     AnyType,
     ApiExecuteAsyncMetricQueryResults,
@@ -40,6 +39,7 @@ import {
     ParametersValuesMap,
     ProjectType,
     QueryExecutionContext,
+    QueryHistoryStatus,
     ReadContentType,
     ResultColumns,
     SavedChart,
@@ -250,6 +250,7 @@ export type FindContentSpaceResult = {
     childSpaceCount: number;
     appCount: number;
     directAccess: boolean;
+    canEdit: boolean;
     space: FindContentSpaceMetadata;
     verification: null;
 };
@@ -314,6 +315,7 @@ export type ListContentFn = (args: {
               childSpaceCount: number;
               appCount: number;
               directAccess: boolean;
+              canEdit: boolean;
           }
     >;
     pagination:
@@ -694,7 +696,7 @@ export type ListThreadComposerQueryNodesFn = (
     threadUuid: string,
 ) => Promise<ThreadComposerQueryNode[]>;
 
-/** Null when the node never ran as the terminal of a query. */
+/** Null when the node was registered without node columns. */
 export type GetThreadComposerNodeColumnsFn = (args: {
     threadUuid: string;
     nodeId: string;
@@ -755,27 +757,50 @@ export type ComposerNodeStatusUpdate = {
     errorMessage: string | null;
 };
 
+/** How one node did in a run, read from its query history row. */
+export type ComposerNodeStatus = {
+    nodeId: string;
+    state: QueryHistoryStatus;
+    error: string | null;
+    /** Null until the node's query is ready. */
+    rowCount: number | null;
+    /** Result columns; null until the node's query is ready. */
+    columns: ResultColumns | null;
+};
+
+/** Every submitted node's status, read once after the terminal node settles. */
+export type ComposerRunOutcome =
+    | {
+          status: 'success';
+          submissions: SourceQuerySubmission[];
+          terminal: {
+              queryUuid: string;
+              columns: ResultColumns;
+              /** First COMPOSER_QUERY_PREVIEW_ROW_LIMIT rows; rowCount is the full count. */
+              rows: Record<string, AnyType>[];
+              rowCount: number;
+          };
+          nodeStatuses: ComposerNodeStatus[];
+      }
+    | {
+          status: 'failure';
+          error: string;
+          nodeStatuses: ComposerNodeStatus[];
+      };
+
 /**
  * Submits a composer query (multi-source pipeline) and waits for the terminal
- * node's results. Submissions carry the pinned nodeId → queryUuid mapping for
+ * node to settle. Submissions carry the pinned nodeId → queryUuid mapping for
  * every node; the terminal snapshot is the first page of the terminal node's
  * results, capped at that node's limit. `onNodeStatus` receives per-node
  * lifecycle transitions (running on submission, then success/error) while the
- * pipeline executes.
+ * pipeline executes. Throws only when submission fails before any query id exists.
  */
 export type RunComposerQueriesFn = (args: {
     queries: SourceQuery[];
     terminalNodeId: string;
     onNodeStatus?: (update: ComposerNodeStatusUpdate) => void;
-}) => Promise<{
-    submissions: SourceQuerySubmission[];
-    terminal: {
-        queryUuid: string;
-        columns: ResultColumns;
-        rows: Record<string, AnyType>[];
-        rowCount: number;
-    };
-}>;
+}) => Promise<ComposerRunOutcome>;
 
 export type ListWarehouseTablesFn = (
     context?: QueryExecutionContext,
@@ -925,21 +950,6 @@ export type EditProjectContextFn = (
 ) => Promise<{ prUrl: string; prAction: 'opened' | 'updated' }>;
 
 /**
- * Make a code change to a writable repository and open/update a pull request,
- * via the general coding agent. The counterpart to {@link EditDbtProjectFn} for
- * non-dbt repos: no compile/preview step (verification lives in the PR's CI), so
- * it returns the base writeback result without the preview fields.
- */
-export type EditRepoFn = (args: {
-    repoTarget: string;
-    prompt: string | null;
-    prUrl: string | null;
-    /** Open a new PR instead of continuing the repo's existing one in-thread. */
-    startNewPullRequest: boolean | null;
-    progressId?: string;
-}) => Promise<AiWritebackRunResult>;
-
-/**
  * Run one read-only shell command (ls/cat/find/grep/head/wc) against a repo
  * virtual filesystem and return combined stdout. With no `target` this reads the
  * project's dbt repo (subPath-scoped, as before); with an `"owner/repo"` target
@@ -965,7 +975,7 @@ export type DiscoverReposFn = () => Promise<
 
 /**
  * List the pull requests (workstreams) the current chat thread has opened with
- * {@link EditRepoFn}, so the agent can route a follow-up to the right one or
+ * {@link EditDbtProjectFn}, so the agent can route a follow-up to the right one or
  * decide to open a new one. Optionally scoped to a single `owner/repo`.
  */
 export type ListWorkstreamsFn = (args: {
@@ -982,7 +992,7 @@ export type ListWorkstreamsFn = (args: {
 
 /**
  * Close (without merging) a pull request the chat thread opened with
- * {@link EditRepoFn}. Thin wrapper over the same write-back close path the chat
+ * {@link EditDbtProjectFn}. Thin wrapper over the same write-back close path the chat
  * PR card's "Close PR" button uses; the underlying service enforces
  * `manage:SourceCode` and that the URL targets this project's own repo.
  */

@@ -33,6 +33,7 @@ export const MarkdownBlockBuild: FC<BuildComponentProps> = ({
         <div className={classes.editorWrap}>
             <TiptapMarkdownEditor
                 content={block.config.content}
+                placeholder="Write a note for everyone who lands here. Type / for headings, images and more."
                 onChange={(markdown) =>
                     onChange({
                         ...block,

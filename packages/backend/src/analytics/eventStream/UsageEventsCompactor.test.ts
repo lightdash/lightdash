@@ -274,7 +274,7 @@ describe('buildCompactionSql', () => {
         );
         expect(sql).toEqual(
             'COPY (SELECT "event_name", "org_id", "user_id", "event_ts", "schema_version", ' +
-                '"project_id", "query_id", "status", "context", "explore_name", "chart_id", ' +
+                '"project_id", "query_id", "status", "error", "context", "explore_name", "chart_id", ' +
                 '"dashboard_id", "response_time_ms", "response_timing_basis", "workload_origin", "dashboard_tile_id", "app_id", "app_version", "request_id", "parent_operation_id", "initiating_actor_type", "scheduler_id", "semantic_lineage_status", "semantic_field_references", "cache_hit", "execution_source", "warehouse_type", ' +
                 '"connection_warehouse_type", "warehouse_connection_id", "connection_kind", "connection_count", ' +
                 '"warehouse_execution_time_ms", "warehouse_ssh_tunnel_ms", ' +
@@ -285,7 +285,7 @@ describe('buildCompactionSql', () => {
                 "format='newline_delimited', " +
                 'columns={"event_name": \'VARCHAR\', "org_id": \'VARCHAR\', "user_id": \'VARCHAR\', ' +
                 '"event_ts": \'TIMESTAMP\', "schema_version": \'INTEGER\', "project_id": \'VARCHAR\', ' +
-                '"query_id": \'VARCHAR\', "status": \'VARCHAR\', "context": \'VARCHAR\', ' +
+                '"query_id": \'VARCHAR\', "status": \'VARCHAR\', "error": \'VARCHAR\', "context": \'VARCHAR\', ' +
                 '"explore_name": \'VARCHAR\', "chart_id": \'VARCHAR\', "dashboard_id": \'VARCHAR\', ' +
                 '"response_time_ms": \'BIGINT\', "response_timing_basis": \'VARCHAR\', "workload_origin": \'VARCHAR\', "dashboard_tile_id": \'VARCHAR\', "app_id": \'VARCHAR\', "app_version": \'INTEGER\', "request_id": \'VARCHAR\', "parent_operation_id": \'VARCHAR\', "initiating_actor_type": \'VARCHAR\', "scheduler_id": \'VARCHAR\', ' +
                 '"semantic_lineage_status": \'VARCHAR\', "semantic_field_references": \'VARCHAR\', ' +

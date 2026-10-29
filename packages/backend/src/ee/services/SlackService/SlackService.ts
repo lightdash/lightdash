@@ -32,7 +32,6 @@ export class CommercialSlackService extends SlackService {
             this.aiAgentService.handleMultiAgentChannelMessage(m),
         );
         this.aiAgentService.handleAgentSelection(slackApp);
-        this.aiAgentService.handleProjectSelection(slackApp);
         this.aiAgentService.handleChannelAgentLink(slackApp);
         this.aiAgentService.handlePromptUpvote(slackApp);
         this.aiAgentService.handlePromptDownvote(slackApp);

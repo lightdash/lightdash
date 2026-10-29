@@ -1907,6 +1907,13 @@ export type LightdashConfig = {
         clientSecret: string | undefined;
         redirectDomain: string;
     };
+    liveSources: {
+        posthog: {
+            /** A registered client ID, or the URL of a client metadata document. */
+            oauthClientId: string | undefined;
+            oauthClientSecret: string | undefined;
+        };
+    };
     contentAsCode: {
         maxDownloads: number;
     };
@@ -1929,14 +1936,6 @@ export type LightdashConfig = {
          * instances still setting the writeback-specific key keep working.
          */
         legacyAnthropicApiKey: string | null;
-        /**
-         * Pre-clone size ceiling (MB) for the general coding agent. A repo whose
-         * GitHub-reported size exceeds this is rejected with an actionable error
-         * before any sandbox/clone (fail closed, never deadline_exceeded). With
-         * --depth 1 --filter=blob:none the API size over-counts the real fetch,
-         * so the guard is conservative by design.
-         */
-        codingAgentMaxRepoSizeMb: number;
     };
 
     initialSetup?: {
@@ -2079,7 +2078,7 @@ export type LightdashConfig = {
     disabledFeatureFlags: Set<string>;
     previewFeatureFlags: {
         /**
-         * Preview/Okteto environments only: enables `PREVIEW_ENABLED_FEATURE_FLAGS`
+         * Preview environments only: enables `PREVIEW_ENABLED_FEATURE_FLAGS`
          * by default and exposes the feature-flag management API so QA can toggle
          * flags at runtime. Defaults on in PR mode.
          */
@@ -2306,6 +2305,14 @@ export type AppRuntimeConfig = {
      * image). Required only when `azure-sandboxes`. */
     azureSandboxesAiWritebackDiskImage: string | null;
     /**
+     * Sandbox group python query nodes run one-shot sandboxes in (decoupled from
+     * the data-app/writeback groups). Required only when `sandboxProvider === 'azure-sandboxes'`.
+     */
+    azureSandboxesPythonGroup: string | null;
+    /** Disk image the python runner launches (built from `sandboxes/python-runner`).
+     * Required only when `azure-sandboxes`. */
+    azureSandboxesPythonDiskImage: string | null;
+    /**
      * Config for the `gcp-cloud-run` provider: URL + shared secret of the
      * sandbox gateway Cloud Run service (deployed with `--sandbox-launcher`,
      * data-app toolchain image baked in). Required only when
@@ -2327,16 +2334,6 @@ export type AppRuntimeConfig = {
     /** E2B template used by managed project onboarding. */
     e2bAgentOnboardingTemplateName: string;
     e2bAgentOnboardingTemplateTag: string;
-    /**
-     * Lean template name+tag for the general-purpose coding agent (`editRepo`):
-     * git + Claude CLI + the generic skill only — no dbt venvs, no compile
-     * wrapper, no profiles. Defaults to the `lightdash-ai-coding-agent` image at
-     * the running version's tag, published per release by the post-release
-     * workflow; override the name/tag to pin, roll back, or point at another
-     * image for local dev.
-     */
-    e2bCodingAgentTemplateName: string;
-    e2bCodingAgentTemplateTag: string;
     /**
      * Claude Code OpenTelemetry tracing for data-app builds. When enabled, the
      * `claude` CLI in the sandbox exports OTLP traces (a span per LLM request /
@@ -2895,22 +2892,16 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
             process.env.AZURE_SANDBOXES_AI_WRITEBACK_GROUP || null,
         azureSandboxesAiWritebackDiskImage:
             process.env.AZURE_SANDBOXES_AI_WRITEBACK_DISK_IMAGE || null,
+        azureSandboxesPythonGroup:
+            process.env.AZURE_SANDBOXES_PYTHON_GROUP || null,
+        azureSandboxesPythonDiskImage:
+            process.env.AZURE_SANDBOXES_PYTHON_DISK_IMAGE || null,
         e2bAgentOnboardingTemplateName:
             process.env.E2B_AGENT_ONBOARDING_TEMPLATE_NAME ||
             'lightdash-agent-onboarding',
         e2bAgentOnboardingTemplateTag:
             process.env.E2B_AGENT_ONBOARDING_TEMPLATE_TAG ??
             (VERSION as string),
-        // The lean coding-agent image (sandboxes/ai-coding-agent), published per
-        // release by the post-release workflow at the running version's tag —
-        // same pattern as the other templates. Operators can override the
-        // name/tag (e.g. to pin, roll back, or point at the writeback image for
-        // local dev before the lean image is built).
-        e2bCodingAgentTemplateName:
-            process.env.E2B_CODING_AGENT_TEMPLATE_NAME ||
-            'lightdash-ai-coding-agent',
-        e2bCodingAgentTemplateTag:
-            process.env.E2B_CODING_AGENT_TEMPLATE_TAG ?? (VERSION as string),
         otel: parseDataAppOtelConfig(),
         dependencyRegistryHosts: (
             process.env.LIGHTDASH_APP_DEPENDENCY_REGISTRY_HOSTS ||
@@ -3038,7 +3029,6 @@ const LEGACY_ENABLE_ENV_VARS: ReadonlyArray<
         'ORGANIZATION_WAREHOUSE_CREDENTIALS_ENABLED',
         'organization-warehouse-credentials',
     ],
-    ['METRIC_DASHBOARD_FILTERS_ENABLED', 'metric-dashboard-filters'],
     // Self-hosted switch for data apps; forces the flag on.
     ['APPS_RUNTIME_ENABLED', 'enable-data-apps'],
 ];
@@ -4106,6 +4096,13 @@ export const parseConfig = (): LightdashConfig => {
                 process.env.GITLAB_REDIRECT_DOMAIN ||
                 siteUrl.split('.')[0].split('//')[1],
         },
+        liveSources: {
+            posthog: {
+                oauthClientId: process.env.POSTHOG_OAUTH_CLIENT_ID || undefined,
+                oauthClientSecret:
+                    process.env.POSTHOG_OAUTH_CLIENT_SECRET || undefined,
+            },
+        },
         contentAsCode: {
             maxDownloads:
                 getIntegerFromEnvironmentVariable('MAX_DOWNLOADS_AS_CODE') ||
@@ -4142,10 +4139,6 @@ export const parseConfig = (): LightdashConfig => {
         aiWriteback: {
             legacyAnthropicApiKey:
                 process.env.AI_WRITEBACK_ANTHROPIC_API_KEY || null,
-            codingAgentMaxRepoSizeMb: parseInt(
-                process.env.AI_CODING_AGENT_MAX_REPO_SIZE_MB || '500',
-                10,
-            ),
         },
         initialSetup: getInitialSetupConfig(),
         updateSetup: getUpdateSetupConfig(),

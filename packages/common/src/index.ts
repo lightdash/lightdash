@@ -76,6 +76,7 @@ export * from './compiler/filtersCompiler';
 export * from './compiler/joinInflation';
 export * from './compiler/lightdashModelConverter';
 export * from './compiler/parameters';
+export * from './compiler/queryParameterReferences';
 export * from './compiler/referenceLookup';
 export * from './compiler/translator';
 export * from './compiler/writebackColumn';
@@ -459,6 +460,7 @@ export * from './utils/sqlDialect';
 export * from './utils/subtotals';
 export * from './utils/dateZoom';
 export * from './utils/tableCalculationFunctions';
+export * from './utils/tableSelection';
 export * from './utils/time';
 export * from './utils/timeFrames';
 export * from './utils/resolveQueryTimezone';
@@ -1294,3 +1296,5 @@ export * from './types/credentials';
 export * from './types/releaseHighlights';
 
 export { getDeferredExploreName } from './dbt/qualifiedName';
+
+export * from './utils/exploreName';

@@ -2,6 +2,7 @@ import {
     type AnalyticsProjectStatus,
     type EnsureAnalyticsProjectResult,
     type ApiError,
+    type AnalyticsHistoryBackfillStatus,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
@@ -22,11 +23,50 @@ export const useAnalyticsProject = () => {
     });
 };
 
+export const useAnalyticsHistoryBackfill = () => {
+    const lightdashApi = useLightdashApi();
+    const { data: organization } = useOrganization();
+    return useQuery<AnalyticsHistoryBackfillStatus, ApiError>({
+        queryKey: [
+            'analytics-history-backfill',
+            organization?.organizationUuid,
+        ],
+        queryFn: () =>
+            lightdashApi<AnalyticsHistoryBackfillStatus>({
+                url: '/org/analytics-project/backfill',
+                method: 'GET',
+            }),
+        enabled: !!organization?.organizationUuid,
+        retry: false,
+        staleTime: 30_000,
+        refetchInterval: (data) => (data?.running ? 2000 : false),
+    });
+};
+
+export const useBackfillAnalyticsHistory = () => {
+    const lightdashApi = useLightdashApi();
+    const queryClient = useQueryClient();
+    return useMutation<undefined, ApiError>(
+        () =>
+            lightdashApi<undefined>({
+                url: '/org/analytics-project/backfill',
+                method: 'POST',
+                body: undefined,
+            }),
+        {
+            retry: false,
+            onSuccess: () =>
+                queryClient.invalidateQueries(['analytics-history-backfill']),
+        },
+    );
+};
+
 const useInvalidateAnalyticsProject = () => {
     const queryClient = useQueryClient();
     return () =>
         Promise.all([
             queryClient.invalidateQueries(['analytics-project']),
+            queryClient.invalidateQueries(['analytics-history-backfill']),
             queryClient.invalidateQueries(['projects']),
             queryClient.invalidateQueries(['user']),
         ]);

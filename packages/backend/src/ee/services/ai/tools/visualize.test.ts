@@ -112,6 +112,7 @@ const makeRun = (
     rows: Record<string, unknown>[],
     terminalNodeId: string,
 ): Awaited<ReturnType<RunComposerQueriesFn>> => ({
+    status: 'success',
     submissions: [],
     terminal: {
         queryUuid: 'query-uuid',
@@ -123,6 +124,7 @@ const makeRun = (
         rows,
         rowCount: rows.length,
     },
+    nodeStatuses: [],
 });
 
 const makeTool = ({
@@ -313,7 +315,11 @@ describe('visualize', () => {
 
     it('writes the card without hints when the hint run fails', async () => {
         const { visualize, versions, runComposerQueries } = makeTool();
-        runComposerQueries.mockRejectedValueOnce(new Error('warehouse down'));
+        runComposerQueries.mockResolvedValueOnce({
+            status: 'failure',
+            error: 'warehouse down',
+            nodeStatuses: [],
+        });
 
         const output = await visualize({
             vizConfig: { ...barConfig, type: 'pie', x: 'orders_status' },

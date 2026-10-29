@@ -8,20 +8,22 @@ import {
 import { ActionIcon, Box, Group, Stack, Text, Tooltip } from '@mantine/core';
 import { IconEye, IconEyeOff, IconInfoCircle } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
+import { selectTableColumnProperties } from '../../../features/visualization/store';
+import { useTableEditorActions } from '../../../hooks/tableVisualization/useTableConfig';
 import MantineIcon from '../../common/MantineIcon';
-import { isTableVisualizationConfig } from '../../LightdashVisualization/types';
-import { useVisualizationState } from '../../LightdashVisualization/useVisualizationContext';
+import {
+    useVisualizationInputs,
+    useVisualizationInputSelector,
+} from '../../LightdashVisualization/useVisualizationContext';
 import ColorSelector from '../ColorSelector';
 import { Config } from '../common/Config';
 
 export const ColumnCellDisplay: FC = () => {
-    const { itemsMap, resultsData, visualizationConfig, colorPalette } =
-        useVisualizationState();
-
-    const chartConfig = useMemo(() => {
-        if (!isTableVisualizationConfig(visualizationConfig)) return undefined;
-        return visualizationConfig.chartConfig;
-    }, [visualizationConfig]);
+    const { itemsMap, resultsData, colorPalette } = useVisualizationInputs();
+    const columnProperties = useVisualizationInputSelector(
+        selectTableColumnProperties,
+    );
+    const { updateColumnProperty } = useTableEditorActions();
 
     const activeFields = useMemo(() => {
         if (!resultsData?.metricQuery) return new Set<string>();
@@ -40,10 +42,6 @@ export const ColumnCellDisplay: FC = () => {
                 (field) => isNumericItem(field) && isFilterableItem(field),
             ) as FilterableItem[];
     }, [itemsMap, activeFields]);
-
-    if (!chartConfig) {
-        return null;
-    }
 
     if (numericFields.length === 0) {
         return (
@@ -69,14 +67,11 @@ export const ColumnCellDisplay: FC = () => {
                     {numericFields.map((field) => {
                         const fieldId = getItemId(field);
                         const isBarChart =
-                            chartConfig.columnProperties[fieldId]
-                                ?.displayStyle === 'bar';
+                            columnProperties[fieldId]?.displayStyle === 'bar';
                         const barColor =
-                            chartConfig.columnProperties[fieldId]?.color ||
-                            colorPalette[0];
+                            columnProperties[fieldId]?.color || colorPalette[0];
                         const negativeColor =
-                            chartConfig.columnProperties[fieldId]
-                                ?.negativeColor;
+                            columnProperties[fieldId]?.negativeColor;
                         // Negative bars default to the positive color until set.
                         const negativeBarColor = negativeColor || barColor;
 
@@ -86,7 +81,7 @@ export const ColumnCellDisplay: FC = () => {
                                 swatches={colorPalette}
                                 ariaLabel="Select positive bar color"
                                 onColorChange={(color) => {
-                                    chartConfig.updateColumnProperty(fieldId, {
+                                    updateColumnProperty(fieldId, {
                                         color,
                                     });
                                 }}
@@ -124,7 +119,7 @@ export const ColumnCellDisplay: FC = () => {
                                                         onColorChange={(
                                                             newColor,
                                                         ) => {
-                                                            chartConfig.updateColumnProperty(
+                                                            updateColumnProperty(
                                                                 fieldId,
                                                                 {
                                                                     negativeColor:
@@ -135,7 +130,7 @@ export const ColumnCellDisplay: FC = () => {
                                                         onColorReset={
                                                             negativeColor
                                                                 ? () => {
-                                                                      chartConfig.updateColumnProperty(
+                                                                      updateColumnProperty(
                                                                           fieldId,
                                                                           {
                                                                               negativeColor:
@@ -161,14 +156,11 @@ export const ColumnCellDisplay: FC = () => {
                                 </Group>
                                 <ActionIcon
                                     onClick={() => {
-                                        chartConfig.updateColumnProperty(
-                                            fieldId,
-                                            {
-                                                displayStyle: isBarChart
-                                                    ? 'text'
-                                                    : 'bar',
-                                            },
-                                        );
+                                        updateColumnProperty(fieldId, {
+                                            displayStyle: isBarChart
+                                                ? 'text'
+                                                : 'bar',
+                                        });
                                     }}
                                     variant="light"
                                 >

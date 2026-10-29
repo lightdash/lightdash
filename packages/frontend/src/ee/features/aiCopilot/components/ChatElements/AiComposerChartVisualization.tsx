@@ -110,7 +110,6 @@ const ChartBody: FC<{
             spec={option}
             isLoading={!error && option === undefined}
             error={error ? { message: error.message } : null}
-            style={{ height: '100%', width: '100%' }}
         />
     );
 };

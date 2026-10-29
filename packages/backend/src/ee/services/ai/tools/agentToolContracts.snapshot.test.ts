@@ -19,7 +19,6 @@ import { getDiscoverRepos } from './discoverRepos';
 import { getEditContent } from './editContent';
 import { getEditDbtProject } from './editDbtProject';
 import { getEditProjectContext } from './editProjectContext';
-import { getEditRepo } from './editRepo';
 import { getExploreRepo } from './exploreRepo';
 import { getExportChartAsCode } from './exportChartAsCode';
 import { getFindContent } from './findContent';
@@ -149,9 +148,6 @@ const makeAgentTools = (enableFilterExpressions = false) => {
         editProjectContext: getEditProjectContext({
             editProjectContext: noop,
         }),
-        editRepo: getEditRepo({
-            editRepo: noop,
-        }),
         exploreRepo: getExploreRepo({ exploreRepo: noop }),
         discoverRepos: getDiscoverRepos({ discoverRepos: noop }),
         listWorkstreams: getListWorkstreams({ listWorkstreams: noop }),
@@ -225,6 +221,7 @@ const makeAgentTools = (enableFilterExpressions = false) => {
             enableDataAccess: true,
             canRunSql: true,
             enablePythonNodes: false,
+            apiConnections: [],
             getPrompt: noop,
             recordSqlApproval: noop,
             isThreadSqlAutoApproved: noop,

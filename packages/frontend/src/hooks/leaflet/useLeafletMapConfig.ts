@@ -14,7 +14,10 @@ import {
 import { useComputedColorScheme, useMantineTheme } from '@mantine/core';
 import { useMemo } from 'react';
 import { isMapVisualizationConfig } from '../../components/LightdashVisualization/types';
-import { useVisualizationState } from '../../components/LightdashVisualization/useVisualizationContext';
+import {
+    useVisualizationConfig,
+    useVisualizationInputs,
+} from '../../components/LightdashVisualization/useVisualizationContext';
 import { type MapExtent } from '../../providers/Explorer/types';
 
 type Args = {
@@ -481,8 +484,8 @@ const computeLeafletSeriesAndLegend = ({
 const useLeafletMapConfig = ({
     isInDashboard: _isInDashboard,
 }: Args): LeafletMapConfig | null => {
-    const { visualizationConfig, resultsData, itemsMap } =
-        useVisualizationState();
+    const visualizationConfig = useVisualizationConfig();
+    const { resultsData, itemsMap } = useVisualizationInputs();
     const theme = useMantineTheme();
     const colorScheme = useComputedColorScheme();
 

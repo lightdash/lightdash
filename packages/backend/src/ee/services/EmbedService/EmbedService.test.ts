@@ -760,6 +760,42 @@ describe('EmbedService', () => {
                 ),
             ).rejects.toThrow(ForbiddenError);
         });
+
+        test('checks the dashboard image grant for image exports', async () => {
+            mockTokenAbility([
+                {
+                    subject: 'Dashboard',
+                    action: 'export',
+                    conditions: {
+                        type: 'images',
+                        'metadata.dashboardUuid': 'dashboard-uuid',
+                    },
+                },
+            ]);
+
+            await expect(
+                service.getAccountForDashboardExport(
+                    { ...payload, format: SchedulerFormat.IMAGE },
+                    'jwt',
+                ),
+            ).resolves.toBeDefined();
+            await expect(
+                service.getAccountForDashboardExport(
+                    { ...payload, format: SchedulerFormat.PDF },
+                    'jwt',
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            await expect(
+                service.getAccountForDashboardExport(
+                    {
+                        ...payload,
+                        resourceUuid: 'other-dashboard',
+                        format: SchedulerFormat.IMAGE,
+                    },
+                    'jwt',
+                ),
+            ).rejects.toThrow(ForbiddenError);
+        });
     });
 
     describe('getContentUuidFromJwt', () => {

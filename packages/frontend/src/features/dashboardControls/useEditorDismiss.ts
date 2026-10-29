@@ -14,21 +14,28 @@ const OPEN_LAYER_SELECTOR = [
     '[aria-modal="true"]',
 ].join(',');
 
+// The query devtools of a dev build always report an open panel
+export const hasOpenLayer = () =>
+    [...document.querySelectorAll(OPEN_LAYER_SELECTOR)].some(
+        (element) => !element.closest('.ReactQueryDevtools'),
+    );
+
 type Args = {
     isOpen: boolean;
     isFieldClicked: boolean;
     clearField: () => void;
-    close: () => void;
+    /** Withdraws a pending question, else cancels the edit. */
+    dismiss: () => void;
 };
 
 // One Escape listener while the editor is open, so one press does one thing:
 // an open list closes itself, else the clicked field is cleared, else the
-// editor closes. A mouse down never clears the field.
+// editor is dismissed. A mouse down never clears the field.
 export const useEditorDismiss = ({
     isOpen,
     isFieldClicked,
     clearField,
-    close,
+    dismiss,
 }: Args) => {
     useEffect(() => {
         if (!isOpen) return;
@@ -38,11 +45,7 @@ export const useEditorDismiss = ({
             const target =
                 event.target instanceof Element ? event.target : null;
             if (target?.closest(`[${OWN_ESCAPE_ATTRIBUTE}]`)) return;
-            // The query devtools of a dev build always report an open panel
-            const hasOpenLayer = [
-                ...document.querySelectorAll(OPEN_LAYER_SELECTOR),
-            ].some((element) => !element.closest('.ReactQueryDevtools'));
-            if (hasOpenLayer) return;
+            if (hasOpenLayer()) return;
             if (isFieldClicked) {
                 clearField();
                 return;
@@ -51,11 +54,11 @@ export const useEditorDismiss = ({
             // Blur commits a label that is still being typed
             if (document.activeElement instanceof HTMLElement)
                 document.activeElement.blur();
-            close();
+            dismiss();
         };
         // Capture: lists are still open when this runs, so they can be seen
         document.addEventListener('keydown', handleKeyDown, true);
         return () =>
             document.removeEventListener('keydown', handleKeyDown, true);
-    }, [isOpen, isFieldClicked, clearField, close]);
+    }, [isOpen, isFieldClicked, clearField, dismiss]);
 };

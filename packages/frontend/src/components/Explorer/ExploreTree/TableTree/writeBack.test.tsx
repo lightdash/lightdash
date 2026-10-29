@@ -38,9 +38,6 @@ vi.mock('../../../../hooks/user/useCannotAuthorCustomSql', () => ({
 vi.mock('../../../../hooks/useFilters', () => ({
     useFilteredFields: () => ({ addFilter: vi.fn() }),
 }));
-vi.mock('../../../../hooks/useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: () => ({ data: { enabled: true } }),
-}));
 vi.mock('../../../../hooks/toaster/useToaster', () => ({
     default: () => ({ showToastSuccess: vi.fn() }),
 }));

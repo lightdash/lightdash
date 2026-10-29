@@ -262,4 +262,133 @@ describe('tile selectors', () => {
             ),
         ).toBe(true);
     });
+
+    describe('control sections', () => {
+        const sections = [
+            { id: 'a', name: 'Dates' },
+            { id: 'b', name: 'Regions' },
+        ];
+
+        it('seeds the sections without marking them changed', () => {
+            const state = reducer(
+                initialDashboardEditState,
+                actions.syncControlSections(sections),
+            );
+            expect(state.controlSections).toBe(sections);
+            expect(state.haveControlSectionsChanged).toBe(false);
+        });
+
+        it('keeps staged sections over a seed', () => {
+            const edited = reducer(
+                initialDashboardEditState,
+                actions.addControlSection(sections[0]),
+            );
+            expect(edited.haveControlSectionsChanged).toBe(true);
+            const state = reducer(
+                edited,
+                actions.syncControlSections(sections),
+            );
+            expect(state.controlSections).toEqual([sections[0]]);
+            const reset = reducer(
+                state,
+                actions.setHaveControlSectionsChanged(false),
+            );
+            expect(
+                reducer(reset, actions.syncControlSections(sections))
+                    .controlSections,
+            ).toBe(sections);
+        });
+
+        it('appends a section after the others, marking the change', () => {
+            const seeded = reducer(
+                initialDashboardEditState,
+                actions.syncControlSections(sections),
+            );
+            const state = reducer(
+                seeded,
+                actions.addControlSection({ id: 'c', name: 'New' }),
+            );
+            expect(state.controlSections.map((s) => s.id)).toEqual([
+                'a',
+                'b',
+                'c',
+            ]);
+            expect(state.haveControlSectionsChanged).toBe(true);
+        });
+
+        it('renames, moves and removes a section, marking the change', () => {
+            const seeded = reducer(
+                initialDashboardEditState,
+                actions.syncControlSections(sections),
+            );
+            const renamed = reducer(
+                seeded,
+                actions.renameControlSection({ id: 'a', name: 'When' }),
+            );
+            expect(renamed.controlSections.map((s) => s.name)).toEqual([
+                'When',
+                'Regions',
+            ]);
+            expect(renamed.haveControlSectionsChanged).toBe(true);
+            const moved = reducer(
+                renamed,
+                actions.moveControlSection({ id: 'a', overId: 'b' }),
+            );
+            expect(moved.controlSections.map((s) => s.id)).toEqual(['b', 'a']);
+            expect(
+                reducer(
+                    moved,
+                    actions.moveControlSection({ id: 'a', overId: 'missing' }),
+                ),
+            ).toBe(moved);
+            const removed = reducer(moved, actions.removeControlSection('b'));
+            expect(removed.controlSections.map((s) => s.id)).toEqual(['a']);
+        });
+
+        it('sets a section to start collapsed, keeping it through a sync and a rename', () => {
+            const seeded = reducer(
+                initialDashboardEditState,
+                actions.syncControlSections([
+                    { ...sections[0], collapsed: true },
+                    sections[1],
+                ]),
+            );
+            expect(seeded.controlSections[0].collapsed).toBe(true);
+            const renamed = reducer(
+                seeded,
+                actions.renameControlSection({ id: 'a', name: 'When' }),
+            );
+            expect(renamed.controlSections[0]).toEqual({
+                id: 'a',
+                name: 'When',
+                collapsed: true,
+            });
+            const reset = reducer(
+                initialDashboardEditState,
+                actions.syncControlSections(sections),
+            );
+            const collapsed = reducer(
+                reset,
+                actions.setControlSectionCollapsed({
+                    id: 'b',
+                    collapsed: true,
+                }),
+            );
+            expect(collapsed.controlSections).toEqual([
+                sections[0],
+                { ...sections[1], collapsed: true },
+            ]);
+            expect(collapsed.haveControlSectionsChanged).toBe(true);
+            // Unticked, the key goes rather than turning false
+            expect(
+                reducer(
+                    collapsed,
+                    actions.setControlSectionCollapsed({
+                        id: 'b',
+                        collapsed: undefined,
+                    }),
+                ).controlSections[1],
+            ).toEqual(sections[1]);
+        });
+    });
 });

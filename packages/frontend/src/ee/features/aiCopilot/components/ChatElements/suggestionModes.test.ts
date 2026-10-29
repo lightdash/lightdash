@@ -6,6 +6,7 @@ describe('getAgentSuggestionModes', () => {
         expect(
             getAgentSuggestionModes({
                 disabled: true,
+                isArtifactPanelOpen: false,
                 isMinimalMode: true,
                 loading: false,
                 messageCount: 2,
@@ -20,6 +21,7 @@ describe('getAgentSuggestionModes', () => {
         expect(
             getAgentSuggestionModes({
                 disabled: false,
+                isArtifactPanelOpen: false,
                 isMinimalMode: true,
                 loading: false,
                 messageCount: 2,
@@ -34,11 +36,32 @@ describe('getAgentSuggestionModes', () => {
         expect(
             getAgentSuggestionModes({
                 disabled: true,
+                isArtifactPanelOpen: false,
                 isMinimalMode: false,
                 loading: false,
                 messageCount: 0,
                 suggestionsEnabled: true,
             }).emptyStateMode,
         ).toBe(false);
+    });
+
+    it('hides post-response suggestions while an artifact panel is open', () => {
+        const args = {
+            disabled: false,
+            isMinimalMode: true,
+            loading: false,
+            messageCount: 2,
+            latestAssistantMessageUuid: 'message-1',
+            suggestionsEnabled: true,
+            threadUuid: 'thread-1',
+        };
+        expect(
+            getAgentSuggestionModes({ ...args, isArtifactPanelOpen: true })
+                .postResponseMode,
+        ).toBe(false);
+        expect(
+            getAgentSuggestionModes({ ...args, isArtifactPanelOpen: false })
+                .postResponseMode,
+        ).toBe(true);
     });
 });

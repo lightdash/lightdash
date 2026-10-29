@@ -1,6 +1,6 @@
-/* A card next to the grid, stuck under the tabs and filter bar
-   (`--controls-rail-top`, from `useRailTop`). Paper gives the surface,
-   border and radius */
+/* A card next to the grid, pinned where it sits under the tabs and filter
+   bar (`--controls-rail-offset`, measured by `useRailTop`; until then the
+   header's height). Paper gives the surface, border and radius */
 .root {
     --controls-ease: ease-in-out;
     --controls-ease-arrive: cubic-bezier(0.22, 1, 0.36, 1);
@@ -9,8 +9,7 @@
     /* ActionIcon sm: row actions sit in one column, flush with the inputs */
     --controls-action-size: rem(24px);
     --controls-rail-offset: calc(
-        var(--controls-rail-top, var(--dashboard-header-height)) +
-            var(--mantine-spacing-xs)
+        var(--dashboard-header-height) + var(--mantine-spacing-xs)
     );
 
     position: sticky;
@@ -67,68 +66,19 @@
     flex: 1;
     min-height: 0;
     overflow-y: auto;
-    /* The last row's border sits under the footer's, so the two read as one */
-    margin-bottom: -1px;
 }
 
-/* Doubled so the border outranks the group button's reset */
-.row.row {
-    width: 100%;
-    padding: var(--mantine-spacing-sm) var(--mantine-spacing-sm)
-        var(--mantine-spacing-sm) var(--mantine-spacing-md);
-    border-bottom: 1px solid var(--mantine-color-default-border);
-    transition: background-color var(--controls-duration-hover)
-        var(--controls-ease);
+.content {
+    padding: var(--mantine-spacing-sm) var(--mantine-spacing-md)
+        var(--mantine-spacing-md);
 }
 
-.row:hover:not(:disabled) {
-    background-color: var(--mantine-color-default-hover);
-}
-
-.row:disabled {
-    cursor: not-allowed;
-    opacity: 0.6;
-}
-
-.readOnlyRow.readOnlyRow {
-    cursor: default;
-}
-
-.readOnlyRow.readOnlyRow:hover {
-    background-color: transparent;
-}
-
-.rowIcon {
+.typeIcon {
     flex: 0 0 auto;
-    /* Even, so it centres on the name's first line both in a row aligned to
-       the top and in the head aligned to the centre */
-    margin-block: 3px;
 }
 
 .required {
     color: var(--mantine-color-yellow-text);
-}
-
-.edited {
-    background-color: var(--mantine-color-ldGray-1);
-    border-bottom: 1px solid var(--mantine-color-default-border);
-
-    /* Dimmed text on this fill is under 4.5:1 in light: one step darker */
-    @mixin light {
-        --mantine-color-dimmed: var(--mantine-color-ldGray-7);
-    }
-}
-
-.editedHead {
-    padding-block: var(--mantine-spacing-xs) 0;
-    padding-inline: var(--mantine-spacing-md);
-    /* A click on it collapses the filter */
-    cursor: pointer;
-}
-
-.editedBody {
-    padding: var(--mantine-spacing-xs) var(--mantine-spacing-md)
-        var(--mantine-spacing-md);
 }
 
 /* The shipped clear X sits beside the value input, so the operator select
@@ -143,31 +93,9 @@
     );
 }
 
-.nameInput {
-    flex: 1;
-    min-width: 0;
-}
-
-/* The name is typed in place: a border shows only on hover and focus */
-.nameInputField {
-    font-weight: 600;
-    border-color: transparent;
-    background-color: transparent;
-    transition: border-color var(--controls-duration-hover) var(--controls-ease);
-}
-
-.nameInputField:hover {
-    border-color: var(--mantine-color-default-border);
-}
-
-.nameInputField:focus {
-    border-color: var(--mantine-color-ldGray-3);
-    background-color: var(--mantine-color-body);
-}
-
+/* Inset to the editor's padding; one hairline above the pair */
 .disclosures {
-    margin: var(--mantine-spacing-xs) calc(-1 * var(--mantine-spacing-md))
-        calc(-1 * var(--mantine-spacing-md));
+    margin-top: var(--mantine-spacing-xs);
     border-top: 1px solid var(--mantine-color-default-border);
 }
 
@@ -176,24 +104,17 @@
     align-items: center;
     gap: var(--mantine-spacing-xs);
     width: 100%;
-    min-height: 40px;
-    /* The chevron is centred on the row actions' column */
-    padding-block: var(--mantine-spacing-xs);
-    padding-inline: var(--mantine-spacing-md)
-        calc(
-            var(--mantine-spacing-md) + (var(--controls-action-size) - 14px) / 2
-        );
+    min-height: 32px;
+    /* Inset to the editor's padding; the 12px chevron is centred on the row
+       actions' column */
+    padding-block: 4px;
+    padding-inline: 0 calc((var(--controls-action-size) - 12px) / 2);
     transition: background-color var(--controls-duration-hover)
         var(--controls-ease);
 }
 
 .disclosure:hover {
     background-color: var(--mantine-color-default-hover);
-}
-
-.disclosure + .disclosure,
-.panel + .disclosure {
-    border-top: 1px solid var(--mantine-color-default-border);
 }
 
 .disclosureSummary {
@@ -212,24 +133,24 @@
 }
 
 .panel {
-    padding: 2px var(--mantine-spacing-md) var(--mantine-spacing-md);
+    padding: 2px 0 var(--mantine-spacing-xs);
 }
 
 .footer {
     border-top: 1px solid var(--mantine-color-default-border);
 }
 
-/* Keyed by its text, so it arrives again when the message changes */
+/* The pending question arrives as the footer changes */
 .footerStatus {
     animation: statusEnter var(--controls-duration-arrive)
         var(--controls-ease-arrive);
 }
 
-.done {
+.apply {
     transition: transform var(--controls-duration-hover) var(--controls-ease);
 }
 
-.footer .done:active {
+.footer .apply:active:not(:disabled) {
     transform: scale(0.97);
 }
 
@@ -261,9 +182,7 @@
         animation: none;
     }
 
-    .done,
-    .nameInputField,
-    .row,
+    .apply,
     .disclosure,
     .chevron {
         transition: none;

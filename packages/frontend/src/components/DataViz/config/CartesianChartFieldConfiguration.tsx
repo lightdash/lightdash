@@ -20,6 +20,7 @@ import { FieldReferenceSelect } from '../FieldReferenceSelect';
 import { type BarChartActionsType } from '../store/barChartSlice';
 import { type LineChartActionsType } from '../store/lineChartSlice';
 import { cartesianChartSelectors } from '../store/selectors';
+import classes from './CartesianChartFieldConfiguration.module.css';
 import { DataVizAggregationConfig } from './DataVizAggregationConfig';
 import { DataVizSortConfig } from './DataVizSortConfig';
 
@@ -40,14 +41,7 @@ const YFieldsAxisConfig: FC<{
 
     return (
         <>
-            <Box
-                style={{
-                    paddingLeft: !isSingle ? 'var(--mantine-spacing-xs)' : 0,
-                    borderLeft: !isSingle
-                        ? '1px solid var(--mantine-color-ldGray-3)'
-                        : 0,
-                }}
-            >
+            <Box className={isSingle ? undefined : classes.groupedField}>
                 <Config>
                     <Config.Section>
                         <Group gap="xs">

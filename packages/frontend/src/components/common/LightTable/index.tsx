@@ -208,15 +208,8 @@ const TableComponent = forwardRef<HTMLTableElement, TableProps>(
                 miw="inherit"
                 mah="100%"
                 pos="relative"
-                style={{
-                    overflow: 'auto',
-                    border: '1px solid var(--mantine-color-ldGray-3)',
-                    borderRadius: shouldRemoveBorders ? '0' : '4px',
-                    ...(shouldRemoveBorders && {
-                        borderLeft: 'none',
-                        borderRight: 'none',
-                    }),
-                }}
+                className={classes.scrollContainer}
+                data-no-borders={shouldRemoveBorders || undefined}
             >
                 <Box
                     ref={ref}
@@ -354,10 +347,9 @@ const Row = forwardRef<HTMLTableRowElement, TableRowProps>(
                     component={component}
                     ref={ref}
                     {...rest}
-                    style={[
-                        rest.style,
-                        { '--lt-sticky-offset': `${index * CELL_HEIGHT}px` },
-                    ]}
+                    __vars={{
+                        '--lt-sticky-offset': `${index * CELL_HEIGHT}px`,
+                    }}
                     className={clsx(classes.row, rest.className, {
                         [classes.rowSticky]: withSticky,
                     })}
@@ -422,7 +414,7 @@ const BaseCell = (
             }, [handleCopy, isSelected]);
 
             const cellStyleVars = useMemo(() => {
-                const vars: Record<string, string> = {
+                const vars: Record<`--${string}`, string> = {
                     '--lt-sticky-offset': `${index * CELL_HEIGHT}px`,
                 };
                 if (withColor) {
@@ -473,7 +465,7 @@ const BaseCell = (
                         ref={ref}
                         {...rest}
                         data-is-selected={isSelected}
-                        style={[rest.style, cellStyleVars]}
+                        __vars={cellStyleVars}
                         className={clsx(classes.cell, rest.className, {
                             [classes.cellHead]: cellType === CellType.Head,
                             [classes.cellSticky]: withSticky,

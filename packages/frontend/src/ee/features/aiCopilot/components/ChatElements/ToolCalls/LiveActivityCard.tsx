@@ -84,6 +84,8 @@ type Props = {
         pendingToolCallIds: string[];
         decidedToolCallIds: string[];
     };
+    /** Rendered as the first item of the card body. */
+    reasoning?: { texts: string[]; isLive: boolean };
 };
 
 const REASONING_PREVIEW_LENGTH = 140;
@@ -538,20 +540,18 @@ const getComposerNodeStatuses = (
     return Object.fromEntries(
         nodeIds.flatMap((nodeId): [string, ComposerQueryNodeStatus][] => {
             const fromEvent = eventStatuses.get(nodeId);
-            // The call failed while this node was still running: it failed.
-            if (outputStatus === 'error' && fromEvent?.status === 'running')
-                return [[nodeId, { status: 'error' }]];
+            // Failures show no indicator: the agent retries on its own.
+            if (
+                fromEvent?.status === 'error' ||
+                (outputStatus === 'error' && fromEvent?.status === 'running')
+            )
+                return [];
             if (fromEvent) return [[nodeId, fromEvent]];
             if (awaitingApproval && sqlNodeIds.has(nodeId))
                 return [[nodeId, { status: 'awaiting_approval' }]];
             if (outputStatus === 'success')
                 return [[nodeId, { status: 'success' }]];
             if (output === undefined) return [[nodeId, { status: 'pending' }]];
-            // The call errored before any node started: the whole pipeline failed.
-            if (outputStatus === 'error' && eventStatuses.size === 0)
-                return [[nodeId, { status: 'error' }]];
-            // Rejected/timed-out/unattributed failure: nothing truthful to
-            // claim about this node, so show no indicator.
             return [];
         }),
     );
@@ -594,6 +594,7 @@ export const LiveActivityCard: FC<Props> = ({
     mcpServers,
     stepProgressMessages = [],
     approval,
+    reasoning,
 }) => {
     const latestGroup =
         toolGroups.length > 0 ? toolGroups[toolGroups.length - 1] : undefined;
@@ -631,7 +632,23 @@ export const LiveActivityCard: FC<Props> = ({
     const setUserExpanded = (value: boolean) =>
         setUserToggle({ key: expandKey, value });
 
-    if (toolGroups.length === 0) return null;
+    const hasReasoning = (reasoning?.texts.length ?? 0) > 0;
+
+    if (toolGroups.length === 0) {
+        if (!reasoning || !hasReasoning) return null;
+        return (
+            <Box
+                className={styles.card}
+                data-live={reasoning.isLive ? 'true' : 'false'}
+                data-reasoning-only="true"
+            >
+                <ReasoningHistoryRow
+                    texts={reasoning.texts}
+                    isLive={reasoning.isLive}
+                />
+            </Box>
+        );
+    }
 
     // After streaming the header is a *summary title* rather than the latest
     // row, so every tool group (including the last) belongs in the expandable
@@ -648,7 +665,7 @@ export const LiveActivityCard: FC<Props> = ({
     );
     const olderGroups = latest ? toolGroups.slice(0, -1) : toolGroups;
     const olderCount = latest ? totalCalls - latest.calls.length : totalCalls;
-    const hasHistory = olderCount > 0;
+    const hasExpandableBody = olderCount > 0 || hasReasoning;
     // Auto-expand while approval is pending so the user sees it immediately.
     const expanded =
         latestAwaitingApproval || (userExpanded ?? defaultExpanded);
@@ -657,7 +674,7 @@ export const LiveActivityCard: FC<Props> = ({
         latest?.toolName === 'runSql' ||
         (latest !== null && isComposerQueryToolName(latest.toolName)) ||
         latestAwaitingApproval;
-    const showBody = expanded && (hasHistory || latestNeedsExpandedBody);
+    const showBody = expanded && (hasExpandableBody || latestNeedsExpandedBody);
 
     return (
         <Box
@@ -670,7 +687,7 @@ export const LiveActivityCard: FC<Props> = ({
                 onClick={() => setUserExpanded(!expanded)}
                 aria-expanded={expanded}
                 className={styles.header}
-                disabled={!hasHistory && !latestNeedsExpandedBody}
+                disabled={!hasExpandableBody && !latestNeedsExpandedBody}
             >
                 <Group gap={6} align="center" wrap="nowrap">
                     <Box className={styles.latestSlot}>
@@ -718,7 +735,7 @@ export const LiveActivityCard: FC<Props> = ({
                             +{olderCount}
                         </Text>
                     )}
-                    {(hasHistory || latestNeedsExpandedBody) && (
+                    {(hasExpandableBody || latestNeedsExpandedBody) && (
                         <MantineIcon
                             icon={IconChevronRight}
                             size={11}
@@ -754,6 +771,12 @@ export const LiveActivityCard: FC<Props> = ({
                 transitionTimingFunction="cubic-bezier(0.16, 1, 0.3, 1)"
             >
                 <Stack gap={6} className={styles.history}>
+                    {reasoning && hasReasoning && (
+                        <ReasoningHistoryRow
+                            texts={reasoning.texts}
+                            isLive={reasoning.isLive}
+                        />
+                    )}
                     {(() => {
                         if (!latest) return null;
                         const latestBuiltInToolName = isToolName(

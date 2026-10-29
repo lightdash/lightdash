@@ -79,7 +79,7 @@ const PinnedItemsPanel: FC<Props> = ({ pinnedItems, isEnabled }) => {
                         color="ldGray.7"
                         fill="ldGray.1"
                     />
-                    <Text fw={600} c="ldGray.8" fz="sm">
+                    <Text fw={600} fz="sm">
                         No pinned items.
                     </Text>
                     <Text c="dimmed" fz="sm">

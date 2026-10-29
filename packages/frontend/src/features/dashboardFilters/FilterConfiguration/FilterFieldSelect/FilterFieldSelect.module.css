@@ -6,17 +6,8 @@
     font-size: var(--mantine-font-size-xs);
     font-weight: 600;
     border-bottom: 1px solid var(--mantine-color-ldGray-2);
-
-    @mixin light {
-        background-color: var(--mantine-color-ldGray-0);
-        color: var(--mantine-color-ldGray-7);
-    }
-
-    @mixin dark {
-        background-color: var(--mantine-color-dark-6);
-        color: var(--mantine-color-ldGray-3);
-        border-bottom-color: var(--mantine-color-dark-4);
-    }
+    background-color: var(--mantine-color-ldGray-0);
+    color: var(--mantine-color-ldGray-7);
 }
 
 .sectionHeaderDimmed {
@@ -30,14 +21,7 @@
     padding: 0 var(--mantine-spacing-xs);
     font-size: var(--mantine-font-size-xs);
     font-weight: 600;
-
-    @mixin light {
-        color: var(--mantine-color-ldGray-7);
-    }
-
-    @mixin dark {
-        color: var(--mantine-color-ldGray-3);
-    }
+    color: var(--mantine-color-ldGray-7);
 }
 
 .dimmedOption {
@@ -47,14 +31,7 @@
 .option {
     &:hover,
     &[data-combobox-selected] {
-        @mixin light {
-            background-color: var(--mantine-color-ldGray-0);
-        }
-
-        @mixin dark {
-            background-color: var(--mantine-color-dark-7);
-        }
-
+        background-color: var(--mantine-color-default-hover);
         color: inherit;
     }
 }
@@ -62,4 +39,12 @@
 .scrollContainer {
     scrollbar-width: thin;
     overflow: auto;
+}
+
+.virtualItem {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    transform: translateY(var(--item-start));
 }

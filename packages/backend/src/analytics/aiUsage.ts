@@ -42,7 +42,6 @@ export const AI_CALL_FEATURES = [
     'formula-table-calc',
     'compaction',
     'embedding',
-    'project-router',
     'agent-selector',
     'review-classifier',
     'prompt-input-classifier',

@@ -85,6 +85,7 @@ import {
 } from '../filterLabelOverrides';
 import { useEmbedDashboard, useEmbedSavedParameters } from '../hooks';
 import { canUseEmbeddedChartBuilder } from '../utils';
+import classes from './EmbedDashboard.module.css';
 import EmbedDashboardChartEditorModal from './EmbedDashboardChartEditorModal';
 import EmbedDashboardChartTile from './EmbedDashboardChartTile';
 import EmbedDashboardHeader from './EmbedDashboardHeader';
@@ -205,17 +206,12 @@ const EmbedDashboardGrid: FC<{
     >
         {isControlsEnabled && <ControlSidebar />}
         {isTabEmpty ? (
-            <div
-                style={{
-                    marginTop: '40px',
-                    textAlign: 'center',
-                }}
-            >
+            <Box mt="3xl" ta="center">
                 <SuboptimalState
                     title="Tab is empty"
                     description="This tab has no tiles"
                 />
-            </div>
+            </Box>
         ) : (
             <div className={tabStyles.tabGridContainer}>
                 {filteredTiles.map((tile) => (
@@ -1005,14 +1001,14 @@ const EmbedDashboard: FC<{
 
     if (!projectUuid) {
         return (
-            <div style={{ marginTop: '20px' }}>
+            <Box mt="lg">
                 <SuboptimalState title="Missing project UUID" />
-            </div>
+            </Box>
         );
     }
     if (dashboardError) {
         return (
-            <div style={{ marginTop: '20px' }}>
+            <Box mt="lg">
                 <SuboptimalState
                     title="Error loading dashboard"
                     icon={IconUnlink}
@@ -1022,15 +1018,15 @@ const EmbedDashboard: FC<{
                             : dashboardError.error.message
                     }
                 />
-            </div>
+            </Box>
         );
     }
 
     if (!dashboard) {
         return (
-            <div style={{ marginTop: '20px' }}>
+            <Box mt="lg">
                 <SuboptimalState title="Loading..." loading />
-            </div>
+            </Box>
         );
     }
 
@@ -1203,12 +1199,9 @@ const EmbedDashboard: FC<{
         <div
             // Used by EmbedDashboardExportPdf to temporarily set height:auto for multipage PDF printing
             id="embed-scroll-container"
-            style={
-                containerStyles ?? {
-                    height: '100vh',
-                    overflowY: 'auto',
-                }
-            }
+            className={containerStyles ? undefined : classes.scrollContainer}
+            // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
+            style={containerStyles}
         >
             <ControlsSidebarProvider
                 // No route says the mode in an embed

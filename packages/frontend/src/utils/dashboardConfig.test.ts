@@ -28,6 +28,8 @@ const baseArgs = {
     dateZoomConfig: { controls: [], tileTargets: {} },
     hasDateZoomConfigChanged: false,
     requiredFiltersNote: undefined,
+    controlSections: [],
+    haveControlSectionsChanged: false,
 };
 
 describe('buildDashboardConfig', () => {
@@ -112,6 +114,25 @@ describe('buildDashboardConfig', () => {
         expect(result.dateZoomConfig).toEqual(existingConfig.dateZoomConfig);
     });
 
+    it('carries control sections and parameter sections through a save', () => {
+        const existingConfig: DashboardConfig = {
+            isDateZoomDisabled: false,
+            controlSections: [{ id: 's1', name: 'Dates', collapsed: true }],
+            parameterSections: { region: 's1' },
+        };
+        const result = buildDashboardConfig({
+            ...baseArgs,
+            existingConfig,
+            isDateZoomDisabled: true,
+        });
+
+        expect(result.controlSections).toEqual(existingConfig.controlSections);
+        expect(result.parameterSections).toEqual(
+            existingConfig.parameterSections,
+        );
+        expect(result.isDateZoomDisabled).toBe(true);
+    });
+
     it('replaces changed values instead of carrying the old ones', () => {
         const result = buildDashboardConfig({
             ...baseArgs,
@@ -140,9 +161,26 @@ describe('buildDashboardConfig', () => {
             dateZoomConfig: true,
             requiredFiltersNote: true,
             customMetrics: true,
+            controlSections: true,
+            parameterSections: true,
         };
         expect(Object.keys(result).sort()).toEqual(
             Object.keys(expectedKeys).sort(),
         );
+    });
+
+    it('saves the edited control sections once they have changed', () => {
+        const controlSections = [{ id: 'section-2', name: 'Regions' }];
+        const result = buildDashboardConfig({
+            ...baseArgs,
+            existingConfig: {
+                isDateZoomDisabled: false,
+                controlSections: [{ id: 'section-1', name: 'Dates' }],
+            },
+            controlSections,
+            haveControlSectionsChanged: true,
+        });
+
+        expect(result.controlSections).toBe(controlSections);
     });
 });

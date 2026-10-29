@@ -327,9 +327,9 @@ export const ManageFilterValuesModal: FC<Props> = ({
                                             <Box
                                                 key={value}
                                                 className={classes.row}
+                                                h={virtualRow.size}
                                                 style={{
-                                                    transform: `translateY(${virtualRow.start}px)`,
-                                                    height: `${virtualRow.size}px`,
+                                                    '--row-start': `${virtualRow.start}px`,
                                                 }}
                                             >
                                                 <Group

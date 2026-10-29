@@ -1,5 +1,5 @@
 import { interpolateUiString } from '@lightdash/common';
-import { Badge, Tooltip } from '@mantine/core';
+import { Text, Tooltip, VisuallyHidden } from '@mantine/core';
 import { useEffect, useMemo, type FC } from 'react';
 import { createPortal } from 'react-dom';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
@@ -11,17 +11,24 @@ import {
     useDashboardSelector,
 } from '../dashboard/store';
 import { useFilterableItemsMap } from '../dashboardFilters/FilterRequirements/useFilterableItemsMap';
-import { getTabCounts, getTabCountsForField, isSqlColumnRow } from './peers';
+import {
+    getTabCounts,
+    getTabCountsForField,
+    getTilesOnTab,
+    isSqlColumnRow,
+} from './peers';
 import classes from './TabCounts.module.css';
 import { useControlsSidebarSelector } from './useControlsSidebar';
 import { toDashboardFilterableField } from './useFilterRuleField';
-import { useHoveredFilterRule } from './useHoveredFilterRule';
 import { usePortalTargets } from './usePortalTargets';
 import { useSqlColumnsByTile } from './useSqlColumnsByTile';
 
 // Mantine renders each tab with id "<tabsId>-tab-<value>"; value is the tab uuid
 const getTabSelector = (tabUuid: string) =>
     `[role="tab"][id$="-tab-${tabUuid}"]`;
+// An editor's quiet tab has one trailing slot, shared with its menu
+const getTabSlotSelector = (tabUuid: string) =>
+    `${getTabSelector(tabUuid)} > [data-position='right']`;
 
 // Horizontal only: the page, an embed's container and its host keep their scroll
 const scrollTabIntoList = (tab: Element) => {
@@ -39,21 +46,18 @@ const scrollTabIntoList = (tab: Element) => {
     }
 };
 
-export const TabCounts: FC = () => {
+type Props = {
+    /** The app's quiet tabs: an editor's count shares each tab's trailing slot with its menu. */
+    hasTabSlots?: boolean;
+};
+
+export const TabCounts: FC<Props> = ({ hasTabSlots = false }) => {
     const getUiString = useUiStrings();
-    const editedRule = useControlsSidebarSelector((c) => c.editingRule);
-    const isEditedPlaceholder = useControlsSidebarSelector(
-        (c) => c.isPlaceholder,
-    );
-    const editedActiveFieldId = useControlsSidebarSelector(
-        (c) => c.activeFieldId,
-    );
-    // A hovered rail row counts its own filter, as a whole, in blue
-    const hoveredRule = useHoveredFilterRule();
-    const isFilterHovered = hoveredRule !== null;
-    const editingRule = hoveredRule ?? editedRule;
-    const isPlaceholder = !isFilterHovered && isEditedPlaceholder;
-    const activeFieldId = isFilterHovered ? null : editedActiveFieldId;
+    const editingRule = useControlsSidebarSelector((c) => c.editingRule);
+    const isPlaceholder = useControlsSidebarSelector((c) => c.isPlaceholder);
+    const activeFieldId = useControlsSidebarSelector((c) => c.activeFieldId);
+    const isViewer = useControlsSidebarSelector((c) => c.isViewer);
+    const rule = editingRule;
     const dashboardTiles = useDashboardSelector(selectDashboardTiles);
     const dashboardTabs = useDashboardSelector(selectDashboardTabs);
     const fieldsByTile = useDashboardContext(
@@ -61,48 +65,52 @@ export const TabCounts: FC = () => {
     );
     // Dimensions and metrics: a filter can be on either
     const fieldsMap = useFilterableItemsMap();
-    const sqlColumnsByTile = useSqlColumnsByTile(editingRule);
+    const sqlColumnsByTile = useSqlColumnsByTile(rule);
 
     const tabUuids = useMemo(
         () => dashboardTabs.map((tab) => tab.uuid),
         [dashboardTabs],
     );
-    // A placeholder reaches no tile, so "0 of N" would only mislead
+    // An editor's tabs keep the slots at rest, so opening a filter reflows none;
+    // a viewer's get them once a field is picked
     const isEnabled =
-        editingRule !== null && !isPlaceholder && dashboardTabs.length > 0;
+        dashboardTabs.length > 0 &&
+        (!isViewer || (rule !== null && !isPlaceholder));
+    // An embed editor's plain tabs have no slot: the count goes in the tab
+    const isInSlot = hasTabSlots && !isViewer;
     const targets = usePortalTargets(
         tabUuids,
-        getTabSelector,
+        isInSlot ? getTabSlotSelector : getTabSelector,
         isEnabled,
-        false,
+        // A filter open: the menu beside each count is inert
+        isInSlot && rule !== null,
     );
 
     const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
-    // The edited filter's badges, never a hovered row's: a hover scrolls nothing
-    const editedRuleId =
-        editedRule !== null && !isEditedPlaceholder ? editedRule.id : null;
     const activeTabElement =
-        editedRuleId === null || activeTabUuid === undefined
-            ? undefined
-            : targets[activeTabUuid];
-    // The badges widen the tabs past a narrow screen: keep the active one seen
+        activeTabUuid === undefined ? undefined : targets[activeTabUuid];
+    // The slots widen the tabs past a narrow screen: keep the active one seen.
+    // Only the slots arriving or another tab moves it; a filter switch never does
     useEffect(() => {
-        if (activeTabElement) scrollTabIntoList(activeTabElement);
-    }, [activeTabElement, editedRuleId]);
+        if (activeTabElement)
+            scrollTabIntoList(
+                activeTabElement.closest('[role="tab"]') ?? activeTabElement,
+            );
+    }, [activeTabElement]);
 
     const counts = useMemo(() => {
         const tiles = dashboardTiles ?? [];
-        if (editingRule === null) return {};
+        if (rule === null) return {};
         return activeFieldId === null
             ? getTabCounts(
-                  editingRule,
+                  rule,
                   tiles,
                   dashboardTabs,
                   fieldsByTile,
                   sqlColumnsByTile,
               )
             : getTabCountsForField(
-                  editingRule,
+                  rule,
                   activeFieldId,
                   tiles,
                   dashboardTabs,
@@ -110,7 +118,7 @@ export const TabCounts: FC = () => {
                   sqlColumnsByTile,
               );
     }, [
-        editingRule,
+        rule,
         activeFieldId,
         dashboardTiles,
         dashboardTabs,
@@ -118,13 +126,35 @@ export const TabCounts: FC = () => {
         sqlColumnsByTile,
     ]);
 
+    // Every tile on the tab: no count is wider, so none reflows the tabs
+    const reserves = useMemo(
+        () =>
+            Object.fromEntries(
+                dashboardTabs.map((tab) => {
+                    const n = getTilesOnTab(
+                        dashboardTiles ?? [],
+                        dashboardTabs,
+                        tab.uuid,
+                    ).length;
+                    return [
+                        tab.uuid,
+                        interpolateUiString(
+                            getUiString('filters.rail.tabFraction'),
+                            { applied: n, total: n },
+                        ),
+                    ];
+                }),
+            ),
+        [dashboardTiles, dashboardTabs, getUiString],
+    );
+
     if (!isEnabled) return null;
 
     // A SQL column goes by its own name, never by a field's
     const subject =
-        activeFieldId === null
+        rule === null || activeFieldId === null
             ? getUiString('filters.rail.thisFilter')
-            : isSqlColumnRow(editingRule, activeFieldId)
+            : isSqlColumnRow(rule, activeFieldId)
               ? activeFieldId
               : (toDashboardFilterableField(fieldsMap[activeFieldId])?.label ??
                 activeFieldId);
@@ -133,44 +163,63 @@ export const TabCounts: FC = () => {
         <>
             {dashboardTabs.map((tab) => {
                 const element = targets[tab.uuid];
-                const count = counts[tab.uuid];
-                if (!element || !count || count.total === 0) return null;
-                // Tabs the control, or the active field, reaches stand out
-                const isReached = count.applied > 0;
-                const isFieldActive = activeFieldId !== null || isFilterHovered;
+                if (!element) return null;
+                // No filter, or a placeholder that reaches no tile: the slot stays, empty
+                const count =
+                    rule === null || isPlaceholder ? null : counts[tab.uuid];
+                const isReached = !!count && count.applied > 0;
+                const isFieldActive = activeFieldId !== null;
+                const countValues = count && {
+                    applied: count.applied,
+                    total: count.total,
+                };
                 return createPortal(
                     <Tooltip
                         fz="xs"
-                        label={interpolateUiString(
-                            getUiString(
-                                count.total === 1
-                                    ? 'filters.rail.tabCountTooltip.singular'
-                                    : 'filters.rail.tabCountTooltip.plural',
-                            ),
-                            {
-                                applied: count.applied,
-                                total: count.total,
-                                subject,
-                            },
-                        )}
+                        disabled={!count || count.total === 0}
+                        label={
+                            countValues &&
+                            interpolateUiString(
+                                getUiString(
+                                    countValues.total === 1
+                                        ? 'filters.rail.tabCountTooltip.singular'
+                                        : 'filters.rail.tabCountTooltip.plural',
+                                ),
+                                { ...countValues, subject },
+                            )
+                        }
                     >
-                        <Badge
-                            size="xs"
-                            // A tab it reaches is filled, blue for the active field
-                            variant={isReached ? 'light' : 'transparent'}
-                            color={isReached && isFieldActive ? 'blue' : 'gray'}
+                        <Text
+                            component="span"
+                            fz="xs"
+                            // Tabs the active field reaches stand out
+                            c={isReached && isFieldActive ? 'blue' : 'dimmed'}
                             data-reached={isReached}
                             data-field-active={isFieldActive}
+                            data-reserve={reserves[tab.uuid]}
+                            data-capped={!isViewer || undefined}
+                            data-controls-overlay={isInSlot || undefined}
                             className={classes.count}
                         >
-                            {interpolateUiString(
-                                getUiString('filters.rail.countOf'),
-                                {
-                                    applied: count.applied,
-                                    total: count.total,
-                                },
+                            {countValues && (
+                                <>
+                                    <span aria-hidden="true">
+                                        {interpolateUiString(
+                                            getUiString(
+                                                'filters.rail.tabFraction',
+                                            ),
+                                            countValues,
+                                        )}
+                                    </span>
+                                    <VisuallyHidden>
+                                        {interpolateUiString(
+                                            getUiString('filters.rail.countOf'),
+                                            countValues,
+                                        )}
+                                    </VisuallyHidden>
+                                </>
                             )}
-                        </Badge>
+                        </Text>
                     </Tooltip>,
                     element,
                     tab.uuid,

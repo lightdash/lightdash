@@ -52,7 +52,7 @@ const KNOWN_FEATURE_FLAG_IDS: ReadonlySet<string> = new Set(
 export const isKnownFeatureFlagId = (flagId: string): boolean =>
     KNOWN_FEATURE_FLAG_IDS.has(flagId);
 
-/** Flags enabled by default in preview/Okteto environments. */
+/** Flags enabled by default in preview environments. */
 export const PREVIEW_ENABLED_FEATURE_FLAGS: ReadonlySet<string> = new Set(
     ALL_FEATURE_FLAG_IDS.filter(
         (flagId) => !PREVIEW_EXCLUDED_FEATURE_FLAGS.has(flagId),

@@ -3149,3 +3149,38 @@ describe('series symbol visibility', () => {
         },
     );
 });
+
+describe('reference lines without a value', () => {
+    test('are dropped before ECharts sees them', () => {
+        const chart: CartesianChart = {
+            layout: { xField: 'date', yField: ['revenue'] },
+            eChartsConfig: {
+                series: [
+                    {
+                        type: CartesianSeriesType.LINE,
+                        encode: {
+                            xRef: { field: 'date' },
+                            yRef: { field: 'revenue' },
+                        },
+                        markLine: {
+                            data: [
+                                { uuid: 'a', yAxis: '100', name: 'Target' },
+                                { uuid: 'b', name: 'Unset' },
+                                { uuid: 'c', type: 'average' },
+                            ],
+                        },
+                    },
+                ],
+            },
+        };
+        const [series] = getEchartsSeriesFromPivotedData({}, chart, {
+            revenue: 'revenue',
+        });
+
+        expect(
+            (series.markLine as { data: { uuid: string }[] }).data.map(
+                (d) => d.uuid,
+            ),
+        ).toEqual(['a', 'c']);
+    });
+});

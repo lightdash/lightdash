@@ -1,7 +1,8 @@
 import { type ResultColumn } from '@lightdash/common';
-import { Select, Text, type PopoverProps } from '@mantine/core';
-import { type FC } from 'react';
+import { Loader, Select, Text, type PopoverProps } from '@mantine/core';
+import { useMemo, useState, type FC } from 'react';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
+import { useIsSqlTileQueryRunning } from './useIsSqlTileQueryRunning';
 
 type Props = {
     columns: ResultColumn[];
@@ -17,6 +18,13 @@ const SqlColumnSelect: FC<Props> = ({
     onChange,
 }) => {
     const getUiString = useUiStrings();
+    const isLoading = useIsSqlTileQueryRunning();
+    // Controlled: Select resets its own search whenever the options change
+    const [search, setSearch] = useState('');
+    const data = useMemo(
+        () => columns.map(({ reference }) => reference),
+        [columns],
+    );
 
     return (
         <Select
@@ -37,7 +45,12 @@ const SqlColumnSelect: FC<Props> = ({
             onDropdownOpen={popoverProps?.onOpen}
             onDropdownClose={popoverProps?.onClose}
             value={value}
-            data={columns.map(({ reference }) => reference)}
+            searchable
+            searchValue={search}
+            onSearchChange={setSearch}
+            aria-busy={isLoading}
+            rightSection={isLoading ? <Loader size="xs" /> : undefined}
+            data={data}
             onChange={(newValue) => {
                 if (!newValue) return;
                 const selectedColumn = columns.find(

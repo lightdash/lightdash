@@ -284,15 +284,22 @@ export class DashboardService
         }
 
         const auditedAbility = this.createAuditedAbility(account);
-        if (isJwtUser(account) && data.format === SchedulerFormat.PDF) {
-            // Embed PDFs render the embed page with the viewer's token.
+        if (
+            isJwtUser(account) &&
+            (data.format === SchedulerFormat.PDF ||
+                data.format === SchedulerFormat.IMAGE)
+        ) {
+            // Embed PDFs and images render the embed page with the viewer's token.
             if (
                 auditedAbility.cannot(
                     'export',
                     subject('Dashboard', {
                         organizationUuid: dashboard.organizationUuid,
                         projectUuid: dashboard.projectUuid,
-                        type: 'pdf',
+                        type:
+                            data.format === SchedulerFormat.PDF
+                                ? 'pdf'
+                                : 'images',
                         metadata: {
                             dashboardUuid: dashboard.uuid,
                             dashboardName: dashboard.name,
@@ -306,8 +313,7 @@ export class DashboardService
             data.format === SchedulerFormat.IMAGE ||
             data.format === SchedulerFormat.PDF
         ) {
-            // Image export renders the dashboard in a headless browser using a
-            // real session, so it is not available to embed/JWT callers.
+            // Non-embed image/PDF exports render with the requester's session.
             assertRegisteredAccount(account);
             const { inheritsFromOrgOrProject, access } =
                 await this.spacePermissionService.resolveAccess(
@@ -578,6 +584,29 @@ export class DashboardService
                 dashboard.config?.dateZoomConfig?.controls.length ?? 0,
             dateZoomTileTargetsCount: Object.keys(
                 dashboard.config?.dateZoomConfig?.tileTargets ?? {},
+            ).length,
+            ...DashboardService.getSectionEventProperties(dashboard),
+        };
+    }
+
+    // Counts only: section names never leave the dashboard
+    static getSectionEventProperties(
+        dashboard: Pick<DashboardDAO, 'config' | 'filters'>,
+    ) {
+        const controlSections = dashboard.config?.controlSections ?? [];
+        const sectionIds = new Set(controlSections.map(({ id }) => id));
+        return {
+            sectionsCount: controlSections.length,
+            // A sectionId with no matching section reads as unsectioned
+            sectionedFiltersCount: [
+                ...(dashboard.filters?.dimensions ?? []),
+                ...(dashboard.filters?.metrics ?? []),
+            ].filter(
+                ({ sectionId }) =>
+                    sectionId !== undefined && sectionIds.has(sectionId),
+            ).length,
+            collapsedByDefaultSectionsCount: controlSections.filter(
+                ({ collapsed }) => collapsed === true,
             ).length,
         };
     }
@@ -2377,6 +2406,9 @@ export class DashboardService
                     ].filter(
                         (filter) => (filter.lockedTabUuids?.length ?? 0) > 0,
                     ).length,
+                    ...DashboardService.getSectionEventProperties(
+                        updatedDashboard,
+                    ),
                 },
             });
         }

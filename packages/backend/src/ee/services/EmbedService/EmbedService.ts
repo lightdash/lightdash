@@ -3174,13 +3174,17 @@ export class EmbedService extends BaseService {
 
         const auditedAbility = this.createAuditedAbility(account);
         const cannotExport =
-            payload.format === SchedulerFormat.PDF
+            payload.format === SchedulerFormat.PDF ||
+            payload.format === SchedulerFormat.IMAGE
                 ? auditedAbility.cannot(
                       'export',
                       subject('Dashboard', {
                           organizationUuid: payload.organizationUuid,
                           projectUuid: payload.projectUuid,
-                          type: 'pdf',
+                          type:
+                              payload.format === SchedulerFormat.PDF
+                                  ? 'pdf'
+                                  : 'images',
                           metadata: { dashboardUuid: payload.resourceUuid },
                       }),
                   )

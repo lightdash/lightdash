@@ -97,7 +97,6 @@ import { getDiscoverRepos } from '../tools/discoverRepos';
 import { getEditContent } from '../tools/editContent';
 import { getEditDbtProject } from '../tools/editDbtProject';
 import { getEditProjectContext } from '../tools/editProjectContext';
-import { getEditRepo } from '../tools/editRepo';
 import { getExploreRepo } from '../tools/exploreRepo';
 import { getExportChartAsCode } from '../tools/exportChartAsCode';
 import { getFindContent } from '../tools/findContent';
@@ -944,7 +943,7 @@ export const buildDeepResearchExecutionContextSnapshot = (
     repository: {
         projectContextEnabled: args.projectContextEnabled,
         aiWritebackEnabled: args.enableAiWriteback,
-        codingAgentEnabled: args.enableCodingAgent,
+        codingAgentEnabled: null,
         previewDeploySetupEnabled: null,
         repoDiscoveryEnabled: args.enableRepoDiscovery,
         repoFsRoot: args.repoFsRoot,
@@ -2115,7 +2114,6 @@ export const getAgentTools = (
             getEditProjectContext({
                 editProjectContext: dependencies.editProjectContext,
             }),
-        editRepo: () => getEditRepo({ editRepo: dependencies.editRepo }),
         syncDbtProject: () =>
             getSyncDbtProject({
                 syncDbtProject: dependencies.syncDbtProject,
@@ -2208,6 +2206,7 @@ export const getAgentTools = (
                 enableDataAccess: args.enableDataAccess,
                 canRunSql: args.canRunSql,
                 enablePythonNodes: args.enableComposerQueries,
+                apiConnections: args.composerApiConnections,
                 autoApproveSql: args.autoApproveSql,
                 autoApproveSqlUserUuid: args.autoApproveSqlUserUuid,
                 useSlackStreamCard: args.useSlackStreamCard,
@@ -2635,6 +2634,7 @@ export const getAgentMessages = (
         repoFsSupportsCodeSearch: args.repoFsSupportsCodeSearch,
         slackLinksOnly: args.slackLinksOnly,
         enableComposerPythonNodes: args.enableComposerQueries,
+        enableComposerApiNodes: args.composerApiConnections.length > 0,
         unauthenticatedMcpServerNames: getUnauthenticatedMcpServerNames(
             args,
             mcpToolSetup,

@@ -35,7 +35,7 @@ import { GENERATE_DATA_APP_SECTION } from './systemV2DataApps';
 import { getKnowledgeDocumentsSection } from './systemV2KnowledgeDocuments';
 import { MEMORIES_SECTION } from './systemV2Memories';
 import {
-    COMPOSER_QUERY_PATH,
+    getComposerQueryPath,
     getQueryingComposerSection,
 } from './systemV2QueryingComposer';
 import { getRepoFsSection } from './systemV2RepoFs';
@@ -185,6 +185,8 @@ export const getSystemPromptV2 = (
         canRunSql?: boolean;
         // Python nodes in query; only meaningful for the composer base.
         enableComposerPythonNodes?: boolean;
+        // Api nodes in query; only meaningful for the composer base.
+        enableComposerApiNodes?: boolean;
         unauthenticatedMcpServerNames?: string[];
         mcpServers?: Array<{ name: string; toolNames: string[] }>;
     },
@@ -208,6 +210,7 @@ export const getSystemPromptV2 = (
         canRunSql = false,
         canRunQuery = false,
         enableComposerPythonNodes = false,
+        enableComposerApiNodes = false,
         unauthenticatedMcpServerNames = [],
         deferredSections = new Set<DeferredPromptSection>(),
         mcpServers = [],
@@ -231,9 +234,10 @@ export const getSystemPromptV2 = (
     }
     const queryPath: QueryPath = composer
         ? {
-              ...COMPOSER_QUERY_PATH,
+              ...getComposerQueryPath(canRunSql),
               queryLanguageSections: getQueryingComposerSection({
                   enablePythonNodes: enableComposerPythonNodes,
+                  enableApiNodes: enableComposerApiNodes,
                   canRunSql,
                   slackChannelId,
               }),

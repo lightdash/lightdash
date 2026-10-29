@@ -9,6 +9,7 @@ import {
     QueryTypeFilter,
 } from './PreAggregateFilters';
 import type { QueryType } from './preAggregateHelpers';
+import classes from './PreAggregateTopToolbar.module.css';
 
 type Props = {
     explores: string[];
@@ -47,9 +48,7 @@ const PreAggregateTopToolbar: FC<Props> = ({
             px="sm"
             py="md"
             wrap="nowrap"
-            style={(theme) => ({
-                borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-            })}
+            className={classes.toolbar}
         >
             <Group gap="xs" wrap="nowrap">
                 <MantineIcon icon={IconFilter} color="ldGray" />

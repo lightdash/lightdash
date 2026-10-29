@@ -83,6 +83,7 @@ import {
     buildAgentIdentityClaim,
     CatalogType,
     CommercialFeatureFlags,
+    composerNodeContextKey,
     ConflictError,
     ContentType,
     DATA_APP_VIZ_TEMPLATE,
@@ -176,7 +177,6 @@ import {
     ShareUrl,
     SlackPrompt,
     sleep,
-    SpaceMemberRole,
     substituteAiAgentSkillArguments,
     ToolDashboardV2Args,
     toolDashboardV2ArgsSchemaPersisted,
@@ -214,6 +214,7 @@ import {
     type ApiAiAgentComposerArtifactVizQuery,
     type ApiGetAsyncQueryResults,
     type AppGeneratePipelineJobPayload,
+    type ComposerApiConnection,
     type ComposerStoredChartVizConfig,
     type DataAppVizChart,
     type DuckdbSourceQuery,
@@ -424,7 +425,6 @@ import {
 import { generateChartMetadata } from '../ai/agents/chartMetadataGenerator';
 import { generateCompactionSummary } from '../ai/agents/compactionGenerator';
 import { generateEmbedding } from '../ai/agents/embeddingGenerator';
-import { routeProjectForSlack } from '../ai/agents/projectRouter';
 import { generateArtifactQuestion } from '../ai/agents/questionGenerator';
 import { evaluateAgentReadiness } from '../ai/agents/readinessScorer';
 import {
@@ -564,7 +564,6 @@ import {
     DiscoverReposFn,
     EditDbtProjectFn,
     EditProjectContextFn,
-    EditRepoFn,
     ExploreRepoFn,
     ExportCustomChartTypeImageFn,
     GetPromptFn,
@@ -612,7 +611,6 @@ import {
     getMemoryCitationBlocks,
     getModernArtifactCardBlocks,
     getModernPullRequestCardBlocks,
-    getProjectSelectionBlocks,
     getReferencedArtifactsBlocks,
     getSlackAiAccessRefusalMessage,
     getSqlArtifactCardBlocks,
@@ -673,6 +671,7 @@ import { createWritebackAgentDeliveryGuard } from '../AiWritebackService/writeba
 import { type WritebackPreviewService } from '../AiWritebackService/WritebackPreviewService';
 import type { AppGenerateService } from '../AppGenerateService/AppGenerateService';
 import { resolveRenderableDataAppVizVersion } from '../AppGenerateService/dataAppVizRender';
+import { type ExternalConnectionService } from '../ExternalConnectionService/ExternalConnectionService';
 import { type MobilePushNotificationService } from '../MobilePushNotificationService/MobilePushNotificationService';
 import { ProjectContextService } from '../ProjectContextService/ProjectContextService';
 import { createReviewRemediationAgentWorkGuard } from '../reviewRemediationAgentWork';
@@ -971,6 +970,10 @@ type AiAgentServiceDependencies = {
     analytics: LightdashAnalytics;
     asyncQueryService: AsyncQueryService;
     querySourceService: Pick<QuerySourceService, 'submitQueries'>;
+    externalConnectionService: Pick<
+        ExternalConnectionService,
+        'listApiSourceConnections'
+    >;
     queryHistoryModel: Pick<QueryHistoryModel, 'pollForQueryCompletion'>;
     catalogService: CatalogService;
     catalogModel: CatalogModel;
@@ -1085,23 +1088,6 @@ function cleanupOAuthCache(): void {
 
 const REFUSAL_RE =
     /(doesn't have)|(does not have)|(couldn't (find|locate))|(could not (find|locate))|(no .{0,40}(field|data|column|metric|dimension))|(not available)|(doesn't seem to)|(does not seem to)|(unable to)|(i can't)|(i cannot)|(this dataset)/i;
-
-/**
- * The built-in "system" agent used as a fallback when an organization has no
- * configured agents (gated behind the AiSlackSystemAgentFallback feature
- * flag). It answers data questions with the normal query/find tools, and —
- * because the run path attaches the `editDbtProject` tool whenever
- * AiWriteback is enabled — it routes dbt/semantic-layer change requests to
- * the AI writeback flow.
- */
-const SYSTEM_AGENT_NAME = 'Lightdash Assistant';
-const SYSTEM_AGENT_INSTRUCTION = `You are Lightdash's built-in assistant. Help the user explore their data by using your query and find tools to answer questions about metrics, dimensions, charts, and dashboards.
-
-If the user asks about the current project or its underlying dbt project — for example which dbt project this is, which git repository or branch it connects to, or what dbt version or warehouse it uses — call the getProjectInfo tool and answer from its result. Do not guess these details.
-
-If the user asks you to change the dbt project or semantic layer — for example renaming or adding a metric or dimension, editing a model's YAML, or otherwise modifying definitions — use the editDbtProject tool, passing along the user's request. It opens a pull request against the project's dbt repository. Do not attempt to make such changes any other way.
-
-After a writeback, tell the user which Lightdash project and which GitHub repository the change was made against (the tool result includes both), so they can confirm it went to the right place.`;
 
 function detectClarifyingQuestion(text: string): boolean {
     return responseMatchesPromptInputRequestGate(text);
@@ -1327,6 +1313,8 @@ export class AiAgentService extends BaseService {
         QuerySourceService,
         'submitQueries'
     >;
+
+    private readonly externalConnectionService: AiAgentServiceDependencies['externalConnectionService'];
 
     private readonly queryHistoryModel: Pick<
         QueryHistoryModel,
@@ -1596,6 +1584,9 @@ export class AiAgentService extends BaseService {
                 case 'data_app_element':
                     key = dataAppElementContextKey(item);
                     break;
+                case 'composer_node':
+                    key = composerNodeContextKey(item);
+                    break;
                 case 'data_app_restore':
                     key = dataAppRestoreContextKey(item);
                     break;
@@ -1815,6 +1806,33 @@ export class AiAgentService extends BaseService {
                     return;
                 }
 
+                if (item.type === 'composer_node') {
+                    if (allowedSpaces) {
+                        throw new ForbiddenError(
+                            'Pipeline nodes are not available in embedded AI',
+                        );
+                    }
+                    const artifact = await this.aiAgentModel.getArtifact(
+                        item.artifactUuid,
+                        item.versionUuid,
+                    );
+                    if (
+                        artifact.artifactUuid !== item.artifactUuid ||
+                        !isAiComposerChartArtifactConfig(
+                            artifact.chartConfig,
+                        ) ||
+                        !artifact.chartConfig.queries.some(
+                            (node) => node.nodeId === item.nodeId,
+                        )
+                    ) {
+                        throw new NotFoundError('Pipeline node not found');
+                    }
+                    await this.validateThreadContextAccess(user, {
+                        threadUuid: artifact.threadUuid,
+                    });
+                    return;
+                }
+
                 // data_app_restore is written by the thread restore endpoint only.
                 if (item.type === 'data_app_restore') {
                     throw new ForbiddenError(
@@ -1998,6 +2016,7 @@ export class AiAgentService extends BaseService {
         this.analytics = dependencies.analytics;
         this.asyncQueryService = dependencies.asyncQueryService;
         this.querySourceService = dependencies.querySourceService;
+        this.externalConnectionService = dependencies.externalConnectionService;
         this.queryHistoryModel = dependencies.queryHistoryModel;
         this.catalogService = dependencies.catalogService;
         this.catalogModel = dependencies.catalogModel;
@@ -2771,17 +2790,11 @@ export class AiAgentService extends BaseService {
                 return;
             case 'classic':
             case 'composer': {
-                const [multiSourceQuery, composeSqlRunner] = await Promise.all([
-                    this.featureFlagService.get({
-                        user,
-                        featureFlagId: FeatureFlags.MultiSourceQuery,
-                    }),
-                    this.featureFlagService.get({
-                        user,
-                        featureFlagId: FeatureFlags.ComposeSqlRunner,
-                    }),
-                ]);
-                if (!multiSourceQuery.enabled || !composeSqlRunner.enabled) {
+                const composeSqlRunner = await this.featureFlagService.get({
+                    user,
+                    featureFlagId: FeatureFlags.ComposeSqlRunner,
+                });
+                if (!composeSqlRunner.enabled) {
                     throw new ForbiddenError(
                         'Composer queries must be enabled to compare query paths',
                     );
@@ -3484,20 +3497,13 @@ export class AiAgentService extends BaseService {
                     },
                 }),
             );
-        const canCreateDashboards = await this.canCreateDashboardsInProject(
-            user,
-            { organizationUuid, projectUuid },
-        );
+        const canCreateDashboards =
+            await this.aiAgentToolsService.canAuthorContent({
+                user,
+                projectUuid,
+            });
         const canManageContent =
-            agent.enableContentTools &&
-            auditedAbility.can(
-                'create',
-                subject('ContentAsCode', {
-                    organizationUuid,
-                    projectUuid,
-                    metadata: { agentUuid, threadUuid },
-                }),
-            );
+            agent.enableContentTools && canCreateDashboards;
         const enabledTools = getEnabledSuggestionTools({
             canRunSql,
             canCreateDashboards,
@@ -3837,69 +3843,6 @@ export class AiAgentService extends BaseService {
             droppedChipCount,
         );
         return { chips, source: responseSource };
-    }
-
-    /**
-     * Mirrors the space picker in the agent's save-dashboard modal: a generated
-     * dashboard is only actionable if the user can write one somewhere.
-     */
-    private async canCreateDashboardsInProject(
-        user: SessionUser,
-        {
-            organizationUuid,
-            projectUuid,
-        }: { organizationUuid: string; projectUuid: string },
-    ): Promise<boolean> {
-        const auditedAbility = this.createAuditedAbility(user);
-        try {
-            const spaces = await this.projectService.getSpaces(
-                user,
-                projectUuid,
-            );
-            const canWriteToExistingSpace = spaces.some((space) =>
-                auditedAbility.can(
-                    'create',
-                    subject('Dashboard', {
-                        ...space,
-                        access: space.userAccess ? [space.userAccess] : [],
-                    }),
-                ),
-            );
-            if (canWriteToExistingSpace) return true;
-
-            // Creating a space makes the creator its admin, so also allow the
-            // "save into a new space" path the modal offers.
-            return (
-                auditedAbility.can(
-                    'create',
-                    subject('Space', { organizationUuid, projectUuid }),
-                ) &&
-                auditedAbility.can(
-                    'create',
-                    subject('Dashboard', {
-                        organizationUuid,
-                        projectUuid,
-                        access: [
-                            {
-                                userUuid: user.userUuid,
-                                role: SpaceMemberRole.ADMIN,
-                                hasDirectAccess: true,
-                                projectRole: undefined,
-                                inheritedRole: undefined,
-                                inheritedFrom: undefined,
-                            },
-                        ],
-                    }),
-                )
-            );
-        } catch (error) {
-            Logger.warn(
-                `[AiAgentService] Failed to resolve dashboard write access for suggestions, assuming none: ${String(
-                    error,
-                )}`,
-            );
-            return false;
-        }
     }
 
     // Flattens the cached warehouse catalog to up to 50 `database.schema.table`
@@ -6498,13 +6441,11 @@ export class AiAgentService extends BaseService {
                 (toolName) =>
                     canRunSql || !isDeepResearchRawSqlMcpTool(toolName),
             );
-            const canUseContentTools =
-                agent.enableDataAccess &&
-                agent.enableContentTools &&
-                ability.can(
-                    'create',
-                    subject('ContentAsCode', getSubjectAttributes()),
-                );
+            const canUseContentTools = await this.canUseContentTools(
+                user,
+                agent,
+                projectUuid,
+            );
             const knowledgeDocuments =
                 await this.aiAgentDocumentModel.findAllForAgent({
                     organizationUuid: agent.organizationUuid,
@@ -11744,6 +11685,35 @@ export class AiAgentService extends BaseService {
         });
     }
 
+    /** The project's API connections the user may query, offered as composer api nodes. */
+    private async getComposerApiConnections(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<ComposerApiConnection[]> {
+        const { enabled } = await this.featureFlagService.get({
+            user,
+            featureFlagId: FeatureFlags.ApiQuerySources,
+        });
+        if (!enabled) return [];
+        const connections =
+            await this.externalConnectionService.listApiSourceConnections(
+                fromSession(user),
+                projectUuid,
+            );
+        return connections.flatMap(
+            ({ externalConnectionUuid, name, apiSource }) =>
+                apiSource
+                    ? [
+                          {
+                              connectionUuid: externalConnectionUuid,
+                              name,
+                              connector: apiSource.connector,
+                          },
+                      ]
+                    : [],
+        );
+    }
+
     private async getAgentSettings(
         user: SessionUser,
         prompt: SlackPrompt | AiWebAppPrompt,
@@ -12538,6 +12508,8 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
                     const slugText = item.appSlug ?? '(slug unavailable)';
                     return `- Element reference ${elementReferenceToWireString(item)} in data app "${name}" (appSlug: ${slugText}, version ${item.version}) — the app's source is not readable in this thread; copy the bracketed reference verbatim into the iterateDataApp brief so the coding agent can locate the element.`;
                 }
+                case 'composer_node':
+                    return `- Pipeline node "${item.title}" (nodeId: ${item.nodeId}) — the step of this thread's pipeline the user is pointing at.`;
                 case 'data_app_restore': {
                     const name = item.displayName ?? '(name unavailable)';
                     const slugText = item.appSlug ?? '(slug unavailable)';
@@ -12571,13 +12543,32 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
                       )
                       .join('\n')}`;
 
+        // Each closing sentence renders only when an item it covers is attached.
+        const guidance = [
+            context.some(
+                (item) =>
+                    item.type === 'chart' ||
+                    item.type === 'dashboard' ||
+                    item.type === 'data_app',
+            )
+                ? "Use your existing tools to inspect them when relevant to the user's question (readContent for charts, dashboards, and data apps)."
+                : null,
+            context.some(
+                (item) =>
+                    (item.type === 'chart' || item.type === 'dashboard') &&
+                    item.runtimeOverrides !== null,
+            )
+                ? "When runtime overrides are listed, apply them on top of the chart's saved state when querying."
+                : null,
+        ].filter((sentence): sentence is string => sentence !== null);
+        const guidanceSection =
+            guidance.length === 0 ? '' : `\n\n${guidance.join(' ')}`;
+
         return {
             role: 'user',
             content: `\
 The user attached the following to this message as context:
-${lines.join('\n')}
-
-Use your existing tools to inspect them when relevant to the user's question (readContent for charts, dashboards, and data apps). When runtime overrides are listed, apply them on top of the chart's saved state when querying.${inlinedSection}`,
+${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         } satisfies UserModelMessage;
     }
 
@@ -14330,71 +14321,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
             return { aiWritebackRunUuid };
         };
 
-        // General-purpose coding agent: edit any writable repo and open a PR,
-        // with no dbt compile / preview step (verification lives in the PR's
-        // CI). Mirrors editDbtProject's progress streaming + Slack reaction but
-        // returns the base writeback result directly.
-        const editRepo: EditRepoFn = async (args) => {
-            const editRepoProgressCallback = (message: string) => {
-                void updateProgress(
-                    message,
-                    `editRepo:${message}`,
-                    args.progressId
-                        ? `${args.progressId}:${message}`
-                        : undefined,
-                    'complete',
-                ).catch((err) => {
-                    Logger.debug(
-                        `Failed to update progress for coding agent (${message}):`,
-                        err,
-                    );
-                });
-            };
-
-            if (!args.prompt) {
-                throw new ParameterError(
-                    'A prompt is required for the coding agent',
-                );
-            }
-
-            const result = await wrapSentryTransaction(
-                'AiAgent.editRepo',
-                {},
-                () =>
-                    this.aiWritebackService.runEditRepo({
-                        agentPermissionsApply: true,
-                        user,
-                        projectUuid,
-                        repoTarget: args.repoTarget,
-                        prompt: args.prompt!,
-                        prUrl: args.prUrl,
-                        startNewPullRequest: args.startNewPullRequest ?? false,
-                        aiThreadUuid: prompt.threadUuid,
-                        promptUuid: prompt.promptUuid,
-                        source: isSlackPrompt(prompt) ? 'slack' : 'web',
-                        onProgress: editRepoProgressCallback,
-                    }),
-            );
-
-            if (result.prUrl && isSlackPrompt(prompt)) {
-                void this.slackClient
-                    .addReaction({
-                        organizationUuid,
-                        channel: prompt.slackChannelId,
-                        timestamp: prompt.promptSlackTs,
-                        name: 'white_check_mark',
-                    })
-                    .catch((err) => {
-                        Logger.debug(
-                            'Failed to add :white_check_mark: reaction to coding-agent mention:',
-                            err,
-                        );
-                    });
-            }
-
-            return result;
-        };
-
         // Read-only repo access for the exploreRepo tool, exposed as ONE virtual
         // filesystem (a MountingRepoFileSystem): the dbt project mounted
         // subPath-scoped at /dbt, plus authorized repositories mounted whole at
@@ -14822,7 +14748,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
             searchFieldValues: toolsRuntime.searchFieldValues,
             editDbtProject,
             editProjectContext,
-            editRepo,
             exploreRepo,
             readAttachments,
             discoverRepos,
@@ -15889,31 +15814,16 @@ Use your existing tools to inspect them when relevant to the user's question (re
         }
     }
 
-    private canUseContentTools(
+    /** The agent offers content editing when the setting is on and the user can save content in the project. */
+    private async canUseContentTools(
         user: SessionUser,
-        agent: AiAgent,
-        target: {
-            organizationUuid: string;
-            projectUuid: string;
-            promptUuid: string;
-            threadUuid: string;
-        },
-    ): boolean {
+        agent: Pick<AiAgent, 'enableContentTools' | 'enableDataAccess'>,
+        projectUuid: string,
+    ): Promise<boolean> {
         return (
             agent.enableContentTools &&
             agent.enableDataAccess &&
-            this.createAuditedAbility(user).can(
-                'create',
-                subject('ContentAsCode', {
-                    organizationUuid: target.organizationUuid,
-                    projectUuid: target.projectUuid,
-                    metadata: {
-                        promptUuid: target.promptUuid,
-                        threadUuid: target.threadUuid,
-                        agentUuid: agent.uuid,
-                    },
-                }),
-            )
+            this.aiAgentToolsService.canAuthorContent({ user, projectUuid })
         );
     }
 
@@ -15938,7 +15848,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         if (
             documentSlug === null ||
             pinsOtherContent ||
-            !this.canUseContentTools(user, agent, prompt)
+            !(await this.canUseContentTools(user, agent, prompt.projectUuid))
         ) {
             return null;
         }
@@ -16768,8 +16678,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 // anywhere should not have the agent build one for them, only to be
                 // refused at the save step.
                 const canCreateDashboards = hasTrustedPromptUserIdentity
-                    ? await this.canCreateDashboardsInProject(user, {
-                          organizationUuid: promptProject.organizationUuid,
+                    ? await this.aiAgentToolsService.canAuthorContent({
+                          user,
                           projectUuid: promptProject.projectUuid,
                       })
                     : false;
@@ -16859,20 +16769,11 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         deepResearchContextRuns,
                         latestDeepResearchProgress,
                     );
-                // Web-chat composer requires both orchestration and execution flags.
-                const [
-                    { enabled: multiSourceQueryEnabled },
-                    { enabled: composeSqlRunnerEnabled },
-                ] = await Promise.all([
-                    this.featureFlagService.get({
-                        user,
-                        featureFlagId: FeatureFlags.MultiSourceQuery,
-                    }),
-                    this.featureFlagService.get({
+                const { enabled: composeSqlRunnerEnabled } =
+                    await this.featureFlagService.get({
                         user,
                         featureFlagId: FeatureFlags.ComposeSqlRunner,
-                    }),
-                ]);
+                    });
                 const standardToolAllowlist =
                     responseExecution.mode === 'standard'
                         ? resolveStandardToolAllowlist(
@@ -16881,7 +16782,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
                           )
                         : undefined;
                 const enableComposerQueries = isComposerQueriesEnabled({
-                    multiSourceQueryEnabled,
                     composeSqlRunnerEnabled,
                     agent: agentSettings,
                     isDeepResearch: responseExecution.mode === 'deep_research',
@@ -16889,6 +16789,12 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         standardToolAllowlist !== undefined,
                     battleProfile,
                 });
+                const composerApiConnections = enableComposerQueries
+                    ? await this.getComposerApiConnections(
+                          user,
+                          prompt.projectUuid,
+                      )
+                    : [];
                 const { enabled: filterExpressionsEnabled } =
                     await this.featureFlagService.get({
                         user,
@@ -16907,30 +16813,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     !writebackConnectionSupport.editDbtProject
                 ) {
                     aiWritebackEnabled = false;
-                }
-
-                // General coding agent (editRepo): gated by the CodingAgent flag,
-                // independent of AiWriteback, with the same Slack trusted-identity guard.
-                // It still requires a GitHub/GitLab connection on the project (the host
-                // follows the project's connection), but the agent can target ANY repo
-                // that installation can write — the per-repo write authz (manage:SourceCode
-                // + denylist + user∩installation) is enforced in AiWritebackService.
-                let { enabled: codingAgentEnabled } =
-                    await this.featureFlagService.get({
-                        user,
-                        featureFlagId: FeatureFlags.CodingAgent,
-                    });
-                if (codingAgentEnabled && !hasTrustedPromptUserIdentity) {
-                    this.logger.info(
-                        `Disabling editRepo for Slack prompt ${prompt.promptUuid} because aiRequireOAuth is off.`,
-                    );
-                    codingAgentEnabled = false;
-                }
-                if (
-                    codingAgentEnabled &&
-                    !writebackConnectionSupport.editRepo
-                ) {
-                    codingAgentEnabled = false;
                 }
 
                 // Advisory signal of which GitHub identity a writeback PR would be
@@ -16969,7 +16851,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
 
                 const projectContextEnabled =
                     aiWritebackEnabled &&
-                    writebackConnectionSupport.editRepo &&
+                    writebackConnectionSupport.supportsProjectContext &&
                     (await this.aiOrganizationSettingsService.isAiAgentReviewsEnabled(
                         user,
                     ));
@@ -17022,12 +16904,11 @@ Use your existing tools to inspect them when relevant to the user's question (re
 
                 const canUseContentTools =
                     hasTrustedPromptUserIdentity &&
-                    this.canUseContentTools(user, agentSettings, {
-                        organizationUuid: promptProject.organizationUuid,
-                        projectUuid: promptProject.projectUuid,
-                        promptUuid: prompt.promptUuid,
-                        threadUuid: prompt.threadUuid,
-                    });
+                    (await this.canUseContentTools(
+                        user,
+                        agentSettings,
+                        promptProject.projectUuid,
+                    ));
                 const enableGenerateDataApp =
                     canUseContentTools &&
                     (await this.aiAgentToolsService.canGenerateDataApp({
@@ -17094,7 +16975,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     searchFieldValues,
                     editDbtProject,
                     editProjectContext,
-                    editRepo,
                     exploreRepo,
                     readAttachments,
                     discoverRepos,
@@ -17389,7 +17269,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     enableAiWriteback: aiWritebackEnabled,
                     enableEditProjectContext: isReviewRemediationWorkThread,
                     writebackAttribution,
-                    enableCodingAgent: codingAgentEnabled,
                     enableRepoDiscovery: repoDiscoveryEnabled,
                     enableReadAttachments: threadHasAttachments,
                     enableFilterExpressions: filterExpressionsEnabled,
@@ -17397,6 +17276,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     repoFsSupportsCodeSearch,
                     canRunSql,
                     enableComposerQueries,
+                    composerApiConnections,
                     canCreateDashboards,
                     autoApproveSql:
                         (options.autoApproveSql ?? false) ||
@@ -17599,7 +17479,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     searchFieldValues,
                     editDbtProject,
                     editProjectContext,
-                    editRepo,
                     exploreRepo,
                     readAttachments,
                     discoverRepos,
@@ -19475,7 +19354,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 case 'getPullRequestDiff':
                 case 'listWorkstreams':
                     return 'Inspecting the project files...';
-                case 'editRepo':
                 case 'closePullRequest':
                 case 'editContent':
                 case 'createContent':
@@ -21461,9 +21339,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
     /**
      * A mention landed in a regular channel with no agent mapped to it.
      *
-     * Order matters: the explicit-linking setting must be evaluated before the
-     * system-agent fallback, otherwise the fallback silently auto-creates and
-     * answers as a system agent in channels an admin deliberately locked down.
+     * The explicit-linking setting is evaluated first; when it is off the user
+     * is offered the agents they can link to the channel.
      *
      * @returns the agent to answer with, or 'handled' when the user has already
      * been told what to do next and the caller should stop.
@@ -21479,7 +21356,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
         say: SayFn;
         client: WebClient;
         slackUserId: string;
-        promptText: string;
         visibleProjectUuids: string[] | null | undefined;
     }): Promise<AiAgent | 'handled'> {
         const {
@@ -21491,7 +21367,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
             say,
             client,
             slackUserId,
-            promptText,
             visibleProjectUuids,
         } = args;
         const threadAnchorTs = threadTs ?? messageTs;
@@ -21510,22 +21385,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 text: this.getExplicitSlackChannelLinkingMessage(),
             });
             return 'handled';
-        }
-
-        const fallback = await this.resolveSystemAgentForSlack({
-            organizationUuid,
-            userUuid,
-            projectUuids: undefined,
-            say,
-            slackChannelId: channelId,
-            threadTs: threadAnchorTs,
-            promptText,
-        });
-        if (fallback === 'handled') {
-            return 'handled';
-        }
-        if (fallback) {
-            return fallback;
         }
 
         const linkedAgent = await this.showChannelLinkAgentPicker({
@@ -21550,169 +21409,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
      *
      * @returns The selected agent and a flag indicating whether to skip forwarding the query, or undefined if selection is pending (UI shown) or no agents available
      */
-    /**
-     * Resolve the built-in system agent to use when no agents are configured.
-     * Gated behind the AiSlackSystemAgentFallback feature flag.
-     *
-     * Returns:
-     *  - an `AiAgentWithContext` to use as the fallback agent;
-     *  - `'handled'` when it has already replied to the user (e.g. asking which
-     *    project to use) and the caller should stop;
-     *  - `undefined` when the fallback does not apply (flag off) and the caller
-     *    should keep its existing behaviour.
-     */
-    private async resolveSystemAgentForSlack({
-        organizationUuid,
-        userUuid,
-        projectUuids,
-        say,
-        slackChannelId,
-        threadTs,
-        promptText,
-    }: {
-        organizationUuid: string;
-        userUuid: string;
-        // Optional restriction (e.g. the multi-agent channel's project filter).
-        // When omitted, all of the organization's projects are candidates.
-        projectUuids: string[] | null | undefined;
-        say: SayFn;
-        slackChannelId: string;
-        // Thread anchor (the mention's own ts for a new thread, the root ts for
-        // a reply). Used for posting replies and the existing-thread lookup.
-        threadTs: string;
-        // The user's message, used to route directly to a named project.
-        promptText: string;
-    }): Promise<AiAgentWithContext | 'handled' | undefined> {
-        const user = await this.userModel.findSessionUserAndOrgByUuid(
-            userUuid,
-            organizationUuid,
-        );
-
-        const { enabled } = await this.featureFlagService.get({
-            user,
-            featureFlagId: FeatureFlags.AiSlackSystemAgentFallback,
-        });
-        if (!enabled) {
-            return undefined;
-        }
-
-        const resolveAgentForProject = async (projectUuid: string) => {
-            const agent = await this.aiAgentModel.getOrCreateSystemAgent({
-                organizationUuid,
-                projectUuid,
-                name: SYSTEM_AGENT_NAME,
-                instruction: SYSTEM_AGENT_INSTRUCTION,
-            });
-            const context = await this.getAgentSummaryContext(user, agent);
-            return { ...agent, context };
-        };
-
-        // If this Slack thread is already bound to a project, reuse it so
-        // follow-up mentions don't re-prompt for a project.
-        const existingThreadUuid =
-            await this.aiAgentModel.findThreadUuidBySlackChannelIdAndThreadTs(
-                slackChannelId,
-                threadTs,
-            );
-        if (existingThreadUuid) {
-            const thread =
-                await this.aiAgentModel.findThread(existingThreadUuid);
-            if (thread?.projectUuid) {
-                return resolveAgentForProject(thread.projectUuid);
-            }
-        }
-
-        // Candidate projects: org projects the user can view, optionally
-        // restricted to the channel's configured project filter.
-        const orgProjects =
-            await this.projectModel.getAllByOrganizationUuid(organizationUuid);
-        const allowed =
-            projectUuids && projectUuids.length > 0
-                ? new Set(projectUuids)
-                : null;
-        const auditedAbility = this.createAuditedAbility(user);
-        const candidateProjects = orgProjects.filter(
-            (project) =>
-                (!allowed || allowed.has(project.projectUuid)) &&
-                auditedAbility.can(
-                    'view',
-                    subject('Project', {
-                        organizationUuid,
-                        projectUuid: project.projectUuid,
-                    }),
-                ),
-        );
-
-        if (candidateProjects.length === 0) {
-            await say({
-                text: "⚠️ I couldn't find a project you have access to. Ask an admin to set one up or grant you access.",
-                thread_ts: threadTs,
-            });
-            return 'handled';
-        }
-
-        if (candidateProjects.length === 1) {
-            return resolveAgentForProject(candidateProjects[0].projectUuid);
-        }
-
-        // Multiple accessible projects. The system agent must work within one
-        // project before it can answer, so if the message clearly names a
-        // project, bind to it; otherwise ask the user to pick. The selection
-        // sets the project for this thread and all subsequent messages.
-        if (promptText.trim().length > 0) {
-            try {
-                const copilotConfig =
-                    await this.orgAiCopilotConfigResolver.getCopilotConfig({
-                        organizationUuid,
-                        projectUuid: null,
-                        // Routing picks a project before any project or agent
-                        // scope exists, so it runs on the org default.
-                        credentialUuid: null,
-                    });
-                const { model, keyManagement } = getModel(copilotConfig);
-                const routedProjectUuid = await routeProjectForSlack(
-                    model,
-                    candidateProjects.map((project) => ({
-                        projectUuid: project.projectUuid,
-                        name: project.name,
-                    })),
-                    promptText,
-                    { organizationUuid, userUuid, keyManagement },
-                    await this.getDecisionClient(
-                        { organizationUuid, userUuid },
-                        null,
-                    ),
-                );
-                if (routedProjectUuid) {
-                    return await resolveAgentForProject(routedProjectUuid);
-                }
-            } catch (e) {
-                // Routing is best-effort; on any failure fall back to the
-                // picker so the user is never blocked.
-                Logger.error(
-                    'Project routing failed, falling back to picker',
-                    e,
-                );
-            }
-        }
-
-        // Couldn't determine the project from the message: ask the user to pick
-        // one. handleProjectSelection resumes from here, recovering the original
-        // question from the Slack thread itself (no server-side state).
-        await say({
-            blocks: getProjectSelectionBlocks(
-                candidateProjects.map((project) => ({
-                    projectUuid: project.projectUuid,
-                    name: project.name,
-                })),
-                slackChannelId,
-            ),
-            text: 'This organization has multiple projects — pick one to continue.',
-            thread_ts: threadTs,
-        });
-        return 'handled';
-    }
-
     private async selectAgentForSlack({
         availableAgents,
         messageText,
@@ -21725,7 +21421,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
         isMultiAgentChannel,
         organizationUuid,
         userUuid,
-        multiAgentProjectUuids,
     }: {
         availableAgents: AiAgentWithContext[];
         messageText: string;
@@ -21738,7 +21433,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
         isMultiAgentChannel: boolean;
         organizationUuid: string;
         userUuid: string;
-        multiAgentProjectUuids: string[] | null | undefined;
     }): Promise<
         | { agent: AiAgentWithContext; shouldSkipForwardingQuery: boolean }
         | undefined
@@ -21755,24 +21449,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
             '⚠️ No AI agents are available. Please contact your administrator to configure agents.';
 
         if (availableAgents.length === 0) {
-            // No configured agents — fall back to the built-in system agent
-            // (gated behind AiSlackSystemAgentFallback). If the flag is off,
-            // keep the original "no agents" message.
-            const fallback = await this.resolveSystemAgentForSlack({
-                organizationUuid,
-                userUuid,
-                projectUuids: multiAgentProjectUuids,
-                say,
-                slackChannelId: channelId,
-                threadTs: threadTs ?? promptSlackTs,
-                promptText: messageText,
-            });
-            if (fallback === 'handled') {
-                return undefined;
-            }
-            if (fallback) {
-                return { agent: fallback, shouldSkipForwardingQuery: false };
-            }
             await say({
                 text: noAgentsMessage,
                 thread_ts: threadTs,
@@ -22139,7 +21815,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 isMultiAgentChannel,
                 organizationUuid,
                 userUuid,
-                multiAgentProjectUuids: slackSettings.aiMultiAgentProjectUuids,
             });
 
             if (!selectionResult) {
@@ -22580,284 +22255,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 }
             }
         });
-    }
-
-    /**
-     * Handles the project picker shown by resolveSystemAgentForSlack when an
-     * org has multiple projects and no agent is configured for the channel.
-     * Resolves the chosen project, binds the system agent to it, and replays the
-     * user's stashed question.
-     */
-    public handleProjectSelection(app: App) {
-        // Matches both the dropdown (action_id `select_project`) and the
-        // per-project buttons (`select_project:<index>`).
-        app.action(
-            /^select_project(:|$)/,
-            async ({ ack, body, client, context }) => {
-                await ack();
-
-                if (body.type !== 'block_actions') {
-                    return;
-                }
-
-                const action = body.actions[0];
-                let rawValue: string | undefined;
-                if (action?.type === 'static_select') {
-                    rawValue = action.selected_option?.value;
-                } else if (action?.type === 'button') {
-                    rawValue = action.value;
-                }
-                if (!rawValue) {
-                    return;
-                }
-
-                const { teamId } = context;
-                if (!teamId || !body.user?.id) {
-                    return;
-                }
-
-                try {
-                    // The action value is user-controlled (it round-trips
-                    // through Slack), so validate its shape before trusting
-                    // it. `projectName` round-trips so the confirmation
-                    // message can name the project without an extra lookup.
-                    const projectSelectionSchema = z
-                        .object({
-                            projectUuid: z.string().uuid().optional(),
-                            channelId: z.string().min(1).optional(),
-                            projectName: z.string().min(1).optional(),
-                            p: z.string().uuid().optional(),
-                            c: z.string().min(1).optional(),
-                            n: z.string().min(1).optional(),
-                        })
-                        .transform((value) => ({
-                            projectUuid: value.projectUuid ?? value.p,
-                            channelId: value.channelId ?? value.c,
-                            projectName: value.projectName ?? value.n,
-                        }))
-                        .pipe(
-                            z.object({
-                                projectUuid: z.string().uuid(),
-                                channelId: z.string().min(1),
-                                projectName: z.string().min(1),
-                            }),
-                        );
-                    const parseResult = projectSelectionSchema.safeParse(
-                        JSON.parse(rawValue),
-                    );
-                    if (!parseResult.success) {
-                        Logger.error('Invalid project selection value', {
-                            value: rawValue,
-                            error: parseResult.error.message,
-                        });
-                        return;
-                    }
-                    const { projectUuid, channelId, projectName } =
-                        parseResult.data;
-
-                    const organizationUuid =
-                        await this.slackAuthenticationModel.getOrganizationUuidFromTeamId(
-                            teamId,
-                        );
-
-                    const slackSettings =
-                        await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
-                            organizationUuid,
-                        );
-
-                    if (!slackSettings) {
-                        throw new NotFoundError(
-                            `Slack settings not found for organization ${organizationUuid}`,
-                        );
-                    }
-
-                    const threadTs =
-                        body.message && 'thread_ts' in body.message
-                            ? body.message.thread_ts
-                            : body.message?.ts;
-
-                    // Every downstream step needs the thread anchor (posting
-                    // replies, fetching thread history). Without it we can't
-                    // continue, so bail rather than calling Slack with an empty
-                    // ts.
-                    if (!threadTs) {
-                        Logger.error(
-                            'Project selection action has no thread timestamp',
-                        );
-                        return;
-                    }
-
-                    const authResult = await this.handleAiAgentAuth(
-                        slackSettings,
-                        {
-                            userId: body.user.id,
-                            teamId,
-                            threadTs,
-                            channelId,
-                            messageId: body.message?.ts || '',
-                            organizationUuid,
-                        },
-                        client,
-                    );
-
-                    if (!authResult) {
-                        return;
-                    }
-
-                    const { userUuid } = authResult;
-
-                    // Re-check the user can still view the chosen project.
-                    const user =
-                        await this.userModel.findSessionUserAndOrgByUuid(
-                            userUuid,
-                            organizationUuid,
-                        );
-                    const auditedAbility = this.createAuditedAbility(user);
-                    if (
-                        auditedAbility.cannot(
-                            'view',
-                            subject('Project', {
-                                organizationUuid,
-                                projectUuid,
-                            }),
-                        )
-                    ) {
-                        await client.chat.postEphemeral({
-                            channel: channelId,
-                            user: body.user.id,
-                            thread_ts: threadTs,
-                            text: '⚠️ You do not have access to that project.',
-                        });
-                        return;
-                    }
-
-                    // Recover the user's original question from the Slack
-                    // thread itself (Slack is the shared source of truth, so
-                    // this works across replicas without server-side state).
-                    const conversationHistory =
-                        await client.conversations.replies({
-                            channel: channelId,
-                            ts: threadTs,
-                            limit: 100,
-                        });
-                    const originalMessage = conversationHistory.messages?.find(
-                        (msg) =>
-                            msg.user === body.user.id &&
-                            !!msg.text &&
-                            msg.text.includes(`<@${context.botUserId}>`),
-                    );
-
-                    const agent =
-                        await this.aiAgentModel.getOrCreateSystemAgent({
-                            organizationUuid,
-                            projectUuid,
-                            name: SYSTEM_AGENT_NAME,
-                            instruction: SYSTEM_AGENT_INSTRUCTION,
-                        });
-
-                    // Replace the picker with a confirmation that names the
-                    // selected project, so the user has a record of which
-                    // project this conversation is bound to.
-                    if (body.message?.ts) {
-                        try {
-                            await client.chat.update({
-                                channel: channelId,
-                                ts: body.message.ts,
-                                text: `✅ Project selected: ${projectName}`,
-                                blocks: [
-                                    {
-                                        type: 'section',
-                                        text: {
-                                            type: 'mrkdwn',
-                                            text: `:white_check_mark: Working in *${projectName}*.`,
-                                        },
-                                    },
-                                ],
-                            });
-                        } catch (updateError) {
-                            Logger.error(
-                                'Failed to update project selection message',
-                                updateError,
-                            );
-                        }
-                    }
-
-                    // If we can't find the original question in the thread, ask
-                    // the user to repeat it rather than guessing.
-                    if (!originalMessage?.text || !originalMessage.ts) {
-                        await client.chat.postMessage({
-                            channel: channelId,
-                            thread_ts: threadTs,
-                            text: "Got it — ask your question again and I'll work in that project.",
-                        });
-                        return;
-                    }
-
-                    const [slackPromptUuid] = await this.createSlackPrompt({
-                        organizationUuid,
-                        userUuid,
-                        projectUuid,
-                        slackUserId: body.user.id,
-                        slackChannelId: channelId,
-                        slackThreadTs: threadTs,
-                        prompt: originalMessage.text,
-                        promptSlackTs: originalMessage.ts,
-                        agentUuid: agent.uuid,
-                    });
-
-                    void this.slackClient
-                        .setAssistantStatus({
-                            organizationUuid,
-                            channelId,
-                            threadTs: threadTs ?? originalMessage.ts,
-                            status: AiAgentService.THINKING_STATUS,
-                            loadingMessages:
-                                AiAgentService.THINKING_LOADING_MESSAGES,
-                        })
-                        .catch((error) => {
-                            Logger.debug(
-                                'Failed to set Slack assistant status:',
-                                error,
-                            );
-                        });
-
-                    await this.schedulerClient.slackAiPrompt({
-                        slackAppId: slackSettings.appId ?? null,
-                        slackPromptUuid,
-                        userUuid,
-                        projectUuid,
-                        organizationUuid,
-                    });
-                } catch (e) {
-                    if (e instanceof AiDuplicateSlackPromptError) {
-                        Logger.debug(
-                            'Duplicate slack prompt on project selection',
-                            e,
-                        );
-                        return;
-                    }
-                    Logger.error('Error handling project selection', e);
-                    if (
-                        body.user?.id &&
-                        'channel' in body &&
-                        body.channel?.id
-                    ) {
-                        try {
-                            await client.chat.postEphemeral({
-                                channel: body.channel.id,
-                                user: body.user.id,
-                                text: '⚠️ Something went wrong while selecting the project. Please try again or contact your administrator.',
-                            });
-                        } catch (notifyError) {
-                            Logger.error(
-                                'Failed to send error notification',
-                                notifyError,
-                            );
-                        }
-                    }
-                }
-            },
-        );
     }
 
     public handleChannelAgentLink(app: App) {
@@ -23709,7 +23106,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         say,
                         client,
                         slackUserId,
-                        promptText: originalMessageText,
                         visibleProjectUuids:
                             slackSettings.aiMultiAgentProjectUuids,
                     },
@@ -23861,8 +23257,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     isMultiAgentChannel,
                     organizationUuid,
                     userUuid,
-                    multiAgentProjectUuids:
-                        slackSettings.aiMultiAgentProjectUuids,
                 });
 
                 if (!selectionResult) {
@@ -23930,8 +23324,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         isMultiAgentChannel,
                         organizationUuid,
                         userUuid,
-                        multiAgentProjectUuids:
-                            slackSettings.aiMultiAgentProjectUuids,
                     });
 
                     if (!selectionResult) {
@@ -23962,7 +23354,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         });
                 } catch (e) {
                     // No agent mapped to this channel: explicit-linking gate,
-                    // then system-agent fallback, else offer to link an agent.
+                    // else offer to link an agent.
                     if (!(e instanceof AiAgentNotFoundError)) {
                         throw e;
                     }
@@ -23976,7 +23368,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
                             say,
                             client,
                             slackUserId: event.user,
-                            promptText: event.text ?? '',
                             visibleProjectUuids:
                                 slackSettings.aiMultiAgentProjectUuids,
                         });

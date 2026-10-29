@@ -26,7 +26,6 @@ import {
 import assertUnreachable from '../../utils/assertUnreachable';
 import { isHexCodeColor } from '../../utils/colors';
 import { toLlmJsonSchema } from '../../utils/zodJsonSchema';
-import { type DataAppAutoAnalysis } from './analysis';
 import { type ChartTypeIcon } from './chartTypeIcons';
 import {
     type DataAppVizConfigOption,
@@ -612,9 +611,6 @@ export type ApiGetAppResponse = ApiSuccess<{
     // and for chart types with no icon chosen.
     icon: ChartTypeIcon | null;
     verification: ContentVerificationInfo | null;
-    // Whether AI analysis runs when the app loads; 'inherit' takes the
-    // organization default.
-    autoAnalysis: DataAppAutoAnalysis;
 }>;
 
 export type ApiUpdateAppRequest = {
@@ -622,7 +618,6 @@ export type ApiUpdateAppRequest = {
     description?: string;
     // Custom chart types only; null clears the icon.
     icon?: ChartTypeIcon | null;
-    autoAnalysis?: DataAppAutoAnalysis;
 };
 
 export type ApiUpdateAppResponse = ApiSuccess<{
@@ -630,7 +625,6 @@ export type ApiUpdateAppResponse = ApiSuccess<{
     name: string;
     description: string;
     icon: ChartTypeIcon | null;
-    autoAnalysis: DataAppAutoAnalysis;
 }>;
 
 export type ApiDismissAddAnalysisOfferResponse = ApiSuccessEmpty;
@@ -1529,6 +1523,12 @@ export const APP_SDK_VIZ_POINT_MENU_PATH = '/__sdk/viz/point-menu';
 // qualify short field names. The bridge and the CLI preview proxy reply with
 // only the base table; never forwarded to the API.
 export const APP_SDK_EXPLORE_BASE_TABLE_PATH = '/__sdk/explore-base-table';
+
+// Host-answered virtual route: the SDK asks for the saved charts in a space
+// (by slug or uuid). The bridge and the CLI preview proxy answer with a
+// trimmed chart list resolved with the viewer's own credentials — space
+// access/member data never enters the iframe. Never forwarded to the API.
+export const APP_SDK_SPACE_CHARTS_PATH = '/__sdk/space-charts';
 
 // Data-point menu intent a viz sends to the virtual route: the untransformed
 // source row and metric slot (as for drill-down), plus the click position in

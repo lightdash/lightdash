@@ -10,6 +10,7 @@ import { describe, expect, it } from 'vitest';
 import {
     getCandidateOptions,
     getFieldCandidates,
+    getSharedNameFieldIds,
     getTileFieldCandidateIds,
     getTileStarterFieldIds,
 } from './fieldCandidates';
@@ -181,11 +182,8 @@ describe('metrics on a tile', () => {
         ).toEqual(['orders_profit']);
     });
 
-    it('start a control only where metric filters can be created', () => {
-        expect(getTileStarterFieldIds([status, revenue], false)).toEqual([
-            'orders_status',
-        ]);
-        expect(getTileStarterFieldIds([status, revenue], true)).toEqual([
+    it('start a control from metrics and dimensions', () => {
+        expect(getTileStarterFieldIds([status, revenue])).toEqual([
             'orders_revenue',
             'orders_status',
         ]);
@@ -193,7 +191,7 @@ describe('metrics on a tile', () => {
 
     it('start a control from any grain of a date', () => {
         expect(
-            getTileStarterFieldIds([status, createdMonth, createdDay], false),
+            getTileStarterFieldIds([status, createdMonth, createdDay]),
         ).toEqual([
             'orders_created_day',
             'orders_created_month',
@@ -245,5 +243,20 @@ describe('getCandidateOptions', () => {
         expect(getCandidateOptions(['gone'], [], fieldsMap)).toEqual([
             { value: 'gone', label: 'gone' },
         ]);
+    });
+});
+
+describe('getSharedNameFieldIds', () => {
+    const fieldsMap: Record<string, FilterableDimension> = Object.fromEntries(
+        all.map((field) => [`${field.table}_${field.name}`, field]),
+    );
+
+    it('lists only the rows whose name another row has, never an unknown one', () => {
+        expect(
+            getSharedNameFieldIds(
+                ['orders_status', 'orders_region', 'customers_status', 'gone'],
+                (fieldId) => fieldsMap[fieldId],
+            ),
+        ).toEqual(['orders_status', 'customers_status']);
     });
 });

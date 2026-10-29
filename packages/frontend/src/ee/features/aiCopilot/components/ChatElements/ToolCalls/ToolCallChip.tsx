@@ -25,23 +25,15 @@ type ToolCallChipProps = Omit<BadgeProps, 'children' | 'maw'> & {
 export const ToolCallChip: FC<ToolCallChipProps> = ({
     children,
     maxWidth = rem(220),
-    style,
     ...rest
 }) => (
     <Badge
         component="span"
         size="xs"
         maw={maxWidth}
+        tt="none"
+        fw={400}
         {...rest}
-        style={{
-            textTransform: 'none',
-            fontWeight: 400,
-            ...(typeof style === 'object' &&
-            style !== null &&
-            !Array.isArray(style)
-                ? style
-                : {}),
-        }}
     >
         {typeof children === 'string' ? (
             <TruncatedText
@@ -49,7 +41,7 @@ export const ToolCallChip: FC<ToolCallChipProps> = ({
                 maxWidth={maxWidth}
                 fz="inherit"
                 c="inherit"
-                style={{ lineHeight: 'inherit' }}
+                lh="inherit"
             >
                 {children}
             </TruncatedText>

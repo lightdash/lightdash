@@ -41,12 +41,18 @@ if [[ "$FEATURE" == "data-app" ]]; then
     ECR_TAG="data-app"
     IMAGE_NAME="lightdash-data-app-microvm"
     HOME_DIR="/app"
+    # agent.js execs as root here, but e2b.Dockerfile chowns /app to `user`
+    # (E2B's exec user). Codex's bwrap sandbox runs in a user namespace where
+    # root has no rights over user-owned dirs, so every command fails. Align
+    # workspace ownership with the exec user (PROD-12566).
+    WORKSPACE_CHOWN="RUN chown -R root:root /app"
 else
     LOCAL_TAG="${2:-lightdash-ai-writeback:local}"
     LOCAL_DIR="../ai-writeback"
     ECR_TAG="writeback"
     IMAGE_NAME="lightdash-ai-writeback-microvm"
     HOME_DIR="/home/user"
+    WORKSPACE_CHOWN=""
 fi
 
 ECR_URI="${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/${ECR_REPO}:${ECR_TAG}"
@@ -122,6 +128,7 @@ cat >"$WORK/Dockerfile" <<DOCKERFILE
 FROM ${ECR_URI}
 COPY agent.js /opt/agent/agent.js
 ENV HOME=${HOME_DIR}
+${WORKSPACE_CHOWN}
 # The agent binds 8080 and answers /ready, so Lambda snapshots only once it is
 # listening (the build /ready hook). node resolves via PATH on both base images.
 ENTRYPOINT ["node", "/opt/agent/agent.js"]

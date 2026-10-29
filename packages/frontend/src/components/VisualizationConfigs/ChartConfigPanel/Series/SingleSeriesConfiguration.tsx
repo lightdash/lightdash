@@ -1,7 +1,6 @@
 import { type DraggableProvidedDragHandleProps } from '@hello-pangea/dnd';
 import {
     CartesianSeriesType,
-    ChartType,
     getReadableTextColor,
     type CartesianChartLayout,
     type Series,
@@ -26,9 +25,13 @@ import {
 } from '@tabler/icons-react';
 import { type FC } from 'react';
 import type useCartesianChartConfig from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
+import { useCartesianEditorActions } from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import { calculateSeriesLikeIdentifier } from '../../../../hooks/useChartColorConfig/utils';
 import MantineIcon from '../../../common/MantineIcon';
-import { useVisualizationState } from '../../../LightdashVisualization/useVisualizationContext';
+import {
+    useSeriesColor,
+    useVisualizationInputs,
+} from '../../../LightdashVisualization/useVisualizationContext';
 import ColorSelector from '../../ColorSelector';
 import { EditableText } from '../../common/EditableText';
 import { GrabIcon } from '../../common/GrabIcon';
@@ -64,8 +67,9 @@ const SingleSeriesConfiguration: FC<Props> = ({
     dragHandleProps,
     isDragDisabled,
 }) => {
-    const { visualizationConfig, colorPalette, getSeriesColor } =
-        useVisualizationState();
+    const { colorPalette } = useVisualizationInputs();
+    const getSeriesColor = useSeriesColor();
+    const { mergeMetadata } = useCartesianEditorActions();
     const { hovered, ref } = useHover();
 
     const type =
@@ -109,20 +113,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                                     calculateSeriesLikeIdentifier(series).join(
                                         '.',
                                     );
-
-                                if (
-                                    visualizationConfig.chartType ===
-                                    ChartType.CARTESIAN
-                                ) {
-                                    const { updateMetadata } =
-                                        visualizationConfig.chartConfig;
-
-                                    updateMetadata({
-                                        ...visualizationConfig.chartConfig
-                                            .dirtyMetadata,
-                                        [serieId]: { color },
-                                    });
-                                }
+                                mergeMetadata({ [serieId]: { color } });
                             }}
                         />
                     )}
@@ -305,9 +296,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                                     </Popover>
                                 ) : undefined
                             }
-                            rightSectionProps={{
-                                style: { pointerEvents: 'all' },
-                            }}
+                            rightSectionPointerEvents="all"
                             onChange={(value) => {
                                 updateSingleSeries({
                                     ...series,

@@ -54,7 +54,9 @@ import { OrganizationMemberProfileModel } from '../../../models/OrganizationMemb
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { RolesModel } from '../../../models/RolesModel';
 import { UserModel } from '../../../models/UserModel';
+import { assertHumanAgentPolicyMutation } from '../../../services/AgentPermissionService/assertHumanManagedMutation';
 import { BaseService } from '../../../services/BaseService';
+import { recordGroupMembershipChange } from '../../../services/groupMembershipAudit';
 import type { UserService } from '../../../services/UserService';
 import { wrapSentryTransaction } from '../../../utils';
 import { CommercialFeatureFlagModel } from '../../models/CommercialFeatureFlagModel';
@@ -1620,6 +1622,13 @@ export class ScimService extends BaseService {
         groupUuid: string,
         groupToUpdate: ScimUpsertGroup,
     ): Promise<ScimGroup> {
+        await assertHumanAgentPolicyMutation({
+            organizationUuid: account.organization.organizationUuid,
+            ability: account.user.ability,
+            oauth: account.authentication.type === 'oauth',
+            database: this.groupsModel.database,
+            featureFlagModel: this.commercialFeatureFlagModel,
+        });
         this.logger.info('SCIM: Replacing group', {
             organizationUuid,
             groupUuid,
@@ -1708,6 +1717,11 @@ export class ScimService extends BaseService {
                 },
             });
 
+            recordGroupMembershipChange(account, organizationUuid, groupUuid, {
+                operation: 'replace',
+                memberUuids: updatedGroup.memberUuids,
+            });
+
             const addedMemberUuids = updatedGroup.memberUuids.filter(
                 (userUuid) =>
                     !group.members.some(
@@ -1772,6 +1786,13 @@ export class ScimService extends BaseService {
         groupUuid: string,
         patchOp: ScimPatch,
     ): Promise<ScimGroup> {
+        await assertHumanAgentPolicyMutation({
+            organizationUuid: account.organization.organizationUuid,
+            ability: account.user.ability,
+            oauth: account.authentication.type === 'oauth',
+            database: this.groupsModel.database,
+            featureFlagModel: this.commercialFeatureFlagModel,
+        });
         this.logger.info('SCIM: Updating group with patch', {
             organizationUuid,
             groupUuid,
@@ -1851,6 +1872,11 @@ export class ScimService extends BaseService {
                           }
                         : {}),
                 },
+            });
+
+            recordGroupMembershipChange(account, organizationUuid, groupUuid, {
+                operation: 'replace',
+                memberUuids: updatedGroup.memberUuids,
             });
 
             const addedMemberUuids = updatedGroup.memberUuids.filter(
@@ -1960,6 +1986,13 @@ export class ScimService extends BaseService {
         organizationUuid: string,
         groupUuid: string,
     ): Promise<void> {
+        await assertHumanAgentPolicyMutation({
+            organizationUuid: account.organization.organizationUuid,
+            ability: account.user.ability,
+            oauth: account.authentication.type === 'oauth',
+            database: this.groupsModel.database,
+            featureFlagModel: this.commercialFeatureFlagModel,
+        });
         this.logger.info('SCIM: Deleting group', {
             organizationUuid,
             groupUuid,
@@ -1997,6 +2030,10 @@ export class ScimService extends BaseService {
             }
 
             await this.groupsModel.deleteGroup(groupUuid);
+            recordGroupMembershipChange(account, organizationUuid, groupUuid, {
+                operation: 'delete',
+                memberUuids: null,
+            });
             this.logger.info('SCIM: Successfully deleted group', {
                 organizationUuid,
                 groupUuid,

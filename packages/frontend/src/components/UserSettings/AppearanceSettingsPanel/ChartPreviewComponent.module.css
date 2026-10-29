@@ -1,0 +1,15 @@
+.chartLayer {
+    position: absolute;
+    height: 100%;
+    width: 100%;
+    display: none;
+
+    &[data-active] {
+        display: block;
+    }
+}
+
+.preview {
+    height: 100%;
+    flex: 1;
+}

@@ -672,7 +672,42 @@ describe('DashboardService', () => {
         },
     );
 
-    test('should schedule an embed PDF export when the token can export the dashboard as PDF', async () => {
+    test.each([
+        [SchedulerFormat.PDF, 'pdf'],
+        [SchedulerFormat.IMAGE, 'images'],
+    ] as const)(
+        'should schedule an embed %s export when the token can export the dashboard as it',
+        async (format, exportType) => {
+            const account = embedExportAccount();
+            (account.user as { ability: Ability<PossibleAbilities> }).ability =
+                new Ability<PossibleAbilities>([
+                    {
+                        subject: 'Dashboard',
+                        action: 'export',
+                        conditions: {
+                            type: exportType,
+                            'metadata.dashboardUuid': dashboard.uuid,
+                        },
+                    },
+                ]);
+
+            await service.scheduleExportContent(account, dashboard.uuid, {
+                format,
+                selectedTabs: ['tab-uuid'],
+            });
+
+            expect(schedulerClient.scheduleTask).toHaveBeenCalledWith(
+                SCHEDULER_TASKS.EXPORT_CONTENT,
+                expect.objectContaining({
+                    format,
+                    encodedJwt: 'encoded-jwt',
+                    selectedTabs: ['tab-uuid'],
+                }),
+            );
+        },
+    );
+
+    test('should reject an embed image export for a token with only the PDF grant', async () => {
         const account = embedExportAccount();
         (account.user as { ability: Ability<PossibleAbilities> }).ability =
             new Ability<PossibleAbilities>([
@@ -686,19 +721,12 @@ describe('DashboardService', () => {
                 },
             ]);
 
-        await service.scheduleExportContent(account, dashboard.uuid, {
-            format: SchedulerFormat.PDF,
-            selectedTabs: ['tab-uuid'],
-        });
-
-        expect(schedulerClient.scheduleTask).toHaveBeenCalledWith(
-            SCHEDULER_TASKS.EXPORT_CONTENT,
-            expect.objectContaining({
-                format: SchedulerFormat.PDF,
-                encodedJwt: 'encoded-jwt',
-                selectedTabs: ['tab-uuid'],
+        await expect(
+            service.scheduleExportContent(account, dashboard.uuid, {
+                format: SchedulerFormat.IMAGE,
             }),
-        );
+        ).rejects.toThrow(ForbiddenError);
+        expect(schedulerClient.scheduleTask).not.toHaveBeenCalled();
     });
 
     test('throws when an embed write token saves a SQL chart from outside the write space', async () => {
@@ -1254,7 +1282,40 @@ describe('DashboardService', () => {
             defaultDateZoomGranularity: null,
             dateZoomControlsCount: 0,
             dateZoomTileTargetsCount: 0,
+            sectionsCount: 0,
+            sectionedFiltersCount: 0,
+            collapsedByDefaultSectionsCount: 0,
         });
+    });
+    test('should include control section counts in create analytics, never names', () => {
+        const properties = DashboardService.getCreateEventProperties({
+            ...dashboard,
+            filters: {
+                dimensions: [
+                    { sectionId: 'dates' } as DashboardFilterRule,
+                    { sectionId: 'dates' } as DashboardFilterRule,
+                    // A section that no longer exists does not count
+                    { sectionId: 'gone' } as DashboardFilterRule,
+                    {} as DashboardFilterRule,
+                ],
+                metrics: [{ sectionId: 'regions' } as DashboardFilterRule],
+                tableCalculations: [],
+            },
+            config: {
+                isDateZoomDisabled: false,
+                controlSections: [
+                    { id: 'dates', name: 'Dates', collapsed: true },
+                    { id: 'regions', name: 'Regions', collapsed: false },
+                    { id: 'empty', name: 'Empty' },
+                ],
+            },
+        });
+        expect(properties).toMatchObject({
+            sectionsCount: 3,
+            sectionedFiltersCount: 3,
+            collapsedByDefaultSectionsCount: 1,
+        });
+        expect(JSON.stringify(properties)).not.toMatch(/Dates|Regions|Empty/);
     });
     test('should create dashboard with tile ids', async () => {
         const result = await service.create(
@@ -1314,6 +1375,9 @@ describe('DashboardService', () => {
                     dimensionFilterCount: 1,
                     metricFilterCount: 1,
                     lockedFilterCount: 1,
+                    sectionsCount: 0,
+                    sectionedFiltersCount: 0,
+                    collapsedByDefaultSectionsCount: 0,
                 }),
             }),
         );

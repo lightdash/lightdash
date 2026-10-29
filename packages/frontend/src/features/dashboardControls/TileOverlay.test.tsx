@@ -254,122 +254,39 @@ describe('TileOverlays', () => {
         setSidebar();
     });
 
-    describe('a hovered rail row', () => {
-        // On "both" only: every other tile is left out
-        const hovered = rule({
-            id: 'hovered',
-            tileTargets: {
-                [statusOnly.uuid]: false,
-                [otherTab.uuid]: false,
+    it('names a field with its table when another field of the filter has its name', async () => {
+        mockDashboardContext.current = {
+            ...mockDashboardContext.current,
+            allFilterableFieldsMap: {
+                orders_status: statusField,
+                orders_region: regionField,
+                customers_status: customerStatusField,
             },
-        });
-        beforeEach(() => {
-            mockDashboardContext.current = {
-                ...mockDashboardContext.current,
-                dashboardFilters: {
-                    dimensions: [rule(), hovered],
-                    metrics: [],
-                    tableCalculations: [],
+            filterableFieldsByTileUuid: {
+                [both.uuid]: [statusField, regionField],
+                [statusOnly.uuid]: [customerStatusField],
+                [otherTab.uuid]: [statusField],
+            },
+        };
+        setSidebar({
+            editingRule: rule({
+                tileTargets: {
+                    [statusOnly.uuid]: {
+                        fieldId: 'customers_status',
+                        tableName: 'customers',
+                    },
                 },
-            };
+            }),
         });
+        renderWithProviders(<TileOverlays />);
 
-        it('rings the tiles its filter is on, over the edited filter', () => {
-            setSidebar({
-                editing: { filterId: 'control' },
-                hoveredFilterId: 'hovered',
-            });
-            renderWithProviders(<TileOverlays />);
+        expect(select(statusOnly.uuid)).toHaveTextContent('Customers Status');
+        expect(select(both.uuid)).toHaveTextContent('Orders Status');
 
-            expect(overlay(both.uuid)).toHaveAttribute(
-                'data-highlighted',
-                'mapped',
-            );
-            // On the edited filter, not on the hovered one
-            expect(overlay(statusOnly.uuid)).not.toHaveAttribute(
-                'data-highlighted',
-            );
-            expect(overlay(markdown.uuid)).not.toHaveAttribute(
-                'data-highlighted',
-            );
-        });
-
-        it('clears once the row is left', () => {
-            setSidebar({
-                editing: { filterId: 'control' },
-                hoveredFilterId: 'hovered',
-            });
-            const { rerender } = renderWithProviders(<TileOverlays />);
-            setSidebar({
-                editing: { filterId: 'control' },
-                hoveredFilterId: null,
-            });
-            rerender(<TileOverlays />);
-
-            expect(overlay(statusOnly.uuid)).toHaveAttribute(
-                'data-highlighted',
-                'filtered',
-            );
-        });
-
-        it('rings only its tiles on this tab, with no veil, while nothing is edited', () => {
-            setSidebar({
-                editing: null,
-                editingRule: null,
-                hoveredFilterId: 'hovered',
-            });
-            const { rerender } = renderWithProviders(<TileOverlays />);
-
-            expect(
-                container(both.uuid).querySelector('[class*="reach"]'),
-            ).not.toBeNull();
-            expect(
-                container(both.uuid).querySelector('[data-controls-overlay]'),
-            ).toBeNull();
-            expect(container(statusOnly.uuid)).toBeEmptyDOMElement();
-            expect(container(otherTab.uuid)).toBeEmptyDOMElement();
-
-            setSidebar({
-                editing: null,
-                editingRule: null,
-                hoveredFilterId: null,
-            });
-            rerender(<TileOverlays />);
-            expect(container(both.uuid)).toBeEmptyDOMElement();
-        });
-
-        it('rings a tile on a field it no longer has, as the counts include it', () => {
-            mockDashboardContext.current = {
-                ...mockDashboardContext.current,
-                dashboardFilters: {
-                    dimensions: [
-                        rule(),
-                        {
-                            ...hovered,
-                            tileTargets: {
-                                ...hovered.tileTargets,
-                                [statusOnly.uuid]: {
-                                    fieldId: 'orders_gone',
-                                    tableName: 'orders',
-                                },
-                            },
-                        },
-                    ],
-                    metrics: [],
-                    tableCalculations: [],
-                },
-            };
-            setSidebar({
-                editing: null,
-                editingRule: null,
-                hoveredFilterId: 'hovered',
-            });
-            renderWithProviders(<TileOverlays />);
-
-            expect(
-                container(statusOnly.uuid).querySelector('[class*="reach"]'),
-            ).not.toBeNull();
-        });
+        // The real select keeps the name once it has taken over
+        await userEvent.click(select(statusOnly.uuid));
+        await userEvent.keyboard('{Escape}');
+        expect(select(statusOnly.uuid)).toHaveValue('Customers Status');
     });
 
     it('shows the field a filterable tile is filtered by', () => {

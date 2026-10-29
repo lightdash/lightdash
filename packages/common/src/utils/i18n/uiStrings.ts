@@ -9,7 +9,7 @@
 //   never an inline fallback.
 // - Dynamic parts use {token} placeholders with interpolateUiString; one key
 //   per English plural form, no ICU.
-// See packages/frontend/src/components/common/Filters/CLAUDE.md for the full
+// See packages/frontend/src/components/common/Filters/AGENTS.md for the full
 // mandate on adding strings to embed-reachable surfaces.
 export const DEFAULT_UI_STRINGS = {
     'agentAttribution.changedBy':
@@ -64,6 +64,8 @@ export const DEFAULT_UI_STRINGS = {
     'page.closeSidebar': 'Close sidebar',
     'page.closeDetails': 'Close details',
     'filters.closeFacet': 'Close {filter} filter',
+    'filters.sectionSummary': '{set} of {total} set',
+    'filters.sectionChanged': '{changed} changed',
     'metrics.previous': 'Previous metric',
     'metrics.next': 'Next metric',
     'metrics.closeExploration': 'Close metric exploration',
@@ -398,6 +400,7 @@ export const DEFAULT_UI_STRINGS = {
     'filters.rail.fieldCount.singular': '{count} field',
     'filters.rail.fieldCount.plural': '{count} fields',
     'filters.rail.countOf': '{applied} of {total}',
+    'filters.rail.tabFraction': '{applied}/{total}',
     'filters.rail.searchFields': 'Search fields',
     'filters.rail.startHint':
         'Select the field to filter tiles by, or pick one on a tile.',
@@ -420,6 +423,20 @@ export const DEFAULT_UI_STRINGS = {
         '{applied} of {total} tile on this tab is filtered by {subject}',
     'filters.rail.tabCountTooltip.plural':
         '{applied} of {total} tiles on this tab are filtered by {subject}',
+    'filters.rail.sectionCount.singular': '{count} filter',
+    'filters.rail.sectionCount.plural': '{count} filters',
+    'filters.rail.untitledSection': 'Untitled section',
+    'filters.rail.collapseSection': 'Collapse section {section}',
+    'filters.rail.expandSection': 'Expand section {section}',
+    'filters.rail.savedFilterReadOnly': 'Set this filter from the bar',
+    'filters.rail.add': 'Add',
+    'filters.rail.create': 'Create',
+    'filters.rail.discard': 'Discard',
+    'filters.rail.newBadge': 'New',
+    'filters.rail.editedBadge': 'Edited',
+    'filters.rail.editingBadge': 'Editing',
+    'filters.rail.applyBeforeOpening': 'Apply before opening {filter}?',
+    'filters.rail.createBeforeOpening': 'Create before opening {filter}?',
     'filters.tileCard.locked': 'Tiles are locked while a filter is edited',
     'filters.tileCard.unreachable':
         'This tile has no field this filter can use',
@@ -487,17 +504,48 @@ export const DEFAULT_UI_STRINGS = {
     'aiAgent.composer.loadingResult': 'Loading results...',
     'aiAgent.composer.resultError': 'This result could not be loaded',
     'aiAgent.composer.emptyResult': 'No rows returned',
+    'aiAgent.composer.view.chart': 'Chart',
+    'aiAgent.composer.view.lineage': 'Lineage',
+    'aiAgent.composer.lineage.focusNode': 'Focus {node}',
+    'aiAgent.composer.lineage.resize': 'Resize lineage graph and steps',
     'aiAgent.composer.nodeStatus.pending': 'Queued',
     'aiAgent.composer.nodeStatus.awaitingApproval': 'Awaiting approval',
     'aiAgent.composer.nodeStatus.running': 'Running',
     'aiAgent.composer.nodeStatus.success': 'Completed',
     'aiAgent.composer.nodeStatus.error': 'Failed',
+    'aiAgent.composer.node.viewResults': 'View results',
+    'aiAgent.composer.node.viewResultsOf': 'View results of {node}',
+    'aiAgent.composer.node.viewResultsCount.singular':
+        'View results ({count} row)',
+    'aiAgent.composer.node.viewResultsCount.plural':
+        'View results ({count} rows)',
+    'aiAgent.composer.node.collapse': 'Collapse step',
+    'aiAgent.composer.node.expand': 'Expand step',
+    'aiAgent.composer.node.addToChat': 'Add to chat',
+    'aiAgent.composer.node.exploreFromHere': 'Explore from here',
+    'aiAgent.composer.node.references': 'References',
+    'aiAgent.composer.node.finalResult': 'Final result',
+    'aiAgent.composer.node.sqlQuery': 'SQL query',
+    'aiAgent.composer.semanticNode.metricQuery': 'Metric query',
+    'aiAgent.composer.node.running': 'Running…',
+    'aiAgent.composer.node.queued': 'Queued, waiting on the steps it reads',
+    'aiAgent.composer.semanticNode.compiling': 'Compiling query…',
+    'aiAgent.composer.semanticNode.compileError':
+        'Could not compile this query.',
     'aiAgent.composer.semanticNode.view': 'View metric query',
     'aiAgent.composer.semanticNode.hide': 'Hide metric query',
+    'aiAgent.composer.semanticNode.viewSql': 'View SQL',
+    'aiAgent.composer.semanticNode.hideSql': 'Hide SQL',
+    'aiAgent.composer.semanticNode.explore': 'Explore',
+    'aiAgent.composer.semanticNode.fields': 'Fields',
+    'aiAgent.composer.semanticNode.filters': 'Filters',
+    'aiAgent.composer.semanticNode.parameters': 'Parameters',
+    'aiAgent.composer.semanticNode.sorts': 'Sorts',
     'aiAgent.composer.semanticNode.ascending': 'ascending',
     'aiAgent.composer.semanticNode.descending': 'descending',
     'aiAgent.composer.semanticNode.rows.singular': '{count} row',
     'aiAgent.composer.semanticNode.rows.plural': '{count} rows',
+    'aiAgent.composer.node.rowsReachedLimit': '{rows} · reached limit',
     'aiAgent.thread.boundDashboard': 'Linked dashboard',
     'aiAgent.thread.boundDashboardUnavailable': 'Dashboard no longer available',
     'aiAgent.thread.boundChart': 'Linked chart',

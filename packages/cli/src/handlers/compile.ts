@@ -10,6 +10,7 @@ import {
     getCompiledModels,
     getDbtManifestVersion,
     getErrorMessage,
+    getModelInventoryFromManifest,
     getModelsFromManifest,
     getSchemaStructureFromDbtModels,
     InlineErrorType,
@@ -782,6 +783,9 @@ export const compileProject = async (
                 allowPartialCompilation,
                 postProcessors: [preAggregatePostProcessor],
                 includeModelIdentity: true,
+                modelInventory: getModelInventoryFromManifest(manifest),
+                allowCrossSourceJoinFallback:
+                    manifest.lightdash_model_inventory_complete !== false,
             },
         );
         const validatedExplores =

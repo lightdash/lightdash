@@ -4,6 +4,7 @@ import CollapsableCard from '../../../components/common/CollapsableCard/Collapsa
 import { useMergeSafe } from '../context/useMerge';
 import { useMergeSetup } from '../hooks/useMergeSetup';
 import { MergeJoinBar } from './MergeJoinBar';
+import classes from './MergeRelationshipCard.module.css';
 
 const MergeRelationshipCardContent: FC = () => {
     const { keySummary, joinTypeLabel, sourceLabels, isIncomplete, setupStep } =
@@ -25,9 +26,7 @@ const MergeRelationshipCardContent: FC = () => {
                     color={isIncomplete ? 'orange' : 'gray'}
                     maw="min(70vw, 720px)"
                     title={badgeLabel}
-                    styles={{
-                        label: { overflow: 'hidden', textOverflow: 'ellipsis' },
-                    }}
+                    classNames={{ label: classes.badgeLabel }}
                 >
                     {badgeLabel}
                 </Badge>

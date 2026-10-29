@@ -172,6 +172,7 @@ const buildHarness = ({
                 if (!hit?.resultsFileName) return null;
                 return {
                     cacheHit: true,
+                    cacheGeneration: 0,
                     queryUuid: hit.queryUuid,
                     resultProducer: null,
                     cacheKey,

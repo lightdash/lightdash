@@ -95,6 +95,7 @@ import { SpotlightTableConfigModel } from './SpotlightTableConfigModel';
 import { SshKeyPairModel } from './SshKeyPairModel';
 import { TagsModel } from './TagsModel';
 import { UsageDimensionsModel } from './UsageDimensionsModel';
+import { UsageHistoryModel } from './UsageHistoryModel';
 import { UserAttributesModel } from './UserAttributesModel';
 import { UserAvatarModel } from './UserAvatarModel';
 import { UserFavoritesModel } from './UserFavoritesModel';
@@ -159,6 +160,7 @@ export type ModelManifest = {
     userLearnProgressModel: UserLearnProgressModel;
     organizationModel: OrganizationModel;
     usageDimensionsModel: UsageDimensionsModel;
+    usageHistoryModel: UsageHistoryModel;
     organizationDomainVerificationModel: OrganizationDomainVerificationModel;
     organizationEmailDomainModel: OrganizationEmailDomainModel;
     organizationSettingsModel: OrganizationSettingsModel;
@@ -370,6 +372,13 @@ export class ModelRepository
         return this.getModel(
             'analyticsModel',
             () => new AnalyticsModel({ database: this.database }),
+        );
+    }
+
+    public getUsageHistoryModel(): UsageHistoryModel {
+        return this.getModel(
+            'usageHistoryModel',
+            () => new UsageHistoryModel(this.database),
         );
     }
 

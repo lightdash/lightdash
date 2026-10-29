@@ -110,6 +110,7 @@ const renderPage = (
             </MemoryRouter>
         </MantineProvider>,
     );
+const GROUPS_URL = '/org/groups?includeMembers=1&sortBy=name&sortDirection=asc';
 const response = (url: string): ApiResponse['results'] =>
     url === '/org/projects'
         ? []
@@ -147,7 +148,7 @@ describe('Agents page loading boundary', () => {
                     '/aiAgents/admin/settings',
                 ]),
             );
-            expect(resolve.has('/org/groups?includeMembers=1')).toBe(false);
+            expect(resolve.has(GROUPS_URL)).toBe(false);
             const assertLoading = () => {
                 expect(
                     view.container.querySelectorAll('.mantine-Loader-root'),
@@ -162,9 +163,7 @@ describe('Agents page loading boundary', () => {
             assertLoading();
             await act(async () => resolve.get(second)?.(response(second)));
             assertLoading();
-            await waitFor(() =>
-                expect(resolve.has('/org/groups?includeMembers=1')).toBe(true),
-            );
+            await waitFor(() => expect(resolve.has(GROUPS_URL)).toBe(true));
             await act(async () =>
                 resolve.get('/aiAgents/admin/settings')?.(
                     response('/aiAgents/admin/settings'),
@@ -173,9 +172,7 @@ describe('Agents page loading boundary', () => {
             assertLoading();
             await act(async () => resolve.get('/org/projects')?.([]));
             assertLoading();
-            await act(async () =>
-                resolve.get('/org/groups?includeMembers=1')?.({ data: [] }),
-            );
+            await act(async () => resolve.get(GROUPS_URL)?.({ data: [] }));
             expect(await screen.findByText('Permissions')).toBeInTheDocument();
             expect(screen.getByText('Identity')).toBeInTheDocument();
             expect(
@@ -280,7 +277,7 @@ describe('Agents page loading boundary', () => {
             await waitFor(() =>
                 expect(api).toHaveBeenCalledWith(
                     expect.objectContaining({
-                        url: '/org/groups?includeMembers=1',
+                        url: GROUPS_URL,
                     }),
                 ),
             );
@@ -1006,7 +1003,7 @@ describe('Agents page identity integration', () => {
                 '/org/agent-identity',
                 '/org/agent-permissions',
                 '/aiAgents/admin/settings',
-                '/org/groups?includeMembers=1',
+                GROUPS_URL,
             ])
                 expect(
                     mockedLightdashApi.mock.calls.filter(

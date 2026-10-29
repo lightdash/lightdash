@@ -8,16 +8,7 @@ import {
     isSlackTarget,
     SchedulerFormat,
 } from '@lightdash/common';
-import {
-    Anchor,
-    Badge,
-    Box,
-    Group,
-    Stack,
-    Text,
-    Tooltip,
-    useMantineTheme,
-} from '@mantine/core';
+import { Anchor, Badge, Box, Group, Stack, Text, Tooltip } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import {
     IconChartBar,
@@ -86,7 +77,6 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
     onSlackChannelIdsChange,
     isUserScope = false,
 }) => {
-    const theme = useMantineTheme();
     const rowVirtualizerInstanceRef =
         useRef<ContentTableVirtualizer<HTMLDivElement, HTMLTableRowElement>>(
             null,
@@ -280,7 +270,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                                         fz="xs"
                                         label={
                                             <Stack gap="one" fz="xs">
-                                                <Text c="ldGray.5" fz="xs">
+                                                <Text c="gray.5" fz="xs">
                                                     Schedule type:{' '}
                                                     <Text
                                                         c="white"
@@ -291,7 +281,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                                                     </Text>
                                                 </Text>
                                                 {!isUserScope && (
-                                                    <Text c="ldGray.5" fz="xs">
+                                                    <Text c="gray.5" fz="xs">
                                                         Created by:{' '}
                                                         <Text
                                                             c="white"
@@ -310,10 +300,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                                             fw={600}
                                             fz="xs"
                                             lineClamp={1}
-                                            style={{
-                                                overflowWrap: 'anywhere',
-                                                cursor: 'pointer',
-                                            }}
+                                            className={classes.itemName}
                                             ref={isTruncated.ref}
                                         >
                                             {item.name}
@@ -454,13 +441,13 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                                         ).toLocaleString()}
                                     </Text>
                                     {latestRun.logCounts && (
-                                        <Text fz="xs" c="ldGray.5">
+                                        <Text fz="xs" c="dimmed">
                                             {latestRun.logCounts.completed}{' '}
                                             completed,{' '}
                                             {latestRun.logCounts.error} failed
                                         </Text>
                                     )}
-                                    <Text fz="xs" c="ldGray.4" fs="italic">
+                                    <Text fz="xs" c="dimmed" fs="italic">
                                         Click to view run history
                                     </Text>
                                 </Stack>
@@ -505,7 +492,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                                     ).toLocaleString()}
                                 </Text>
                                 {latestRun.logCounts && (
-                                    <Text fz="xs" c="ldGray.5">
+                                    <Text fz="xs" c="dimmed">
                                         {latestRun.logCounts.completed}{' '}
                                         completed, {latestRun.logCounts.error}{' '}
                                         failed
@@ -602,12 +589,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                             >
                                 <Group gap="two">
                                     <SlackSvg
-                                        style={{
-                                            margin: '5px 2px',
-                                            width: '12px',
-                                            height: '12px',
-                                            filter: 'grayscale(100%)',
-                                        }}
+                                        className={classes.destinationIcon}
                                     />
                                     <Text fz="xs" c="dimmed">
                                         Slack
@@ -620,12 +602,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                                 <Tooltip label={item.options.gdriveName}>
                                     <Group gap="two">
                                         <GSheetsSvg
-                                            style={{
-                                                margin: '5px 2px',
-                                                width: '12px',
-                                                height: '12px',
-                                                filter: 'grayscale(100%)',
-                                            }}
+                                            className={classes.destinationIcon}
                                         />
                                         <Anchor
                                             fz="xs"
@@ -650,12 +627,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                             >
                                 <Group gap="two">
                                     <GoogleChatSvg
-                                        style={{
-                                            margin: '5px 2px',
-                                            width: '12px',
-                                            height: '12px',
-                                            filter: 'grayscale(100%)',
-                                        }}
+                                        className={classes.destinationIcon}
                                     />
                                     <Text fz="xs" c="dimmed">
                                         Google Chat
@@ -800,66 +772,15 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
         getRowId: (row) => row.schedulerUuid,
         mantineTableContainerProps: {
             ref: tableContainerRef,
-            style: { maxHeight: 'calc(100dvh - 420px)' },
+            mah: 'calc(100dvh - 420px)',
             onScroll,
         },
         mantineTableProps: {
             highlightOnHover: true,
             withColumnBorders: Boolean(flatData.length),
         },
-        mantineTableHeadCellProps: (props) => {
-            const isLastColumn =
-                props.table.getAllColumns().indexOf(props.column) ===
-                props.table.getAllColumns().length - 1;
-
-            const isAnyColumnResizing = props.table
-                .getAllColumns()
-                .some((c) => c.getIsResizing());
-            const canResize = props.column.getCanResize();
-
-            return {
-                bg: 'ldGray.0',
-                h: '3xl',
-                pos: 'relative',
-                style: {
-                    userSelect: 'none',
-                    justifyContent: 'center',
-                    padding: `${theme.spacing.xs} ${theme.spacing.xl}`,
-                    borderTop: `1px solid ${theme.colors.ldGray[2]}`,
-                    borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                    borderRight: props.column.getIsResizing()
-                        ? `2px solid ${theme.colors.blue[3]}`
-                        : `1px solid ${
-                              isLastColumn
-                                  ? 'transparent'
-                                  : theme.colors.ldGray[2]
-                          }`,
-                    borderLeft: 'none',
-                },
-                sx: {
-                    '&:hover': canResize
-                        ? {
-                              borderRight: !isAnyColumnResizing
-                                  ? `2px solid ${theme.colors.blue[3]} !important`
-                                  : undefined,
-                              transition: `border-right ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
-                          }
-                        : {},
-                },
-            };
-        },
-        mantineTableBodyCellProps: () => {
-            return {
-                h: 72,
-                style: {
-                    padding: `${theme.spacing.md} ${theme.spacing.xl}`,
-                    borderRight: 'none',
-                    borderLeft: 'none',
-                    borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                    borderTop: 'none',
-                },
-            };
-        },
+        mantineTableHeadCellProps: { px: 'xl' },
+        mantineTableBodyCellProps: { h: 72, py: 'md', px: 'xl' },
         renderTopToolbar: ({ table: tableInstance }) => {
             const selectedRows = tableInstance
                 .getFilteredSelectedRowModel()

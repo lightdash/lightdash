@@ -91,9 +91,6 @@ const partitionFilter = (partitionColumn: PartitionColumn | undefined) => {
     return '';
 };
 
-const depthStyle = (depth: number) =>
-    ({ '--tree-depth': depth }) as React.CSSProperties;
-
 const TableItem: FC<{
     identity: TableIdentity;
     depth: number;
@@ -128,7 +125,7 @@ const TableItem: FC<{
                     onClick={() => onSelect(identity, partitionColumn)}
                     w="100%"
                     fz="sm"
-                    style={depthStyle(depth)}
+                    style={{ '--tree-depth': depth }}
                     data-active={isActive || undefined}
                     className={styles.tableButton}
                 >
@@ -209,7 +206,7 @@ const GroupItem: FC<{
         <UnstyledButton
             onClick={() => onToggle(id, isExpanded)}
             className={styles.groupButton}
-            style={depthStyle(depth)}
+            style={{ '--tree-depth': depth }}
             ff="inherit"
         >
             <Group wrap="nowrap" gap="xs">
@@ -277,7 +274,7 @@ const RecentItem: FC<{
             <Text fz="sm" truncate>
                 {identity.table}
             </Text>
-            <Text fz="xs" c="ldGray.5" ml="auto" flex="0 0 auto">
+            <Text fz="xs" c="dimmed" ml="auto" flex="0 0 auto">
                 {identity.schema}
             </Text>
         </UnstyledButton>
@@ -289,7 +286,7 @@ const LoadingItem: FC<{ depth: number }> = ({ depth }) => (
         gap="xs"
         wrap="nowrap"
         className={styles.messageRow}
-        style={depthStyle(depth)}
+        style={{ '--tree-depth': depth }}
     >
         <Loader size="xs" />
         <Text fz="xs" c="dimmed">
@@ -319,7 +316,7 @@ const ErrorItem: FC<{
         gap="xs"
         wrap="nowrap"
         className={styles.messageRow}
-        style={depthStyle(depth)}
+        style={{ '--tree-depth': depth }}
     >
         <MantineIcon
             icon={forbidden ? IconLock : IconAlertTriangle}
@@ -349,7 +346,7 @@ const TruncationItem: FC<{ depth: number; limit: number }> = ({
     depth,
     limit,
 }) => (
-    <Box className={styles.messageRow} style={depthStyle(depth)}>
+    <Box className={styles.messageRow} style={{ '--tree-depth': depth }}>
         <Text fz="xs" c="dimmed">
             {`Showing the first ${limit} databases. Name others in the connection settings.`}
         </Text>
@@ -530,12 +527,7 @@ const VirtualTreeList: FC<{
         type="auto"
     >
         {rows.length > 0 && (
-            <Box
-                style={{
-                    height: virtualizer.getTotalSize(),
-                    position: 'relative',
-                }}
-            >
+            <Box h={virtualizer.getTotalSize()} pos="relative">
                 {virtualizer.getVirtualItems().map((virtualRow) => {
                     const row = rows[virtualRow.index];
                     if (!row) return null;
@@ -544,13 +536,8 @@ const VirtualTreeList: FC<{
                             key={virtualRow.key}
                             data-index={virtualRow.index}
                             ref={virtualizer.measureElement}
-                            style={{
-                                position: 'absolute',
-                                top: 0,
-                                left: 0,
-                                width: '100%',
-                                transform: `translateY(${virtualRow.start}px)`,
-                            }}
+                            className={styles.virtualRow}
+                            style={{ '--row-start': `${virtualRow.start}px` }}
                         >
                             <VirtualRow
                                 row={row}

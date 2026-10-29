@@ -22,6 +22,7 @@ import { ItemDetailPreview } from '../ItemDetailPreview';
 import previewClasses from '../ItemDetailPreview.module.css';
 import { ITEM_DETAIL_PREVIEW_TRANSITION_PROPS } from '../itemDetailPreviewTransition';
 import { buildGroupKey } from '../Virtualization/types';
+import classes from './TreeGroupNode.module.css';
 import TreeNodes from './TreeNodes';
 import { type GroupNode, type Node } from './types';
 import useTableTree from './useTableTree';
@@ -134,11 +135,8 @@ const TreeGroupNodeComponent: FC<Props> = ({ node }) => {
             <MantineIcon
                 icon={IconChevronRight}
                 size={14}
-                style={{
-                    margin: 1,
-                    transition: 'transform 200ms ease',
-                    transform: isNavLinkOpen ? 'rotate(90deg)' : 'rotate(0deg)',
-                }}
+                className={classes.chevron}
+                data-open={isNavLinkOpen || undefined}
             />
         ),
         [isNavLinkOpen],

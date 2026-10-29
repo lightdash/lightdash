@@ -15,6 +15,7 @@ import {
 import type { Request } from 'express';
 import knex from 'knex';
 import { getTracker, MockClient } from 'knex-mock-client';
+import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import {
     fromApiKey,
     fromOauth,
@@ -133,6 +134,7 @@ const setup = (
         typeof QuerySourceRegistry.withBuiltInSources
     >[0]);
     const service = new QuerySourceService({
+        analytics: analyticsMock,
         getAsyncQueryService: () => ({
             assertCanReadStoredResults: vi.fn(async () => {}),
         }),

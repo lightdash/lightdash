@@ -44,6 +44,7 @@ import { filterOperatorLabel } from '../common/Filters/FilterInputs/constants';
 import MantineIcon from '../common/MantineIcon';
 import { IconBox } from '../common/ResourceIcon';
 import TruncatedText from '../common/TruncatedText';
+import classes from './PreAggregateMaterializations.module.css';
 
 const TRIGGER_LABELS: Record<string, string> = {
     compile: 'Project compile',
@@ -53,7 +54,7 @@ const TRIGGER_LABELS: Record<string, string> = {
 };
 
 const DetailLabel: FC<{ children: React.ReactNode }> = ({ children }) => (
-    <Text fz="xs" c="ldGray.5" fw={600} tt="uppercase" lts={0.5}>
+    <Text fz="xs" c="dimmed" fw={600} tt="uppercase" lts={0.5}>
         {children}
     </Text>
 );
@@ -62,7 +63,7 @@ const DetailValue: FC<{ children: React.ReactNode; mono?: boolean }> = ({
     children,
     mono,
 }) => (
-    <Text fz="sm" fw={400} ff={mono ? 'monospace' : undefined} c="ldGray.8">
+    <Text fz="sm" fw={400} ff={mono ? 'monospace' : undefined}>
         {children}
     </Text>
 );
@@ -128,11 +129,7 @@ const ColumnsSection: FC<{
                             justify="space-between"
                             px="xs"
                             py={4}
-                            style={{
-                                borderRadius: 'var(--mantine-radius-sm)',
-                                backgroundColor:
-                                    'var(--mantine-color-ldGray-0)',
-                            }}
+                            className={classes.detailRow}
                         >
                             <Text fz="xs" ff="monospace">
                                 {name}
@@ -170,11 +167,7 @@ const MaterializationRoleSection: FC<{
                                 key={attributeName}
                                 px="xs"
                                 py={6}
-                                style={{
-                                    borderRadius: 'var(--mantine-radius-sm)',
-                                    backgroundColor:
-                                        'var(--mantine-color-ldGray-0)',
-                                }}
+                                className={classes.detailRow}
                             >
                                 <Stack gap={6}>
                                     <Text fz="xs" ff="monospace">
@@ -216,9 +209,7 @@ const FiltersSection: FC<{
                         key={filter.id}
                         px="xs"
                         py={6}
-                        style={{
-                            borderRadius: 'var(--mantine-radius-sm)',
-                        }}
+                        className={classes.filterRow}
                     >
                         <Group gap={6} wrap="wrap" align="center">
                             <Badge size="xs" ff="monospace">
@@ -238,7 +229,7 @@ const FiltersSection: FC<{
                             )}
                         </Group>
                         {index < filters.length - 1 && (
-                            <Text fz="xs" c="ldGray.5" fw={600} mt={4}>
+                            <Text fz="xs" c="dimmed" fw={600} mt={4}>
                                 AND
                             </Text>
                         )}
@@ -419,7 +410,7 @@ const MaterializationDetailDrawer: FC<Props> = ({
                             {summary.refreshCron && (
                                 <DetailValue mono>
                                     {summary.refreshCron}{' '}
-                                    <Text fz="xs" c="ldGray.5" span>
+                                    <Text fz="xs" c="dimmed" span>
                                         (
                                         {cronstrue.toString(
                                             summary.refreshCron,
@@ -431,7 +422,7 @@ const MaterializationDetailDrawer: FC<Props> = ({
                                     </Text>
                                 </DetailValue>
                             )}
-                            <Text fz="xs" c="ldGray.6">
+                            <Text fz="xs" c="dimmed">
                                 {summary.materializeOnChange
                                     ? 'Rebuilt on the project compile that changes its definition or the fields it reads. Compiles that leave it unchanged never rebuild it.'
                                     : 'Opted out with refresh.on_change: false in YAML. When a compile changes its definition or the fields it reads, the old materialization stops serving and the rebuild waits for the next scheduled or manual refresh.'}{' '}
@@ -456,8 +447,8 @@ const MaterializationDetailDrawer: FC<Props> = ({
                         <DetailLabel>Warnings</DetailLabel>
                         <Callout variant="warning" p="xs" hideIcon>
                             <List
-                                styles={{
-                                    itemWrapper: { alignItems: 'flex-start' },
+                                classNames={{
+                                    itemWrapper: classes.warningItem,
                                 }}
                             >
                                 {summary.warnings.map(
@@ -492,13 +483,7 @@ const MaterializationDetailDrawer: FC<Props> = ({
 
                 {materialization && (
                     <>
-                        <Box
-                            style={{
-                                borderTop:
-                                    '1px dashed var(--mantine-color-ldGray-2)',
-                            }}
-                            pt="md"
-                        >
+                        <Box className={classes.detailSection} pt="md">
                             <Group justify="space-between" mb="sm">
                                 <Group gap="xs">
                                     <IconBox

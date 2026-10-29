@@ -7,6 +7,7 @@
   "ignorePatterns": ["**/*.css"],
   "plugins": ["typescript", "react", "jsx-a11y", "import", "vitest"],
   "jsPlugins": [
+    { "name": "lightdash-ui", "specifier": "./eslint-rules/eslint-plugin-lightdash-ui.cjs" },
     "eslint-plugin-jest-dom",
     "eslint-plugin-lodash",
     { "name": "vitest-js", "specifier": "@vitest/eslint-plugin" }
@@ -163,7 +164,11 @@
     "jest-dom/prefer-to-have-attribute": "error",
 
 /* ── lodash (via jsPlugin) ────────────────────────────────────── */
-    "lodash/import-scope": ["error", "method"]
+    "lodash/import-scope": ["error", "method"],
+
+    /* ── lightdash-ui (local plugin, see eslint-rules/) ───────────── */
+    "lightdash-ui/no-ldgray-text-color": "error",
+    "lightdash-ui/no-inline-style-prop": "error"
   },
   "overrides": [
     {
@@ -196,6 +201,7 @@
     {
       "files": ["**/*.stories.tsx", "**/*.stories.ts"],
       "rules": {
+        "lightdash-ui/no-inline-style-prop": "off",
         "react-hooks/rules-of-hooks": "off",
         "react-hooks/exhaustive-deps": "off",
         "react/only-export-components": "off"
@@ -204,6 +210,7 @@
     {
       "files": ["**/*.test.ts", "**/*.test.tsx", "**/*.spec.ts", "**/*.spec.tsx"],
       "rules": {
+        "lightdash-ui/no-inline-style-prop": "off",
         "vitest/no-import-node-test": "error",
         "vitest-js/expect-expect": "off",
         "vitest-js/no-commented-out-tests": "warn",

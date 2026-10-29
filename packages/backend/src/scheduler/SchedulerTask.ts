@@ -6460,8 +6460,14 @@ export default class SchedulerTask {
                     );
                 }
 
+                const isEmbedRender =
+                    (payload.format === SchedulerFormat.PDF ||
+                        payload.format === SchedulerFormat.IMAGE) &&
+                    !!overrideAccount?.isJwtUser() &&
+                    !!payload.encodedJwt;
+
                 if (
-                    payload.format === SchedulerFormat.PDF &&
+                    (payload.format === SchedulerFormat.PDF || isEmbedRender) &&
                     !this.fileStorageClient.isEnabled()
                 ) {
                     throw new MissingConfigError(
@@ -6469,27 +6475,32 @@ export default class SchedulerTask {
                     );
                 }
 
-                if (
-                    payload.format === SchedulerFormat.PDF &&
-                    overrideAccount?.isJwtUser() &&
-                    payload.encodedJwt
-                ) {
-                    const pdfFile =
-                        await this.unfurlService.exportEmbedDashboardPdf({
-                            projectUuid: payload.projectUuid,
-                            dashboardUuid: payload.resourceUuid,
-                            embedToken: payload.encodedJwt,
-                            externalId: payload.userUuid,
-                            selectedTabs: payload.selectedTabs ?? null,
-                            dashboardFilters: payload.dashboardFilters ?? null,
-                            parameters: payload.parameters ?? null,
-                            dateZoomGranularity:
-                                payload.dateZoomGranularity ?? null,
-                            gridWidth: payload.customViewportWidth ?? null,
-                            contextId: jobId,
-                        });
+                if (isEmbedRender && payload.encodedJwt) {
+                    const embedExportArgs = {
+                        projectUuid: payload.projectUuid,
+                        dashboardUuid: payload.resourceUuid,
+                        embedToken: payload.encodedJwt,
+                        externalId: payload.userUuid,
+                        selectedTabs: payload.selectedTabs ?? null,
+                        dashboardFilters: payload.dashboardFilters ?? null,
+                        parameters: payload.parameters ?? null,
+                        dateZoomGranularity:
+                            payload.dateZoomGranularity ?? null,
+                        gridWidth: payload.customViewportWidth ?? null,
+                        contextId: jobId,
+                    };
+                    const url =
+                        payload.format === SchedulerFormat.PDF
+                            ? (
+                                  await this.unfurlService.exportEmbedDashboardPdf(
+                                      embedExportArgs,
+                                  )
+                              ).source
+                            : await this.unfurlService.exportEmbedDashboardImage(
+                                  embedExportArgs,
+                              );
                     return {
-                        url: pdfFile.source,
+                        url,
                         fileType: payload.format,
                         numFailures: 0,
                     };

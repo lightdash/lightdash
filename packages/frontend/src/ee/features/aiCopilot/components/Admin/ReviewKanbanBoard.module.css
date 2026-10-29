@@ -47,6 +47,7 @@
     opacity: 1;
 }
 .pulse {
+    border-radius: 50%;
     animation: ldReviewPing 1.6s cubic-bezier(0, 0, 0.2, 1) infinite;
 }
 @keyframes ldReviewPing {
@@ -64,10 +65,7 @@
     }
 }
 .boardWrapper {
-    background: light-dark(
-        var(--mantine-color-gray-0),
-        var(--mantine-color-dark-6)
-    );
+    background: var(--mantine-color-ldGray-0);
     border: 1px solid var(--mantine-color-default-border);
     border-radius: var(--mantine-radius-md);
     padding: var(--mantine-spacing-md);
@@ -129,6 +127,8 @@
 }
 .draggableCard {
     cursor: grab;
+    transform: var(--card-drag-transform);
+    transition: var(--card-drag-transition);
 }
 .draggableCard:active {
     cursor: grabbing;
@@ -222,4 +222,8 @@
 
 .lastSeen {
     white-space: nowrap;
+}
+
+.laneDot {
+    border-radius: 3px;
 }

@@ -8,6 +8,7 @@ import {
     assertUnreachable,
     CatalogFilter,
     CatalogType,
+    COMPOSER_QUERY_PREVIEW_ROW_LIMIT,
     ConflictError,
     ContentType,
     DATA_APP_VIZ_TEMPLATE,
@@ -49,10 +50,12 @@ import {
     RequestMethod,
     SessionUser,
     shouldUseStaticFilterAutocomplete,
+    SourceQuerySubmission,
     TimeoutError,
     toMcpCustomChartTypeVizSchema,
     UnexpectedServerError,
     UserAttributeValueMap,
+    UUID,
     WarehouseQueryError,
     type AgentSqlScope,
     type AgentToolName,
@@ -125,6 +128,7 @@ import { SavedChartService } from '../../../services/SavedChartsService/SavedCha
 import { SavedSqlService } from '../../../services/SavedSqlService/SavedSqlService';
 import { SearchService } from '../../../services/SearchService/SearchService';
 import { ShareService } from '../../../services/ShareService/ShareService';
+import { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
 import { SpaceService } from '../../../services/SpaceService/SpaceService';
 import { matchShareUrlNanoid } from '../../../services/UnfurlService/UnfurlService';
 import {
@@ -143,7 +147,9 @@ import type { BuiltInSkills } from '../ai/skills/builtInSkills';
 import type { ApproveSqlFn } from '../ai/tools/sqlApprovals';
 import {
     AnalyzeFieldImpactFn,
+    ComposerNodeStatus,
     ComposerNodeStatusUpdate,
+    ComposerRunOutcome,
     CreateContentFn,
     CreateScheduledDeliveryFn,
     DescribeWarehouseTableFn,
@@ -498,6 +504,7 @@ type AiAgentToolsServiceDependencies = {
     searchModel: SearchModel;
     searchService: SearchService;
     spaceService: SpaceService;
+    spacePermissionService: SpacePermissionService;
     spaceModel: SpaceModel;
     dashboardService: DashboardService;
     dashboardModel: DashboardModel;
@@ -563,6 +570,8 @@ export class AiAgentToolsService extends BaseService {
     private readonly searchService: SearchService;
 
     private readonly spaceService: SpaceService;
+
+    private readonly spacePermissionService: SpacePermissionService;
 
     private readonly spaceModel: SpaceModel;
 
@@ -678,6 +687,7 @@ export class AiAgentToolsService extends BaseService {
         searchModel,
         searchService,
         spaceService,
+        spacePermissionService,
         spaceModel,
         dashboardService,
         dashboardModel,
@@ -716,6 +726,7 @@ export class AiAgentToolsService extends BaseService {
         this.searchModel = searchModel;
         this.searchService = searchService;
         this.spaceService = spaceService;
+        this.spacePermissionService = spacePermissionService;
         this.spaceModel = spaceModel;
         this.dashboardService = dashboardService;
         this.dashboardModel = dashboardModel;
@@ -1982,6 +1993,10 @@ export class AiAgentToolsService extends BaseService {
                     },
                 );
 
+                const editableSpaceUuids = await this.getEditableSpaceUuids(
+                    context.user,
+                    spaces.map((space) => space.uuid),
+                );
                 // Spaces cannot be verified, so they are omitted from
                 // verified-only searches.
                 const spaceResults = (verifiedOnly ? [] : spaces)
@@ -2015,6 +2030,7 @@ export class AiAgentToolsService extends BaseService {
                             appCount: space.appCount,
                             directAccess:
                                 space.userAccess?.hasDirectAccess === true,
+                            canEdit: editableSpaceUuids.has(space.uuid),
                             space: AiAgentToolsService.getSpaceMetadata(
                                 space,
                                 spacesByPath,
@@ -2420,6 +2436,58 @@ export class AiAgentToolsService extends BaseService {
                   context.user,
                   context.projectUuid,
               );
+    }
+
+    /** Spaces the user can save charts into, as the app's save modal would list them. */
+    private async getEditableSpaceUuids(
+        user: SessionUser,
+        spaceUuids: string[],
+    ): Promise<Set<string>> {
+        if (spaceUuids.length === 0) {
+            return new Set();
+        }
+        return new Set(
+            await this.spacePermissionService.getAccessibleSpaceUuids(
+                'create',
+                user,
+                spaceUuids,
+                { subjectType: 'SavedChart' },
+            ),
+        );
+    }
+
+    /**
+     * Mirrors the app's save button, not the project role: with a project, a space the user can save into
+     * (or the right to create one) is enough; without one, only the role is known, as before a project is chosen.
+     */
+    async canAuthorContent(context: {
+        user: SessionUser;
+        projectUuid: UUID | undefined;
+    }): Promise<boolean> {
+        const { user, projectUuid } = context;
+        const { organizationUuid } = user;
+        const ability = this.createAuditedAbility(user);
+        const roleCanSaveContent =
+            organizationUuid !== undefined &&
+            (ability.can('create', 'SavedChart') ||
+                ability.can('create', 'Dashboard'));
+        if (!roleCanSaveContent || projectUuid === undefined) {
+            return roleCanSaveContent;
+        }
+        if (
+            ability.can(
+                'create',
+                subject('Space', { organizationUuid, projectUuid }),
+            )
+        ) {
+            return true;
+        }
+        const spaces = await this.spaceModel.find({ projectUuid });
+        const editableSpaceUuids = await this.getEditableSpaceUuids(
+            user,
+            spaces.map((space) => space.uuid),
+        );
+        return editableSpaceUuids.size > 0;
     }
 
     private async listDataAppThemes(
@@ -3569,7 +3637,7 @@ export class AiAgentToolsService extends BaseService {
                                 context.projectUuid,
                                 slug,
                                 patchedContent,
-                                { force: true },
+                                { force: true, authorization: 'space_access' },
                             );
                         uuid = promotionChanges.dashboards[0]?.data.uuid;
                         break;
@@ -3616,7 +3684,7 @@ export class AiAgentToolsService extends BaseService {
                                 context.projectUuid,
                                 slug,
                                 patchedContent,
-                                { force: true },
+                                { force: true, authorization: 'space_access' },
                             );
                         uuid = promotionChanges.charts[0]?.data.uuid;
                         break;
@@ -3756,7 +3824,10 @@ export class AiAgentToolsService extends BaseService {
                                 context.projectUuid,
                                 content.slug,
                                 content,
-                                { mode: 'create' },
+                                {
+                                    mode: 'create',
+                                    authorization: 'space_access',
+                                },
                             );
                         const finalSlug =
                             promotionChanges.dashboards[0]?.data.slug ??
@@ -3791,7 +3862,10 @@ export class AiAgentToolsService extends BaseService {
                                 context.projectUuid,
                                 content.slug,
                                 content,
-                                { mode: 'create' },
+                                {
+                                    mode: 'create',
+                                    authorization: 'space_access',
+                                },
                             );
                         const finalSlug =
                             promotionChanges.charts[0]?.data.slug ??
@@ -3871,6 +3945,7 @@ export class AiAgentToolsService extends BaseService {
             context.projectUuid,
             slug,
             patched,
+            { authorization: 'space_access' },
         );
         return promotionChanges.charts[0]?.data.uuid;
     }
@@ -3907,7 +3982,7 @@ export class AiAgentToolsService extends BaseService {
             context.projectUuid,
             content.slug,
             content,
-            { mode: 'create' },
+            { mode: 'create', authorization: 'space_access' },
         );
         const created = promotionChanges.charts[0]?.data;
         if (!created?.uuid) {
@@ -4547,6 +4622,8 @@ export class AiAgentToolsService extends BaseService {
                     page: 1,
                     aiAccessOnly: true,
                     pageSize: limit,
+                    // limit is already validated against the AI row limit
+                    maxPageSize: limit,
                 });
 
             if (queryResults.status === QueryHistoryStatus.READY) {
@@ -4674,6 +4751,31 @@ export class AiAgentToolsService extends BaseService {
                         errorMessage: null,
                     }),
                 );
+                // Only a ready, errored or cancelled query has settled.
+                const emitSettledNodeStatus = (
+                    { nodeId, queryUuid }: SourceQuerySubmission,
+                    state: QueryHistoryStatus,
+                    error: string | null,
+                ) => {
+                    if (state === QueryHistoryStatus.READY) {
+                        emitNodeStatus({
+                            nodeId,
+                            queryUuid,
+                            status: 'success',
+                            errorMessage: null,
+                        });
+                    } else if (
+                        state === QueryHistoryStatus.ERROR ||
+                        state === QueryHistoryStatus.CANCELLED
+                    ) {
+                        emitNodeStatus({
+                            nodeId,
+                            queryUuid,
+                            status: 'error',
+                            errorMessage: error,
+                        });
+                    }
+                };
                 const pollNodeStatuses = async () => {
                     if (!onNodeStatus) return;
                     const pending = submissions.filter((submission) => {
@@ -4698,24 +4800,11 @@ export class AiAgentToolsService extends BaseService {
                                     candidate.queryUuid === status.queryUuid,
                             );
                             if (!submission) return;
-                            if (status.status === QueryHistoryStatus.READY) {
-                                emitNodeStatus({
-                                    nodeId: submission.nodeId,
-                                    queryUuid: submission.queryUuid,
-                                    status: 'success',
-                                    errorMessage: null,
-                                });
-                            } else if (
-                                status.status === QueryHistoryStatus.ERROR ||
-                                status.status === QueryHistoryStatus.CANCELLED
-                            ) {
-                                emitNodeStatus({
-                                    nodeId: submission.nodeId,
-                                    queryUuid: submission.queryUuid,
-                                    status: 'error',
-                                    errorMessage: status.error ?? null,
-                                });
-                            }
+                            emitSettledNodeStatus(
+                                submission,
+                                status.status,
+                                status.error ?? null,
+                            );
                         });
                     } catch {
                         // status polling is best-effort; keep executing
@@ -4734,10 +4823,11 @@ export class AiAgentToolsService extends BaseService {
                 const terminalQuery = queries.find(
                     (query) => query.nodeId === terminalNodeId,
                 );
+                // Callers read only a preview; rowCount comes from the stored total.
                 const pageSize = Math.min(
                     terminalQuery?.limit ??
                         this.lightdashConfig.ai.copilot.maxQueryLimit,
-                    this.lightdashConfig.ai.copilot.maxQueryLimit,
+                    COMPOSER_QUERY_PREVIEW_ROW_LIMIT,
                 );
 
                 // Polling only the terminal node is sufficient: its execution
@@ -4746,11 +4836,8 @@ export class AiAgentToolsService extends BaseService {
                 const maxWaitMs = 5 * 60 * 1000;
                 const startTime = Date.now();
 
-                // Results fetching throws for errored queries, so any throw
-                // below marks the unfinished nodes failed before propagating.
-                const emitUnfinishedAsError = (error: unknown) => {
-                    const message =
-                        error instanceof Error ? error.message : null;
+                // A failed run marks the nodes its status read did not settle.
+                const emitUnfinishedAsError = (message: string) => {
                     submissions.forEach((submission) => {
                         const emitted = emittedNodeStatuses.get(
                             submission.nodeId,
@@ -4766,21 +4853,36 @@ export class AiAgentToolsService extends BaseService {
                     });
                 };
 
+                let outcome: ComposerRunOutcome;
                 try {
-                    return await this.pollComposerTerminal({
+                    outcome = await this.pollComposerTerminal({
                         context,
                         submissions,
                         terminalSubmission,
                         pageSize,
                         maxWaitMs,
                         startTime,
-                        emitNodeStatus,
                         pollNodeStatuses,
                     });
                 } catch (error) {
-                    emitUnfinishedAsError(error);
-                    throw error;
+                    // Results fetching throws for errored queries.
+                    outcome = await this.failComposerRun(
+                        context,
+                        submissions,
+                        getErrorMessage(error),
+                    );
                 }
+                outcome.nodeStatuses.forEach(({ nodeId, state, error }) => {
+                    const submission = submissions.find(
+                        (candidate) => candidate.nodeId === nodeId,
+                    );
+                    if (submission)
+                        emitSettledNodeStatus(submission, state, error);
+                });
+                if (outcome.status === 'failure') {
+                    emitUnfinishedAsError(outcome.error);
+                }
+                return outcome;
             },
         );
     }
@@ -4792,7 +4894,6 @@ export class AiAgentToolsService extends BaseService {
         pageSize,
         maxWaitMs,
         startTime,
-        emitNodeStatus,
         pollNodeStatuses,
     }: {
         context: AiAgentToolsRuntimeContext;
@@ -4805,15 +4906,16 @@ export class AiAgentToolsService extends BaseService {
         pageSize: number;
         maxWaitMs: number;
         startTime: number;
-        emitNodeStatus: (update: ComposerNodeStatusUpdate) => void;
         pollNodeStatuses: () => Promise<void>;
-    }): ReturnType<RunComposerQueriesFn> {
+    }): Promise<ComposerRunOutcome> {
         let delayMs = 500;
         // eslint-disable-next-line no-constant-condition
         while (true) {
             if (Date.now() - startTime > maxWaitMs) {
-                throw new TimeoutError(
-                    'Composer query timed out after 5 minutes',
+                return this.failComposerRun(
+                    context,
+                    submissions,
+                    'Composer query timed out after 5 minutes.',
                 );
             }
 
@@ -4834,14 +4936,10 @@ export class AiAgentToolsService extends BaseService {
                 });
 
             if (queryResults.status === QueryHistoryStatus.READY) {
-                // Terminal ready implies every upstream node finished.
-                submissions.forEach((submission) =>
-                    emitNodeStatus({
-                        nodeId: submission.nodeId,
-                        queryUuid: submission.queryUuid,
-                        status: 'success',
-                        errorMessage: null,
-                    }),
+                // eslint-disable-next-line no-await-in-loop
+                const nodeStatuses = await this.readComposerNodeStatuses(
+                    context,
+                    submissions,
                 );
                 const wrappedRows = (queryResults.rows ?? []) as Record<
                     string,
@@ -4856,65 +4954,43 @@ export class AiAgentToolsService extends BaseService {
                     ),
                 );
                 return {
+                    status: 'success',
                     submissions,
                     terminal: {
                         queryUuid: terminalSubmission.queryUuid,
                         columns: queryResults.columns,
                         rows,
-                        rowCount: rows.length,
+                        rowCount: queryResults.totalResults,
                     },
+                    nodeStatuses,
                 };
             }
 
             if (queryResults.status === QueryHistoryStatus.ERROR) {
                 // eslint-disable-next-line no-await-in-loop
-                const failedNodes = await this.findFailedComposerNodes(
+                const failed = await this.failComposerRun(
                     context,
                     submissions,
+                    'Composer query failed.',
                 );
-                failedNodes.forEach(({ nodeId, error }) => {
-                    const submission = submissions.find(
-                        (candidate) => candidate.nodeId === nodeId,
-                    );
-                    if (!submission) return;
-                    emitNodeStatus({
-                        nodeId,
-                        queryUuid: submission.queryUuid,
-                        status: 'error',
-                        errorMessage: error,
-                    });
-                });
-                emitNodeStatus({
-                    nodeId: terminalSubmission.nodeId,
-                    queryUuid: terminalSubmission.queryUuid,
-                    status: 'error',
-                    errorMessage: queryResults.error ?? null,
-                });
-                throw new WarehouseQueryError(
-                    `Composer query failed${
-                        failedNodes.length > 0
-                            ? ` on node(s): ${failedNodes
-                                  .map(
-                                      ({ nodeId, error }) =>
-                                          `"${nodeId}" (${error ?? 'Unknown error'})`,
-                                  )
-                                  .join(', ')}`
-                            : `: ${truncateMiddle(
-                                  queryResults.error ?? 'Unknown error',
-                                  COMPOSER_NODE_ERROR_MAX_CHARS,
-                              )}`
-                    }`,
-                );
+                // Node statuses carry each node's error; the terminal's is the fallback.
+                return failed.nodeStatuses.some(({ error }) => error !== null)
+                    ? failed
+                    : {
+                          ...failed,
+                          error: `Composer query failed: ${truncateMiddle(
+                              queryResults.error ?? 'Unknown error',
+                              COMPOSER_NODE_ERROR_MAX_CHARS,
+                          )}`,
+                      };
             }
 
             if (queryResults.status === QueryHistoryStatus.CANCELLED) {
-                emitNodeStatus({
-                    nodeId: terminalSubmission.nodeId,
-                    queryUuid: terminalSubmission.queryUuid,
-                    status: 'error',
-                    errorMessage: 'Query was cancelled',
-                });
-                throw new WarehouseQueryError('Composer query was cancelled');
+                return this.failComposerRun(
+                    context,
+                    submissions,
+                    'Composer query was cancelled.',
+                );
             }
 
             // Terminal still running: surface upstream nodes that have
@@ -4932,29 +5008,41 @@ export class AiAgentToolsService extends BaseService {
         }
     }
 
-    /**
-     * Best-effort per-node failure lookup so composer errors name the failing
-     * node the model should fix. Never throws — falls back to an empty list.
-     */
-    private async findFailedComposerNodes(
+    /** A failure outcome with one status read of every node; an unreadable read yields none. */
+    private async failComposerRun(
         context: AiAgentToolsRuntimeContext,
-        submissions: { nodeId: string; queryUuid: string }[],
-    ): Promise<{ nodeId: string; error: string | null }[]> {
-        try {
-            const { statuses } =
-                await this.querySourceService.getSourceQueryStatuses(
-                    context.account,
-                    context.projectUuid,
-                    submissions.map((submission) => submission.queryUuid),
-                );
-            return statuses
-                .filter((status) => status.status === QueryHistoryStatus.ERROR)
-                .map((status) => ({
-                    nodeId:
-                        submissions.find(
-                            (submission) =>
-                                submission.queryUuid === status.queryUuid,
-                        )?.nodeId ?? status.queryUuid,
+        submissions: SourceQuerySubmission[],
+        error: string,
+    ): Promise<Extract<ComposerRunOutcome, { status: 'failure' }>> {
+        return {
+            status: 'failure',
+            error,
+            nodeStatuses: await this.readComposerNodeStatuses(
+                context,
+                submissions,
+            ).catch(() => []),
+        };
+    }
+
+    private async readComposerNodeStatuses(
+        context: AiAgentToolsRuntimeContext,
+        submissions: SourceQuerySubmission[],
+    ): Promise<ComposerNodeStatus[]> {
+        const { statuses } =
+            await this.querySourceService.getSourceQueryStatuses(
+                context.account,
+                context.projectUuid,
+                submissions.map((submission) => submission.queryUuid),
+            );
+        return submissions.flatMap(({ nodeId, queryUuid }) => {
+            const status = statuses.find(
+                (candidate) => candidate.queryUuid === queryUuid,
+            );
+            if (!status) return [];
+            return [
+                {
+                    nodeId,
+                    state: status.status,
                     error:
                         status.error === null
                             ? null
@@ -4962,10 +5050,11 @@ export class AiAgentToolsService extends BaseService {
                                   status.error,
                                   COMPOSER_NODE_ERROR_MAX_CHARS,
                               ),
-                }));
-        } catch {
-            return [];
-        }
+                    rowCount: status.totalRowCount,
+                    columns: status.columns,
+                },
+            ];
+        });
     }
 
     private listWarehouseTables(
@@ -5711,6 +5800,9 @@ export class AiAgentToolsService extends BaseService {
             ),
         );
         const visibleSpaceUuids = new Set(spaces.map((space) => space.uuid));
+        const editableSpaceUuids = await this.getEditableSpaceUuids(user, [
+            ...visibleSpaceUuids,
+        ]);
         const items = spaces
             .filter(
                 (space) =>
@@ -5728,6 +5820,7 @@ export class AiAgentToolsService extends BaseService {
                     childSpaceCount: space.childSpaceCount,
                     appCount: space.appCount,
                     directAccess: space.userAccess?.hasDirectAccess === true,
+                    canEdit: editableSpaceUuids.has(space.uuid),
                 }),
             );
 
@@ -5781,6 +5874,12 @@ export class AiAgentToolsService extends BaseService {
         )
             ? (await this.projectModel.getSummary(projectUuid)).slug
             : projectUuid;
+        const editableSpaceUuids = await this.getEditableSpaceUuids(
+            user,
+            results.data.flatMap((item) =>
+                item.contentType === ContentType.SPACE ? [item.uuid] : [],
+            ),
+        );
 
         return {
             spaceSlug,
@@ -5814,6 +5913,7 @@ export class AiAgentToolsService extends BaseService {
                             childSpaceCount: item.childSpaceCount,
                             appCount: item.appCount,
                             directAccess: item.access.includes(user.userUuid),
+                            canEdit: editableSpaceUuids.has(item.uuid),
                         };
                     }
 

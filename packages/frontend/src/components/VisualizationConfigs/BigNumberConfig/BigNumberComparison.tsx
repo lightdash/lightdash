@@ -5,9 +5,20 @@ import {
 } from '@lightdash/common';
 import { Group, SegmentedControl, Select, Stack, Switch } from '@mantine/core';
 import { useEffect, useRef, useState } from 'react';
+import {
+    selectBigNumberComparisonFieldItem,
+    selectBigNumberEditor,
+    selectBigNumberGranularityFields,
+    selectBigNumberSelectedField,
+    selectBigNumberShowStyle,
+    useVisualizationSelector,
+} from '../../../features/visualization/store';
+import { useBigNumberEditorActions } from '../../../hooks/useBigNumberConfig';
 import FieldSelect from '../../common/FieldSelect';
-import { isBigNumberVisualizationConfig } from '../../LightdashVisualization/types';
-import { useVisualizationState } from '../../LightdashVisualization/useVisualizationContext';
+import {
+    useVisualizationInputs,
+    useVisualizationInputSelector,
+} from '../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../common/Config';
 import { LabelEditor } from '../common/LabelEditor';
 import classes from './BigNumberComparison.module.css';
@@ -16,51 +27,55 @@ import { StyleOptions } from './common';
 type CompareTarget = 'previous_row' | 'another_field';
 
 export const Comparison: React.FC = () => {
-    const { visualizationConfig, itemsMap } = useVisualizationState();
+    const { itemsMap } = useVisualizationInputs();
+    const bigNumberComparisonStyle = useVisualizationSelector(
+        (state) => selectBigNumberEditor(state).bigNumberComparisonStyle,
+    );
+    const showComparison = useVisualizationSelector(
+        (state) => selectBigNumberEditor(state).showComparison,
+    );
+    const comparisonFormat = useVisualizationSelector(
+        (state) => selectBigNumberEditor(state).comparisonFormat,
+    );
+    const flipColors = useVisualizationSelector(
+        (state) => selectBigNumberEditor(state).flipColors,
+    );
+    const comparisonLabel = useVisualizationSelector(
+        (state) => selectBigNumberEditor(state).comparisonLabel,
+    );
+    const comparisonField = useVisualizationSelector(
+        (state) => selectBigNumberEditor(state).comparisonField,
+    );
+    const selectedField = useVisualizationInputSelector(
+        selectBigNumberSelectedField,
+    );
+    const comparisonFieldItem = useVisualizationInputSelector(
+        selectBigNumberComparisonFieldItem,
+    );
+    const showStyle = useVisualizationInputSelector(selectBigNumberShowStyle);
+    const granularityFields = useVisualizationInputSelector(
+        selectBigNumberGranularityFields,
+    );
+    const {
+        setBigNumberComparisonStyle,
+        toggleShowComparison,
+        setComparisonFormat,
+        toggleFlipColors,
+        setComparisonLabel,
+        setComparisonField,
+    } = useBigNumberEditorActions();
 
-    const isBigNumber = isBigNumberVisualizationConfig(visualizationConfig);
-    const chartConfig = isBigNumber
-        ? visualizationConfig.chartConfig
-        : undefined;
-
-    const rememberedField = useRef(chartConfig?.comparisonField);
+    const rememberedField = useRef(comparisonField);
 
     const [compareTarget, setCompareTarget] = useState<CompareTarget>(
-        chartConfig?.comparisonField !== undefined
-            ? 'another_field'
-            : 'previous_row',
+        comparisonField !== undefined ? 'another_field' : 'previous_row',
     );
 
     useEffect(() => {
         setCompareTarget(
-            chartConfig?.comparisonField !== undefined
-                ? 'another_field'
-                : 'previous_row',
+            comparisonField !== undefined ? 'another_field' : 'previous_row',
         );
-    }, [chartConfig?.comparisonField]);
-
-    if (!isBigNumber || !chartConfig) return null;
-
-    const {
-        bigNumberComparisonStyle,
-        setBigNumberComparisonStyle,
-        showStyle,
-        showComparison,
-        setShowComparison,
-        comparisonFormat,
-        setComparisonFormat,
-        flipColors,
-        setFlipColors,
-        comparisonLabel,
-        setComparisonLabel,
-        selectedField,
-        getField,
-        comparisonField,
-        setComparisonField,
-        granularityFields,
-    } = chartConfig;
-
-    const comparisonFieldItem = getField(comparisonField);
+    }, [comparisonField]);
 
     const comparisonFieldItems = Object.values(itemsMap ?? {}).filter(
         (item) => getItemId(item) !== selectedField,
@@ -75,9 +90,7 @@ export const Comparison: React.FC = () => {
                         <Switch
                             size="xs"
                             checked={showComparison}
-                            onChange={() => {
-                                setShowComparison(!showComparison);
-                            }}
+                            onChange={toggleShowComparison}
                         />
                     </Group>
 
@@ -160,9 +173,7 @@ export const Comparison: React.FC = () => {
                                 size="xs"
                                 label="Flip positive color"
                                 checked={flipColors}
-                                onChange={() => {
-                                    setFlipColors(!flipColors);
-                                }}
+                                onChange={toggleFlipColors}
                                 labelPosition="left"
                                 classNames={{
                                     label: classes.switchLabel,

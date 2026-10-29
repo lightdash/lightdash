@@ -1,0 +1,7 @@
+.useThemeButton {
+    visibility: hidden;
+
+    &[data-visible] {
+        visibility: visible;
+    }
+}

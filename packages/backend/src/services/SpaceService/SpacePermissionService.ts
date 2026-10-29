@@ -125,6 +125,21 @@ export const spaceContextsByUuid = (
         results.map(({ target, context }) => [target.spaceUuid, context]),
     );
 
+const highestRoleByKey = <T extends { role: SpaceMemberRole }>(
+    grants: T[],
+    keyOf: (grant: T) => string,
+): Array<[string, SpaceMemberRole]> => [
+    ...grants
+        .reduce((acc, grant) => {
+            const key = keyOf(grant);
+            return acc.set(
+                key,
+                getHighestSpaceRole([acc.get(key), grant.role]) ?? grant.role,
+            );
+        }, new Map<string, SpaceMemberRole>())
+        .entries(),
+];
+
 export class SpacePermissionService extends BaseService {
     private readonly spaceModel: SpaceModel;
 
@@ -220,12 +235,16 @@ export class SpacePermissionService extends BaseService {
      * @param action - The action to check permissions for
      * @param user - The session user to check permissions for
      * @param spaceUuids - The space uuids to get the accessible space uuids for
+     * @param subjectType - The space itself, or the content the action targets inside it
      * @returns The accessible space uuids
      */
     async getAccessibleSpaceUuids(
         action: AbilityAction,
         user: SessionUser,
         spaceUuids: string[],
+        {
+            subjectType = 'Space',
+        }: { subjectType?: 'Space' | 'SavedChart' | 'Dashboard' } = {},
     ): Promise<string[]> {
         const accessContext = await this.getSpacesCaslContext(spaceUuids, {
             userUuid: user.userUuid,
@@ -236,7 +255,7 @@ export class SpacePermissionService extends BaseService {
         const accessResults = auditedAbility.canBulk(
             action,
             entries.map(([spaceUuid, access]) =>
-                subject('Space', {
+                subject(subjectType, {
                     ...access,
                     metadata: { spaceUuid },
                 }),
@@ -1125,48 +1144,31 @@ export class SpacePermissionService extends BaseService {
             [spaceUuid],
         );
 
-        if (!chainEntry) {
+        const entry = chainEntry?.[spaceUuid];
+        if (!entry) {
             throw new NotFoundError(`Space ${spaceUuid} not found`);
         }
-        const { chain } = chainEntry[spaceUuid];
+        const { chain } = entry;
         const ancestorUuids = chain
             .map((item) => item.spaceUuid)
             .filter((uuid) => uuid !== spaceUuid);
 
-        const ancestorDirectAccess =
-            await this.spacePermissionModel.getDirectSpaceAccess(ancestorUuids);
-
-        // Deduplicate user and group access entries, keeping highest role per user/group
-        const userAccessMap = new Map<string, SpaceAccess['role']>();
-        const groupAccessMap = new Map<string, SpaceGroup['spaceRole']>();
-
-        for (const access of Object.values(ancestorDirectAccess).flat()) {
-            if (access.from === 'user_access') {
-                const existing = userAccessMap.get(access.userUuid);
-                const highest = getHighestSpaceRole([existing, access.role]);
-                if (highest !== undefined) {
-                    userAccessMap.set(access.userUuid, highest);
-                }
-            } else if (
-                access.from === 'group_access' &&
-                access.groupUuid !== null
-            ) {
-                const existing = groupAccessMap.get(access.groupUuid);
-                const highest = getHighestSpaceRole([existing, access.role]);
-                if (highest !== undefined) {
-                    groupAccessMap.set(access.groupUuid, highest);
-                }
-            }
-        }
-
-        const userAccessEntries = [...userAccessMap.entries()].map(
-            ([userUuid, role]) => ({ userUuid, role }),
-        );
-        const groupAccessEntries = [...groupAccessMap.entries()].map(
-            ([groupUuid, role]) => ({ groupUuid, role }),
+        // Persisted grants, not member-resolved access: a group with no
+        // members must still be copied so later members get access.
+        const ancestorGrants = Object.values(
+            await this.spacePermissionModel.getRawDirectAccess(ancestorUuids),
         );
 
-        return { userAccessEntries, groupAccessEntries };
+        return {
+            userAccessEntries: highestRoleByKey(
+                ancestorGrants.flatMap(({ users }) => users),
+                ({ userUuid }) => userUuid,
+            ).map(([userUuid, role]) => ({ userUuid, role })),
+            groupAccessEntries: highestRoleByKey(
+                ancestorGrants.flatMap(({ groups }) => groups),
+                ({ groupUuid }) => groupUuid,
+            ).map(([groupUuid, role]) => ({ groupUuid, role })),
+        };
     }
 
     async getUserMetadataByUuids(

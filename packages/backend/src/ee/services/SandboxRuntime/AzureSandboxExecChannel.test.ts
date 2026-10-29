@@ -3,7 +3,11 @@ import {
     AzureSandboxExecChannel,
     bufferedExecDispatcher,
 } from './AzureSandboxExecChannel';
-import { SandboxCommandError, SandboxTimeoutError } from './errors';
+import {
+    SandboxCommandError,
+    SandboxOutputLimitError,
+    SandboxTimeoutError,
+} from './errors';
 
 type CapturedInit = RequestInit & { dispatcher?: unknown };
 
@@ -20,6 +24,7 @@ const execJson = (payload: {
         exitCode: payload.exitCode ?? 0,
     }),
     text: async () => 'file contents',
+    arrayBuffer: async () => Buffer.from('file contents'),
 });
 
 const b64 = (value: string | Buffer) => Buffer.from(value).toString('base64');
@@ -272,6 +277,104 @@ describe('AzureSandboxExecChannel', () => {
             expect(killBody).toContain('kill -TERM -- ');
             expect(killBody).toContain('kill -KILL -- ');
             expect(killBody).toContain('/pid');
+        });
+    });
+
+    describe('detached drain after exit', () => {
+        it('keeps draining a full chunk past the deadline once the exit code has landed', async () => {
+            const full = 'x'.repeat(4 * 1024 * 1024);
+            fetchMock
+                .mockResolvedValueOnce(execJson({})) // start
+                .mockResolvedValueOnce(tickResponse('0', full)) // exit + full chunk
+                .mockResolvedValueOnce(tickResponse('0', 'tail')) // drained
+                .mockResolvedValue(execJson({}));
+
+            const result = await makeChannel({
+                detachedThresholdMs: 10,
+                pollIntervalMs: 40,
+            }).commands.run('cmd', { timeoutMs: 60 });
+
+            expect(result.stdout).toBe(`${full}tail`);
+            expect(result.exitCode).toBe(0);
+            expect(requestBodies().some((body) => body.includes('kill'))).toBe(
+                false,
+            );
+        });
+    });
+
+    describe('output limits', () => {
+        it('caps buffered output inside the sandbox and rejects output over maxOutputBytes', async () => {
+            fetchMock.mockResolvedValue(
+                execJson({ stdout: 'x'.repeat(17), exitCode: 0 }),
+            );
+
+            await expect(
+                makeChannel().commands.run('python3 main.py', {
+                    timeoutMs: 1_000,
+                    maxOutputBytes: 16,
+                }),
+            ).rejects.toBeInstanceOf(SandboxOutputLimitError);
+            const body = JSON.parse(requestBodies()[0]) as { command: string };
+            expect(body.command).toContain('head -c 17');
+            expect(body.command).toContain('python3 main.py');
+        });
+
+        it('stops reading a buffered exec body that exceeds the ceiling', async () => {
+            const huge = JSON.stringify({
+                stdout: 'x'.repeat(2 * 1024 * 1024),
+                stderr: '',
+                exitCode: 0,
+            });
+            fetchMock.mockResolvedValue(new Response(huge, { status: 200 }));
+
+            await expect(
+                makeChannel().commands.run('cmd', {
+                    timeoutMs: 1_000,
+                    maxOutputBytes: 16,
+                }),
+            ).rejects.toBeInstanceOf(SandboxOutputLimitError);
+        });
+
+        it('kills a detached run once its streams exceed maxOutputBytes', async () => {
+            fetchMock
+                .mockResolvedValueOnce(execJson({})) // start
+                .mockResolvedValueOnce(tickResponse('', 'x'.repeat(10)))
+                .mockResolvedValueOnce(tickResponse('', 'y'.repeat(10)))
+                .mockResolvedValue(execJson({})); // kill
+
+            await expect(
+                makeChannel({ detachedThresholdMs: 10 }).commands.run('cmd', {
+                    timeoutMs: 60_000,
+                    maxOutputBytes: 16,
+                }),
+            ).rejects.toBeInstanceOf(SandboxOutputLimitError);
+            expect(
+                requestBodies().some((body) => body.includes('kill -TERM -- ')),
+            ).toBe(true);
+        });
+
+        it('refuses a file read above maxBytes before holding it in memory', async () => {
+            fetchMock.mockResolvedValue(
+                new Response(Buffer.alloc(64, 'a'), { status: 200 }),
+            );
+
+            await expect(
+                makeChannel().files.readBytes('/work/out/result.jsonl', {
+                    maxBytes: 32,
+                }),
+            ).rejects.toBeInstanceOf(SandboxOutputLimitError);
+        });
+
+        it('reads a file within maxBytes as text', async () => {
+            fetchMock.mockResolvedValue(
+                new Response('{"ok":1}', { status: 200 }),
+            );
+
+            await expect(
+                makeChannel().files.read('/work/out/meta.json', {
+                    maxBytes: 32,
+                }),
+            ).resolves.toBe('{"ok":1}');
         });
     });
 });

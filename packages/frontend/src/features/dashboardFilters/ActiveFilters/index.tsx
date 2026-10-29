@@ -4,21 +4,21 @@ import {
     MouseSensor,
     TouchSensor,
     useDraggable,
-    useDroppable,
     useSensor,
     useSensors,
     type DragEndEvent,
     type DragStartEvent,
 } from '@dnd-kit/core';
 import { getDashboardFilterField } from '@lightdash/common';
-import { useMantineTheme } from '@mantine/core';
-import { useMemo, type FC, type ReactNode } from 'react';
+import { type CSSProperties, type FC, type ReactNode } from 'react';
+import { DroppableArea } from '../../../components/common/DndHelpers';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import {
     selectDashboardFilters,
     useDashboardSelector,
 } from '../../dashboard/store';
 import Filter from './Filter';
+import classes from './Filter.module.css';
 import { moveFilterRule } from './filterOrder';
 import { FilterPillSkeletons } from './FilterPillSkeletons';
 import { TemporaryFilters } from './TemporaryFilters';
@@ -48,48 +48,19 @@ const DraggableItem: FC<{
         disabled,
     });
 
-    const style = transform
-        ? ({
-              position: 'relative',
-              zIndex: 1,
-              transform: `translate(${transform.x}px, ${transform.y}px)`,
-              opacity: 0.8,
-          } as const)
-        : undefined;
-
     return (
-        <div ref={setNodeRef} style={style} {...listeners} {...attributes}>
-            {children}
-        </div>
-    );
-};
-
-const DroppableArea: FC<{ id: string; children: ReactNode }> = ({
-    id,
-    children,
-}) => {
-    const { active, isOver, over, setNodeRef } = useDroppable({ id });
-    const dashboardFilters = useDashboardSelector(selectDashboardFilters);
-    const { colors } = useMantineTheme();
-
-    const placeholderStyle = useMemo(() => {
-        if (isOver && active && over && active.id !== over.id) {
-            const oldIndex = dashboardFilters.dimensions.findIndex(
-                (item) => item.id === active.id,
-            );
-            const newIndex = dashboardFilters.dimensions.findIndex(
-                (item) => item.id === over.id,
-            );
-            if (newIndex < oldIndex) {
-                return { boxShadow: `-8px 0px ${colors.blue[4]}` };
-            } else if (newIndex > oldIndex) {
-                return { boxShadow: `8px 0px ${colors.blue[4]}` };
+        <div
+            ref={setNodeRef}
+            className={transform ? classes.dragging : undefined}
+            style={
+                {
+                    '--drag-x': `${transform?.x ?? 0}px`,
+                    '--drag-y': `${transform?.y ?? 0}px`,
+                } as CSSProperties
             }
-        }
-    }, [isOver, active, over, dashboardFilters.dimensions, colors]);
-
-    return (
-        <div ref={setNodeRef} style={placeholderStyle}>
+            {...listeners}
+            {...attributes}
+        >
             {children}
         </div>
     );
@@ -175,6 +146,10 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
         setHaveFiltersChanged(true);
     };
 
+    // Each list's order, once per render, for every pill's drop area
+    const dimensionKeys = dashboardFilters.dimensions.map((rule) => rule.id);
+    const metricKeys = dashboardFilters.metrics.map((rule) => rule.id);
+
     return (
         <>
             <DndContext
@@ -195,7 +170,11 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                     }
 
                     return (
-                        <DroppableArea key={item.id} id={item.id}>
+                        <DroppableArea
+                            key={item.id}
+                            id={item.id}
+                            orderedKeys={dimensionKeys}
+                        >
                             <DraggableItem
                                 key={item.id}
                                 id={item.id}
@@ -269,7 +248,11 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                     }
 
                     return metricField ? (
-                        <DroppableArea key={item.id} id={item.id}>
+                        <DroppableArea
+                            key={item.id}
+                            id={item.id}
+                            orderedKeys={metricKeys}
+                        >
                             <DraggableItem
                                 id={item.id}
                                 disabled={!isEditMode || !!openPopoverId}

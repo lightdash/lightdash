@@ -170,6 +170,7 @@ const nodeDefinition = (node: SourceQuery): string => {
             });
         case QuerySourceType.SQL:
         case QuerySourceType.EXTERNAL:
+        case QuerySourceType.API:
             return stableJson(node);
         default:
             return assertUnreachable(node, 'Unknown composer node');
@@ -289,3 +290,14 @@ export type ApiAiAgentMessageQueryPipelinesResponse = {
     status: 'ok';
     results: AiAgentMessageQueryPipeline[];
 };
+
+/** Identity of a pinned composer pipeline node as prompt context. */
+export const composerNodeContextKey = ({
+    artifactUuid,
+    versionUuid,
+    nodeId,
+}: {
+    artifactUuid: string;
+    versionUuid: string;
+    nodeId: string;
+}): string => `composer_node:${artifactUuid}:${versionUuid}:${nodeId}`;

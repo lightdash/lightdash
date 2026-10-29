@@ -12,8 +12,6 @@ export type PipelineNode = {
     isTerminal: boolean;
     /** Longest path from a source; 0 for nodes that read nothing. */
     depth: number;
-    /** Titles of the nodes this one reads; unknown references stay as-is. */
-    reads: string[];
     /** Node ids this one reads that resolve to nodes in the pipeline. */
     readNodeIds: string[];
     query: SourceQuery;
@@ -27,8 +25,8 @@ export type PipelineLayer = {
     nodes: PipelineNode[];
 };
 
-/** User-facing node type: where a source reads from, or Python; null for DuckDB transformations. */
-export const nodeTypeLabelOf = (query: SourceQuery): string | null => {
+/** User-facing node type: where a source reads from, or the transformation engine. */
+export const nodeTypeLabelOf = (query: SourceQuery): string => {
     switch (query.sourceType) {
         case QuerySourceType.SEMANTIC_LAYER:
             return 'Semantic layer';
@@ -38,8 +36,10 @@ export const nodeTypeLabelOf = (query: SourceQuery): string | null => {
             return 'External data';
         case QuerySourceType.PYTHON:
             return 'Python';
+        case QuerySourceType.API:
+            return 'Live data source';
         case QuerySourceType.DUCKDB:
-            return null;
+            return 'DuckDB';
         default:
             return assertUnreachable(query, 'Unknown source type');
     }
@@ -66,18 +66,8 @@ export const groupPipeline = (
     }));
     const byId = new Map(entries.map((entry) => [entry.nodeId, entry]));
 
-    const resolveRead = (value: string) => {
-        const entry = byId.get(value);
-        return entry
-            ? { nodeId: value, title: entry.query.title ?? value }
-            : { nodeId: null, title: value };
-    };
-    const readsOf = (query: SourceQuery) =>
-        referencesOf(query).map(resolveRead);
     const readNodeIdsOf = (query: SourceQuery) =>
-        readsOf(query).flatMap(({ nodeId }) =>
-            nodeId === null ? [] : [nodeId],
-        );
+        referencesOf(query).filter((value) => byId.has(value));
 
     const depths = new Map<string, number>();
     const depthOf = (nodeId: string, seen: Set<string>): number => {
@@ -103,10 +93,9 @@ export const groupPipeline = (
     const nodes = entries.map<PipelineNode>(({ nodeId, query }) => ({
         nodeId,
         title: query.title ?? nodeId,
-        description: query.description ?? null,
+        description: query.description?.trim() || null,
         isTerminal: nodeId === terminalNodeId,
         depth: depths.get(nodeId)!,
-        reads: readsOf(query).map(({ title }) => title),
         readNodeIds: readNodeIdsOf(query),
         query,
     }));

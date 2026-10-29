@@ -24,10 +24,11 @@ import React, { useCallback, type FC } from 'react';
 import { createPortal } from 'react-dom';
 import type useCartesianChartConfig from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import { usePortalTarget } from '../../../../providers/PortalTarget/usePortalTarget';
-import { useVisualizationState } from '../../../LightdashVisualization/useVisualizationContext';
+import { useVisualizationInputs } from '../../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../../common/Config';
 import { GrabIcon } from '../../common/GrabIcon';
 import { ChartTypeSelect } from './ChartTypeSelect';
+import seriesClasses from './Series.module.css';
 import {
     SeriesDepthControl,
     type SeriesDrawOrderControl,
@@ -105,7 +106,7 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
     updateSeries,
     series,
 }) => {
-    const { resolvedTimezone } = useVisualizationState();
+    const { resolvedTimezone } = useVisualizationInputs();
 
     const [openSeriesId, setOpenSeriesId] = React.useState<
         string | undefined
@@ -312,13 +313,7 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                         </Group>
                     )}
                 </Stack>
-                <Box
-                    bg="ldGray.1"
-                    p="xxs"
-                    ml="md"
-                    py="xs"
-                    style={{ borderRadius: 'var(--mantine-radius-sm)' }}
-                >
+                <Box ml="md" className={seriesClasses.seriesList}>
                     <DragDropContext onDragEnd={onDragEnd}>
                         <Droppable droppableId="grouped-series-sort-fields">
                             {(dropProps) => (

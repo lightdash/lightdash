@@ -187,10 +187,7 @@
     width: 38%;
 }
 .table {
-    --table-highlight-on-hover-color: light-dark(
-        var(--mantine-color-ldGray-0),
-        var(--mantine-color-dark-6)
-    );
+    --table-highlight-on-hover-color: var(--mantine-color-ldGray-0);
 }
 .table tbody tr {
     transition:

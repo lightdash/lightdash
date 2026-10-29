@@ -5,26 +5,28 @@ import {
     type Dashboard,
     type InteractivityOptions,
 } from '@lightdash/common';
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
+import { type ReactElement, type ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createDashboardTestStore } from '../../../../../testing/dashboardStore';
+import DashboardContext from '../../../../../providers/Dashboard/context';
+import { type DashboardContextType } from '../../../../../providers/Dashboard/types';
+import {
+    createDashboardTestStore,
+    seedDashboardEditState,
+} from '../../../../../testing/dashboardStore';
 import { DashboardStoreTestProvider } from '../../../../../testing/DashboardStoreTestProvider';
 import { renderWithProviders } from '../../../../../testing/testUtils';
 import EmbedDashboardFilterBar from './EmbedDashboardFilterBar';
 
+const mockDashboardContext = vi.hoisted(() => ({
+    current: {} as Record<string, unknown>,
+}));
 vi.mock('../../../../../providers/Dashboard/useDashboardContext', () => ({
     default: vi.fn((selector: (context: Record<string, unknown>) => unknown) =>
-        selector({}),
+        selector(mockDashboardContext.current),
     ),
 }));
 
-const mockSidebar = vi.hoisted(() => ({ current: { isRailOpen: false } }));
-
-vi.mock('../../../../../features/dashboardControls/useControlsSidebar', () => ({
-    useControlsSidebarSelector: (
-        selector: (value: { isRailOpen: boolean }) => unknown,
-    ) => selector(mockSidebar.current),
-}));
 vi.mock('../../../../../features/dashboardControls/AddControl', () => ({
     AddControl: ({
         triggerClassName,
@@ -42,23 +44,52 @@ vi.mock('../../../../../features/dashboardControls/AddControl', () => ({
         </button>
     ),
 }));
-vi.mock('../../../../../features/dashboardControls/FilterPills', () => ({
-    FilterPills: ({
+// Reads the context the bar provides, as the real pills do: skeletons on a first load
+vi.mock('../../../../../features/dashboardControls/FilterPills', async () => {
+    const { useContextSelector } = await import('use-context-selector');
+    const { default: DashboardContext } =
+        await import('../../../../../providers/Dashboard/context');
+    return {
+        FilterPills: ({
+            triggerClassName,
+            dropdownClassName,
+        }: {
+            triggerClassName?: string;
+            dropdownClassName?: string;
+        }) => {
+            const isFirstLoad = useContextSelector(
+                DashboardContext,
+                (c) => c?.isLoadingDashboardFilters === true,
+            );
+            return (
+                <div
+                    data-testid="rail-pills"
+                    className={triggerClassName}
+                    data-dropdown-class={dropdownClassName}
+                    data-skeletons={isFirstLoad || undefined}
+                />
+            );
+        },
+    };
+});
+vi.mock('../../../../../features/dashboardControls/SectionedFilters', () => ({
+    SectionedFilters: ({
+        viewerActions,
         triggerClassName,
         dropdownClassName,
     }: {
+        viewerActions: ReactNode;
         triggerClassName?: string;
         dropdownClassName?: string;
     }) => (
         <div
-            data-testid="rail-pills"
+            data-testid="sectioned-filters"
             className={triggerClassName}
             data-dropdown-class={dropdownClassName}
-        />
+        >
+            {viewerActions}
+        </div>
     ),
-}));
-vi.mock('../../../../../features/dashboardControls/EditingStrip', () => ({
-    EditingStrip: () => <div data-testid="editing-strip" />,
 }));
 vi.mock('./EmbedDashboardFilters', () => ({
     default: () => <div data-testid="shipped-filters" />,
@@ -79,41 +110,66 @@ const dashboard = (canAddFilters: boolean) =>
         parameterInteractivity: { enabled: false },
     }) as unknown as Dashboard & InteractivityOptions;
 
-const renderBar = (canAddFilters: boolean, isControlsEnabled: boolean) =>
-    renderWithProviders(
-        // One saved filter, so the bar has something to show
-        <DashboardStoreTestProvider
-            store={createDashboardTestStore({
-                dashboardFilters: {
-                    dimensions: [
-                        {
-                            id: 'saved',
-                            label: undefined,
-                            operator: FilterOperator.EQUALS,
-                            target: {
-                                fieldId: 'orders_status',
-                                tableName: 'orders',
-                            },
-                            values: ['done'],
-                        },
-                    ],
-                    metrics: [],
-                    tableCalculations: [],
-                },
-            })}
-        >
+const savedRule = {
+    id: 'saved',
+    label: undefined,
+    operator: FilterOperator.EQUALS,
+    target: { fieldId: 'orders_status', tableName: 'orders' },
+    values: ['done'],
+};
+
+const sectionedStore = () => {
+    const store = createDashboardTestStore({
+        dashboardFilters: {
+            dimensions: [{ ...savedRule, sectionId: 'a' }],
+            metrics: [],
+            tableCalculations: [],
+        },
+    });
+    seedDashboardEditState(store, {
+        dashboard: {
+            config: {
+                isDateZoomDisabled: false,
+                controlSections: [{ id: 'a', name: 'Dates' }],
+            },
+        },
+    });
+    return store;
+};
+
+const barElement = (
+    canAddFilters: boolean,
+    isControlsEnabled: boolean,
+    store = createDashboardTestStore({
+        dashboardFilters: {
+            dimensions: [savedRule],
+            metrics: [],
+            tableCalculations: [],
+        },
+    }),
+): ReactElement => (
+    // The page's provider, which the bar's filter area reads below it
+    <DashboardContext.Provider
+        value={mockDashboardContext.current as unknown as DashboardContextType}
+    >
+        {/* One saved filter, so the bar has something to show */}
+        <DashboardStoreTestProvider store={store}>
             <EmbedDashboardFilterBar
                 dashboard={dashboard(canAddFilters)}
                 shouldShowFilters
                 activeTiles={[]}
                 isControlsEnabled={isControlsEnabled}
             />
-        </DashboardStoreTestProvider>,
-    );
+        </DashboardStoreTestProvider>
+    </DashboardContext.Provider>
+);
+
+const renderBar = (canAddFilters: boolean, isControlsEnabled: boolean) =>
+    renderWithProviders(barElement(canAddFilters, isControlsEnabled));
 
 describe('EmbedDashboardFilterBar', () => {
     beforeEach(() => {
-        mockSidebar.current = { isRailOpen: false };
+        mockDashboardContext.current = {};
     });
 
     it('keeps the shipped filters while the rail is off', () => {
@@ -154,10 +210,63 @@ describe('EmbedDashboardFilterBar', () => {
         ).toBeInTheDocument();
     });
 
-    it('says what is being edited while the rail is open', () => {
-        mockSidebar.current = { isRailOpen: true };
-        renderBar(true, true);
-        expect(screen.getByTestId('editing-strip')).toBeInTheDocument();
+    it("shows a dashboard's sections as the app's viewer bar, with the class contract", () => {
+        renderWithProviders(barElement(false, true, sectionedStore()));
+        const sectioned = screen.getByTestId('sectioned-filters');
+        expect(sectioned).toHaveClass('ld-dashboard-filter');
+        expect(sectioned).toHaveAttribute(
+            'data-dropdown-class',
+            'ld-dashboard-filter-dropdown',
+        );
+        // "Add filter" and the reset lead the sectioned bar
+        expect(
+            within(sectioned).getByRole('button', { name: 'Rail add' }),
+        ).toHaveClass('ld-dashboard-add-filter');
+        expect(
+            within(sectioned).getByRole('button', { name: 'Reset' }),
+        ).toBeInTheDocument();
         expect(screen.queryByTestId('rail-pills')).not.toBeInTheDocument();
+        // A size container, for the bar's narrow layouts
+        expect(sectioned.closest('[class*="filterArea"]')).not.toBeNull();
+    });
+
+    it('keeps the shipped filters for a dashboard with sections while the flag is off', () => {
+        renderWithProviders(barElement(true, false, sectionedStore()));
+        expect(screen.getByTestId('shipped-filters')).toBeInTheDocument();
+        expect(
+            screen
+                .getByTestId('shipped-filters')
+                .closest('[class*="filterArea"]'),
+        ).toBeNull();
+        expect(
+            screen.queryByTestId('sectioned-filters'),
+        ).not.toBeInTheDocument();
+    });
+
+    it('keeps the pills while a tile change reloads the filter fields', () => {
+        const loaded = {
+            isLoadingDashboardFilters: false,
+            isFetchingDashboardFilters: false,
+            filterableFieldsByTileUuid: { 'tile-1': [] },
+            allFilterableFields: [],
+        };
+        mockDashboardContext.current = loaded;
+        const { rerender } = renderBar(true, true);
+        expect(screen.getByTestId('rail-pills')).not.toHaveAttribute(
+            'data-skeletons',
+        );
+
+        // A tile added or removed is a new query key: a first load again
+        mockDashboardContext.current = {
+            ...loaded,
+            isLoadingDashboardFilters: true,
+            isFetchingDashboardFilters: true,
+            filterableFieldsByTileUuid: undefined,
+            allFilterableFields: undefined,
+        };
+        rerender(barElement(true, true));
+        expect(screen.getByTestId('rail-pills')).not.toHaveAttribute(
+            'data-skeletons',
+        );
     });
 });

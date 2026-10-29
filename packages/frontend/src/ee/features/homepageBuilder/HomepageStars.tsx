@@ -18,7 +18,6 @@ import {
     useEffect,
     useRef,
     useState,
-    type CSSProperties,
     type FC,
     type ReactElement,
 } from 'react';
@@ -297,7 +296,7 @@ const StarCard: FC<{
 }> = ({ icon, tint, name, meta }) => (
     <Box className={classes.card} p={14}>
         <Box className={classes.cardIcon} mb={10}>
-            <MantineIcon icon={icon} size={16} style={{ color: tint }} />
+            <MantineIcon icon={icon} size={16} color={tint} />
         </Box>
         <Text size="sm" fw={600} truncate mb={2}>
             {name}
@@ -502,7 +501,14 @@ type Star = {
     defKey: string;
     slot: Slot;
     className: string;
-    style: CSSProperties;
+    vars: {
+        top: string;
+        clearance: string;
+        slack: string;
+        width: string;
+        opacity: string;
+        tilt: string;
+    };
     seed: StarSeed;
     phase: StarPhase;
     lifetimeMs: number;
@@ -593,14 +599,14 @@ const appendStar = (
             slot,
             className:
                 slot.side === 'left' ? classes.starLeft : classes.starRight,
-            style: {
-                '--star-top': `${slot.topPct + draws.topJitter}%`,
-                '--star-clearance': `${tier.clearancePx}px`,
-                '--star-slack': `${draws.gutterPick.toFixed(3)}`,
-                '--star-width': `${Math.round(tier.starWidthPx * sizeScale)}px`,
-                '--star-opacity': `${(0.36 + 0.64 * sizeScale).toFixed(2)}`,
-                '--star-tilt': `${draws.tilt}deg`,
-            } as CSSProperties,
+            vars: {
+                top: `${slot.topPct + draws.topJitter}%`,
+                clearance: `${tier.clearancePx}px`,
+                slack: `${draws.gutterPick.toFixed(3)}`,
+                width: `${Math.round(tier.starWidthPx * sizeScale)}px`,
+                opacity: `${(0.36 + 0.64 * sizeScale).toFixed(2)}`,
+                tilt: `${draws.tilt}deg`,
+            },
             seed: draws.seed,
             phase: 'entering',
             lifetimeMs: draws.lifetimeMs,
@@ -807,7 +813,14 @@ const HomepageStars: FC = () => {
                         className={`${classes.star} ${
                             star.className
                         } ${phaseClass(star.phase)}`}
-                        style={star.style}
+                        style={{
+                            '--star-top': star.vars.top,
+                            '--star-clearance': star.vars.clearance,
+                            '--star-slack': star.vars.slack,
+                            '--star-width': star.vars.width,
+                            '--star-opacity': star.vars.opacity,
+                            '--star-tilt': star.vars.tilt,
+                        }}
                         // Decoration stays out of the accessibility tree; only
                         // media cards are announced, via their link text.
                         aria-hidden={def?.interactive ? undefined : true}

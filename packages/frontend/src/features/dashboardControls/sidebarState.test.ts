@@ -62,6 +62,27 @@ describe('sidebarState', () => {
         ).toBe(true);
     });
 
+    it('puts a rule back in the section it sits in now', () => {
+        const snapshot = replaceFilterRule(filters, {
+            ...rule('a', ['1']),
+            sectionId: 's',
+        });
+        const intoOther = replaceFilterRule(filters, {
+            ...rule('a', ['9']),
+            sectionId: 't',
+        });
+        expect(
+            findFilterRule(restoreFilterRule(intoOther, snapshot, 'a'), 'a'),
+        ).toEqual({ ...rule('a', ['1']), sectionId: 't' });
+        const outOfIt = replaceFilterRule(filters, rule('a', ['9']));
+        expect(
+            findFilterRule(restoreFilterRule(outOfIt, snapshot, 'a'), 'a'),
+        ).toEqual(rule('a', ['1']));
+        expect(
+            findFilterRule(restoreFilterRules(outOfIt, snapshot, ['a']), 'a'),
+        ).toEqual(rule('a', ['1']));
+    });
+
     it('recognises a placeholder by its empty target', () => {
         expect(isPlaceholderRule(rule('a', []))).toBe(false);
         expect(

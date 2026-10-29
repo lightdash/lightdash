@@ -30,16 +30,14 @@ const SKILL = {
     source: 'builtIn' as const,
 };
 
-const REPOSITORY_SKILLS = [
-    'reading-source-code',
-    'repository-writeback',
-    'editing-source-code',
-].map((name) => ({
-    name,
-    description: `Guidance for ${name}`,
-    resources: [],
-    source: 'builtIn' as const,
-}));
+const REPOSITORY_SKILLS = ['reading-source-code', 'repository-writeback'].map(
+    (name) => ({
+        name,
+        description: `Guidance for ${name}`,
+        resources: [],
+        source: 'builtIn' as const,
+    }),
+);
 
 const CUSTOM_SKILL = {
     name: 'revenue-review',
@@ -73,7 +71,6 @@ const fullInput: LoadoutInput = {
     enableDocuments: true,
     enableGenerateDataApp: true,
     enableAiWriteback: true,
-    enableCodingAgent: true,
     enableRepoDiscovery: true,
     enableEditProjectContext: true,
     enableReadAttachments: true,
@@ -98,7 +95,6 @@ const minimalInput: LoadoutInput = {
     enableDocuments: false,
     enableGenerateDataApp: false,
     enableAiWriteback: false,
-    enableCodingAgent: false,
     enableRepoDiscovery: false,
     enableEditProjectContext: false,
     enableReadAttachments: false,
@@ -182,7 +178,7 @@ const contract = (loadout: Loadout) =>
         4,
     )}\n`;
 
-// Wording flags stay at their defaults; composer renders with the data access it requires.
+// Wording flags stay at their defaults; composer renders with the data access it requires and SQL access when sqlCatalog is on.
 const renderPrompt = (loadout: Loadout, input: LoadoutInput) =>
     getSystemPromptV2({
         availableExplores: [],
@@ -190,6 +186,9 @@ const renderPrompt = (loadout: Loadout, input: LoadoutInput) =>
         promptSections: loadout.promptSections,
         availableSkills: listedSkills(loadout, input),
         enableDataAccess: loadout.base === 'composer',
+        canRunSql:
+            loadout.base === 'composer' &&
+            loadout.toolNames.has('listWarehouseTables'),
         canRunQuery: loadout.toolNames.has('runQuery'),
     }).content;
 
@@ -321,7 +320,6 @@ describe('resolveLoadout', () => {
         const loadout = resolveLoadout({
             ...fullInput,
             enableAiWriteback: false,
-            enableCodingAgent: false,
         });
         expect(loadout.addOns.has('writeback')).toBe(false);
         expect(loadout.addOns.has('pullRequests')).toBe(false);
@@ -345,20 +343,19 @@ describe('resolveLoadout', () => {
     test.each([
         ['repoDiscovery', 'reading-source-code'],
         ['writeback', 'repository-writeback'],
-        ['codingAgent', 'editing-source-code'],
     ] as const)('%s declares %s and brings loadSkill', (name, skill) => {
         const loadout = buildLoadout('classic', fullInput, [name]);
         expect(loadout.skills).toEqual(new Set([skill]));
         expect(loadout.toolNames.has('loadSkill')).toBe(true);
     });
 
-    test('classic with every add-on lists the three repository skills', () => {
+    test('classic with every add-on lists the two repository skills', () => {
         const loadout = buildLoadout('classic', fullInput, ADD_ON_NAMES);
         expect(
             renderPrompt(loadout, fullInput).match(
-                /^- (reading-source-code|repository-writeback|editing-source-code):/gm,
+                /^- (reading-source-code|repository-writeback):/gm,
             ),
-        ).toHaveLength(3);
+        ).toHaveLength(2);
     });
 
     test('custom skills alone bring loadSkill but no built-in skill', () => {

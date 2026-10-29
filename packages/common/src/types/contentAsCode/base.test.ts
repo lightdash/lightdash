@@ -1,5 +1,10 @@
 import { ParameterError } from '../errors';
-import { getContentAsCodeFilePath, normalizeContentAsCodePath } from './base';
+import {
+    getContentAsCodeFilePath,
+    normalizeContentAsCodePath,
+    normalizeContentAsCodeSourcePath,
+    resolveContentAsCodeRepoPath,
+} from './base';
 import {
     classifyContentAsCodeFilePath,
     joinContentAsCodePath,
@@ -95,6 +100,48 @@ describe('getContentAsCodeFilePath', () => {
     it('keeps files at the project root for an empty path', () => {
         expect(getContentAsCodeFilePath('', 'chart', 'revenue')).toBe(
             'charts/revenue.yml',
+        );
+    });
+});
+
+describe('normalizeContentAsCodeSourcePath', () => {
+    it('keeps parent segments so local package sources stay addressable', () => {
+        expect(
+            normalizeContentAsCodeSourcePath(
+                './../../packages/team_a/lightdash/charts/a.yml',
+            ),
+        ).toBe('../../packages/team_a/lightdash/charts/a.yml');
+        expect(
+            normalizeContentAsCodeSourcePath('lightdash\\charts\\a.yml'),
+        ).toBe('lightdash/charts/a.yml');
+    });
+
+    it('rejects absolute paths', () => {
+        expect(() => normalizeContentAsCodeSourcePath('/srv/a.yml')).toThrow(
+            ParameterError,
+        );
+    });
+});
+
+describe('resolveContentAsCodeRepoPath', () => {
+    it('resolves parent segments against the project dir', () => {
+        expect(
+            resolveContentAsCodeRepoPath(
+                'projects/analytics/core',
+                '../../../packages/team_a/lightdash/charts/a.yml',
+            ),
+        ).toBe('packages/team_a/lightdash/charts/a.yml');
+        expect(
+            resolveContentAsCodeRepoPath('/', 'lightdash/charts/a.yml'),
+        ).toBe('lightdash/charts/a.yml');
+    });
+
+    it('rejects paths that leave the repository', () => {
+        expect(() =>
+            resolveContentAsCodeRepoPath('core', '../../a.yml'),
+        ).toThrow(ParameterError);
+        expect(() => resolveContentAsCodeRepoPath('', '../a.yml')).toThrow(
+            ParameterError,
         );
     });
 });

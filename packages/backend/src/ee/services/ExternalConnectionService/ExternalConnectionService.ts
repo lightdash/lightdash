@@ -1,20 +1,29 @@
 import { subject } from '@casl/ability';
 import {
+    ApiConnectorType,
     assertRegisteredAccount,
+    assertUnreachable,
     DATA_APP_VIZ_TEMPLATE,
     EXTERNAL_CONNECTION_DEFAULTS,
     EXTERNAL_CONNECTION_IDENTITY_HEADERS,
+    FeatureFlags,
     ForbiddenError,
     getErrorMessage,
     isJwtUser,
     MissingConfigError,
     NotFoundError,
     ParameterError,
+    POSTHOG_REGION_ORIGINS,
+    TimeoutError,
     TooManyRequestsError,
+    UnexpectedServerError,
+    WarehouseConnectionError,
     type Account,
     type ApiSaveExternalConnectionSampleRequest,
     type CreateExternalConnection,
     type ExternalConnection,
+    type ExternalConnectionApiUsage,
+    type ExternalConnectionAuthType,
     type ExternalConnectionConfigProposal,
     type ExternalConnectionLinkedApps,
     type ExternalConnectionListItem,
@@ -23,19 +32,35 @@ import {
     type ExternalConnectionSampleRequest,
     type ExternalFetchRequest,
     type ExternalFetchResponse,
+    type GoogleLiveSourceChoice,
+    type GoogleLiveSourcePendingChoice,
     type RegisteredAccount,
     type UpdateExternalConnection,
 } from '@lightdash/common';
+import isEqual from 'lodash/isEqual';
+import { createHash, randomBytes } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
 import { toSessionUser } from '../../../auth/account';
+import { type LightdashConfig } from '../../../config/parseConfig';
 import { type AppModel } from '../../../models/AppModel';
+import type { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { BaseService } from '../../../services/BaseService';
+import type {
+    ApiConnector,
+    ApiConnectorTransport,
+    ApiConnectorUsage,
+    MeteredApiConnector,
+} from '../../../services/QuerySourceService/api/ApiConnector';
+import { Ga4Connector } from '../../../services/QuerySourceService/api/google/Ga4Connector';
+import { SearchConsoleConnector } from '../../../services/QuerySourceService/api/google/SearchConsoleConnector';
+import { PostHogConnector } from '../../../services/QuerySourceService/api/posthog/PostHogConnector';
 import type { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
 import {
     normalizeCredentialUrlHref,
     normalizeCredentialUrlOrigin,
 } from '../../../utils/credentialDestination';
+import type { EncryptionUtil } from '../../../utils/EncryptionUtil/EncryptionUtil';
 import {
     secureFetch,
     SecureFetchError,
@@ -53,16 +78,45 @@ import {
 } from '../AppGenerateService/appAuthz';
 import { type AppGenerateService } from '../AppGenerateService/AppGenerateService';
 import { type EmbedService } from '../EmbedService/EmbedService';
+import { ApiSourceCallLimiter } from './ApiSourceCallLimiter';
+import {
+    validateApiSourceConnection,
+    withApiSourceAccessRules,
+} from './apiSourceConnection';
 import { getExternalConnectionSubject } from './externalConnectionAuthz';
 import {
     validateExternalConnectionConfig,
     validateServiceAccountKeyfile,
 } from './externalConnectionConfigValidation';
+import {
+    buildGoogleAuthorizeUrl,
+    GOOGLE_CONNECTORS,
+    GOOGLE_TOKEN_URL,
+    isGoogleConnector,
+    type GoogleApiGet,
+    type GoogleConnectorType,
+} from './googleOAuth';
 import { type GoogleServiceAccountTokenProvider } from './GoogleServiceAccountTokenProvider';
+import {
+    isAccessTokenFresh,
+    OAuthGrantRejectedError,
+    parseStoredOAuthTokens,
+    serializeStoredOAuthTokens,
+    type OAuthAuthorizationCodeClientConfig,
+    type OAuthAuthorizationCodeTokenClient,
+    type StoredOAuthTokens,
+} from './OAuthAuthorizationCodeTokenClient';
 import {
     type OAuthClientCredentialsConfig,
     type OAuthClientCredentialsTokenProvider,
 } from './OAuthClientCredentialsTokenProvider';
+import {
+    buildPostHogAuthorizeUrl,
+    getPostHogClientMetadata,
+    getPostHogGrantedProjectId,
+    getPostHogOAuthEndpoints,
+    getPostHogOAuthRedirectUri,
+} from './postHogOAuth';
 import {
     assertSafeApiKeyHeaderName,
     buildOutboundUrl,
@@ -83,8 +137,48 @@ type ExternalConnectionServiceArguments = {
     spacePermissionService: SpacePermissionService;
     googleTokenProvider: GoogleServiceAccountTokenProvider;
     oauthClientCredentialsTokenProvider: OAuthClientCredentialsTokenProvider;
+    oauthAuthorizationCodeTokenClient: OAuthAuthorizationCodeTokenClient;
     orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
+    featureFlagModel: FeatureFlagModel;
+    encryptionUtil: Pick<EncryptionUtil, 'encrypt' | 'decrypt'>;
+    lightdashConfig: Pick<LightdashConfig, 'siteUrl' | 'liveSources' | 'auth'>;
 };
+
+export type PostHogRegion = keyof typeof POSTHOG_REGION_ORIGINS;
+
+/** What the sign-in callback needs from the request that started it. */
+export type PostHogOAuthSession = {
+    projectUuid: string;
+    region: PostHogRegion;
+    name: string;
+    connectionUuid: string | null;
+    clientId: string;
+    redirectUri: string;
+    codeVerifier: string;
+};
+
+/** What the Google sign-in callback needs from the request that started it. */
+export type GoogleOAuthSession = {
+    projectUuid: string;
+    connector: GoogleConnectorType;
+    name: string;
+    connectionUuid: string | null;
+    redirectUri: string;
+    codeVerifier: string;
+};
+
+/** A Google sign-in that can read several properties, waiting for the admin to pick one. */
+export type PendingGoogleLiveSource = {
+    projectUuid: string;
+    connector: GoogleConnectorType;
+    name: string;
+    /** The granted tokens, encrypted while they wait in the session. */
+    encryptedTokens: string;
+    choices: GoogleLiveSourceChoice[];
+};
+
+const GOOGLE_API_TIMEOUT_MS = 10_000;
+const GOOGLE_API_RESPONSE_MAX_BYTES = 1024 * 1024;
 
 export class ExternalConnectionService extends BaseService {
     private readonly allowedPrivateHostCidrs: AllowedPrivateHostCidrs;
@@ -105,7 +199,23 @@ export class ExternalConnectionService extends BaseService {
 
     private readonly oauthClientCredentialsTokenProvider: OAuthClientCredentialsTokenProvider;
 
+    private readonly oauthAuthorizationCodeTokenClient: OAuthAuthorizationCodeTokenClient;
+
+    private readonly lightdashConfig: Pick<
+        LightdashConfig,
+        'siteUrl' | 'liveSources' | 'auth'
+    >;
+
+    private readonly encryptionUtil: Pick<
+        EncryptionUtil,
+        'encrypt' | 'decrypt'
+    >;
+
+    private readonly apiSourceCallLimiter: ApiSourceCallLimiter;
+
     private readonly orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
+
+    private readonly featureFlagModel: FeatureFlagModel;
 
     private static readonly DEFAULT_RATE_LIMIT_PER_MINUTE = 60;
 
@@ -123,7 +233,40 @@ export class ExternalConnectionService extends BaseService {
         this.googleTokenProvider = args.googleTokenProvider;
         this.oauthClientCredentialsTokenProvider =
             args.oauthClientCredentialsTokenProvider;
+        this.oauthAuthorizationCodeTokenClient =
+            args.oauthAuthorizationCodeTokenClient;
+        this.lightdashConfig = args.lightdashConfig;
+        this.encryptionUtil = args.encryptionUtil;
+        this.apiSourceCallLimiter = new ApiSourceCallLimiter({
+            model: args.externalConnectionModel,
+        });
         this.orgAiCopilotConfigResolver = args.orgAiCopilotConfigResolver;
+        this.featureFlagModel = args.featureFlagModel;
+    }
+
+    private async assertLiveSourcesEnabled(
+        account: RegisteredAccount,
+    ): Promise<void> {
+        const { enabled } = await this.featureFlagModel.get({
+            user: {
+                userUuid: account.user.id,
+                organizationUuid: account.organization.organizationUuid,
+            },
+            featureFlagId: FeatureFlags.ApiQuerySources,
+        });
+        if (!enabled) {
+            throw new ForbiddenError(
+                'Live data sources are not enabled for this organization',
+            );
+        }
+    }
+
+    private static assertNotSignInType(type: ExternalConnectionAuthType) {
+        if (type === 'oauth_authorization_code') {
+            throw new ParameterError(
+                'Signed-in connections are set up by signing in from Live data sources',
+            );
+        }
     }
 
     private assertCanManage(
@@ -240,15 +383,19 @@ export class ExternalConnectionService extends BaseService {
             throw new NotFoundError('Project not found');
         }
         this.assertCanManage(account, projectUuid, organizationUuid);
-        validateExternalConnectionConfig(data, Boolean(data.secret));
-        if (data.type === 'google_service_account' && data.secret) {
-            validateServiceAccountKeyfile(data.secret);
+        if (data.apiSource) await this.assertLiveSourcesEnabled(account);
+        ExternalConnectionService.assertNotSignInType(data.type);
+        const config = withApiSourceAccessRules(data);
+        validateExternalConnectionConfig(config, Boolean(config.secret));
+        validateApiSourceConnection(config);
+        if (config.type === 'google_service_account' && config.secret) {
+            validateServiceAccountKeyfile(config.secret);
         }
         const connection = await this.externalConnectionModel.create(
             projectUuid,
             organizationUuid,
             account.user.id,
-            data,
+            config,
             options,
         );
         this.analytics.track({
@@ -258,6 +405,7 @@ export class ExternalConnectionService extends BaseService {
                 organizationId: organizationUuid,
                 projectId: projectUuid,
                 externalConnectionUuid: connection.externalConnectionUuid,
+                ...ExternalConnectionService.kindProperties(connection),
                 authType: connection.type,
             },
         });
@@ -296,6 +444,7 @@ export class ExternalConnectionService extends BaseService {
         const connections = await this.externalConnectionModel.list(
             projectUuid,
             organizationUuid,
+            { kind: null },
         );
         return connections.filter((connection) =>
             ability.can('view', getExternalConnectionSubject(connection)),
@@ -378,6 +527,15 @@ export class ExternalConnectionService extends BaseService {
         return this.getViewableConnection(account, projectUuid, connectionUuid);
     }
 
+    private static kindProperties(
+        connection: Pick<ExternalConnection, 'kind' | 'apiSource'>,
+    ) {
+        return {
+            connectionKind: connection.kind ?? 'data_app',
+            connector: connection.apiSource?.connector ?? null,
+        };
+    }
+
     private static resolveConnectionUpdate(
         existing: ExternalConnection,
         data: UpdateExternalConnection,
@@ -445,13 +603,16 @@ export class ExternalConnectionService extends BaseService {
             data.oauthScopes,
             existing.oauthScopes,
         );
+        const usesOAuthClient =
+            resultingType === 'oauth_client_credentials' ||
+            resultingType === 'oauth_authorization_code';
         const oauthTokenUrl = resolveTypeField(
-            resultingType === 'oauth_client_credentials',
+            usesOAuthClient,
             data.oauthTokenUrl,
             existing.oauthTokenUrl,
         );
         const oauthClientId = resolveTypeField(
-            resultingType === 'oauth_client_credentials',
+            usesOAuthClient,
             data.oauthClientId,
             existing.oauthClientId,
         );
@@ -461,7 +622,7 @@ export class ExternalConnectionService extends BaseService {
             existing.oauthClientAuthMethod,
         );
 
-        const resolved: ExternalConnection = {
+        const resolved = withApiSourceAccessRules<ExternalConnection>({
             ...existing,
             name: data.name ?? existing.name,
             type: resultingType,
@@ -502,10 +663,15 @@ export class ExternalConnectionService extends BaseService {
                 data.customHeaders !== undefined
                     ? data.customHeaders
                     : existing.customHeaders,
+            apiSource:
+                data.apiSource !== undefined
+                    ? data.apiSource
+                    : (existing.apiSource ?? null),
             hasSecret: hasSecretAfter,
-        };
+        });
 
         validateExternalConnectionConfig(resolved, hasSecretAfter);
+        validateApiSourceConnection(resolved);
         // A secret-less same-type update keeps the already-validated stored
         // keyfile; only a replacement keyfile needs parsing again.
         if (resultingType === 'google_service_account' && data.secret) {
@@ -526,6 +692,38 @@ export class ExternalConnectionService extends BaseService {
             projectUuid,
             connectionUuid,
         );
+        const isLiveSource = existing.kind === 'live_source';
+        if (isLiveSource || data.apiSource) {
+            await this.assertLiveSourcesEnabled(account);
+        }
+        if (!isLiveSource && data.apiSource) {
+            throw new ParameterError(
+                'A data app connection cannot become a live data source',
+            );
+        }
+        if (isLiveSource && data.apiSource === null) {
+            throw new ParameterError(
+                'A live data source cannot drop its integration settings',
+            );
+        }
+        if (data.type !== undefined && data.type !== existing.type) {
+            ExternalConnectionService.assertNotSignInType(data.type);
+        }
+        if (
+            existing.type === 'oauth_authorization_code' &&
+            (data.type ?? existing.type) === existing.type &&
+            (data.secret !== undefined ||
+                data.oauthTokenUrl !== undefined ||
+                data.oauthClientId !== undefined ||
+                (data.origin !== undefined &&
+                    data.origin !== existing.origin) ||
+                (data.apiSource !== undefined &&
+                    !isEqual(data.apiSource, existing.apiSource)))
+        ) {
+            throw new ParameterError(
+                'Reconnect this source to change its sign-in, region, project or site',
+            );
+        }
         const resolved = ExternalConnectionService.resolveConnectionUpdate(
             existing,
             data,
@@ -543,6 +741,15 @@ export class ExternalConnectionService extends BaseService {
                 oauthTokenUrl: resolved.oauthTokenUrl,
                 oauthClientId: resolved.oauthClientId,
                 oauthClientAuthMethod: resolved.oauthClientAuthMethod,
+                ...(resolved.apiSource
+                    ? {
+                          allowedPathPrefixes: resolved.allowedPathPrefixes,
+                          allowedMethods: resolved.allowedMethods,
+                          allowedContentTypes: resolved.allowedContentTypes,
+                          timeoutMs: resolved.timeoutMs,
+                          responseMaxBytes: resolved.responseMaxBytes,
+                      }
+                    : {}),
             },
         );
         this.analytics.track({
@@ -552,6 +759,7 @@ export class ExternalConnectionService extends BaseService {
                 organizationId: existing.organizationUuid,
                 projectId: projectUuid,
                 externalConnectionUuid: connectionUuid,
+                ...ExternalConnectionService.kindProperties(updated),
             },
         });
         return updated;
@@ -575,6 +783,7 @@ export class ExternalConnectionService extends BaseService {
                 organizationId: existing.organizationUuid,
                 projectId: projectUuid,
                 externalConnectionUuid: connectionUuid,
+                ...ExternalConnectionService.kindProperties(existing),
             },
         });
     }
@@ -590,6 +799,7 @@ export class ExternalConnectionService extends BaseService {
             projectUuid,
             connectionUuid,
         );
+        ExternalConnectionService.assertNotSignInType(existing.type);
         await this.externalConnectionModel.rotateSecret(connectionUuid, secret);
         this.analytics.track({
             event: 'external_connection.secret_rotated',
@@ -764,6 +974,860 @@ export class ExternalConnectionService extends BaseService {
             );
         }
         return app;
+    }
+
+    /** Connections a live api query can use: api sources the account may view. */
+    async listApiSourceConnections(
+        account: RegisteredAccount,
+        projectUuid: string,
+    ): Promise<ExternalConnection[]> {
+        const organizationUuid =
+            await this.externalConnectionModel.getProjectOrganizationUuid(
+                projectUuid,
+            );
+        if (!organizationUuid) {
+            throw new NotFoundError('Project not found');
+        }
+        const ability = this.createAuditedAbility(account);
+        const connections = await this.externalConnectionModel.list(
+            projectUuid,
+            organizationUuid,
+            { kind: 'live_source' },
+        );
+        return connections.filter(
+            (connection) =>
+                connection.apiSource &&
+                ability.can('view', getExternalConnectionSubject(connection)),
+        );
+    }
+
+    /** What each live source in the project has sent its integration. */
+    async getApiSourceUsage(
+        account: RegisteredAccount,
+        projectUuid: string,
+    ): Promise<ExternalConnectionApiUsage[]> {
+        const organizationUuid =
+            await this.externalConnectionModel.getProjectOrganizationUuid(
+                projectUuid,
+            );
+        if (!organizationUuid) {
+            throw new NotFoundError('Project not found');
+        }
+        this.assertCanManage(account, projectUuid, organizationUuid);
+        return this.externalConnectionModel.getApiSourceUsage(projectUuid);
+    }
+
+    /**
+     * A connector for a live api query. The stored secret never leaves this
+     * service: requests go through the same guarded fetch as the app proxy.
+     */
+    async getApiConnector(
+        account: RegisteredAccount,
+        projectUuid: string,
+        connectionUuid: string,
+    ): Promise<MeteredApiConnector> {
+        const connection = await this.getViewableConnection(
+            account,
+            projectUuid,
+            connectionUuid,
+        );
+        const { apiSource } = connection;
+        if (connection.kind !== 'live_source' || !apiSource) {
+            throw new ParameterError(
+                `"${connection.name}" is not a live data source`,
+            );
+        }
+        let connector: ApiConnector;
+        let callsThisQuery = 0;
+        const usage: ApiConnectorUsage = {
+            apiCalls: 0,
+            responseBytes: 0,
+            providerStatus: null,
+        };
+        const sendOnce: ApiConnectorTransport = async (request) => {
+            const secret =
+                await this.externalConnectionModel.getDecryptedSecret(
+                    connection.externalConnectionUuid,
+                );
+            usage.apiCalls += 1;
+            try {
+                const { response, responseBytes } =
+                    await this.executeExternalFetch(
+                        connection,
+                        secret,
+                        {
+                            method: request.method,
+                            path: request.path,
+                            body: request.body,
+                        },
+                        { account, appUuid: null },
+                    );
+                usage.responseBytes += responseBytes;
+                usage.providerStatus = response.status;
+                return {
+                    status: response.status,
+                    headers: response.headers,
+                    body: response.body,
+                };
+            } catch (error) {
+                if (error instanceof SecureFetchError) {
+                    if (error.reason === 'timeout') {
+                        throw new TimeoutError(
+                            `Live data source "${connection.name}" did not respond within ${
+                                connection.timeoutMs / 1000
+                            } seconds`,
+                        );
+                    }
+                    throw new ParameterError(
+                        `Request to live data source "${connection.name}" was blocked (${error.reason})`,
+                    );
+                }
+                throw error;
+            }
+        };
+        const send: ApiConnectorTransport = async (request) => {
+            const { label, limits } = connector.describe();
+            callsThisQuery += 1;
+            if (callsThisQuery > limits.callsPerQuery) {
+                throw new ParameterError(
+                    `This query needs more than ${limits.callsPerQuery} ${label} API calls. Narrow it with filters or a shorter time range.`,
+                );
+            }
+            return this.apiSourceCallLimiter.run(connection, limits, () =>
+                sendOnce(request),
+            );
+        };
+        switch (apiSource.connector) {
+            case ApiConnectorType.POSTHOG:
+                connector = new PostHogConnector({
+                    projectId: apiSource.projectId,
+                    send,
+                });
+                break;
+            case ApiConnectorType.SEARCH_CONSOLE:
+                connector = new SearchConsoleConnector({
+                    siteUrl: apiSource.siteUrl,
+                    send,
+                });
+                break;
+            case ApiConnectorType.GA4:
+                connector = new Ga4Connector({
+                    propertyId: apiSource.propertyId,
+                    send,
+                });
+                break;
+            default:
+                return assertUnreachable(apiSource, 'Unknown api connector');
+        }
+        return {
+            describe: () => connector.describe(),
+            execute: (args) => connector.execute(args),
+            usage: () => ({ ...usage }),
+            logCall: async (call) => {
+                try {
+                    await this.externalConnectionModel.insertApiSourceCall({
+                        external_connection_uuid:
+                            connection.externalConnectionUuid,
+                        project_uuid: projectUuid,
+                        user_uuid: account.user.id,
+                        context: call.context,
+                        query_uuid: call.queryUuid,
+                        query: call.query,
+                        row_limit: call.rowLimit,
+                        outcome: call.outcome,
+                        error_message: call.errorMessage,
+                        provider_status: usage.providerStatus,
+                        api_calls: usage.apiCalls,
+                        duration_ms: call.durationMs,
+                        row_count: call.rowCount,
+                        column_count: call.columnCount,
+                        truncated: call.truncated,
+                        response_bytes: usage.responseBytes,
+                    });
+                } catch (error) {
+                    this.logger.error(
+                        `Failed to log api query ${call.queryUuid} for connection ${connection.externalConnectionUuid}: ${getErrorMessage(error)}`,
+                    );
+                }
+            },
+        };
+    }
+
+    private static isPostHogRegion(region: string): region is PostHogRegion {
+        return Object.hasOwn(POSTHOG_REGION_ORIGINS, region);
+    }
+
+    private getGoogleClient(): {
+        clientId: string;
+        clientSecret: string;
+    } | null {
+        const { oauth2ClientId, oauth2ClientSecret } =
+            this.lightdashConfig.auth.google;
+        return oauth2ClientId && oauth2ClientSecret
+            ? { clientId: oauth2ClientId, clientSecret: oauth2ClientSecret }
+            : null;
+    }
+
+    /** The secret of whichever configured sign-in client issued a connection's tokens. */
+    private getOAuthClientSecret(clientId: string): string | null {
+        const { oauthClientId, oauthClientSecret } =
+            this.lightdashConfig.liveSources.posthog;
+        if (clientId === oauthClientId) return oauthClientSecret ?? null;
+        const google = this.getGoogleClient();
+        return google && clientId === google.clientId
+            ? google.clientSecret
+            : null;
+    }
+
+    getPostHogClientMetadata(): Record<string, unknown> | null {
+        if (!this.lightdashConfig.liveSources.posthog.oauthClientId)
+            return null;
+        return getPostHogClientMetadata(this.lightdashConfig.siteUrl);
+    }
+
+    /** Where the sign-in callback lands, with its outcome for the settings page to show. */
+    getLiveDataSourcesUrl(
+        projectUuid: string,
+        result:
+            | { connectionUuid: string }
+            | { error: string }
+            | { pickGoogleSource: true },
+    ): string {
+        const url = new URL(
+            `/generalSettings/projectManagement/${projectUuid}/liveDataSources`,
+            this.lightdashConfig.siteUrl,
+        );
+        if ('error' in result) {
+            url.searchParams.set('signInError', result.error);
+        } else if ('pickGoogleSource' in result) {
+            url.searchParams.set('pickGoogleSource', 'true');
+        } else {
+            url.searchParams.set('connected', result.connectionUuid);
+        }
+        return url.href;
+    }
+
+    /** Starts the PostHog sign-in that creates a source, or reconnects one. */
+    async startPostHogOAuth(
+        account: RegisteredAccount,
+        projectUuid: string,
+        request: {
+            region: string;
+            name: string;
+            connectionUuid: string | null;
+        },
+    ): Promise<{
+        authorizeUrl: string;
+        state: string;
+        session: PostHogOAuthSession;
+    }> {
+        const { oauthClientId } = this.lightdashConfig.liveSources.posthog;
+        if (!oauthClientId) {
+            throw new MissingConfigError(
+                'Signing in to PostHog is not configured on this server',
+            );
+        }
+        const organizationUuid =
+            await this.externalConnectionModel.getProjectOrganizationUuid(
+                projectUuid,
+            );
+        if (!organizationUuid) {
+            throw new NotFoundError('Project not found');
+        }
+        this.assertCanManage(account, projectUuid, organizationUuid);
+        await this.assertLiveSourcesEnabled(account);
+        const { region, connectionUuid } = request;
+        if (!ExternalConnectionService.isPostHogRegion(region)) {
+            throw new ParameterError('Pick the US or EU PostHog region');
+        }
+        const name = request.name.trim();
+        if (!name) {
+            throw new ParameterError('Name is required');
+        }
+        if (connectionUuid) {
+            const existing = await this.getOwnedConnection(
+                account,
+                projectUuid,
+                connectionUuid,
+            );
+            if (existing.apiSource?.connector !== ApiConnectorType.POSTHOG) {
+                throw new ParameterError(
+                    `Live data source "${existing.name}" does not use PostHog`,
+                );
+            }
+        }
+
+        const state = randomBytes(24).toString('base64url');
+        const codeVerifier = randomBytes(32).toString('base64url');
+        const redirectUri = getPostHogOAuthRedirectUri(
+            this.lightdashConfig.siteUrl,
+        );
+        return {
+            authorizeUrl: buildPostHogAuthorizeUrl({
+                origin: POSTHOG_REGION_ORIGINS[region],
+                clientId: oauthClientId,
+                redirectUri,
+                state,
+                codeChallenge: createHash('sha256')
+                    .update(codeVerifier)
+                    .digest('base64url'),
+            }),
+            state,
+            session: {
+                projectUuid,
+                region,
+                name,
+                connectionUuid,
+                clientId: oauthClientId,
+                redirectUri,
+                codeVerifier,
+            },
+        };
+    }
+
+    /** Exchanges the sign-in code and stores the tokens on a new or reconnected source. */
+    async completePostHogOAuth(
+        account: RegisteredAccount,
+        session: PostHogOAuthSession,
+        code: string,
+    ): Promise<ExternalConnection> {
+        const { projectUuid } = session;
+        const organizationUuid =
+            await this.externalConnectionModel.getProjectOrganizationUuid(
+                projectUuid,
+            );
+        if (!organizationUuid) {
+            throw new NotFoundError('Project not found');
+        }
+        this.assertCanManage(account, projectUuid, organizationUuid);
+        await this.assertLiveSourcesEnabled(account);
+
+        const origin = POSTHOG_REGION_ORIGINS[session.region];
+        const client: OAuthAuthorizationCodeClientConfig = {
+            tokenUrl: getPostHogOAuthEndpoints(origin).tokenUrl,
+            clientId: session.clientId,
+            clientSecret: this.getOAuthClientSecret(session.clientId),
+        };
+        let grant: Awaited<
+            ReturnType<OAuthAuthorizationCodeTokenClient['exchangeCode']>
+        >;
+        try {
+            grant = await this.oauthAuthorizationCodeTokenClient.exchangeCode(
+                client,
+                {
+                    code,
+                    redirectUri: session.redirectUri,
+                    codeVerifier: session.codeVerifier,
+                },
+            );
+        } catch (error) {
+            this.logger.warn(
+                `PostHog sign-in failed: ${getErrorMessage(error)}`,
+            );
+            throw new WarehouseConnectionError(
+                'PostHog did not accept the sign-in. Try connecting again.',
+            );
+        }
+        const projectId = getPostHogGrantedProjectId(grant.response);
+        if (!projectId) {
+            throw new ParameterError(
+                'Pick a single PostHog project when signing in',
+            );
+        }
+
+        const config = withApiSourceAccessRules<CreateExternalConnection>({
+            name: session.name,
+            type: 'oauth_authorization_code',
+            origin,
+            secret: serializeStoredOAuthTokens(grant.tokens),
+            apiSource: { connector: ApiConnectorType.POSTHOG, projectId },
+            oauthTokenUrl: client.tokenUrl,
+            oauthClientId: client.clientId,
+            oauthClientAuthMethod: null,
+            oauthScopes: null,
+            apiKeyName: null,
+            apiKeyLocation: null,
+            allowedPathPrefixes: [],
+            allowedMethods: [],
+            allowedContentTypes: [],
+            allowBrowserImages: false,
+            allowDataAppBuilderLinking: false,
+            forwardUserIdentity: false,
+            instructions: null,
+        });
+        return this.saveSignedInConnection(account, {
+            projectUuid,
+            organizationUuid,
+            connectionUuid: session.connectionUuid,
+            config,
+        });
+    }
+
+    /** Creates a signed-in source, or replaces the sign-in of the one being reconnected. */
+    private async saveSignedInConnection(
+        account: RegisteredAccount,
+        {
+            projectUuid,
+            organizationUuid,
+            connectionUuid,
+            config,
+        }: {
+            projectUuid: string;
+            organizationUuid: string;
+            connectionUuid: string | null;
+            config: CreateExternalConnection;
+        },
+    ): Promise<ExternalConnection> {
+        validateExternalConnectionConfig(config, true);
+        validateApiSourceConnection(config);
+
+        if (connectionUuid) {
+            const existing = await this.getOwnedConnection(
+                account,
+                projectUuid,
+                connectionUuid,
+            );
+            const updated = await this.externalConnectionModel.update(
+                existing.externalConnectionUuid,
+                account.user.id,
+                config,
+            );
+            this.analytics.track({
+                event: 'external_connection.updated',
+                userId: account.user.id,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    externalConnectionUuid: existing.externalConnectionUuid,
+                    ...ExternalConnectionService.kindProperties(updated),
+                },
+            });
+            return updated;
+        }
+
+        const connection = await this.externalConnectionModel.create(
+            projectUuid,
+            organizationUuid,
+            account.user.id,
+            config,
+        );
+        this.analytics.track({
+            event: 'external_connection.created',
+            userId: account.user.id,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                externalConnectionUuid: connection.externalConnectionUuid,
+                ...ExternalConnectionService.kindProperties(connection),
+                authType: connection.type,
+            },
+        });
+        return connection;
+    }
+
+    private async assertCanManageLiveSources(
+        account: RegisteredAccount,
+        projectUuid: string,
+    ): Promise<string> {
+        const organizationUuid =
+            await this.externalConnectionModel.getProjectOrganizationUuid(
+                projectUuid,
+            );
+        if (!organizationUuid) {
+            throw new NotFoundError('Project not found');
+        }
+        this.assertCanManage(account, projectUuid, organizationUuid);
+        await this.assertLiveSourcesEnabled(account);
+        return organizationUuid;
+    }
+
+    private readonly getGoogleApi: GoogleApiGet = async (url, accessToken) => {
+        const response = await secureFetch(url, {
+            method: 'GET',
+            headers: { Authorization: `Bearer ${accessToken}` },
+            timeoutMs: GOOGLE_API_TIMEOUT_MS,
+            maxResponseBytes: GOOGLE_API_RESPONSE_MAX_BYTES,
+            allowedContentTypes: ['application/json'],
+            allowedPrivateHostCidrs: this.allowedPrivateHostCidrs,
+        });
+        let body: unknown = null;
+        try {
+            body = JSON.parse(response.bodyText);
+        } catch {
+            body = null;
+        }
+        return { status: response.status, body };
+    };
+
+    /** Starts the Google sign-in that creates a source, or reconnects one. */
+    async startGoogleOAuth(
+        account: RegisteredAccount,
+        projectUuid: string,
+        request: {
+            connector: string;
+            name: string;
+            connectionUuid: string | null;
+        },
+    ): Promise<{
+        authorizeUrl: string;
+        state: string;
+        session: GoogleOAuthSession;
+    }> {
+        const client = this.getGoogleClient();
+        if (!client) {
+            throw new MissingConfigError(
+                'Signing in with Google is not configured on this server',
+            );
+        }
+        await this.assertCanManageLiveSources(account, projectUuid);
+        const { connector, connectionUuid } = request;
+        if (!isGoogleConnector(connector)) {
+            throw new ParameterError(
+                `${connector} is not a Google integration`,
+            );
+        }
+        const name = request.name.trim();
+        if (!name) {
+            throw new ParameterError('Name is required');
+        }
+        if (connectionUuid) {
+            const existing = await this.getOwnedConnection(
+                account,
+                projectUuid,
+                connectionUuid,
+            );
+            if (existing.apiSource?.connector !== connector) {
+                throw new ParameterError(
+                    `Live data source "${existing.name}" does not use ${GOOGLE_CONNECTORS[connector].label}`,
+                );
+            }
+        }
+
+        const state = randomBytes(24).toString('base64url');
+        const codeVerifier = randomBytes(32).toString('base64url');
+        // The same redirect as Google sign-in, so admins register nothing new.
+        const redirectUri = new URL(
+            `/api/v1${this.lightdashConfig.auth.google.callbackPath}`,
+            this.lightdashConfig.siteUrl,
+        ).href;
+        return {
+            authorizeUrl: buildGoogleAuthorizeUrl({
+                clientId: client.clientId,
+                redirectUri,
+                scope: GOOGLE_CONNECTORS[connector].scope,
+                state,
+                codeChallenge: createHash('sha256')
+                    .update(codeVerifier)
+                    .digest('base64url'),
+            }),
+            state,
+            session: {
+                projectUuid,
+                connector,
+                name,
+                connectionUuid,
+                redirectUri,
+                codeVerifier,
+            },
+        };
+    }
+
+    /**
+     * Exchanges the sign-in code. Saves the source when there is only one
+     * thing it could read, or it is being reconnected; otherwise returns the
+     * choices for the admin to pick from.
+     */
+    async completeGoogleOAuth(
+        account: RegisteredAccount,
+        session: GoogleOAuthSession,
+        code: string,
+    ): Promise<
+        | { connection: ExternalConnection }
+        | { pending: PendingGoogleLiveSource }
+    > {
+        const client = this.getGoogleClient();
+        if (!client) {
+            throw new MissingConfigError(
+                'Signing in with Google is not configured on this server',
+            );
+        }
+        const { projectUuid, connector } = session;
+        const organizationUuid = await this.assertCanManageLiveSources(
+            account,
+            projectUuid,
+        );
+        const config = GOOGLE_CONNECTORS[connector];
+
+        let tokens: StoredOAuthTokens;
+        try {
+            ({ tokens } =
+                await this.oauthAuthorizationCodeTokenClient.exchangeCode(
+                    { tokenUrl: GOOGLE_TOKEN_URL, ...client },
+                    {
+                        code,
+                        redirectUri: session.redirectUri,
+                        codeVerifier: session.codeVerifier,
+                    },
+                ));
+        } catch (error) {
+            this.logger.warn(
+                `Google sign-in failed: ${getErrorMessage(error)}`,
+            );
+            throw new WarehouseConnectionError(
+                'Google did not accept the sign-in. Try connecting again.',
+            );
+        }
+        if (!tokens.refreshToken) {
+            throw new WarehouseConnectionError(
+                'Google did not grant offline access. Try connecting again.',
+            );
+        }
+        const choices = await config.listChoices(
+            this.getGoogleApi,
+            tokens.accessToken,
+        );
+
+        if (session.connectionUuid) {
+            const existing = await this.getOwnedConnection(
+                account,
+                projectUuid,
+                session.connectionUuid,
+            );
+            const current = existing.apiSource
+                ? config.choiceOf(existing.apiSource)
+                : null;
+            if (!current || !choices.some(({ value }) => value === current)) {
+                throw new ParameterError(
+                    `This Google account cannot read ${current ?? 'the source'} in ${config.label}`,
+                );
+            }
+            return {
+                connection: await this.saveGoogleConnection(account, {
+                    projectUuid,
+                    organizationUuid,
+                    connector,
+                    name: session.name,
+                    tokens,
+                    choice: current,
+                    connectionUuid: existing.externalConnectionUuid,
+                }),
+            };
+        }
+        if (choices.length === 0) {
+            throw new ParameterError(
+                `This Google account cannot read anything in ${config.label}`,
+            );
+        }
+        if (choices.length === 1) {
+            return {
+                connection: await this.saveGoogleConnection(account, {
+                    projectUuid,
+                    organizationUuid,
+                    connector,
+                    name: session.name,
+                    tokens,
+                    choice: choices[0].value,
+                    connectionUuid: null,
+                }),
+            };
+        }
+        return {
+            pending: {
+                projectUuid,
+                connector,
+                name: session.name,
+                encryptedTokens: this.encryptionUtil
+                    .encrypt(serializeStoredOAuthTokens(tokens))
+                    .toString('base64'),
+                choices,
+            },
+        };
+    }
+
+    /** The choices of a pending Google sign-in, without its tokens. */
+    async getPendingGoogleChoice(
+        account: RegisteredAccount,
+        projectUuid: string,
+        pending: PendingGoogleLiveSource | undefined,
+    ): Promise<GoogleLiveSourcePendingChoice> {
+        await this.assertCanManageLiveSources(account, projectUuid);
+        if (!pending || pending.projectUuid !== projectUuid) {
+            throw new NotFoundError(
+                'No Google sign-in is waiting. Add the source again.',
+            );
+        }
+        return {
+            connector: pending.connector,
+            name: pending.name,
+            choices: pending.choices,
+        };
+    }
+
+    /** Saves a pending Google sign-in as a source reading the picked property. */
+    async finishGoogleOAuth(
+        account: RegisteredAccount,
+        projectUuid: string,
+        pending: PendingGoogleLiveSource | undefined,
+        choice: string,
+    ): Promise<ExternalConnection> {
+        const organizationUuid = await this.assertCanManageLiveSources(
+            account,
+            projectUuid,
+        );
+        if (!pending || pending.projectUuid !== projectUuid) {
+            throw new NotFoundError(
+                'No Google sign-in is waiting. Add the source again.',
+            );
+        }
+        if (!pending.choices.some(({ value }) => value === choice)) {
+            throw new ParameterError('Pick one of the listed options');
+        }
+        const tokens = parseStoredOAuthTokens(
+            this.encryptionUtil.decrypt(
+                Buffer.from(pending.encryptedTokens, 'base64'),
+            ),
+        );
+        if (!tokens) {
+            throw new ParameterError(
+                'The Google sign-in expired. Add the source again.',
+            );
+        }
+        return this.saveGoogleConnection(account, {
+            projectUuid,
+            organizationUuid,
+            connector: pending.connector,
+            name: pending.name,
+            tokens,
+            choice,
+            connectionUuid: null,
+        });
+    }
+
+    private async saveGoogleConnection(
+        account: RegisteredAccount,
+        args: {
+            projectUuid: string;
+            organizationUuid: string;
+            connector: GoogleConnectorType;
+            name: string;
+            tokens: StoredOAuthTokens;
+            choice: string;
+            connectionUuid: string | null;
+        },
+    ): Promise<ExternalConnection> {
+        const client = this.getGoogleClient();
+        if (!client) {
+            throw new MissingConfigError(
+                'Signing in with Google is not configured on this server',
+            );
+        }
+        const google = GOOGLE_CONNECTORS[args.connector];
+        const config = withApiSourceAccessRules<CreateExternalConnection>({
+            name: args.name,
+            type: 'oauth_authorization_code',
+            origin: google.origin,
+            secret: serializeStoredOAuthTokens(args.tokens),
+            apiSource: google.toApiSource(args.choice),
+            oauthTokenUrl: GOOGLE_TOKEN_URL,
+            oauthClientId: client.clientId,
+            oauthClientAuthMethod: null,
+            oauthScopes: null,
+            apiKeyName: null,
+            apiKeyLocation: null,
+            allowedPathPrefixes: [],
+            allowedMethods: [],
+            allowedContentTypes: [],
+            allowBrowserImages: false,
+            allowDataAppBuilderLinking: false,
+            forwardUserIdentity: false,
+            instructions: null,
+        });
+        return this.saveSignedInConnection(account, {
+            projectUuid: args.projectUuid,
+            organizationUuid: args.organizationUuid,
+            connectionUuid: args.connectionUuid,
+            config,
+        });
+    }
+
+    private static signInExpiredError(connection: ExternalConnection) {
+        return new WarehouseConnectionError(
+            `The sign-in for live data source "${connection.name}" expired or was revoked. Reconnect it in Live data sources.`,
+        );
+    }
+
+    /**
+     * A usable access token. Refreshes run under the secret's row lock:
+     * refresh tokens rotate, so two concurrent refreshes would lock each other out.
+     */
+    private async getAuthorizationCodeAccessToken(
+        connection: ExternalConnection,
+        secret: string | null,
+        rejectedAccessToken: string | null,
+    ): Promise<string> {
+        const stored = parseStoredOAuthTokens(secret);
+        if (!stored || !connection.oauthTokenUrl || !connection.oauthClientId) {
+            throw ExternalConnectionService.signInExpiredError(connection);
+        }
+        if (
+            rejectedAccessToken === null &&
+            isAccessTokenFresh(stored, Date.now())
+        ) {
+            return stored.accessToken;
+        }
+        const knownAccessToken = rejectedAccessToken ?? stored.accessToken;
+        const client: OAuthAuthorizationCodeClientConfig = {
+            tokenUrl: connection.oauthTokenUrl,
+            clientId: connection.oauthClientId,
+            clientSecret: this.getOAuthClientSecret(connection.oauthClientId),
+        };
+
+        let latestSecret: string | null;
+        try {
+            latestSecret =
+                await this.externalConnectionModel.updateSecretLocked(
+                    connection.externalConnectionUuid,
+                    async (current) => {
+                        const latest = parseStoredOAuthTokens(current);
+                        // Another request refreshed while this one waited for the lock.
+                        if (
+                            latest &&
+                            latest.accessToken !== knownAccessToken &&
+                            isAccessTokenFresh(latest, Date.now())
+                        ) {
+                            return null;
+                        }
+                        if (!latest?.refreshToken) {
+                            throw new OAuthGrantRejectedError(
+                                'No refresh token is stored',
+                            );
+                        }
+                        return serializeStoredOAuthTokens(
+                            await this.oauthAuthorizationCodeTokenClient.refresh(
+                                client,
+                                latest.refreshToken,
+                            ),
+                        );
+                    },
+                );
+        } catch (error) {
+            if (error instanceof OAuthGrantRejectedError) {
+                throw ExternalConnectionService.signInExpiredError(connection);
+            }
+            this.logger.warn(
+                `Refreshing the access token of connection ${
+                    connection.externalConnectionUuid
+                } failed: ${getErrorMessage(error)}`,
+            );
+            throw new UnexpectedServerError(
+                `Could not refresh the sign-in for live data source "${connection.name}". Try again shortly.`,
+            );
+        }
+        const latest = parseStoredOAuthTokens(latestSecret);
+        if (!latest) {
+            throw ExternalConnectionService.signInExpiredError(connection);
+        }
+        return latest.accessToken;
     }
 
     async proxyFetch(
@@ -1040,6 +2104,13 @@ export class ExternalConnectionService extends BaseService {
             } catch {
                 throw new ParameterError('Failed to obtain OAuth access token');
             }
+        } else if (connection.type === 'oauth_authorization_code') {
+            oauthAccessToken = await this.getAuthorizationCodeAccessToken(
+                connection,
+                secret,
+                null,
+            );
+            headers.Authorization = `Bearer ${oauthAccessToken}`;
         }
         // type === 'none' → no auth injected.
 
@@ -1147,6 +2218,18 @@ export class ExternalConnectionService extends BaseService {
                         oauthConfig,
                         secret,
                     );
+                headers.Authorization = `Bearer ${oauthAccessToken}`;
+                fetched = await fetchResource();
+            } else if (
+                fetched.status === 401 &&
+                connection.type === 'oauth_authorization_code' &&
+                oauthAccessToken
+            ) {
+                oauthAccessToken = await this.getAuthorizationCodeAccessToken(
+                    connection,
+                    secret,
+                    oauthAccessToken,
+                );
                 headers.Authorization = `Bearer ${oauthAccessToken}`;
                 fetched = await fetchResource();
             }
@@ -1517,7 +2600,7 @@ export class ExternalConnectionService extends BaseService {
     async testConfig(
         account: RegisteredAccount,
         projectUuid: string,
-        data: CreateExternalConnection,
+        requested: CreateExternalConnection,
         req: {
             method?: ExternalConnectionMethod;
             path: string;
@@ -1535,10 +2618,14 @@ export class ExternalConnectionService extends BaseService {
             throw new NotFoundError('Project not found');
         }
         this.assertCanManage(account, projectUuid, organizationUuid);
+        if (requested.apiSource) await this.assertLiveSourcesEnabled(account);
+        ExternalConnectionService.assertNotSignInType(requested.type);
 
         // Same validation create runs, so a test can never exercise a config we
         // would refuse to store (SSRF guard, auth invariants, bounded limits).
+        const data = withApiSourceAccessRules(requested);
         validateExternalConnectionConfig(data, Boolean(data.secret));
+        validateApiSourceConnection(data);
         if (data.type === 'google_service_account' && data.secret) {
             validateServiceAccountKeyfile(data.secret);
         }
@@ -1583,6 +2670,7 @@ export class ExternalConnectionService extends BaseService {
             oauthClientId: data.oauthClientId ?? null,
             oauthClientAuthMethod: data.oauthClientAuthMethod ?? null,
             customHeaders: data.customHeaders ?? null,
+            apiSource: data.apiSource ?? null,
             hasSecret: Boolean(data.secret),
             createdByUserUuid: null,
             updatedByUserUuid: null,

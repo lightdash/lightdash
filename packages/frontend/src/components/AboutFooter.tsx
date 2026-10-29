@@ -84,7 +84,7 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
                 mt={FOOTER_MARGIN}
                 h={FOOTER_HEIGHT}
                 component="footer"
-                style={{ flexShrink: 0 }}
+                flex="none"
             >
                 <Divider color="ldGray.2" w="100%" mb="-1px" />
 

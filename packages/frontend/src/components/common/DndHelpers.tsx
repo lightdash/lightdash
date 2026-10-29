@@ -1,6 +1,7 @@
 import { useDraggable, useDroppable } from '@dnd-kit/core';
-import { Box, useMantineTheme } from '@mantine/core';
-import { useMemo, type FC, type ReactNode } from 'react';
+import { Box } from '@mantine/core';
+import { type FC, type ReactNode } from 'react';
+import classes from './DndHelpers.module.css';
 
 export const DraggableItem: FC<{
     id: string;
@@ -12,19 +13,15 @@ export const DraggableItem: FC<{
         disabled,
     });
 
-    const style = transform
-        ? ({
-              position: 'relative',
-              zIndex: 1,
-              transform: `translate(${transform.x}px, ${transform.y}px)`,
-              opacity: 0.8,
-          } as const)
-        : undefined;
-
     return (
         <Box
             ref={setNodeRef}
-            style={style}
+            className={classes.draggable}
+            data-dragging={transform ? true : undefined}
+            style={{
+                '--drag-x': transform ? `${transform.x}px` : undefined,
+                '--drag-y': transform ? `${transform.y}px` : undefined,
+            }}
             {...(disabled ? {} : listeners)}
             {...(disabled ? {} : attributes)}
         >
@@ -39,23 +36,20 @@ export const DroppableArea: FC<{
     orderedKeys: string[];
 }> = ({ id, children, orderedKeys }) => {
     const { active, isOver, over, setNodeRef } = useDroppable({ id });
-    const { colors } = useMantineTheme();
 
-    const placeholderStyle = useMemo(() => {
-        if (isOver && active && over && active.id !== over.id) {
-            const oldIndex = orderedKeys.indexOf(String(active.id));
-            const newIndex = orderedKeys.indexOf(String(over.id));
-            if (newIndex < oldIndex) {
-                return { boxShadow: `-8px 0px ${colors.blue[4]}` };
-            } else if (newIndex > oldIndex) {
-                return { boxShadow: `8px 0px ${colors.blue[4]}` };
-            }
-        }
-    }, [isOver, active, over, orderedKeys, colors]);
+    // A thin line in the gap on the side the dragged item would land
+    let side: 'before' | 'after' | null = null;
+    if (isOver && active && over && active.id !== over.id) {
+        const oldIndex = orderedKeys.indexOf(String(active.id));
+        const newIndex = orderedKeys.indexOf(String(over.id));
+        if (newIndex < oldIndex) side = 'before';
+        else if (newIndex > oldIndex) side = 'after';
+    }
 
     return (
-        <Box ref={setNodeRef} style={placeholderStyle}>
+        <Box ref={setNodeRef} pos="relative">
             {children}
+            {side && <Box className={classes.dropLine} data-side={side} />}
         </Box>
     );
 };

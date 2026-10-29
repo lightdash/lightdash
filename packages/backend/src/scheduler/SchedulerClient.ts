@@ -1481,7 +1481,15 @@ export class SchedulerClient {
         return { jobId };
     }
 
-    async hasCreateProjectWithCompileJob(jobUuid: string): Promise<boolean> {
+    /**
+     * Whether the worker still holds the job: queued, or locked since
+     * `lockedAfter`. A lock older than that belongs to a worker that died
+     * mid-run; graphile only releases it hours later.
+     */
+    async hasCreateProjectWithCompileJob(
+        jobUuid: string,
+        lockedAfter: Date,
+    ): Promise<boolean> {
         const graphileClient = await this.graphileUtils;
         const result = await graphileClient.withPgClient((pgClient) =>
             pgClient.query<{ exists: boolean }>(
@@ -1490,8 +1498,13 @@ export class SchedulerClient {
                     FROM graphile_worker.jobs
                     WHERE task_identifier = $1
                       AND payload->>'jobUuid' = $2
+                      AND (locked_at IS NULL OR locked_at > $3)
                 ) AS exists`,
-                [SCHEDULER_TASKS.CREATE_PROJECT_WITH_COMPILE, jobUuid],
+                [
+                    SCHEDULER_TASKS.CREATE_PROJECT_WITH_COMPILE,
+                    jobUuid,
+                    lockedAfter,
+                ],
             ),
         );
         return result.rows[0]?.exists ?? false;
@@ -1782,6 +1795,46 @@ export class SchedulerClient {
                 queueName: 'usage-events-compaction',
                 jobKey: `initial-usage-processing:${payload.organizationUuid}`,
                 jobKeyMode: 'unsafe_dedupe',
+                maxAttempts: 1,
+                priority: JobPriority.LOW,
+            },
+        );
+    }
+
+    async getUsageHistoryBackfillJob(
+        organizationUuid: string,
+    ): Promise<{ running: boolean; failed: boolean }> {
+        const graphileClient = await this.graphileUtils;
+        const result = await graphileClient.withPgClient((pgClient) =>
+            pgClient.query(
+                'SELECT locked_at, attempts, max_attempts, last_error FROM graphile_worker.jobs WHERE key = $1',
+                [`usage-query-history:${organizationUuid}`],
+            ),
+        );
+        const job = result.rows[0];
+        return {
+            running:
+                !!job &&
+                (job.locked_at !== null || job.attempts < job.max_attempts),
+            failed: !!job?.last_error,
+        };
+    }
+
+    async scheduleUsageHistoryBackfill(payload: TraceTaskBase): Promise<void> {
+        if (
+            (await this.getUsageHistoryBackfillJob(payload.organizationUuid))
+                .running
+        )
+            return;
+        const graphileClient = await this.graphileUtils;
+        // Serialize backfills on one low-priority worker without locking nightly compaction.
+        await graphileClient.addJob(
+            SCHEDULER_TASKS.BACKFILL_USAGE_QUERY_HISTORY,
+            payload,
+            {
+                queueName: 'usage-history-backfill',
+                jobKey: `usage-query-history:${payload.organizationUuid}`,
+                jobKeyMode: 'replace',
                 maxAttempts: 1,
                 priority: JobPriority.LOW,
             },

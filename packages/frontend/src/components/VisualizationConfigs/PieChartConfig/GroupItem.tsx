@@ -22,6 +22,7 @@ import MantineIcon from '../../common/MantineIcon';
 import ColorSelector from '../ColorSelector';
 import { EditableText } from '../common/EditableText';
 import { GrabIcon } from '../common/GrabIcon';
+import { useDebouncedDraft } from '../common/useDebouncedDraft';
 import { ValueOptions } from './ValueOptions';
 
 type GroupItemProps = {
@@ -88,6 +89,17 @@ export const GroupItem = forwardRef<
         ref,
     ) => {
         const [opened, { toggle }] = useDisclosure();
+        const [draftLabel, setDraftLabel, flushLabel] = useDebouncedDraft(
+            label ?? '',
+            (value) => onLabelChange(defaultLabel, value),
+            { delay: 500 },
+        );
+        // An empty colour shows the default, as an unset one does
+        const [draftColor, setDraftColor, flushColor] = useDebouncedDraft(
+            color ?? '',
+            (value) => onColorChange(defaultLabel, value),
+            { delay: 500 },
+        );
 
         return (
             <Stack ref={ref} gap="xs" {...rest}>
@@ -97,24 +109,21 @@ export const GroupItem = forwardRef<
                     )}
 
                     <ColorSelector
-                        color={color}
+                        color={draftColor}
                         defaultColor={defaultColor}
                         swatches={swatches}
-                        onColorChange={(newColor: string) =>
-                            onColorChange(defaultLabel, newColor)
-                        }
+                        onColorChange={setDraftColor}
+                        onClose={flushColor}
                     />
                     <Box flex={1}>
                         <EditableText
                             placeholder={defaultLabel}
-                            value={label}
+                            value={draftLabel}
                             granularityFields={granularityFields}
-                            onChange={(event) => {
-                                onLabelChange(
-                                    defaultLabel,
-                                    event.currentTarget.value,
-                                );
-                            }}
+                            onChange={(event) =>
+                                setDraftLabel(event.currentTarget.value)
+                            }
+                            onBlur={flushLabel}
                         />
                     </Box>
 

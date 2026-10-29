@@ -1,7 +1,6 @@
 import { isComposerQueriesEnabled } from './composerQueriesGate';
 
 const optedIn = {
-    multiSourceQueryEnabled: true,
     composeSqlRunnerEnabled: true,
     agent: { enableDataAccess: true, enableComposerQueries: true },
     isDeepResearch: false,
@@ -15,16 +14,15 @@ const settingOff = {
 };
 
 describe('isComposerQueriesEnabled', () => {
-    it('uses composer when flags are on and the agent opted in', () => {
+    it('uses composer when the flag is on and the agent opted in', () => {
         expect(isComposerQueriesEnabled(optedIn)).toBe(true);
     });
 
-    it('keeps classic tools when the agent has not opted in, even with flags on', () => {
+    it('keeps classic tools when the agent has not opted in, even with the flag on', () => {
         expect(isComposerQueriesEnabled(settingOff)).toBe(false);
     });
 
     it.each([
-        ['multi-source-query flag off', { multiSourceQueryEnabled: false }],
         ['compose-sql-runner flag off', { composeSqlRunnerEnabled: false }],
         [
             'data access off',
@@ -60,7 +58,6 @@ describe('isComposerQueriesEnabled', () => {
         });
 
         it.each([
-            ['multi-source-query flag off', { multiSourceQueryEnabled: false }],
             ['compose-sql-runner flag off', { composeSqlRunnerEnabled: false }],
             [
                 'data access off',

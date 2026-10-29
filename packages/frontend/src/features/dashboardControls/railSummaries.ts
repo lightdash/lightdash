@@ -1,51 +1,5 @@
-import {
-    interpolateUiString,
-    isEmptyDashboardFilterRule,
-    type DashboardFilterableField,
-    type DashboardFilterRule,
-    type UiStringResolver,
-} from '@lightdash/common';
-import { type SqlChartTileMetadata } from '../../providers/Dashboard/types';
-import {
-    getFilterRuleLabels,
-    showsComposedFilterValue,
-} from '../dashboardFilters/ActiveFilters/filterLabels';
-import { getTruncatedValuesDisplay } from '../dashboardFilters/ActiveFilters/utils';
+import { interpolateUiString, type UiStringResolver } from '@lightdash/common';
 import { formatFieldCount, formatTileCount } from './fieldLabels';
-
-// The name and value a pill shows, as one line of text
-export const getFilterRuleSummary = (
-    rule: DashboardFilterRule,
-    field: DashboardFilterableField | undefined,
-    sqlChartTilesMetadata: Record<string, SqlChartTileMetadata>,
-    getUiString: UiStringResolver,
-): { name: string; value: string } => {
-    const labels = getFilterRuleLabels(
-        rule,
-        field,
-        sqlChartTilesMetadata,
-        getUiString,
-    );
-    const name = rule.label || labels.field;
-    if (rule.disabled || (!rule.required && isEmptyDashboardFilterRule(rule)))
-        return { name, value: getUiString('filters.isAnyValue') };
-    const truncated = getTruncatedValuesDisplay(
-        rule.values,
-        showsComposedFilterValue(field?.type, rule.target.fallbackType),
-        rule.operator,
-    );
-    const values =
-        truncated.displayedValues.length > 0
-            ? truncated.displayedValues.join(', ')
-            : labels.value;
-    const more = truncated.hasMore
-        ? ` +${truncated.additionalValues.length}`
-        : '';
-    return {
-        name,
-        value: `${[labels.operator, values].filter(Boolean).join(' ')}${more}`,
-    };
-};
 
 export type LockState =
     | { hasTabs: false; isLocked: boolean }

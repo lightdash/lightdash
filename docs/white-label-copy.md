@@ -51,7 +51,7 @@ user-facing copy.
 
 Vendor references and Lightdash URLs in embeddable components must still be
 hidden with `useIsEmbedded()`. See the "Embeds are white-label" section of
-`packages/frontend/CLAUDE.md`.
+`packages/frontend/AGENTS.md`.
 
 ## Checking a change
 

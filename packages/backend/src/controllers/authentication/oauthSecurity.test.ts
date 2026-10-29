@@ -303,7 +303,10 @@ it('refuses a service-issued MCP token in the REST middleware', async () => {
         new OAuth2Server.Response({}),
         user,
     );
-    vi.spyOn(model, 'getAuthorizationCode').mockResolvedValue(code);
+    vi.spyOn(model, 'getAuthorizationCode').mockResolvedValue({
+        ...code,
+        sessionExpiresAt: null,
+    });
     vi.spyOn(model, 'revokeAuthorizationCode').mockResolvedValue(true);
     vi.spyOn(model, 'saveToken').mockImplementation(
         async (token, savedClient, savedUser) => ({

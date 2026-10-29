@@ -29,18 +29,6 @@
     animation: fadeIn var(--controls-duration-state) var(--controls-ease);
 }
 
-/* A hovered rail row's filter is on the tile while nothing is edited: only
-   the ring, over the tile as it is */
-.reach {
-    --controls-ease: ease-in-out;
-    --controls-duration-state: 0.15s;
-
-    position: absolute;
-    inset: 0;
-    z-index: 2;
-    pointer-events: none;
-}
-
 /* Holds the two state layers, which fade on their own. Blue on a tile means
    it is on the selected field. Only opacity changes */
 .ring {
@@ -71,9 +59,20 @@
     box-shadow: inset 0 0 0 1px var(--mantine-color-blue-5);
 }
 
-.overlay[data-highlighted='mapped'] > .ring::before,
-.reach > .ring::before {
+.overlay[data-highlighted='mapped'] > .ring::before {
     opacity: 1;
+}
+
+/* A tile the hovered pill's filter is on: the same blue hairline with no
+   tint, which would read as dimmed without the veil around it */
+:global([data-tile-uuid][data-controls-hovered])::after {
+    box-shadow: inset 0 0 0 1px var(--mantine-color-blue-5);
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    border-radius: var(--mantine-radius-xs);
+    pointer-events: none;
 }
 
 /* Filtered with no field selected, or by another field than the selected

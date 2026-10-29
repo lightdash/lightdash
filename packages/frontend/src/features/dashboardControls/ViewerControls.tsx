@@ -67,6 +67,10 @@ export const ViewerControls: FC<Props> = ({
     const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
     // Only "Some tabs" can be picked without changing the locked tabs
     const [isSomeTabsPicked, setIsSomeTabsPicked] = useState(false);
+    // The rule as the dashboard was last saved, as the shipped popover reads it
+    const savedRule = savedFilters
+        ? (findFilterRule(savedFilters, rule.id) ?? undefined)
+        : undefined;
 
     // Lock
     const hasTabs = dashboardTabs.length > 0;
@@ -147,10 +151,6 @@ export const ViewerControls: FC<Props> = ({
 
     // Required, as the shipped form switches it
     const isRequired = isRuleRequired(rule);
-    // The rule as the dashboard was last saved, as the shipped popover reads it
-    const savedRule = savedFilters
-        ? (findFilterRule(savedFilters, rule.id) ?? undefined)
-        : undefined;
     const getRequiredRule = (checked: boolean) =>
         getFilterRuleWithDisabledState(
             getFilterRuleWithRequired(
@@ -159,6 +159,7 @@ export const ViewerControls: FC<Props> = ({
                 rule,
                 savedRule,
                 checked,
+                savedRule,
             ),
             true,
         );
@@ -189,13 +190,21 @@ export const ViewerControls: FC<Props> = ({
                         onChange={(e) => {
                             if (!e.currentTarget.checked) unlockEverywhere();
                             else if (switchLockKey !== undefined) {
+                                // Back on, the tabs the filter was saved locked on
+                                const restoredKeys = (
+                                    savedRule?.lockedTabUuids ?? []
+                                ).filter((key) => lockKeys.includes(key));
                                 setIsSomeTabsPicked(false);
-                                setLockedKeys([switchLockKey]);
+                                setLockedKeys(
+                                    restoredKeys.length > 0
+                                        ? restoredKeys
+                                        : [switchLockKey],
+                                );
                             }
                         }}
                     />
                 </Group>
-                <Text size="xs" c="ldGray.7">
+                <Text size="xs" c="dimmed">
                     Viewers see the value but can&apos;t change it.
                 </Text>
                 {hasTabs && isLockedSomewhere && (
@@ -223,10 +232,7 @@ export const ViewerControls: FC<Props> = ({
                                 aria-label="Locked tabs"
                                 data={dashboardTabs.map((tab) => ({
                                     value: tab.uuid,
-                                    label:
-                                        tab.uuid === switchLockKey
-                                            ? `${tab.name} · this tab`
-                                            : tab.name,
+                                    label: tab.name,
                                     disabled: isLockBlocked(tab.uuid),
                                 }))}
                                 value={lockedKeys}

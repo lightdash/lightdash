@@ -159,6 +159,7 @@ describe('PythonSandboxRunner provider selection', () => {
 
     beforeEach(() => {
         createSandboxProvider.mockClear();
+        create.mockClear();
         create.mockRejectedValue(new Error('stop after create'));
     });
 
@@ -229,17 +230,82 @@ describe('PythonSandboxRunner provider selection', () => {
         expect(createSandboxProvider).not.toHaveBeenCalled();
     });
 
-    it.each(['lambda-microvm', 'azure-sandboxes'] as const)(
-        'rejects %s as unsupported',
-        async (sandboxProvider) => {
-            await expect(runWith({ sandboxProvider })).rejects.toThrow(
-                new MissingConfigError(
-                    `Python queries are not supported on the ${sandboxProvider} sandbox provider yet`,
-                ),
-            );
-            expect(createSandboxProvider).not.toHaveBeenCalled();
-        },
-    );
+    const azureSandboxes = {
+        ...lightdashConfigMock.appRuntime.azureSandboxes,
+        subscriptionId: 'subscription',
+        resourceGroup: 'resource-group',
+    };
+
+    it('creates the azure provider with the python sandbox group', async () => {
+        await expect(
+            runWith({
+                sandboxProvider: 'azure-sandboxes',
+                azureSandboxes,
+                azureSandboxesAiWritebackGroup: 'writeback-group',
+                azureSandboxesPythonGroup: 'python-group',
+                azureSandboxesPythonDiskImage: 'python-disk-image-id',
+            }),
+        ).rejects.toThrow('stop after create');
+        expect(createSandboxProvider).toHaveBeenCalledWith(
+            expect.objectContaining({
+                provider: 'azure-sandboxes',
+                azureSandboxes: expect.objectContaining({
+                    subscriptionId: 'subscription',
+                    resourceGroup: 'resource-group',
+                    sandboxGroup: 'python-group',
+                }),
+                gcpCloudRun: null,
+                snapshotStore: null,
+            }),
+        );
+        expect(create).toHaveBeenCalledWith(
+            expect.objectContaining({ templateRef: 'python-disk-image-id' }),
+        );
+    });
+
+    it('rejects azure without a python sandbox group', async () => {
+        await expect(
+            runWith({
+                sandboxProvider: 'azure-sandboxes',
+                azureSandboxes,
+                azureSandboxesAiWritebackGroup: 'writeback-group',
+                azureSandboxesPythonGroup: null,
+                azureSandboxesPythonDiskImage: 'python-disk-image-id',
+            }),
+        ).rejects.toThrow(
+            new MissingConfigError(
+                'Azure Sandboxes is not configured (AZURE_SANDBOXES_SUBSCRIPTION_ID / AZURE_SANDBOXES_RESOURCE_GROUP / AZURE_SANDBOXES_PYTHON_GROUP)',
+            ),
+        );
+        expect(createSandboxProvider).not.toHaveBeenCalled();
+    });
+
+    it('rejects azure without a python disk image', async () => {
+        await expect(
+            runWith({
+                sandboxProvider: 'azure-sandboxes',
+                azureSandboxes,
+                azureSandboxesPythonGroup: 'python-group',
+                azureSandboxesPythonDiskImage: null,
+            }),
+        ).rejects.toThrow(
+            new MissingConfigError(
+                'Azure python sandbox disk image is not configured (AZURE_SANDBOXES_PYTHON_DISK_IMAGE)',
+            ),
+        );
+        expect(create).not.toHaveBeenCalled();
+    });
+
+    it('rejects lambda-microvm as unsupported', async () => {
+        await expect(
+            runWith({ sandboxProvider: 'lambda-microvm' }),
+        ).rejects.toThrow(
+            new MissingConfigError(
+                'Python queries are not supported on the lambda-microvm sandbox provider yet',
+            ),
+        );
+        expect(createSandboxProvider).not.toHaveBeenCalled();
+    });
 });
 
 describe('PythonSandboxRunner stage instrumentation', () => {

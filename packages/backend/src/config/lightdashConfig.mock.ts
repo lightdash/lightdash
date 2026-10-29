@@ -388,6 +388,12 @@ export const lightdashConfigMock: LightdashConfig = {
         clientSecret: undefined,
         redirectDomain: 'test',
     },
+    liveSources: {
+        posthog: {
+            oauthClientId: undefined,
+            oauthClientSecret: undefined,
+        },
+    },
     headlessBrowser: {
         internalLightdashHost: 'https://test.lightdash.cloud',
         internalLightdashHostIgnoreHttpsErrors: false,
@@ -423,7 +429,6 @@ export const lightdashConfigMock: LightdashConfig = {
     },
     aiWriteback: {
         legacyAnthropicApiKey: null,
-        codingAgentMaxRepoSizeMb: 500,
     },
     mcp: {
         enabled: true,
@@ -555,6 +560,8 @@ export const lightdashConfigMock: LightdashConfig = {
         azureSandboxesDataAppDiskImage: null,
         azureSandboxesAiWritebackGroup: null,
         azureSandboxesAiWritebackDiskImage: null,
+        azureSandboxesPythonGroup: null,
+        azureSandboxesPythonDiskImage: null,
         gcpCloudRun: {
             sandboxUrl: null,
             sandboxSecret: null,
@@ -565,8 +572,6 @@ export const lightdashConfigMock: LightdashConfig = {
         },
         e2bAgentOnboardingTemplateName: 'lightdash-agent-onboarding',
         e2bAgentOnboardingTemplateTag: 'test',
-        e2bCodingAgentTemplateName: 'lightdash-ai-coding-agent',
-        e2bCodingAgentTemplateTag: '',
         otel: {
             enabled: false,
             endpoint: '',

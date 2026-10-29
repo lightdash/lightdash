@@ -169,7 +169,7 @@ const RequiredFilterCard: FC<Props> = ({
             )}
             {isOnlyMember && (
                 <Stack gap={6} mt="xs">
-                    <Text size="xs" c="ldGray.7">
+                    <Text size="xs" c="dimmed">
                         Viewers must set this filter to load the dashboard.
                     </Text>
                     {isSavedFilter && selectableFilters.length === 0 && (

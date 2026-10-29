@@ -11,6 +11,7 @@ import {
     type AgentIdentityClaim,
     type AndFilterGroup,
     type ApiExecuteAsyncMetricQueryResults,
+    type ApiSourcePayload,
     type CacheMetadata,
     type ConditionalFormattingConfig,
     type DashboardFilters,
@@ -49,6 +50,7 @@ import type {
     TotalConfiguration,
 } from '../../utils/QueryBuilder/QueryComposer';
 import type { DocumentQueryContext } from '../DocumentService/DocumentQueryContext';
+import type { MeteredApiConnector } from '../QuerySourceService/api/ApiConnector';
 
 export type CommonAsyncQueryArgs = {
     querySurface?: QuerySurface;
@@ -69,6 +71,8 @@ export type GetAsyncQueryResultsArgs = Omit<
         queryUuid: string;
         aiAccessOnly?: boolean;
         reader?: QueryResultReader;
+        // Defaults to query.maxPageSize
+        maxPageSize?: number;
     };
 
 export type DownloadAsyncQueryResultsArgs = Omit<
@@ -112,6 +116,7 @@ export type ExecuteAsyncFieldValueSearchArgs = CommonAsyncQueryArgs & {
 export type ExecuteAsyncMetricQueryArgs = CommonAsyncQueryArgs & {
     documentQueryContext?: DocumentQueryContext;
     metricQuery: MetricQuery;
+    limit?: number | null | undefined;
     dataAppPreviewToken?: string;
     customSqlProvenanceChartUuid?: UUID;
     dateZoom?: DateZoom;
@@ -240,6 +245,14 @@ export type ExecuteAsyncPythonQueryArgs = CommonAsyncQueryArgs & {
     limit?: number;
     /** Input name -> queryUuid of a previous async query exposed as that DataFrame. */
     references: Record<string, UUID>;
+};
+
+export type ExecuteAsyncApiQueryArgs = CommonAsyncQueryArgs & {
+    connectionUuid: string;
+    /** Resolved through the connection, which checks the caller may use it. */
+    connector: MeteredApiConnector;
+    payload: ApiSourcePayload;
+    limit?: number;
 };
 
 export type ExecuteAsyncExternalSqlQueryArgs = CommonAsyncQueryArgs & {

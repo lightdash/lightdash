@@ -57,7 +57,7 @@ export const CLI_GRANT_OPERATION_INVENTORY: readonly CliGrantOperationInventoryE
             'Personal recovery wrapper forwards the captured credential and request unchanged; its callers verify matching person and organisation before revocation. No retry or redirect is allowed.',
         ),
         external(
-            'agentConnections/initialToken.ts:32',
+            'agentConnections/initialToken.ts:33',
             'POST',
             "'/api/v1/oauth/token'",
             'OAuth protocol initial code exchange for explicit connection approval only. The returned Bearer must prove its own grant and person before storage; no ordinary OAuth or PAT fallback exists.',
@@ -132,13 +132,13 @@ export const CLI_GRANT_OPERATION_INVENTORY: readonly CliGrantOperationInventoryE
             'UserController.getAuthenticatedUser',
         ]),
         external(
-            'handlers/dbt/apiClient.ts:380',
+            'handlers/dbt/apiClient.ts:395',
             'GET',
             '{ method, url, body, signal, safeToRetry }',
             'API transport delegates authorization to the selected agent credential for an explicitly safe read.',
         ),
         external(
-            'handlers/dbt/apiClient.ts:409',
+            'handlers/dbt/apiClient.ts:424',
             'GET',
             '{\n                method,\n                url,\n                body: requestBody,\n                headers,\n                signal,\n            }',
             'API transport delegates authorization to the selected agent credential and reads the answer through the fixed-error reader.',
@@ -154,19 +154,19 @@ export const CLI_GRANT_OPERATION_INVENTORY: readonly CliGrantOperationInventoryE
             'Organization-wide listing or administration is outside the selected project grant.',
         ),
         allowed(
-            'agentConnections/agentTokenProvider.ts:127',
+            'agentConnections/agentTokenProvider.ts:128',
             'GET',
             '`${slot.instanceUrl}/api/v1/user`',
             ['UserController.getAuthenticatedUser'],
         ),
         external(
-            'agentConnections/agentTokenProvider.ts:141',
+            'agentConnections/agentTokenProvider.ts:142',
             'GET',
             '`${slot.instanceUrl}/api/v2/user/agent-connections/${slot.grantUuid}/status`',
             'Own-connection lifecycle transport: AgentConnectionController.getConnectionStatus is recorded in CLI_CONNECTION_LIFECYCLE_OPERATIONS, outside the project capability inventory.',
         ),
         external(
-            'agentConnections/agentTokenProvider.ts:270',
+            'agentConnections/agentTokenProvider.ts:271',
             'POST',
             '`${slot.instanceUrl}/api/v1/oauth/token`',
             'OAuth protocol refresh only: this token endpoint call sends grant_type=refresh_token for an existing connection, never an initial grant. It is outside the REST capability inventory.',
@@ -205,7 +205,7 @@ export const CLI_GRANT_OPERATION_INVENTORY: readonly CliGrantOperationInventoryE
             ['AiAccessController.getMyAccess'],
         ),
         refused(
-            'handlers/apps/createApp.ts:368',
+            'handlers/apps/createApp.ts:363',
             'GET',
             '`/api/v1/ee/projects/${projectUuid}/apps/authoring-context?slug=${encodeURIComponent(slug)}`',
             ['AppGenerateController.getDataAppAuthoringContext'],
@@ -229,7 +229,7 @@ export const CLI_GRANT_OPERATION_INVENTORY: readonly CliGrantOperationInventoryE
             '`/api/v2/projects/${projectUuid}/query/${queryUuid}${pageSizeParam}`',
             ['QueryController.getAsyncQueryResults'],
         ),
-        allowed('handlers/compile.ts:539', 'GET', 'manifestEndpoint', [
+        allowed('handlers/compile.ts:540', 'GET', 'manifestEndpoint', [
             'ProjectController.getMergedManifest',
         ]),
         refused(
@@ -272,22 +272,22 @@ export const CLI_GRANT_OPERATION_INVENTORY: readonly CliGrantOperationInventoryE
             'External fetch or API transport delegates authorization to the inventoried Lightdash caller.',
         ),
         external(
-            'handlers/dbt/apiClient.ts:418',
+            'handlers/dbt/apiClient.ts:433',
             'GET',
             '{\n        method,\n        url,\n        body: requestBody,\n        headers,\n        signal,\n    }',
             'External fetch or API transport delegates authorization to the inventoried Lightdash caller.',
         ),
-        allowed('handlers/dbt/apiClient.ts:446', 'GET', '`/api/v1/user`', [
+        allowed('handlers/dbt/apiClient.ts:461', 'GET', '`/api/v1/user`', [
             'UserController.getAuthenticatedUser',
         ]),
         allowed(
-            'handlers/dbt/apiClient.ts:469',
+            'handlers/dbt/apiClient.ts:484',
             'GET',
             '`/api/v1/projects/${projectUuid}`',
             ['ProjectController.getProject'],
         ),
         allowed(
-            'handlers/dbt/apiClient.ts:683',
+            'handlers/dbt/apiClient.ts:698',
             'GET',
             '`/api/v1/health?skipMigrationCheck=true`',
             ['apiV1Router GET /health'],
@@ -381,7 +381,7 @@ export const CLI_GRANT_OPERATION_INVENTORY: readonly CliGrantOperationInventoryE
             ['ExploreController.SetExplores'],
         ),
         allowed(
-            'handlers/download.ts:1013',
+            'handlers/download.ts:1026',
             'GET',
             '`${config.endpoint}${queryParams}`',
             [
@@ -391,64 +391,64 @@ export const CLI_GRANT_OPERATION_INVENTORY: readonly CliGrantOperationInventoryE
             ],
         ),
         allowed(
-            'handlers/download.ts:1174',
+            'handlers/download.ts:1187',
             'GET',
             "`/api/v1/projects/${projectId}/code/virtualViews${\n            query ? `?${query}` : ''\n        }`",
             ['ProjectCoderController.getVirtualViewsAsCode'],
         ),
         allowed(
-            'handlers/download.ts:1232',
+            'handlers/download.ts:1245',
             'GET',
             '`/api/v1/projects/${projectId}/code/virtualViews?${query}`',
             ['ProjectCoderController.getVirtualViewsAsCode'],
         ),
         allowed(
-            'handlers/download.ts:1332',
+            'handlers/download.ts:1345',
             'POST',
             '`/api/v1/projects/${projectId}/code/virtualViews/${encodeURIComponent(\n                    virtualView.slug,\n                )}?force=${force}`',
             ['ProjectCoderController.upsertVirtualViewAsCode'],
         ),
         allowed(
-            'handlers/download.ts:1402',
+            'handlers/download.ts:1415',
             'GET',
             '`/api/v1/projects/${projectId}/code/externalConnections?${query}`',
             ['ProjectCoderController.getExternalConnectionsAsCode'],
         ),
         refused(
-            'handlers/download.ts:1533',
+            'handlers/download.ts:1546',
             'POST',
             '`/api/v1/projects/${projectId}/code/externalConnections/${encodeURIComponent(\n                    connection.slug,\n                )}?force=${force}`',
             ['ProjectCoderController.upsertExternalConnectionAsCode'],
             'This upload can change access, agent tools, credentials or delivery destinations; v1 has no reviewed effect contract.',
         ),
         allowed(
-            'handlers/download.ts:1581',
+            'handlers/download.ts:1594',
             'GET',
             "`/api/v1/projects/${projectId}/code/documents?${new URLSearchParams(\n                [\n                    ...slugs.map((slug): [string, string] => ['slugs', slug]),\n                    ['offset', String(offset)],\n                    ['schemaVersion', String(DOCUMENT_SCHEMA_VERSION)],\n                ],\n            ).toString()}`",
             ['ProjectCoderController.getDocumentsAsCode'],
         ),
         refused(
-            'handlers/download.ts:1665',
+            'handlers/download.ts:1678',
             'POST',
             '`/api/v1/projects/${projectId}/code/documents/${encodeURIComponent(\n                    document.slug,\n                )}`',
             ['ProjectCoderController.upsertDocumentAsCode'],
             'This upload can change access, agent tools, credentials or delivery destinations; v1 has no reviewed effect contract.',
         ),
         allowed(
-            'handlers/download.ts:1752',
+            'handlers/download.ts:1765',
             'GET',
             '`/api/v1/projects/${projectId}/code/aiAgents?${query}`',
             ['ProjectCoderController.getAiAgentsAsCode'],
         ),
         refused(
-            'handlers/download.ts:1850',
+            'handlers/download.ts:1877',
             'POST',
             '`/api/v1/projects/${projectId}/code/aiAgents?force=${force}`',
             ['ProjectCoderController.upsertAiAgentsAsCode'],
             'This upload can change access, agent tools, credentials or delivery destinations; v1 has no reviewed effect contract.',
         ),
         allowed(
-            'handlers/download.ts:1902',
+            'handlers/download.ts:1929',
             'GET',
             "`/api/v1/projects/${projectId}/code/${config.route}${\n            query ? `?${query}` : ''\n        }`",
             [
@@ -458,7 +458,7 @@ export const CLI_GRANT_OPERATION_INVENTORY: readonly CliGrantOperationInventoryE
             ],
         ),
         refused(
-            'handlers/download.ts:2012',
+            'handlers/download.ts:2039',
             'POST',
             '`/api/v1/projects/${projectId}/code/${config.route}/${item.slug}?force=${force}`',
             [
@@ -469,60 +469,60 @@ export const CLI_GRANT_OPERATION_INVENTORY: readonly CliGrantOperationInventoryE
             'This upload can change access, agent tools, credentials or delivery destinations; v1 has no reviewed effect contract.',
         ),
         allowed(
-            'handlers/download.ts:2049',
+            'handlers/download.ts:2076',
             'GET',
             '`/api/v2/content?projectUuids=${projectId}&contentTypes=data_app&page=${page}&pageSize=100`',
             ['ContentController.listContent'],
         ),
         allowed(
-            'handlers/download.ts:2261',
+            'handlers/download.ts:2282',
             'GET',
             '`/api/v1/projects/${projectId}`',
             ['ProjectController.getProject'],
         ),
         allowed(
-            'handlers/download.ts:2779',
+            'handlers/download.ts:2800',
             'GET',
             '`/api/v1/ee/projects/${projectId}/apps`',
             ['AppGenerateController.listProjectApps'],
         ),
         allowed(
-            'handlers/download.ts:2862',
+            'handlers/download.ts:2883',
             'GET',
             '`/api/v1/ee/projects/${fetchProjectId}/apps/${encodeURIComponent(\n                                appRef,\n                            )}/download`',
             ['AppGenerateController.getAppCode'],
         ),
         allowed(
-            'handlers/download.ts:2932',
+            'handlers/download.ts:2953',
             'GET',
             '`/api/v1/ee/projects/${projectId}/apps/chart-types`',
             ['AppGenerateController.listProjectChartTypes'],
         ),
         allowed(
-            'handlers/download.ts:3020',
+            'handlers/download.ts:3041',
             'GET',
             '`/api/v1/ee/projects/${fetchProjectId}/apps/${encodeURIComponent(\n                                appRef,\n                            )}/download`',
             ['AppGenerateController.getAppCode'],
         ),
         allowed(
-            'handlers/download.ts:3089',
+            'handlers/download.ts:3110',
             'GET',
             '`/api/v1/ee/projects/${fetchProjectId}/apps/${encodeURIComponent(\n                            appRef,\n                        )}/download`',
             ['AppGenerateController.getAppCode'],
         ),
         allowed(
-            'handlers/download.ts:3155',
+            'handlers/download.ts:3176',
             'GET',
             '`/api/v1/ee/projects/${fetchProjectId}/apps/${encodeURIComponent(\n                            appRef,\n                        )}/download`',
             ['AppGenerateController.getAppCode'],
         ),
-        allowed('handlers/download.ts:3392', 'POST', 'endpoint', [
+        allowed('handlers/download.ts:3413', 'POST', 'endpoint', [
             'ProjectCoderController.upsertChartAsCode',
             'ProjectCoderController.upsertSqlChartAsCode',
             'ProjectCoderController.upsertDashboardAsCode',
         ]),
         refused(
-            'handlers/download.ts:3453',
+            'handlers/download.ts:3474',
             'POST',
             'validationEndpoint',
             [
@@ -532,20 +532,20 @@ export const CLI_GRANT_OPERATION_INVENTORY: readonly CliGrantOperationInventoryE
             'Queued validation needs reviewed content selectors and project-scoped job polling contracts.',
         ),
         allowed(
-            'handlers/download.ts:3866',
+            'handlers/download.ts:3887',
             'GET',
             '`/api/v1/projects/${projectUuid}/code/upload-advisory`',
             ['ProjectCoderController.getContentAsCodeUploadAdvisory'],
         ),
         refused(
-            'handlers/download.ts:4079',
+            'handlers/download.ts:4098',
             'POST',
             '`/api/v1/projects/${projectId}/code/sync-settings`',
             ['ProjectCoderController.stampContentAsCodeSettings'],
             'This changes the project Git sync configuration; v1 refuses sync configuration changes.',
         ),
         allowed(
-            'handlers/download.ts:4432',
+            'handlers/download.ts:4451',
             'GET',
             "`/api/v1/ee/projects/${projectId}/apps${\n                            phase.isChartTypes ? '/chart-types' : ''\n                        }`",
             [
@@ -554,13 +554,13 @@ export const CLI_GRANT_OPERATION_INVENTORY: readonly CliGrantOperationInventoryE
             ],
         ),
         allowed(
-            'handlers/download.ts:4462',
+            'handlers/download.ts:4481',
             'GET',
             '`/api/v1/projects/${projectId}/spaces`',
             ['ProjectController.getSpacesInProject'],
         ),
         refused(
-            'handlers/download.ts:4735',
+            'handlers/download.ts:4754',
             'POST',
             '`/api/v1/ee/projects/${projectId}/apps/upload`',
             ['AppGenerateController.importAppCode'],
@@ -618,42 +618,56 @@ export const CLI_GRANT_OPERATION_INVENTORY: readonly CliGrantOperationInventoryE
             'Organization-wide listing or administration is outside the selected project grant.',
         ),
         refused(
-            'handlers/login/pat.ts:23',
+            'handlers/login/pat.ts:24',
             'POST',
             'patUrl',
             ['UserController.createPersonalAccessToken'],
             'Human login and credential issuance cannot use an agent connection grant.',
         ),
-        allowed('handlers/login.ts:106', 'GET', 'userInfoUrl', [
+        allowed('handlers/login.ts:108', 'GET', 'userInfoUrl', [
             'UserController.getAuthenticatedUser',
         ]),
         refused(
-            'handlers/login.ts:135',
+            'handlers/login.ts:137',
             'POST',
             'loginUrl',
             ['authRouter POST /login'],
             'Human login and credential issuance cannot use an agent connection grant.',
         ),
         refused(
-            'handlers/login.ts:163',
+            'handlers/login.ts:165',
             'POST',
             'patUrl',
             ['UserController.createPersonalAccessToken'],
             'Human login and credential issuance cannot use an agent connection grant.',
         ),
-        allowed('handlers/login.ts:194', 'GET', 'userInfoUrl', [
+        allowed('handlers/login.ts:197', 'GET', 'userInfoUrl', [
             'UserController.getAuthenticatedUser',
         ]),
         refused(
-            'handlers/oauthLogin.ts:190',
+            'handlers/oauthLogin.ts:204',
             'POST',
             'tokenUrl.href',
             ['oauthRouter POST /token'],
             'This CLI call exchanges an ordinary login code. Agent consent and issuance remain for a later slice; bound refresh uses lifecycle validation.',
         ),
-        allowed('handlers/oauthLogin.ts:234', 'GET', 'userInfoUrl.href', [
+        allowed('handlers/oauthLogin.ts:240', 'GET', 'userInfoUrl.href', [
             'UserController.getAuthenticatedUser',
         ]),
+        refused(
+            'handlers/logout.ts:30',
+            'POST',
+            '`${instance}/api/v1/oauth/revoke`',
+            ['oauthRouter POST /revoke'],
+            'Personal logout revokes the saved personal OAuth tokens. It cannot use an agent connection grant.',
+        ),
+        refused(
+            'personalLogin/tokenProvider.ts:155',
+            'POST',
+            '`${instance}/api/v1/oauth/token`',
+            ['oauthRouter POST /token'],
+            'Personal login refresh exchanges the saved personal refresh token. It cannot use an agent connection grant.',
+        ),
         refused(
             'handlers/organizationContent/customRoles.ts:90',
             'POST',
@@ -809,7 +823,7 @@ export const CLI_GRANT_OPERATION_INVENTORY: readonly CliGrantOperationInventoryE
             'Project lifecycle and warehouse configuration changes are refused in v1.',
         ),
         refused(
-            'handlers/renameHandler.ts:154',
+            'handlers/renameHandler.ts:151',
             'POST',
             '`/api/v1/projects/${projectUuid}/rename`',
             ['RenameController.rename'],
@@ -870,7 +884,7 @@ export const CLI_GRANT_OPERATION_INVENTORY: readonly CliGrantOperationInventoryE
             'Shared skills are organization-wide and have no project-only filtering contract.',
         ),
         refused(
-            'handlers/slugUpdate.ts:478',
+            'handlers/slugUpdate.ts:477',
             'POST',
             '`/api/v1/projects/${projectUuid}/slugs/rename`',
             ['ProjectCoderController.renameContentSlug'],

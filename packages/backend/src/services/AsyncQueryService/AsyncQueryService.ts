@@ -95,6 +95,7 @@ import {
     KnexPaginateArgs,
     KnexPaginatedData,
     LightdashError,
+    MAX_RESULTS_CACHE_TTL_SECONDS,
     MergeQuery,
     MetricQuery,
     MissingConfigError,
@@ -133,6 +134,7 @@ import {
     type AgentIdentityClaim,
     type AiExecutionPlan,
     type ApiCompiledMergeQueryResults,
+    type ApiConnectorType,
     type ApiDownloadAsyncQueryResults,
     type ApiDownloadAsyncQueryResultsAsCsv,
     type ApiDownloadAsyncQueryResultsAsXlsx,
@@ -141,6 +143,7 @@ import {
     type ApiExecuteAsyncMetricQueryResults,
     type ApiGetAsyncQueryResults,
     type ApiQueryHistoryListResponse,
+    type ApiSourcePayload,
     type CacheMetadata,
     type CalculateTotalKind,
     type CompiledCustomSqlDimension,
@@ -149,6 +152,7 @@ import {
     type DocumentQueryReference,
     type DocumentSqlChart,
     type DuckdbSourceQuery,
+    type ExecuteAsyncApiQueryRequestParams,
     type ExecuteAsyncComposeMergeQueryRequestParams,
     type ExecuteAsyncComposeSqlQueryRequestParams,
     type ExecuteAsyncDashboardChartRequestParams,
@@ -179,6 +183,7 @@ import {
     type ReadyQueryResultsPage,
     type RegisteredAccount,
     type ResultColumns,
+    type ResultsCacheInvalidation,
     type RunQueryTags,
     type SavedChartDAO,
     type SavedMergeDefinition,
@@ -235,6 +240,7 @@ import { DownloadAuditModel } from '../../models/DownloadAuditModel';
 import {
     mapQueryHistoryRowToListItem,
     QueryHistoryModel,
+    type CachedResultsContent,
 } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import type { SavedSqlModel } from '../../models/SavedSqlModel';
 import type { ConnectionRouteWithOriginal } from '../../models/WarehouseConnectionRouter/WarehouseConnectionRouter';
@@ -340,6 +346,16 @@ import {
     getNextAndPreviousPage,
     validatePagination,
 } from '../ProjectService/resultsPagination';
+import type {
+    ApiConnector,
+    ApiConnectorCall,
+    ApiConnectorResult,
+    MeteredApiConnector,
+} from '../QuerySourceService/api/ApiConnector';
+import {
+    getApiQueryOutcome,
+    type ApiQueryOutcome,
+} from '../QuerySourceService/api/apiQueryOutcome';
 import type { QuerySourceService } from '../QuerySourceService/QuerySourceService';
 import { mergeDraftIntoChart } from '../SavedChartsService/chartDraftOverlay';
 import { assertCanReplaceChartFilters } from '../SchedulerService/chartFilterOverridesAccess';
@@ -431,8 +447,8 @@ import {
     assertAgentQueryWithinEstimateLimit,
     QueryEstimateCache,
 } from './queryCostEstimate';
-import { canReuseQueryResult } from './queryResultReuse';
-import { queryUsageProperties } from './queryUsage';
+import { canReuseApiResult, canReuseQueryResult } from './queryResultReuse';
+import { queryUsageProperties, queryWorkloadOrigin } from './queryUsage';
 import {
     EstimateAsyncMetricQueryArgs,
     EstimateAsyncSqlQueryArgs,
@@ -447,6 +463,7 @@ import {
     type DuckdbQueryPlan,
     type DuckdbQueryPlanComposer,
     type DuckdbQueryReferences,
+    type ExecuteAsyncApiQueryArgs,
     type ExecuteAsyncComposeSqlQueryArgs,
     type ExecuteAsyncDashboardChartQueryArgs,
     type ExecuteAsyncDashboardSqlChartArgs,
@@ -2466,6 +2483,7 @@ export class AsyncQueryService extends ProjectService {
         pageSize,
         aiAccessOnly = false,
         reader,
+        maxPageSize = this.lightdashConfig.query.maxPageSize,
     }: GetAsyncQueryResultsArgs): Promise<ApiGetAsyncQueryResults> {
         assertIsAccountWithOrg(account);
 
@@ -2563,7 +2581,7 @@ export class AsyncQueryService extends ProjectService {
         validatePagination({
             pageSize: defaultedPageSize,
             page,
-            queryMaxLimit: this.lightdashConfig.query.maxPageSize,
+            queryMaxLimit: maxPageSize,
             totalRowCount,
         });
 
@@ -2985,6 +3003,24 @@ export class AsyncQueryService extends ProjectService {
         }
     }
 
+    private assertAnalyticsDownloadSupported(
+        project: Pick<Project, 'provisioningSource'>,
+        type: DownloadFileType | undefined,
+    ): void {
+        if (project.provisioningSource !== 'analytics') return;
+        if (type !== DownloadFileType.CSV && type !== DownloadFileType.XLSX) {
+            throw new ForbiddenError(
+                'Managed analytics supports CSV and Excel downloads only',
+            );
+        }
+        // Local export URLs do not recheck managed analytics access.
+        if (!this.fileStorageClient.isEnabled()) {
+            throw new ForbiddenError(
+                'Managed analytics downloads require export storage to be configured',
+            );
+        }
+    }
+
     async scheduleDownloadAsyncQueryResults(
         args: ScheduleDownloadAsyncQueryResultsArgs,
     ) {
@@ -2992,11 +3028,7 @@ export class AsyncQueryService extends ProjectService {
         assertIsAccountWithOrg(account);
         const project = await this.projectModel.getSummary(payload.projectUuid);
         await this.assertAnalyticsProjectAccess(account, project);
-        if (project.provisioningSource === 'analytics') {
-            throw new ForbiddenError(
-                'Scheduled downloads are unavailable for internal analytics',
-            );
-        }
+        this.assertAnalyticsDownloadSupported(project, payload.type);
         this.assertEmbedAiAgentCanDownload(
             account,
             project.organizationUuid,
@@ -3206,12 +3238,7 @@ export class AsyncQueryService extends ProjectService {
 
         const project = await this.projectModel.getSummary(projectUuid);
         await this.assertAnalyticsProjectAccess(account, project);
-        // Do not issue a signed export URL that outlives the feature/admin check.
-        if (project.provisioningSource === 'analytics') {
-            throw new ForbiddenError(
-                'Downloads are unavailable for internal analytics',
-            );
-        }
+        this.assertAnalyticsDownloadSupported(project, type);
         const { organizationUuid } = project;
         this.assertEmbedAiAgentCanDownload(
             account,
@@ -4550,6 +4577,7 @@ export class AsyncQueryService extends ProjectService {
                 projectId: projectUuid,
                 isPreviewProject,
                 status: 'error',
+                errorMessage,
                 context: queryTags.query_context,
                 onboardingFlow,
                 exploreName: queryTags.explore_name ?? null,
@@ -6759,6 +6787,7 @@ export class AsyncQueryService extends ProjectService {
                     // query.completed in runAsyncWarehouseQuery.
                     const trackQueryCompleted = (outcome: {
                         status: 'success' | 'error';
+                        errorMessage?: string;
                         cacheHit: boolean;
                         totalRowCount?: number | null;
                         columnsCount?: number | null;
@@ -6777,6 +6806,7 @@ export class AsyncQueryService extends ProjectService {
                                 projectId: projectUuid,
                                 isPreviewProject,
                                 status: outcome.status,
+                                errorMessage: outcome.errorMessage ?? null,
                                 context,
                                 onboardingFlow,
                                 exploreName: explore.name,
@@ -6830,6 +6860,8 @@ export class AsyncQueryService extends ProjectService {
                                     originalColumns ??
                                     null,
                                 results_file_name: resultsCache.fileName,
+                                // Cache hits stay in the source's generation
+                                cache_generation: resultsCache.cacheGeneration,
                                 results_created_at: resultsCache.createdAt,
                                 results_updated_at: resultsCache.updatedAt,
                                 results_expires_at: resultsCache.expiresAt,
@@ -6882,6 +6914,7 @@ export class AsyncQueryService extends ProjectService {
                         );
                         trackQueryCompleted({
                             status: 'error',
+                            errorMessage: `Missing parameters: ${missingParameterReferences.join(', ')}`,
                             cacheHit: false,
                         });
                         this.prometheusMetrics?.trackQueryStateTransition(
@@ -6973,6 +7006,7 @@ export class AsyncQueryService extends ProjectService {
                         );
                         trackQueryCompleted({
                             status: 'error',
+                            errorMessage: executionPlan.error,
                             cacheHit: false,
                         });
                         this.prometheusMetrics?.trackQueryStateTransition(
@@ -7518,6 +7552,7 @@ export class AsyncQueryService extends ProjectService {
             context,
             querySurface,
             metricQuery: inputMetricQuery,
+            limit,
             invalidateCache,
             usePreAggregateCache,
             parameters,
@@ -7562,6 +7597,7 @@ export class AsyncQueryService extends ProjectService {
                 aiPlan,
             },
             projectParameters,
+            exportLimits,
         ] = await Promise.all([
             this.getExploreForMetricQueryExecution({
                 account,
@@ -7591,17 +7627,33 @@ export class AsyncQueryService extends ProjectService {
                     organizationWarehouseCredentialsUuid,
             }),
             this.projectParametersModel.find(projectUuid),
+            limit === undefined
+                ? undefined
+                : resolveOrganizationExportLimits(
+                      this.organizationSettingsModel,
+                      this.lightdashConfig.query,
+                      organizationUuid,
+                  ),
         ]);
         const parallelLoadMs = Date.now() - metricQueryStart;
+
+        const metricQueryWithExportLimit = exportLimits
+            ? applyMetricQueryLimit(
+                  inputMetricQuery,
+                  limit,
+                  exportLimits.csvCellsLimit,
+                  exportLimits.maxLimit,
+              )
+            : inputMetricQuery;
 
         // Dashboard filters (e.g. from a data-app tile) are merged once the
         // explore is known so we can drop filters that target fields outside
         // it — silent drop is intentional, see ExecuteAsyncMetricQueryRequestParams.
-        let metricQuery: MetricQuery = inputMetricQuery;
+        let metricQuery: MetricQuery = metricQueryWithExportLimit;
         if (dashboardFilters) {
             const availableFieldIds = getExecutableFilterFieldIds(explore);
             metricQuery = addDashboardFiltersToMetricQuery(
-                inputMetricQuery,
+                metricQueryWithExportLimit,
                 {
                     dimensions: getDashboardFilterRulesForTables(
                         availableFieldIds,
@@ -8574,6 +8626,79 @@ export class AsyncQueryService extends ProjectService {
             valueFieldId: fieldId,
             labelFieldId,
         };
+    }
+
+    async invalidateSavedChartResultsCache(
+        user: SessionUser,
+        chartUuid: string,
+    ): Promise<ResultsCacheInvalidation> {
+        const chart = await this.savedChartModel.getSummary(chartUuid);
+        const { organizationUuid } = await this.assertCanInvalidateResultsCache(
+            user,
+            chart.projectUuid,
+        );
+        return this.invalidateContentResultsCache(user, {
+            organizationUuid,
+            projectUuid: chart.projectUuid,
+            contentUuid: chart.uuid,
+            content: { type: 'chart', identifiers: [chart.uuid, chart.slug] },
+        });
+    }
+
+    async invalidateDashboardResultsCache(
+        user: SessionUser,
+        dashboardUuid: string,
+    ): Promise<ResultsCacheInvalidation> {
+        const { projectUuid } =
+            await this.dashboardModel.getSummaryByUuid(dashboardUuid);
+        const { organizationUuid } = await this.assertCanInvalidateResultsCache(
+            user,
+            projectUuid,
+        );
+        return this.invalidateContentResultsCache(user, {
+            organizationUuid,
+            projectUuid,
+            contentUuid: dashboardUuid,
+            content: { type: 'dashboard', identifiers: [dashboardUuid] },
+        });
+    }
+
+    private async invalidateContentResultsCache(
+        user: SessionUser,
+        {
+            organizationUuid,
+            projectUuid,
+            contentUuid,
+            content,
+        }: {
+            organizationUuid: string;
+            projectUuid: string;
+            contentUuid: string;
+            content: CachedResultsContent;
+        },
+    ): Promise<ResultsCacheInvalidation> {
+        const invalidatedAt = new Date();
+        // Wide enough that a later TTL increase cannot revive older results
+        const maxTtlSeconds = Math.max(
+            this.lightdashConfig.results.cacheStateTimeSeconds,
+            MAX_RESULTS_CACHE_TTL_SECONDS,
+        );
+        await this.queryHistoryModel.invalidateCachedResultsForContent(
+            projectUuid,
+            content,
+            new Date(invalidatedAt.getTime() - maxTtlSeconds * 1000),
+        );
+        this.analytics.track({
+            event: 'results_cache.invalidated',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                scope: content.type,
+                contentUuid,
+            },
+        });
+        return { projectUuid, invalidatedAt };
     }
 
     async executeAsyncSavedChartQuery({
@@ -11297,10 +11422,10 @@ export class AsyncQueryService extends ProjectService {
                                                   )
                                                 : (history.columns ?? {});
                                         inputMeta.inputs[name] = {
-                                            columns:
-                                                resultColumnsToPythonInput(
-                                                    columns,
-                                                ),
+                                            columns: resultColumnsToPythonInput(
+                                                columns,
+                                                history.fields,
+                                            ),
                                         };
                                         const storageClient =
                                             this.getResultsStorageClientForContext(
@@ -11469,6 +11594,590 @@ export class AsyncQueryService extends ProjectService {
                 }
             },
         );
+    }
+
+    /**
+     * Sends a query live to an external API and lands its rows as a regular
+     * async query result. An api query reads no other results.
+     */
+    async executeAsyncApiQuery({
+        account,
+        projectUuid,
+        connectionUuid,
+        connector,
+        payload,
+        context,
+        querySurface,
+        limit,
+        parameters,
+    }: ExecuteAsyncApiQueryArgs): Promise<{ queryUuid: string }> {
+        assertIsAccountWithOrg(account);
+
+        const { enabled } = await this.featureFlagModel.get({
+            user: {
+                userUuid: account.user.id,
+                organizationUuid: account.organization.organizationUuid,
+            },
+            featureFlagId: FeatureFlags.ApiQuerySources,
+        });
+        if (!enabled) {
+            throw new ForbiddenError('Live data sources are not enabled');
+        }
+
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+
+        const { maxLimit, defaultLimit } = this.lightdashConfig.query;
+        const effectiveLimit = limit ?? defaultLimit;
+        if (!Number.isInteger(effectiveLimit) || effectiveLimit < 1) {
+            throw new ParameterError('limit must be a positive integer');
+        }
+        if (effectiveLimit > maxLimit) {
+            throw new ParameterError(`limit must be at most ${maxLimit} rows`);
+        }
+        const identityEnabled = await this.isResultIdentityEnabled(account);
+        const effectiveParameters = parameters ?? {};
+        const requestParameters: ExecuteAsyncApiQueryRequestParams = {
+            connectionUuid,
+            payload,
+            limit: effectiveLimit,
+            context,
+            parameters: effectiveParameters,
+        };
+        const metricQuery: MetricQuery = {
+            exploreName: SQL_QUERY_MOCK_EXPLORER_NAME,
+            dimensions: [],
+            metrics: [],
+            filters: {},
+            sorts: [],
+            limit: effectiveLimit,
+            tableCalculations: [],
+            additionalMetrics: [],
+        };
+        const resultEntitlementFingerprint = identityEnabled
+            ? getQueryResultEntitlementFingerprint({
+                  parameters: getQueryResultRequestParameters(
+                      requestParameters,
+                      {},
+                  ),
+                  controls: await this.getUserAttributes({ account }),
+                  explore: null,
+                  metricQuery,
+              })
+            : null;
+        const reader = buildResultReader(
+            account,
+            context,
+            querySurface ?? null,
+        );
+        // API rows never touch the warehouse, like external source results.
+        const resultProducer: QueryResultProducer = {
+            entitlementFingerprint: resultEntitlementFingerprint,
+            version: 1,
+            warehouseConnectionUuid: null,
+            credentialOwner: { kind: 'no_warehouse_data' },
+            authMethod: account.authentication.type,
+            agentIdentity: reader.kind === 'agent' ? reader.claim : null,
+        };
+        // Reuse is per user: rows come straight from the source, unfiltered by
+        // anything Lightdash can check against another reader.
+        const cacheKey = QueryHistoryModel.getCacheKey(projectUuid, {
+            sql: JSON.stringify({
+                connectionUuid,
+                payload,
+                limit: effectiveLimit,
+            }),
+            userUuid: account.user.id,
+        });
+        const reusable = await this.findReusableApiResult(
+            projectUuid,
+            cacheKey,
+        );
+
+        const queryCreatedAt = new Date();
+        const { queryUuid } = await this.createQueryHistory(
+            account,
+            {
+                projectUuid,
+                organizationUuid,
+                context,
+                fields: {},
+                compiledSql: payload.query,
+                requestParameters,
+                usedParameters: {},
+                metricQuery,
+                cacheKey,
+                pivotConfiguration: null,
+                originalColumns: {},
+            },
+            undefined,
+            undefined,
+            querySurface,
+            { resultEntitlementFingerprint },
+        );
+        await this.queryHistoryModel.recordResultProducer(
+            queryUuid,
+            projectUuid,
+            account.user.id,
+            resultProducer,
+        );
+        this.prometheusMetrics?.trackQueryStateTransition(
+            'new',
+            QueryHistoryStatus.PENDING,
+            context,
+        );
+
+        if (reusable) {
+            await this.queryHistoryModel.update(
+                queryUuid,
+                projectUuid,
+                {
+                    status: QueryHistoryStatus.READY,
+                    error: null,
+                    // Reuse keeps the original fetch time instead of 0 ms.
+                    warehouse_execution_time_ms:
+                        reusable.queryHistory.warehouseExecutionTimeMs,
+                    total_row_count: reusable.totalRowCount,
+                    cache_key: cacheKey,
+                    results_file_name: reusable.resultsFileName,
+                    results_created_at: reusable.resultsCreatedAt,
+                    results_updated_at: reusable.resultsUpdatedAt,
+                    results_expires_at: reusable.resultsExpiresAt,
+                    columns: reusable.columns,
+                    fields: pythonColumnsToFields(reusable.columns ?? {}),
+                },
+                account,
+            );
+            this.prometheusMetrics?.trackQueryStateTransition(
+                QueryHistoryStatus.PENDING,
+                QueryHistoryStatus.READY,
+                context,
+            );
+            this.trackQueryTerminalStatus(
+                QueryHistoryStatus.READY,
+                queryCreatedAt,
+                context,
+            );
+            this.trackApiQueryCompleted({
+                account,
+                queryUuid,
+                projectUuid,
+                organizationUuid,
+                context,
+                connector: connector.describe().connector,
+                queryCreatedAt,
+                outcome: 'ok',
+                errorMessage: null,
+                totalRowCount: reusable.totalRowCount,
+                columnsCount: reusable.columns
+                    ? Object.keys(reusable.columns).length
+                    : null,
+                truncated: null,
+                cacheHit: true,
+            });
+            void connector.logCall({
+                queryUuid,
+                context,
+                query: payload.query,
+                rowLimit: effectiveLimit,
+                outcome: 'ok',
+                errorMessage: null,
+                durationMs: Date.now() - queryCreatedAt.getTime(),
+                rowCount: reusable.totalRowCount,
+                columnCount: reusable.columns
+                    ? Object.keys(reusable.columns).length
+                    : null,
+                truncated: null,
+            });
+            return { queryUuid };
+        }
+
+        void this.runApiQuery({
+            account,
+            queryUuid,
+            projectUuid,
+            organizationUuid,
+            connector,
+            payload,
+            limit: effectiveLimit,
+            cacheKey,
+            context,
+            queryCreatedAt,
+        }).catch((e) => {
+            this.logger.error(
+                `Async api query ${queryUuid} failed outside its error path: ${getErrorMessage(
+                    e,
+                )}`,
+            );
+        });
+
+        return { queryUuid };
+    }
+
+    private async runApiQuery({
+        account,
+        queryUuid,
+        projectUuid,
+        organizationUuid,
+        connector,
+        payload,
+        limit,
+        cacheKey,
+        context,
+        queryCreatedAt,
+    }: {
+        account: Account;
+        queryUuid: string;
+        projectUuid: string;
+        organizationUuid: string;
+        connector: MeteredApiConnector;
+        payload: ApiSourcePayload;
+        limit: number;
+        cacheKey: string;
+        context: QueryExecutionContext;
+        queryCreatedAt: Date;
+    }): Promise<void> {
+        const { connector: connectorType } = connector.describe();
+        const attributes = {
+            'lightdash.queryUuid': queryUuid,
+            'lightdash.projectUuid': projectUuid,
+            'lightdash.queryContext': context,
+            'lightdash.apiConnector': connectorType,
+            'lightdash.limit': limit,
+        };
+        await this.traceComposerQueryStage(
+            'api',
+            'total',
+            { name: 'api.query.run', attributes },
+            async (span) => {
+                const startedAt = Date.now();
+                // The API's share of the run; uploading the rows is ours.
+                let executeMs: number | null = null;
+                const logCall = (
+                    call: Pick<
+                        ApiConnectorCall,
+                        | 'outcome'
+                        | 'errorMessage'
+                        | 'rowCount'
+                        | 'columnCount'
+                        | 'truncated'
+                    >,
+                ) =>
+                    void connector.logCall({
+                        queryUuid,
+                        context,
+                        query: payload.query,
+                        rowLimit: limit,
+                        durationMs: executeMs ?? Date.now() - startedAt,
+                        ...call,
+                    });
+                try {
+                    const result = await this.traceComposerQueryStage(
+                        'api',
+                        'execute',
+                        {
+                            op: 'http.client',
+                            name: 'api.query.execute',
+                            attributes,
+                        },
+                        () =>
+                            this.executeApiConnector(
+                                connector,
+                                connectorType,
+                                payload,
+                                limit,
+                            ),
+                    );
+                    executeMs = Date.now() - startedAt;
+                    span.setAttributes({
+                        'lightdash.rowCount': result.rows.length,
+                        'lightdash.truncated': result.truncated,
+                        'lightdash.apiCalls': connector.usage().apiCalls,
+                        ...(result.bytesRead !== null
+                            ? { 'lightdash.bytesRead': result.bytesRead }
+                            : {}),
+                    });
+
+                    const resultsStorageClient =
+                        this.getResultsStorageClientForContext(context);
+                    if (!resultsStorageClient.isEnabled) {
+                        throw new S3Error('S3 is not enabled');
+                    }
+                    const fileName =
+                        QueryHistoryModel.createUniqueResultsFileName(cacheKey);
+                    const createdAt = new Date();
+                    await this.traceComposerQueryStage(
+                        'api',
+                        'upload_result',
+                        {
+                            op: 's3.upload',
+                            name: 'api.query.upload_result',
+                            attributes: {
+                                ...attributes,
+                                'lightdash.totalRows': result.rows.length,
+                            },
+                        },
+                        async () => {
+                            const upload =
+                                resultsStorageClient.createUploadStream(
+                                    S3ResultsFileStorageClient.sanitizeFileExtension(
+                                        fileName,
+                                    ),
+                                    { contentType: 'application/jsonl' },
+                                );
+                            await upload.write(result.rows);
+                            await upload.close();
+                        },
+                    );
+
+                    const columns: ResultColumns = Object.fromEntries(
+                        result.columns.map((column) => [
+                            column.name,
+                            { reference: column.name, type: column.type },
+                        ]),
+                    );
+                    await this.queryHistoryModel.update(
+                        queryUuid,
+                        projectUuid,
+                        {
+                            status: QueryHistoryStatus.READY,
+                            error: null,
+                            warehouse_execution_time_ms: Date.now() - startedAt,
+                            total_row_count: result.rows.length,
+                            cache_key: cacheKey,
+                            results_file_name: fileName,
+                            results_created_at: createdAt,
+                            results_updated_at: new Date(),
+                            results_expires_at: await this.getCacheExpiresAt(
+                                projectUuid,
+                                createdAt,
+                            ),
+                            columns,
+                            fields: pythonColumnsToFields(columns),
+                        },
+                        account,
+                    );
+                    this.prometheusMetrics?.trackQueryStateTransition(
+                        QueryHistoryStatus.PENDING,
+                        QueryHistoryStatus.READY,
+                        context,
+                    );
+                    this.trackQueryTerminalStatus(
+                        QueryHistoryStatus.READY,
+                        queryCreatedAt,
+                        context,
+                    );
+                    this.trackApiQueryCompleted({
+                        account,
+                        queryUuid,
+                        projectUuid,
+                        organizationUuid,
+                        context,
+                        connector: connectorType,
+                        queryCreatedAt,
+                        outcome: 'ok',
+                        errorMessage: null,
+                        totalRowCount: result.rows.length,
+                        columnsCount: result.columns.length,
+                        truncated: result.truncated,
+                    });
+                    logCall({
+                        outcome: 'ok',
+                        errorMessage: null,
+                        rowCount: result.rows.length,
+                        columnCount: result.columns.length,
+                        truncated: result.truncated,
+                    });
+                    this.logger.info(
+                        `Api query ${queryUuid} ready: ${result.rows.length} rows${
+                            result.truncated ? ' (truncated)' : ''
+                        } from ${connectorType} in ${Date.now() - startedAt}ms`,
+                    );
+                } catch (e) {
+                    const message = getErrorMessage(e);
+                    const outcome = getApiQueryOutcome(e);
+                    span.setAttributes({ 'lightdash.error': message });
+                    this.logger.warn(
+                        `Api query ${queryUuid} failed: ${message}`,
+                    );
+                    await this.queryHistoryModel.updateStatusToError(
+                        queryUuid,
+                        projectUuid,
+                        message,
+                        account,
+                    );
+                    this.prometheusMetrics?.trackQueryStateTransition(
+                        QueryHistoryStatus.PENDING,
+                        QueryHistoryStatus.ERROR,
+                        context,
+                    );
+                    this.trackQueryTerminalStatus(
+                        QueryHistoryStatus.ERROR,
+                        queryCreatedAt,
+                        context,
+                    );
+                    this.trackApiQueryCompleted({
+                        account,
+                        queryUuid,
+                        projectUuid,
+                        organizationUuid,
+                        context,
+                        connector: connectorType,
+                        queryCreatedAt,
+                        outcome,
+                        errorMessage: message,
+                        totalRowCount: null,
+                        columnsCount: null,
+                        truncated: null,
+                    });
+                    logCall({
+                        outcome,
+                        errorMessage: message,
+                        rowCount: null,
+                        columnCount: null,
+                        truncated: null,
+                    });
+                }
+            },
+        );
+    }
+
+    /** This user's latest rows for the same live query, if they are recent enough to reuse. */
+    private async findReusableApiResult(projectUuid: string, cacheKey: string) {
+        const latest = await this.queryHistoryModel.findMostRecentByCacheKey(
+            cacheKey,
+            projectUuid,
+            { excludeAgentProduced: false },
+        );
+        if (
+            !latest ||
+            !canReuseApiResult({
+                status: latest.queryHistory.status,
+                resultsFileName: latest.resultsFileName,
+                resultsCreatedAt: latest.resultsCreatedAt,
+                resultsExpiresAt: latest.resultsExpiresAt,
+            })
+        ) {
+            return null;
+        }
+        return latest;
+    }
+
+    /** One connector call, measured by outcome; rethrows what it caught. */
+    private async executeApiConnector(
+        connector: ApiConnector,
+        connectorType: ApiConnectorType,
+        payload: ApiSourcePayload,
+        limit: number,
+    ): Promise<ApiConnectorResult> {
+        const startedAt = Date.now();
+        this.prometheusMetrics?.trackApiSourceInflight(connectorType, 1);
+        try {
+            const result = await connector.execute({ payload, limit });
+            this.prometheusMetrics?.observeApiSourceRequest(
+                connectorType,
+                'ok',
+                Date.now() - startedAt,
+            );
+            if (result.truncated) {
+                this.prometheusMetrics?.incrementApiSourceTruncated(
+                    connectorType,
+                );
+            }
+            return result;
+        } catch (error) {
+            this.prometheusMetrics?.observeApiSourceRequest(
+                connectorType,
+                getApiQueryOutcome(error),
+                Date.now() - startedAt,
+            );
+            throw error;
+        } finally {
+            this.prometheusMetrics?.trackApiSourceInflight(connectorType, -1);
+        }
+    }
+
+    /** Usage for one api query; never fails the query it describes. */
+    private trackApiQueryCompleted({
+        account,
+        queryUuid,
+        projectUuid,
+        organizationUuid,
+        context,
+        connector,
+        queryCreatedAt,
+        outcome,
+        errorMessage,
+        totalRowCount,
+        columnsCount,
+        truncated,
+        cacheHit = false,
+    }: {
+        account: Account;
+        queryUuid: string;
+        projectUuid: string;
+        organizationUuid: string;
+        context: QueryExecutionContext;
+        connector: ApiConnectorType;
+        queryCreatedAt: Date;
+        outcome: ApiQueryOutcome;
+        errorMessage: string | null;
+        totalRowCount: number | null;
+        columnsCount: number | null;
+        truncated: boolean | null;
+        cacheHit?: boolean;
+    }): void {
+        const responseTimeMs = Date.now() - queryCreatedAt.getTime();
+        void Promise.all([
+            this.isExcludedFromUsage(projectUuid),
+            this.getOnboardingFlow({
+                userUuid: account.user.id,
+                organizationUuid,
+            }),
+        ])
+            .then(([isPreviewProject, onboardingFlow]) => {
+                this.analytics.trackAccount(account, {
+                    event: 'query.completed',
+                    properties: {
+                        inheritedFromProjectUuid: null,
+                        queryId: queryUuid,
+                        organizationId: organizationUuid,
+                        projectId: projectUuid,
+                        isPreviewProject,
+                        status: outcome === 'ok' ? 'success' : 'error',
+                        context,
+                        onboardingFlow,
+                        exploreName: null,
+                        chartId: null,
+                        dashboardId: null,
+                        cacheHit,
+                        executionSource: 'live_source',
+                        ...this.getQueryConnectionAnalyticsProperties({
+                            warehouseConnectionUuid: null,
+                            warehouseType: null,
+                        }),
+                        connectionWarehouseType: null,
+                        workloadOrigin: queryWorkloadOrigin(context),
+                        responseTimeMs,
+                        responseTimingBasis: 'query_submission',
+                        errorMessage,
+                        warehouseExecutionTimeMs: null,
+                        warehousePhaseTimings: null,
+                        totalRowCount,
+                        columnsCount,
+                        apiConnector: connector,
+                        apiQueryOutcome: outcome,
+                        ...(truncated !== null ? { truncated } : {}),
+                    },
+                });
+            })
+            .catch((error) => {
+                this.logger.warn(
+                    `Could not track api query ${queryUuid}: ${getErrorMessage(
+                        error,
+                    )}`,
+                );
+            });
     }
 
     /**
@@ -12800,6 +13509,7 @@ export class AsyncQueryService extends ProjectService {
                 columns,
                 fields: pythonColumnsToFields(columns),
                 results_file_name: cached.fileName,
+                cache_generation: cached.cacheGeneration,
                 results_created_at: cached.createdAt,
                 results_updated_at: cached.updatedAt,
                 results_expires_at: cached.expiresAt,
@@ -12891,6 +13601,7 @@ export class AsyncQueryService extends ProjectService {
                         ? columns.originalColumns
                         : null),
                 results_file_name: cached.fileName,
+                cache_generation: cached.cacheGeneration,
                 results_created_at: cached.createdAt,
                 results_updated_at: cached.updatedAt,
                 results_expires_at: cached.expiresAt,

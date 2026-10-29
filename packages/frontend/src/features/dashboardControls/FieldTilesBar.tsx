@@ -1,6 +1,6 @@
 import { interpolateUiString, type UiStringResolver } from '@lightdash/common';
 import { Button, Divider, Group, Paper, Text, Tooltip } from '@mantine/core';
-import { useLayoutEffect, useMemo, useRef, useState, type FC } from 'react';
+import { useLayoutEffect, useRef, type FC } from 'react';
 import { createPortal } from 'react-dom';
 import FieldIcon from '../../components/common/Filters/FieldIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
@@ -8,6 +8,7 @@ import { selectActiveTabUuid, useDashboardSelector } from '../dashboard/store';
 import { formatTileCount } from './fieldLabels';
 import classes from './FieldTilesBar.module.css';
 import { type FieldScope } from './peers';
+import { useBarHost } from './useBarHost';
 import {
     useControlsSidebarSelector,
     type FieldApply,
@@ -18,57 +19,7 @@ import {
     type FieldTiles,
     type TileScope,
 } from './useFieldTileActions';
-import { usePortalTargets } from './usePortalTargets';
 import { useSqlColumnsByTile } from './useSqlColumnsByTile';
-
-const GRID_KEY = 'grid';
-const GRID_SELECTOR = '.react-grid-layout';
-const TAB_PANEL_SELECTOR = '[data-tab-uuid]';
-
-// The grid of a tab panel, or the one grid of a dashboard without tabs
-const getGridSelector = (key: string) =>
-    key === GRID_KEY
-        ? GRID_SELECTOR
-        : `[data-tab-uuid="${key}"] ${GRID_SELECTOR}`;
-
-// An element of ours right after the active tab's tile grid, where the bar
-// floats. Keyed on the grid, so it follows a grid that is mounted again
-const useBarHost = (
-    activeTabUuid: string | undefined,
-    isEnabled: boolean,
-): HTMLElement | null => {
-    const keys = useMemo(
-        () =>
-            activeTabUuid === undefined
-                ? [GRID_KEY]
-                : [activeTabUuid, GRID_KEY],
-        [activeTabUuid],
-    );
-    const targets = usePortalTargets(keys, getGridSelector, isEnabled, false);
-    const tabGrid =
-        activeTabUuid === undefined ? undefined : targets[activeTabUuid];
-    const anyGrid = targets[GRID_KEY];
-    // Never another tab's grid while the active panel is still mounting
-    const loneGrid =
-        anyGrid !== undefined && anyGrid.closest(TAB_PANEL_SELECTOR) === null
-            ? anyGrid
-            : undefined;
-    const grid = tabGrid ?? loneGrid ?? null;
-
-    const [host, setHost] = useState<HTMLElement | null>(null);
-    useLayoutEffect(() => {
-        if (grid === null) return;
-        const element = document.createElement('div');
-        element.className = classes.host;
-        grid.after(element);
-        setHost(element);
-        return () => {
-            element.remove();
-            setHost(null);
-        };
-    }, [grid]);
-    return host;
-};
 
 // The tiles of a scope an apply would change
 const getChangeCount = (scope: FieldScope) => scope.unfiltered + scope.replaced;
@@ -147,6 +98,9 @@ const Bar: FC<{
     const {
         field,
         label,
+        name,
+        isNameShared,
+        tableLabel,
         thisTabScope,
         everyTabScope,
         canAct,
@@ -222,8 +176,15 @@ const Bar: FC<{
                     {field !== null && (
                         <FieldIcon item={field} size={16} aria-hidden />
                     )}
+                    {isNameShared && (
+                        <Tooltip fz="xs" label={label}>
+                            <Text fz="sm" c="dimmed" truncate maw={120}>
+                                {tableLabel}
+                            </Text>
+                        </Tooltip>
+                    )}
                     <Text fz="sm" fw={600} truncate maw={240}>
-                        {label}
+                        {name}
                     </Text>
                 </Group>
                 <Divider orientation="vertical" />

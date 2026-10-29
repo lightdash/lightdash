@@ -197,7 +197,7 @@ const ChartTypeDetailModal: FC<Props> = ({
                             icon={dataAppViz.icon}
                         />
                     </Box>
-                    <Text fz="sm" c="ldGray.7" lh={1.55}>
+                    <Text fz="sm" c="dimmed" lh={1.55}>
                         {dataAppViz.description || 'No description'}
                     </Text>
                     {registryUpdate && (
@@ -238,7 +238,7 @@ const ChartTypeDetailModal: FC<Props> = ({
                                 <Text fz="xs" fw={600} c="dimmed">
                                     Built by
                                 </Text>
-                                <Text fz="sm" fw={500} c="ldGray.8">
+                                <Text fz="sm" fw={500}>
                                     {builtBy}
                                 </Text>
                             </Box>
@@ -247,7 +247,7 @@ const ChartTypeDetailModal: FC<Props> = ({
                             <Text fz="xs" fw={600} c="dimmed">
                                 Last updated
                             </Text>
-                            <Text fz="sm" fw={500} c="ldGray.8">
+                            <Text fz="sm" fw={500}>
                                 {lastUpdatedAgo}
                             </Text>
                         </Box>
@@ -256,7 +256,7 @@ const ChartTypeDetailModal: FC<Props> = ({
                                 Version
                             </Text>
                             <Group gap="xs" wrap="nowrap">
-                                <Text fz="sm" fw={500} c="ldGray.8">
+                                <Text fz="sm" fw={500}>
                                     {/* Officials show the registry semver, matching
                                         the library; the internal app version only
                                         describes locally built types. */}

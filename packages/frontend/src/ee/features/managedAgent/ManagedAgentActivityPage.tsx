@@ -1244,7 +1244,7 @@ const DetailSidebar: FC<{
             )}
 
             {/* Content */}
-            <Stack gap="md" p="md" style={{ overflow: 'auto', flex: 1 }}>
+            <Stack gap="md" p="md" flex={1} className={classes.scrollBody}>
                 {/* Resource-side metadata (space, last updated, verified, deleted) */}
                 {contentContext && (
                     <ContentContextDetails
@@ -1467,7 +1467,7 @@ const SettingsSidebar: FC<{
                 </Text>
             </Stack>
 
-            <Stack gap="lg" p="md" style={{ overflow: 'auto', flex: 1 }}>
+            <Stack gap="lg" p="md" flex={1} className={classes.scrollBody}>
                 <Group
                     justify="space-between"
                     align="flex-start"
@@ -1967,7 +1967,7 @@ const ActionRow: FC<{
                 </Group>
             </Table.Td>
             <Table.Td className={classes.messageCell}>
-                <Text fz="xs" c="ldGray.7" lineClamp={1}>
+                <Text fz="xs" c="dimmed" lineClamp={1}>
                     {toPlainPreview(action.description)}
                 </Text>
             </Table.Td>
@@ -2002,8 +2002,8 @@ const RunHeaderRow: FC<{
     <Table.Tr
         className={classes.runHeaderRow}
         data-open={isOpen}
+        data-expandable={expandable}
         onClick={expandable ? onToggle : undefined}
-        style={expandable ? undefined : { cursor: 'default' }}
     >
         <Table.Td colSpan={3}>
             <Group justify="space-between" gap="xs" wrap="nowrap">
@@ -2329,6 +2329,7 @@ const filterChipProps = (isActive: boolean) =>
         className: isActive
             ? `${classes.filterChip} ${classes.filterChipActive}`
             : classes.filterChip,
+        classNames: { section: classes.filterChipSection },
     }) as const;
 
 const FilterChipMultiSelect: FC<{
@@ -2381,11 +2382,11 @@ const FilterChipMultiSelect: FC<{
                             leftSection={
                                 <MantineIcon
                                     icon={IconCheck}
-                                    style={{
-                                        visibility: isSelected
-                                            ? 'visible'
-                                            : 'hidden',
-                                    }}
+                                    className={
+                                        isSelected
+                                            ? undefined
+                                            : classes.hiddenCheck
+                                    }
                                 />
                             }
                             onClick={() =>

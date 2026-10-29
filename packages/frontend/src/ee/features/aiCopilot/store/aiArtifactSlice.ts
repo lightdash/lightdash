@@ -146,11 +146,6 @@ export const selectDocumentPreview = (state: StateWithAiArtifact) =>
         ? state.aiArtifact.preview
         : null;
 
-export const selectQueryPipelinePreview = (state: StateWithAiArtifact) =>
-    state.aiArtifact.preview?.type === 'queryPipeline'
-        ? state.aiArtifact.preview
-        : null;
-
 export const selectElementPickerEnabled =
     (threadUuid: string) => (state: StateWithAiArtifact) =>
         state.aiArtifact.elementPickerThreadUuid === threadUuid;

@@ -452,7 +452,10 @@ mcpRouter.all(
                     customChartTypesEnabled,
                     agentIdentityEnabled,
                 ] = await Promise.all([
-                    mcpService.isContentToolsEnabled(req.user!),
+                    mcpService.isContentToolsEnabled(
+                        req.user!,
+                        pinnedProjectUuid,
+                    ),
                     mcpService.isCreateScheduledDeliveryEnabled(req.user!),
                     mcpService.isRunSqlEnabled(req.user!, pinnedProjectUuid),
                     mcpService.isRunMetricQueryEnabled(

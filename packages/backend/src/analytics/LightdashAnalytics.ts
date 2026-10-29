@@ -9,6 +9,7 @@ import {
     AiAgentSkillVersionSource,
     AiCreditAllowanceAlertThreshold,
     AnyType,
+    ApiConnectorType,
     CacheMetadata,
     CartesianSeriesType,
     ChartKind,
@@ -96,6 +97,7 @@ import type { ExecutionContextInfo } from '../logging/winston';
 import type { EnsureOrganizationOverrideOutcome } from '../models/FeatureFlagModel/FeatureFlagModel';
 import type { FeatureFlagCheckAggregateEntry } from '../models/FeatureFlagModel/flagCheckAggregator';
 import { type PersistentDownloadFileSource } from '../services/PersistentDownloadFileService/PersistentDownloadFileService';
+import type { ApiQueryOutcome } from '../services/QuerySourceService/api/apiQueryOutcome';
 import { VERSION } from '../version';
 import {
     isAiUsageEvent,
@@ -672,7 +674,8 @@ type QueryExecutionSource =
     | 'pre_aggregate_duckdb'
     | 'pre_aggregate_warehouse'
     | 'external_source_duckdb'
-    | 'composer_duckdb';
+    | 'composer_duckdb'
+    | 'live_source';
 
 type QueryReadyEvent = BaseTrack & {
     event: 'query.ready';
@@ -739,12 +742,35 @@ export type QueryCompletedEvent = BaseTrack & {
         schedulerId?: string | null;
         /** Usage-store only; stripped before product analytics/event metrics. */
         semanticUsage?: SemanticQueryUsage;
+        /** Usage-store only; never sent to product analytics/event metrics. */
+        errorMessage?: string | null;
         warehouseExecutionTimeMs: number | null;
         // Phase breakdown of warehouseExecutionTimeMs. Absent phases mean the
         // adapter does not report them.
         warehousePhaseTimings: WarehousePhaseTimings | null;
         totalRowCount: number | null;
         columnsCount: number | null;
+        // Set only when executionSource is 'live_source'.
+        apiConnector?: ApiConnectorType;
+        apiQueryOutcome?: ApiQueryOutcome;
+        truncated?: boolean;
+    };
+};
+
+/** One composer batch; counts say which sources a question combined. */
+export type QuerySourcesSubmittedEvent = BaseTrack & {
+    event: 'query_sources.submitted';
+    properties: {
+        organizationId: string;
+        projectId: string;
+        context: QueryExecutionContext;
+        nodeCount: number;
+        semanticLayerNodeCount: number;
+        sqlNodeCount: number;
+        duckdbNodeCount: number;
+        externalNodeCount: number;
+        pythonNodeCount: number;
+        apiNodeCount: number;
     };
 };
 
@@ -844,6 +870,16 @@ type ResultsCacheDeleteEvent = BaseTrack & {
         queryId: string;
         projectId: string;
         cacheKey: string;
+    };
+};
+
+type ResultsCacheInvalidatedEvent = BaseTrack & {
+    event: 'results_cache.invalidated';
+    properties: {
+        organizationId: string;
+        projectId: string;
+        scope: 'project' | 'chart' | 'dashboard';
+        contentUuid: string | null;
     };
 };
 
@@ -1533,6 +1569,9 @@ type UpdatedDashboardEvent = BaseTrack & {
         dimensionFilterCount: number;
         metricFilterCount: number;
         lockedFilterCount: number;
+        sectionsCount: number;
+        sectionedFiltersCount: number;
+        collapsedByDefaultSectionsCount: number;
     };
 };
 
@@ -1559,6 +1598,9 @@ export type CreateDashboardOrVersionEvent = BaseTrack & {
         defaultDateZoomGranularity: string | null;
         dateZoomControlsCount: number;
         dateZoomTileTargetsCount: number;
+        sectionsCount: number;
+        sectionedFiltersCount: number;
+        collapsedByDefaultSectionsCount: number;
     };
 };
 
@@ -4798,6 +4840,7 @@ type TypedEvent =
     | QueryReadyEvent
     | QueryErrorEvent
     | QueryCompletedEvent
+    | QuerySourcesSubmittedEvent
     | PreAggregateQueryEvent
     | MaterializationEvent
     | QueryPageEvent
@@ -4805,6 +4848,7 @@ type TypedEvent =
     | ResultsCacheWriteEvent
     | ResultsCacheReadEvent
     | ResultsCacheDeleteEvent
+    | ResultsCacheInvalidatedEvent
     | ModeDashboardChartEvent
     | UpdateSavedChartEvent
     | SavedChartExploreChangedEvent
@@ -5143,9 +5187,10 @@ export class LightdashAnalytics extends Analytics {
         if (
             payload.event === 'query.completed' &&
             payload.properties &&
-            'semanticUsage' in payload.properties
+            ('semanticUsage' in payload.properties ||
+                'errorMessage' in payload.properties)
         ) {
-            const { semanticUsage, ...properties } =
+            const { semanticUsage, errorMessage, ...properties } =
                 payload.properties as QueryCompletedEvent['properties'];
             payload = { ...payload, properties } as QueryCompletedEvent;
         }

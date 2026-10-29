@@ -797,6 +797,144 @@ const previewFixture = () => {
     );
     return f;
 };
+describe('preview shared agent account destination and authorization', () => {
+    afterEach(() => vi.restoreAllMocks());
+    const prepare = () => {
+        const f = previewFixture();
+        f.load.mockImplementation(async (uuid: string) => ({
+            ...postgresConnection,
+            host: uuid === 'parent' ? 'warehouse.internal' : 'evil.example.com',
+        }));
+        const audit = vi
+            .spyOn(auditLogger, 'logAuditEvent')
+            .mockImplementation(() => {});
+        const logger = { warn: vi.fn(), debug: vi.fn(), info: vi.fn() };
+        Object.assign(f.service, { logger });
+        return { ...f, audit, logger };
+    };
+    it('fails a mismatched preview test before reading the parent slot or making a request', async () => {
+        const f = prepare();
+        await expect(
+            f.service.test(f.account, 'project', null, null),
+        ).resolves.toMatchObject({ ok: false });
+        expect(f.model.getSecrets).not.toHaveBeenCalled();
+        expect(f.model.getSlot).not.toHaveBeenCalled();
+        expect(f.withWarehouseClient).not.toHaveBeenCalled();
+        expect(f.runQuery).not.toHaveBeenCalled();
+        expect(exchangeDatabricksOAuthCredentials).not.toHaveBeenCalled();
+        expect(f.analytics.track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'agent_identity.service_account_tested',
+                properties: expect.objectContaining({
+                    inheritedFromProjectUuid: 'parent',
+                    result: 'failure',
+                }),
+            }),
+        );
+        expect(f.audit).toHaveBeenCalledWith(
+            expect.objectContaining({
+                action: 'test',
+                resource: expect.objectContaining({
+                    metadata: expect.objectContaining({
+                        inheritedFromProjectUuid: 'parent',
+                        result: 'failure',
+                    }),
+                }),
+            }),
+        );
+    });
+    it('requires manage permission on the parent before testing an inherited account', async () => {
+        const f = prepare();
+        f.load.mockResolvedValue(connection);
+        f.account.user.ability = new Ability<PossibleAbilities>([
+            {
+                action: 'manage',
+                subject: 'Project',
+                conditions: { projectUuid: 'project' },
+            },
+        ]);
+        await expect(
+            f.service.test(f.account, 'project', null, null),
+        ).rejects.toMatchObject({
+            constructor: ForbiddenError,
+            message:
+                'You need to manage the parent project to test its shared agent account.',
+        });
+        expect(f.load).not.toHaveBeenCalled();
+        expect(f.model.getSecrets).not.toHaveBeenCalled();
+        expect(f.withWarehouseClient).not.toHaveBeenCalled();
+        expect(f.runQuery).not.toHaveBeenCalled();
+        expect(exchangeDatabricksOAuthCredentials).not.toHaveBeenCalled();
+        expect(f.analytics.track).not.toHaveBeenCalled();
+        expect(
+            f.audit.mock.calls.filter(([entry]) => entry.action === 'test'),
+        ).toEqual([]);
+    });
+    it.each([
+        { name: 'TLS mode', change: { sslmode: 'disable' } },
+        { name: 'CA certificate', change: { sslrootcert: 'different CA' } },
+    ] as const)(
+        'reports a transport mismatch for $name before reading slots',
+        async ({ change }) => {
+            const f = prepare();
+            f.load.mockImplementation(async (uuid: string) => ({
+                ...postgresConnection,
+                ...(uuid === 'parent' ? {} : change),
+            }));
+            await expect(
+                f.service.getStatus(f.account, 'project', null),
+            ).resolves.toMatchObject({
+                parentUnavailableReason: 'transport_mismatch',
+                parent: null,
+            });
+            expect(f.model.getSecrets).not.toHaveBeenCalled();
+            expect(f.model.getSlot).not.toHaveBeenCalled();
+        },
+    );
+    it('reports an unreadable parent connection without retrying or reading the readable parent slot', async () => {
+        const f = prepare();
+        f.model.getSlot.mockResolvedValue({
+            uuid: 'parent-slot',
+            identityUuid: 'parent-generation',
+        });
+        f.load.mockImplementation(async (uuid: string) => {
+            if (uuid === 'parent')
+                throw new Error('invalid encrypted connection');
+            return postgresConnection;
+        });
+        await expect(
+            f.service.getStatus(f.account, 'project', null),
+        ).resolves.toMatchObject({
+            results: null,
+            parent: null,
+            parentUnavailableReason: 'parent_connection_unreadable',
+        });
+        expect(f.load.mock.calls).toEqual([
+            ['project', { kind: 'connection', warehouseConnectionUuid: null }],
+            ['parent', { kind: 'connection', warehouseConnectionUuid: null }],
+        ]);
+        expect(f.model.getSlot).not.toHaveBeenCalled();
+        expect(f.model.getSecrets).not.toHaveBeenCalled();
+    });
+    it('hides parent metadata when the preview destination differs', async () => {
+        const f = prepare();
+        await expect(
+            f.service.getStatus(f.account, 'project', null),
+        ).resolves.toMatchObject({
+            parentUnavailableReason: 'destination_mismatch',
+            parent: null,
+        });
+        expect(f.model.getSecrets).not.toHaveBeenCalled();
+        expect(f.model.getSlot).not.toHaveBeenCalled();
+        expect(f.logger.warn).toHaveBeenCalledWith(
+            'Preview shared agent account destination mismatch',
+            {
+                projectUuid: 'project',
+                parentProjectUuid: 'parent',
+            },
+        );
+    });
+});
 it.each([true, false])(
     'returns parent principal with parent view=%s without exposing secrets',
     async (canView) => {
@@ -820,6 +958,7 @@ it.each([true, false])(
         expect(await f.service.getStatus(f.account, 'project', null)).toEqual({
             results: null,
             credentialsReadable: false,
+            parentUnavailableReason: null,
             parent: {
                 credentialsReadable: true,
                 projectUuid: 'parent',
@@ -846,6 +985,7 @@ it.each([true, false])(
         ).resolves.toEqual({
             results: null,
             credentialsReadable: false,
+            parentUnavailableReason: null,
             parent: {
                 projectUuid: 'parent',
                 projectName: 'Parent project',
@@ -879,6 +1019,7 @@ it('returns no parent on a non-preview status response', async () => {
     expect(await f.service.getStatus(f.account, 'project', null)).toEqual({
         results: { uuid: 'slot', identityUuid: 'generation-before' },
         credentialsReadable: true,
+        parentUnavailableReason: null,
         parent: null,
     });
 });
@@ -1027,7 +1168,7 @@ const databricksSecrets = {
 } as const;
 const databricksConnection = {
     ...databricksSecrets,
-    serverHostName: 'workspace.example.com',
+    serverHostName: 'adb-123.4.azuredatabricks.net',
     httpPath: '/sql/preview',
     catalog: 'catalog',
     database: 'schema',
@@ -1163,7 +1304,7 @@ describe('Databricks identity verification', () => {
             expect(
                 exchangeDatabricksOAuthCredentials,
             ).toHaveBeenCalledExactlyOnceWith(
-                'workspace.example.com',
+                'adb-123.4.azuredatabricks.net',
                 'slot-client',
                 'slot-secret',
             );
@@ -1272,6 +1413,7 @@ describe('Databricks identity verification', () => {
                 results: null,
                 credentialsReadable: false,
                 verification: null,
+                parentUnavailableReason: null,
                 parent: {
                     projectUuid: 'parent',
                     projectName: canView ? 'Parent project' : null,
@@ -3004,6 +3146,7 @@ it.each([true, false])(
         ).resolves.toMatchObject({
             results: null,
             credentialsReadable: false,
+            parentUnavailableReason: null,
             parent: { projectUuid: 'parent' },
         });
         f.model.getSecrets.mockResolvedValue(null);
@@ -3012,6 +3155,7 @@ it.each([true, false])(
         ).resolves.toEqual({
             results: null,
             credentialsReadable: false,
+            parentUnavailableReason: null,
             parent: null,
         });
         expect(f.model.getSlot).not.toHaveBeenCalled();

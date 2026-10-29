@@ -72,6 +72,7 @@ import {
     isSlackTarget,
     MAX_CONTENT_SLUG_LENGTH,
     normalizeContentAsCodePath,
+    normalizeContentAsCodeSourcePath,
     normalizeSavedMergeDefinition,
     NotFoundError,
     NotificationFrequency,
@@ -273,7 +274,12 @@ type UpsertContentAsCodeOptions = {
     // Repo file the document came from, relative to the project dir, so
     // write-back returns to the same place
     filePath?: string;
+    authorization?: ContentWriteAuthorization;
 };
+
+// Content as code needs the create:ContentAsCode scope on top of space
+// access; the agent surfaces mirror the app and rely on space access alone.
+type ContentWriteAuthorization = 'content_as_code' | 'space_access';
 
 export class CoderService extends BaseService {
     lightdashConfig: LightdashConfig;
@@ -3467,7 +3473,7 @@ export class CoderService extends BaseService {
     private static sourceFilePath(filePath: string | undefined): string | null {
         if (filePath === undefined) return null;
         try {
-            const normalized = normalizeContentAsCodePath(filePath);
+            const normalized = normalizeContentAsCodeSourcePath(filePath);
             return normalized === '' ? null : normalized;
         } catch {
             return null;
@@ -4032,6 +4038,7 @@ export class CoderService extends BaseService {
             force,
             spaceNames,
             mode = 'upsert',
+            authorization = 'content_as_code',
         } = options;
         const shouldUpdateExistingContent = mode === 'upsert';
         const shouldUseExactSlug = mode === 'upsert';
@@ -4044,6 +4051,7 @@ export class CoderService extends BaseService {
                 auditedAbility,
                 project,
                 slug,
+                authorization,
             });
 
         const allowSpaceCreate =
@@ -4693,6 +4701,7 @@ export class CoderService extends BaseService {
             | 'spaceNames'
             | 'mode'
             | 'account'
+            | 'authorization'
         > = {},
     ): Promise<PromotionChanges> {
         await this.assertAgentUploadAllowed(
@@ -4706,6 +4715,7 @@ export class CoderService extends BaseService {
             publicSpaceCreate,
             spaceNames,
             mode = 'upsert',
+            authorization = 'content_as_code',
         } = options;
         const project = await this.projectModel.get(projectUuid);
 
@@ -4732,6 +4742,7 @@ export class CoderService extends BaseService {
                 auditedAbility,
                 project,
                 slug,
+                authorization,
             });
 
         const allowSpaceCreate =
@@ -4799,7 +4810,11 @@ export class CoderService extends BaseService {
                 }),
             )
         ) {
-            throw new ForbiddenError();
+            throw new ForbiddenError(
+                `You don't have permission to ${
+                    isUpdate ? 'update' : 'create'
+                } SQL charts in this project (content slug "${slug}")`,
+            );
         }
 
         if (existingSqlChart !== undefined) {
@@ -5053,6 +5068,7 @@ export class CoderService extends BaseService {
         auditedAbility,
         project,
         slug,
+        authorization = 'content_as_code',
     }: {
         auditedAbility: ReturnType<CoderService['createAuditedAbility']>;
         project: Pick<
@@ -5064,6 +5080,7 @@ export class CoderService extends BaseService {
             | 'createdByUserUuid'
         >;
         slug: string;
+        authorization?: ContentWriteAuthorization;
     }): { canUploadAnyContent: boolean; allowSpaceCreate: boolean } {
         const contentAsCodeSubject = subject('ContentAsCode', {
             projectUuid: project.projectUuid,
@@ -5077,7 +5094,10 @@ export class CoderService extends BaseService {
             'manage',
             contentAsCodeSubject,
         );
-        if (auditedAbility.cannot('create', contentAsCodeSubject)) {
+        if (
+            authorization === 'content_as_code' &&
+            auditedAbility.cannot('create', contentAsCodeSubject)
+        ) {
             throw new ForbiddenError(
                 `You don't have permission to upload content as code to this project (content slug "${slug}")`,
             );
@@ -5501,6 +5521,7 @@ export class CoderService extends BaseService {
             publicSpaceCreate,
             spaceNames,
             mode = 'upsert',
+            authorization = 'content_as_code',
         } = options;
         const shouldUpdateExistingContent = mode === 'upsert';
         const shouldUseExactSlug = mode === 'upsert';
@@ -5513,6 +5534,7 @@ export class CoderService extends BaseService {
                 auditedAbility,
                 project,
                 slug,
+                authorization,
             });
 
         const allowSpaceCreate =

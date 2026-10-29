@@ -1,6 +1,7 @@
 import { assertUnreachable, ChartType } from '@lightdash/common';
 import { Anchor, Skeleton, Text } from '@mantine/core';
 import { IconChartBarOff } from '@tabler/icons-react';
+import { clsx } from 'clsx';
 import {
     forwardRef,
     Fragment,
@@ -25,7 +26,10 @@ import SimpleStatistic from '../SimpleStatistic';
 import SimpleTable from '../SimpleTable';
 import SimpleTreemap from '../SimpleTreemap';
 import classes from './LightdashVisualization.module.css';
-import { useVisualizationState } from './useVisualizationContext';
+import {
+    useVisualizationConfig,
+    useVisualizationInputs,
+} from './useVisualizationContext';
 
 // Lazy load SimpleMap to avoid bundling Leaflet in the main chunk
 const LazySimpleMap = lazy(() => import('../SimpleMap'));
@@ -86,6 +90,8 @@ interface LightdashVisualizationProps {
     onScreenshotReady?: () => void;
     onScreenshotError?: () => void;
     enableContextMenu?: boolean;
+    /** Tables only: edge to edge, no padding, side borders or radius. */
+    flush?: boolean;
 }
 
 const LightdashVisualization = memo(
@@ -100,12 +106,13 @@ const LightdashVisualization = memo(
                 onScreenshotReady,
                 onScreenshotError,
                 enableContextMenu = true,
+                flush = false,
                 ...props
             },
             ref,
         ) => {
-            const { visualizationConfig, minimal, apiErrorDetail } =
-                useVisualizationState();
+            const visualizationConfig = useVisualizationConfig();
+            const { minimal, apiErrorDetail } = useVisualizationInputs();
 
             const { sentinelRef, isVisible } = useDeferredVisibility(
                 isDashboard && !minimal,
@@ -185,6 +192,7 @@ const LightdashVisualization = memo(
                             tileUuid={tileUuid}
                             minimal={minimal}
                             isDashboard={!!isDashboard}
+                            flush={flush}
                             $shouldExpand
                             enableContextMenu={enableContextMenu}
                             onScreenshotReady={onScreenshotReady}
@@ -302,20 +310,13 @@ const LightdashVisualization = memo(
             return (
                 <div
                     ref={ref}
-                    className={className}
+                    className={clsx(classes.root, className)}
                     data-testid={props['data-testid']}
-                    style={{
-                        width: '100%',
-                        height: '100%',
-                        minHeight: 'inherit',
-                        display: 'flex',
-                        flexDirection: 'column',
-                    }}
                 >
                     {isVisible ? (
                         chartContent
                     ) : (
-                        <div ref={sentinelRef} style={{ flex: 1 }}>
+                        <div ref={sentinelRef} className={classes.sentinel}>
                             <Skeleton h="100%" w="100%" />
                         </div>
                     )}

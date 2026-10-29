@@ -182,7 +182,7 @@ const ChartTypeLibraryDetailModal: FC<Props> = ({
                     <Box className={classes.preview}>{placeholderContent}</Box>
                 )}
 
-                <Text fz="sm" c="ldGray.7" lh={1.55}>
+                <Text fz="sm" c="dimmed" lh={1.55}>
                     {item.description || 'No description'}
                 </Text>
 
@@ -206,11 +206,11 @@ const ChartTypeLibraryDetailModal: FC<Props> = ({
 
                 <SimpleGrid cols={2} className={classes.metaPanel}>
                     <Box>
-                        <Text fz={12} fw={600} c="ldGray.6">
+                        <Text fz={12} fw={600} c="dimmed">
                             Version
                         </Text>
                         <Group gap="xs" wrap="nowrap">
-                            <Text fz="sm" fw={500} c="ldGray.8">
+                            <Text fz="sm" fw={500}>
                                 v{item.version}
                             </Text>
                             <ChartTypeReleaseStageBadge
@@ -219,10 +219,10 @@ const ChartTypeLibraryDetailModal: FC<Props> = ({
                         </Group>
                     </Box>
                     <Box>
-                        <Text fz={12} fw={600} c="ldGray.6">
+                        <Text fz={12} fw={600} c="dimmed">
                             Published
                         </Text>
-                        <Text fz="sm" fw={500} c="ldGray.8">
+                        <Text fz="sm" fw={500}>
                             {publishedAgo}
                         </Text>
                     </Box>
@@ -230,10 +230,10 @@ const ChartTypeLibraryDetailModal: FC<Props> = ({
 
                 {item.changelog && item.state !== 'update_available' && (
                     <Box>
-                        <Text fz={12} fw={600} c="ldGray.6" mb={4}>
+                        <Text fz={12} fw={600} c="dimmed" mb={4}>
                             Changelog
                         </Text>
-                        <Text fz="sm" c="ldGray.7">
+                        <Text fz="sm" c="dimmed">
                             {item.changelog}
                         </Text>
                     </Box>

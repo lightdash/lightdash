@@ -1,5 +1,6 @@
 import { DashboardTileTypes, type DashboardTile } from '@lightdash/common';
 import {
+    getBreakpointForWidth,
     getDashboardLayouts,
     getMobileGridLayout,
     getResponsiveGridLayoutProps,
@@ -92,5 +93,23 @@ describe('mobile dashboard layout', () => {
             isDraggable: true,
             isResizable: true,
         });
+    });
+});
+
+describe('breakpoint for a measured width', () => {
+    const breakpoints = { lg: 1200, md: 996, sm: 768, xs: 0 };
+
+    it('matches react-grid-layout: largest breakpoint strictly narrower than the width', () => {
+        expect(getBreakpointForWidth(breakpoints, 1400)).toBe('lg');
+        expect(getBreakpointForWidth(breakpoints, 1200)).toBe('md');
+        expect(getBreakpointForWidth(breakpoints, 1119)).toBe('md');
+        expect(getBreakpointForWidth(breakpoints, 800)).toBe('sm');
+        expect(getBreakpointForWidth(breakpoints, 300)).toBe('xs');
+    });
+
+    it('falls back to the smallest breakpoint when nothing is narrower', () => {
+        expect(getBreakpointForWidth({ wide: 600, narrow: 300 }, 100)).toBe(
+            'narrow',
+        );
     });
 });

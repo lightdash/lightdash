@@ -113,22 +113,11 @@ const AgentChatDebugDrawer: React.FC<Props> = ({
             classNames={{
                 inner: classes.inner,
                 overlay: classes.overlay,
+                header: classes.drawerHeader,
+                body: classes.drawerBody,
             }}
             __vars={{
                 '--drawer-top-offset': `${NAVBAR_HEIGHT}px`,
-            }}
-            styles={{
-                header: {
-                    padding: '12px 16px',
-                    minHeight: 'auto',
-                },
-                body: {
-                    height: '100%',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    padding: 16,
-                    paddingTop: 0,
-                },
             }}
         >
             <Stack gap="md" h="100%">
@@ -153,11 +142,7 @@ const AgentChatDebugDrawer: React.FC<Props> = ({
                                     language="json"
                                     lineNumberFontSize="12px"
                                     withLineNumbers
-                                    styles={{
-                                        code: {
-                                            fontSize: '12px',
-                                        },
-                                    }}
+                                    classNames={{ code: classes.configCode }}
                                 />
                             ) : (
                                 <Box p="md" className={classes.centerText}>
@@ -258,11 +243,8 @@ const AgentChatDebugDrawer: React.FC<Props> = ({
                                                         <CodeBlock
                                                             code={argsJson}
                                                             language="json"
-                                                            styles={{
-                                                                code: {
-                                                                    fontSize:
-                                                                        '11px',
-                                                                },
+                                                            classNames={{
+                                                                code: classes.argsCode,
                                                             }}
                                                         />
                                                     </Box>

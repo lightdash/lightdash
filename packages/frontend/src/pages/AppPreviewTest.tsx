@@ -63,7 +63,6 @@ export default function AppPreviewTest() {
     const appSlug = firstPage?.slug ?? null;
     const appViews = firstPage?.views ?? null;
     const appVerification = firstPage?.verification ?? null;
-    const appAutoAnalysis = firstPage?.autoAnalysis ?? null;
     // Latest build activity stands in for "last modified" — apps have no
     // updated-at of their own.
     const newestVersion = firstPage?.versions[0];
@@ -145,12 +144,15 @@ export default function AppPreviewTest() {
     const [insightInstructions, setInsightInstructions] = useState<
         string | null
     >(null);
+    const [insightAnalyseOnLoad, setInsightAnalyseOnLoad] = useState<
+        boolean | null
+    >(null);
     const analysisController = useDataAppAnalysisController({
         projectUuid,
         appUuid,
         queries: inspector.panelProps.queries,
         availability: analysisAvailability,
-        autoAnalyse: appAutoAnalysis ?? 'inherit',
+        analyseOnLoad: insightAnalyseOnLoad ?? false,
         instructions: insightInstructions,
         onNeedsAgent: openAnalysis,
         // Expired sources: reload the app once so its queries re-run.
@@ -311,6 +313,7 @@ export default function AppPreviewTest() {
                     }
                     onInsightAction={analysisController.handleAction}
                     onInsightInstructionsChange={setInsightInstructions}
+                    onInsightAnalyseOnLoadChange={setInsightAnalyseOnLoad}
                     onMountedQueriesChange={
                         analysisController.setMountedQueryUuids
                     }
@@ -410,7 +413,6 @@ export default function AppPreviewTest() {
                             appSpaceUuid={appSpaceUuid}
                             appCreatedByUserUuid={appCreatedByUserUuid}
                             verification={appVerification}
-                            autoAnalysis={appAutoAnalysis}
                             latestVersionNumber={latestReadyVersion ?? null}
                             latestVersionStatus={
                                 latestReadyVersion ? 'ready' : null

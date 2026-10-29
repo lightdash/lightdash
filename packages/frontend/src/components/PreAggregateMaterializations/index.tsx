@@ -169,7 +169,7 @@ const ScheduleCell: FC<{ summary: PreAggregateMaterializationSummary }> = ({
     if (summary.externalTable) {
         return (
             <Tooltip label="Refreshes are managed outside the app">
-                <Text size="xs" c="ldGray.7" fw={500}>
+                <Text size="xs" c="dimmed" fw={500}>
                     Customer managed
                 </Text>
             </Tooltip>
@@ -184,7 +184,7 @@ const ScheduleCell: FC<{ summary: PreAggregateMaterializationSummary }> = ({
     }
     return (
         <Tooltip label={summary.refreshCron}>
-            <Text size="xs" c="ldGray.7" className={classes.helpCursor}>
+            <Text size="xs" c="dimmed" className={classes.helpCursor}>
                 {cronstrue.toString(summary.refreshCron, {
                     throwExceptionOnParseError: false,
                 })}
@@ -596,7 +596,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                             </Tooltip>
                             <Text
                                 size="xs"
-                                c="ldGray.5"
+                                c="dimmed"
                                 className={classes.nowrap}
                             >
                                 via {TRIGGER_LABELS[materialization.trigger]}
@@ -693,9 +693,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                 px="sm"
                 py="xs"
                 wrap="nowrap"
-                style={{
-                    borderBottom: '1px solid var(--mantine-color-ldGray-2)',
-                }}
+                className={classes.toolbar}
             >
                 <Group gap="xs" wrap="nowrap">
                     <MantineIcon icon={IconFilter} color="ldGray" />
@@ -735,35 +733,16 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
         enableBottomToolbar: true,
         enableRowActions: false,
         mantineTableContainerProps: {
-            style: { maxHeight: 'calc(100dvh - 450px)' },
+            mah: 'calc(100dvh - 450px)',
         },
         mantineTableBodyRowProps: ({ row }) => ({
             onClick: () => handleRowClick(row.original),
-            className: classes.clickableRow,
         }),
         mantineTableProps: {
             highlightOnHover: true,
             withColumnBorders: false,
         },
-        mantineTableHeadCellProps: {
-            h: '3xl',
-            pos: 'relative',
-            style: {
-                padding: 'var(--mantine-spacing-xs) var(--mantine-spacing-md)',
-                backgroundColor: 'var(--mantine-color-ldGray-0)',
-                fontWeight: 600,
-                fontSize: 'var(--mantine-font-size-xs)',
-                verticalAlign: 'middle',
-                whiteSpace: 'nowrap',
-            },
-        },
-        mantineTableBodyCellProps: {
-            style: {
-                padding: 'var(--mantine-spacing-xs) var(--mantine-spacing-md)',
-                fontSize: 'var(--mantine-font-size-xs)',
-                color: 'var(--mantine-color-ldGray-7)',
-            },
-        },
+        mantineTableBodyCellProps: { fz: 'xs' },
         state: {
             isLoading,
             showAlertBanner: isError,

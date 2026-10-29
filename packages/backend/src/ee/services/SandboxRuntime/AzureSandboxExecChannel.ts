@@ -1,10 +1,21 @@
 import { randomUUID } from 'node:crypto';
 import { StringDecoder } from 'node:string_decoder';
 import { Agent, type Dispatcher } from 'undici';
-import { SandboxCommandError, SandboxTimeoutError } from './errors';
+import {
+    assertWithinOutputLimit,
+    capOutputInSandbox,
+    maxBodyBytesFor,
+    readBoundedStream,
+} from './boundedOutput';
+import {
+    SandboxCommandError,
+    SandboxOutputLimitError,
+    SandboxTimeoutError,
+} from './errors';
 import { shQuote } from './gitOverCommands';
 import {
     type CommandResult,
+    type FileReadOptions,
     type RunOptions,
     type SandboxCommands,
     type SandboxFiles,
@@ -81,6 +92,8 @@ const INTERNAL_EXEC_TIMEOUT_MS = 60 * 1000;
  * hiccups are survivable — only this many consecutive failures abort the run.
  */
 const MAX_CONSECUTIVE_POLL_FAILURES = 5;
+/** Per-poll ceiling on each detached stream so one tick never buffers unbounded output. */
+const READ_CHUNK_BYTES = 4 * 1024 * 1024;
 
 const sleep = (ms: number): Promise<void> =>
     new Promise((resolve) => {
@@ -278,7 +291,13 @@ export class AzureSandboxExecChannel {
                     method: 'POST',
                     headers: { 'content-type': 'application/json' },
                     body: JSON.stringify({
-                        command: buildCommandLine(command, options),
+                        command:
+                            options?.maxOutputBytes !== undefined
+                                ? capOutputInSandbox(
+                                      buildCommandLine(command, options),
+                                      options.maxOutputBytes,
+                                  )
+                                : buildCommandLine(command, options),
                     }),
                 },
                 controller.signal,
@@ -291,7 +310,19 @@ export class AzureSandboxExecChannel {
                     '',
                 );
             }
-            const result = decodeExecResponse(await response.json());
+            const result = decodeExecResponse(
+                await AzureSandboxExecChannel.readJson(
+                    response,
+                    options?.maxOutputBytes !== undefined
+                        ? maxBodyBytesFor(options.maxOutputBytes)
+                        : null,
+                ),
+            );
+            assertWithinOutputLimit(
+                result.stdout,
+                result.stderr,
+                options?.maxOutputBytes,
+            );
             // Native exec is buffered — replay the captured output through the
             // streaming callbacks once so downstream line-parsers still see it.
             if (result.stdout) options?.onStdout?.(result.stdout);
@@ -314,6 +345,21 @@ export class AzureSandboxExecChannel {
         } finally {
             if (timer) clearTimeout(timer);
         }
+    }
+
+    /** Parse a JSON body, reading it through a byte ceiling when one is given. */
+    private static async readJson(
+        response: Response,
+        maxBodyBytes: number | null,
+    ): Promise<unknown> {
+        if (maxBodyBytes !== null && response.body) {
+            const bounded = await readBoundedStream(
+                response.body,
+                maxBodyBytes,
+            );
+            return JSON.parse(bounded.toString('utf8'));
+        }
+        return response.json();
     }
 
     /**
@@ -374,10 +420,13 @@ export class AzureSandboxExecChannel {
         let stdout = '';
         let stderr = '';
         let consecutiveFailures = 0;
+        // Once the exit code has landed the process is gone; the deadline no
+        // longer applies while remaining output is drained.
+        let exitObserved = false;
 
         for (;;) {
             const elapsedMs = Date.now() - startedAt;
-            if (elapsedMs >= options.timeoutMs) {
+            if (!exitObserved && elapsedMs >= options.timeoutMs) {
                 // Best-effort stop; without it the process would outlive the
                 // timeout exactly like the gateway-504 case this replaces.
                 // eslint-disable-next-line no-await-in-loop
@@ -395,8 +444,8 @@ export class AzureSandboxExecChannel {
                 // eslint-disable-next-line no-await-in-loop
                 const response = await this.runBuffered(
                     `printf S; cat ${shQuote(`${runDir}/exit`)} 2>/dev/null; echo; ` +
-                        `printf O; tail -c +${outOffset + 1} ${shQuote(`${runDir}/out.log`)} 2>/dev/null | base64 | tr -d '\\n'; echo; ` +
-                        `printf E; tail -c +${errOffset + 1} ${shQuote(`${runDir}/err.log`)} 2>/dev/null | base64 | tr -d '\\n'; echo`,
+                        `printf O; tail -c +${outOffset + 1} ${shQuote(`${runDir}/out.log`)} 2>/dev/null | head -c ${READ_CHUNK_BYTES} | base64 | tr -d '\\n'; echo; ` +
+                        `printf E; tail -c +${errOffset + 1} ${shQuote(`${runDir}/err.log`)} 2>/dev/null | head -c ${READ_CHUNK_BYTES} | base64 | tr -d '\\n'; echo`,
                     { timeoutMs: INTERNAL_EXEC_TIMEOUT_MS },
                 );
                 tick = parseDetachedTick(response.stdout);
@@ -422,6 +471,16 @@ export class AzureSandboxExecChannel {
                 continue;
             }
 
+            if (
+                options.maxOutputBytes !== undefined &&
+                outOffset + errOffset + tick.out.length + tick.err.length >
+                    options.maxOutputBytes
+            ) {
+                // eslint-disable-next-line no-await-in-loop
+                await this.killDetachedProcessGroup(runDir);
+                throw new SandboxOutputLimitError(options.maxOutputBytes);
+            }
+            if (tick.exitCode !== null) exitObserved = true;
             outOffset += tick.out.length;
             errOffset += tick.err.length;
             const outText = outDecoder.write(tick.out);
@@ -435,7 +494,12 @@ export class AzureSandboxExecChannel {
                 options.onStderr?.(errText);
             }
 
-            if (tick.exitCode !== null) {
+            // A full chunk means more bytes are waiting: keep draining before
+            // finalizing, even once the exit code has landed.
+            const drained =
+                tick.out.length < READ_CHUNK_BYTES &&
+                tick.err.length < READ_CHUNK_BYTES;
+            if (tick.exitCode !== null && drained) {
                 // Flush bytes the decoders held back waiting for the rest of a
                 // multi-byte sequence that never came (binary output, or a
                 // process killed mid-write) — end() emits them as U+FFFD
@@ -466,7 +530,17 @@ export class AzureSandboxExecChannel {
     }
 
     readonly files: SandboxFiles = {
-        read: async (path: string): Promise<string> => {
+        read: async (
+            path: string,
+            options?: FileReadOptions,
+        ): Promise<string> => {
+            const bytes = await this.files.readBytes(path, options);
+            return bytes.toString('utf8');
+        },
+        readBytes: async (
+            path: string,
+            options?: FileReadOptions,
+        ): Promise<Buffer> => {
             const response = await this.send(this.url(FILES_PATH, { path }), {
                 method: 'GET',
             });
@@ -479,20 +553,10 @@ export class AzureSandboxExecChannel {
                     '',
                 );
             }
-            return response.text();
-        },
-        readBytes: async (path: string): Promise<Buffer> => {
-            const response = await this.send(this.url(FILES_PATH, { path }), {
-                method: 'GET',
-            });
-            if (!response.ok) {
-                throw new SandboxCommandError(
-                    response.status,
-                    `failed to read ${path}: ${await response
-                        .text()
-                        .catch(() => '')}`,
-                    '',
-                );
+            // Checked per transport chunk so an oversized file is cancelled
+            // before it is held in memory.
+            if (options && response.body) {
+                return readBoundedStream(response.body, options.maxBytes);
             }
             return Buffer.from(await response.arrayBuffer());
         },

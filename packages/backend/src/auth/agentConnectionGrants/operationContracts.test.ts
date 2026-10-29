@@ -128,6 +128,7 @@ it('maps every API inventory operation to a reviewed capability key or a bootstr
     const bootstrap = new Set([
         'authRouter POST /login',
         'oauthRouter POST /token',
+        'oauthRouter POST /revoke',
         'WarehouseConnectController.deposit',
     ]);
     for (const entry of CLI_GRANT_OPERATION_INVENTORY) {

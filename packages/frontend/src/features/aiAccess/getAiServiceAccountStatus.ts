@@ -1,5 +1,7 @@
 import {
+    assertUnreachable,
     type AiServiceAccountParent,
+    type AiServiceAccountParentUnavailableReason,
     type AiServiceAccountSlot,
     type OrganizationAgentIdentityRule,
 } from '@lightdash/common';
@@ -12,10 +14,29 @@ export type AiServiceAccountStatusInfo = {
     alert: { color: 'red' | 'yellow'; message: ReactNode } | null;
 };
 
+const getParentUnavailableMessage = (
+    reason: AiServiceAccountParentUnavailableReason,
+): string => {
+    switch (reason) {
+        case 'destination_mismatch':
+            return "This preview's warehouse destination differs from its parent project, so it can't use the parent's shared agent account. Match the destination settings, including the port and SSH tunnel, to inherit it.";
+        case 'transport_mismatch':
+            return "This preview's TLS settings differ from its parent project, so it can't use the parent's shared agent account. Match the TLS mode and CA certificate to inherit it.";
+        case 'parent_connection_unreadable':
+            return "This preview can't read the parent project's warehouse connection to check whether it can use the parent's shared agent account. Ask an admin to repair the parent connection.";
+        default:
+            return assertUnreachable(
+                reason,
+                'Unknown parent account unavailability reason',
+            );
+    }
+};
+
 export const getAiServiceAccountStatus = ({
     rule,
     slot,
     parent,
+    parentUnavailableReason,
     credentialsReadable,
     isPreview,
 }: {
@@ -24,10 +45,20 @@ export const getAiServiceAccountStatus = ({
     };
     slot: AiServiceAccountSlot | null;
     parent: AiServiceAccountParent | null;
+    parentUnavailableReason: AiServiceAccountParentUnavailableReason | null;
     credentialsReadable: boolean;
     isPreview: boolean;
 }): AiServiceAccountStatusInfo => {
     const required = rule.source === 'ai_service_account';
+    if (parentUnavailableReason !== null)
+        return {
+            badge: null,
+            message: null,
+            alert: {
+                color: required ? 'red' : 'yellow',
+                message: getParentUnavailableMessage(parentUnavailableReason),
+            },
+        };
     const unreadableParent = !slot && parent?.credentialsReadable === false;
     const warehouse = identityWarehouseNames[rule.warehouseType];
     const parentWarning = `This preview can't read the parent project's shared agent account. Ask an admin of ${parent?.projectName ?? 'the parent project'} to replace it.`;

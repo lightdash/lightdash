@@ -1,75 +1,195 @@
 import {
-    getDashboardFilterField,
     interpolateUiString,
     type DashboardFilterableField,
     type DashboardFilterRule,
-    type DashboardFilters,
 } from '@lightdash/common';
 import {
-    ActionIcon,
+    Badge,
     Box,
+    Button,
     Group,
+    Select,
+    Stack,
     Text,
     TextInput,
-    Tooltip,
 } from '@mantine/core';
-import {
-    IconArrowBackUp,
-    IconChevronDown,
-    IconTrash,
-} from '@tabler/icons-react';
-import { useCallback, useMemo, useState, type FC } from 'react';
-import { ConfirmDeleteButton } from '../../components/common/ConfirmDeleteButton';
+import { IconFilter } from '@tabler/icons-react';
+import omit from 'lodash/omit';
+import { useCallback, useId, useMemo, useState, type FC } from 'react';
+import FieldIcon from '../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
-import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import {
-    selectActiveTabUuid,
-    selectDashboardFilters,
-    selectDashboardTabs,
+    selectControlSections,
     selectDashboardTiles,
     useDashboardSelector,
-    useDashboardTemporaryFilters,
 } from '../dashboard/store';
-import { useIsLockedDashboardFilterRule } from '../dashboardFilters/useIsLockedDashboardFilterRule';
 import classes from './ControlSidebar.module.css';
 import { EditorShell } from './EditorShell';
 import { FieldsAndTiles } from './FieldsAndTiles';
-import { FilterRow, FilterTypeIcon } from './FilterRow';
 import { FilterSettings } from './FilterSettings';
-import { getFilterFields } from './peers';
+import { getFilterRows } from './peers';
 import { getTilesSummary } from './railSummaries';
-import {
-    isDefaultValueIncomplete,
-    isPlaceholderRule,
-    withFilterRuleLabel,
-} from './sidebarState';
+import { withFilterRuleLabel } from './sidebarState';
 import { useAppliedTileCount } from './useAppliedTileCount';
 import { useControlsSidebarSelector } from './useControlsSidebar';
 import { useFilterRuleField } from './useFilterRuleField';
 import { useFocusLabelOnMount, useLabelDraft } from './useLabelDraft';
 
-type FilterEditorProps = {
-    rule: DashboardFilterRule;
+const FilterTypeIcon: FC<{ field: DashboardFilterableField | null }> = ({
+    field,
+}) =>
+    field !== null ? (
+        <FieldIcon item={field} size={14} className={classes.typeIcon} />
+    ) : (
+        <MantineIcon
+            icon={IconFilter}
+            size={14}
+            color="dimmed"
+            className={classes.typeIcon}
+        />
+    );
+
+// What the bar shows for a filter: its label, else its field's or column's name
+const useFilterName = (rule: DashboardFilterRule | null): string | null => {
+    const field = useFilterRuleField(rule);
+    if (rule === null) return null;
+    return (
+        rule.label ??
+        field?.label ??
+        (rule.target.isSqlColumn ? rule.target.fieldId : null)
+    );
 };
 
-// Mounted with the filter id as key, so the label draft and the armed state
-// never carry over to another control, and the label takes focus each time
-const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
+const NO_SECTION = 'none';
+
+// Which section the filter sits in on the bar, written live like any edit
+const SectionSelect: FC<{ rule: DashboardFilterRule }> = ({ rule }) => {
+    const sections = useDashboardSelector(selectControlSections);
+    const updateFilter = useControlsSidebarSelector((c) => c.updateFilter);
+    if (sections.length === 0) return null;
+    const value =
+        rule.sectionId !== undefined &&
+        sections.some((section) => section.id === rule.sectionId)
+            ? rule.sectionId
+            : NO_SECTION;
+    return (
+        <Select
+            size="xs"
+            label="Section"
+            allowDeselect={false}
+            data={[
+                { value: NO_SECTION, label: 'None' },
+                ...sections.map((section) => ({
+                    value: section.id,
+                    label: section.name || 'Untitled section',
+                })),
+            ]}
+            value={value}
+            onChange={(next) => {
+                if (next === null || next === value) return;
+                updateFilter(
+                    next === NO_SECTION
+                        ? omit(rule, 'sectionId')
+                        : { ...rule, sectionId: next },
+                );
+            }}
+        />
+    );
+};
+
+// Cancel and Apply, or, after a click on another pill with changes unapplied,
+// the question that pill asked
+const Footer: FC = () => {
+    const isNew = useControlsSidebarSelector((c) => c.isNew);
+    const isPlaceholder = useControlsSidebarSelector((c) => c.isPlaceholder);
+    const pendingRule = useControlsSidebarSelector((c) => c.pendingRule);
+    const resolvePending = useControlsSidebarSelector((c) => c.resolvePending);
+    const discard = useControlsSidebarSelector((c) => c.discard);
+    const close = useControlsSidebarSelector((c) => c.close);
+    const getUiString = useUiStrings();
+    const pendingName = useFilterName(pendingRule);
+    const applyLabel = getUiString(
+        isNew ? 'filters.rail.create' : 'filters.apply',
+    );
+    // The same button in both states, so focus stays on it
+    const apply = (
+        <Button
+            size="xs"
+            className={classes.apply}
+            data-controls-apply
+            disabled={isPlaceholder}
+            onClick={pendingRule === null ? close : () => resolvePending(true)}
+        >
+            {applyLabel}
+        </Button>
+    );
+    return (
+        <Stack gap="xs" p="sm" className={classes.footer}>
+            {pendingRule !== null && (
+                <Text
+                    fz="xs"
+                    c="dimmed"
+                    role="status"
+                    className={classes.footerStatus}
+                >
+                    {interpolateUiString(
+                        getUiString(
+                            isNew
+                                ? 'filters.rail.createBeforeOpening'
+                                : 'filters.rail.applyBeforeOpening',
+                        ),
+                        {
+                            filter:
+                                pendingName ??
+                                getUiString('filters.rail.filterName'),
+                        },
+                    )}
+                </Text>
+            )}
+            <Group justify="flex-end" gap="xs" wrap="nowrap">
+                {pendingRule === null ? (
+                    <Button variant="default" size="xs" onClick={discard}>
+                        {getUiString('filters.actions.cancel')}
+                    </Button>
+                ) : (
+                    <Button
+                        variant="default"
+                        size="xs"
+                        onClick={() => resolvePending(false)}
+                    >
+                        {getUiString('filters.rail.discard')}
+                    </Button>
+                )}
+                {apply}
+            </Group>
+        </Stack>
+    );
+};
+
+type FilterEditorProps = {
+    rule: DashboardFilterRule;
+    labelId: string;
+};
+
+// Mounted with the filter id as key, so the label draft never carries over
+// to another control, and the label takes focus each time
+const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule, labelId }) => {
     const isNew = useControlsSidebarSelector((c) => c.isNew);
     const emptiedFieldLabel = useControlsSidebarSelector(
         (c) => c.emptiedFieldLabel,
     );
     const isPlaceholder = useControlsSidebarSelector((c) => c.isPlaceholder);
-    const removeFilter = useControlsSidebarSelector((c) => c.removeFilter);
     const updateFilter = useControlsSidebarSelector((c) => c.updateFilter);
-    const discard = useControlsSidebarSelector((c) => c.discard);
-    const collapse = useControlsSidebarSelector((c) => c.collapse);
     const isDirty = useControlsSidebarSelector((c) => c.isDirty);
     const isViewer = useControlsSidebarSelector((c) => c.isViewer);
     const getUiString = useUiStrings();
     useFocusLabelOnMount();
-    // The name takes focus as the edit-mode label input does (`autoFocus`).
+    const focusWithoutScroll = useCallback(
+        (node: HTMLElement | null) => node?.focus({ preventScroll: true }),
+        [],
+    );
+    // The name takes focus on mount, as the edit-mode label input does.
     // A new filter has no name to edit: once a field is picked, the value
     // does, which mounts in the same commit
     const [isOpenedNew] = useState(() => isPlaceholder);
@@ -77,14 +197,14 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
         (node: HTMLElement | null) => {
             if (node === null) return;
             if (!isOpenedNew) {
-                node.focus();
+                node.focus({ preventScroll: true });
                 return;
             }
             node.closest('[data-controls-editor]')
                 ?.querySelector<HTMLElement>(
                     '[data-controls-value] input:not([type="hidden"])',
                 )
-                ?.focus();
+                ?.focus({ preventScroll: true });
         },
         [isOpenedNew],
     );
@@ -100,271 +220,128 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
 
     // A dimension or a metric, as the shipped bar resolves it
     const field = useFilterRuleField(filterRule);
-    // What the bar shows for a filter with no label: its field's name, or
-    // the column's for a SQL column filter
-    const fallbackName =
+    const fieldName =
         field?.label ??
         (filterRule.target.isSqlColumn ? filterRule.target.fieldId : null);
-    const discardLabel = isNew
-        ? getUiString('filters.rail.discardFilter')
-        : isDirty
-          ? getUiString('filters.rail.discardChanges')
-          : null;
-    const fieldCount = getFilterFields(filterRule, dashboardTiles).length;
-    // A new filter with no field yet leaves through the footer's Cancel
-    const hasDiscard = !(isPlaceholder && isNew) && discardLabel !== null;
-    // A viewer's filter has no label of its own: it goes by its field
-    const viewerName = isPlaceholder
-        ? (emptiedFieldLabel ?? getUiString('filters.rail.filterName'))
-        : (filterRule.label ??
-          fallbackName ??
-          getUiString('filters.rail.filterName'));
+    const fieldCount = getFilterRows(filterRule, dashboardTiles).length;
+    const isStarting = isPlaceholder && isNew;
+    const name = isStarting
+        ? getUiString('filters.rail.newFilter')
+        : isPlaceholder
+          ? (filterRule.label ??
+            emptiedFieldLabel ??
+            getUiString('filters.rail.filterName'))
+          : (filterRule.label ??
+            fieldName ??
+            getUiString('filters.rail.filterName'));
     return (
-        <Box className={classes.edited}>
-            {/* A click on the head collapses the filter, as its chevron does;
-                the name input and the buttons keep their own clicks */}
+        <>
             <Group
                 gap="xs"
                 wrap="nowrap"
-                className={classes.editedHead}
-                onClick={(event) => {
-                    if (
-                        event.target instanceof Element &&
-                        event.target.closest('input, button')
-                    )
-                        return;
-                    collapse();
-                }}
+                px="md"
+                py="xs"
+                className={classes.header}
             >
                 {/* No field yet: no type to show */}
                 {!isPlaceholder && <FilterTypeIcon field={field} />}
-                {isPlaceholder && isNew ? (
-                    <Text fz="sm" fw={600} flex={1}>
-                        {getUiString('filters.rail.newFilter')}
-                    </Text>
-                ) : isViewer ? (
-                    // Focus lands here when the filter opens
-                    <Text
-                        fz="sm"
-                        fw={600}
-                        flex={1}
-                        truncate
-                        tabIndex={-1}
-                        ref={focusOnMount}
-                        data-controls-label
-                    >
-                        {viewerName}
-                    </Text>
-                ) : (
-                    <TextInput
-                        aria-label="Filter label"
-                        size="xs"
-                        className={classes.nameInput}
-                        classNames={{ input: classes.nameInputField }}
-                        // Left empty, the filter goes by its field's name.
-                        // An existing control that lost its last field keeps it
-                        placeholder={
-                            fallbackName ?? emptiedFieldLabel ?? 'Filter name'
-                        }
-                        autoFocus
-                        data-controls-label
-                        value={label.draft}
-                        onChange={(event) =>
-                            label.type(event.currentTarget.value)
-                        }
-                        // Synchronous, so a click on Done closes with the label
-                        onBlur={label.flush}
-                        onKeyDown={(event) => {
-                            if (event.key !== 'Enter') return;
-                            event.preventDefault();
-                            label.flush();
-                        }}
-                    />
-                )}
-                {hasDiscard && (
-                    <Tooltip label={discardLabel}>
-                        <ActionIcon
-                            size="sm"
-                            variant="subtle"
-                            aria-label={discardLabel}
-                            onClick={discard}
-                        >
-                            <MantineIcon icon={IconArrowBackUp} />
-                        </ActionIcon>
-                    </Tooltip>
-                )}
-                {!isNew && (
-                    <ConfirmDeleteButton
-                        size="sm"
-                        aria-label={getUiString('filters.rail.removeFilter')}
-                        tooltip={getUiString('filters.rail.confirmRemove')}
-                        onConfirm={removeFilter}
-                    >
-                        <MantineIcon icon={IconTrash} />
-                    </ConfirmDeleteButton>
-                )}
-                <Tooltip label={getUiString('filters.rail.collapse')}>
-                    <ActionIcon
-                        size="sm"
-                        variant="subtle"
-                        aria-label={getUiString('filters.rail.collapseFilter')}
-                        aria-expanded
-                        onClick={collapse}
-                    >
-                        <MantineIcon icon={IconChevronDown} size={14} />
-                    </ActionIcon>
-                </Tooltip>
-            </Group>
-            <Box className={classes.editedBody}>
-                {isPlaceholder ? (
-                    fieldsAndTiles
-                ) : (
-                    <FilterSettings
-                        rule={filterRule}
-                        field={field}
-                        onChange={updateFilter}
-                        tiles={fieldsAndTiles}
-                        tilesSummary={getTilesSummary(
-                            appliedTileCount,
-                            fieldCount,
-                            getUiString,
+                {/* A viewer's filter has no label input: focus lands here */}
+                <Text
+                    id={labelId}
+                    fz="sm"
+                    fw={600}
+                    flex={1}
+                    truncate
+                    {...(isViewer && !isStarting
+                        ? {
+                              tabIndex: -1,
+                              ref: focusOnMount,
+                              'data-controls-label': true,
+                          }
+                        : {})}
+                >
+                    {name}
+                </Text>
+                {isDirty && (
+                    <Badge size="sm">
+                        {getUiString(
+                            isNew
+                                ? 'filters.rail.newBadge'
+                                : 'filters.rail.editedBadge',
                         )}
-                    />
+                    </Badge>
                 )}
+            </Group>
+            <Box className={classes.body}>
+                <Stack gap="xs" className={classes.content}>
+                    {!isViewer && !isStarting && (
+                        <TextInput
+                            label="Name"
+                            size="xs"
+                            // Left empty, the filter goes by its field's name.
+                            // An existing control that lost its last field keeps it
+                            placeholder={
+                                fieldName ?? emptiedFieldLabel ?? 'Filter name'
+                            }
+                            // Focused on mount without scrolling: the rail
+                            // scrolls itself into view (`useRailIntoView`)
+                            ref={focusWithoutScroll}
+                            data-controls-label
+                            value={label.draft}
+                            onChange={(event) =>
+                                label.type(event.currentTarget.value)
+                            }
+                            // Synchronous, so a click on Apply keeps the label
+                            onBlur={label.flush}
+                            onKeyDown={(event) => {
+                                if (event.key !== 'Enter') return;
+                                event.preventDefault();
+                                label.flush();
+                            }}
+                        />
+                    )}
+                    {isPlaceholder ? (
+                        fieldsAndTiles
+                    ) : (
+                        <FilterSettings
+                            rule={filterRule}
+                            field={field}
+                            onChange={updateFilter}
+                            sectionSelect={
+                                isViewer ? null : (
+                                    <SectionSelect rule={filterRule} />
+                                )
+                            }
+                            tiles={fieldsAndTiles}
+                            tilesSummary={getTilesSummary(
+                                appliedTileCount,
+                                fieldCount,
+                                getUiString,
+                            )}
+                        />
+                    )}
+                </Stack>
             </Box>
-        </Box>
+            <Footer />
+        </>
     );
 };
-
-type FilterGroup = 'dimensions' | 'metrics';
 
 /** For the dashboard grid's row, which holds the rail next to the grid. */
 export const CONTROLS_RAIL_LAYOUT = classes.layout;
 
-const GROUPS: FilterGroup[] = ['dimensions', 'metrics'];
-
+// On screen only while a filter is edited: one filter at a time, finished
+// with Cancel or Apply
 export const ControlSidebar: FC = () => {
-    const filterId = useControlsSidebarSelector(
-        (c) => c.editing?.filterId ?? null,
+    const filterId = useControlsSidebarSelector((c) =>
+        c.isSidebarOpen ? (c.editing?.filterId ?? null) : null,
     );
     const editingRule = useControlsSidebarSelector((c) => c.editingRule);
-    const isPlaceholder = useControlsSidebarSelector((c) => c.isPlaceholder);
-    const isRailOpen = useControlsSidebarSelector((c) => c.isRailOpen);
-    const open = useControlsSidebarSelector((c) => c.open);
-    const setHoveredFilterId = useControlsSidebarSelector(
-        (c) => c.setHoveredFilterId,
-    );
-    const clearHoveredFilterId = useControlsSidebarSelector(
-        (c) => c.clearHoveredFilterId,
-    );
-    const close = useControlsSidebarSelector((c) => c.close);
-    const discard = useControlsSidebarSelector((c) => c.discard);
-    const isViewer = useControlsSidebarSelector((c) => c.isViewer);
-    const getUiString = useUiStrings();
-    const dashboardFilters = useDashboardSelector(selectDashboardFilters);
-    const temporaryFilters = useDashboardTemporaryFilters();
-    const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
-    const hasTabs = useDashboardSelector(
-        (state) => selectDashboardTabs(state).length > 0,
-    );
-    const filterableFieldsByTileUuid = useDashboardContext(
-        (c) => c.filterableFieldsByTileUuid,
-    );
-    // While fields load nothing resolves, which is not the same as invalid
-    const areFieldsLoading = useDashboardContext(
-        (c) => c.isLoadingDashboardFilters || c.isFetchingDashboardFilters,
-    );
-    // As the shipped pill: no editor until the fields exist
-    const areFieldsLoaded = useDashboardContext(
-        (c) => c.allFilterableFields !== undefined,
-    );
-    const allFilterableFieldsMap = useDashboardContext(
-        (c) => c.allFilterableFieldsMap,
-    );
-    const allFilterableMetricsMap = useDashboardContext(
-        (c) => c.allFilterableMetricsMap,
-    );
-    const isLockedRule = useIsLockedDashboardFilterRule();
-    if (!isRailOpen) return null;
-
-    // The shipped unresolved pills' tooltips: a hidden field, or a gone one
-    const getUnresolvedTooltip = (rule: DashboardFilterRule) =>
-        isLockedRule(rule)
-            ? getUiString('filters.lockedFilterTooltip')
-            : interpolateUiString(getUiString('filters.rail.unknownField'), {
-                  field: rule.target.fieldId,
-              });
-
-    // Null while every filter is a row
-    const editor =
-        filterId === null || editingRule === null ? null : (
-            <FilterEditor key={filterId} rule={editingRule} />
-        );
-    // A viewer's rail lists only their own filters: saved ones stay on the bar
-    const rowsOf = (filters: DashboardFilters, isOwn: boolean) =>
-        GROUPS.flatMap((group) =>
-            filters[group].map((rule) => {
-                if (rule.id === filterId) return editor;
-                const field =
-                    getDashboardFilterField<DashboardFilterableField>(
-                        group === 'metrics'
-                            ? allFilterableMetricsMap
-                            : allFilterableFieldsMap,
-                        rule,
-                        filterableFieldsByTileUuid,
-                    ) ?? null;
-                const isUnresolved =
-                    field === null &&
-                    !rule.target.isSqlColumn &&
-                    !isPlaceholderRule(rule) &&
-                    !areFieldsLoading;
-                return (
-                    <FilterRow
-                        key={rule.id}
-                        rule={rule}
-                        field={field}
-                        activeTabUuid={activeTabUuid}
-                        hasTabs={hasTabs}
-                        isOwn={isOwn}
-                        isReadOnly={isUnresolved}
-                        readOnlyTooltip={
-                            isUnresolved ? getUnresolvedTooltip(rule) : null
-                        }
-                        isDisabled={
-                            !areFieldsLoaded && !rule.target.isSqlColumn
-                        }
-                        onOpen={open}
-                        onHover={setHoveredFilterId}
-                        onUnhover={clearHoveredFilterId}
-                    />
-                );
-            }),
-        );
-    const listedFilters = isViewer ? temporaryFilters : dashboardFilters;
-    const rows = rowsOf(listedFilters, isViewer);
-    // A placeholder is not in the dashboard filters yet: it comes last. One
-    // keyed list, so the editor keeps its state when its rule joins them
-    const isListed = editor === null || rows.includes(editor);
-    // Closing keeps the edits, so the footer says what closing would drop
-    const footerStatus =
-        editingRule === null || editor === null
-            ? null
-            : isPlaceholder
-              ? getUiString('filters.rail.selectFieldToKeep')
-              : !isViewer && isDefaultValueIncomplete(editingRule)
-                ? 'No default value set, so the default stays off'
-                : null;
-
+    const labelId = useId();
+    if (filterId === null || editingRule === null) return null;
     return (
-        <EditorShell
-            filterCount={
-                listedFilters.dimensions.length + listedFilters.metrics.length
-            }
-            onClose={close}
-            onCancel={editor !== null && isPlaceholder ? discard : null}
-            footerStatus={footerStatus}
-        >
-            {isListed ? rows : [...rows, editor]}
+        <EditorShell labelId={labelId}>
+            <FilterEditor key={filterId} rule={editingRule} labelId={labelId} />
         </EditorShell>
     );
 };

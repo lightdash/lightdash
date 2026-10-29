@@ -31,6 +31,7 @@ export function getCredentialAuthHeader(credential: Credential): string {
     switch (credential.kind) {
         case 'human_api_key':
             return `${TokenType.ApiKey} ${credential.token}`;
+        case 'personal_oauth':
         case 'service_account':
         case 'agent_connection':
             return `${TokenType.Bearer} ${credential.token}`;

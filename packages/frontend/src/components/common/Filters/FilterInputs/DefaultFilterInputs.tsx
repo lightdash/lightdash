@@ -6,7 +6,7 @@ import {
     isTableCalculation,
     type BaseFilterRule,
 } from '@lightdash/common';
-import { TagsInput } from '@mantine/core';
+import { Box, TagsInput } from '@mantine/core';
 import isString from 'lodash/isString';
 import { type FilterInputsProps } from '.';
 import { useUiStrings } from '../../../../ee/providers/Embed/useUiStrings';
@@ -49,7 +49,7 @@ const DefaultFilterInputs = <T extends BaseFilterRule>({
     switch (rule.operator) {
         case FilterOperator.NULL:
         case FilterOperator.NOT_NULL:
-            return <span style={{ width: '100%' }} />;
+            return <Box component="span" w="100%" />;
         case FilterOperator.STARTS_WITH:
         case FilterOperator.ENDS_WITH:
         case FilterOperator.INCLUDE:

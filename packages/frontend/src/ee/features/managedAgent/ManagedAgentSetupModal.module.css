@@ -5,10 +5,7 @@
 }
 
 .capRow:hover {
-    background-color: light-dark(
-        var(--mantine-color-gray-0),
-        var(--mantine-color-dark-6)
-    );
+    background-color: var(--mantine-color-default-hover);
 }
 
 .capIcon {
@@ -19,9 +16,6 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background-color: light-dark(
-        var(--mantine-color-gray-0),
-        var(--mantine-color-dark-6)
-    );
+    background-color: var(--mantine-color-ldGray-0);
     color: var(--mantine-color-dimmed);
 }

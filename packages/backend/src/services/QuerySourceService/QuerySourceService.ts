@@ -7,6 +7,7 @@ import {
     FeatureFlags,
     ForbiddenError,
     ParameterError,
+    QueryHistoryStatus,
     QuerySourceType,
     UnexpectedServerError,
     type Account,
@@ -18,6 +19,7 @@ import {
     type SourceQuery,
     type SourceQuerySubmission,
 } from '@lightdash/common';
+import type { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { sourceRequiresRawSql } from '../../auth/agentConnectionGrants/operationContracts';
 import { grantAllowsCapabilities } from '../../auth/agentConnectionGrants/resourceConstraints';
 import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
@@ -51,6 +53,7 @@ type QuerySourceServiceArguments = {
         AgentPermissionService,
         'loadRequest' | 'assertOperationWithRequest'
     >;
+    analytics: LightdashAnalytics;
     projectModel: ProjectModel;
     queryHistoryModel: QueryHistoryModel;
     featureFlagModel: FeatureFlagModel;
@@ -94,12 +97,15 @@ export class QuerySourceService extends BaseService {
 
     private readonly registry: QuerySourceRegistry;
 
+    private readonly analytics: LightdashAnalytics;
+
     private readonly getAgentPermissionService: QuerySourceServiceArguments['getAgentPermissionService'];
 
     private readonly getAsyncQueryService: QuerySourceServiceArguments['getAsyncQueryService'];
 
     constructor(args: QuerySourceServiceArguments) {
         super({ serviceName: 'QuerySourceService' });
+        this.analytics = args.analytics;
         this.getAsyncQueryService = args.getAsyncQueryService;
         this.projectModel = args.projectModel;
         this.queryHistoryModel = args.queryHistoryModel;
@@ -195,7 +201,7 @@ export class QuerySourceService extends BaseService {
         }
     }
 
-    private async throwIfMultiSourceQueryDisabled(
+    private async throwIfComposeSqlRunnerDisabled(
         account: Account,
     ): Promise<void> {
         assertIsAccountWithOrg(account);
@@ -204,7 +210,7 @@ export class QuerySourceService extends BaseService {
                 userUuid: account.user.id,
                 organizationUuid: account.organization.organizationUuid,
             },
-            featureFlagId: FeatureFlags.MultiSourceQuery,
+            featureFlagId: FeatureFlags.ComposeSqlRunner,
         });
         if (!enabled) {
             throw new ForbiddenError('Multi-source queries are not enabled');
@@ -237,7 +243,7 @@ export class QuerySourceService extends BaseService {
         account: Account,
         projectUuid: string,
     ): Promise<ApiListQuerySourcesResults> {
-        await this.throwIfMultiSourceQueryDisabled(account);
+        await this.throwIfComposeSqlRunnerDisabled(account);
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
         const ability = this.createAuditedAbility(account);
@@ -265,7 +271,7 @@ export class QuerySourceService extends BaseService {
         projectUuid: string,
         sourceType: QuerySourceType,
     ): Promise<ApiScanQuerySourceSchemaResults> {
-        await this.throwIfMultiSourceQueryDisabled(account);
+        await this.throwIfComposeSqlRunnerDisabled(account);
         const source = this.registry.get(sourceType);
         await this.throwIfSourcesDisabled(account, [source]);
         if (source.definition.sourceType === QuerySourceType.SQL) {
@@ -423,7 +429,7 @@ export class QuerySourceService extends BaseService {
         queries: SourceQuery[];
         context: QueryExecutionContext;
     }): Promise<ApiExecuteSourceQueriesResults> {
-        await this.throwIfMultiSourceQueryDisabled(account);
+        await this.throwIfComposeSqlRunnerDisabled(account);
         await this.throwIfCannotRunQueries(account, projectUuid);
 
         const submitted = await this.submitQueries({
@@ -524,7 +530,35 @@ export class QuerySourceService extends BaseService {
             });
         }
 
+        this.trackSubmitted(account, projectUuid, context, submissions);
         return { queries: submissions };
+    }
+
+    private trackSubmitted(
+        account: Account,
+        projectUuid: string,
+        context: QueryExecutionContext,
+        submissions: InternalSourceQuerySubmission[],
+    ): void {
+        const { organizationUuid } = account.organization;
+        if (!organizationUuid) return;
+        const count = (sourceType: QuerySourceType) =>
+            submissions.filter((s) => s.sourceType === sourceType).length;
+        this.analytics.trackAccount(account, {
+            event: 'query_sources.submitted',
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                context,
+                nodeCount: submissions.length,
+                semanticLayerNodeCount: count(QuerySourceType.SEMANTIC_LAYER),
+                sqlNodeCount: count(QuerySourceType.SQL),
+                duckdbNodeCount: count(QuerySourceType.DUCKDB),
+                externalNodeCount: count(QuerySourceType.EXTERNAL),
+                pythonNodeCount: count(QuerySourceType.PYTHON),
+                apiNodeCount: count(QuerySourceType.API),
+            },
+        });
     }
 
     /** A plan on anything but a duckdb node is a caller bug, not a user error. */
@@ -553,7 +587,7 @@ export class QuerySourceService extends BaseService {
         projectUuid: string,
         queryUuids: string[],
     ): Promise<ApiGetSourceQueryStatusResults> {
-        await this.throwIfMultiSourceQueryDisabled(account);
+        await this.throwIfComposeSqlRunnerDisabled(account);
         if (queryUuids.length === 0) {
             throw new ParameterError('Provide at least one query uuid');
         }
@@ -601,6 +635,13 @@ export class QuerySourceService extends BaseService {
                         error: queryHistory.error,
                         projectModel: this.projectModel,
                     }),
+                    totalRowCount: queryHistory.totalRowCount,
+                    warehouseExecutionTimeMs:
+                        queryHistory.warehouseExecutionTimeMs,
+                    columns:
+                        queryHistory.status === QueryHistoryStatus.READY
+                            ? queryHistory.columns
+                            : null,
                 };
                 return status;
             }),

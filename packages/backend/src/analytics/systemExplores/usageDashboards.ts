@@ -59,6 +59,7 @@ const withContentLinks = (chart: ChartAsCode): ChartAsCode => {
 
 const withPeopleDisplayName = (chart: ChartAsCode): ChartAsCode => {
     const nameField = 'people_adoption_name';
+    const emailField = 'people_adoption_email';
     const idField = 'people_adoption_user_id';
     if (
         chart.tableName !== 'people_adoption' ||
@@ -72,13 +73,16 @@ const withPeopleDisplayName = (chart: ChartAsCode): ChartAsCode => {
         ...chart,
         metricQuery: {
             ...chart.metricQuery,
+            dimensions: [
+                ...new Set([...chart.metricQuery.dimensions, emailField]),
+            ],
             tableCalculations: [
                 ...chart.metricQuery.tableCalculations,
                 {
                     name: displayField,
                     displayName: 'Person',
                     type: TableCalculationType.STRING,
-                    sql: "COALESCE(NULLIF(TRIM(${people_adoption.name}), ''), 'User ' || ${people_adoption.user_id})",
+                    sql: "COALESCE(NULLIF(TRIM(${people_adoption.name}), ''), NULLIF(TRIM(${people_adoption.email}), ''), 'User ' || ${people_adoption.user_id})",
                 },
             ],
         },
@@ -89,21 +93,25 @@ const withPeopleDisplayName = (chart: ChartAsCode): ChartAsCode => {
                 columns: {
                     ...chart.chartConfig.config?.columns,
                     [nameField]: { visible: false },
+                    [emailField]: { visible: false },
                 },
             },
         },
         tableConfig: {
             ...chart.tableConfig,
-            columnOrder: (chart.tableConfig?.columnOrder ?? []).flatMap(
-                (field) =>
+            columnOrder: [
+                ...(chart.tableConfig?.columnOrder ?? []).flatMap((field) =>
                     field === nameField ? [displayField, field] : [field],
-            ),
+                ),
+                emailField,
+            ],
         },
     };
 };
 
 const withUserActivityLabels = (chart: ChartAsCode): ChartAsCode => {
     const nameField = `${chart.tableName}_user_name`;
+    const emailField = `${chart.tableName}_user_email`;
     const idField = `${chart.tableName}_user_id`;
     if (
         chart.chartConfig.type !== ChartType.TABLE ||
@@ -114,15 +122,19 @@ const withUserActivityLabels = (chart: ChartAsCode): ChartAsCode => {
     }
     const columns = chart.chartConfig.config?.columns;
     const name = `\${${chart.tableName}.user_name}`;
+    const email = `\${${chart.tableName}.user_email}`;
     const id = `\${${chart.tableName}.user_id}`;
     const displayField = 'user_display_name';
     const originName = 'activity_origin';
     const originField = `${chart.tableName}_${originName}`;
     return {
         ...chart,
-        description: `${chart.description} User <ID> means no display name is available; No user recorded means no user identifier was captured. Activity source lists captured origins within each row; older summaries cannot recover missing embed context.`,
+        description: `${chart.description} Primary email is shown when no display name is available. User <ID> means neither a display name nor primary email is available; No user recorded means no user identifier was captured. Activity source lists captured origins within each row; older summaries cannot recover missing embed context.`,
         metricQuery: {
             ...chart.metricQuery,
+            dimensions: [
+                ...new Set([...chart.metricQuery.dimensions, emailField]),
+            ],
             metrics: [...chart.metricQuery.metrics, originField],
             additionalMetrics: [
                 ...(chart.metricQuery.additionalMetrics ?? []),
@@ -142,6 +154,7 @@ const withUserActivityLabels = (chart: ChartAsCode): ChartAsCode => {
                     type: TableCalculationType.STRING,
                     sql: `CASE
                         WHEN NULLIF(TRIM(${name}), '') IS NOT NULL AND ${name} <> 'Unknown user' THEN ${name}
+                        WHEN NULLIF(TRIM(${email}), '') IS NOT NULL THEN TRIM(${email})
                         WHEN NULLIF(TRIM(${id}), '') IS NOT NULL THEN 'User ' || ${id}
                         ELSE 'No user recorded'
                     END`,
@@ -155,17 +168,20 @@ const withUserActivityLabels = (chart: ChartAsCode): ChartAsCode => {
                 columns: {
                     ...columns,
                     [nameField]: { ...columns?.[nameField], visible: false },
+                    [emailField]: { ...columns?.[emailField], visible: false },
                 },
             },
         },
         tableConfig: {
             ...chart.tableConfig,
-            columnOrder: (chart.tableConfig?.columnOrder ?? []).flatMap(
-                (field) =>
+            columnOrder: [
+                ...(chart.tableConfig?.columnOrder ?? []).flatMap((field) =>
                     field === nameField
                         ? [displayField, originField, field]
                         : [field],
-            ),
+                ),
+                emailField,
+            ],
         },
     };
 };
@@ -397,21 +413,64 @@ export const buildUsageDashboards = (
                     (item) => item.chartConfig.type === ChartType.BIG_NUMBER,
                 );
                 const sectionY = y;
+                const hasSummaryTrend =
+                    sectionCharts[0]?.chartConfig.type ===
+                        ChartType.BIG_NUMBER &&
+                    sectionCharts[1]?.chartConfig.type === ChartType.CARTESIAN;
+                const isVisualPair =
+                    sectionCharts.length === 2 &&
+                    sectionCharts.every(
+                        (item) =>
+                            item.chartConfig.type === ChartType.CARTESIAN ||
+                            item.chartConfig.type === ChartType.PIE,
+                    );
+                let nextY = sectionY;
                 sectionCharts.forEach((item, index) => {
-                    const w = isKpiRow ? 36 / sectionCharts.length : 36;
+                    const summary = hasSummaryTrend && index < 2;
+                    let h = 7;
+                    if (isKpiRow) h = 3;
+                    // Compact breakdowns keep a short viewport; longer results
+                    // remain available through the table's existing scroll.
+                    else if (
+                        [
+                            'agent-retries-latency-and-consumption',
+                            'warehouse-versus-cached-demand',
+                        ].some((key) => item.slug.endsWith(`-${key}`))
+                    )
+                        h = 4;
+                    let w = 36;
+                    let x = 0;
+                    let tileY = nextY;
+                    if (isKpiRow) {
+                        w = 36 / sectionCharts.length;
+                        x = index * w;
+                        tileY = sectionY;
+                    } else if (summary) {
+                        w = index === 0 ? 9 : 27;
+                        x = index === 0 ? 0 : 9;
+                        tileY = sectionY;
+                    } else if (isVisualPair) {
+                        w = 18;
+                        x = index * w;
+                        tileY = sectionY;
+                    }
                     dashboard.tiles.push({
                         uuid: undefined,
                         type: DashboardTileTypes.SAVED_CHART,
                         tileSlug: `${tab.key}-${item.slug}`,
                         tabSlug: tab.key,
-                        x: isKpiRow ? index * w : 0,
-                        y: isKpiRow ? sectionY : sectionY + index * 6,
+                        x,
+                        y: tileY,
                         w,
-                        h: isKpiRow ? 3 : 6,
+                        h,
                         properties: { chartSlug: item.slug },
                     });
+                    if (!isKpiRow && !isVisualPair && (!summary || index === 1))
+                        nextY += h;
                 });
-                y += isKpiRow ? 3 : sectionCharts.length * 6;
+                if (isKpiRow) y = sectionY + 3;
+                else if (isVisualPair) y = sectionY + 7;
+                else y = nextY;
             }
         }
         return {

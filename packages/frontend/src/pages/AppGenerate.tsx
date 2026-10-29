@@ -230,11 +230,7 @@ const ThemeChip: FC<{
                 size="md"
                 leftSection={<MantineIcon icon={IconBrush} size={12} />}
                 disabled={disabled}
-                styles={{
-                    root: {
-                        cursor: disabled ? 'not-allowed' : 'pointer',
-                    },
-                }}
+                className={classes.themeBadge}
             >
                 {themeName}
             </Badge>
@@ -1186,11 +1182,15 @@ const AppGenerate: FC = () => {
     const [insightInstructions, setInsightInstructions] = useState<
         string | null
     >(null);
+    const [insightAnalyseOnLoad, setInsightAnalyseOnLoad] = useState<
+        boolean | null
+    >(null);
     const analysisController = useDataAppAnalysisController({
         projectUuid,
         appUuid: previewApp?.appUuid,
         queries: trackedQueries,
         availability: analysisAvailability,
+        analyseOnLoad: insightAnalyseOnLoad ?? false,
         instructions: insightInstructions,
         // No agent picker in the builder yet; the viewer's default agent
         // (falling back to the first accessible one) is used.
@@ -1455,6 +1455,30 @@ const AppGenerate: FC = () => {
         el?.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
     }, []);
 
+    // Auto-scroll is "sticky": scrolling up detaches it (so build-status polls
+    // can't yank the user back down), returning to the bottom reattaches it.
+    // Only an upward move detaches — the smooth auto-scroll itself only ever
+    // moves down, so it can't unstick mid-animation.
+    const isChatStickyRef = useRef(true);
+    const lastChatScrollTopRef = useRef(0);
+    const handleChatScroll = useCallback(() => {
+        const el = chatMessagesRef.current;
+        if (!el) return;
+        const prevTop = lastChatScrollTopRef.current;
+        lastChatScrollTopRef.current = el.scrollTop;
+        if (el.scrollHeight - el.scrollTop - el.clientHeight < 40) {
+            isChatStickyRef.current = true;
+        } else if (el.scrollTop < prevTop) {
+            isChatStickyRef.current = false;
+        }
+    }, []);
+
+    // Sending a message always returns to the bottom, even when detached.
+    const stickChatToBottom = useCallback(() => {
+        isChatStickyRef.current = true;
+        scrollToBottom();
+    }, [scrollToBottom]);
+
     // Where the user was when they asked for earlier history. Older versions
     // are prepended, so without re-anchoring the chat would jump around and
     // the auto-scroll below would drag them back to the latest message.
@@ -1496,6 +1520,7 @@ const AppGenerate: FC = () => {
             earlierHistoryAnchorRef.current = null;
             return;
         }
+        if (!isChatStickyRef.current) return;
         scrollToBottom();
     }, [
         messages,
@@ -1889,6 +1914,7 @@ const AppGenerate: FC = () => {
                     submittedAtVersion: maxHistoryVersion,
                 },
             ]);
+            stickChatToBottom();
             promptEditorRef.current?.clear();
             setIsPromptEmpty(true);
             setFileAttachments([]);
@@ -1966,6 +1992,7 @@ const AppGenerate: FC = () => {
                     submittedAtVersion: maxHistoryVersion,
                 },
             ]);
+            stickChatToBottom();
             resetGenerate();
             resetIterate();
             iterateMutate(
@@ -2097,6 +2124,7 @@ const AppGenerate: FC = () => {
                         )}
                         <Box
                             ref={chatMessagesRef}
+                            onScroll={handleChatScroll}
                             className={classes.chatMessages}
                             // Walkthrough look for create:DataApp: the
                             // conversation that builds the app, version by
@@ -3570,6 +3598,9 @@ const AppGenerate: FC = () => {
                                         onInsightsInUse={handleInsightsInUse}
                                         onInsightInstructionsChange={
                                             setInsightInstructions
+                                        }
+                                        onInsightAnalyseOnLoadChange={
+                                            setInsightAnalyseOnLoad
                                         }
                                         onMountedQueriesChange={
                                             analysisController.setMountedQueryUuids

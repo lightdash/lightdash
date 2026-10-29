@@ -88,6 +88,7 @@ import {
     isAiAgentMcpToolName,
     isAiAgentToolName,
     isAiAppThreadCreatedFrom,
+    isAiComposerChartArtifactConfig,
     isAiWritebackRunInProgress,
     isSameComposerNodeDefinition,
     isThreadPrompt,
@@ -137,6 +138,7 @@ import {
     type DbApp,
     type DbAppVersion,
 } from '../../database/entities/apps';
+import { ContentAsCodeSnapshotsTableName } from '../../database/entities/contentAsCodeSnapshots';
 import {
     DashboardsTableName,
     DashboardVersionsTableName,
@@ -166,6 +168,7 @@ import { DbUser, UserTableName } from '../../database/entities/users';
 import { isUniqueConstraintViolation } from '../../database/errors';
 import KnexPaginate from '../../database/pagination';
 import Logger from '../../logging/logger';
+import { AI_AGENT_KNOWLEDGE_DOCUMENT_SNAPSHOT_TYPE } from '../../models/ContentAsCodeSnapshotModel';
 import { wrapSentryTransaction } from '../../utils';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import {
@@ -174,6 +177,7 @@ import {
     AiAgentToolCallTableName,
     AiAgentToolResultTableName,
     AiOrganizationSettingsTableName,
+    AiPromptComposerNodeSnapshot,
     AiPromptContextEntityType,
     AiPromptContextTableName,
     AiPromptDataAppElementSnapshot,
@@ -1018,8 +1022,8 @@ export class AiAgentModel {
                 `),
             } satisfies Record<keyof AiAgentSummary, unknown>)
             .where(`${AiAgentTableName}.organization_uuid`, organizationUuid)
-            // System agents are an internal fallback — never surface them in
-            // normal listings, or they'd count as "an agent configured".
+            // TODO: drop with the is_system column once no release that writes
+            // system agents (<= 3.60) can still be running during an upgrade.
             .where(`${AiAgentTableName}.is_system`, false)
             .groupBy(`${AiAgentTableName}.ai_agent_uuid`);
 
@@ -2326,7 +2330,6 @@ export class AiAgentModel {
             | 'threadRetentionHours'
         > & {
             organizationUuid: string;
-            isSystem?: boolean;
             slug?: string;
             imageUrl?: string | null;
         },
@@ -2363,7 +2366,6 @@ export class AiAgentModel {
                     ai_organization_provider_credential_uuid:
                         args.providerCredentialUuid ?? null,
                     version: args.version,
-                    is_system: args.isSystem ?? false,
                     thread_retention_hours: args.threadRetentionHours ?? null,
                 })
                 .returning('*');
@@ -2482,75 +2484,6 @@ export class AiAgentModel {
                 threadRetentionHours: agent.thread_retention_hours,
             };
         });
-    }
-
-    /**
-     * Returns the org's system (built-in fallback) agent for a project,
-     * creating it on first use. There is at most one per (org, project),
-     * enforced by a partial unique index — so a concurrent create losing the
-     * race is caught and re-read rather than erroring.
-     */
-    async getOrCreateSystemAgent({
-        organizationUuid,
-        projectUuid,
-        name,
-        instruction,
-    }: {
-        organizationUuid: string;
-        projectUuid: string;
-        name: string;
-        instruction: string;
-    }): Promise<AiAgent> {
-        const findExisting = () =>
-            this.database(AiAgentTableName)
-                .where('organization_uuid', organizationUuid)
-                .where('project_uuid', projectUuid)
-                .where('is_system', true)
-                .first();
-
-        const existing = await findExisting();
-        if (existing) {
-            return this.getAgent({
-                organizationUuid,
-                agentUuid: existing.ai_agent_uuid,
-            });
-        }
-
-        try {
-            return await this.createAgent({
-                name,
-                description: 'Built-in Lightdash assistant',
-                projectUuid,
-                organizationUuid,
-                tags: null,
-                integrations: [],
-                instruction,
-                groupAccess: [],
-                userAccess: [],
-                spaceAccess: [],
-                enableDataAccess: true,
-                enableSelfImprovement: false,
-                enableContentTools: false,
-                enableUserContext: false,
-                enableSqlMode: true,
-                modelConfig: null,
-                version: 1,
-                mcpServerUuids: [],
-                isSystem: true,
-            });
-        } catch (error) {
-            // Lost the create race against a concurrent mention — re-read.
-            if (isUniqueConstraintViolation(error)) {
-                const row = await findExisting();
-                if (row) {
-                    return this.getAgent({
-                        organizationUuid,
-                        agentUuid: row.ai_agent_uuid,
-                    });
-                }
-            }
-            throw error;
-        }
     }
 
     /**
@@ -3379,10 +3312,23 @@ export class AiAgentModel {
         organizationUuid: string;
         agentUuid: string;
     }): Promise<void> {
-        await this.database(AiAgentTableName)
-            .where('ai_agent_uuid', agentUuid)
-            .where('organization_uuid', organizationUuid)
-            .delete();
+        await this.database.transaction(async (trx) => {
+            const [deleted] = await trx(AiAgentTableName)
+                .where('ai_agent_uuid', agentUuid)
+                .where('organization_uuid', organizationUuid)
+                .delete()
+                .returning(['slug', 'project_uuid']);
+            if (!deleted) return;
+            // Knowledge document stamps key on the slug; a later agent with the
+            // same slug must not inherit them.
+            await trx(ContentAsCodeSnapshotsTableName)
+                .where({
+                    project_uuid: deleted.project_uuid,
+                    content_type: AI_AGENT_KNOWLEDGE_DOCUMENT_SNAPSHOT_TYPE,
+                })
+                .whereLike('slug', `${deleted.slug}/%`)
+                .delete();
+        });
     }
 
     // Threads without a prompt are only listed when created bound or with context.
@@ -7488,6 +7434,36 @@ export class AiAgentModel {
             ).map((r) => [r.app_id, r.name] as const),
         );
 
+        const composerVersionUuids = context.flatMap((c) =>
+            c.type === 'composer_node' ? [c.versionUuid] : [],
+        );
+        const composerNodeTitleByKey = new Map(
+            (composerVersionUuids.length === 0
+                ? []
+                : await trx(AiArtifactVersionsTableName)
+                      .whereIn('ai_artifact_version_uuid', composerVersionUuids)
+                      .select<
+                          {
+                              ai_artifact_version_uuid: string;
+                              chart_config: Record<string, unknown> | null;
+                          }[]
+                      >('ai_artifact_version_uuid', 'chart_config')
+            ).flatMap((version) =>
+                isAiComposerChartArtifactConfig(version.chart_config)
+                    ? version.chart_config.queries.flatMap((query) =>
+                          query.nodeId
+                              ? [
+                                    [
+                                        `${version.ai_artifact_version_uuid}:${query.nodeId}`,
+                                        query.title ?? null,
+                                    ] as const,
+                                ]
+                              : [],
+                      )
+                    : [],
+            ),
+        );
+
         const designUuids = context.flatMap((c) =>
             c.type === 'design' ? [c.designUuid] : [],
         );
@@ -7923,6 +7899,23 @@ export class AiAgentModel {
                         } satisfies AiPromptDataAppElementSnapshot,
                     };
                 }
+                case 'composer_node':
+                    return {
+                        ai_prompt_uuid: promptUuid,
+                        entity_type:
+                            'composer_node' as AiPromptContextEntityType,
+                        entity_uuid: null,
+                        entity_ref: `${ctx.artifactUuid}:${ctx.versionUuid}:${ctx.nodeId}`,
+                        display_name:
+                            composerNodeTitleByKey.get(
+                                `${ctx.versionUuid}:${ctx.nodeId}`,
+                            ) ?? null,
+                        runtime_overrides: {
+                            artifactUuid: ctx.artifactUuid,
+                            versionUuid: ctx.versionUuid,
+                            nodeId: ctx.nodeId,
+                        } satisfies AiPromptComposerNodeSnapshot,
+                    };
                 case 'data_app_restore': {
                     const appName = appNameByUuid.get(ctx.appUuid);
                     return {
@@ -8457,6 +8450,22 @@ export class AiAgentModel {
                     displayName: app
                         ? getAppDisplayName(app.name, snapshot.appUuid)
                         : row.display_name,
+                };
+            }
+            case 'composer_node': {
+                if (row.runtime_overrides === null) {
+                    throw new Error(
+                        `ai_prompt_context row ${row.ai_prompt_context_uuid} of type 'composer_node' is missing runtime_overrides`,
+                    );
+                }
+                const snapshot =
+                    row.runtime_overrides as AiPromptComposerNodeSnapshot;
+                return {
+                    type: 'composer_node',
+                    artifactUuid: snapshot.artifactUuid,
+                    versionUuid: snapshot.versionUuid,
+                    nodeId: snapshot.nodeId,
+                    title: row.display_name ?? snapshot.nodeId,
                 };
             }
             case 'data_app_restore': {

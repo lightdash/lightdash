@@ -132,16 +132,39 @@ const mergeManifestSources = (
     const primary = orderedSources[0];
     const collisions: ManifestCollision[] = [];
     const shouldAnnotateSources = annotateSources && sources.length > 1;
+    const inventoryCompletenessBySource = new Map(
+        orderedSources.map((source) => [
+            source.name,
+            source.manifest.lightdash_model_inventory_complete !== false,
+        ]),
+    );
+    const hasIncompleteInventory = [
+        ...inventoryCompletenessBySource.values(),
+    ].includes(false);
 
     const mergedNodes = mergeSection<DbtNode>(
         orderedSources,
         (manifest) => manifest.nodes,
         'nodes',
         collisions,
-        shouldAnnotateSources
+        shouldAnnotateSources || hasIncompleteInventory
             ? (node, sourceName) =>
                   node.resource_type === 'model'
-                      ? { ...node, lightdash_source_name: sourceName }
+                      ? {
+                            ...node,
+                            ...(shouldAnnotateSources
+                                ? { lightdash_source_name: sourceName }
+                                : {}),
+                            ...(hasIncompleteInventory
+                                ? {
+                                      lightdash_model_inventory_complete:
+                                          node.lightdash_model_inventory_complete ??
+                                          inventoryCompletenessBySource.get(
+                                              sourceName,
+                                          ),
+                                  }
+                                : {}),
+                        }
                       : node
             : undefined,
     );
@@ -227,6 +250,32 @@ const mergeManifestSources = (
         manifest.semantic_models = mergedSemanticModels;
     }
 
+    if (
+        orderedSources.some((source) => source.manifest.disabled !== undefined)
+    ) {
+        const disabled: NonNullable<DbtManifest['disabled']> = {};
+        orderedSources.forEach((source) => {
+            Object.entries(source.manifest.disabled ?? {}).forEach(
+                ([id, nodes]) => {
+                    disabled[id] = [
+                        ...(disabled[id] ?? []),
+                        ...nodes.map((node) =>
+                            shouldAnnotateSources
+                                ? {
+                                      ...node,
+                                      lightdash_source_name: source.name,
+                                  }
+                                : node,
+                        ),
+                    ];
+                },
+            );
+        });
+        manifest.disabled = disabled;
+    }
+    if (hasIncompleteInventory) {
+        manifest.lightdash_model_inventory_complete = false;
+    }
     return { manifest, addedModelIds, collisions };
 };
 

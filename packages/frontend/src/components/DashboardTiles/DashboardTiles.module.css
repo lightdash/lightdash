@@ -1,0 +1,35 @@
+.scrollableDropdown {
+    overflow-y: auto;
+}
+
+.wrapBadge {
+    white-space: normal;
+}
+
+.overrideBadge {
+    white-space: normal;
+    text-transform: none;
+    color: black;
+
+    &[data-overridden] {
+        opacity: 0.6;
+    }
+}
+
+.loomIframe {
+    flex: 1;
+}
+
+.scrollContainer {
+    overflow: auto;
+}
+
+.contextMenuTarget {
+    position: absolute;
+    left: var(--menu-left);
+    top: var(--menu-top);
+}
+
+.chartView {
+    min-height: inherit;
+}

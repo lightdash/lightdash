@@ -273,6 +273,7 @@ export const FunnelBarChart: FC = () => {
         <EChartsReact
             option={echartsOptions}
             notMerge={true}
+            // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
             style={{ width: '100%', height: '100%', minHeight: 300 }}
             opts={{ renderer: 'svg' }}
         />

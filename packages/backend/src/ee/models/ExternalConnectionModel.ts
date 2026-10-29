@@ -1,13 +1,18 @@
 import {
     AlreadyExistsError,
+    ApiConnectorType,
     ConflictError,
     DATA_APP_VIZ_TEMPLATE,
     EXTERNAL_CONNECTION_DEFAULTS,
     generateSlug,
     getAppDisplayName,
     NotFoundError,
+    ParameterError,
     type CreateExternalConnection,
     type ExternalConnection,
+    type ExternalConnectionApiSource,
+    type ExternalConnectionApiUsage,
+    type ExternalConnectionKind,
     type ExternalConnectionLinkedApps,
     type ExternalConnectionListItem,
     type ExternalConnectionSample,
@@ -16,6 +21,7 @@ import {
     type UpdateExternalConnection,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
+import { z } from 'zod';
 import {
     AppsTableName,
     type DbApp as DbDataApp,
@@ -27,11 +33,15 @@ import {
 } from '../../utils/credentialDestination';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import {
+    ApiSourceCallCountersTableName,
+    ApiSourceCallLeasesTableName,
+    ApiSourceCallsTableName,
     AppExternalConnectionsTableName,
     ExternalConnectionRateCountersTableName,
     ExternalConnectionSamplesTableName,
     ExternalConnectionSecretsTableName,
     ExternalConnectionsTableName,
+    type ApiSourceCallsTable,
     type DbExternalConnection,
     type DbExternalConnectionSample,
 } from '../database/entities/externalConnections';
@@ -40,6 +50,33 @@ type ExternalConnectionModelArguments = {
     database: Knex;
     encryptionUtil: EncryptionUtil;
 };
+
+const apiSourceSchema = z.discriminatedUnion('connector', [
+    z.object({
+        connector: z.literal(ApiConnectorType.POSTHOG),
+        projectId: z.string(),
+    }),
+    z.object({
+        connector: z.literal(ApiConnectorType.SEARCH_CONSOLE),
+        siteUrl: z.string(),
+    }),
+    z.object({
+        connector: z.literal(ApiConnectorType.GA4),
+        propertyId: z.string(),
+    }),
+]);
+
+// A stored shape no connector understands reads as no api source, so the
+// connection fails with a clear error instead of reaching a connector.
+const parseApiSource = (value: unknown): ExternalConnectionApiSource | null => {
+    if (value === null) return null;
+    const parsed = apiSourceSchema.safeParse(value);
+    return parsed.success ? parsed.data : null;
+};
+
+const kindOf = (
+    apiSource: ExternalConnectionApiSource | null | undefined,
+): ExternalConnectionKind => (apiSource ? 'live_source' : 'data_app');
 
 type DbApp = {
     app_id: string;
@@ -96,6 +133,8 @@ export class ExternalConnectionModel {
             oauthClientId: row.oauth_client_id,
             oauthClientAuthMethod: row.oauth_client_auth_method,
             customHeaders: row.custom_headers,
+            kind: row.connection_kind,
+            apiSource: parseApiSource(row.api_source),
             hasSecret,
             createdByUserUuid: row.created_by_user_uuid,
             updatedByUserUuid: row.updated_by_user_uuid,
@@ -175,6 +214,7 @@ export class ExternalConnectionModel {
                         slug,
                         type: data.type,
                         origin: data.origin,
+                        connection_kind: kindOf(data.apiSource),
                         allow_browser_images: data.allowBrowserImages ?? false,
                         allow_data_app_builder_linking:
                             data.allowDataAppBuilderLinking ?? false,
@@ -212,6 +252,9 @@ export class ExternalConnectionModel {
                             Object.keys(data.customHeaders).length
                                 ? JSON.stringify(data.customHeaders)
                                 : null,
+                        api_source: data.apiSource
+                            ? JSON.stringify(data.apiSource)
+                            : null,
                         created_by_user_uuid: userUuid,
                         updated_by_user_uuid: userUuid,
                     })
@@ -283,6 +326,7 @@ export class ExternalConnectionModel {
                         slug: src.slug,
                         type: src.type,
                         origin: src.origin,
+                        connection_kind: src.connection_kind,
                         allow_browser_images: src.allow_browser_images,
                         allow_data_app_builder_linking:
                             src.allow_data_app_builder_linking,
@@ -310,6 +354,9 @@ export class ExternalConnectionModel {
                         custom_headers: src.custom_headers
                             ? JSON.stringify(src.custom_headers)
                             : null,
+                        api_source: src.api_source
+                            ? JSON.stringify(src.api_source)
+                            : null,
                         created_by_user_uuid: src.created_by_user_uuid,
                         updated_by_user_uuid: src.updated_by_user_uuid,
                     })
@@ -327,7 +374,9 @@ export class ExternalConnectionModel {
                     .first<{ encrypted_payload: Buffer } | undefined>(
                         'encrypted_payload',
                     );
-                if (secret) {
+                // Signed-in tokens stay with one connection: refresh tokens
+                // rotate, so a shared copy would break whichever refreshes last.
+                if (secret && src.type !== 'oauth_authorization_code') {
                     await trx(ExternalConnectionSecretsTableName).insert({
                         external_connection_uuid: targetUuid,
                         encrypted_payload: secret.encrypted_payload,
@@ -362,6 +411,7 @@ export class ExternalConnectionModel {
     async list(
         projectUuid: string,
         organizationUuid: string,
+        filters: { kind: ExternalConnectionKind | null },
     ): Promise<ExternalConnectionListItem[]> {
         const linkedDataAppCounts = this.database(
             AppExternalConnectionsTableName,
@@ -417,6 +467,14 @@ export class ExternalConnectionModel {
                 organizationUuid,
             )
             .whereNull(`${ExternalConnectionsTableName}.deleted_at`)
+            .modify((query) => {
+                if (filters.kind !== null) {
+                    void query.where(
+                        `${ExternalConnectionsTableName}.connection_kind`,
+                        filters.kind,
+                    );
+                }
+            })
             .orderBy(`${ExternalConnectionsTableName}.created_at`, 'desc')
             .select<
                 Array<
@@ -750,6 +808,10 @@ export class ExternalConnectionModel {
                     data.customHeaders && Object.keys(data.customHeaders).length
                         ? JSON.stringify(data.customHeaders)
                         : null;
+            if (data.apiSource !== undefined)
+                updatePayload.api_source = data.apiSource
+                    ? JSON.stringify(data.apiSource)
+                    : null;
 
             await trx(ExternalConnectionsTableName)
                 .where('external_connection_uuid', uuid)
@@ -829,6 +891,35 @@ export class ExternalConnectionModel {
             this.encryptionUtil.encrypt(secret),
             true,
         );
+    }
+
+    /**
+     * Runs `update` with the current secret while holding its row lock, and
+     * stores what it returns unless that is null. Returns the stored secret.
+     */
+    async updateSecretLocked(
+        uuid: string,
+        update: (current: string | null) => Promise<string | null>,
+    ): Promise<string | null> {
+        return this.database.transaction(async (trx) => {
+            const row = await trx(ExternalConnectionSecretsTableName)
+                .where('external_connection_uuid', uuid)
+                .forUpdate()
+                .first<{ encrypted_payload: Buffer } | undefined>(
+                    'encrypted_payload',
+                );
+            const current = row
+                ? this.encryptionUtil.decrypt(row.encrypted_payload)
+                : null;
+            const next = await update(current);
+            if (next === null) return current;
+            await ExternalConnectionModel.upsertSecret(
+                trx,
+                uuid,
+                this.encryptionUtil.encrypt(next),
+            );
+            return next;
+        });
     }
 
     private static async upsertSecret(
@@ -950,6 +1041,9 @@ export class ExternalConnectionModel {
         externalConnectionUuid: string,
         alias: string,
     ): Promise<void> {
+        await ExternalConnectionModel.assertLinkableToApps(this.database, [
+            externalConnectionUuid,
+        ]);
         const inserted = await this.database(AppExternalConnectionsTableName)
             .insert({
                 app_id: appId,
@@ -990,6 +1084,10 @@ export class ExternalConnectionModel {
         links: Array<{ externalConnectionUuid: string; alias: string }>,
     ): Promise<void> {
         await this.database.transaction(async (trx) => {
+            await ExternalConnectionModel.assertLinkableToApps(
+                trx,
+                links.map((link) => link.externalConnectionUuid),
+            );
             await trx(AppExternalConnectionsTableName)
                 .where('app_id', appId)
                 .modify((query) => {
@@ -1015,6 +1113,23 @@ export class ExternalConnectionModel {
                     .merge(['external_connection_uuid']);
             }
         });
+    }
+
+    /** Live sources answer live API queries only; apps never reach them. */
+    private static async assertLinkableToApps(
+        db: Knex,
+        externalConnectionUuids: string[],
+    ): Promise<void> {
+        if (externalConnectionUuids.length === 0) return;
+        const liveSource = await db(ExternalConnectionsTableName)
+            .whereIn('external_connection_uuid', externalConnectionUuids)
+            .where('connection_kind', 'live_source')
+            .first<{ name: string } | undefined>('name');
+        if (liveSource) {
+            throw new ParameterError(
+                `Connection "${liveSource.name}" is a live data source and cannot be linked to an app`,
+            );
+        }
     }
 
     async unlinkFromApp(appId: string, alias: string): Promise<void> {
@@ -1105,6 +1220,10 @@ export class ExternalConnectionModel {
             )
             .where(`${AppExternalConnectionsTableName}.app_id`, appId)
             .where(`${AppExternalConnectionsTableName}.alias`, alias)
+            .where(
+                `${ExternalConnectionsTableName}.connection_kind`,
+                'data_app',
+            )
             .whereNull(`${ExternalConnectionsTableName}.deleted_at`)
             .first<
                 | (DbExternalConnection & { encrypted_payload: Buffer | null })
@@ -1187,5 +1306,128 @@ export class ExternalConnectionModel {
         return this.database(ExternalConnectionRateCountersTableName)
             .where('window_started_at', '<', cutoff)
             .delete();
+    }
+
+    /** Counts one call in the window unless it already holds `limit`; false when it does. */
+    async tryCountApiSourceCall(
+        externalConnectionUuid: string,
+        windowSeconds: number,
+        windowStartedAt: Date,
+        limit: number,
+    ): Promise<boolean> {
+        const rows = await this.database(ApiSourceCallCountersTableName)
+            .insert({
+                external_connection_uuid: externalConnectionUuid,
+                window_seconds: windowSeconds,
+                window_started_at: windowStartedAt,
+                call_count: 1,
+            })
+            .onConflict([
+                'external_connection_uuid',
+                'window_seconds',
+                'window_started_at',
+            ])
+            .merge({
+                call_count: this.database.raw(
+                    `${ApiSourceCallCountersTableName}.call_count + 1`,
+                ) as unknown as number,
+            })
+            .where(`${ApiSourceCallCountersTableName}.call_count`, '<', limit)
+            .returning('call_count');
+        return rows.length > 0;
+    }
+
+    /** Takes a free or expired slot out of `slots`; false when all are held. */
+    async tryAcquireApiSourceCallLease(
+        externalConnectionUuid: string,
+        slots: number,
+        leaseUuid: string,
+        expiresAt: Date,
+    ): Promise<boolean> {
+        /* eslint-disable no-await-in-loop */
+        for (let slot = 0; slot < slots; slot += 1) {
+            const rows = await this.database(ApiSourceCallLeasesTableName)
+                .insert({
+                    external_connection_uuid: externalConnectionUuid,
+                    slot,
+                    lease_uuid: leaseUuid,
+                    expires_at: expiresAt,
+                })
+                .onConflict(['external_connection_uuid', 'slot'])
+                .merge({ lease_uuid: leaseUuid, expires_at: expiresAt })
+                .where(
+                    `${ApiSourceCallLeasesTableName}.expires_at`,
+                    '<',
+                    this.database.fn.now(),
+                )
+                .returning('slot');
+            if (rows.length > 0) return true;
+        }
+        /* eslint-enable no-await-in-loop */
+        return false;
+    }
+
+    async releaseApiSourceCallLease(
+        externalConnectionUuid: string,
+        leaseUuid: string,
+    ): Promise<void> {
+        await this.database(ApiSourceCallLeasesTableName)
+            .where({
+                external_connection_uuid: externalConnectionUuid,
+                lease_uuid: leaseUuid,
+            })
+            .delete();
+    }
+
+    async deleteApiSourceCallWindowsBefore(cutoff: Date): Promise<number> {
+        const [counters, leases] = await Promise.all([
+            this.database(ApiSourceCallCountersTableName)
+                .where('window_started_at', '<', cutoff)
+                .delete(),
+            this.database(ApiSourceCallLeasesTableName)
+                .where('expires_at', '<', cutoff)
+                .delete(),
+        ]);
+        return counters + leases;
+    }
+
+    async insertApiSourceCall(
+        call: Knex.ResolveTableType<ApiSourceCallsTable, 'insert'>,
+    ): Promise<void> {
+        await this.database(ApiSourceCallsTableName).insert(call);
+    }
+
+    /** API calls, response bytes and median fetch time per connection, over every logged query in the project. */
+    async getApiSourceUsage(
+        projectUuid: string,
+    ): Promise<ExternalConnectionApiUsage[]> {
+        const rows = await this.database(ApiSourceCallsTableName)
+            .where('project_uuid', projectUuid)
+            .groupBy('external_connection_uuid')
+            .select<
+                {
+                    external_connection_uuid: string;
+                    api_calls: string | null;
+                    response_bytes: string | null;
+                    median_duration_ms: number | null;
+                }[]
+            >(
+                'external_connection_uuid',
+                this.database.raw('sum(api_calls) as api_calls'),
+                this.database.raw('sum(response_bytes) as response_bytes'),
+                // Reused results never reach the integration, so they'd drag the median to 0.
+                this.database.raw(
+                    'percentile_cont(0.5) within group (order by duration_ms) filter (where api_calls > 0) as median_duration_ms',
+                ),
+            );
+        return rows.map((row) => ({
+            externalConnectionUuid: row.external_connection_uuid,
+            apiCalls: Number(row.api_calls ?? 0),
+            responseBytes: Number(row.response_bytes ?? 0),
+            medianDurationMs:
+                row.median_duration_ms === null
+                    ? null
+                    : Math.round(Number(row.median_duration_ms)),
+        }));
     }
 }

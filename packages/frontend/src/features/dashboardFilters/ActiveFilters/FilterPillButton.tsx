@@ -17,6 +17,7 @@ import {
     useMemo,
     type ComponentPropsWithoutRef,
     type MouseEvent,
+    type ReactNode,
 } from 'react';
 import FieldIcon from '../../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -40,6 +41,10 @@ type Props = Omit<
     /** The lock action's label; null leaves the action out. */
     lockLabel: string | null;
     onLockToggle: (e: MouseEvent) => void;
+    /** Shows the lock at all times, so hovering never widens the pill; default false. */
+    isLockSpaceReserved?: boolean;
+    /** Keeps the grip and lock in place but hidden and inert; default false. */
+    areActionsHidden?: boolean;
     /** The label of the read-only lock icon; null leaves it out. */
     readOnlyLockLabel: string | null;
     /** Null leaves the X out. */
@@ -48,7 +53,11 @@ type Props = Omit<
     removeLabel?: string;
     isTablesTooltipDisabled: boolean;
     triggerClassName?: string;
-    onClick: () => void;
+    /** Shown in place of the field icon (default: the field's icon). */
+    fieldIconOverride?: ReactNode;
+    /** The first icon, in the grip's place when there is one (default none). */
+    leadingIcon?: ReactNode;
+    onClick: (event: MouseEvent<HTMLButtonElement>) => void;
 };
 
 // The pill of a dashboard filter on the filter bar
@@ -63,11 +72,15 @@ export const FilterPillButton = forwardRef<HTMLButtonElement, Props>(
             isLocked,
             lockLabel,
             onLockToggle,
+            isLockSpaceReserved = false,
+            areActionsHidden = false,
             readOnlyLockLabel,
             onRemove,
             removeLabel,
             isTablesTooltipDisabled,
             triggerClassName,
+            fieldIconOverride,
+            leadingIcon,
             className,
             onClick,
             ...others
@@ -136,13 +149,22 @@ export const FilterPillButton = forwardRef<HTMLButtonElement, Props>(
                 }${className ? ` ${className}` : ''}`}
                 pr={truncatedValuesDisplay.hasMore ? 6 : undefined}
                 leftSection={
-                    (isDraggable || showRequirementIcon || field) && (
+                    (isDraggable ||
+                        showRequirementIcon ||
+                        field ||
+                        fieldIconOverride ||
+                        leadingIcon) && (
                         <Group gap={4} wrap="nowrap">
-                            {isDraggable && (
+                            {leadingIcon}
+                            {isDraggable && !leadingIcon && (
                                 <MantineIcon
                                     icon={IconGripVertical}
                                     cursor="grab"
                                     size="sm"
+                                    {...(areActionsHidden && {
+                                        className: classes.hiddenAction,
+                                        'aria-hidden': true,
+                                    })}
                                 />
                             )}
                             {showRequirementIcon && (
@@ -160,17 +182,19 @@ export const FilterPillButton = forwardRef<HTMLButtonElement, Props>(
                                         size="sm"
                                         color={statusColor}
                                         className={classes.statusIcon}
+                                        data-requirement-icon
                                     />
                                 </Tooltip>
                             )}
-                            {field && (
-                                <FieldIcon
-                                    item={field}
-                                    size="sm"
-                                    color={statusColor}
-                                    className={classes.statusIcon}
-                                />
-                            )}
+                            {fieldIconOverride ??
+                                (field && (
+                                    <FieldIcon
+                                        item={field}
+                                        size="sm"
+                                        color={statusColor}
+                                        className={classes.statusIcon}
+                                    />
+                                ))}
                         </Group>
                     )
                 }
@@ -178,11 +202,13 @@ export const FilterPillButton = forwardRef<HTMLButtonElement, Props>(
                     <Group gap={2} wrap="nowrap">
                         {lockLabel !== null && (
                             <span
-                                className={
+                                className={`${
                                     isLocked
                                         ? classes.lockSlotActive
                                         : classes.lockSlot
-                                }
+                                }${areActionsHidden ? ` ${classes.hiddenAction}` : ''}`}
+                                data-reserved={isLockSpaceReserved || undefined}
+                                inert={areActionsHidden || undefined}
                             >
                                 <Tooltip fz="xs" label={lockLabel}>
                                     <ActionIcon

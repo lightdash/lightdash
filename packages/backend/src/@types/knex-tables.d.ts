@@ -250,6 +250,14 @@ import {
     NotificationsTableName,
 } from '../database/entities/notifications';
 import {
+    OAuth2AccessTokensTable,
+    OAuth2AccessTokensTableName,
+    OAuth2AuthorizationCodesTable,
+    OAuth2AuthorizationCodesTableName,
+    OAuth2RefreshTokensTable,
+    OAuth2RefreshTokensTableName,
+} from '../database/entities/oauth2';
+import {
     OnboardingTable,
     OnboardingTableName,
 } from '../database/entities/onboarding';
@@ -688,6 +696,12 @@ import {
     DataAppAnalysisRateCountersTableName,
 } from '../ee/database/entities/dataAppAnalyses';
 import {
+    ApiSourceCallCountersTable,
+    ApiSourceCallCountersTableName,
+    ApiSourceCallLeasesTable,
+    ApiSourceCallLeasesTableName,
+    ApiSourceCallsTable,
+    ApiSourceCallsTableName,
     AppExternalConnectionsTable,
     AppExternalConnectionsTableName,
     ExternalConnectionRateCountersTable,
@@ -772,6 +786,9 @@ import {
 
 declare module 'knex/types/tables' {
     interface Tables {
+        [OAuth2AuthorizationCodesTableName]: OAuth2AuthorizationCodesTable;
+        [OAuth2AccessTokensTableName]: OAuth2AccessTokensTable;
+        [OAuth2RefreshTokensTableName]: OAuth2RefreshTokensTable;
         [ExploreNameAllocationsTableName]: ExploreNameAllocationsTable;
         [DbtSourceRefCatalogsTableName]: DbtSourceRefCatalogsTable;
         [ReleaseHighlightsTableName]: ReleaseHighlightsTable;
@@ -1024,6 +1041,9 @@ declare module 'knex/types/tables' {
         [AppExternalConnectionsTableName]: AppExternalConnectionsTable;
         [ExternalConnectionRateCountersTableName]: ExternalConnectionRateCountersTable;
         [ExternalConnectionSamplesTableName]: ExternalConnectionSamplesTable;
+        [ApiSourceCallCountersTableName]: ApiSourceCallCountersTable;
+        [ApiSourceCallLeasesTableName]: ApiSourceCallLeasesTable;
+        [ApiSourceCallsTableName]: ApiSourceCallsTable;
         [AppUserStateTableName]: AppUserStateTable;
         [AppSharedStateTableName]: AppSharedStateTable;
         [AppSharedStateHistoryTableName]: AppSharedStateHistoryTable;

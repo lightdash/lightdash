@@ -38,8 +38,9 @@ import {
     isTreemapVisualizationConfig,
 } from '../../LightdashVisualization/types';
 import {
+    useVisualizationConfig,
+    useVisualizationInputs,
     useVisualizationServices,
-    useVisualizationState,
 } from '../../LightdashVisualization/useVisualizationContext';
 
 export type ChartTypeOption = {
@@ -85,8 +86,9 @@ export const projectChartTypeItem = (
 export const useChartTypeOptions = () => {
     const { setChartType, setCartesianType, setStacking } =
         useVisualizationServices();
-    const { visualizationConfig, isLoading, resultsData, pivotDimensions } =
-        useVisualizationState();
+    const visualizationConfig = useVisualizationConfig();
+    const { isLoading, resultsData, pivotDimensions } =
+        useVisualizationInputs();
 
     const disabled = isLoading || !resultsData || resultsData.rows.length <= 0;
     const cartesianConfig = isCartesianVisualizationConfig(visualizationConfig)

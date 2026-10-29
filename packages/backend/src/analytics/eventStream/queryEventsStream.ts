@@ -1,5 +1,6 @@
 import type { QueryCompletedEvent } from '../LightdashAnalytics';
 import { buildEnvelope, ProjectionResult } from './projection';
+import { truncateQueryError } from './queryError';
 import type { CompactedStreamColumn } from './types';
 
 /**
@@ -16,6 +17,7 @@ export const queryEventsCompactedColumns: CompactedStreamColumn[] = [
     { name: 'project_id', type: 'VARCHAR' },
     { name: 'query_id', type: 'VARCHAR' },
     { name: 'status', type: 'VARCHAR' },
+    { name: 'error', type: 'VARCHAR' },
     { name: 'context', type: 'VARCHAR' },
     { name: 'explore_name', type: 'VARCHAR' },
     { name: 'chart_id', type: 'VARCHAR' },
@@ -68,6 +70,10 @@ const projectQueryCompletedEvent = (
             project_id: properties.projectId,
             query_id: properties.queryId,
             status: properties.status,
+            error:
+                properties.status === 'error'
+                    ? truncateQueryError(properties.errorMessage)
+                    : null,
             context: properties.context,
             explore_name: properties.exploreName,
             chart_id: properties.chartId,

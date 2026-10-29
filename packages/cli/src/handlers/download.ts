@@ -28,7 +28,6 @@ import {
     ApiVirtualViewAsCodeListResponse,
     ApiVirtualViewAsCodeUpsertResponse,
     assertUnreachable,
-    AuthorizationError,
     ChartAsCode,
     ChartType,
     computeCustomDependencies,
@@ -93,6 +92,11 @@ import {
     type ContentAsCodeOutput,
     type ContentAsCodeOutputVariant,
 } from '../terminal/contentAsCodeOutput';
+import {
+    readAgentKnowledgeDocuments,
+    toAgentAsCodeFile,
+    writeAgentKnowledgeDocuments,
+} from './aiAgentKnowledgeDocuments';
 import {
     applySdkMirrorToTemplateDeps,
     attachDependenciesToCode,
@@ -585,20 +589,29 @@ const isLooseContentFile = (entry: Dirent) => {
     );
 };
 
-// The file's path relative to the project dir, posix; undefined outside it
-const sourceFilePath = (filePath: string): string | undefined => {
-    const relative = path.relative(process.cwd(), filePath);
-    if (
-        path.isAbsolute(relative) ||
-        relative === '..' ||
-        relative.startsWith(`..${path.sep}`)
-    ) {
-        return undefined;
-    }
+const isOutsideDir = (relative: string): boolean =>
+    path.isAbsolute(relative) ||
+    relative === '..' ||
+    relative.startsWith(`..${path.sep}`);
+
+// The file's path relative to the project dir, posix; undefined outside it.
+// A file reached through a symlink records its real location: dbt symlinks
+// local packages into dbt_packages, and write-back should reach the source.
+const sourceFilePath = async (
+    filePath: string,
+): Promise<string | undefined> => {
+    const cwd = process.cwd();
+    if (isOutsideDir(path.relative(cwd, filePath))) return undefined;
+    const [realFile, realCwd] = await Promise.all([
+        fs.realpath(filePath).catch(() => filePath),
+        fs.realpath(cwd).catch(() => cwd),
+    ]);
+    const relative = path.relative(realCwd, realFile);
+    if (path.isAbsolute(relative)) return undefined;
     return relative.split(path.sep).join('/');
 };
 
-const processYamlItem = <
+const processYamlItem = async <
     T extends ChartAsCode | DashboardAsCode | SqlChartAsCode,
 >(
     item: T,
@@ -635,7 +648,7 @@ const processYamlItem = <
         updatedAt: needsUpdating ? stats.mtime : item.updatedAt,
         needsUpdating: needsUpdating ?? true,
         // Sent with the upsert so write-back returns to this file
-        filePath: sourceFilePath(filePath),
+        filePath: await sourceFilePath(filePath),
     };
 };
 
@@ -756,7 +769,7 @@ const readLooseCodeFiles = async (
                         contentType === ContentAsCodeTypeEnum.SQL_CHART
                     ) {
                         charts.push(
-                            processYamlItem<ChartAsCode>(
+                            await processYamlItem<ChartAsCode>(
                                 parsed as ChartAsCode,
                                 file.name,
                                 stats,
@@ -769,7 +782,7 @@ const readLooseCodeFiles = async (
                         contentType === ContentAsCodeTypeEnum.DASHBOARD
                     ) {
                         dashboards.push(
-                            processYamlItem<DashboardAsCode>(
+                            await processYamlItem<DashboardAsCode>(
                                 parsed as DashboardAsCode,
                                 file.name,
                                 stats,
@@ -1775,12 +1788,22 @@ const downloadAiAgents = async (
             total = results.total;
         } while (offset < total);
 
+        const basePath = getDownloadFolder(customPath);
         await writeCodeResourceDocuments({
             definition: AI_AGENT_CODE_RESOURCE,
-            basePath: getDownloadFolder(customPath),
-            documents: agents,
+            basePath,
+            documents: agents.map(toAgentAsCodeFile),
             pruneOtherDocuments: ids.length === 0,
         });
+        const agentsFolder = path.join(
+            basePath,
+            AI_AGENT_CODE_RESOURCE.folderName,
+        );
+        await Promise.all(
+            agents.map((agent) =>
+                writeAgentKnowledgeDocuments(agentsFolder, agent),
+            ),
+        );
     } catch (error) {
         if (implicit && isAiAgentsUnavailableError(error)) {
             GlobalState.log(
@@ -1807,7 +1830,11 @@ const readAiAgentFiles = async (
         basePath: getDownloadFolder(customPath),
     });
     assertCodeResourceFilesValid(result);
-    return result.files.map(({ document }) => document);
+    return Promise.all(
+        result.files.map(({ filePath, document }) =>
+            readAgentKnowledgeDocuments(filePath, document),
+        ),
+    );
 };
 
 class AiAgentAsCodeUploadError extends Error {
@@ -2226,13 +2253,7 @@ export const downloadHandler = async (
     const config = await (getAgentConnectionSelection() === null
         ? getConfig()
         : getConfig({ readOnly: true }));
-    if (getAgentConnectionSelection() !== null) {
-        await resolveCredential(config);
-    } else if (!config.context?.apiKey || !config.context.serverUrl) {
-        throw new AuthorizationError(
-            `Not logged in. Run 'lightdash login --help'`,
-        );
-    }
+    await resolveCredential(config);
 
     if (isOrganizationDownload) {
         await downloadOrganizationContent({
@@ -4036,11 +4057,9 @@ export const uploadHandler = async (
     const config = await (getAgentConnectionSelection() === null
         ? getConfig()
         : getConfig({ readOnly: true }));
-    if (!config.context?.apiKey || !config.context.serverUrl) {
-        throw new AuthorizationError(
-            `Not logged in. Run 'lightdash login --help'`,
-        );
-    }
+    await resolveCredential(config);
+    if (!config.context?.serverUrl)
+        throw new Error("Not logged in. Run 'lightdash login --help'");
 
     if (isOrganizationUpload) {
         await uploadOrganizationContent({

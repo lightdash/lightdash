@@ -53,11 +53,6 @@ export enum FeatureFlags {
     UserImpersonation = 'user-impersonation',
 
     /**
-     * Enable custom group bins for string dimensions
-     */
-    CustomGroupBins = 'custom-group-bins',
-
-    /**
      * Keep visited dashboard tabs mounted in the DOM (hidden) for instant
      * re-switching. Enabled by default; disabled per-org for orgs where
      * large dashboards spiked browser memory to 3 GB+ from accumulated
@@ -72,13 +67,6 @@ export enum FeatureFlags {
      * replaces the shipped one.
      */
     DashboardControls = 'dashboard-controls',
-
-    /**
-     * Enable creating and editing metric filters on dashboards.
-     * When enabled, the "Add filter" UI includes metrics alongside dimensions.
-     * Existing metric filters are always displayed regardless of this flag.
-     */
-    MetricDashboardFilters = 'metric-dashboard-filters',
 
     /**
      * Enable data apps feature. Disabled by default. Self-hosted
@@ -174,32 +162,11 @@ export enum FeatureFlags {
     OrganizationTrialBlock = 'organization-trial-block',
 
     /**
-     * Enable the built-in system agent fallback in Slack. When enabled, if a
-     * Slack channel has no configured agent, the system will use the built-in
-     * system agent instead of showing an error. Independent of AiWriteback so
-     * the features can be toggled separately.
-     */
-    AiSlackSystemAgentFallback = 'ai-slack-system-agent-fallback',
-
-    /**
      * Gate the org-level export Limits settings panel (per-org query max rows
      * and CSV cells limit). Backend enforcement of any stored overrides is
      * always on; this flag only controls who can see/configure the panel.
      */
     ProLimits = 'pro-limits',
-
-    /**
-     * Enable the general-purpose coding agent: the WRITE counterpart to repo
-     * discovery (`repo-fs`). Lets the AI agent make a code change to any repo
-     * the org's GitHub/GitLab App installation can write (intersected with the
-     * triggering user's own access) and open a pull request — not just the
-     * project's dbt repo. Reuses the AI-writeback E2B → signed-commit → PR
-     * pipeline via a lean, no-Bash sandbox template and the `editRepo` tool.
-     * Off by default and EE/license-gated; the per-repo write authz lives in
-     * the service (`manage:SourceCode` + user∩installation), since this flag
-     * is presence-of-feature, not permission.
-     */
-    CodingAgent = 'ai-coding-agent',
 
     /**
      * Show the coding-agent project onboarding flow. This gates only the UI;
@@ -258,13 +225,11 @@ export enum FeatureFlags {
     ComposeSqlRunner = 'compose-sql-runner',
 
     /**
-     * Enable the multi-source query endpoints
-     * (/api/v2/projects/{projectUuid}/query-sources/*): source discovery,
-     * schema scans, source-query submission and batch status. Off by
-     * default; on in preview/dev environments via
-     * PREVIEW_ENABLED_FEATURE_FLAGS.
+     * Enable api query sources: queries sent live to an external API (HogQL
+     * to PostHog) through a project connection, and the Live data sources
+     * project settings page. Off by default; enable per org.
      */
-    MultiSourceQuery = 'multi-source-query',
+    ApiQuerySources = 'api-query-sources',
 
     /**
      * Enable the "My query history" page

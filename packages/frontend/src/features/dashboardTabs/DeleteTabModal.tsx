@@ -199,20 +199,12 @@ export const TabDeleteModal: FC<DeleteProps> = ({
                         <Radio
                             label="Delete all tiles in this tab"
                             value={RemoveActions.DELETE}
-                            styles={{
-                                label: {
-                                    paddingLeft: 'var(--mantine-spacing-xs)',
-                                },
-                            }}
+                            classNames={{ label: classes.radioLabel }}
                         />
                         <Radio
                             label="Transfer all tiles to another tab"
                             value={RemoveActions.MOVE}
-                            styles={{
-                                label: {
-                                    paddingLeft: 'var(--mantine-spacing-xs)',
-                                },
-                            }}
+                            classNames={{ label: classes.radioLabel }}
                         />
                         {dashboardTabs?.length &&
                             removeAction === RemoveActions.MOVE && (
@@ -226,12 +218,7 @@ export const TabDeleteModal: FC<DeleteProps> = ({
                                         value: otherTab.uuid,
                                         label: otherTab.name,
                                     }))}
-                                    styles={{
-                                        root: {
-                                            paddingLeft:
-                                                'var(--mantine-spacing-xl)',
-                                        },
-                                    }}
+                                    pl="xl"
                                 />
                             )}
                     </Stack>

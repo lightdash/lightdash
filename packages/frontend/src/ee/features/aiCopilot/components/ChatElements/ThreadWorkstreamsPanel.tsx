@@ -54,7 +54,7 @@ export const ThreadWorkstreamsPanel: FC<Props> = ({ workstreams }) => {
                 >
                     <Group gap="xs" wrap="nowrap">
                         <MantineIcon icon={IconGitPullRequest} color="dimmed" />
-                        <Text size="sm" fw={500} c="ldGray.7">
+                        <Text size="sm" fw={500} c="dimmed">
                             Pull requests in this conversation
                         </Text>
                         <Badge size="sm" color="ldGray">

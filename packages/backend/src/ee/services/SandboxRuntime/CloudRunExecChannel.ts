@@ -1,7 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import { StringDecoder } from 'node:string_decoder';
 import { Agent, type Dispatcher } from 'undici';
-import { readBoundedStream } from './boundedOutput';
+import {
+    assertWithinOutputLimit,
+    capOutputInSandbox,
+    maxBodyBytesFor,
+    readBoundedStream,
+} from './boundedOutput';
 import {
     SandboxCommandError,
     SandboxOutputLimitError,
@@ -172,45 +177,6 @@ const decodeExecResponse = (value: unknown): ExecResponse => {
  * authenticated with a static shared secret header. Sandbox ids must match the
  * gateway's `[A-Za-z0-9_-]+` rule.
  */
-/**
- * The gateway buffers a command's output server-side and returns it whole, so
- * the ceiling is applied once the bytes arrive rather than mid-stream.
- */
-/**
- * Cap a command's streams inside the sandbox so neither the gateway (which
- * buffers the whole response in memory) nor the backend ever receives more
- * than the ceiling. Each stream keeps one byte over the cap so the post-check
- * can still tell truncation from an exact fit. Exit code is preserved.
- */
-const capOutputInSandbox = (
-    command: string,
-    maxOutputBytes: number,
-): string => {
-    const keep = maxOutputBytes + 1;
-    return (
-        `__ld_d=$(mktemp -d); ( ${command} ) > "$__ld_d/o" 2> "$__ld_d/e"; __ld_rc=$?; ` +
-        `head -c ${keep} "$__ld_d/o"; head -c ${keep} "$__ld_d/e" >&2; rm -rf "$__ld_d"; exit $__ld_rc`
-    );
-};
-
-/** Worst case JSON escaping is 6 bytes per raw byte, plus envelope. */
-const maxBodyBytesFor = (maxOutputBytes: number): number =>
-    2 * (maxOutputBytes + 1) * 6 + 64 * 1024;
-
-const assertWithinOutputLimit = (
-    stdout: string,
-    stderr: string,
-    maxOutputBytes: number | undefined,
-): void => {
-    if (maxOutputBytes === undefined) return;
-    if (
-        Buffer.byteLength(stdout) + Buffer.byteLength(stderr) >
-        maxOutputBytes
-    ) {
-        throw new SandboxOutputLimitError(maxOutputBytes);
-    }
-};
-
 export class CloudRunGatewayClient {
     private readonly baseUrl: string;
 

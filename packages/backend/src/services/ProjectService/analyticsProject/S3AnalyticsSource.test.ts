@@ -3,7 +3,13 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { DuckDBInstance } from '@duckdb/node-api';
 import { ParameterError } from '@lightdash/common';
 import { DuckdbWarehouseClient } from '@lightdash/warehouses';
+import { Readable } from 'stream';
 import { queryEventsCompactedColumns } from '../../../analytics/eventStream/queryEventsStream';
+import {
+    QUERY_HISTORY_BACKFILL_EVENT,
+    queryHistoryBackfillKey,
+} from '../../../analytics/eventStream/queryHistoryBackfill';
+import { usageHistoryKey } from '../../../analytics/eventStream/usageHistorySources';
 import { createS3ClientFromConfig } from '../../../clients/Aws/S3BaseClient';
 import { createS3AnalyticsSourceResolver } from './S3AnalyticsSource';
 
@@ -85,6 +91,88 @@ describe('signed analytics file manifests', () => {
         );
     });
 
+    it('exposes AI history with event-ID precedence and keeps database activity in its own table', async () => {
+        send.mockResolvedValue({
+            Contents: [
+                { Key: usageHistoryKey(org, 'ai_usage') },
+                { Key: key('ai_usage') },
+                { Key: usageHistoryKey(org, 'historical_activity') },
+                { Key: key('content_views') },
+            ],
+        });
+        const source = await createS3AnalyticsSourceResolver(config)();
+        const ai = source.tables.find(({ name }) => name === 'ai_usage');
+        expect(ai).toMatchObject({
+            hivePartitioning: false,
+            fallbackRows: {
+                keyColumns: ['org_id', 'event_id'],
+                markerColumn: 'history_origin',
+                markerValue: 'database',
+            },
+        });
+        expect(ai?.columns).toContainEqual({
+            name: 'history_origin',
+            type: 'VARCHAR',
+        });
+        expect(
+            source.tables.find(({ name }) => name === 'historical_activity'),
+        ).toMatchObject({ hivePartitioning: false, fallbackRows: undefined });
+        expect(
+            source.tables.find(({ name }) => name === 'content_views')?.urls,
+        ).toHaveLength(1);
+    });
+
+    it('includes canonical query history and enables fallback reconciliation only for query events', async () => {
+        const historyKey = queryHistoryBackfillKey(org);
+        const capturedKey = key('query_events');
+        const exportKey = key('export_events');
+        send.mockResolvedValue({
+            Contents: [
+                { Key: historyKey },
+                { Key: capturedKey },
+                { Key: exportKey },
+            ],
+        });
+        vi.mocked(getSignedUrl).mockImplementation(
+            async (_client, command) =>
+                `signed:${(command as GetObjectCommand).input.Key}`,
+        );
+        const source = await createS3AnalyticsSourceResolver(config)();
+        expect(
+            source.tables.find(({ name }) => name === 'query_events'),
+        ).toMatchObject({
+            urls: [`signed:${historyKey}`, `signed:${capturedKey}`].sort(),
+            hivePartitioning: false,
+            fallbackRows: {
+                keyColumns: ['org_id', 'project_id', 'query_id'],
+                markerColumn: 'event_name',
+                markerValue: QUERY_HISTORY_BACKFILL_EVENT,
+            },
+        });
+        const exports = source.tables.find(
+            ({ name }) => name === 'export_events',
+        );
+        expect(exports?.urls).toEqual([`signed:${exportKey}`]);
+        expect(exports).not.toHaveProperty('fallbackRows');
+        expect(exports).not.toHaveProperty('hivePartitioning');
+        expect(getSignedUrl).toHaveBeenCalledTimes(3);
+    });
+
+    it('preserves the default source options when no query history file exists', async () => {
+        send.mockResolvedValue({
+            Contents: [
+                { Key: key('query_events') },
+                { Key: key('export_events') },
+            ],
+        });
+        const source = await createS3AnalyticsSourceResolver(config)();
+        expect(source.tables).toHaveLength(2);
+        for (const table of source.tables) {
+            expect(table).not.toHaveProperty('fallbackRows');
+            expect(table).not.toHaveProperty('hivePartitioning');
+        }
+    });
+
     it('allows authenticated empty storage only for provisioning before initial processing', async () => {
         send.mockResolvedValue({ Contents: [] });
         const source = await createS3AnalyticsSourceResolver({
@@ -141,6 +229,41 @@ describe('signed analytics file manifests', () => {
         expect(source.emptyTables?.map(({ name }) => name)).toContain(
             'query_events',
         );
+    });
+
+    it('reuses more than 8 MiB of bytes while keeping the per-query budget bounded and the manifest complete', async () => {
+        const body = Buffer.alloc(1024 * 1024);
+        const contents = Array.from({ length: 33 }, (_, i) => ({
+            Key: key().replace('part-1', `budget-${i}`),
+            ETag: 'budget-v1',
+            Size: body.length,
+        }));
+        send.mockImplementation(async (command) =>
+            command instanceof ListObjectsV2Command
+                ? { Contents: contents }
+                : {
+                      Body: Readable.from([body]),
+                      ETag: 'budget-v1',
+                      ContentLength: body.length,
+                  },
+        );
+        vi.mocked(getSignedUrl).mockImplementation(
+            async (_client, command) =>
+                `signed:${(command as GetObjectCommand).input.Key}`,
+        );
+        const resolve = createS3AnalyticsSourceResolver(config);
+        const first = await resolve(['query_events']);
+        expect(first.fileBuffers?.size).toBe(32);
+        expect(first.tables[0].urls).toHaveLength(33);
+        const downloads = () =>
+            send.mock.calls.filter(
+                ([command]) => command instanceof GetObjectCommand,
+            );
+        expect(downloads()).toHaveLength(32);
+        const warm = await resolve(['query_events']);
+        expect(warm.fileBuffers?.size).toBe(32);
+        expect(warm.tables[0].urls).toEqual(first.tables[0].urls);
+        expect(downloads()).toHaveLength(32);
     });
 
     it.each([undefined, []])(
@@ -442,6 +565,7 @@ describe('signed analytics file manifests', () => {
             'content_views',
             'agent_request_events',
             'user_activity',
+            'historical_activity',
         ]);
         expect(getSignedUrl).toHaveBeenCalledTimes(4);
     });

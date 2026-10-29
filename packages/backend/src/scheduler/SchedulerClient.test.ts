@@ -106,6 +106,94 @@ describe('initial usage processing', () => {
     });
 });
 
+describe('query history backfill scheduling', () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    const clientWithJob = (job?: Record<string, unknown>) => {
+        const client = makeClient(false);
+        const query = vi.fn().mockResolvedValue({ rows: job ? [job] : [] });
+        client.graphileUtils = Promise.resolve({
+            addJob: graphileAddJob,
+            withPgClient: async (
+                callback: (pg: { query: typeof query }) => unknown,
+            ) => callback({ query }),
+        } as unknown as Awaited<typeof client.graphileUtils>);
+        graphileAddJob.mockClear();
+        return { client, query };
+    };
+
+    it.each([
+        [
+            { locked_at: null, attempts: 0, max_attempts: 1, last_error: null },
+            true,
+            false,
+        ],
+        [
+            {
+                locked_at: new Date(),
+                attempts: 1,
+                max_attempts: 1,
+                last_error: null,
+            },
+            true,
+            false,
+        ],
+        [
+            {
+                locked_at: null,
+                attempts: 1,
+                max_attempts: 1,
+                last_error: 'storage unavailable',
+            },
+            false,
+            true,
+        ],
+        [undefined, false, false],
+    ])(
+        'recognizes queued, locked, failed and completed jobs',
+        async (job, running, failed) => {
+            const { client, query } = clientWithJob(job);
+            await expect(
+                client.getUsageHistoryBackfillJob(ORG_UUID),
+            ).resolves.toEqual({ running, failed });
+            expect(query).toHaveBeenCalledWith(expect.any(String), [
+                `usage-query-history:${ORG_UUID}`,
+            ]);
+        },
+    );
+
+    it('does not enqueue another job while one is queued or locked', async () => {
+        const { client } = clientWithJob({
+            locked_at: null,
+            attempts: 0,
+            max_attempts: 1,
+        });
+        await client.scheduleUsageHistoryBackfill(traceProperties);
+        expect(graphileAddJob).not.toHaveBeenCalled();
+    });
+
+    it('allows manual retry of a failed job on a separate serial queue from daily compaction', async () => {
+        const { client } = clientWithJob({
+            locked_at: null,
+            attempts: 1,
+            max_attempts: 1,
+            last_error: 'failed',
+        });
+        await client.scheduleUsageHistoryBackfill(traceProperties);
+        expect(graphileAddJob).toHaveBeenCalledExactlyOnceWith(
+            SCHEDULER_TASKS.BACKFILL_USAGE_QUERY_HISTORY,
+            traceProperties,
+            {
+                queueName: 'usage-history-backfill',
+                jobKey: `usage-query-history:${ORG_UUID}`,
+                jobKeyMode: 'replace',
+                maxAttempts: 1,
+                priority: JobPriority.LOW,
+            },
+        );
+    });
+});
+
 describe('SchedulerClient per-org delivery queue', () => {
     afterEach(() => {
         vi.clearAllMocks();
@@ -243,12 +331,16 @@ describe('SchedulerClient create project job lookup', () => {
             ) => callback({ query }),
         } as unknown as Awaited<typeof client.graphileUtils>);
 
+        const lockedAfter = new Date('2026-10-28T14:30:00Z');
         await expect(
-            client.hasCreateProjectWithCompileJob('lightdash-job-uuid'),
+            client.hasCreateProjectWithCompileJob(
+                'lightdash-job-uuid',
+                lockedAfter,
+            ),
         ).resolves.toBe(true);
         expect(query).toHaveBeenCalledWith(
-            expect.stringContaining("payload->>'jobUuid' = $2"),
-            ['createProjectWithCompile', 'lightdash-job-uuid'],
+            expect.stringContaining('locked_at IS NULL OR locked_at > $3'),
+            ['createProjectWithCompile', 'lightdash-job-uuid', lockedAfter],
         );
     });
 });

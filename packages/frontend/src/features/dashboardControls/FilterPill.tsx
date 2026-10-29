@@ -4,7 +4,16 @@ import {
     type DashboardFilterRule,
 } from '@lightdash/common';
 import { Box, Tooltip } from '@mantine/core';
-import { memo, type FC } from 'react';
+import { useOs } from '@mantine/hooks';
+import { IconCheck } from '@tabler/icons-react';
+import {
+    memo,
+    useState,
+    type FC,
+    type MouseEvent,
+    type PointerEvent,
+} from 'react';
+import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import useTracking from '../../providers/Tracking/useTracking';
@@ -14,9 +23,13 @@ import {
     getFilterLockToggle,
 } from '../dashboardFilters/ActiveFilters/filterLock';
 import { FilterPillButton } from '../dashboardFilters/ActiveFilters/FilterPillButton';
+import { useBarSelection } from './barSelection';
+import { ChangedDot } from './ChangedDot';
+import { EditBadge } from './EditBadge';
 import classes from './FilterPills.module.css';
 import { replaceFilterRule } from './sidebarState';
 import { useControlsSidebarSelector } from './useControlsSidebar';
+import { useTileHover } from './useTileHover';
 
 // An editor's pill, or a viewer's on a filter of their own (outline, with an X)
 export type FilterPillKind = 'editor' | 'viewerOwn';
@@ -32,12 +45,18 @@ type Props = {
     isDisabled: boolean;
     /** A new control that has no label yet. */
     isDraft: boolean;
-    /** While open the pill is only a click target: no grip, lock or X. */
+    /** Edit mode: the rule differs from the saved dashboard. */
+    isChanged: boolean;
+    /** While a filter is edited the grip and lock are hidden and inert. */
     isSidebarOpen: boolean;
     activeTabUuid: string | undefined;
     hasTabs: boolean;
     dashboardUuid: string | undefined;
     triggerClassName: string | undefined;
+    /** Stable: the tile fields, read when the pill is hovered. */
+    getFieldsByTile: () =>
+        | Record<string, DashboardFilterableField[]>
+        | undefined;
 };
 
 export const FilterPill: FC<Props> = memo(
@@ -50,16 +69,17 @@ export const FilterPill: FC<Props> = memo(
         isSelected,
         isDisabled,
         isDraft,
+        isChanged,
         isSidebarOpen,
         activeTabUuid,
         hasTabs,
         dashboardUuid,
         triggerClassName,
+        getFieldsByTile,
     }) => {
         const { track } = useTracking();
         const getUiString = useUiStrings();
         const open = useControlsSidebarSelector((c) => c.open);
-        const close = useControlsSidebarSelector((c) => c.close);
         const removeFilterById = useControlsSidebarSelector(
             (c) => c.removeFilterById,
         );
@@ -69,6 +89,29 @@ export const FilterPill: FC<Props> = memo(
         const setHaveFiltersChanged = useDashboardContext(
             (c) => c.setHaveFiltersChanged,
         );
+        const selection = useBarSelection();
+        const os = useOs();
+        // On an editor's sectioned bar a modified click picks the pill
+        const isSelectable =
+            selection !== null && kind === 'editor' && !isSidebarOpen;
+        const isPicked =
+            isSelectable && selection.selectedIds.includes(filter.id);
+        const tileHover = useTileHover(
+            filter,
+            kind === 'editor' && !isSidebarOpen,
+            getFieldsByTile,
+        );
+        // The lock, the X and the unmet requirement icon have tooltips of
+        // their own: the pill's waits meanwhile
+        const [isOnAction, setIsOnAction] = useState(false);
+        const trackAction = (event: PointerEvent<HTMLElement>) =>
+            setIsOnAction(
+                event.type === 'pointerover' &&
+                    event.target instanceof Element &&
+                    event.target.closest(
+                        'button:not([data-controls-pill]), [data-requirement-unmet] [data-requirement-icon]',
+                    ) !== null,
+            );
         const isLocked = isFilterLockedOnTab(filter, activeTabUuid, hasTabs);
         const lockKey = getFilterLockKey({
             hasTabs,
@@ -91,53 +134,89 @@ export const FilterPill: FC<Props> = memo(
             setHaveFiltersChanged(true);
         };
 
+        // On an editor's sectioned bar a modified click picks the pill and a
+        // plain one ends the selection before it opens the filter
+        const handleClick = (event: MouseEvent<HTMLButtonElement>) => {
+            if (isSelectable) {
+                if (event.metaKey || event.ctrlKey || event.shiftKey) {
+                    selection.pick(filter.id, event.shiftKey);
+                    return;
+                }
+                selection.clear();
+            }
+            open(filter.id);
+        };
+
         return (
             <Tooltip
                 fz="xs"
                 maw={300}
-                disabled={!isOrphaned}
-                label={orphanedTooltip}
+                disabled={(!isOrphaned && !isSelectable) || isOnAction}
+                openDelay={isOrphaned ? 0 : 500}
+                label={
+                    isOrphaned
+                        ? orphanedTooltip
+                        : `Click to edit · ${os === 'macos' ? '⌘' : 'Ctrl'} click to select`
+                }
             >
-                <Box className={classes.pill}>
+                <Box
+                    className={classes.pill}
+                    onPointerOver={trackAction}
+                    onPointerLeave={trackAction}
+                >
                     <FilterPillButton
+                        {...tileHover}
                         field={field}
                         filterRule={filter}
                         isOrphaned={isOrphaned}
                         isTemporary={kind === 'viewerOwn'}
-                        isDraggable={kind === 'editor' && !isSidebarOpen}
+                        // While a filter is edited the grip and lock stay in
+                        // place, hidden and inert, so no pill changes width
+                        isDraggable={kind === 'editor'}
                         isLocked={isLocked}
                         lockLabel={
-                            kind === 'editor' && !isSidebarOpen && lockKey
+                            kind === 'editor' && lockKey
                                 ? getFilterLockLabel(isLocked, hasTabs)
                                 : null
                         }
+                        areActionsHidden={isSidebarOpen}
                         onLockToggle={(e) => {
                             e.stopPropagation();
                             toggleLock();
                         }}
+                        isLockSpaceReserved
                         readOnlyLockLabel={null}
-                        onRemove={
-                            isSidebarOpen
-                                ? null
-                                : (e) => {
-                                      e.stopPropagation();
-                                      removeFilterById(filter.id);
-                                  }
-                        }
+                        onRemove={(e) => {
+                            e.stopPropagation();
+                            removeFilterById(filter.id);
+                        }}
                         removeLabel={getUiString('filters.rail.removeFilter')}
-                        isTablesTooltipDisabled={isSelected}
+                        // One tooltip at a time: the hint takes the pill's
+                        isTablesTooltipDisabled={isSelected || isSelectable}
                         triggerClassName={triggerClassName}
-                        aria-pressed={isSelected}
+                        aria-pressed={isSelected || isPicked}
                         data-controls-pill={filter.id}
                         disabled={isDisabled}
                         className={[
-                            isSelected ? classes.selectedPill : '',
                             isDraft ? classes.draftPill : '',
+                            isPicked ? classes.pickedPill : '',
                         ]
                             .filter(Boolean)
                             .join(' ')}
-                        onClick={() => (isSelected ? close() : open(filter.id))}
+                        fieldIconOverride={
+                            isPicked ? (
+                                <MantineIcon icon={IconCheck} size="sm" />
+                            ) : undefined
+                        }
+                        // The open pill's pencil takes the grip's slot, in edit mode only
+                        leadingIcon={
+                            isSelected && kind === 'editor' ? (
+                                <EditBadge />
+                            ) : undefined
+                        }
+                        onClick={handleClick}
                     />
+                    {isChanged && <ChangedDot />}
                 </Box>
             </Tooltip>
         );

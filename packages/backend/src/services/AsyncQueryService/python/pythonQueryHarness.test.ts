@@ -1,4 +1,10 @@
-import { DimensionType, FieldType, ParameterError } from '@lightdash/common';
+import {
+    DimensionType,
+    FieldType,
+    ParameterError,
+    type CompiledDimension,
+    type ItemsMap,
+} from '@lightdash/common';
 import { execFileSync, spawnSync } from 'node:child_process';
 import {
     mkdirSync,
@@ -20,6 +26,7 @@ import {
     resultColumnsToPythonInput,
     validatePythonCode,
     validatePythonResultRows,
+    type PythonColumnType,
 } from './pythonQueryHarness';
 
 const validCode = `
@@ -33,6 +40,61 @@ def run(inputs, params):
 const hasPythonDependencies =
     spawnSync('python3', ['-c', 'import pandas, numpy']).status === 0;
 
+type HarnessRun = {
+    columns: Record<string, PythonColumnType>;
+    rows: Record<string, unknown>[];
+    code: string;
+};
+
+const runHarness = ({ columns, rows, code }: HarnessRun) => {
+    const workDir = mkdtempSync(path.join(tmpdir(), 'python-query-harness-'));
+    try {
+        mkdirSync(path.join(workDir, 'in'));
+        mkdirSync(path.join(workDir, 'out'));
+        writeFileSync(
+            path.join(workDir, 'runner.py'),
+            PYTHON_RUNNER_SOURCE.replace(PYTHON_WORK_DIR, workDir),
+        );
+        writeFileSync(path.join(workDir, 'main.py'), code);
+        writeFileSync(
+            path.join(workDir, 'in', 'meta.json'),
+            JSON.stringify({
+                inputs: { orders: { columns } },
+                params: {},
+                limit: 10,
+            }),
+        );
+        writeFileSync(
+            path.join(workDir, 'in', 'orders.jsonl'),
+            rows.map((row) => JSON.stringify(row)).join('\n'),
+        );
+
+        execFileSync('python3', [path.join(workDir, 'runner.py')], {
+            timeout: 10_000,
+        });
+
+        const meta = parsePythonResultMeta(
+            readFileSync(path.join(workDir, 'out', 'meta.json'), 'utf8'),
+        );
+        const result = validatePythonResultRows(
+            readFileSync(path.join(workDir, 'out', 'result.jsonl')),
+            meta,
+            10,
+        );
+        return { meta, rows: result };
+    } finally {
+        rmSync(workDir, { recursive: true, force: true });
+    }
+};
+
+const expectedTimings = {
+    importMs: expect.any(Number),
+    loadInputsMs: expect.any(Number),
+    loadCodeMs: expect.any(Number),
+    runMs: expect.any(Number),
+    writeOutputMs: expect.any(Number),
+};
+
 describe.skipIf(!hasPythonDependencies)(
     'Python harness boolean round-trip',
     () => {
@@ -41,65 +103,82 @@ describe.skipIf(!hasPythonDependencies)(
             { name: 'all nulls', values: [null, null] },
             { name: 'empty input', values: [] },
         ])('preserves boolean metadata and $name', ({ values }) => {
-            const workDir = mkdtempSync(
-                path.join(tmpdir(), 'python-query-harness-'),
-            );
-            try {
-                mkdirSync(path.join(workDir, 'in'));
-                mkdirSync(path.join(workDir, 'out'));
-                writeFileSync(
-                    path.join(workDir, 'runner.py'),
-                    PYTHON_RUNNER_SOURCE.replace(PYTHON_WORK_DIR, workDir),
-                );
-                writeFileSync(
-                    path.join(workDir, 'main.py'),
-                    'def run(inputs, params):\n    assert str(inputs["orders"]["flag"].dtype) == "boolean"\n    return inputs["orders"]\n',
-                );
-                writeFileSync(
-                    path.join(workDir, 'in', 'meta.json'),
-                    JSON.stringify({
-                        inputs: { orders: { columns: { flag: 'boolean' } } },
-                        params: {},
-                        limit: 10,
-                    }),
-                );
-                writeFileSync(
-                    path.join(workDir, 'in', 'orders.jsonl'),
-                    values.map((flag) => JSON.stringify({ flag })).join('\n'),
-                );
+            const { meta, rows } = runHarness({
+                columns: { flag: 'boolean' },
+                rows: values.map((flag) => ({ flag })),
+                code: 'def run(inputs, params):\n    assert str(inputs["orders"]["flag"].dtype) == "boolean"\n    return inputs["orders"]\n',
+            });
+            expect(meta).toEqual({
+                columns: [{ name: 'flag', type: 'boolean' }],
+                rowCount: values.length,
+                truncated: false,
+                timings: expectedTimings,
+            });
+            expect(rows).toEqual(values.map((flag) => ({ flag })));
+        });
+    },
+);
 
-                execFileSync('python3', [path.join(workDir, 'runner.py')], {
-                    timeout: 10_000,
-                });
-
-                const meta = parsePythonResultMeta(
-                    readFileSync(
-                        path.join(workDir, 'out', 'meta.json'),
-                        'utf8',
-                    ),
-                );
-                expect(meta).toEqual({
-                    columns: [{ name: 'flag', type: 'boolean' }],
-                    rowCount: values.length,
-                    truncated: false,
-                    timings: {
-                        importMs: expect.any(Number),
-                        loadInputsMs: expect.any(Number),
-                        loadCodeMs: expect.any(Number),
-                        runMs: expect.any(Number),
-                        writeOutputMs: expect.any(Number),
+describe.skipIf(!hasPythonDependencies)(
+    'Python harness datetime round-trip',
+    () => {
+        it('loads date columns tz-naive at midnight and timestamp columns tz-aware UTC', () => {
+            const { meta, rows } = runHarness({
+                columns: { d: 'date', t: 'timestamp' },
+                rows: [
+                    {
+                        d: '2026-04-27T00:00:00.000Z',
+                        t: '2026-04-27T10:30:00.000Z',
                     },
-                });
-                expect(
-                    validatePythonResultRows(
-                        readFileSync(path.join(workDir, 'out', 'result.jsonl')),
-                        meta,
-                        10,
-                    ),
-                ).toEqual(values.map((flag) => ({ flag })));
-            } finally {
-                rmSync(workDir, { recursive: true, force: true });
-            }
+                    { d: null, t: null },
+                ],
+                code: `
+import pandas as pd
+
+def run(inputs, params):
+    frame = inputs["orders"]
+    assert pd.api.types.is_datetime64_dtype(frame["d"]) and frame["d"].dt.tz is None, frame["d"].dtype
+    assert str(frame["t"].dt.tz) == "UTC", frame["t"].dtype
+    assert frame["d"].iloc[0] == pd.Timestamp("2026-04-27")
+    assert (frame["d"] >= pd.Timestamp("2026-01-01")).sum() == 1
+    daily = frame.dropna().set_index("d")["t"]
+    assert daily.reindex(pd.date_range("2026-04-27", periods=1)).notna().all()
+    return frame
+`,
+            });
+            expect(meta).toEqual({
+                columns: [
+                    { name: 'd', type: 'date' },
+                    { name: 't', type: 'timestamp' },
+                ],
+                rowCount: 2,
+                truncated: false,
+                timings: expectedTimings,
+            });
+            expect(rows).toEqual([
+                {
+                    d: '2026-04-27T00:00:00+00:00',
+                    t: '2026-04-27T10:30:00+00:00',
+                },
+                { d: null, t: null },
+            ]);
+        });
+
+        it('keeps a naive datetime column with a time of day as a timestamp', () => {
+            const { meta, rows } = runHarness({
+                columns: { d: 'date' },
+                rows: [{ d: '2026-04-27T00:00:00.000Z' }],
+                code: `
+import pandas as pd
+
+def run(inputs, params):
+    frame = inputs["orders"]
+    frame["d"] = frame["d"] + pd.Timedelta(hours=9)
+    return frame
+`,
+            });
+            expect(meta.columns).toEqual([{ name: 'd', type: 'timestamp' }]);
+            expect(rows).toEqual([{ d: '2026-04-27T09:00:00+00:00' }]);
         });
     },
 );
@@ -307,15 +386,59 @@ describe('column mapping', () => {
         expect(Object.keys(fields)).toEqual(['n', 'd', 't', 'f', 's']);
     });
 
+    it('reads warehouse timestamps of date fields as dates', () => {
+        const dimension = (name: string, type: DimensionType) =>
+            ({
+                fieldType: FieldType.DIMENSION,
+                name,
+                table: 'orders',
+                type,
+            }) as CompiledDimension;
+        // Postgres DATE_TRUNC on a date dimension returns timestamptz.
+        const itemsMap: ItemsMap = {
+            orders_order_date_day: dimension(
+                'order_date_day',
+                DimensionType.DATE,
+            ),
+            orders_created_raw: dimension(
+                'created_raw',
+                DimensionType.TIMESTAMP,
+            ),
+        };
+        expect(
+            resultColumnsToPythonInput(
+                {
+                    orders_order_date_day: {
+                        reference: 'orders_order_date_day',
+                        type: DimensionType.TIMESTAMP,
+                    },
+                    orders_created_raw: {
+                        reference: 'orders_created_raw',
+                        type: DimensionType.TIMESTAMP,
+                    },
+                    d_trunc: {
+                        reference: 'd_trunc',
+                        type: DimensionType.TIMESTAMP,
+                    },
+                },
+                itemsMap,
+            ),
+        ).toEqual({
+            orders_order_date_day: 'date',
+            orders_created_raw: 'timestamp',
+            d_trunc: 'timestamp',
+        });
+    });
+
     it('round-trips result columns into harness input types', () => {
-        expect(resultColumnsToPythonInput(pythonResultToColumns(meta))).toEqual(
-            {
-                n: 'number',
-                d: 'date',
-                t: 'timestamp',
-                f: 'boolean',
-                s: 'string',
-            },
-        );
+        expect(
+            resultColumnsToPythonInput(pythonResultToColumns(meta), {}),
+        ).toEqual({
+            n: 'number',
+            d: 'date',
+            t: 'timestamp',
+            f: 'boolean',
+            s: 'string',
+        });
     });
 });

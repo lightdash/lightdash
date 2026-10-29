@@ -19,6 +19,7 @@ import {
     overlayKeysForAsCodeField,
     ParameterError,
     PullRequestSource,
+    resolveContentAsCodeRepoPath,
     type ChartAsCode,
     type ContentAsCodeFileClassification,
     type ContentAsCodePullSummary,
@@ -320,15 +321,24 @@ export class ContentAsCodeWritebackService extends BaseService {
         repoPath: string,
         contentPath: string,
     ): Promise<string> {
-        return joinContentAsCodePath(
-            repoPath,
-            await this.resolveContentFilePath(
-                projectUuid,
-                contentType,
-                slug,
-                contentPath,
-            ),
+        const sourcePath = await this.resolveContentFilePath(
+            projectUuid,
+            contentType,
+            slug,
+            contentPath,
         );
+        try {
+            return resolveContentAsCodeRepoPath(repoPath, sourcePath);
+        } catch (error) {
+            // Uploaded from outside the repo: the conventional place applies
+            this.logger.warn(
+                `Content-as-code source path "${sourcePath}" for ${slug} is not in the repo; using the content path instead`,
+            );
+            return joinContentAsCodePath(
+                repoPath,
+                getContentAsCodeFilePath(contentPath, contentType, slug),
+            );
+        }
     }
 
     private async getContentPath(projectUuid: string): Promise<string> {
@@ -1450,8 +1460,12 @@ export class ContentAsCodeWritebackService extends BaseService {
     ): void {
         if (row.contentDraftUuid === requestedDraftUuid) return;
 
+        const proposal =
+            row.prUrl === null
+                ? 'an active write-back proposal'
+                : `an open write-back pull request (${row.prUrl})`;
         throw new ConflictError(
-            `Content "${row.slug}" already has an active write-back proposal. Merge or close it before writing back another draft.`,
+            `Content "${row.slug}" already has ${proposal} from an earlier draft. Merge or close it before writing back this draft.`,
             {
                 contentType: row.contentType,
                 slug: row.slug,

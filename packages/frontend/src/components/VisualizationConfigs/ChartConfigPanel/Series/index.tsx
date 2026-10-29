@@ -27,7 +27,11 @@ import {
 } from '../../../../hooks/cartesianChartConfig/utils';
 import { usePortalTarget } from '../../../../providers/PortalTarget/usePortalTarget';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
-import { useVisualizationState } from '../../../LightdashVisualization/useVisualizationContext';
+import {
+    useSeriesColor,
+    useVisualizationConfig,
+    useVisualizationInputs,
+} from '../../../LightdashVisualization/useVisualizationContext';
 import { ColorPaletteSection } from '../../common/ColorPaletteSection';
 import { Config } from '../../common/Config';
 import BasicSeriesConfiguration from './BasicSeriesConfiguration';
@@ -54,13 +58,11 @@ type Props = {
 };
 
 export const Series: FC<Props> = ({ items }) => {
-    const {
-        visualizationConfig,
-        getSeriesColor,
-        pivotDimensions,
-        resultsData,
-        colorPalette,
-    } = useVisualizationState();
+    // A wide panel: it shows nearly every series field, so it reads the aggregate
+    const visualizationConfig = useVisualizationConfig();
+    const getSeriesColor = useSeriesColor();
+    const { pivotDimensions, resultsData, colorPalette } =
+        useVisualizationInputs();
 
     const yField = isCartesianVisualizationConfig(visualizationConfig)
         ? visualizationConfig.chartConfig.dirtyLayout?.yField

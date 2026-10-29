@@ -1,0 +1,18 @@
+.scroller {
+    height: 100%;
+    overflow: auto;
+}
+
+.sizer {
+    position: relative;
+    height: var(--list-height);
+}
+
+.item {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: var(--item-height);
+    transform: translateY(var(--item-start));
+}

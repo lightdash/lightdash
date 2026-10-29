@@ -4,18 +4,3 @@
     align-items: center;
     height: 22px;
 }
-
-.sortChip {
-    max-width: 100%;
-}
-
-.fieldChip {
-    display: inline-flex;
-    align-items: center;
-    height: 22px;
-    padding: 0 var(--mantine-spacing-xs);
-    border-radius: var(--mantine-radius-sm);
-    font-size: var(--mantine-font-size-xs);
-    font-weight: 500;
-    white-space: nowrap;
-}

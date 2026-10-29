@@ -222,7 +222,7 @@ export const PanelHeader: FC<Props> = ({
                     <MantineIcon
                         icon={IconWindowMaximize}
                         size={16}
-                        style={{ transform: 'scaleX(-1)' }}
+                        className={styles.mirroredIcon}
                     />
                 </ActionIcon>
                 <ActionIcon

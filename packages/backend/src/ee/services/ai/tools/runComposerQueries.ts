@@ -1,18 +1,26 @@
 import {
     buildComposerArtifactPipeline,
+    COMPOSER_QUERY_PREVIEW_ROW_LIMIT,
     createToolComposerQueriesArgsSchema,
+    getSourceQueryLimit,
     getSourceQueryResultReferences,
     getSqlApprovalSql,
     getToolComposerQueriesDescription,
+    hasReachedSourceQueryLimit,
+    QueryHistoryStatus,
     QuerySourceType,
     queryToolDefinition,
     toComposerNodeColumns,
     toolComposerQueryNodeToSourceQuery,
+    WarehouseQueryError,
     type AnyType,
+    type ComposerApiConnection,
+    type ComposerPipelineNode,
     type ParameterDefinitions,
     type SemanticLayerSourceQuery,
     type SourceQuery,
     type SubmittedSourceQuery,
+    type ThreadComposerQueryNode,
     type ToolComposerQueriesStructuredContent,
     type ToolComposerQueriesSuccessMetadata,
 } from '@lightdash/common';
@@ -25,6 +33,7 @@ import {
     type QueryReviewer,
 } from '../decisions/queryReview';
 import type {
+    ComposerNodeStatus,
     GetPromptFn,
     IsThreadSqlAutoApprovedFn,
     ListSqlApprovalDecisionsFn,
@@ -87,6 +96,8 @@ type Dependencies = {
     enableDataAccess: boolean;
     canRunSql: boolean;
     enablePythonNodes: boolean;
+    // Project API connections api nodes may query; empty disables api nodes.
+    apiConnections: ComposerApiConnection[];
     autoApproveSql?: boolean;
     autoApproveSqlUserUuid?: string | null;
     useSlackStreamCard?: boolean;
@@ -95,8 +106,6 @@ type Dependencies = {
 };
 
 const toolDefinition = queryToolDefinition.for('agent');
-
-const PREVIEW_ROW_LIMIT = 50;
 
 const COMPOSER_SQL_APPROVAL_COPY: SqlApprovalCopy = {
     slackText: 'SQL execution',
@@ -205,6 +214,107 @@ const getComposerEmptyFilterHints = async (
     return hints.filter(Boolean).join(' ');
 };
 
+type ComposerNodeSummary =
+    ToolComposerQueriesStructuredContent['nodes'][number];
+
+const renderComposerNodeSummary = (
+    queries: SourceQuery[],
+    nodes: ComposerNodeSummary[],
+    nodeStatuses: ComposerNodeStatus[],
+    maxQueryLimit: number,
+): string => {
+    const reachedLimit = new Set(
+        nodes
+            .filter(
+                (node) =>
+                    node.rowCount !== null &&
+                    hasReachedSourceQueryLimit(node, node.rowCount),
+            )
+            .map((node) => node.nodeId),
+    );
+    const nodeLines = nodes.map((node) => {
+        const status = nodeStatuses.find(
+            (candidate) => candidate.nodeId === node.nodeId,
+        );
+        const label =
+            node.title === null
+                ? `- ${node.nodeId} (${node.sourceType})`
+                : `- ${node.nodeId}: "${node.title}" (${node.sourceType})`;
+        const outcome =
+            node.rowCount === null
+                ? `${status?.state ?? 'not read'}${status?.error ? `: ${status.error}` : ''}`
+                : `${node.rowCount} rows`;
+        const capped = reachedLimit.has(node.nodeId)
+            ? ` Reached its limit of ${node.limit}, so more rows may exist (max ${maxQueryLimit}).`
+            : '';
+        return `${label}: ${outcome}, limit ${node.limit}.${capped}`;
+    });
+    const warnings = queries.flatMap((query) =>
+        Object.values(getSourceQueryResultReferences(query))
+            .filter((reference) => reachedLimit.has(reference))
+            .map(
+                (reference) =>
+                    `Warning: "${query.nodeId}" reads "${reference}", which reached its limit, so "${query.nodeId}" may be computed on incomplete rows.`,
+            ),
+    );
+    return [...nodeLines, ...warnings].join('\n');
+};
+
+const toNodeColumns = (nodeStatuses: ComposerNodeStatus[]) =>
+    Object.fromEntries(
+        nodeStatuses.flatMap(({ nodeId, columns }) =>
+            columns ? [[nodeId, toComposerNodeColumns(columns)]] : [],
+        ),
+    );
+
+const isSaved = ({ state }: ComposerNodeStatus) =>
+    state === QueryHistoryStatus.READY;
+
+const renderSavedNodes = (
+    queries: ComposerPipelineNode[],
+    nodeStatuses: ComposerNodeStatus[],
+    threadNodes: ThreadComposerQueryNode[],
+): string => {
+    const saved = new Set(
+        nodeStatuses.filter(isSaved).map(({ nodeId }) => nodeId),
+    );
+    const savedNodeIds = queries
+        .filter((node) => saved.has(node.nodeId))
+        .map((node) => node.nodeId);
+    const notSaved = queries
+        .filter((node) => !saved.has(node.nodeId))
+        .map((node) => {
+            const unsavedReads = Object.values(
+                getSourceQueryResultReferences(node),
+            ).filter((reference) => !saved.has(reference));
+            const status = nodeStatuses.find(
+                ({ nodeId }) => nodeId === node.nodeId,
+            );
+            let reason: string;
+            if (unsavedReads.length > 0) {
+                reason = `not run: reads ${unsavedReads.join(', ')}`;
+            } else if (status?.error) {
+                reason = `failed: ${status.error}`;
+            } else {
+                reason = `not finished${status ? `: ${status.state}` : ''}`;
+            }
+            const earlier = threadNodes.some(
+                ({ nodeId }) => nodeId === node.nodeId,
+            )
+                ? '; still saved from an earlier call'
+                : '';
+            return `${node.nodeId} (${reason}${earlier})`;
+        });
+    return [
+        savedNodeIds.length > 0
+            ? `Saved from this call: ${savedNodeIds.join(', ')}.`
+            : null,
+        notSaved.length > 0 ? `Not saved: ${notSaved.join(', ')}.` : null,
+    ]
+        .filter(Boolean)
+        .join(' ');
+};
+
 export const getRunComposerQueries = ({
     agentContext,
     reviewQuery,
@@ -226,6 +336,7 @@ export const getRunComposerQueries = ({
     enableDataAccess,
     canRunSql,
     enablePythonNodes,
+    apiConnections,
     autoApproveSql = false,
     autoApproveSqlUserUuid = null,
     useSlackStreamCard = false,
@@ -251,13 +362,18 @@ export const getRunComposerQueries = ({
         COMPOSER_SQL_APPROVAL_COPY,
     );
 
+    const enableApiNodes = apiConnections.length > 0;
     const inputSchema = createToolComposerQueriesArgsSchema({
         maxLimit: maxQueryLimit,
         enablePythonNodes,
+        enableApiNodes,
     });
 
     return tool({
-        description: getToolComposerQueriesDescription({ enablePythonNodes }),
+        description: getToolComposerQueriesDescription({
+            enablePythonNodes,
+            apiConnections,
+        }),
         inputSchema,
         outputSchema: toolDefinition.outputSchema,
         toModelOutput: toolDefinition.toModelOutput,
@@ -324,11 +440,12 @@ export const getRunComposerQueries = ({
                         }),
                     ),
                 );
+                const threadNodes = await listThreadComposerQueryNodes(
+                    prompt.threadUuid,
+                );
                 const queries = buildComposerArtifactPipeline({
                     queries: submitted,
-                    threadNodes: await listThreadComposerQueryNodes(
-                        prompt.threadUuid,
-                    ),
+                    threadNodes,
                 });
                 // Reused nodes run with the values they were defined with.
                 const appliedParameters = queries.flatMap((node) => {
@@ -341,6 +458,7 @@ export const getRunComposerQueries = ({
                         ? getAppliedParameters(
                               explore,
                               projectParameterDefinitions,
+                              node,
                               node.parameters ?? null,
                           )
                         : null;
@@ -361,6 +479,37 @@ export const getRunComposerQueries = ({
                     return await persistIfResumed(
                         failure(
                             'This pipeline contains "python" nodes but python queries are not enabled. Rebuild the pipeline with duckdb nodes instead.',
+                            'error',
+                        ),
+                    );
+                }
+
+                if (
+                    !enableApiNodes &&
+                    queries.some(
+                        (node) => node.sourceType === QuerySourceType.API,
+                    )
+                ) {
+                    return await persistIfResumed(
+                        failure(
+                            'This pipeline contains "api" nodes but api queries are not enabled. Rebuild the pipeline without them.',
+                            'error',
+                        ),
+                    );
+                }
+
+                const unknownConnectionNode = queries.find(
+                    (node) =>
+                        node.sourceType === QuerySourceType.API &&
+                        !apiConnections.some(
+                            ({ connectionUuid }) =>
+                                connectionUuid === node.connectionUuid,
+                        ),
+                );
+                if (unknownConnectionNode) {
+                    return await persistIfResumed(
+                        failure(
+                            `Node "${unknownConnectionNode.nodeId}" names a connection that is not available. Use one of the connectionUuid values listed in the tool description.`,
                             'error',
                         ),
                     );
@@ -399,7 +548,7 @@ export const getRunComposerQueries = ({
 
                 await updateProgress('Running composer queries...');
 
-                const [{ terminal }, review] = await Promise.all([
+                const [run, review] = await Promise.all([
                     runComposerQueries({
                         queries,
                         terminalNodeId: resolvedTerminalNodeId,
@@ -442,6 +591,23 @@ export const getRunComposerQueries = ({
                         : '',
                 ]);
 
+                // Only ready nodes are saved; other node ids stay free to resubmit corrected.
+                const saved = run.nodeStatuses.filter(isSaved);
+                const savedNodes = queries.filter((node) =>
+                    saved.some(({ nodeId }) => nodeId === node.nodeId),
+                );
+                if (run.status === 'failure') {
+                    await registerThreadComposerQueryNodes({
+                        threadUuid: prompt.threadUuid,
+                        nodes: savedNodes,
+                        nodeColumns: toNodeColumns(saved),
+                    });
+                    throw new WarehouseQueryError(
+                        `${run.error}\n${renderSavedNodes(queries, run.nodeStatuses, threadNodes)}`,
+                    );
+                }
+                const { terminal, nodeStatuses } = run;
+
                 if (approvalSql !== null) {
                     await renderState({
                         kind: 'success',
@@ -465,14 +631,18 @@ export const getRunComposerQueries = ({
                     nodeId: node.nodeId,
                     title: node.title ?? null,
                     sourceType: node.sourceType,
+                    rowCount:
+                        nodeStatuses.find(
+                            (status) => status.nodeId === node.nodeId,
+                        )?.rowCount ?? null,
+                    limit: getSourceQueryLimit(node),
                 }));
-                const nodeSummary = nodes
-                    .map((node) =>
-                        node.title === null
-                            ? `- ${node.nodeId} (${node.sourceType})`
-                            : `- ${node.nodeId}: "${node.title}" (${node.sourceType})`,
-                    )
-                    .join('\n');
+                const nodeSummary = renderComposerNodeSummary(
+                    queries,
+                    nodes,
+                    nodeStatuses,
+                    maxQueryLimit,
+                );
                 const columns = Object.values(terminal.columns).map(
                     ({ reference, type }) => ({ reference, type }),
                 );
@@ -543,7 +713,7 @@ export const getRunComposerQueries = ({
                         };
                     }
                     const previewRows = terminal.rows
-                        .slice(0, PREVIEW_ROW_LIMIT)
+                        .slice(0, COMPOSER_QUERY_PREVIEW_ROW_LIMIT)
                         .map((row) =>
                             columnReferences.reduce<Record<string, AnyType>>(
                                 (acc, col) => {
@@ -557,9 +727,10 @@ export const getRunComposerQueries = ({
                         header: true,
                         columns: columnReferences,
                     });
-                    const truncated = terminal.rowCount > PREVIEW_ROW_LIMIT;
+                    const truncated =
+                        terminal.rowCount > COMPOSER_QUERY_PREVIEW_ROW_LIMIT;
                     const truncatedNote = truncated
-                        ? `\n(Showing first ${PREVIEW_ROW_LIMIT} of ${terminal.rowCount} rows.)`
+                        ? `\n(Showing first ${COMPOSER_QUERY_PREVIEW_ROW_LIMIT} of ${terminal.rowCount} rows.)`
                         : '';
                     return {
                         result: `${resultSummary}${truncatedNote}\n${serializeData(
@@ -578,8 +749,9 @@ export const getRunComposerQueries = ({
                 // Last fallible step: a failure anywhere above registers nothing.
                 await registerThreadComposerQueryNodes({
                     threadUuid: prompt.threadUuid,
-                    nodes: queries,
+                    nodes: savedNodes,
                     nodeColumns: {
+                        ...toNodeColumns(saved),
                         [resolvedTerminalNodeId]: toComposerNodeColumns(
                             terminal.columns,
                         ),

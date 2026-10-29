@@ -1,25 +1,36 @@
 import { useEffect, type RefObject } from 'react';
 
-// The dashboard's tabs and filter bar, which stick under its header
+// The dashboard's tabs and filter bar, which stick under its header; the rail
+// sits under them, so their height moves it
 const STICKY_BAR_SELECTOR = '[data-has-header-above][data-is-stuck]';
-const VAR = '--controls-rail-top';
+const VAR = '--controls-rail-offset';
 
-// Where the bar ends once stuck: its own sticky top (header, banner) plus its
-// height, which changes as the bar wraps
-export const getRailTop = (bar: HTMLElement): number =>
-    (parseFloat(getComputedStyle(bar).top) || 0) + bar.offsetHeight;
+// Where the rail sits in the page before it sticks: measured unstuck, so a
+// page that is already scrolled gives the same answer
+export const getRailTop = (rail: HTMLElement): number => {
+    const { position } = rail.style;
+    rail.style.position = 'static';
+    const top = rail.getBoundingClientRect().top + window.scrollY;
+    rail.style.position = position;
+    return top;
+};
 
-// The rail sticks right under the bar, so the bar never covers it
+// The rail is pinned where it naturally sits, under the stuck bar, and its
+// max-height is taken from the same offset, so it always fits the viewport
 export const useRailTop = (ref: RefObject<HTMLElement | null>) => {
     useEffect(() => {
         const rail = ref.current;
-        const bar = document.querySelector<HTMLElement>(STICKY_BAR_SELECTOR);
-        if (rail === null || bar === null) return;
+        if (rail === null) return;
         const update = () =>
-            rail.style.setProperty(VAR, `${getRailTop(bar)}px`);
+            rail.style.setProperty(VAR, `${getRailTop(rail)}px`);
         update();
         const observer = new ResizeObserver(update);
-        observer.observe(bar);
-        return () => observer.disconnect();
+        const bar = document.querySelector<HTMLElement>(STICKY_BAR_SELECTOR);
+        if (bar !== null) observer.observe(bar);
+        window.addEventListener('resize', update);
+        return () => {
+            observer.disconnect();
+            window.removeEventListener('resize', update);
+        };
     }, [ref]);
 };

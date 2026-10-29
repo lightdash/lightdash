@@ -272,6 +272,7 @@ import {
     getLegacyPrimaryExploreNames,
     type ExploreNaming,
 } from './exploreNameAllocation';
+import { validateExplorePublication } from './explorePublication';
 import { normalizeStoredDbtConnection } from './normalizeStoredDbtConnection';
 import { omitProjectUuid, replaceProjectUuid } from './previewContent';
 import Transaction = Knex.Transaction;
@@ -1626,12 +1627,18 @@ export class ProjectModel {
             });
     }
 
-    async getResultsCacheSettings(
-        projectUuid: string,
-    ): Promise<{ cacheTtlSeconds: number | null }> {
+    async getResultsCacheSettings(projectUuid: string): Promise<{
+        cacheTtlSeconds: number | null;
+        cacheGeneration: number;
+        lastInvalidatedAt: Date | null;
+    }> {
         const row = await this.database(ProjectTableName)
             .where('project_uuid', projectUuid)
-            .select('results_cache_ttl_seconds')
+            .select(
+                'results_cache_ttl_seconds',
+                'results_cache_generation',
+                'results_cache_invalidated_at',
+            )
             .first();
 
         if (!row) {
@@ -1640,7 +1647,38 @@ export class ProjectModel {
             );
         }
 
-        return { cacheTtlSeconds: row.results_cache_ttl_seconds };
+        return {
+            cacheTtlSeconds: row.results_cache_ttl_seconds,
+            cacheGeneration: row.results_cache_generation,
+            lastInvalidatedAt: row.results_cache_invalidated_at,
+        };
+    }
+
+    async invalidateResultsCache(
+        projectUuid: string,
+    ): Promise<{ cacheGeneration: number; invalidatedAt: Date }> {
+        const [row] = await this.database(ProjectTableName)
+            .where('project_uuid', projectUuid)
+            .update({
+                results_cache_generation: this.database.raw(
+                    'results_cache_generation + 1',
+                ) as unknown as number,
+                results_cache_invalidated_at:
+                    this.database.fn.now() as unknown as Date,
+            })
+            .returning([
+                'results_cache_generation',
+                'results_cache_invalidated_at',
+            ]);
+        if (!row?.results_cache_invalidated_at) {
+            throw new NotFoundError(
+                `Cannot find project with id: ${projectUuid}`,
+            );
+        }
+        return {
+            cacheGeneration: row.results_cache_generation,
+            invalidatedAt: row.results_cache_invalidated_at,
+        };
     }
 
     async updateResultsCacheSettings(
@@ -4448,7 +4486,12 @@ export class ProjectModel {
                         const lockedStagedRows = await trx(
                             CachedExploreStagingTableName,
                         )
-                            .select<{ name: string }[]>('name')
+                            .select<
+                                {
+                                    name: string;
+                                    explore: Explore | ExploreError;
+                                }[]
+                            >('name', 'explore')
                             .where({
                                 save_uuid: saveUuid,
                                 project_uuid: projectUuid,
@@ -4464,6 +4507,31 @@ export class ProjectModel {
                                 'Cached explore staging name set mismatch',
                             );
                         }
+                        await lockedStagedRows.reduce(async (previous, row) => {
+                            await previous;
+                            const validated = validateExplorePublication(
+                                row.explore,
+                                row.name,
+                            );
+                            if (validated !== row.explore) {
+                                await trx(CachedExploreStagingTableName)
+                                    .where({
+                                        save_uuid: saveUuid,
+                                        project_uuid: projectUuid,
+                                        name: row.name,
+                                    })
+                                    .update({
+                                        explore: JSON.stringify(validated),
+                                        table_names: [],
+                                    });
+                                const index =
+                                    named?.explores.findIndex(
+                                        (explore) => explore.name === row.name,
+                                    ) ?? -1;
+                                if (named && index >= 0)
+                                    named.explores[index] = validated;
+                            }
+                        }, Promise.resolve());
                         // Explores that survive a compile keep their uuid so rows
                         // that reference them (pre-aggregate registry and
                         // materializations, changes) are not cascade-deleted.

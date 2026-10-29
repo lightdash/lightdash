@@ -57,6 +57,7 @@ const renderContent = ({
                         childSpaceCount={item.childSpaceCount}
                         appCount={item.appCount}
                         directAccess={item.directAccess}
+                        canEdit={item.canEdit}
                     />
                 );
             }

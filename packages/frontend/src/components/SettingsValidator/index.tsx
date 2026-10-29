@@ -283,7 +283,7 @@ export const SettingsValidator: FC<{
                     <Paper shadow="sm">
                         <Group justify="center" gap="xs" p="md">
                             <MantineIcon icon={IconCheck} color="green" />
-                            <Text fw={500} c="ldGray.7">
+                            <Text fw={500} c="dimmed">
                                 No validation errors found
                             </Text>
                         </Group>

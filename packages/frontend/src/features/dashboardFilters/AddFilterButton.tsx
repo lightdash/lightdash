@@ -1,11 +1,12 @@
-import { FeatureFlags, type DashboardFilterRule } from '@lightdash/common';
+import { type DashboardFilterRule } from '@lightdash/common';
 import { Button, Divider, Group, Popover, Text, Tooltip } from '@mantine/core';
 import { useDisclosure, useId } from '@mantine/hooks';
 import { IconEye, IconEyeOff, IconRotate2 } from '@tabler/icons-react';
-import { useCallback, useMemo, type FC } from 'react';
+import clsx from 'clsx';
+import { useCallback, useMemo, useRef, type FC, type ReactNode } from 'react';
+import { flushSync } from 'react-dom';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
-import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import {
     selectDashboardTabs,
@@ -16,6 +17,7 @@ import {
     useDashboardSelector,
     useHasDashboardTemporaryFilters,
 } from '../dashboard/store';
+import classes from './AddFilterButton.module.css';
 import FilterConfiguration from './FilterConfiguration';
 
 type Props = {
@@ -34,8 +36,8 @@ type Props = {
      * hide it entirely. Defaults to the app's "edit mode" copy.
      */
     unsavedFiltersTooltip?: string | null;
-    /** Leaves out the edit-mode eye that hides "Add filter" from viewers (default false). */
-    isVisibilityToggleHidden?: boolean;
+    /** Shown in place of the edit-mode eye (default: the eye). */
+    editModeAction?: ReactNode;
 };
 
 const AddFilterButton: FC<Props> = ({
@@ -49,7 +51,7 @@ const AddFilterButton: FC<Props> = ({
     triggerClassName,
     dropdownClassName,
     unsavedFiltersTooltip,
-    isVisibilityToggleHidden = false,
+    editModeAction,
 }) => {
     const popoverId = useId();
     const getUiString = useUiStrings();
@@ -65,11 +67,6 @@ const AddFilterButton: FC<Props> = ({
     const allFilterableMetrics = useDashboardContext(
         (c) => c.allFilterableMetrics,
     );
-    const { data: metricDashboardFiltersFlag } = useServerFeatureFlag(
-        FeatureFlags.MetricDashboardFilters,
-    );
-    const isMetricFiltersEnabled =
-        metricDashboardFiltersFlag?.enabled ?? import.meta.env.DEV;
     const sqlChartTilesMetadata = useDashboardSelector(
         selectSqlChartTilesMetadata,
     );
@@ -107,17 +104,44 @@ const AddFilterButton: FC<Props> = ({
         closeSubPopover();
     }, [isPopoverOpen, onPopoverClose, closeSubPopover]);
 
+    // A viewer's new filter is kept when the popover closes, as "any value"
+    // until a value is set
+    const draftRef = useRef<DashboardFilterRule | undefined>(undefined);
     const handleSaveChanges = useCallback(
         (newRule: DashboardFilterRule) => {
+            draftRef.current = undefined;
             onSave(newRule);
             handleClose();
         },
         [onSave, handleClose],
     );
 
+    const handleDraftChange = useCallback(
+        (rule: DashboardFilterRule | undefined) => {
+            draftRef.current = rule;
+        },
+        [],
+    );
+    const dropdownRef = useRef<HTMLDivElement>(null);
+    const handleDismiss = useCallback(() => {
+        // Inputs that commit typed text on blur would lose it: the popover
+        // closes on mousedown, before the blur
+        const activeElement = document.activeElement;
+        if (
+            (activeElement instanceof HTMLInputElement ||
+                activeElement instanceof HTMLTextAreaElement) &&
+            dropdownRef.current?.contains(activeElement)
+        ) {
+            flushSync(() => activeElement.blur());
+        }
+        const draft = draftRef.current;
+        draftRef.current = undefined;
+        if (!isEditMode && isPopoverOpen && draft) onSave(draft);
+        handleClose();
+    }, [isEditMode, isPopoverOpen, onSave, handleClose]);
+
     const showResetFiltersButton = !isEditMode && haveFiltersChanged;
-    const hasVisibilityToggle = isEditMode && !isVisibilityToggleHidden;
-    const hasAttachedButton = showResetFiltersButton || hasVisibilityToggle;
+    const hasAttachedButton = showResetFiltersButton || isEditMode;
 
     const tooltipLabel =
         unsavedFiltersTooltip === undefined ? (
@@ -146,12 +170,8 @@ const AddFilterButton: FC<Props> = ({
                             setHaveFiltersChanged(false);
                             onResetDashboardFilters();
                         }}
-                        styles={{
-                            root: {
-                                borderRadius: '100px',
-                                borderStyle: 'dashed',
-                            },
-                        }}
+                        radius={100}
+                        className={classes.dashed}
                     >
                         <MantineIcon icon={IconRotate2} />
                     </Button>
@@ -168,8 +188,8 @@ const AddFilterButton: FC<Props> = ({
                 opened={isPopoverOpen}
                 closeOnEscape={!isSubPopoverOpen}
                 closeOnClickOutside={!isSubPopoverOpen}
-                onClose={handleClose}
-                onDismiss={!isSubPopoverOpen ? handleClose : undefined}
+                onClose={handleDismiss}
+                onDismiss={!isSubPopoverOpen ? handleDismiss : undefined}
                 disabled={disabled}
                 transitionProps={{ transition: 'pop-top-left' }}
                 withArrow
@@ -189,7 +209,11 @@ const AddFilterButton: FC<Props> = ({
                     >
                         <Button
                             data-dashboard-filter-control
-                            className={triggerClassName}
+                            className={clsx(
+                                triggerClassName,
+                                classes.dashed,
+                                hasAttachedButton && classes.attachedLeft,
+                            )}
                             size="xs"
                             variant="default"
                             radius={100}
@@ -198,21 +222,9 @@ const AddFilterButton: FC<Props> = ({
                                 isLoadingDashboardFilters ||
                                 isFetchingDashboardFilters
                             }
-                            styles={{
-                                root: {
-                                    borderStyle: 'dashed',
-                                    ...(hasAttachedButton
-                                        ? {
-                                              borderRightWidth: '0px',
-                                              borderTopRightRadius: '0px',
-                                              borderBottomRightRadius: '0px',
-                                          }
-                                        : {}),
-                                },
-                            }}
                             onClick={() =>
                                 isPopoverOpen
-                                    ? handleClose()
+                                    ? handleDismiss()
                                     : onPopoverOpen(popoverId)
                             }
                         >
@@ -221,7 +233,7 @@ const AddFilterButton: FC<Props> = ({
                     </Tooltip>
                 </Popover.Target>
 
-                <Popover.Dropdown>
+                <Popover.Dropdown ref={dropdownRef}>
                     {dashboardTiles && (
                         <FilterConfiguration
                             isCreatingNew={true}
@@ -229,9 +241,7 @@ const AddFilterButton: FC<Props> = ({
                             activeTabUuid={activeTabUuid}
                             fields={[
                                 ...(allFilterableFields || []),
-                                ...(isMetricFiltersEnabled
-                                    ? (allFilterableMetrics ?? [])
-                                    : []),
+                                ...(allFilterableMetrics ?? []),
                             ]}
                             tiles={dashboardTiles}
                             tabs={dashboardTabs}
@@ -239,6 +249,7 @@ const AddFilterButton: FC<Props> = ({
                                 filterableFieldsByTileUuid ?? {}
                             }
                             onSave={handleSaveChanges}
+                            onDraftChange={handleDraftChange}
                             popoverProps={{
                                 onOpen: openSubPopover,
                                 onClose: closeSubPopover,
@@ -248,43 +259,38 @@ const AddFilterButton: FC<Props> = ({
                 </Popover.Dropdown>
             </Popover>
 
-            {hasVisibilityToggle && (
+            {isEditMode && (
                 <>
                     <Divider orientation="vertical" />
 
-                    <Tooltip
-                        label={
-                            isAddFilterDisabled
-                                ? 'Hidden from viewers. Click to show.'
-                                : 'Visible to viewers. Click to hide.'
-                        }
-                    >
-                        <Button
-                            aria-label="Toggle filter visibility for viewers"
-                            size="xs"
-                            variant="default"
-                            color="gray"
-                            onClick={() =>
-                                setIsAddFilterDisabled(!isAddFilterDisabled)
+                    {editModeAction ?? (
+                        <Tooltip
+                            label={
+                                isAddFilterDisabled
+                                    ? 'Hidden from viewers. Click to show.'
+                                    : 'Visible to viewers. Click to hide.'
                             }
-                            styles={{
-                                root: {
-                                    borderLeft: '0px',
-                                    borderStartStartRadius: '0px',
-                                    borderEndStartRadius: '0px',
-                                    borderStartEndRadius: '100px',
-                                    borderEndEndRadius: '100px',
-                                    borderStyle: 'dashed',
-                                },
-                            }}
                         >
-                            <MantineIcon
-                                icon={
-                                    isAddFilterDisabled ? IconEyeOff : IconEye
+                            <Button
+                                aria-label="Toggle filter visibility for viewers"
+                                size="xs"
+                                variant="default"
+                                color="gray"
+                                onClick={() =>
+                                    setIsAddFilterDisabled(!isAddFilterDisabled)
                                 }
-                            />
-                        </Button>
-                    </Tooltip>
+                                className={classes.attachedRight}
+                            >
+                                <MantineIcon
+                                    icon={
+                                        isAddFilterDisabled
+                                            ? IconEyeOff
+                                            : IconEye
+                                    }
+                                />
+                            </Button>
+                        </Tooltip>
+                    )}
                 </>
             )}
 
@@ -302,16 +308,7 @@ const AddFilterButton: FC<Props> = ({
                                 setHaveFiltersChanged(false);
                                 onResetDashboardFilters();
                             }}
-                            styles={{
-                                root: {
-                                    borderLeft: '0px',
-                                    borderStartStartRadius: '0px',
-                                    borderEndStartRadius: '0px',
-                                    borderStartEndRadius: '100px',
-                                    borderEndEndRadius: '100px',
-                                    borderStyle: 'dashed',
-                                },
-                            }}
+                            className={classes.attachedRight}
                         >
                             <MantineIcon icon={IconRotate2} />
                         </Button>

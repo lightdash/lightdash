@@ -2,6 +2,7 @@ import { isVizTableConfig, type AllVizChartConfig } from '@lightdash/common';
 import { Box, LoadingOverlay } from '@mantine/core';
 import { type SerializedError } from '@reduxjs/toolkit';
 import { IconAlertCircle } from '@tabler/icons-react';
+import { clsx } from 'clsx';
 import { memo } from 'react';
 import SuboptimalState from '../../common/SuboptimalState/SuboptimalState';
 import EChartsReact, {
@@ -14,10 +15,11 @@ type Props = {
     spec: EChartsReactProps['option'];
     isLoading: boolean;
     error?: SerializedError | null;
-} & Partial<Pick<EChartsReactProps, 'style'>>;
+    className?: string;
+};
 
 const ChartView = memo<Props>(
-    ({ config, isLoading, error, style, spec, onChartReady }) => {
+    ({ config, isLoading, error, className, spec, onChartReady }) => {
         if (isVizTableConfig(config)) {
             throw new Error(
                 'VizChartView should not be used for table visualization',
@@ -67,11 +69,15 @@ const ChartView = memo<Props>(
 
                 {spec && (
                     <EChartsReact
-                        className="sentry-block ph-no-capture"
+                        className={clsx(
+                            'sentry-block ph-no-capture',
+                            className,
+                        )}
                         option={spec}
                         notMerge
                         opts={{ renderer: 'svg' }}
-                        style={style}
+                        // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
+                        style={{ height: '100%', width: '100%' }}
                         onChartReady={onChartReady}
                     />
                 )}

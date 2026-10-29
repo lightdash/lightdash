@@ -5,8 +5,9 @@ import {
 import { useMemo } from 'react';
 import { isFunnelVisualizationConfig } from '../../components/LightdashVisualization/types';
 import {
+    useVisualizationConfig,
+    useVisualizationInputs,
     useVisualizationServices,
-    useVisualizationState,
 } from '../../components/LightdashVisualization/useVisualizationContext';
 import { useVisualizationTheme } from '../useVisualizationTheme';
 
@@ -21,14 +22,9 @@ const useEchartsFunnelConfig = (
     isInDashboard?: boolean,
 ) => {
     const { isTouchDevice } = useVisualizationServices();
-    const {
-        visualizationConfig,
-        itemsMap,
-        colorPalette,
-        parameters,
-        minimal,
-        resolvedTimezone,
-    } = useVisualizationState();
+    const visualizationConfig = useVisualizationConfig();
+    const { itemsMap, colorPalette, parameters, minimal, resolvedTimezone } =
+        useVisualizationInputs();
 
     const theme = useVisualizationTheme();
 

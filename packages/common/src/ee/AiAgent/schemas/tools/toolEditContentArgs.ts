@@ -6,7 +6,7 @@ import { toolNameFor } from './discoveryToolNames';
 export const TOOL_EDIT_CONTENT_DESCRIPTION = ({
     runtime,
 }: ToolDescriptionContext): string =>
-    `Edit a dashboard, chart or SQL chart with an RFC6902 patch against its JSON as ${toolNameFor('readContent', runtime)} last returned it; the edited content is validated before it is saved. A SQL chart needs the SQL chart save permission and, in agent threads, SQL mode; a patch that changes its sql waits for user approval of the new SQL.`;
+    `Edit a dashboard, chart or SQL chart with an RFC6902 patch against its JSON as ${toolNameFor('readContent', runtime)} last returned it; the edited content is validated before it is saved. The content's space must show canEdit true in ${toolNameFor('findContent', runtime)} or ${toolNameFor('listContent', runtime)} results; an edit in any other space is refused. A SQL chart needs the SQL chart save permission and, in agent threads, SQL mode; a patch that changes its sql waits for user approval of the new SQL.`;
 
 export const toolEditContentArgsSchema = z.object({
     slug: z.string().min(1).describe('Exact slug of the content to edit'),

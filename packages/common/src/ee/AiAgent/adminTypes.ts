@@ -630,8 +630,6 @@ export type AiOrganizationSettings = {
     dataAppRuntimeAiEnabled?: boolean;
     // Whether viewers may carry a data-app investigation on in Ask AI.
     dataAppContinueInAskAiEnabled?: boolean;
-    // Org default for running AI analysis when a data app loads.
-    dataAppAutoAnalysisEnabled?: boolean;
     // Per-run ceilings and daily caps for AI analysis in data apps.
     dataAppAnalysisLimits?: DataAppAnalysisLimits;
     // Org-wide guidance prepended to every AI analysis summary; app-level
@@ -673,7 +671,6 @@ export type UpdateAiOrganizationSettings = {
     mcpAgentsEnabled?: boolean;
     dataAppRuntimeAiEnabled?: boolean;
     dataAppContinueInAskAiEnabled?: boolean;
-    dataAppAutoAnalysisEnabled?: boolean;
     dataAppAnalysisLimits?: DataAppAnalysisLimits;
     dataAppAnalysisDefaultInstructions?: string | null;
     requireExplicitSlackChannelLinking?: boolean;
@@ -705,8 +702,6 @@ export type AiOrganizationRuntimeSettings = {
     dataAppRuntimeAiEnabled?: boolean;
     // Whether viewers may continue a data-app investigation in Ask AI.
     dataAppContinueInAskAiEnabled?: boolean;
-    // Org default for running AI analysis when a data app loads.
-    dataAppAutoAnalysisEnabled?: boolean;
     // Org retention ceiling, surfaced so agent editors can see what caps
     // their agent-level window. Optional for backwards compatibility.
     threadRetentionHours?: number | null;

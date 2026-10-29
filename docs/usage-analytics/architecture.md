@@ -14,17 +14,23 @@ For current role requirements, project-list visibility and support guidance, see
 [managed analytics project access](access.md). A standard project type does not
 remove the analytics-specific organization-management check.
 
+For the automatic import on project creation and the Settings action for
+existing projects, see [historical backfill](history-backfill.md). It recovers
+retained query history and AI usage into their event datasets, plus legacy
+views, app, conversation, tool and export facts in a separate Historical Activity
+Explore. It does not reconstruct every past event or historical People summaries.
+
 ## Current implementation versus rollout intent
 
-| Area                   | Implemented                                                                               | Still required for production                                      |
-| ---------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| Project                | New projects use `DEFAULT` with `provisioning_source=analytics`; older previews retain their type | Non-admin project access remains a separate follow-up          |
-| Entry point            | Organization analytics settings and session-authenticated, org-admin-only endpoints       | No configurable connector setup UI                                 |
-| Enablement             | Standard `analytics-project` resolver: Console organization flags or deployment ENV flags | Controlled live verification before customer rollout               |
-| Source org             | Persisted, authorized project org; legacy local overrides ignored                         | Live shared-instance isolation verification                        |
-| Storage authentication | Existing writer credentials retained in backend; signed GET URLs passed to DuckDB         | Verify effective IAM; read-only hardening is deferred (PROD-11103) |
-| Models                 | Backend-owned Query Events, AI Usage, Data App Events and Export Events explores          | Additional event coverage and named-entity lookups                 |
-| Current names          | Daily per-org charts, dashboards, users and agents snapshots with optional ID joins       | Other entity lookups; production-scale database load verification  |
+| Area                   | Implemented                                                                                       | Still required for production                                      |
+| ---------------------- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| Project                | New projects use `DEFAULT` with `provisioning_source=analytics`; older previews retain their type | Non-admin project access remains a separate follow-up              |
+| Entry point            | Organization analytics settings and session-authenticated, org-admin-only endpoints               | No configurable connector setup UI                                 |
+| Enablement             | Standard `analytics-project` resolver: Console organization flags or deployment ENV flags         | Controlled live verification before customer rollout               |
+| Source org             | Persisted, authorized project org; legacy local overrides ignored                                 | Live shared-instance isolation verification                        |
+| Storage authentication | Existing writer credentials retained in backend; signed GET URLs passed to DuckDB                 | Verify effective IAM; read-only hardening is deferred (PROD-11103) |
+| Models                 | Backend-owned Query Events, AI Usage, Data App Events and Export Events explores                  | Additional event coverage and named-entity lookups                 |
+| Current names          | Daily per-org charts, dashboards, users and agents snapshots with optional ID joins               | Other entity lookups; production-scale database load verification  |
 
 Historical tickets and handover proposals may describe different designs. They
 are not evidence that production rollout or final role restrictions are complete.
@@ -41,6 +47,10 @@ Backend event projections
 Postgres charts, dashboards and organization members
   → same daily job: paged reads → temporary JSONL → Parquet
   → overwrite one current object per organization and dimension
+
+Retained Postgres query history, AI usage ledger and allowlisted activity records
+  → one background backfill → history=<stream>/history.parquet
+  → immediately queryable; no additional nightly compaction required
 
 Signed-in org admin
   → create-or-get endpoint → fixed system explores stored in the app database
@@ -219,9 +229,11 @@ concurrency limits still need validation before customer rollout.
 
 The query-local cache lifetime does not mean Lightdash has no persisted query results.
 The normal result/history paths still exist and need authorization. Analytics
-checks cover project access and result/history retrieval; exports and scheduled
-downloads are blocked in this preview. Flag-off denial is not deletion or
-cryptographic revocation of previously issued capabilities or returned data.
+checks cover project access, result/history retrieval, CSV/XLSX export generation
+and protected download retrieval. Scheduled deliveries can intentionally share
+signed export links; see [downloads and scheduled deliveries](access.md#downloads-and-scheduled-deliveries).
+Flag-off denial is not deletion or cryptographic revocation of previously issued
+signed delivery links or returned data.
 
 ### Small Parquet cache and temporary-file lifecycle
 
@@ -256,7 +268,7 @@ remains the source of truth; this does not change capture or nightly compaction.
 | Reusable memory cache              | 64 MiB of compressed bytes and 4,096 entries **per process**, shared capacity across orgs but separately keyed entries   |
 | Eligible file                      | At most 1 MiB, with a positive known size and ETag                                                                       |
 | Cache downloads                    | At most 8 in flight per process; pending bytes/entries reserve capacity; 10-second request timeout                       |
-| Per-query buffers and staged files | At most 8 MiB each; concurrent queries have separate staging directories                                                 |
+| Per-query buffers and staged files | At most 32 MiB each; concurrent queries have separate staging directories                                                |
 | Memory eviction                    | Least recently used completed entries are evicted when capacity is needed; no time-based TTL; process exit clears memory |
 | Disk cleanup                       | At session teardown after success or error; no scheduled cleanup interval                                                |
 

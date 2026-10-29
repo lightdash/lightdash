@@ -4,6 +4,7 @@
  * so large dashboards don't take forever to settle. */
 .tile {
     animation: tileEnter 240ms cubic-bezier(0.32, 0.72, 0, 1) both;
+    animation-delay: var(--tile-delay, 0ms);
 }
 
 @keyframes tileEnter {

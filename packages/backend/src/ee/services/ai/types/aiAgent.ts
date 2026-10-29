@@ -18,6 +18,7 @@ import {
     type AiDeepResearchWorkerTask,
     type AiDeepResearchWorkerTaskInput,
     type AiSemanticChartArtifactConfig,
+    type ComposerApiConnection,
 } from '@lightdash/common';
 // eslint-disable-next-line import/extensions
 import { type OAuthClientProvider } from '@modelcontextprotocol/sdk/client/auth.js';
@@ -52,7 +53,6 @@ import {
     EditContentFn,
     EditDbtProjectFn,
     EditProjectContextFn,
-    EditRepoFn,
     ExploreRepoFn,
     ExportCustomChartTypeImageFn,
     FindContentFn,
@@ -290,10 +290,6 @@ export type AiAgentArgs = AnyAiModel & {
     // registered.
     enableReadAttachments: boolean;
     enableFilterExpressions: boolean;
-    // Whether the general-purpose coding agent (`editRepo`) is available — the
-    // CodingAgent flag, the org has a writable Git installation, and (in Slack)
-    // a trusted prompt identity. Independent of enableAiWriteback.
-    enableCodingAgent: boolean;
     // dbt project root within the repo (from project_sub_path); '.' = repo root,
     // null when repo discovery is off or the project is not git-backed.
     repoFsRoot: string | null;
@@ -304,6 +300,8 @@ export type AiAgentArgs = AnyAiModel & {
     // Whether the composer query tool is the query path: composer flags, data
     // access and the agent's enableComposerQueries opt-in.
     enableComposerQueries: boolean;
+    // Project API connections composer api nodes may query; empty disables them.
+    composerApiConnections: ComposerApiConnection[];
     // Whether the user can save a generated dashboard anywhere in the project.
     // Gates generateDashboard so the agent does not build one the user is then
     // refused permission to keep.
@@ -444,7 +442,6 @@ export type AiAgentDependencies = {
     listDataAppConnections: ListDataAppConnectionsFn;
     editDbtProject: EditDbtProjectFn;
     editProjectContext: EditProjectContextFn;
-    editRepo: EditRepoFn;
     syncDbtProject: SyncDbtProjectFn;
     exploreRepo: ExploreRepoFn;
     discoverRepos: DiscoverReposFn;

@@ -21,7 +21,7 @@ import MantineIcon from '../common/MantineIcon';
 import { type CellContextMenuProps } from '../common/Table/types';
 import { UnderlyingDataMenuItem } from '../DashboardTiles/UnderlyingDataMenuItem';
 import UrlMenuItems from '../Explorer/ResultsCard/UrlMenuItems';
-import { useVisualizationState } from '../LightdashVisualization/useVisualizationContext';
+import { useVisualizationInputs } from '../LightdashVisualization/useVisualizationContext';
 import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
 import { useMetricQueryDataContext } from '../MetricQueryData/useMetricQueryDataContext';
 
@@ -29,7 +29,7 @@ const MinimalDashboardCellInteractions: FC<
     Pick<CellContextMenuProps, 'cell'>
 > = ({ cell }) => {
     const { embeddedDashboardInteractivity, itemsMap } =
-        useVisualizationState();
+        useVisualizationInputs();
     const addDimensionDashboardFilter = useDashboardContext(
         (c) => c.addDimensionDashboardFilter,
     );
@@ -115,7 +115,7 @@ const MinimalCellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({
     const { showToastSuccess } = useToaster();
     const { openUnderlyingDataModal, metricQuery } =
         useMetricQueryDataContext();
-    const { embeddedDashboardInteractivity } = useVisualizationState();
+    const { embeddedDashboardInteractivity } = useVisualizationInputs();
 
     const meta = cell.column.columnDef.meta;
     const item = meta?.item;

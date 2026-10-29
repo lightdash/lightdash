@@ -10,9 +10,9 @@ allowed-tools: Read, Edit, Write, Glob, Grep
 
 Apply these rules when working on any frontend component in `packages/frontend/`.
 
-## Mantine 8
+## Mantine 9
 
-The app runs on Mantine 8 (`@mantine/core`), with the theme in `src/theme/`.
+The app runs on Mantine 9 (`@mantine/core`), with the theme in `src/theme/`.
 
 ## Design principles
 
@@ -43,7 +43,7 @@ When creating/updating components:
 - [ ] Use inline-style component props for styling when available (and follow <=3 props rule)
 - [ ] Use CSS modules when component props aren't available or when more than 3 inline-style props are needed
 - [ ] No "Lightdash" meaning "this app" in error messages, or in labels of embed-reachable components (see `docs/white-label-copy.md`)
-- [ ] No Lightdash branding or docs links in embeds: gate them with `useIsEmbedded()` (see "Embeds are white-label" in `packages/frontend/CLAUDE.md`)
+- [ ] No Lightdash branding or docs links in embeds: gate them with `useIsEmbedded()` (see "Embeds are white-label" in `packages/frontend/AGENTS.md`)
 - [ ] Theme values ('md', 'lg', 'xl', or 'ldGray.1', 'ldGray.2', 'ldDark.1', 'ldDark.2', etc) instead of magic numbers
 - [ ] When using mantine colors in css modules, always use the theme awared variables:
     - `--mantine-color-${color}-text`: for text on filled background
@@ -278,10 +278,10 @@ const { monaco, ace } = useEditorTheme();
 const isDark = useComputedColorScheme('light') === 'dark';
 ```
 
-## Use the clsx utility exported by @mantine/core
+## Use the clsx utility from the clsx package
 
 ```tsx
-import { clsx } from '@mantine/core';
+import { clsx } from 'clsx';
 
 const MyComponent = () => {
     return (

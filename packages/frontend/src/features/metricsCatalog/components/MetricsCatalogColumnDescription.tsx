@@ -51,17 +51,19 @@ export const MetricsCatalogColumnDescription: FC<Props> = ({
         },
         components: {
             h1: ({ children }) => (
-                <h1 style={{ fontWeight: 600 }}>{children}</h1>
+                <h1 className={classes.markdownHeading}>{children}</h1>
             ),
             h2: ({ children }) => (
-                <h2 style={{ fontWeight: 600 }}>{children}</h2>
+                <h2 className={classes.markdownHeading}>{children}</h2>
             ),
             h3: ({ children }) => (
-                <h3 style={{ fontWeight: 600 }}>{children}</h3>
+                <h3 className={classes.markdownHeading}>{children}</h3>
             ),
-            p: ({ children }) => <p style={{ fontWeight: 400 }}>{children}</p>,
+            p: ({ children }) => (
+                <p className={classes.markdownBody}>{children}</p>
+            ),
             li: ({ children }) => (
-                <li style={{ fontWeight: 400 }}>{children}</li>
+                <li className={classes.markdownBody}>{children}</li>
             ),
         },
     };

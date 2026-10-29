@@ -29,6 +29,7 @@ export const createResourceBoundAuthorizationCodeGrant = (
                 familyUuid: null,
                 agentConnectionGrantUuid: null,
                 parentRefreshToken: null,
+                sessionExpiresAt: null,
             };
             const boundOptions = {
                 ...options,
@@ -46,6 +47,7 @@ export const createResourceBoundAuthorizationCodeGrant = (
             this.publicDocumentClient = isClientIdMetadataDocumentUrl(
                 client.id,
             );
+            this.binding.sessionExpiresAt = code.sessionExpiresAt ?? null;
             this.binding.agentConnectionGrantUuid =
                 code.agentConnectionGrantUuid ?? null;
             this.strict =

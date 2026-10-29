@@ -1,5 +1,6 @@
 import { Anchor, Text, useMantineColorScheme } from '@mantine/core';
 import { IconGraphOff } from '@tabler/icons-react';
+import { clsx } from 'clsx';
 import {
     lazy,
     Suspense,
@@ -7,6 +8,7 @@ import {
     useEffect,
     useMemo,
     useRef,
+    type CSSProperties,
     type FC,
 } from 'react';
 import { dark as vegaDarkTheme } from 'vega-themes';
@@ -15,9 +17,11 @@ import LoadingChart from '../common/LoadingChart';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import { isCustomVisualizationConfig } from '../LightdashVisualization/types';
 import {
+    useVisualizationConfig,
+    useVisualizationInputs,
     useVisualizationLayout,
-    useVisualizationState,
 } from '../LightdashVisualization/useVisualizationContext';
+import classes from './CustomVisualization.module.css';
 import { vegaStyleConfig } from './vegaConfig';
 
 const VegaEmbed = lazy(async () => {
@@ -40,8 +44,8 @@ const CustomVisualization: FC<Props> = ({
     const isDarkMode = colorScheme === 'dark';
 
     const { containerWidth, containerHeight } = useVisualizationLayout();
-    const { isLoading, visualizationConfig, resultsData } =
-        useVisualizationState();
+    const { isLoading, resultsData } = useVisualizationInputs();
+    const visualizationConfig = useVisualizationConfig();
 
     const hasSignaledScreenshotReady = useRef(false);
 
@@ -103,7 +107,7 @@ const CustomVisualization: FC<Props> = ({
         !spec
     ) {
         return (
-            <div style={{ height: '100%', width: '100%', padding: '50px 0' }}>
+            <div className={classes.emptyState}>
                 <SuboptimalState
                     title="No visualization loaded"
                     description={
@@ -133,7 +137,7 @@ const CustomVisualization: FC<Props> = ({
     // Show empty state if there's no data
     if (!visProps.series || visProps.series.length === 0) {
         return (
-            <div style={{ height: '100%', width: '100%', padding: '50px 0' }}>
+            <div className={classes.emptyState}>
                 <SuboptimalState
                     title="No data available"
                     description="Query metrics and dimensions with results."
@@ -155,20 +159,17 @@ const CustomVisualization: FC<Props> = ({
 
     return (
         <div
-            className={props.className}
-            style={{
-                minHeight: 'inherit',
-                height: '100%',
-                width: '100%',
-                overflow: 'hidden',
-            }}
+            className={clsx(classes.container, props.className)}
+            style={
+                {
+                    '--vega-width': `${containerWidth}px`,
+                    '--vega-height': `${containerHeight}px`,
+                } as CSSProperties
+            }
         >
             <Suspense fallback={<LoadingChart />}>
                 <VegaEmbed
-                    style={{
-                        width: containerWidth,
-                        height: containerHeight,
-                    }}
+                    className={classes.vegaEmbed}
                     // TODO: We are ignoring some typescript errors here because the type
                     // that vegalite expects doesn't include a few of the properties
                     // that are required to make data and layout properties work. This

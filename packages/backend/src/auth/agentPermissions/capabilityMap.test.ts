@@ -227,7 +227,6 @@ const buildAgentTools = (overrides: Partial<AiAgentArgs>) => {
         canCreateDashboards: true,
         canRunSql: true,
         enableAiWriteback: true,
-        enableCodingAgent: true,
         enableContentTools: true,
         enableDataAccess: true,
         enableDocuments: true,
@@ -245,6 +244,7 @@ const buildAgentTools = (overrides: Partial<AiAgentArgs>) => {
         }),
         execution: { mode: 'standard', maxSteps: 10 },
         messageHistory: [{ role: 'user', content: 'Question' }],
+        composerApiConnections: [],
         mcpServers: [],
         requestingUser: { name: 'User', role: null, groups: [] },
         maxQueryLimit: 5000,
@@ -336,12 +336,11 @@ it('covers common agent definitions and all runtime variants without stale entri
             'generateDashboard',
             'createContent',
             'editDbtProject',
-            'editRepo',
             'readAttachments',
         ]),
     );
     expect(Object.keys(agentToolDefinitionsByName).sort()).toEqual(
-        [...ToolNameSchema.options].sort(),
+        ToolNameSchema.options.filter((name) => name !== 'editRepo').sort(),
     );
     expect(Object.keys(AGENT_TOOL_CAPABILITIES).sort()).toEqual(
         sortedUnique([

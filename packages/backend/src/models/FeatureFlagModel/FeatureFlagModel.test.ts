@@ -864,3 +864,46 @@ describe('FeatureFlagModel', () => {
         });
     });
 });
+
+describe('analytics availability without a registered commercial model', () => {
+    it.each([
+        { name: 'stored default', rows: { flag: { default_enabled: true } } },
+        {
+            name: 'organization override',
+            rows: { orgOverride: { enabled: true } },
+        },
+        { name: 'user override', rows: { userOverride: { enabled: true } } },
+    ])('ignores a $name enabling analytics', async ({ rows }) => {
+        await expect(
+            buildModel({}, buildFakeDatabase(rows)).get({
+                featureFlagId: FeatureFlags.AnalyticsProject,
+                user: dbUser,
+            }),
+        ).resolves.toEqual({
+            id: FeatureFlags.AnalyticsProject,
+            enabled: false,
+        });
+    });
+
+    it.each([false, true])(
+        'ignores forced enablement with preview=%s',
+        async (preview) => {
+            const model = buildModel({
+                enabledFeatureFlags: new Set([FeatureFlags.AnalyticsProject]),
+                previewFeatureFlags: {
+                    ...lightdashConfigMock.previewFeatureFlags,
+                    enabled: preview,
+                },
+            });
+            await expect(
+                model.get({
+                    featureFlagId: FeatureFlags.AnalyticsProject,
+                    user: dbUser,
+                }),
+            ).resolves.toEqual({
+                id: FeatureFlags.AnalyticsProject,
+                enabled: false,
+            });
+        },
+    );
+});

@@ -12,6 +12,7 @@ import {
     type ResultColumn,
 } from '@lightdash/common';
 import { Box } from '@mantine/core';
+import { useQuery } from '@tanstack/react-query';
 import {
     act,
     fireEvent,
@@ -30,7 +31,9 @@ import {
 } from '../../testing/dashboardStore';
 import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
 import { renderWithProviders as renderWithAppProviders } from '../../testing/testUtils';
+import { dashboardTileStatusActions } from '../dashboard/store';
 import { FieldsAndTiles } from './FieldsAndTiles';
+import { toSqlColumnTarget } from './peers';
 import { RailContractClasses } from './railContractClasses';
 import { useEditorDismiss } from './useEditorDismiss';
 
@@ -58,12 +61,6 @@ vi.mock('./useSqlColumnsByTile', () => ({
 }));
 const mockTileStatus = vi.hoisted(() => ({
     current: { sqlChartTilesMetadata: {} } as Record<string, unknown>,
-}));
-const mockMetricFiltersFlag = vi.hoisted(() => ({ current: false }));
-vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: () => ({
-        data: { enabled: mockMetricFiltersFlag.current },
-    }),
 }));
 
 const dimension = (
@@ -186,7 +183,7 @@ const Editor = () => {
         isOpen: true,
         isFieldClicked: false,
         clearField: clearHighlightedField,
-        close,
+        dismiss: close,
     });
     return (
         <Box data-controls-editor>
@@ -232,6 +229,7 @@ const renderWithProviders = (ui: ReactElement) => {
     const result = renderWithAppProviders(wrap(ui));
     return {
         ...result,
+        store,
         rerender: (node: ReactElement) => {
             act(() => {
                 seedDashboardEditState(
@@ -254,7 +252,6 @@ describe('FieldsAndTiles', () => {
         vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(
             400,
         );
-        mockMetricFiltersFlag.current = false;
         mockSqlColumnsByTile.current = {};
         mockTileStatus.current = { sqlChartTilesMetadata: {} };
         mockDashboardContext.current = {
@@ -354,19 +351,12 @@ describe('FieldsAndTiles', () => {
             expect(addFirstField).toHaveBeenCalledWith(createdMonth);
         });
 
-        it('lists metrics only where metric filters can be created', async () => {
+        it('lists metrics alongside dimensions', async () => {
             mockDashboardContext.current = {
                 ...mockDashboardContext.current,
                 allFilterableMetrics: [revenue],
             };
             setSidebar(rule(''), { isPlaceholder: true });
-            const { unmount } = renderWithProviders(<FieldsAndTiles />);
-            await userEvent.click(screen.getByTestId(FIELD_SEARCH));
-            await screen.findByText('Orders');
-            expect(optionNames()).toEqual(['Region', 'Status']);
-            unmount();
-
-            mockMetricFiltersFlag.current = true;
             renderWithProviders(<FieldsAndTiles />);
             await userEvent.click(screen.getByTestId(FIELD_SEARCH));
             await screen.findByText('Orders');
@@ -448,6 +438,144 @@ describe('FieldsAndTiles', () => {
             });
             expect(addFirstField).not.toHaveBeenCalled();
             expect(screen.getByLabelText('Label')).toHaveFocus();
+        });
+    });
+
+    describe('a new control on SQL chart tiles only', () => {
+        const sqlTile = (uuid: string) =>
+            ({
+                uuid,
+                type: DashboardTileTypes.SQL_CHART,
+                properties: { savedSqlUuid: `chart-${uuid}` },
+            }) as DashboardTile;
+        const columnInput = () =>
+            screen.getByPlaceholderText('Search column...');
+
+        beforeEach(() => {
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                dashboardTiles: [sqlTile('sql-1'), sqlTile('sql-2')],
+                allFilterableFields: undefined,
+                allFilterableMetrics: undefined,
+                allFilterableFieldsMap: {},
+                filterableFieldsByTileUuid: undefined,
+            };
+            setSidebar(rule(''), { isPlaceholder: true });
+        });
+
+        it('searches the columns already returned', async () => {
+            mockTileStatus.current = {
+                sqlChartTilesMetadata: {
+                    'sql-1': { columns: [country, total] },
+                },
+            };
+            renderWithProviders(<FieldsAndTiles />);
+
+            await userEvent.type(columnInput(), 'tot');
+            expect(
+                screen
+                    .getAllByRole('option', { hidden: true })
+                    .map((option) => option.textContent),
+            ).toEqual(['total']);
+        });
+
+        it('keeps the typed search when another SQL chart tile returns', async () => {
+            mockTileStatus.current = {
+                sqlChartTilesMetadata: {
+                    'sql-1': { columns: [country, total] },
+                },
+            };
+            const { store } = renderWithProviders(<FieldsAndTiles />);
+
+            await userEvent.type(columnInput(), 'tot');
+            act(() => {
+                store.dispatch(
+                    dashboardTileStatusActions.updateSqlChartTilesMetadata({
+                        tileUuid: 'sql-2',
+                        metadata: { columns: [country] },
+                    }),
+                );
+            });
+            expect(columnInput()).toHaveValue('tot');
+            expect(
+                screen
+                    .getAllByRole('option', { hidden: true })
+                    .map((option) => option.textContent),
+            ).toEqual(['total']);
+        });
+
+        it('shows the columns load while a SQL chart tile runs its query', async () => {
+            let finish: () => void = () => {};
+            // A mounted SQL chart tile, as its results query registers
+            const RunningTile = () => {
+                useQuery(
+                    ['savedSqlChartResults', 'chart', { tileUuid: 'sql-2' }],
+                    () =>
+                        new Promise<null>((resolve) => {
+                            finish = () => resolve(null);
+                        }),
+                );
+                return null;
+            };
+            renderWithProviders(
+                <>
+                    <RunningTile />
+                    <FieldsAndTiles />
+                </>,
+            );
+            await waitFor(() =>
+                expect(columnInput()).toHaveAttribute('aria-busy', 'true'),
+            );
+
+            act(() => finish());
+            await waitFor(() =>
+                expect(columnInput()).toHaveAttribute('aria-busy', 'false'),
+            );
+        });
+
+        it('does not wait for a tile that has its columns and queries again', async () => {
+            mockTileStatus.current = {
+                sqlChartTilesMetadata: {
+                    'sql-1': { columns: [country] },
+                    'sql-2': { columns: [total] },
+                },
+            };
+            // A refresh, or a filter or parameter change, recreates the query
+            const RefreshedTile = () => {
+                useQuery(
+                    ['savedSqlChartResults', 'chart', { tileUuid: 'sql-2' }],
+                    () => new Promise<null>(() => {}),
+                );
+                return null;
+            };
+            renderWithProviders(
+                <>
+                    <RefreshedTile />
+                    <FieldsAndTiles />
+                </>,
+            );
+            await act(async () => {});
+            expect(columnInput()).toHaveAttribute('aria-busy', 'false');
+        });
+
+        it('does not wait for a SQL chart tile whose results query never runs', async () => {
+            // Its chart failed or is gone: the results query stays disabled
+            const StuckTile = () => {
+                useQuery(
+                    ['savedSqlChartResults', 'chart', { tileUuid: 'sql-2' }],
+                    () => null,
+                    { enabled: false },
+                );
+                return null;
+            };
+            renderWithProviders(
+                <>
+                    <StuckTile />
+                    <FieldsAndTiles />
+                </>,
+            );
+            await act(async () => {});
+            expect(columnInput()).toHaveAttribute('aria-busy', 'false');
         });
     });
 
@@ -560,7 +688,11 @@ describe('FieldsAndTiles', () => {
 
     describe('a SQL column filter', () => {
         const sqlTile = (uuid: string) =>
-            ({ uuid, type: DashboardTileTypes.SQL_CHART }) as DashboardTile;
+            ({
+                uuid,
+                type: DashboardTileTypes.SQL_CHART,
+                properties: { savedSqlUuid: `chart-${uuid}` },
+            }) as DashboardTile;
         const COUNTRY = {
             fieldId: 'country',
             tableName: 'sql_chart',
@@ -613,6 +745,19 @@ describe('FieldsAndTiles', () => {
             expect(updateFilter).not.toHaveBeenCalled();
         });
 
+        it('promotes the next column when its own column is removed', async () => {
+            const CITY = { ...COUNTRY, fieldId: 'city' };
+            setSidebar(sqlRule({ 'sql-1': COUNTRY, 'sql-3': CITY }));
+            renderWithProviders(<FieldsAndTiles />);
+
+            expect(countOf('city')).toHaveTextContent('1 tile');
+            await userEvent.click(removeButtonOf('country'));
+            expect(removeLastField).not.toHaveBeenCalled();
+            const next = getUpdatedRule();
+            expect(next.target).toEqual(CITY);
+            expect(next.tileTargets).toEqual({ 'sql-3': CITY });
+        });
+
         it('has no other field to add', () => {
             setSidebar(sqlRule({ 'sql-1': COUNTRY }));
             renderWithProviders(<FieldsAndTiles />);
@@ -620,6 +765,57 @@ describe('FieldsAndTiles', () => {
             expect(
                 screen.getByRole('button', { name: 'Add another field' }),
             ).toHaveAttribute('data-disabled', 'true');
+        });
+    });
+
+    describe('a field filter that also filters SQL chart tiles', () => {
+        const COUNTRY = { ...toSqlColumnTarget('country') };
+
+        beforeEach(() => {
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                dashboardTiles: [
+                    tile('tile-1'),
+                    tile('tile-2'),
+                    {
+                        uuid: 'sql-1',
+                        type: DashboardTileTypes.SQL_CHART,
+                        properties: { savedSqlUuid: 'chart-sql-1' },
+                    } as DashboardTile,
+                ],
+            };
+            mockSqlColumnsByTile.current = {
+                'sql-1': [{ reference: 'country', type: 'string' }],
+            };
+        });
+
+        it('lists the column its SQL chart tiles are on', async () => {
+            setSidebar(rule('orders_status', { 'sql-1': COUNTRY }));
+            renderWithProviders(<FieldsAndTiles />);
+
+            expect(countOf('Status')).toHaveTextContent('2 tiles');
+            expect(countOf('country')).toHaveTextContent('1 tile');
+            await expectDetails('country', 'SQL column · 1 of 1 tile');
+        });
+
+        it('promotes the column when the only field is removed', async () => {
+            setSidebar(rule('orders_status', { 'sql-1': COUNTRY }));
+            renderWithProviders(<FieldsAndTiles />);
+
+            await userEvent.click(removeButtonOf('Status'));
+            expect(removeLastField).not.toHaveBeenCalled();
+            const next = getUpdatedRule();
+            expect(next.target).toEqual(COUNTRY);
+            expect(next.tileTargets).toEqual({ 'sql-1': COUNTRY });
+        });
+
+        it('takes the column off its tiles when it is removed', async () => {
+            setSidebar(rule('orders_status', { 'sql-1': COUNTRY }));
+            renderWithProviders(<FieldsAndTiles />);
+
+            await userEvent.click(removeButtonOf('country'));
+            expect(removeLastField).not.toHaveBeenCalled();
+            expect(getUpdatedRule().tileTargets).toBeUndefined();
         });
     });
 
@@ -1165,6 +1361,40 @@ describe('FieldsAndTiles', () => {
 
         fireEvent.click(add);
         expect(fieldSearch()).toBeInTheDocument();
+    });
+
+    it('puts the table in front of rows that share a name', () => {
+        const customerStatus = dimension('status', 'Status', {
+            table: 'customers',
+            tableLabel: 'Customers',
+        });
+        mockDashboardContext.current = {
+            ...mockDashboardContext.current,
+            allFilterableFields: [status, region, customerStatus],
+            allFilterableFieldsMap: {
+                orders_status: status,
+                orders_region: region,
+                customers_status: customerStatus,
+            },
+            filterableFieldsByTileUuid: {
+                'tile-1': [status, region],
+                'tile-2': [customerStatus],
+            },
+        };
+        setSidebar(
+            rule('orders_status', {
+                'tile-2': {
+                    fieldId: 'customers_status',
+                    tableName: 'customers',
+                },
+            }),
+        );
+        renderWithProviders(<FieldsAndTiles />);
+
+        expect(screen.getByText('Orders')).toBeVisible();
+        expect(screen.getByText('Customers')).toBeVisible();
+        expect(removeButtonOf('Orders Status')).toBeVisible();
+        expect(removeButtonOf('Customers Status')).toBeVisible();
     });
 
     it('renders nothing when no control is edited', () => {

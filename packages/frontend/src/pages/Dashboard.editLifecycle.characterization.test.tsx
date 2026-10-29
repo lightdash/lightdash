@@ -86,6 +86,9 @@ const server = vi.hoisted(() => ({
     dashboard: undefined as unknown,
     patchResponse: undefined as unknown,
     patchError: undefined as unknown,
+    // The dashboard controls flag's request has not answered yet
+    isControlsFlagPending: false,
+    flagListeners: new Set<() => void>(),
 }));
 
 vi.mock('../api');
@@ -234,9 +237,24 @@ vi.mock('../features/dashboardTabs', () => ({
 vi.mock('../components/DashboardTiles/DashboardChartEditorModal', () => ({
     default: () => null,
 }));
-vi.mock('../hooks/useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: () => ({ data: { enabled: false } }),
-}));
+vi.mock('../hooks/useServerOrClientFeatureFlag', async () => {
+    const { useSyncExternalStore } = await import('react');
+    const subscribe = (listener: () => void) => {
+        server.flagListeners.add(listener);
+        return () => server.flagListeners.delete(listener);
+    };
+    return {
+        useServerFeatureFlag: (featureFlagId: string) => {
+            const isPending = useSyncExternalStore(
+                subscribe,
+                () => server.isControlsFlagPending,
+            );
+            return featureFlagId === 'dashboard-controls' && isPending
+                ? { data: undefined, isInitialLoading: true }
+                : { data: { enabled: false }, isInitialLoading: false };
+        },
+    };
+});
 vi.mock('../features/contentAsCode/hooks/useContentDrafts', () => ({
     useReopenDraftMutation: () => ({ mutate: vi.fn(), isLoading: false }),
     useRebaseDraftMutation: () => ({ mutate: vi.fn(), isLoading: false }),
@@ -364,6 +382,7 @@ beforeEach(() => {
     server.dashboard = makeDashboard();
     server.patchError = undefined;
     server.patchResponse = undefined;
+    server.isControlsFlagPending = false;
     mockedApi.mockReset();
     mockedApi.mockImplementation((async ({ url: requestUrl, method, body }) => {
         if (
@@ -690,5 +709,29 @@ describe('edit lifecycle: refetches and drafts', () => {
             'You have unsaved changes to your dashboard! Are you sure you want to leave without saving?',
         );
         addListener.mockRestore();
+    });
+});
+
+describe('dashboard controls flag', () => {
+    it('holds the page until the flag answers, so the bar never swaps', async () => {
+        server.isControlsFlagPending = true;
+        renderDashboard(`${DASHBOARD_PATH}/edit`);
+        await waitFor(() => expect(dashboardGets()).toBeGreaterThan(0));
+        await act(() => new Promise((resolve) => setTimeout(resolve, 50)));
+
+        expect(screen.queryByTestId('tiles')).not.toBeInTheDocument();
+    });
+
+    it('renders the page once the flag answers off', async () => {
+        server.isControlsFlagPending = true;
+        renderDashboard(`${DASHBOARD_PATH}/edit`);
+        await waitFor(() => expect(dashboardGets()).toBeGreaterThan(0));
+        expect(screen.queryByTestId('tiles')).not.toBeInTheDocument();
+
+        act(() => {
+            server.isControlsFlagPending = false;
+            server.flagListeners.forEach((listener) => listener());
+        });
+        await waitForLoaded();
     });
 });

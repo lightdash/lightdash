@@ -136,10 +136,10 @@ const TopToolsCard: FC<{ tools: McpActivityStats['topTools'] }> = ({
                             gap="xs"
                             mb={4}
                         >
-                            <Text fz="xs" ff="monospace" c="ldGray.8" truncate>
+                            <Text fz="xs" ff="monospace" truncate>
                                 {tool.toolName}
                             </Text>
-                            <Text fz="xs" c="ldGray.7" className={styles.num}>
+                            <Text fz="xs" c="dimmed" className={styles.num}>
                                 {countFormat.format(tool.count)}
                             </Text>
                         </Group>
@@ -184,7 +184,7 @@ const AgentsCard: FC<{ agents: McpActivityStats['agents'] }> = ({ agents }) => (
                             {agent?.name ?? 'No agent'}
                         </Text>
                     </Group>
-                    <Text fz="xs" c="ldGray.7" className={styles.num}>
+                    <Text fz="xs" c="dimmed" className={styles.num}>
                         {countFormat.format(count)}{' '}
                         {count === 1 ? 'call' : 'calls'}
                     </Text>
@@ -237,12 +237,7 @@ const RecentErrorsCard: FC<{
                                 className={styles.truncatingGroup}
                             >
                                 <Box className={styles.errorDot} />
-                                <Text
-                                    fz="xs"
-                                    ff="monospace"
-                                    c="ldGray.8"
-                                    truncate
-                                >
+                                <Text fz="xs" ff="monospace" truncate>
                                     {item.toolName}
                                 </Text>
                             </Group>
@@ -251,14 +246,14 @@ const RecentErrorsCard: FC<{
                             >
                                 <Text
                                     fz="xs"
-                                    c="ldGray.5"
+                                    c="dimmed"
                                     className={styles.noShrink}
                                 >
                                     {formatToolCallTime(item.createdAt)}
                                 </Text>
                             </Tooltip>
                         </Group>
-                        <Text fz="xs" c="ldGray.7" lineClamp={2}>
+                        <Text fz="xs" c="dimmed" lineClamp={2}>
                             {item.errorMessage ?? 'Unknown error'}
                         </Text>
                     </UnstyledButton>

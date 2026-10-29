@@ -103,7 +103,7 @@ export class FeatureFlagService extends BaseService {
     }
 
     /**
-     * Preview/Okteto environments only: lets QA list and toggle every flag for
+     * Preview environments only: lets QA list and toggle every flag for
      * their organization without a redeploy.
      */
     private assertCanManageFlags(account: RegisteredAccount): string {

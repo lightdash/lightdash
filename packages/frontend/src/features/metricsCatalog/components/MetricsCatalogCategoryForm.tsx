@@ -364,10 +364,8 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                                 w="100%"
                                 onClick={() => handleAddTag(search)}
                                 fullWidth
-                                styles={{
-                                    inner: {
-                                        justifyContent: 'flex-start',
-                                    },
+                                classNames={{
+                                    inner: formClasses.createTagInner,
                                 }}
                             >
                                 <Group gap={4}>

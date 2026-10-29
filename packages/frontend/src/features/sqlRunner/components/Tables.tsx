@@ -173,7 +173,7 @@ const RecentItem: FC<{
                 aria-label={typeDisplay.label}
             />
             <TableName table={tableRef.table} search="" />
-            <Text fz="xs" c="ldGray.5" ml="auto" flex="0 0 auto">
+            <Text fz="xs" c="dimmed" ml="auto" flex="0 0 auto">
                 {tableRef.schema}
             </Text>
         </UnstyledButton>
@@ -265,7 +265,7 @@ const SchemaItem: FC<{
                         </Text>
                     </Box>
                 </Tooltip>
-                <Text fz="xs" c="ldGray.5" ml="auto" flex="0 0 auto">
+                <Text fz="xs" c="dimmed" ml="auto" flex="0 0 auto">
                     {count}
                 </Text>
             </UnstyledButton>
@@ -293,7 +293,7 @@ const GroupItem: FC<{
         <Text fz="sm" fw={500} truncate>
             {label}
         </Text>
-        <Text fz="xs" c="ldGray.5" ml="auto" flex="0 0 auto">
+        <Text fz="xs" c="dimmed" ml="auto" flex="0 0 auto">
             {count}
         </Text>
     </UnstyledButton>
@@ -601,12 +601,7 @@ export const Tables: FC<{ onRefresh: () => void }> = ({ onRefresh }) => {
                     onScrollPositionChange={({ y }) => setIsScrolled(y > 0)}
                 >
                     {catalog && (
-                        <Box
-                            style={{
-                                height: virtualizer.getTotalSize(),
-                                position: 'relative',
-                            }}
-                        >
+                        <Box h={virtualizer.getTotalSize()} pos="relative">
                             {virtualizer.getVirtualItems().map((virtualRow) => {
                                 const row = rows[virtualRow.index];
                                 if (!row) return null;
@@ -615,12 +610,9 @@ export const Tables: FC<{ onRefresh: () => void }> = ({ onRefresh }) => {
                                         key={virtualRow.key}
                                         data-index={virtualRow.index}
                                         ref={virtualizer.measureElement}
+                                        className={styles.virtualRow}
                                         style={{
-                                            position: 'absolute',
-                                            top: 0,
-                                            left: 0,
-                                            width: '100%',
-                                            transform: `translateY(${virtualRow.start}px)`,
+                                            '--row-start': `${virtualRow.start}px`,
                                         }}
                                     >
                                         <VirtualRow

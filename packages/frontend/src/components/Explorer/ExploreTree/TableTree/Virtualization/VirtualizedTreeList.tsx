@@ -1,6 +1,13 @@
 import type { Range } from '@tanstack/react-virtual';
 import { defaultRangeExtractor, useVirtualizer } from '@tanstack/react-virtual';
-import { memo, useCallback, useMemo, useRef, type FC } from 'react';
+import {
+    memo,
+    useCallback,
+    useMemo,
+    useRef,
+    type CSSProperties,
+    type FC,
+} from 'react';
 import type { FlattenedTreeData } from './types';
 import classes from './VirtualizedTreeList.module.css';
 import VirtualTreeItem from './VirtualTreeItem';
@@ -91,7 +98,11 @@ const VirtualizedTreeListComponent: FC<VirtualizedTreeListProps> = ({
         >
             <div
                 className={classes.sizer}
-                style={{ height: `${virtualizer.getTotalSize()}px` }}
+                style={
+                    {
+                        '--tree-height': `${virtualizer.getTotalSize()}px`,
+                    } as CSSProperties
+                }
             >
                 {virtualItems.map((virtualItem) => {
                     const item = items[virtualItem.index];
@@ -105,14 +116,12 @@ const VirtualizedTreeListComponent: FC<VirtualizedTreeListProps> = ({
                             key={item.id}
                             data-index={virtualItem.index}
                             data-sticky-header={isStickyItem || undefined}
+                            data-active-sticky={isActiveStickyItem || undefined}
                             className={classes.item}
                             style={
-                                isActiveStickyItem
-                                    ? { position: 'sticky' }
-                                    : {
-                                          position: 'absolute',
-                                          transform: `translateY(${virtualItem.start}px)`,
-                                      }
+                                {
+                                    '--item-start': `${virtualItem.start}px`,
+                                } as CSSProperties
                             }
                         >
                             <VirtualTreeItem

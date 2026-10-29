@@ -1,0 +1,13 @@
+.diffScroll {
+    overflow: auto;
+    color-scheme: var(--diff-color-scheme);
+}
+
+.diffHost {
+    color-scheme: var(--diff-color-scheme);
+}
+
+.fileList {
+    overflow-x: hidden;
+    overflow-y: auto;
+}

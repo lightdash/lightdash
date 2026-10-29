@@ -17,7 +17,10 @@ registerAction(
             const muted =
                 typeof payload.seriesIndex === 'number' &&
                 series.seriesIndex !== payload.seriesIndex;
-            api.getViewOfSeriesModel(series).group.traverse((element) => {
+            // A series whose view is not built yet (option pending, disposing) has nothing to mute.
+            const view = api.getViewOfSeriesModel(series);
+            if (!view) return;
+            view.group.traverse((element) => {
                 for (const target of [
                     element,
                     element.getTextContent(),

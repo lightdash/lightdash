@@ -51,7 +51,6 @@ const ClarifyingQuestions: FC<Props> = ({
                 <Text
                     className={classes.sheetPrompt}
                     fz="xs"
-                    c="ldGray.8"
                     fw={500}
                     lineClamp={1}
                 >

@@ -49,13 +49,14 @@ export const SqlRunnerChart: FC<Props> = ({
     }
 
     return (
-        <ChartView
-            config={config}
-            spec={spec}
-            isLoading={isLoading}
-            error={error}
-            style={{ height, flex: width }}
-            onChartReady={onEchartsReady}
-        />
+        <Box h={height} flex={width}>
+            <ChartView
+                config={config}
+                spec={spec}
+                isLoading={isLoading}
+                error={error}
+                onChartReady={onEchartsReady}
+            />
+        </Box>
     );
 };

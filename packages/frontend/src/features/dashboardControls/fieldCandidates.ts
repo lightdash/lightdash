@@ -27,6 +27,18 @@ export const getFieldCandidates = (
 const getTableLabel = (field: DashboardFilterableField) =>
     field.tableLabel || field.table;
 
+export const getSharedNameFieldIds = (
+    fieldIds: string[],
+    getField: (fieldId: string) => DashboardFilterableField | null | undefined,
+): string[] => {
+    const names = fieldIds.map((fieldId) => getField(fieldId)?.label);
+    return fieldIds.filter(
+        (_, index) =>
+            names[index] !== undefined &&
+            names.filter((name) => name === names[index]).length > 1,
+    );
+};
+
 const getBaseName = (field: DashboardFilterableField) =>
     (isDimension(field) && field.timeIntervalBaseDimensionName) || field.name;
 
@@ -69,14 +81,9 @@ export const getTileFieldCandidateIds = (
     toSortedFieldIds(getFieldCandidates(tileFields, takenFieldIds, target));
 
 // What a new control can start from on one tile: its fields of every kind.
-// Metrics only where creating metric filters is enabled, as in "Add filter"
 export const getTileStarterFieldIds = (
     tileFields: DashboardFilterableField[],
-    includeMetrics: boolean,
-): string[] =>
-    toSortedFieldIds(
-        includeMetrics ? tileFields : tileFields.filter(isDimension),
-    );
+): string[] => toSortedFieldIds(tileFields);
 
 // A candidate that would read like another entry of the dropdown carries its
 // table label

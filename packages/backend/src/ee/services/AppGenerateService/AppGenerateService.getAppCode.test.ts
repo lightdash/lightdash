@@ -5,6 +5,7 @@ import {
     ForbiddenError,
     NotFoundError,
     OrganizationMemberRole,
+    TableSelectionType,
     type SessionUser,
 } from '@lightdash/common';
 import { pack } from 'tar-stream';
@@ -189,6 +190,9 @@ function buildService(overrides: {
 
     const fullProjectModel = {
         getAllExploresFromCache: vi.fn().mockResolvedValue({}),
+        getTablesConfiguration: vi.fn().mockResolvedValue({
+            tableSelection: { type: TableSelectionType.ALL, value: null },
+        }),
         getSummary: vi.fn().mockResolvedValue({ organizationUuid: ORG_UUID }),
         ...projectModel,
     };

@@ -13,6 +13,8 @@ seed-paths:
 macro-paths:
   - macros
 target-path: target
+# Concurrent preview compiles already receive a private DBT_TARGET_PATH.
+packages-install-path: "{{ env_var('DBT_TARGET_PATH', '.') }}/dbt_packages"
 clean-targets:
   - target
   - dbt_modules

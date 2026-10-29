@@ -417,6 +417,58 @@ describe('Trino sanitized errors', () => {
                 auth: { username: 'agent', password: passwordSentinel },
             },
         });
+    it.each(['submit', 'fetch'])(
+        'reports empty transport errors during catalog %s',
+        async (phase) => {
+            const error = Object.assign(new Error(''), {
+                name: 'AggregateError',
+                isAxiosError: true,
+                code: 'ETIMEDOUT',
+                cause: new AggregateError([
+                    Object.assign(new Error(passwordSentinel), {
+                        code: 'ETIMEDOUT',
+                    }),
+                    Object.assign(new Error(headerSentinel), {
+                        code: 'ENETUNREACH',
+                    }),
+                ]),
+                config: { auth: { password: passwordSentinel } },
+            });
+            if (phase === 'submit')
+                queryResultMock.mockRejectedValueOnce(error);
+            else
+                queryResultMock.mockResolvedValueOnce({
+                    next: vi.fn().mockRejectedValueOnce(error),
+                });
+            const warehouse = new TrinoWarehouseClient(credentials);
+            const result = await warehouse
+                .getCatalog(warehouseClient.config)
+                .catch((e: unknown) => e);
+            expect(result).toBeInstanceOf(WarehouseQueryError);
+            expect(result).toMatchObject({
+                message: 'Trino connection failed (ETIMEDOUT, ENETUNREACH)',
+                cause: {
+                    code: 'ETIMEDOUT',
+                    connectionErrorCodes: ['ETIMEDOUT', 'ENETUNREACH'],
+                },
+            });
+            expectNoSecrets(result);
+        },
+    );
+    it('does not expose arbitrary codes or nested error messages', async () => {
+        queryResultMock.mockRejectedValueOnce(
+            Object.assign(new Error(''), {
+                code: passwordSentinel,
+                errors: [new Error(headerSentinel)],
+            }),
+        );
+        const warehouse = new TrinoWarehouseClient(credentials);
+        const error = await warehouse
+            .getCatalog(warehouseClient.config)
+            .catch((e: unknown) => e);
+        expect(error).toMatchObject({ message: 'Unknown object error' });
+        expectNoSecrets(error);
+    });
     it.each([401, 403, 404])(
         'keeps only status for query HTTP %s',
         async (status) => {

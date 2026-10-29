@@ -13,10 +13,7 @@
         :disabled,
         .inactiveFilter
     ) {
-    border-color: light-dark(
-        var(--mantine-color-gray-3),
-        var(--mantine-color-dark-4)
-    );
+    border-color: var(--mantine-color-ldGray-3);
     background-color: var(--mantine-color-default);
 }
 
@@ -27,10 +24,7 @@
         :disabled,
         .inactiveFilter
     ) {
-    border-color: light-dark(
-        var(--mantine-color-gray-4),
-        var(--mantine-color-dark-3)
-    );
+    border-color: var(--mantine-color-ldGray-4);
     background-color: var(--mantine-color-default-hover);
 }
 
@@ -87,19 +81,14 @@
 .button.button[data-requirement-unmet]:hover:not([data-disabled], :disabled) {
     border: 1px solid alpha(var(--mantine-color-yellow-6), 0.35);
 
-    @mixin light {
-        background-color: var(--mantine-color-yellow-0);
-    }
-    @mixin dark {
-        background-color: alpha(var(--mantine-color-yellow-9), 0.25);
-    }
+    background-color: light-dark(
+        var(--mantine-color-yellow-0),
+        alpha(var(--mantine-color-yellow-9), 0.25)
+    );
 }
 
 .button[data-requirement-unmet] .label {
-    color: light-dark(
-        var(--mantine-color-ldGray-9),
-        var(--mantine-color-gray-0)
-    );
+    color: var(--mantine-color-ldGray-9);
 }
 
 .button.button.inactiveFilter:not(
@@ -148,6 +137,18 @@
     opacity: 1;
 }
 
+/* Reserved: the lock is always shown, so the pill never changes width */
+.button .lockSlot[data-reserved] {
+    max-width: none;
+    opacity: 1;
+    transition: none;
+}
+
+/* In place but unseen and unreachable (`areActionsHidden`) */
+.hiddenAction {
+    visibility: hidden;
+}
+
 .lockSlotActive {
     display: inline-flex;
     align-items: center;
@@ -161,10 +162,20 @@
 }
 
 .additionalValuesList {
-    @mixin light {
-        background-color: var(--mantine-color-ldDark-8);
-    }
-    @mixin dark {
-        background-color: var(--mantine-color-ldDark-1);
-    }
+    background-color: light-dark(
+        var(--mantine-color-ldDark-8),
+        var(--mantine-color-ldDark-1)
+    );
+}
+
+.ruleLabel {
+    max-width: 100%;
+    overflow: hidden;
+}
+
+.dragging {
+    position: relative;
+    z-index: 1;
+    transform: translate(var(--drag-x), var(--drag-y));
+    opacity: 0.8;
 }

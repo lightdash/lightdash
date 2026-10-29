@@ -192,7 +192,6 @@ describe('GithubProvider publication authority', () => {
                 description: 'Change',
                 user: { userUuid: 'u1' } as never,
                 setStage: vi.fn(),
-                onRemoteCommitted: vi.fn(),
                 assertStagedChangesAllowed: staged ? vi.fn() : null,
                 assertPublishAllowed,
             };

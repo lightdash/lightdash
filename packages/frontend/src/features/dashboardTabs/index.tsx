@@ -154,17 +154,7 @@ const TabGridPanel = memo<TabGridPanelProps>(
             <div
                 key={tabUuid}
                 data-tab-uuid={tabUuid}
-                style={
-                    isActive
-                        ? { position: 'relative' }
-                        : {
-                              contentVisibility: 'hidden',
-                              containIntrinsicSize: 'auto 1px auto 1px',
-                              position: 'absolute' as const,
-                              width: '100%',
-                              pointerEvents: 'none' as const,
-                          }
-                }
+                className={isActive ? styles.tabPane : styles.tabPaneHidden}
             >
                 <ErrorBoundary>
                     <ResponsiveGridLayout
@@ -1046,6 +1036,9 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                                 setDeletingTab={
                                                                     setDeletingTab
                                                                 }
+                                                                hasQuietActions={
+                                                                    isDashboardControlsEnabled
+                                                                }
                                                             />
                                                         ),
                                                     )}
@@ -1212,6 +1205,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                         ]
                                             .filter(Boolean)
                                             .join(' ')}
+                                        // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
                                         style={
                                             showGridLines
                                                 ? gridLineStyles

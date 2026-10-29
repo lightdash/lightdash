@@ -1,5 +1,4 @@
 import {
-    type DataAppAutoAnalysis,
     type DataAppInsightAction,
     type DataAppInsightsPayload,
 } from '@lightdash/common';
@@ -67,7 +66,7 @@ export const useDataAppAnalysisController = ({
     appUuid,
     queries,
     availability,
-    autoAnalyse = 'inherit',
+    analyseOnLoad = false,
     instructions = null,
     onNeedsAgent,
     onSourcesExpired,
@@ -77,8 +76,8 @@ export const useDataAppAnalysisController = ({
     appUuid: string | undefined;
     queries: QueryEvent[];
     availability: DataAppAnalysisAvailability;
-    /** The app's own choice; 'inherit' takes the org default. */
-    autoAnalyse?: DataAppAutoAnalysis;
+    /** Declared in app code: run detect on a view with no stored analysis. */
+    analyseOnLoad?: boolean;
     /** App-author guidance for the model, declared in app code. */
     instructions?: string | null;
     /** Called when the app asks to investigate but no agent is picked yet. */
@@ -99,11 +98,6 @@ export const useDataAppAnalysisController = ({
         [queries, mountedQueryUuids],
     );
     const inFlight = useMemo(() => hasInFlightQueries(queries), [queries]);
-    const autoAnalyseResolved =
-        availability.status === 'available' &&
-        (autoAnalyse === 'inherit'
-            ? availability.autoAnalyseDefault
-            : autoAnalyse === 'on');
     // Route params resolve before anything renders; without an app the
     // controller stays disabled and never sends a request.
     const target = useMemo(
@@ -116,7 +110,7 @@ export const useDataAppAnalysisController = ({
         sources,
         inFlight,
         availability,
-        autoAnalyse: autoAnalyseResolved,
+        autoAnalyse: analyseOnLoad,
         instructions,
         onNeedsAgent,
         onSourcesExpired,

@@ -46,6 +46,7 @@ import {
     IconSitemap,
     IconX,
 } from '@tabler/icons-react';
+import { clsx } from 'clsx';
 import isEqual from 'lodash/isEqual';
 import { memo, useCallback, useMemo, useState, type FC } from 'react';
 import { useLocation, useNavigate } from 'react-router';
@@ -114,6 +115,7 @@ const SortableColumn: FC<{
     return (
         <Group
             ref={setNodeRef}
+            // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
             style={style}
             justify="space-between"
             h={28}
@@ -150,9 +152,7 @@ const SortableColumn: FC<{
                 aria-pressed={column.visible}
                 size="xs"
                 color="ldGray.5"
-                style={{
-                    visibility: column.frozen ? 'hidden' : 'visible',
-                }}
+                className={column.frozen ? classes.hiddenToggle : undefined}
                 onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
                     e.stopPropagation();
                     onToggleVisibility();
@@ -358,21 +358,12 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                         data-tour-suggest="Total completed order amount"
                         data-tour-docs="explore/metrics-catalog/build-saved-trees.mdx#creating-a-saved-tree:li2"
                         size="xs"
-                        classNames={{ input: classes.searchInput }}
-                        styles={(theme) => ({
-                            input: {
-                                height: 32,
-                                width: 309,
-                                paddingBlock: theme.spacing.xs,
-                                textOverflow: 'ellipsis',
-                                fontSize: theme.fontSizes.sm,
-                                fontWeight: 400,
-                                color: search
-                                    ? theme.colors.ldGray[8]
-                                    : theme.colors.ldGray[5],
-                                boxShadow: theme.shadows.subtle,
-                            },
-                        })}
+                        classNames={{
+                            input: clsx(
+                                classes.searchInput,
+                                search && classes.searchInputFilled,
+                            ),
+                        }}
                         type="search"
                         variant="default"
                         placeholder="Search by name or description"
@@ -411,9 +402,6 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                             w={1}
                             h={20}
                             color="ldGray.3"
-                            style={{
-                                alignSelf: 'center',
-                            }}
                         />
                     )}
                     {showCategories && (
@@ -441,14 +429,7 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                     )}
                 </Group>
                 <Group gap="xs">
-                    <Badge
-                        bg="ldGray.1"
-                        c="ldGray.8"
-                        radius={6}
-                        py="sm"
-                        px="xs"
-                        h={32}
-                    >
+                    <Badge bg="ldGray.1" radius={6} py="sm" px="xs" h={32}>
                         <Group gap={6}>
                             <TotalMetricsDot />
                             <Text fz="sm" fw={500}>
@@ -581,12 +562,9 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                                     variant="default"
                                                     h={28}
                                                     onClick={handleReset}
-                                                    style={(theme) => ({
-                                                        border: `1px solid ${theme.colors.ldGray[2]}`,
-                                                        boxShadow:
-                                                            theme.shadows
-                                                                .subtle,
-                                                    })}
+                                                    className={
+                                                        classes.resetButton
+                                                    }
                                                     disabled={
                                                         isDefaultConfig &&
                                                         !hasConfigChanges
@@ -629,11 +607,7 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                                 variant="default"
                                                 onClick={handleReset}
                                                 disabled={!hasConfigChanges}
-                                                style={(theme) => ({
-                                                    border: `1px solid ${theme.colors.ldGray[2]}`,
-                                                    boxShadow:
-                                                        theme.shadows.subtle,
-                                                })}
+                                                className={classes.resetButton}
                                             >
                                                 Discard
                                             </Button>
@@ -649,28 +623,16 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                         h={20}
                         color="#DEE2E6"
                         display={embedToken ? 'none' : undefined}
-                        style={{
-                            alignSelf: 'center',
-                        }}
                     />
                     <SegmentedControl
-                        classNames={{ label: classes.viewLabel }}
+                        classNames={{
+                            root: classes.viewRoot,
+                            indicator: classes.viewIndicator,
+                            label: classes.viewLabel,
+                        }}
                         size="xs"
                         value={metricCatalogView}
-                        styles={(theme) => ({
-                            root: {
-                                display: embedToken ? 'none' : undefined,
-                                borderRadius: theme.radius.md,
-                                gap: theme.spacing.two,
-                                padding: theme.spacing.xxs,
-                            },
-                            indicator: {
-                                borderRadius: theme.radius.md,
-                                border: `1px solid ${theme.colors.ldGray[2]}`,
-                                backgroundColor: theme.colors.background[0],
-                                boxShadow: theme.shadows.subtle,
-                            },
-                        })}
+                        display={embedToken ? 'none' : undefined}
                         data={[
                             {
                                 label: (

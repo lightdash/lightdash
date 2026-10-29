@@ -27,6 +27,7 @@ import { getPlaceholderByFilterTypeAndOperator } from '../../../components/commo
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import useApp from '../../../providers/App/useApp';
+import classes from './FilterValueSection.module.css';
 import {
     getFilterRuleWithDefaultValueEnabled,
     getFilterRuleWithOperator,
@@ -121,12 +122,7 @@ export const FilterValueSection: FC<Props> = ({
                 )}
                 rightSectionWidth={140}
                 rightSectionPointerEvents="all"
-                rightSectionProps={{
-                    style: {
-                        justifyContent: 'flex-end',
-                        marginRight: '8px',
-                    },
-                }}
+                rightSectionProps={{ className: classes.operatorRightSection }}
                 rightSection={
                     supportsSingleValue(filterType, filterRule.operator) &&
                     isEditMode && (

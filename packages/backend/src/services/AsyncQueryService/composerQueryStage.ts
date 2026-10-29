@@ -26,6 +26,7 @@ export const COMPOSER_QUERY_STAGES = {
         'upload',
         'total',
     ],
+    api: ['execute', 'upload_result', 'total'],
 } as const;
 
 export type ComposerQuerySource = keyof typeof COMPOSER_QUERY_STAGES;

@@ -11,6 +11,18 @@ export type DashboardLayouts = Record<keyof typeof GRID_COLS, Layout[]>;
  */
 export const DEFAULT_ROW_HEIGHT = 14 * 1.5 + 16 * 2 + 2;
 
+/** Mirrors react-grid-layout: the largest breakpoint strictly narrower than `width`. */
+export const getBreakpointForWidth = (
+    breakpoints: Record<string, number>,
+    width: number,
+): string => {
+    const ascending = Object.entries(breakpoints).sort(([, a], [, b]) => a - b);
+    const [name] =
+        ascending.filter(([, minWidth]) => width > minWidth).at(-1) ??
+        ascending[0];
+    return name;
+};
+
 export const GRID_MARGIN: [number, number] = [10, 10];
 export const GRID_CONTAINER_PADDING: [number, number] = [10, 0];
 

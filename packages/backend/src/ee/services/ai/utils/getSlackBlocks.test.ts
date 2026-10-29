@@ -23,7 +23,6 @@ import {
     getMemoryCitationBlocks,
     getModernArtifactCardBlocks,
     getModernPullRequestCardBlocks,
-    getProjectSelectionBlocks,
     getSlackToolTitle,
     getSqlArtifactCardBlocks,
     selectSlackAiAccessRefusal,
@@ -259,34 +258,6 @@ describe('Slack AI agent blocks', () => {
                 },
             ]),
         ).toEqual([]);
-    });
-
-    it('keeps project picker option values within Slack limits', () => {
-        const blocks = getProjectSelectionBlocks(
-            Array.from({ length: 20 }, (_, index) => ({
-                projectUuid: `00000000-0000-4000-8000-${String(index).padStart(
-                    12,
-                    '0',
-                )}`,
-                name: `Very long project name ${index} ${'x'.repeat(200)}`,
-            })),
-            'C0AD7R21BLG',
-        );
-        const actions = blocks[1] as {
-            type: 'actions';
-            elements: Array<{
-                type: string;
-                options?: Array<{ value: string }>;
-            }>;
-        };
-        const select = actions.elements[0];
-        if (actions.type !== 'actions' || select.type !== 'static_select') {
-            throw new Error('Expected static_select');
-        }
-
-        select.options?.forEach((option) => {
-            expect(option.value.length).toBeLessThan(151);
-        });
     });
 
     it('builds modern pull request cards from writeback metadata', () => {

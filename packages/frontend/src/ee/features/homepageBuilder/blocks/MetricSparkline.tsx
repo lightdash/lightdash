@@ -60,6 +60,7 @@ const MetricSparkline: FC<Props> = ({ points, change }) => {
             option={option}
             notMerge
             opts={{ renderer: 'svg' }}
+            // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
             style={{ height: 30, width: '100%' }}
         />
     );

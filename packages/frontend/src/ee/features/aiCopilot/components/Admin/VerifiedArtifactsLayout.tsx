@@ -58,7 +58,7 @@ export const VerifiedArtifactsLayout: FC = () => {
             }
             classNames={{ handle: styles.resizeHandle }}
             orientation="horizontal"
-            style={{ height: `calc(100vh - ${NAVBAR_HEIGHT}px)` }}
+            h={`calc(100vh - ${NAVBAR_HEIGHT}px)`}
         >
             <ResizableSplitter.Pane
                 id="verified-artifacts-table"

@@ -1,14 +1,8 @@
 .root {
     display: flex;
     align-items: center;
-    background-color: light-dark(
-        var(--mantine-color-ldGray-1),
-        var(--mantine-color-ldDark-7)
-    );
-    color: light-dark(
-        var(--mantine-color-ldGray-7),
-        var(--mantine-color-ldDark-0)
-    );
+    background-color: var(--mantine-color-ldGray-1);
+    color: var(--mantine-color-ldGray-7);
     font-weight: 500;
     border-radius: var(--tag-pill-radius, var(--mantine-radius-sm));
     cursor: default;
@@ -17,10 +11,7 @@
 }
 
 .root[data-disabled] {
-    background-color: light-dark(
-        var(--mantine-color-ldGray-3),
-        var(--mantine-color-ldDark-5)
-    );
+    background-color: var(--mantine-color-ldGray-3);
     color: var(--mantine-color-ldGray-7);
     cursor: not-allowed;
 }
@@ -62,10 +53,7 @@
 }
 
 .remove {
-    color: light-dark(
-        var(--mantine-color-ldGray-7),
-        var(--mantine-color-ldDark-0)
-    );
+    color: var(--mantine-color-ldGray-7);
 }
 
 .root[data-size='xs'] .remove {

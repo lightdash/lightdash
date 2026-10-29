@@ -204,6 +204,87 @@ describe('built-in usage dashboards', () => {
         }
     });
 
+    it('uses primary email in AI token details without relabeling embedded viewers as accounts', async () => {
+        const details = aiTokens.charts.find(({ slug }) =>
+            slug.endsWith('-details'),
+        )!;
+        expect(details.tableConfig?.columnOrder?.[0]).toBe('user_display_name');
+        if (details.chartConfig.type !== ChartType.TABLE)
+            throw new Error('Expected table');
+        expect(details.chartConfig.config?.columns).toMatchObject({
+            ai_usage_user_name: { visible: false },
+            ai_usage_user_email: { visible: false },
+        });
+        const instance = await DuckDBInstance.create(':memory:', {
+            threads: '1',
+            memory_limit: '128MB',
+        });
+        const db = await instance.connect();
+        try {
+            const schemas = {
+                ai_usage: compactedStreamSchemas.ai_usage,
+                lightdash_users: usageDimensionSchemas.users,
+                lightdash_projects: usageDimensionSchemas.projects,
+                lightdash_agents: usageDimensionSchemas.agents,
+            };
+            for (const [name, columns] of Object.entries(schemas)) {
+                await db.run(
+                    `CREATE TABLE "${name}" (${columns.map((column) => `"${column.name}" ${column.type}`).join(', ')})`,
+                );
+            }
+            await db.run(`INSERT INTO lightdash_users (org_id,user_id,name,email) VALUES
+                ('org','named','Alex','named@example.com'),
+                ('org','unnamed','  ',' primary@example.com '),
+                ('org','no-email',NULL,NULL),
+                ('other','unmatched',NULL,'other@example.com')`);
+            await db.run(`INSERT INTO ai_usage (org_id,user_id,channel,total_tokens) VALUES
+                ('org','named','web',1), ('org','unnamed','web',2),
+                ('org','no-email','web',3), ('org','unmatched','web',4),
+                ('org','named','embed',5), ('org',NULL,'web',6)`);
+            const rows = (
+                await db.runAndReadAll(
+                    compile({
+                        ...details,
+                        metricQuery: { ...details.metricQuery, filters: {} },
+                    }).query,
+                )
+            ).getRowObjects();
+            expect(rows).toHaveLength(6);
+            expect(rows).toEqual(
+                expect.arrayContaining(
+                    [
+                        ['named', 'web', 'Alex'],
+                        ['unnamed', 'web', 'primary@example.com'],
+                        ['no-email', 'web', 'User no-email'],
+                        ['unmatched', 'web', 'User unmatched'],
+                        ['named', 'embed', 'Embedded viewers'],
+                        [null, 'web', 'No user recorded'],
+                    ].map(([id, channel, label]) =>
+                        expect.objectContaining({
+                            ai_usage_user_id: id,
+                            ai_usage_channel: channel,
+                            user_display_name: label,
+                        }),
+                    ),
+                ),
+            );
+            expect(
+                rows.reduce(
+                    (sum, row) => sum + Number(row.ai_usage_total_tokens_used),
+                    0,
+                ),
+            ).toBe(21);
+            expect(
+                rows.some(
+                    (row) => row.ai_usage_user_email === 'other@example.com',
+                ),
+            ).toBe(false);
+        } finally {
+            db.closeSync();
+            instance.closeSync();
+        }
+    });
+
     it('uses display-only user labels without changing the selected identities', () => {
         const userCharts = charts.filter(
             (chart) =>
@@ -215,8 +296,10 @@ describe('built-in usage dashboards', () => {
         expect(userCharts.length).toBeGreaterThan(0);
         for (const chart of userCharts) {
             const nameField = `${chart.tableName}_user_name`;
+            const emailField = `${chart.tableName}_user_email`;
             const idField = `${chart.tableName}_user_id`;
             expect(chart.metricQuery.dimensions).toContain(idField);
+            expect(chart.metricQuery.dimensions).toContain(emailField);
             expect(chart.metricQuery.tableCalculations).toContainEqual(
                 expect.objectContaining({
                     name: 'user_display_name',
@@ -228,6 +311,7 @@ describe('built-in usage dashboards', () => {
                 const columns = chart.chartConfig.config?.columns;
                 expect(columns?.[nameField]?.visible).toBe(false);
                 expect(columns?.[idField]?.visible).toBe(false);
+                expect(columns?.[emailField]?.visible).toBe(false);
                 expect(
                     chart.metricQuery.tableCalculations.find(
                         ({ name }) => name === 'user_display_name',
@@ -235,6 +319,7 @@ describe('built-in usage dashboards', () => {
                 ).toBe(columns?.[nameField]?.name ?? 'User name');
             }
             const order = chart.tableConfig?.columnOrder ?? [];
+            expect(order).toContain(emailField);
             expect(order.indexOf('user_display_name')).toBe(
                 order.indexOf(nameField) - 2,
             );
@@ -244,7 +329,7 @@ describe('built-in usage dashboards', () => {
         }
     });
 
-    it('labels missing names and identities using existing summary rows while preserving totals and filters', async () => {
+    it('falls back to primary email for missing names while preserving identities, totals and filters', async () => {
         const instance = await DuckDBInstance.create(':memory:', {
             threads: '1',
             memory_limit: '128MB',
@@ -255,12 +340,12 @@ describe('built-in usage dashboards', () => {
                 `CREATE TABLE user_activity (${userActivityColumns.map(({ name, type }) => `"${name}" ${type}`).join(', ')})`,
             );
             await db.run(
-                'CREATE TABLE lightdash_users (org_id VARCHAR, user_id VARCHAR, name VARCHAR)',
+                'CREATE TABLE lightdash_users (org_id VARCHAR, user_id VARCHAR, name VARCHAR, email VARCHAR)',
             );
             await db.run(`INSERT INTO lightdash_users VALUES
-                ('org','named-a','Alex'), ('org','named-b','Alex'),
-                ('org','unnamed-a',NULL), ('org','unnamed-b','  '),
-                ('org','empty-name',''), ('other','missing-name','Other tenant')`);
+                ('org','named-a','Alex','shared@example.com'), ('org','named-b','Alex','shared@example.com'),
+                ('org','unnamed-a',NULL,'unnamed@example.com'), ('org','unnamed-b','  ','  '),
+                ('org','empty-name','',' trimmed@example.com '), ('other','missing-name','Other tenant','other@example.com')`);
             await db.run(`INSERT INTO user_activity (org_id,project_id,user_id,activity_date,event_count,stream) VALUES
                 ('org','project','named-a','2026-01-05',2,'ai_usage'),
                 ('org','project','named-b','2026-01-05',3,'query_events'),
@@ -284,6 +369,9 @@ describe('built-in usage dashboards', () => {
                         ...chart,
                         metricQuery: {
                             ...chart.metricQuery,
+                            dimensions: chart.metricQuery.dimensions.filter(
+                                (field) => field !== 'user_activity_user_email',
+                            ),
                             metrics: chart.metricQuery.metrics.filter(
                                 (field) =>
                                     field !== 'user_activity_activity_origin',
@@ -298,9 +386,9 @@ describe('built-in usage dashboards', () => {
             const labels = new Map<unknown, string>([
                 ['named-a', 'Alex'],
                 ['named-b', 'Alex'],
-                ['unnamed-a', 'User unnamed-a'],
+                ['unnamed-a', 'unnamed@example.com'],
                 ['unnamed-b', 'User unnamed-b'],
-                ['empty-name', 'User empty-name'],
+                ['empty-name', 'trimmed@example.com'],
                 ['missing-name', 'User missing-name'],
                 [null, 'No user recorded'],
                 ['', 'No user recorded'],
@@ -309,11 +397,13 @@ describe('built-in usage dashboards', () => {
             for (const {
                 user_display_name: label,
                 user_activity_activity_origin: origin,
+                user_activity_user_email: email,
                 ...row
             } of rows) {
                 expect(before).toContainEqual(row);
                 expect(typeof origin).toBe('string');
                 expect(label).toBe(labels.get(row.user_activity_user_id));
+                expect(email).not.toBe('other@example.com');
             }
             expect(
                 rows.reduce(
@@ -395,7 +485,7 @@ describe('built-in usage dashboards', () => {
                 `CREATE TABLE data_app_events (${compactedStreamSchemas.data_app_events.map(({ name, type }) => `"${name}" ${type}`).join(', ')})`,
             );
             await db.run(
-                'CREATE TABLE lightdash_users (org_id VARCHAR, user_id VARCHAR, name VARCHAR)',
+                'CREATE TABLE lightdash_users (org_id VARCHAR, user_id VARCHAR, name VARCHAR, email VARCHAR)',
             );
             await db.run(`INSERT INTO data_app_events (org_id,project_id,user_id,app_id,event_name,view_context) VALUES
                 ('org','project',NULL,'app','data_app.view','embed'),
@@ -447,14 +537,22 @@ describe('built-in usage dashboards', () => {
                         'people_adoption_user_id',
                     );
                     expect(chart.metricQuery.dimensions).toContain(
+                        'people_adoption_email',
+                    );
+                    expect(chart.metricQuery.dimensions).toContain(
                         'people_adoption_activity_through_day',
                     );
                     expect(chart.metricQuery.metrics).toEqual([]);
-                    if (chart.chartConfig.type === ChartType.TABLE)
+                    if (chart.chartConfig.type === ChartType.TABLE) {
                         expect(
                             chart.chartConfig.config?.columns
                                 ?.people_adoption_name?.visible,
                         ).toBe(false);
+                        expect(
+                            chart.chartConfig.config?.columns
+                                ?.people_adoption_email?.visible,
+                        ).toBe(false);
+                    }
                     expect(chart.tableConfig?.columnOrder?.[0]).toBe('person');
                 }
                 return populationCharts.map(({ metricQuery }) => metricQuery);
@@ -500,8 +598,14 @@ describe('built-in usage dashboards', () => {
             expect(compile(chart).warnings).toEqual([]);
             expect(chart.metricQuery.limit).toBeLessThanOrEqual(5000);
             expect(
-                chart.metricQuery.dimensions.every((field) =>
-                    field.startsWith(`${chart.tableName}_`),
+                chart.metricQuery.dimensions.every(
+                    (field) =>
+                        field.startsWith(`${chart.tableName}_`) ||
+                        chart.metricQuery.customDimensions?.some(
+                            (dimension) =>
+                                dimension.id === field &&
+                                dimension.table === chart.tableName,
+                        ),
                 ),
             ).toBe(true);
         },
@@ -545,6 +649,8 @@ describe('built-in usage dashboards', () => {
                 ('org','scheduled','Scheduled only','member','2026-10-21 00:30:00',true,true,true),
                 ('org','inactive','Inactive','member','2026-10-21 00:30:00',false,true,false),
                 ('org','pending','Pending','member','2026-10-21 00:30:00',true,false,false)`);
+            await db.run(`UPDATE lightdash_people SET email = ' person@example.com '
+                WHERE user_id IN ('never-a', 'never-b', 'unnamed')`);
             await db.run(`INSERT INTO content_views (org_id,user_id,event_ts,actor_type,is_qualifying) VALUES
                 ('org','recent','2026-10-20 12:00:00','user',true),
                 ('org','recent','2026-10-20 12:00:00','user',true),
@@ -584,7 +690,7 @@ describe('built-in usage dashboards', () => {
                 expect.arrayContaining([
                     expect.objectContaining({
                         people_adoption_user_id: 'unnamed',
-                        person: 'User unnamed',
+                        person: 'person@example.com',
                     }),
                 ]),
             );
@@ -615,6 +721,20 @@ describe('built-in usage dashboards', () => {
                     ),
                 ).size,
             ).toBe(1);
+
+            for (const email of ['NULL', "''", "'   '"]) {
+                await db.run(
+                    `UPDATE lightdash_people SET email = ${email} WHERE user_id = 'unnamed'`,
+                );
+                expect(await query(noObserved)).toEqual(
+                    expect.arrayContaining([
+                        expect.objectContaining({
+                            people_adoption_user_id: 'unnamed',
+                            person: 'User unnamed',
+                        }),
+                    ]),
+                );
+            }
 
             await db.run(`INSERT INTO content_views (org_id,user_id,event_ts,actor_type,is_qualifying)
                 SELECT org_id,user_id,TIMESTAMP '2026-10-20 12:00:00','user',true
@@ -658,7 +778,7 @@ describe('built-in usage dashboards', () => {
                 );
             }
             await db.run(
-                `INSERT INTO lightdash_users VALUES ('org','a','Alex'),('org','b','Alex'),('other','a','Wrong tenant')`,
+                `INSERT INTO lightdash_users (org_id,user_id,name) VALUES ('org','a','Alex'),('org','b','Alex'),('other','a','Wrong tenant')`,
             );
             await db.run(`INSERT INTO user_activity (org_id, project_id, user_id, activity_date, event_count) VALUES
                 ('org','project','a','2026-01-05',2),('org','project','a','2026-01-06',3),('org','project','b','2026-01-05',1),('org','project',NULL,'2026-01-05',4)`);

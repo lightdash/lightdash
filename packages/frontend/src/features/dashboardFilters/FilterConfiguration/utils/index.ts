@@ -367,6 +367,8 @@ export const getFilterRuleWithRequired = (
     filterRule: DashboardFilterRule,
     originalFilterRule: DashboardFilterRule | undefined,
     checked: boolean,
+    // Off puts back this saved rule's default when it had one, else clears
+    savedDefaultRule?: DashboardFilterRule,
 ): DashboardFilterRule => {
     // Toggling on restores the saved rule membership if there is one,
     // otherwise it creates a one-member rule; off removes it from its rule.
@@ -388,8 +390,21 @@ export const getFilterRuleWithRequired = (
               requiredGroupId: undefined,
           };
 
-    return checked
-        ? newFilter
+    if (checked) return newFilter;
+
+    const hasSavedDefault =
+        !!savedDefaultRule &&
+        !savedDefaultRule.required &&
+        !savedDefaultRule.requiredGroupId &&
+        savedDefaultRule.operator === filterRule.operator;
+
+    return savedDefaultRule && hasSavedDefault
+        ? {
+              ...newFilter,
+              values: savedDefaultRule.values,
+              settings: savedDefaultRule.settings,
+              disabled: savedDefaultRule.disabled,
+          }
         : getFilterRuleWithDefaultValue(filterType, field, newFilter, null);
 };
 
@@ -422,23 +437,9 @@ export const getFilterRuleFilterType = (
     return FilterType.STRING;
 };
 
-export const isFilterEnabled = (
-    filterRule?: DashboardFilterRule,
-    isEditMode?: boolean,
-    isCreatingNew?: boolean,
-) => {
-    if (!filterRule) return false;
-
-    const isFilterRuleDisabled = filterRule.disabled;
-    if (
-        (isFilterRuleDisabled && isEditMode) ||
-        (isFilterRuleDisabled && !isCreatingNew)
-    ) {
-        return true;
-    }
-
-    return hasFilterValueSet(filterRule);
-};
+// A disabled rule reads "any value", which can always be applied
+export const isFilterEnabled = (filterRule?: DashboardFilterRule) =>
+    !!filterRule && (!!filterRule.disabled || hasFilterValueSet(filterRule));
 
 // Dashboard rules and chart rules share the fields a saved-value comparison
 // reads, so scheduler overrides on either resource reuse these helpers.

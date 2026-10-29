@@ -53,8 +53,8 @@ import {
     getVisibleDataAppClaudeModels,
     isChartTypeIcon,
     isDashboardChartTileType,
-    isDataAppAutoAnalysis,
     isExploreError,
+    isExploreIncludedInTableSelection,
     isExternalFetchDocumentContext,
     isSemverVersion,
     isValidDataAppSlug,
@@ -64,7 +64,6 @@ import {
     MAX_APP_VIZ_BUILD_SAMPLE_FIELDS,
     MAX_APP_VIZ_BUILD_SAMPLE_ROWS,
     MissingConfigError,
-    normalizeDataAppAutoAnalysis,
     NotFoundError,
     ParameterError,
     ProjectType,
@@ -110,7 +109,6 @@ import {
     type DashboardBlueprint,
     type DataAppActivityEvent,
     type DataAppActivityFilters,
-    type DataAppAutoAnalysis,
     type DataAppClaudeEffort,
     type DataAppClaudeModel,
     type DataAppCode,
@@ -143,6 +141,7 @@ import {
     type ExternalConnectionMethod,
     type ExternalConnectionSample,
     type ExternalFetchRequest,
+    type FieldUrl,
     type ImportAppCodeRequestBody,
     type InstallRegistryChartTypeBody,
     type KnexPaginateArgs,
@@ -669,6 +668,9 @@ type RenderedModel = {
     // Field refs of model filters left out because their value is not a list.
     skippedFilterRefs: string[];
     hasSqlFilter: boolean;
+    // Visible fields carrying `urls` link patterns; drives the index marker
+    // and the generation-prompt reminder.
+    urlFields: string[];
 };
 
 /**
@@ -2117,6 +2119,7 @@ export class AppGenerateService extends BaseService {
         const connections = await this.externalConnectionModel.list(
             projectUuid,
             organizationUuid,
+            { kind: 'data_app' },
         );
         return connections.filter((connection) =>
             ability.can('view', getExternalConnectionSubject(connection)),
@@ -3930,17 +3933,24 @@ export class AppGenerateService extends BaseService {
         let dimensionCount = 0;
         let metricCount = 0;
         let totalBytes = 0;
+        let urlModels: { model: string; fields: string[] }[] = [];
         if (!isDataAppViz) {
             // Source the synthetic schema from the compiled explore cache (not
             // the flattened catalog summary) so it carries joins, real field
             // types, and parameters. A chart type receives host rows instead.
-            const [exploresByUuid, chartUsageByTable] = await Promise.all([
-                this.projectModel.getAllExploresFromCache(projectUuid),
-                this.catalogModel.getChartUsageByTable(projectUuid),
-            ]);
-            const explores = Object.values(exploresByUuid).filter(
-                (explore): explore is Explore => !isExploreError(explore),
-            );
+            const [exploresByUuid, chartUsageByTable, { tableSelection }] =
+                await Promise.all([
+                    this.projectModel.getAllExploresFromCache(projectUuid),
+                    this.catalogModel.getChartUsageByTable(projectUuid),
+                    this.projectModel.getTablesConfiguration(projectUuid),
+                ]);
+            const explores = Object.values(exploresByUuid)
+                .filter(
+                    (explore): explore is Explore => !isExploreError(explore),
+                )
+                .filter((explore) =>
+                    isExploreIncludedInTableSelection(explore, tableSelection),
+                );
             const catalog = AppGenerateService.exploresToModelFiles(
                 explores,
                 chartUsageByTable,
@@ -3950,6 +3960,7 @@ export class AppGenerateService extends BaseService {
             dimensionCount = catalog.dimensionCount;
             metricCount = catalog.metricCount;
             totalBytes = catalog.totalBytes;
+            urlModels = catalog.urlModels;
             if (catalog.skippedFilters.length > 0) {
                 this.logger.warn(
                     `App ${appUuid}: left ${catalog.skippedFilters.length} model filter(s) out of the catalog because their value is not a list: ${catalog.skippedFilters.join(', ')}`,
@@ -3980,6 +3991,16 @@ export class AppGenerateService extends BaseService {
 
         // Write chart reference files and prepend summary to prompt
         let finalPrompt = prompt;
+
+        // Doc-level guidance alone is unreliably followed, so fields with
+        // `urls` link patterns also get a per-run reminder in the prompt.
+        if (urlModels.length > 0) {
+            const listing = urlModels
+                .map(({ model, fields }) => `${model}: ${fields.join(', ')}`)
+                .join('; ')
+                .slice(0, 2_000);
+            finalPrompt = `[Field links: these fields declare \`urls\` link patterns in their model YAML — ${listing}. Wherever the app displays one of their values (including via a join), render it as a link built from the pattern, styled visibly as a link. See "Field links — urls" in the skill.]\n\n${finalPrompt}`;
+        }
         if (chartReferences && chartReferences.length > 0) {
             const referenceBlock = await this.writeChartReferences(
                 sandbox,
@@ -10301,7 +10322,6 @@ export class AppGenerateService extends BaseService {
         registrySlug: string | null;
         icon: ChartTypeIcon | null;
         verification: ContentVerificationInfo | null;
-        autoAnalysis: DataAppAutoAnalysis;
     }> {
         // Resolve to the real uuid before any query — the raw arg may be a
         // slug and must never reach a uuid-typed filter.
@@ -10316,7 +10336,6 @@ export class AppGenerateService extends BaseService {
             name,
             description,
             icon,
-            autoAnalysis,
             addAnalysisDismissedAt,
             createdByUserUuid,
             organizationUuid,
@@ -10466,7 +10485,6 @@ export class AppGenerateService extends BaseService {
             // An icon retired from the curated set reads back as no icon.
             icon: isChartTypeIcon(icon) ? icon : null,
             verification,
-            autoAnalysis: normalizeDataAppAutoAnalysis(autoAnalysis),
         };
     }
 
@@ -11826,14 +11844,12 @@ export class AppGenerateService extends BaseService {
             name?: string;
             description?: string;
             icon?: ChartTypeIcon | null;
-            autoAnalysis?: DataAppAutoAnalysis;
         },
     ): Promise<{
         appUuid: string;
         name: string;
         description: string;
         icon: ChartTypeIcon | null;
-        autoAnalysis: DataAppAutoAnalysis;
     }> {
         const app = await this.appModel.getApp(appUuid, projectUuid);
         await this.assertAppsEnabled(user, app.template);
@@ -11854,7 +11870,6 @@ export class AppGenerateService extends BaseService {
             name: string;
             description: string;
             icon: string | null;
-            auto_analysis: DataAppAutoAnalysis;
         }> = {};
         if (update.name !== undefined) {
             const trimmedName = update.name.trim();
@@ -11890,18 +11905,10 @@ export class AppGenerateService extends BaseService {
             }
             fieldsToUpdate.icon = update.icon;
         }
-        if (update.autoAnalysis !== undefined) {
-            if (!isDataAppAutoAnalysis(update.autoAnalysis)) {
-                throw new ParameterError(
-                    `Invalid auto analysis value: ${String(update.autoAnalysis)}`,
-                );
-            }
-            fieldsToUpdate.auto_analysis = update.autoAnalysis;
-        }
 
         if (Object.keys(fieldsToUpdate).length === 0) {
             throw new ParameterError(
-                'At least one of name, description, icon or autoAnalysis must be provided',
+                'At least one of name, description or icon must be provided',
             );
         }
 
@@ -11921,9 +11928,6 @@ export class AppGenerateService extends BaseService {
             name: updatedApp.name,
             description: updatedApp.description,
             icon: isChartTypeIcon(updatedApp.icon) ? updatedApp.icon : null,
-            autoAnalysis: normalizeDataAppAutoAnalysis(
-                updatedApp.auto_analysis,
-            ),
         };
     }
 
@@ -12685,6 +12689,26 @@ export class AppGenerateService extends BaseService {
     }
 
     /**
+     * Field link patterns (`urls`), verbatim: `${value.raw}` and
+     * `${row.<model>.<field>.raw}` placeholders are the template's own syntax,
+     * not something to resolve here. The index header explains them.
+     */
+    private static renderFieldUrlsYaml(
+        urls: FieldUrl[] | undefined,
+        indent: string,
+    ): string[] {
+        if (!urls || urls.length === 0) return [];
+        const lines: string[] = [`${indent}urls:`];
+        for (const { label, url } of urls) {
+            lines.push(
+                `${indent}  - label: ${AppGenerateService.yamlQuote(label)}`,
+                `${indent}    url: ${AppGenerateService.yamlQuote(url)}`,
+            );
+        }
+        return lines;
+    }
+
+    /**
      * Render one compiled table as a dbt-style model, carrying real
      * metric/dimension types, join relationships (`meta.joins`), AI hints,
      * model-level parameters, and model-level filters (`sql_filter`,
@@ -12764,6 +12788,12 @@ export class AppGenerateService extends BaseService {
                             );
                         }
                     }
+                    headerLines.push(
+                        ...AppGenerateService.renderFieldUrlsYaml(
+                            m.urls,
+                            '          ',
+                        ),
+                    );
                 }
             }
             if (joins.length > 0) {
@@ -12841,6 +12871,12 @@ export class AppGenerateService extends BaseService {
             block.push(`        meta:`);
             block.push(`          dimension:`);
             block.push(`            type: ${d.type}`);
+            block.push(
+                ...AppGenerateService.renderFieldUrlsYaml(
+                    d.urls,
+                    '            ',
+                ),
+            );
             return block;
         });
 
@@ -12856,6 +12892,9 @@ export class AppGenerateService extends BaseService {
             defaultFilterCount: defaultFilters.length,
             skippedFilterRefs,
             hasSqlFilter: sqlFilter !== null,
+            urlFields: [...metrics, ...dimensions]
+                .filter((f) => f.urls && f.urls.length > 0)
+                .map((f) => f.name),
         };
     }
 
@@ -13074,6 +13113,7 @@ export class AppGenerateService extends BaseService {
         metricCount: number;
         totalBytes: number;
         skippedFilters: string[];
+        urlModels: { model: string; fields: string[] }[];
     } {
         const models = AppGenerateService.exploresToRenderedModels(explores);
         const filenames = AppGenerateService.modelFilenames(models);
@@ -13108,8 +13148,14 @@ export class AppGenerateService extends BaseService {
             'A `filters=` marker means the model declares model-level filters',
             '(required/default/sql_filter) that affect every query against it —',
             'read that model file before querying it.',
+            "A `urls=N` marker means N of the model's fields declare `urls:` —",
+            'link patterns whose values MUST render as links: `${value.raw}` is',
+            "the cell's raw value; `${row.<model>.<field>.raw}` references",
+            'another field in the same row (include that field in the query).',
+            'Check the marked model file before displaying any of its fields,',
+            'including fields queried through a join.',
             '',
-            'name  file  dims/metrics  joins  [filters]  description',
+            'name  file  dims/metrics  joins  [filters]  [urls]  description',
             '',
         ].join('\n');
 
@@ -13132,12 +13178,16 @@ export class AppGenerateService extends BaseService {
                 filterParts.length > 0
                     ? `  filters=${filterParts.join(',')}`
                     : '';
+            const urls =
+                model.urlFields.length > 0
+                    ? `  urls=${model.urlFields.length}`
+                    : '';
             const description = model.description
                 ? `  ${model.description
                       .replace(/\s+/g, ' ')
                       .slice(0, AppGenerateService.INDEX_DESCRIPTION_MAX_LEN)}`
                 : '';
-            return `${model.name}  ${filename}  dims=${model.dimensionCount} metrics=${model.metricCount}  joins=${joins}${filters}${description}`;
+            return `${model.name}  ${filename}  dims=${model.dimensionCount} metrics=${model.metricCount}  joins=${joins}${filters}${urls}${description}`;
         };
 
         const compactLine = (entry: (typeof ranked)[number]): string =>
@@ -13186,6 +13236,9 @@ export class AppGenerateService extends BaseService {
             skippedFilters: models.flatMap((m) =>
                 m.skippedFilterRefs.map((fieldRef) => `${m.name}.${fieldRef}`),
             ),
+            urlModels: models
+                .filter((m) => m.urlFields.length > 0)
+                .map((m) => ({ model: m.name, fields: m.urlFields })),
         };
     }
 
@@ -13884,13 +13937,15 @@ export class AppGenerateService extends BaseService {
 
         const { semanticLayer, semanticLayerFiles } = await (async () => {
             try {
-                const exploresByUuid =
-                    await this.projectModel.getAllExploresFromCache(
-                        projectUuid,
+                const [exploresByUuid, { tableSelection }] = await Promise.all([
+                    this.projectModel.getAllExploresFromCache(projectUuid),
+                    this.projectModel.getTablesConfiguration(projectUuid),
+                ]);
+                const explores = Object.values(exploresByUuid)
+                    .filter((e): e is Explore => !isExploreError(e))
+                    .filter((e) =>
+                        isExploreIncludedInTableSelection(e, tableSelection),
                     );
-                const explores = Object.values(exploresByUuid).filter(
-                    (e): e is Explore => !isExploreError(e),
-                );
                 // Chart usage only orders the index — degrade the ranking, not
                 // the whole semantic layer, when it is unavailable.
                 const chartUsageByTable = await (async () => {

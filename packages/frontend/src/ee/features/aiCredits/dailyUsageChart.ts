@@ -1,7 +1,4 @@
-import {
-    type AiCreditDailyUsage,
-    type AiCreditDailyUsageSeries,
-} from '@lightdash/common';
+import { type AiCreditDailyUsage } from '@lightdash/common';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import escape from 'lodash/escape';
@@ -22,15 +19,8 @@ const SERIES_COLORS = [
     'var(--mantine-color-cyan-4)',
 ] as const;
 
-const COMBINED_SERIES_COLOR = 'var(--mantine-color-ldGray-5)';
-
-export const getAiCreditSeriesColor = (
-    series: AiCreditDailyUsageSeries,
-    index: number,
-): string =>
-    series.type === 'other'
-        ? COMBINED_SERIES_COLOR
-        : SERIES_COLORS[index % SERIES_COLORS.length];
+export const getAiCreditSeriesColor = (index: number): string =>
+    SERIES_COLORS[index % SERIES_COLORS.length];
 
 export type AiCreditChartBucket = {
     label: string;
@@ -68,27 +58,6 @@ export const toAiCreditChartBuckets = (
             ),
         };
     });
-};
-
-/**
- * A row's bar is measured against the allowance, so the rows add up to the
- * main usage bar; without an allowance, against everything used this period.
- */
-export const getAiCreditRowShare = ({
-    credits,
-    allowanceCredits,
-    usedCredits,
-}: {
-    credits: number;
-    allowanceCredits: number | null;
-    usedCredits: number;
-}): number => {
-    const measure =
-        allowanceCredits !== null && allowanceCredits > 0
-            ? allowanceCredits
-            : usedCredits;
-    if (measure <= 0) return 0;
-    return Math.min(Math.max((credits / measure) * 100, 0), 100);
 };
 
 /** The series drawn on top of a stacked bar: the last one with credits that day, or -1 when the day is empty. */

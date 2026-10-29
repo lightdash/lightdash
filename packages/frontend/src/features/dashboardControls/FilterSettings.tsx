@@ -105,7 +105,7 @@ const Disclosure: FC<DisclosureProps> = ({
             aria-expanded={isOpen}
             onClick={() => onToggle(section)}
         >
-            <Text fz="sm" fw={500}>
+            <Text fz="xs" fw={500} c="dimmed">
                 {label}
             </Text>
             <Text
@@ -118,7 +118,7 @@ const Disclosure: FC<DisclosureProps> = ({
             </Text>
             <MantineIcon
                 icon={IconChevronRight}
-                size={14}
+                size={12}
                 color="dimmed"
                 className={classes.chevron}
             />
@@ -131,6 +131,8 @@ type Props = {
     rule: DashboardFilterRule;
     field: DashboardFilterableField | null;
     onChange: (next: DashboardFilterRule) => void;
+    /** Under the value, an editor's choice of section; null for a viewer. */
+    sectionSelect: ReactNode;
     /** The fields and tiles of the filter, shown under "Tiles". */
     tiles: ReactNode;
     tilesSummary: string;
@@ -140,6 +142,7 @@ export const FilterSettings: FC<Props> = ({
     rule,
     field,
     onChange,
+    sectionSelect,
     tiles,
     tilesSummary,
 }) => {
@@ -237,6 +240,7 @@ export const FilterSettings: FC<Props> = ({
                     {getUiString('filters.rail.addedByYouNote')}
                 </Text>
             )}
+            {sectionSelect}
             <Box className={classes.disclosures}>
                 <Disclosure
                     section="tiles"

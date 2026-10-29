@@ -13,7 +13,6 @@ vi.mock('../ai/AiAgentMcpRuntimeClient', () => ({
 type PrivateService = {
     getIsCopilotEnabled: () => Promise<boolean>;
     getAgentSettings: (...args: unknown[]) => Promise<unknown>;
-    canCreateDashboardsInProject: (...args: unknown[]) => Promise<boolean>;
     getAgentRuntimeMcpServers: (...args: unknown[]) => Promise<unknown[]>;
     createAuditedAbility: (...args: unknown[]) => { can: () => boolean };
     getAiAgentDependencies: (
@@ -54,7 +53,7 @@ describe('Document runtime access', () => {
             expected: false,
         },
         {
-            name: 'denied ContentAsCode',
+            name: 'no space the user can save in',
             slack: false,
             trusted: true,
             authorized: false,
@@ -121,6 +120,7 @@ describe('Document runtime access', () => {
                 },
                 aiAgentToolsService: {
                     canGenerateDataApp: vi.fn().mockResolvedValue(false),
+                    canAuthorContent: vi.fn().mockResolvedValue(authorized),
                 },
             } as unknown as ConstructorParameters<typeof AiAgentService>[0]);
             const privateService = service as unknown as PrivateService;
@@ -135,14 +135,10 @@ describe('Document runtime access', () => {
             });
             vi.spyOn(
                 privateService,
-                'canCreateDashboardsInProject',
-            ).mockResolvedValue(false);
-            vi.spyOn(
-                privateService,
                 'getAgentRuntimeMcpServers',
             ).mockResolvedValue([]);
             vi.spyOn(privateService, 'createAuditedAbility').mockReturnValue({
-                can: () => authorized,
+                can: () => true,
             });
             const stopAtDependencies = new Error('Dependency boundary reached');
             const dependencies = vi

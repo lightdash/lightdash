@@ -24,3 +24,9 @@
         line-height: 1.2 !important;
     }
 }
+
+/* Prevent line breaks in the description
+   Can be custom using: SNOWFLAKE_UNAUTHORIZED_ERROR_MESSAGE */
+.preWrap {
+    white-space: pre-wrap;
+}

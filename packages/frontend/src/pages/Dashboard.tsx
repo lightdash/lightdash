@@ -69,8 +69,10 @@ import {
     selectDashboardParameters,
     selectDashboardTabs,
     selectDashboardTiles,
+    selectControlSections,
     selectHasDefaultDateZoomGranularityChanged,
     selectHasParameterOrderChanged,
+    selectHaveControlSectionsChanged,
     selectHaveCustomMetricsChanged,
     selectHaveDateZoomGranularitiesChanged,
     selectHaveFiltersChanged,
@@ -86,9 +88,11 @@ import {
     selectParameterValues,
     selectPinnedParameters,
     selectRawTemporaryFilters,
+    dashboardEditActions,
     useAreAllChartsLoaded,
     useDashboardDateZoomConfig,
     useDashboardDateZoomGranularities,
+    useDashboardDispatch,
     useDashboardSelector,
     useDashboardStore,
     useDefaultDateZoomGranularity,
@@ -277,6 +281,11 @@ const Dashboard: FC = () => {
     );
     const setHasParameterOrderChanged = useDashboardContext(
         (c) => c.setHasParameterOrderChanged,
+    );
+    const dashboardDispatch = useDashboardDispatch();
+    const controlSections = useDashboardSelector(selectControlSections);
+    const haveControlSectionsChanged = useDashboardSelector(
+        selectHaveControlSectionsChanged,
     );
     const dateZoomGranularities = useDashboardDateZoomGranularities();
     const haveDateZoomGranularitiesChanged = useDashboardSelector(
@@ -732,6 +741,14 @@ const Dashboard: FC = () => {
         setPinnedParameters(dashboard.config?.pinnedParameters ?? []);
         setHavePinnedParametersChanged(false);
         setHasParameterOrderChanged(false);
+        dashboardDispatch(
+            dashboardEditActions.setHaveControlSectionsChanged(false),
+        );
+        dashboardDispatch(
+            dashboardEditActions.syncControlSections(
+                dashboard.config?.controlSections ?? [],
+            ),
+        );
         setDateZoomGranularities(
             dashboard.config?.dateZoomGranularities ??
                 Object.values(DateGranularity),
@@ -782,6 +799,7 @@ const Dashboard: FC = () => {
         setHasDateZoomConfigChanged,
         setHasParameterOrderChanged,
         setRequiredFiltersNote,
+        dashboardDispatch,
     ]);
 
     const handleMoveDashboardToSpace = useCallback(
@@ -837,6 +855,7 @@ const Dashboard: FC = () => {
         parametersHaveChanged ||
         havePinnedParametersChanged ||
         hasParameterOrderChanged ||
+        haveControlSectionsChanged ||
         haveDateZoomGranularitiesChanged ||
         hasDefaultDateZoomGranularityChanged ||
         hasDateZoomConfigChanged;
@@ -883,6 +902,9 @@ const Dashboard: FC = () => {
             setHaveDateZoomGranularitiesChanged(false);
             setHasDefaultDateZoomGranularityChanged(false);
             setHasDateZoomConfigChanged(false);
+            dashboardDispatch(
+                dashboardEditActions.setHaveControlSectionsChanged(false),
+            );
             // The saved config is the source of truth again
             setRequiredFiltersNote(undefined);
             setDashboardTemporaryFilters({
@@ -923,6 +945,7 @@ const Dashboard: FC = () => {
         setHasDefaultDateZoomGranularityChanged,
         setHasDateZoomConfigChanged,
         setRequiredFiltersNote,
+        dashboardDispatch,
         dashboardTabs,
         activeTab,
     ]);
@@ -1250,7 +1273,10 @@ const Dashboard: FC = () => {
         dashboardTabs,
     ]);
 
-    if (isDashboardLoading) {
+    // Until the controls flag answers the page could not pick its bar and
+    // would swap it, remounting the grid; the request runs alongside the
+    // dashboard's, so it only waits when the flag is slower
+    if (isDashboardLoading || dashboardControlsFlag.isInitialLoading) {
         return <PageSpinner />;
     }
 
@@ -1344,6 +1370,8 @@ const Dashboard: FC = () => {
                 stagedCustomMetrics: haveCustomMetricsChanged
                     ? dashboardCustomMetrics
                     : undefined,
+                controlSections,
+                haveControlSectionsChanged,
             }),
             parameters: selectDashboardParameters(dashboardState),
             ...(preserveVerification !== undefined

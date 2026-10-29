@@ -19,7 +19,7 @@ describe('writeback connection support', () => {
         (host_domain) => {
             expect(
                 getWritebackConnectionSupport({ ...bitbucket, host_domain }),
-            ).toEqual({ editDbtProject: true, editRepo: false });
+            ).toEqual({ editDbtProject: true, supportsProjectContext: false });
         },
     );
     it.each(['bitbucket.internal', 'bitbucket.org.evil.test'])(
@@ -27,11 +27,11 @@ describe('writeback connection support', () => {
         (host_domain) => {
             expect(
                 getWritebackConnectionSupport({ ...bitbucket, host_domain }),
-            ).toEqual({ editDbtProject: false, editRepo: false });
+            ).toEqual({ editDbtProject: false, supportsProjectContext: false });
         },
     );
     it.each([DbtProjectType.GITHUB, DbtProjectType.GITLAB] as const)(
-        'preserves both tools for %s',
+        'supports writeback and project context for %s',
         (type) => {
             expect(
                 getWritebackConnectionSupport({
@@ -39,7 +39,7 @@ describe('writeback connection support', () => {
                     type,
                     authorization_method: 'personal_access_token',
                 }),
-            ).toEqual({ editDbtProject: true, editRepo: true });
+            ).toEqual({ editDbtProject: true, supportsProjectContext: true });
         },
     );
 });

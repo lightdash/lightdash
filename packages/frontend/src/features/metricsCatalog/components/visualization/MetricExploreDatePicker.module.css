@@ -32,7 +32,7 @@
 
 .presetButton:hover,
 .presetButton[data-selected] {
-    background-color: var(--mantine-color-ldGray-0);
+    background-color: var(--mantine-color-default-hover);
 }
 
 .toolbar {
@@ -55,7 +55,7 @@
         max-width: 100%;
     }
 
-    .rangeButton :global(.mantine-Button-label) {
+    .rangeButtonLabel {
         white-space: normal;
         padding-block: var(--mantine-spacing-xs);
     }
@@ -84,29 +84,19 @@
         width: 100%;
     }
 
-    .calendar :global(.mantine-DatePicker-levelsGroup) > div,
-    .calendar :global(.mantine-MonthPicker-levelsGroup) > div,
-    .calendar :global(.mantine-YearPicker-levelsGroup) > div {
+    .levelsGroup > div,
+    .pickerList {
         width: 100%;
     }
 
-    .calendar :global(.mantine-DatePicker-day) {
+    .day {
         width: 44px;
     }
 
-    .calendar :global(.mantine-DatePicker-monthsList),
-    .calendar :global(.mantine-MonthPicker-monthsList),
-    .calendar :global(.mantine-YearPicker-yearsList) {
-        width: 100%;
-    }
-
-    .calendar :global(.mantine-DatePicker-day),
-    .calendar :global(.mantine-MonthPicker-pickerControl),
-    .calendar :global(.mantine-YearPicker-pickerControl),
-    .calendar :global(.mantine-DatePicker-calendarHeaderControl),
-    .calendar :global(.mantine-MonthPicker-calendarHeaderControl),
-    .calendar :global(.mantine-YearPicker-calendarHeaderControl),
-    .footer :global(.mantine-Button-root) {
+    .day,
+    .pickerControl,
+    .headerControl,
+    .footerButton[data-variant] {
         min-height: 44px;
     }
 
@@ -115,4 +105,17 @@
         bottom: 0;
         background: var(--mantine-color-body);
     }
+}
+
+.rangeInput {
+    box-shadow: var(--mantine-shadow-subtle);
+    border: 1px solid var(--mantine-color-ldGray-2);
+}
+
+.cancelButton[data-variant] {
+    border: 1px solid var(--mantine-color-ldGray-2);
+}
+
+.footerButton[data-variant] {
+    box-shadow: var(--mantine-shadow-subtle);
 }

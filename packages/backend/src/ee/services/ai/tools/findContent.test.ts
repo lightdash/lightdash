@@ -142,6 +142,7 @@ const makeMockSpace = (): FindContentResult => ({
     childSpaceCount: 1,
     appCount: 0,
     directAccess: true,
+    canEdit: true,
     verification: null,
     space: {
         uuid: 'space-uuid-1',
@@ -776,6 +777,7 @@ describe('getFindContent', () => {
                 childSpaceCount: 1,
                 appCount: 0,
                 directAccess: true,
+                canEdit: true,
                 space: {
                     uuid: 'space-uuid-1',
                     name: 'Marketing',

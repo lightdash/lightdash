@@ -18,6 +18,7 @@ import useApp from '../../providers/App/useApp';
 import SupportDrawerContent from '../../providers/SupportDrawer/SupportDrawerContent';
 import LargeMenuItem from '../common/LargeMenuItem';
 import MantineIcon from '../common/MantineIcon';
+import { Z_INDEX_FLOATING } from '../common/Page/constants';
 import { useNavBarMenuProps } from './NavBarPortalContext';
 
 const HelpMenu: FC<{ withLabel?: boolean }> = ({ withLabel = false }) => {
@@ -126,7 +127,7 @@ const HelpMenu: FC<{ withLabel?: boolean }> = ({ withLabel = false }) => {
                                 size: 'lg',
                                 children: <SupportDrawerContent />,
                                 yOffset: 100,
-                                zIndex: 1000,
+                                zIndex: Z_INDEX_FLOATING,
                             });
                         }}
                         title="Report an issue"

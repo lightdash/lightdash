@@ -26,3 +26,16 @@ export const formatFieldCount = (
         ),
         { count },
     );
+
+export const formatSectionCount = (
+    getUiString: UiStringResolver,
+    count: number,
+): string =>
+    interpolateUiString(
+        getUiString(
+            count === 1
+                ? 'filters.rail.sectionCount.singular'
+                : 'filters.rail.sectionCount.plural',
+        ),
+        { count },
+    );

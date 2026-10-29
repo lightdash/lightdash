@@ -48,7 +48,7 @@ const TrinoForm: FC<{
                     required
                     {...form.getInputProps('warehouse.host')}
                     disabled={disabled}
-                    labelProps={{ style: { marginTop: '8px' } }}
+                    labelProps={{ mt: 'xs' }}
                 />
                 <TextInput
                     name="warehouse.user"

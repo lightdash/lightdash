@@ -7,6 +7,7 @@ import {
 } from '@lightdash/common';
 import {
     Anchor,
+    Box,
     Button,
     Flex,
     PasswordInput,
@@ -204,21 +205,21 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
         !health.data
     ) {
         return (
-            <div style={{ marginTop: '20px' }}>
+            <Box mt="lg">
                 <SuboptimalState title="Loading embed config" loading />
-            </div>
+            </Box>
         );
     }
 
     if (error && error.error.statusCode !== 404) {
         return (
-            <div style={{ marginTop: '20px' }}>
+            <Box mt="lg">
                 <SuboptimalState
                     title="Embed configuration not available"
                     description={error.error.message}
                     icon={IconAlertCircle}
                 />
-            </div>
+            </Box>
         );
     }
 

@@ -1,4 +1,5 @@
 import {
+    convertItemTypeToDimensionType,
     DimensionType,
     FieldType,
     ParameterError,
@@ -234,12 +235,23 @@ export const pythonResultToFields = (meta: PythonResultMeta): ItemsMap =>
 /** Column types of a referenced result, as the harness reads them. */
 export const resultColumnsToPythonInput = (
     columns: ResultColumns,
+    itemsMap: ItemsMap,
 ): Record<string, PythonColumnType> =>
     Object.fromEntries(
-        Object.values(columns).map((column) => [
-            column.reference,
-            toPythonColumnType(column.type),
-        ]),
+        Object.values(columns).map((column) => {
+            const item = itemsMap[column.reference];
+            // Truncating a date can return a warehouse timestamp (Postgres DATE_TRUNC).
+            const isTruncatedDate =
+                column.type === DimensionType.TIMESTAMP &&
+                item !== undefined &&
+                convertItemTypeToDimensionType(item) === DimensionType.DATE;
+            return [
+                column.reference,
+                toPythonColumnType(
+                    isTruncatedDate ? DimensionType.DATE : column.type,
+                ),
+            ];
+        }),
     );
 
 /**
@@ -294,7 +306,11 @@ def load_input(name, spec):
                 lambda value: pd.NA if pd.isna(value) else bool(value)
             ).astype("boolean")
         elif kind in ("date", "timestamp"):
-            frame[column] = pd.to_datetime(frame[column], errors="coerce", utc=(kind == "timestamp"))
+            parsed = pd.to_datetime(frame[column], errors="coerce", utc=True)
+            if kind == "date":
+                # tz-naive so user code can compare against naive Timestamps and date_range()
+                parsed = parsed.dt.tz_localize(None).dt.normalize()
+            frame[column] = parsed
         else:
             frame[column] = frame[column].astype("string")
     return frame
@@ -307,6 +323,10 @@ def column_type(series):
     if pd.api.types.is_numeric_dtype(dtype):
         return "number"
     if pd.api.types.is_datetime64_any_dtype(dtype):
+        non_null = series.dropna()
+        is_naive = getattr(dtype, "tz", None) is None
+        if is_naive and bool((non_null == non_null.dt.normalize()).all()):
+            return "date"
         return "timestamp"
     return "string"
 
@@ -319,6 +339,8 @@ def to_json_value(value, kind):
     if value is pd.NaT:
         return None
     if isinstance(value, (pd.Timestamp,)):
+        if value.tzinfo is None:
+            value = value.tz_localize("UTC")
         return value.isoformat()
     if isinstance(value, np.generic):
         value = value.item()

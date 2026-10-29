@@ -32,7 +32,7 @@ const detectCI = (): CIInfo => {
 const identifyUser = async (): Promise<Config['user']> => {
     refuseAgentConnection();
     const config = await getConfig();
-    if (config.context?.serverUrl && config.context.apiKey) {
+    if (config.context?.serverUrl) {
         try {
             const user = await lightdashApi<LightdashUser>({
                 method: 'GET',

@@ -25,7 +25,7 @@ const ScreenshotProgressIndicator: FC<ScreenshotProgressIndicatorProps> = ({
         data-tiles-expected={JSON.stringify(expectedTileUuids)}
         data-tiles-ready={JSON.stringify(readyTileUuids)}
         data-tiles-errored={JSON.stringify(erroredTileUuids)}
-        style={{ display: 'none' }}
+        hidden
         aria-hidden="true"
     />
 );

@@ -1,8 +1,8 @@
 import { friendlyName, type ParametersValuesMap } from '@lightdash/common';
-import { Badge, Flex, Text } from '@mantine/core';
-import { clsx } from 'clsx';
+import { Badge, Box, Flex, Text } from '@mantine/core';
 import { type FC } from 'react';
 import classes from './AgentVisualizationParameters.module.css';
+import chipClasses from './QueryChip.module.css';
 
 const formatParameterValue = (value: ParametersValuesMap[string]): string =>
     Array.isArray(value) ? value.join(', ') : String(value);
@@ -26,16 +26,8 @@ const AgentVisualizationParameters: FC<Props> = ({
 
     return (
         <Flex gap={4} wrap="wrap" align="center">
-            {entries.map(([name, value]) => (
-                <Badge
-                    key={name}
-                    variant="default"
-                    fw={400}
-                    className={clsx(
-                        classes.parameterBadge,
-                        compact && classes.compact,
-                    )}
-                >
+            {entries.map(([name, value]) => {
+                const label = (
                     <Text fz="xs" truncate>
                         <Text fw={600} span fz="xs">
                             {parameterLabel(name)}
@@ -47,8 +39,26 @@ const AgentVisualizationParameters: FC<Props> = ({
                             {formatParameterValue(value)}
                         </Text>
                     </Text>
-                </Badge>
-            ))}
+                );
+                return compact ? (
+                    <Box
+                        key={name}
+                        component="span"
+                        className={chipClasses.chip}
+                    >
+                        {label}
+                    </Box>
+                ) : (
+                    <Badge
+                        key={name}
+                        variant="default"
+                        fw={400}
+                        className={classes.parameterBadge}
+                    >
+                        {label}
+                    </Badge>
+                );
+            })}
         </Flex>
     );
 };

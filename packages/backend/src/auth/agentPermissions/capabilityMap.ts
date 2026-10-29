@@ -68,7 +68,6 @@ export const AGENT_TOOL_CAPABILITIES = {
     editContent: [AgentCapability.ContentWrite],
     editDbtProject: [AgentCapability.DbtWriteback],
     editProjectContext: [AgentCapability.DbtWriteback],
-    editRepo: [AgentCapability.DbtWriteback],
     exploreRepo: [AgentCapability.ReadDiscover],
     exportChartAsCode: [AgentCapability.Export],
     findCharts: [AgentCapability.ReadDiscover],
@@ -748,6 +747,9 @@ export const REST_OPERATION_CAPABILITIES = {
     'DashboardControllerV2.getDashboardSchedulers': [
         AgentCapability.ReadDiscover,
     ],
+    'DashboardControllerV2.invalidateResultsCache': [
+        AgentCapability.Administration,
+    ],
     'AppStateController.deleteSharedState': [AgentCapability.Delete],
     'AppStateController.deleteUserState': [AgentCapability.ContentWrite],
     'AppStateController.getAppState': [AgentCapability.ReadDiscover],
@@ -864,6 +866,9 @@ export const REST_OPERATION_CAPABILITIES = {
         AgentCapability.ExternalTools,
     ],
     'ExternalConnectionController.getExternalConnection': [
+        AgentCapability.ReadDiscover,
+    ],
+    'ExternalConnectionController.getExternalConnectionApiUsage': [
         AgentCapability.ReadDiscover,
     ],
     'ExternalConnectionController.linkAppExternalConnection': [
@@ -1599,6 +1604,9 @@ export const REST_OPERATION_CAPABILITIES = {
     'ProjectController.updateProjectResultsCacheSettings': [
         AgentCapability.Administration,
     ],
+    'ProjectController.invalidateProjectResultsCache': [
+        AgentCapability.Administration,
+    ],
     'ProjectController.updateQueryTimezoneSettings': [
         AgentCapability.Administration,
     ],
@@ -1761,6 +1769,9 @@ export const REST_OPERATION_CAPABILITIES = {
     ],
     'SavedChartControllerV2.getSavedChartSchedulers': [
         AgentCapability.ReadDiscover,
+    ],
+    'SavedChartControllerV2.invalidateResultsCache': [
+        AgentCapability.Administration,
     ],
     'SchedulerAiAugmentationController.deleteAugmentation': [
         AgentCapability.Delete,

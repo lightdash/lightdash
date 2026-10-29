@@ -14,6 +14,7 @@ import {
 import {
     combineUnderlyingDataFilters,
     getUnderlyingDataFilterParts,
+    getUnderlyingDataFilterPartsFromConfig,
 } from './underlyingDataFilters';
 
 const dimension = (
@@ -218,6 +219,68 @@ describe('getUnderlyingDataFilterParts', () => {
             operator: FilterOperator.EQUALS,
             values: ['completed'],
         });
+    });
+});
+
+describe('getUnderlyingDataFilterPartsFromConfig without a resolved item', () => {
+    const regionDim = dimension('region');
+    const args = {
+        underlyingDataConfig: {
+            item: undefined,
+            value: { raw: 100, formatted: '100' },
+            fieldValues: {
+                orders_status: { raw: 'completed', formatted: 'completed' },
+                orders_amount: { raw: 100, formatted: '100' },
+            },
+            pivotReference: {
+                field: 'orders_amount',
+                pivotValues: [{ field: 'orders_region', value: 'EMEA' }],
+            },
+        },
+        allDimensions: [statusDim, regionDim],
+        resolvedTimezone: undefined,
+    };
+
+    test('still filters on the clicked dimension values and pivot values', () => {
+        const parts = getUnderlyingDataFilterPartsFromConfig(args);
+        expect(parts?.pointFilterRules).toEqual([
+            expect.objectContaining({
+                target: { fieldId: 'orders_status' },
+                operator: FilterOperator.EQUALS,
+                values: ['completed'],
+            }),
+            expect.objectContaining({
+                target: { fieldId: 'orders_region' },
+                operator: FilterOperator.EQUALS,
+                values: ['EMEA'],
+            }),
+        ]);
+        expect(parts?.metricFilterRules).toEqual([]);
+    });
+
+    test("keeps the chart's own filters", () => {
+        const chartFilter: FilterGroup = {
+            id: 'chart',
+            and: [
+                {
+                    id: 'chart-rule',
+                    target: { fieldId: 'orders_region' },
+                    operator: FilterOperator.NOT_NULL,
+                },
+            ],
+        };
+        const filterParts = getUnderlyingDataFilterPartsFromConfig(args);
+        expect(filterParts).not.toBeNull();
+        if (!filterParts) return;
+        const filters = combineUnderlyingDataFilters({
+            filterParts,
+            exploreDimensionFilters: chartFilter,
+            allFields: [statusDim, regionDim, amountMetric],
+        });
+        expect(flattenRules(filters.dimensions).map((r) => r.id)).toContain(
+            'chart-rule',
+        );
+        expect(flattenRules(filters.dimensions)).toHaveLength(3);
     });
 });
 

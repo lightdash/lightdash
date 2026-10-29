@@ -7,6 +7,7 @@ export type ResultsCacheProjectSettings = {
     projectUuid: string;
     cacheTtlSeconds: number | null;
     instanceDefaultTtlSeconds: number;
+    lastInvalidatedAt: Date | null;
 };
 
 export type UpdateResultsCacheProjectSettings = {
@@ -15,3 +16,11 @@ export type UpdateResultsCacheProjectSettings = {
 
 export type ApiResultsCacheProjectSettingsResponse =
     ApiSuccess<ResultsCacheProjectSettings>;
+
+export type ResultsCacheInvalidation = {
+    projectUuid: string;
+    invalidatedAt: Date;
+};
+
+export type ApiResultsCacheInvalidationResponse =
+    ApiSuccess<ResultsCacheInvalidation>;
