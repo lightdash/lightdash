@@ -1,3 +1,10 @@
+## [3.98.1](https://github.com/lightdash/lightdash/compare/3.98.0...3.98.1) (2026-10-29)
+
+
+### Bug Fixes
+
+* **spaces:** preserve empty-group grants when disabling permission inheritance ([#31805](https://github.com/lightdash/lightdash/issues/31805)) ([2fefb73](https://github.com/lightdash/lightdash/commit/2fefb732f9f5f685181e18ed6ceda5d6ad29bcf8))
+
 # [3.98.0](https://github.com/lightdash/lightdash/compare/3.97.0...3.98.0) (2026-10-29)
 
 
