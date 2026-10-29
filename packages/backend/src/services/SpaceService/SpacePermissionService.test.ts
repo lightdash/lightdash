@@ -1177,8 +1177,7 @@ describe('SpacePermissionService', () => {
                     chain: spaceUuids.map((spaceUuid, index) => ({
                         spaceUuid,
                         spaceName: spaceUuid,
-                        inheritParentPermissions:
-                            index < spaceUuids.length - 1,
+                        inheritParentPermissions: index < spaceUuids.length - 1,
                     })),
                     inheritsFromOrgOrProject: false,
                 },
@@ -1205,7 +1204,9 @@ describe('SpacePermissionService', () => {
             mockChain(childSpaceUuid, parentSpaceUuid);
             mockPermissionModel.getRawDirectAccess.mockResolvedValue({
                 [parentSpaceUuid]: {
-                    users: [userGrant('user-on-parent', SpaceMemberRole.EDITOR)],
+                    users: [
+                        userGrant('user-on-parent', SpaceMemberRole.EDITOR),
+                    ],
                     groups: [groupGrant('group-1', SpaceMemberRole.VIEWER)],
                 },
             });
@@ -1297,7 +1298,9 @@ describe('SpacePermissionService', () => {
             mockChain(childSpaceUuid, parentSpaceUuid, grandparentSpaceUuid);
             mockPermissionModel.getRawDirectAccess.mockResolvedValue({
                 [parentSpaceUuid]: {
-                    users: [userGrant('duplicate-user', SpaceMemberRole.VIEWER)],
+                    users: [
+                        userGrant('duplicate-user', SpaceMemberRole.VIEWER),
+                    ],
                     groups: [],
                 },
                 [grandparentSpaceUuid]: {
