@@ -27,7 +27,7 @@ export const getPostHogQueryPath = (projectId: string) =>
 const regionFromOrigin = (origin: string): PostHogRegion =>
     origin === POSTHOG_REGION_ORIGINS.eu ? 'eu' : 'us';
 
-export const isSignedInConnection = (connection: ExternalConnection) =>
+const isSignedInConnection = (connection: ExternalConnection) =>
     connection.type === 'oauth_authorization_code';
 
 export const toPostHogFormValues = (
