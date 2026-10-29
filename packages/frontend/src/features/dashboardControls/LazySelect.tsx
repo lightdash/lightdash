@@ -165,8 +165,7 @@ export const LazySelect: FC<Props> = ({
             group.items.flatMap((option) => {
                 const field = fieldsMap[option.value];
                 if (!field) return [];
-                // The chosen field keeps a name given its table once the
-                // real select takes over; the list goes by table groups
+                // Keeps the qualified label once the real select mounts
                 return [
                     option.value === value && option.label !== field.label
                         ? { ...field, label: option.label }

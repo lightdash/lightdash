@@ -233,7 +233,7 @@ const TileOverlay = memo<TileOverlayProps>(
                         : ownLabels[index],
             };
         });
-        // A long table name can push the field's out of the closed select
+        // Full name when a long table name hides the field
         const sharedNameLabel =
             !isSqlTile &&
             tileFieldId !== null &&

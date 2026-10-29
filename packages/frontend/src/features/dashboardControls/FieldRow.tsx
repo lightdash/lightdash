@@ -64,7 +64,6 @@ export const FieldRow: FC<Props> = ({
             onMouseEnter={() => onHoverChange(true)}
             onMouseLeave={() => onHoverChange(false)}
         >
-            {/* A table name cut short is read in full here */}
             <Tooltip label={label} disabled={!isNameShared}>
                 <UnstyledButton
                     className={classes.rowMain}
@@ -78,7 +77,7 @@ export const FieldRow: FC<Props> = ({
                         {field !== null && (
                             <FieldIcon item={field} size={14} aria-hidden />
                         )}
-                        {/* The table takes what the field's name leaves */}
+                        {/* Truncates before the field name */}
                         {isNameShared && (
                             <Text
                                 fz="sm"

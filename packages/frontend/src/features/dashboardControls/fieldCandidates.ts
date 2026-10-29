@@ -27,7 +27,6 @@ export const getFieldCandidates = (
 const getTableLabel = (field: DashboardFilterableField) =>
     field.tableLabel || field.table;
 
-// The rows whose name another row has too: each of them says its table
 export const getSharedNameFieldIds = (
     fieldIds: string[],
     getField: (fieldId: string) => DashboardFilterableField | null | undefined,
