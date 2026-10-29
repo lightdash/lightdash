@@ -54,6 +54,7 @@ import {
     isChartTypeIcon,
     isDashboardChartTileType,
     isExploreError,
+    isExploreIncludedInTableSelection,
     isExternalFetchDocumentContext,
     isSemverVersion,
     isValidDataAppSlug,
@@ -3937,13 +3938,19 @@ export class AppGenerateService extends BaseService {
             // Source the synthetic schema from the compiled explore cache (not
             // the flattened catalog summary) so it carries joins, real field
             // types, and parameters. A chart type receives host rows instead.
-            const [exploresByUuid, chartUsageByTable] = await Promise.all([
-                this.projectModel.getAllExploresFromCache(projectUuid),
-                this.catalogModel.getChartUsageByTable(projectUuid),
-            ]);
-            const explores = Object.values(exploresByUuid).filter(
-                (explore): explore is Explore => !isExploreError(explore),
-            );
+            const [exploresByUuid, chartUsageByTable, { tableSelection }] =
+                await Promise.all([
+                    this.projectModel.getAllExploresFromCache(projectUuid),
+                    this.catalogModel.getChartUsageByTable(projectUuid),
+                    this.projectModel.getTablesConfiguration(projectUuid),
+                ]);
+            const explores = Object.values(exploresByUuid)
+                .filter(
+                    (explore): explore is Explore => !isExploreError(explore),
+                )
+                .filter((explore) =>
+                    isExploreIncludedInTableSelection(explore, tableSelection),
+                );
             const catalog = AppGenerateService.exploresToModelFiles(
                 explores,
                 chartUsageByTable,
@@ -13930,13 +13937,15 @@ export class AppGenerateService extends BaseService {
 
         const { semanticLayer, semanticLayerFiles } = await (async () => {
             try {
-                const exploresByUuid =
-                    await this.projectModel.getAllExploresFromCache(
-                        projectUuid,
+                const [exploresByUuid, { tableSelection }] = await Promise.all([
+                    this.projectModel.getAllExploresFromCache(projectUuid),
+                    this.projectModel.getTablesConfiguration(projectUuid),
+                ]);
+                const explores = Object.values(exploresByUuid)
+                    .filter((e): e is Explore => !isExploreError(e))
+                    .filter((e) =>
+                        isExploreIncludedInTableSelection(e, tableSelection),
                     );
-                const explores = Object.values(exploresByUuid).filter(
-                    (e): e is Explore => !isExploreError(e),
-                );
                 // Chart usage only orders the index — degrade the ranking, not
                 // the whole semantic layer, when it is unavailable.
                 const chartUsageByTable = await (async () => {

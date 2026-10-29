@@ -128,7 +128,6 @@ import {
     getUnaccountedDimensions,
     GroupType,
     hasConnectionChanges,
-    hasIntersection,
     hasWarehouseCredentials,
     isAdditionalMetric,
     isAiAccessQueryContext,
@@ -139,6 +138,7 @@ import {
     isDateItem,
     isDimension,
     isExploreError,
+    isExploreIncludedInTableSelection,
     isField,
     isFilterableDimension,
     isJwtUser,
@@ -250,7 +250,6 @@ import {
     SupportedDbtAdapter,
     supportsConnectionDatabaseListing,
     TablesConfiguration,
-    TableSelectionType,
     TooManyRequestsError,
     UnexpectedServerError,
     UpdateAgentSqlScope,
@@ -14571,27 +14570,19 @@ export class ProjectService
               );
 
         if (filtered) {
-            const {
-                tableSelection: { type, value },
-            } = await this.getTablesConfiguration(account, projectUuid);
-            if (type === TableSelectionType.WITH_TAGS) {
-                return visibleExploreSummaries.filter(
-                    (explore) =>
-                        hasIntersection(explore.tags || [], value || []) ||
-                        isUserManagedExplore(explore) || // User-managed explores (virtual views, external source tables) are included by default
-                        (shouldIncludePreAggregateExplores &&
-                            explore.type === ExploreType.PRE_AGGREGATE),
-                );
-            }
-            if (type === TableSelectionType.WITH_NAMES) {
-                return visibleExploreSummaries.filter(
-                    (explore) =>
-                        (value || []).includes(explore.name) ||
-                        isUserManagedExplore(explore) || // User-managed explores (virtual views, external source tables) are included by default
-                        (shouldIncludePreAggregateExplores &&
-                            explore.type === ExploreType.PRE_AGGREGATE),
-                );
-            }
+            const { tableSelection } = await this.getTablesConfiguration(
+                account,
+                projectUuid,
+            );
+            return visibleExploreSummaries.filter(
+                (explore) =>
+                    isExploreIncludedInTableSelection(
+                        explore,
+                        tableSelection,
+                    ) ||
+                    (shouldIncludePreAggregateExplores &&
+                        explore.type === ExploreType.PRE_AGGREGATE),
+            );
         }
 
         return visibleExploreSummaries;
