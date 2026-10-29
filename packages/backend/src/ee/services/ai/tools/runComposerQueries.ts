@@ -7,12 +7,15 @@ import {
     getSqlApprovalSql,
     getToolComposerQueriesDescription,
     hasReachedSourceQueryLimit,
+    QueryHistoryStatus,
     QuerySourceType,
     queryToolDefinition,
     toComposerNodeColumns,
     toolComposerQueryNodeToSourceQuery,
+    WarehouseQueryError,
     type AnyType,
     type ComposerApiConnection,
+    type ComposerPipelineNode,
     type ParameterDefinitions,
     type SemanticLayerSourceQuery,
     type SourceQuery,
@@ -256,6 +259,51 @@ const renderComposerNodeSummary = (
     return [...nodeLines, ...warnings].join('\n');
 };
 
+const toNodeColumns = (nodeStatuses: ComposerNodeStatus[]) =>
+    Object.fromEntries(
+        nodeStatuses.flatMap(({ nodeId, columns }) =>
+            columns ? [[nodeId, toComposerNodeColumns(columns)]] : [],
+        ),
+    );
+
+const isSaved = ({ state }: ComposerNodeStatus) =>
+    state === QueryHistoryStatus.READY;
+
+const renderSavedNodes = (
+    queries: ComposerPipelineNode[],
+    nodeStatuses: ComposerNodeStatus[],
+): string => {
+    const saved = new Set(
+        nodeStatuses.filter(isSaved).map(({ nodeId }) => nodeId),
+    );
+    const savedNodeIds = queries
+        .filter((node) => saved.has(node.nodeId))
+        .map((node) => node.nodeId);
+    const notSaved = queries
+        .filter((node) => !saved.has(node.nodeId))
+        .map((node) => {
+            const unsavedReads = Object.values(
+                getSourceQueryResultReferences(node),
+            ).filter((reference) => !saved.has(reference));
+            if (unsavedReads.length > 0)
+                return `${node.nodeId} (not run: reads ${unsavedReads.join(', ')})`;
+            const status = nodeStatuses.find(
+                ({ nodeId }) => nodeId === node.nodeId,
+            );
+            if (status?.error)
+                return `${node.nodeId} (failed: ${status.error})`;
+            return `${node.nodeId} (not run${status ? `: ${status.state}` : ''})`;
+        });
+    return [
+        savedNodeIds.length > 0
+            ? `Saved from this call: ${savedNodeIds.join(', ')}.`
+            : null,
+        notSaved.length > 0 ? `Not saved: ${notSaved.join(', ')}.` : null,
+    ]
+        .filter(Boolean)
+        .join(' ');
+};
+
 export const getRunComposerQueries = ({
     agentContext,
     reviewQuery,
@@ -488,7 +536,7 @@ export const getRunComposerQueries = ({
 
                 await updateProgress('Running composer queries...');
 
-                const [{ terminal, nodeStatuses }, review] = await Promise.all([
+                const [run, review] = await Promise.all([
                     runComposerQueries({
                         queries,
                         terminalNodeId: resolvedTerminalNodeId,
@@ -530,6 +578,22 @@ export const getRunComposerQueries = ({
                           }) ?? '')
                         : '',
                 ]);
+
+                if (run.status === 'failure') {
+                    // Failed and not-run node ids stay free to resubmit corrected.
+                    const saved = run.nodeStatuses.filter(isSaved);
+                    await registerThreadComposerQueryNodes({
+                        threadUuid: prompt.threadUuid,
+                        nodes: queries.filter((node) =>
+                            saved.some(({ nodeId }) => nodeId === node.nodeId),
+                        ),
+                        nodeColumns: toNodeColumns(saved),
+                    });
+                    throw new WarehouseQueryError(
+                        `${run.error}\n${renderSavedNodes(queries, run.nodeStatuses)}`,
+                    );
+                }
+                const { terminal, nodeStatuses } = run;
 
                 if (approvalSql !== null) {
                     await renderState({
@@ -674,6 +738,7 @@ export const getRunComposerQueries = ({
                     threadUuid: prompt.threadUuid,
                     nodes: queries,
                     nodeColumns: {
+                        ...toNodeColumns(nodeStatuses),
                         [resolvedTerminalNodeId]: toComposerNodeColumns(
                             terminal.columns,
                         ),

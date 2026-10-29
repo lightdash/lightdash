@@ -3638,7 +3638,15 @@ describe('AiAgentToolsService runComposerQueries', () => {
             error: null,
             totalRowCount: 1,
             warehouseExecutionTimeMs: null,
+            columns: readyResults.columns,
         })),
+    };
+
+    const ordersColumns = {
+        orders_status: {
+            reference: 'orders_status',
+            type: DimensionType.STRING,
+        },
     };
 
     it('submits the pipeline with the AI context and returns the terminal snapshot', async () => {
@@ -3676,6 +3684,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
         expect(getAsyncQueryResults).toHaveBeenCalledWith(
             expect.objectContaining({ queryUuid: 'query-2', page: 1 }),
         );
+        if (result.status !== 'success') throw new Error('expected success');
         expect(result.submissions).toEqual(submissions);
         expect(result.terminal).toEqual({
             queryUuid: 'query-2',
@@ -3694,6 +3703,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
                     error: null,
                     totalRowCount: 500,
                     warehouseExecutionTimeMs: 12,
+                    columns: ordersColumns,
                 },
                 {
                     queryUuid: 'query-2',
@@ -3701,6 +3711,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
                     error: null,
                     totalRowCount: 1,
                     warehouseExecutionTimeMs: 3,
+                    columns: readyResults.columns,
                 },
             ],
         });
@@ -3728,18 +3739,21 @@ describe('AiAgentToolsService runComposerQueries', () => {
             projectUuid,
             ['query-1', 'query-2'],
         );
+        expect(result.status).toBe('success');
         expect(result.nodeStatuses).toEqual([
             {
                 nodeId: 'orders',
                 state: QueryHistoryStatus.READY,
                 error: null,
                 rowCount: 500,
+                columns: ordersColumns,
             },
             {
                 nodeId: 'joined',
                 state: QueryHistoryStatus.READY,
                 error: null,
                 rowCount: 1,
+                columns: readyResults.columns,
             },
         ]);
     });
@@ -3759,6 +3773,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
                             error: null,
                             totalRowCount: null,
                             warehouseExecutionTimeMs: null,
+                            columns: null,
                         },
                         {
                             queryUuid: 'query-2',
@@ -3766,6 +3781,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
                             error: null,
                             totalRowCount: 1,
                             warehouseExecutionTimeMs: 3,
+                            columns: readyResults.columns,
                         },
                     ],
                 }),
@@ -3788,6 +3804,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
             state: QueryHistoryStatus.EXECUTING,
             error: null,
             rowCount: null,
+            columns: null,
         });
         expect(onNodeStatus).not.toHaveBeenCalledWith(
             expect.objectContaining({ nodeId: 'orders', status: 'success' }),
@@ -3946,7 +3963,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
         ]);
     });
 
-    it('marks unfinished nodes failed when fetching results throws', async () => {
+    it('returns a failure outcome marking unfinished nodes failed when fetching results throws', async () => {
         const executeSourceQueries = vi
             .fn()
             .mockResolvedValue({ queries: submissions });
@@ -3965,7 +3982,10 @@ describe('AiAgentToolsService runComposerQueries', () => {
                 terminalNodeId: 'joined',
                 onNodeStatus,
             }),
-        ).rejects.toThrow('column "missing" does not exist');
+        ).resolves.toMatchObject({
+            status: 'failure',
+            error: 'column "missing" does not exist',
+        });
 
         expect(
             onNodeStatus.mock.calls
@@ -3987,7 +4007,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
         ]);
     });
 
-    it('emits error statuses for failing nodes before throwing', async () => {
+    it('emits error statuses for failing nodes', async () => {
         const executeSourceQueries = vi
             .fn()
             .mockResolvedValue({ queries: submissions });
@@ -4018,13 +4038,11 @@ describe('AiAgentToolsService runComposerQueries', () => {
         });
 
         const onNodeStatus = vi.fn();
-        await expect(
-            service.createRuntime(makeRuntimeContext()).runComposerQueries({
-                queries: composerQueries,
-                terminalNodeId: 'joined',
-                onNodeStatus,
-            }),
-        ).rejects.toThrow(/"orders" \(relation does not exist\)/);
+        await service.createRuntime(makeRuntimeContext()).runComposerQueries({
+            queries: composerQueries,
+            terminalNodeId: 'joined',
+            onNodeStatus,
+        });
 
         expect(onNodeStatus.mock.calls.map(([update]) => update)).toEqual([
             {
@@ -4070,42 +4088,159 @@ describe('AiAgentToolsService runComposerQueries', () => {
         ).rejects.toThrow('unknown_node');
     });
 
-    it('names the failing node when the terminal query errors', async () => {
-        const executeSourceQueries = vi
-            .fn()
-            .mockResolvedValue({ queries: submissions });
-        const getAsyncQueryResults = vi.fn().mockResolvedValue({
-            status: QueryHistoryStatus.ERROR,
-            error: 'referenced query failed',
-        });
+    it("returns a failure outcome with every node's status when a node fails", async () => {
         const getSourceQueryStatuses = vi.fn().mockResolvedValue({
             statuses: [
                 {
                     queryUuid: 'query-1',
-                    status: QueryHistoryStatus.ERROR,
-                    error: 'relation does not exist',
+                    status: QueryHistoryStatus.READY,
+                    error: null,
+                    totalRowCount: 12,
+                    warehouseExecutionTimeMs: 5,
+                    columns: ordersColumns,
                 },
                 {
                     queryUuid: 'query-2',
                     status: QueryHistoryStatus.ERROR,
-                    error: 'referenced query failed',
+                    error: 'column "missing" does not exist',
+                    totalRowCount: null,
+                    warehouseExecutionTimeMs: null,
+                    columns: null,
                 },
             ],
         });
         const service = makeService({
             querySourceService: {
-                executeSourceQueries,
+                executeSourceQueries: vi
+                    .fn()
+                    .mockResolvedValue({ queries: submissions }),
                 getSourceQueryStatuses,
             },
-            asyncQueryService: { getAsyncQueryResults },
+            asyncQueryService: {
+                getAsyncQueryResults: vi.fn().mockResolvedValue({
+                    status: QueryHistoryStatus.ERROR,
+                    error: 'column "missing" does not exist',
+                }),
+            },
         });
 
-        await expect(
-            service.createRuntime(makeRuntimeContext()).runComposerQueries({
+        const result = await service
+            .createRuntime(makeRuntimeContext())
+            .runComposerQueries({
                 queries: composerQueries,
                 terminalNodeId: 'joined',
-            }),
-        ).rejects.toThrow(/"orders" \(relation does not exist\)/);
+            });
+
+        expect(result).toEqual({
+            status: 'failure',
+            error: 'Composer query failed.',
+            nodeStatuses: [
+                {
+                    nodeId: 'orders',
+                    state: QueryHistoryStatus.READY,
+                    error: null,
+                    rowCount: 12,
+                    columns: ordersColumns,
+                },
+                {
+                    nodeId: 'joined',
+                    state: QueryHistoryStatus.ERROR,
+                    error: 'column "missing" does not exist',
+                    rowCount: null,
+                    columns: null,
+                },
+            ],
+        });
+    });
+
+    it('returns a failure outcome with node statuses when the terminal query is cancelled', async () => {
+        const service = makeService({
+            querySourceService: {
+                executeSourceQueries: vi
+                    .fn()
+                    .mockResolvedValue({ queries: submissions }),
+                getSourceQueryStatuses: vi.fn().mockResolvedValue({
+                    statuses: [
+                        readyStatuses.statuses[0],
+                        {
+                            ...readyStatuses.statuses[1],
+                            status: QueryHistoryStatus.CANCELLED,
+                            totalRowCount: null,
+                            columns: null,
+                        },
+                    ],
+                }),
+            },
+            asyncQueryService: {
+                getAsyncQueryResults: vi.fn().mockResolvedValue({
+                    status: QueryHistoryStatus.CANCELLED,
+                }),
+            },
+        });
+
+        const result = await service
+            .createRuntime(makeRuntimeContext())
+            .runComposerQueries({
+                queries: composerQueries,
+                terminalNodeId: 'joined',
+            });
+
+        expect(result).toMatchObject({
+            status: 'failure',
+            error: 'Composer query was cancelled.',
+            nodeStatuses: [
+                { nodeId: 'orders', state: QueryHistoryStatus.READY },
+                { nodeId: 'joined', state: QueryHistoryStatus.CANCELLED },
+            ],
+        });
+    });
+
+    it('returns a failure outcome with node statuses when the terminal query times out', async () => {
+        vi.useFakeTimers();
+        try {
+            const service = makeService({
+                querySourceService: {
+                    executeSourceQueries: vi
+                        .fn()
+                        .mockResolvedValue({ queries: submissions }),
+                    getSourceQueryStatuses: vi.fn().mockResolvedValue({
+                        statuses: [
+                            readyStatuses.statuses[0],
+                            {
+                                ...readyStatuses.statuses[1],
+                                status: QueryHistoryStatus.EXECUTING,
+                                totalRowCount: null,
+                                columns: null,
+                            },
+                        ],
+                    }),
+                },
+                asyncQueryService: {
+                    getAsyncQueryResults: vi.fn().mockResolvedValue({
+                        status: QueryHistoryStatus.EXECUTING,
+                    }),
+                },
+            });
+
+            const promise = service
+                .createRuntime(makeRuntimeContext())
+                .runComposerQueries({
+                    queries: composerQueries,
+                    terminalNodeId: 'joined',
+                });
+            await vi.advanceTimersByTimeAsync(6 * 60 * 1000);
+
+            await expect(promise).resolves.toMatchObject({
+                status: 'failure',
+                error: 'Composer query timed out after 5 minutes.',
+                nodeStatuses: [
+                    { nodeId: 'orders', state: QueryHistoryStatus.READY },
+                    { nodeId: 'joined', state: QueryHistoryStatus.EXECUTING },
+                ],
+            });
+        } finally {
+            vi.useRealTimers();
+        }
     });
 
     it('reads a preview page and takes the row count from the stored total when the node limit exceeds the results page cap', async () => {
@@ -4151,6 +4286,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
                 terminalNodeId: 'joined',
             });
 
+        if (result.status !== 'success') throw new Error('expected success');
         expect(result.terminal.rowCount).toBe(totalRows);
         expect(result.terminal.rows).toHaveLength(
             COMPOSER_QUERY_PREVIEW_ROW_LIMIT,
@@ -4192,7 +4328,7 @@ describe('AiAgentToolsService runComposerQueries python failures', () => {
             },
         });
 
-        const error = await service
+        const result = await service
             .createRuntime(makeRuntimeContext())
             .runComposerQueries({
                 queries: [
@@ -4206,14 +4342,14 @@ describe('AiAgentToolsService runComposerQueries python failures', () => {
                     },
                 ],
                 terminalNodeId: 'forecast',
-            })
-            .catch((e: Error) => e);
+            });
 
-        expect(error).toBeInstanceOf(Error);
-        const { message } = error as Error;
-        expect(message).toContain('"forecast" (run() raised:');
-        expect(message).toContain("KeyError: 'amount'");
-        expect(message.length).toBeLessThan(4096 + 200);
+        if (result.status !== 'failure') throw new Error('expected failure');
+        const [{ nodeId, error }] = result.nodeStatuses;
+        expect(nodeId).toBe('forecast');
+        expect(error).toContain('run() raised:');
+        expect(error).toContain("KeyError: 'amount'");
+        expect(error!.length).toBeLessThan(4096 + 200);
     });
 });
 

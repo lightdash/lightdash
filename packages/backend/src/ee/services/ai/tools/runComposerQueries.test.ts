@@ -1,5 +1,6 @@
 import {
     ApiConnectorType,
+    DimensionType,
     FilterOperator,
     getComposerNodeConflictMessage,
     isSameComposerNodeDefinition,
@@ -12,6 +13,7 @@ import {
     type ComposerNodeColumn,
     type Explore,
     type ParameterDefinitions,
+    type ResultColumns,
     type SlackPrompt,
     type SourceQuery,
     type SubmittedSourceQuery,
@@ -227,14 +229,28 @@ const successMetadata = (output: ComposerOutput) => {
     return output.metadata;
 };
 
-const readyNode = (nodeId: string, rowCount: number) => ({
+const readyNode = (
+    nodeId: string,
+    rowCount: number,
+    columns: ResultColumns | null = null,
+) => ({
     nodeId,
     state: QueryHistoryStatus.READY,
     error: null,
     rowCount,
+    columns,
 });
 
+const revenueColumns: ResultColumns = {
+    payments_month: { reference: 'payments_month', type: DimensionType.DATE },
+    payments_total_revenue: {
+        reference: 'payments_total_revenue',
+        type: DimensionType.NUMBER,
+    },
+};
+
 const defaultRunResult = {
+    status: 'success' as const,
     submissions: [
         {
             nodeId: 'revenue',
@@ -255,14 +271,14 @@ const defaultRunResult = {
     terminal: {
         queryUuid: 'query-3',
         columns: {
-            month: { reference: 'month', type: 'string' },
-            signups: { reference: 'signups', type: 'number' },
+            month: { reference: 'month', type: DimensionType.STRING },
+            signups: { reference: 'signups', type: DimensionType.NUMBER },
         },
         rows: [{ month: '2026-01', signups: 12 }],
         rowCount: 1,
     },
     nodeStatuses: [
-        readyNode('revenue', 12),
+        readyNode('revenue', 12, revenueColumns),
         readyNode('signups', 12),
         readyNode('joined', 1),
     ],
@@ -619,16 +635,30 @@ describe('getRunComposerQueries', () => {
         ]);
     });
 
-    it("stores the terminal node's columns with its registration", async () => {
-        const { tool, registry } = makeTool({ autoApproveSql: true });
+    it("stores every node's columns from its node status with its registration", async () => {
+        const { tool, dependencies, registry } = makeTool({
+            autoApproveSql: true,
+        });
+        dependencies.runComposerQueries.mockResolvedValueOnce({
+            ...defaultRunResult,
+            nodeStatuses: [
+                readyNode('revenue', 12, revenueColumns),
+                readyNode('signups', 12),
+                readyNode('joined', 1, defaultRunResult.terminal.columns),
+            ],
+        });
 
         await executeTool(tool, makeArgs());
 
+        expect(registry.nodeColumns('revenue')).toEqual([
+            { reference: 'payments_month', type: DimensionType.DATE },
+            { reference: 'payments_total_revenue', type: DimensionType.NUMBER },
+        ]);
         expect(registry.nodeColumns('joined')).toEqual([
             { reference: 'month', type: 'string' },
             { reference: 'signups', type: 'number' },
         ]);
-        expect(registry.nodeColumns('revenue')).toBeNull();
+        expect(registry.nodeColumns('signups')).toBeNull();
     });
 
     it.each([
@@ -648,34 +678,67 @@ describe('getRunComposerQueries', () => {
         },
     );
 
-    it('registers nothing when the run fails, so the node id can be resubmitted corrected', async () => {
+    it('keeps the successful nodes of a failed run, so the next call reads them and resubmits the failed node corrected', async () => {
         const { tool, dependencies, registry } = makeTool({
             autoApproveSql: true,
         });
-        dependencies.runComposerQueries.mockRejectedValueOnce(
-            new Error('Composer query failed on node(s): "joined"'),
-        );
+        dependencies.runComposerQueries.mockResolvedValueOnce({
+            status: 'failure',
+            error: 'Composer query failed.',
+            nodeStatuses: [
+                readyNode('revenue', 12, revenueColumns),
+                {
+                    nodeId: 'signups',
+                    state: QueryHistoryStatus.ERROR,
+                    error: 'relation "raw.users" does not exist',
+                    rowCount: null,
+                    columns: null,
+                },
+                {
+                    nodeId: 'joined',
+                    state: QueryHistoryStatus.ERROR,
+                    error: 'referenced query failed',
+                    rowCount: null,
+                    columns: null,
+                },
+            ],
+        });
 
         const failed = await executeTool(tool, makeArgs(), 'tool-call-1');
+
+        expect(failed.metadata?.status).toBe('error');
+        expect(failed.result).toContain(
+            'Composer query failed.\nSaved from this call: revenue. Not saved: signups (failed: relation "raw.users" does not exist), joined (not run: reads signups).',
+        );
+        expect(registry.nodes('thread-uuid').map((n) => n.nodeId)).toEqual([
+            'revenue',
+        ]);
+        expect(registry.nodeColumns('revenue')).toEqual([
+            { reference: 'payments_month', type: DimensionType.DATE },
+            { reference: 'payments_total_revenue', type: DimensionType.NUMBER },
+        ]);
+
         const corrected = await executeTool(
             tool,
             makeArgs({
                 queries: [
-                    semanticNode,
-                    sqlNode,
-                    { ...duckdbNode, sql: 'SELECT 1 AS fixed' },
+                    { ...sqlNode, sql: 'SELECT month, 1 AS signups FROM t' },
+                    duckdbNode,
                 ],
             }),
             'tool-call-2',
         );
 
-        expect(failed.metadata?.status).toBe('error');
         expect(corrected.metadata?.status).toBe('success');
         expect(
             registry
                 .nodes('thread-uuid')
-                .find((node) => node.nodeId === 'joined'),
-        ).toEqual(expect.objectContaining({ sql: 'SELECT 1 AS fixed' }));
+                .find((node) => node.nodeId === 'signups'),
+        ).toEqual(
+            expect.objectContaining({
+                sql: 'SELECT month, 1 AS signups FROM t',
+            }),
+        );
     });
 
     it('does not open another approval wait after approval times out', async () => {
@@ -811,6 +874,7 @@ describe('getRunComposerQueries', () => {
                     errorMessage: 'column not found',
                 });
                 return {
+                    status: 'success',
                     submissions: [
                         {
                             nodeId: 'revenue',
@@ -947,6 +1011,7 @@ const runReuse = async ({
     // Warehouse boundary: every node gets a query id, the terminal returns one row
     dependencies.runComposerQueries.mockImplementation(
         async (args: { queries: SourceQuery[]; terminalNodeId: string }) => ({
+            status: 'success',
             submissions: args.queries.map((node, index) => ({
                 nodeId: node.nodeId,
                 sourceType: node.sourceType,
@@ -1196,6 +1261,7 @@ describe('composer query review', () => {
             );
         const { tool, dependencies } = makeTool({ reviewQuery });
         dependencies.runComposerQueries.mockResolvedValue({
+            status: 'success',
             submissions: [],
             terminal: {
                 queryUuid: 'empty',
@@ -1297,11 +1363,20 @@ describe('python composer nodes', () => {
 
     it('returns the python traceback to the model when the node fails', async () => {
         const { tool, dependencies } = makeTool({ enablePythonNodes: true });
-        dependencies.runComposerQueries.mockRejectedValue(
-            new Error(
-                'Composer query failed on node(s): "forecast" (run() raised:\nTraceback (most recent call last):\nKeyError: \'amount\')',
-            ),
-        );
+        dependencies.runComposerQueries.mockResolvedValue({
+            status: 'failure',
+            error: 'Composer query failed.',
+            nodeStatuses: [
+                readyNode('revenue', 12),
+                {
+                    nodeId: 'forecast',
+                    state: QueryHistoryStatus.ERROR,
+                    error: "run() raised:\nTraceback (most recent call last):\nKeyError: 'amount'",
+                    rowCount: null,
+                    columns: null,
+                },
+            ],
+        });
 
         const output = await executeTool(
             tool,
@@ -1309,7 +1384,7 @@ describe('python composer nodes', () => {
         );
 
         expect(output.metadata?.status).toBe('error');
-        expect(output.result).toContain('"forecast"');
+        expect(output.result).toContain('forecast (failed: run() raised:');
         expect(output.result).toContain("KeyError: 'amount'");
     });
 });
@@ -1554,6 +1629,7 @@ describe('semanticLayer node filters', () => {
                 },
             });
             made.dependencies.runComposerQueries.mockResolvedValue({
+                status: 'success',
                 submissions: [],
                 terminal: {
                     queryUuid: 'empty',
