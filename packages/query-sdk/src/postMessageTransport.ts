@@ -12,6 +12,7 @@
 import {
     createApiTransport,
     createHostExploreBaseTableResolver,
+    createHostSpaceChartsResolver,
     type FetchAdapter,
 } from './apiTransport';
 import { AppStateError } from './appState';
@@ -555,6 +556,7 @@ export function createPostMessageTransport(
         {
             resolveExploreBaseTable:
                 createHostExploreBaseTableResolver(adapter),
+            listSpaceCharts: createHostSpaceChartsResolver(adapter),
         },
     );
     const externalFetch = createPostMessageExternalFetch({

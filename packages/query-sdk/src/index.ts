@@ -182,6 +182,11 @@ export type {
 export { useAiPrompt } from './aiPrompt';
 export type { AiPrompt, AiPromptOptions, AiPromptSource } from './aiPrompt';
 
+// List the saved charts the viewer can see in a space (data apps)
+export { useSpaceCharts } from './spaceCharts';
+export type { SpaceCharts } from './spaceCharts';
+export type { SpaceChartsResult, SpaceChartSummary } from './types';
+
 // AI analysis pushed by the host (data apps)
 export { useInsights } from './insights';
 export type {

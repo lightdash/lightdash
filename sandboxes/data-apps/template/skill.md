@@ -220,6 +220,8 @@ These metrics are **not additive over time**. A balance on Monday plus the balan
 
 If the prompt lists referenced charts (files under `/tmp/metric-queries/*.json`), read `/app/references/chart-references.md` before writing any query code — it defines the JSON shape, linked-vs-copied chart semantics (`savedChart`), and the field-id mapping rules.
 
+If the user asks for a page that lists or renders **whatever charts a Lightdash space contains** (a gallery, "my charts", "charts from the Sales space") — i.e. the set should grow as charts are saved, without rebuilding the app — use `useSpaceCharts('<space slug or uuid>')` and read "Discovering charts at runtime" in `/app/references/chart-references.md`. Never hardcode a UUID list for that ask.
+
 ## Attached dashboard blueprint
 
 If the prompt announces an attached dashboard (blueprint at `/tmp/dashboard/blueprint.json`), read `/app/references/dashboard-blueprint.md` before designing any layout — the blueprint defines the dashboard's tabs, tile grid, and filters, and it is the layout spec to recreate unless the user asks for a different design.
