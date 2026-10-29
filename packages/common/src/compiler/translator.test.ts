@@ -1,4 +1,5 @@
 import {
+    getCompiledModels,
     SupportedDbtAdapter,
     type DbtModelLightdashConfig,
     type DbtModelNode,
@@ -1615,6 +1616,222 @@ describe('merged manifest model qualification', () => {
         },
         meta: { joins },
     });
+
+    describe.each([false, true])(
+        'join resolution deferred=%s',
+        (deferExploreNaming) => {
+            it.each(['meta', 'config'] as const)(
+                'resolves additional and inherited joins in %s',
+                async (location) => {
+                    const orders = buildMergedModel({
+                        sourceName: 'analytics',
+                        packageName: 'pkg_a',
+                        name: 'fct_orders',
+                    });
+                    const calendar = buildMergedModel({
+                        sourceName: 'analytics',
+                        packageName: 'pkg_a',
+                        name: 'dim_calendar',
+                    });
+                    const joins = [
+                        {
+                            join: 'dim_calendar',
+                            alias: 'calendar',
+                            sql_on: '${fct_orders.id} = ${calendar.id}',
+                        },
+                    ];
+                    const metadata = {
+                        joins,
+                        explores: {
+                            orders_trend: { joins },
+                            inherited: {},
+                            empty: { joins: [] },
+                        },
+                    };
+                    if (location === 'meta') orders.meta = metadata;
+                    else orders.config = { meta: metadata };
+                    const explores = await convertExplores(
+                        [orders, calendar],
+                        false,
+                        SupportedDbtAdapter.POSTGRES,
+                        warehouseClientMock,
+                        { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
+                        { deferExploreNaming, allowPartialCompilation: true },
+                    );
+                    expect(explores.some(isExploreError)).toBe(false);
+                    for (const name of ['orders_trend', 'inherited']) {
+                        const explore = explores.find(
+                            (item) => item.name === name,
+                        ) as Explore;
+                        expect(explore.tables.calendar.dbtPackageName).toBe(
+                            'pkg_a',
+                        );
+                        expect(explore.joinedTables).toHaveLength(1);
+                    }
+                    expect(
+                        (
+                            explores.find(
+                                (item) => item.name === 'empty',
+                            ) as Explore
+                        ).joinedTables,
+                    ).toHaveLength(0);
+                },
+            );
+
+            it.each([
+                ['analytics', 'shared_dimensions'],
+                ['shared_dimensions', 'analytics'],
+            ])('resolves unique bare joins from %s to %s', async (from, to) => {
+                const orders = buildMergedModel({
+                    sourceName: from,
+                    packageName: 'pkg_a',
+                    name: 'fct_orders',
+                    joins: [
+                        {
+                            join: 'dim_calendar',
+                            sql_on: '${fct_orders.id} = ${dim_calendar.id}',
+                        },
+                    ],
+                });
+                const calendar = buildMergedModel({
+                    sourceName: to,
+                    packageName: 'pkg_b',
+                    name: 'dim_calendar',
+                });
+                const explores = await convertExplores(
+                    [orders, calendar],
+                    false,
+                    SupportedDbtAdapter.POSTGRES,
+                    warehouseClientMock,
+                    { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
+                    {
+                        deferExploreNaming,
+                        includeModelIdentity: true,
+                        allowPartialCompilation: true,
+                    },
+                );
+                const explore = explores.find(
+                    (item) => item.dbtModelIdentity?.modelName === 'fct_orders',
+                ) as Explore;
+                expect(explore.tables.dim_calendar.dbtPackageName).toBe(
+                    'pkg_b',
+                );
+                expect(explore.joinedTables).toHaveLength(1);
+            });
+        },
+    );
+
+    it('resolves qualified additional joins and keeps config metadata precedence', async () => {
+        const orders = buildMergedModel({
+            sourceName: 'analytics',
+            packageName: 'pkg_a',
+            name: 'fct_orders',
+        });
+        const calendar = buildMergedModel({
+            sourceName: 'shared_dimensions',
+            packageName: 'pkg_b',
+            name: 'dim_calendar',
+        });
+        orders.meta.explores = {
+            orders_trend: {
+                label: 'Original',
+                joins: [{ join: 'missing', sql_on: 'TRUE' }],
+            },
+        };
+        orders.config = {
+            meta: {
+                explores: {
+                    orders_trend: {
+                        label: 'Configured',
+                        joins: [
+                            {
+                                join: 'shared_dimensions__dim_calendar',
+                                alias: 'calendar',
+                                sql_on: '${fct_orders.id} = ${calendar.id}',
+                            },
+                        ],
+                    },
+                },
+            },
+        };
+        const explores = await convertExplores(
+            [orders, calendar],
+            false,
+            SupportedDbtAdapter.POSTGRES,
+            warehouseClientMock,
+            { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
+            { deferExploreNaming: true, allowPartialCompilation: true },
+        );
+        const explore = explores.find(
+            (item) => item.name === 'orders_trend',
+        ) as Explore;
+        expect(explore.label).toBe('Configured');
+        expect(explore.tables.calendar.dbtPackageName).toBe('pkg_b');
+        expect(explore.joinedTables).toHaveLength(1);
+        expect(explore.joinedTables[0].sqlOn).toContain('=');
+        expect(explore.warnings ?? []).toHaveLength(0);
+    });
+
+    it.each(['duplicate', 'versions', 'excluded'] as const)(
+        'does not guess a bare target: %s',
+        async (scenario) => {
+            const orders = buildMergedModel({
+                sourceName: 'analytics',
+                packageName: 'pkg_a',
+                name: 'fct_orders',
+                joins: [
+                    {
+                        join: 'dim_calendar',
+                        sql_on: '${fct_orders.id} = ${dim_calendar.id}',
+                    },
+                ],
+            });
+            const calendar = buildMergedModel({
+                sourceName: 'shared_dimensions',
+                packageName: 'pkg_b',
+                name: 'dim_calendar',
+            });
+            let targets: DbtModelNode[] = [];
+            if (scenario === 'versions') {
+                targets = [1, 2].map((version) => ({
+                    ...calendar,
+                    unique_id: `${calendar.unique_id}.v${version}`,
+                    version,
+                    latest_version: 2,
+                }));
+            } else if (scenario === 'duplicate') {
+                targets = [
+                    calendar,
+                    buildMergedModel({
+                        sourceName: 'other',
+                        packageName: 'pkg_c',
+                        name: 'dim_calendar',
+                    }),
+                ];
+            } else {
+                targets = getCompiledModels([calendar], [orders.unique_id]);
+            }
+            const explores = await convertExplores(
+                [orders, ...targets],
+                false,
+                SupportedDbtAdapter.POSTGRES,
+                warehouseClientMock,
+                { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
+                { deferExploreNaming: true, allowPartialCompilation: true },
+            );
+            const explore = explores.find(
+                (item) => item.dbtModelIdentity?.modelName === 'fct_orders',
+            ) as Explore;
+            expect(explore.joinedTables).toHaveLength(0);
+            expect(explore.warnings).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({
+                        type: InlineErrorType.MISSING_TABLE,
+                    }),
+                ]),
+            );
+        },
+    );
 
     it.each([false, true])(
         'defers names and keeps a local qualified-looking join target when present: %s',

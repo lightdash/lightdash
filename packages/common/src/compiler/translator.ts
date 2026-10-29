@@ -1570,6 +1570,13 @@ export async function* iterateExplores(
             model,
         ]),
     );
+    const modelsByPlainName = new Map<string, DbtModelNode | null>();
+    models.forEach((model) => {
+        modelsByPlainName.set(
+            model.name,
+            modelsByPlainName.has(model.name) ? null : model,
+        );
+    });
     const resolveJoins = (
         model: DbtModelNode,
         joins: DbtModelNode['meta']['joins'],
@@ -1581,7 +1588,8 @@ export async function* iterateExplores(
             }
             const joinedModel =
                 modelsByNamespaceAndName.get(namespaceKey) ??
-                modelsByQualifiedName.get(join.join);
+                modelsByQualifiedName.get(join.join) ??
+                modelsByPlainName.get(join.join);
             const resolvedJoinName = joinedModel
                 ? resolvedNamesByUniqueId.get(joinedModel.unique_id)
                 : undefined;
@@ -1597,34 +1605,49 @@ export async function* iterateExplores(
     const resolvedModels = models.map((model) => {
         const resolvedName =
             resolvedNamesByUniqueId.get(model.unique_id) ?? model.name;
-        const metaJoins = resolveJoins(model, model.meta.joins);
-        const configMetaJoins = resolveJoins(model, model.config?.meta?.joins);
-        let meta =
-            metaJoins === model.meta.joins
-                ? model.meta
-                : { ...model.meta, joins: metaJoins };
-        if (deferExploreNaming)
-            meta = {
-                ...model.meta,
-                label: model.meta.label ?? friendlyName(model.name),
-                joins: metaJoins,
-            };
+        const resolveMeta = (
+            meta: DbtModelNode['meta'],
+        ): DbtModelNode['meta'] => ({
+            ...meta,
+            ...(meta.joins === undefined
+                ? {}
+                : { joins: resolveJoins(model, meta.joins) }),
+            ...(meta.explores === undefined
+                ? {}
+                : {
+                      explores: Object.fromEntries(
+                          Object.entries(meta.explores).map(
+                              ([name, explore]) => [
+                                  name,
+                                  {
+                                      ...explore,
+                                      ...(explore.joins === undefined
+                                          ? {}
+                                          : {
+                                                joins: resolveJoins(
+                                                    model,
+                                                    explore.joins,
+                                                ),
+                                            }),
+                                  },
+                              ],
+                          ),
+                      ),
+                  }),
+        });
+        const meta = resolveMeta(model.meta);
         return {
             ...model,
             name: resolvedName,
-            meta,
-            config:
-                configMetaJoins === model.config?.meta?.joins
-                    ? model.config
-                    : {
-                          ...model.config,
-                          meta: {
-                              ...model.config?.meta,
-                              joins: configMetaJoins,
-                          },
-                      },
+            meta: deferExploreNaming
+                ? { ...meta, label: meta.label ?? friendlyName(model.name) }
+                : meta,
+            config: model.config?.meta
+                ? { ...model.config, meta: resolveMeta(model.config.meta) }
+                : model.config,
         };
     });
+
     const originalModelsByUniqueId = new Map(
         models.map((model) => [model.unique_id, model]),
     );
