@@ -469,6 +469,8 @@ describe('McpService pinned agent', () => {
             projectUuid,
             name: selectedAgent.name,
             instruction: selectedAgent.instruction,
+            enableDataAccess: selectedAgent.enableDataAccess,
+            enableComposerQueries: selectedAgent.enableComposerQueries,
         });
         expect(aiAgentService.getAgent).toHaveBeenCalledWith(
             expect.objectContaining({ userUuid, organizationUuid }),
