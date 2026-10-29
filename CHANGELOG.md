@@ -1,3 +1,10 @@
+## [3.95.2](https://github.com/lightdash/lightdash/compare/3.95.1...3.95.2) (2026-10-29)
+
+
+### Bug Fixes
+
+* **dashboards:** show the table when filter fields share a name ([#31804](https://github.com/lightdash/lightdash/issues/31804)) ([66556ae](https://github.com/lightdash/lightdash/commit/66556aea2470a11edc335225bce05ee952f1b2f0))
+
 ## [3.95.1](https://github.com/lightdash/lightdash/compare/3.95.0...3.95.1) (2026-10-29)
 
 
