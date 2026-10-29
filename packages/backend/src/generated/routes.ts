@@ -15316,6 +15316,14 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                medianDurationMs: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 responseBytes: { dataType: 'double', required: true },
                 apiCalls: { dataType: 'double', required: true },
                 externalConnectionUuid: { dataType: 'string', required: true },

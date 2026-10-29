@@ -1,3 +1,10 @@
+# [3.105.0](https://github.com/lightdash/lightdash/compare/3.104.2...3.105.0) (2026-10-29)
+
+
+### Features
+
+* **live-sources:** show median latency per live data source ([#31826](https://github.com/lightdash/lightdash/issues/31826)) ([9eb1362](https://github.com/lightdash/lightdash/commit/9eb136290672780f70f2aea74bc8fd0327cbf604))
+
 ## [3.104.2](https://github.com/lightdash/lightdash/compare/3.104.1...3.104.2) (2026-10-29)
 
 
