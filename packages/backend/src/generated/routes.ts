@@ -75815,6 +75815,14 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                columns: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'ResultColumns' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 warehouseExecutionTimeMs: {
                     dataType: 'union',
                     subSchemas: [

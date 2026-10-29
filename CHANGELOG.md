@@ -1,3 +1,12 @@
+# [3.96.0](https://github.com/lightdash/lightdash/compare/3.95.2...3.96.0) (2026-10-29)
+
+
+### Features
+
+* **ai:** keep successful composer nodes when a submission fails ([#31801](https://github.com/lightdash/lightdash/issues/31801)) ([beb133f](https://github.com/lightdash/lightdash/commit/beb133f12e447fd4957f4ff8a2aa0e453135722e))
+* **ai:** mark composer Lineage nodes that reached their row limit ([#31802](https://github.com/lightdash/lightdash/issues/31802)) ([b7e363f](https://github.com/lightdash/lightdash/commit/b7e363fb11bff9076c943e8375c52d2f0ebf2eef))
+* **ai:** report every composer node's row count and limit ([#31800](https://github.com/lightdash/lightdash/issues/31800)) ([f8e7c87](https://github.com/lightdash/lightdash/commit/f8e7c8707860af8df21712bc4fde4908201bc61e))
+
 ## [3.95.2](https://github.com/lightdash/lightdash/compare/3.95.1...3.95.2) (2026-10-29)
 
 
