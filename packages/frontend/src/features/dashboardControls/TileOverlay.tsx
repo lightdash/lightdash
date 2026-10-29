@@ -1,6 +1,7 @@
 import {
     DashboardTileTypes,
     getItemId,
+    getItemLabel,
     interpolateUiString,
     isDashboardDataAppTileType,
     isDashboardFieldTarget,
@@ -155,6 +156,8 @@ type TileOverlayProps = {
     // The tile is mapped to this field or column, which it no longer offers
     missingFieldId: string | null;
     options: string[];
+    // Rows whose name another row has too: their options say the table
+    sharedNameFieldIds: string[];
     // Fields the tile offers that the filter could take, never on a SQL tile.
     // For a placeholder, every field the tile offers
     candidates: string[];
@@ -182,6 +185,7 @@ const TileOverlay = memo<TileOverlayProps>(
         tileFieldId,
         missingFieldId,
         options,
+        sharedNameFieldIds,
         candidates,
         fieldsMap,
         highlight,
@@ -216,13 +220,30 @@ const TileOverlay = memo<TileOverlayProps>(
             tileFieldId !== null && !isSqlTile && missingFieldId === null
                 ? fieldsMap[tileFieldId]
                 : undefined;
-        const ownOptions = options.map((fieldId) => ({
-            value: fieldId,
-            label: isSqlTile ? fieldId : getFieldLabel(fieldId, fieldsMap),
-        }));
+        const ownLabels = options.map((fieldId) =>
+            isSqlTile ? fieldId : getFieldLabel(fieldId, fieldsMap),
+        );
+        const ownOptions = options.map((fieldId, index) => {
+            const field = fieldsMap[fieldId];
+            return {
+                value: fieldId,
+                label:
+                    !isSqlTile && field && sharedNameFieldIds.includes(fieldId)
+                        ? getItemLabel(field)
+                        : ownLabels[index],
+            };
+        });
+        // Full name when a long table name hides the field
+        const sharedNameLabel =
+            !isSqlTile &&
+            tileFieldId !== null &&
+            sharedNameFieldIds.includes(tileFieldId)
+                ? (ownOptions.find((option) => option.value === tileFieldId)
+                      ?.label ?? null)
+                : null;
         const fieldOptions = getCandidateOptions(
             candidates,
-            ownOptions.map((option) => option.label),
+            ownLabels,
             fieldsMap,
         );
         // A new control lists the tile's fields as one plain list
@@ -307,41 +328,56 @@ const TileOverlay = memo<TileOverlayProps>(
                                     />
                                 )}
                             </Group>
-                            <LazySelect
-                                aria-label={selectLabel}
-                                leftSection={
-                                    usedField ? (
-                                        <FieldIcon item={usedField} size={14} />
-                                    ) : (
-                                        <MantineIcon
-                                            icon={IconFilter}
-                                            size={14}
-                                            color="dimmed"
-                                        />
-                                    )
-                                }
-                                placeholder={getUiString(
-                                    isSqlTile
-                                        ? 'filters.tileCard.selectColumn'
-                                        : 'filters.tileCard.selectField',
-                                )}
-                                clearLabel={getUiString(
-                                    'filters.tileCard.stopFiltering',
-                                )}
-                                fieldsMap={isSqlTile ? null : fieldsMap}
-                                groups={[firstGroup, secondGroup]}
-                                searchable={
-                                    secondGroup.items.length > 0 ||
-                                    firstGroup.items.length > SEARCH_THRESHOLD
-                                }
-                                nothingFoundMessage={getUiString(
-                                    isSqlTile
-                                        ? 'filters.tileCard.noColumnsMatch'
-                                        : 'filters.tileCard.noFieldsMatch',
-                                )}
-                                value={tileFieldId}
-                                onChange={(value) => onSelect(tileUuid, value)}
-                            />
+                            <Tooltip
+                                fz="xs"
+                                label={sharedNameLabel}
+                                disabled={sharedNameLabel === null}
+                                position="bottom"
+                            >
+                                <Box>
+                                    <LazySelect
+                                        aria-label={selectLabel}
+                                        leftSection={
+                                            usedField ? (
+                                                <FieldIcon
+                                                    item={usedField}
+                                                    size={14}
+                                                />
+                                            ) : (
+                                                <MantineIcon
+                                                    icon={IconFilter}
+                                                    size={14}
+                                                    color="dimmed"
+                                                />
+                                            )
+                                        }
+                                        placeholder={getUiString(
+                                            isSqlTile
+                                                ? 'filters.tileCard.selectColumn'
+                                                : 'filters.tileCard.selectField',
+                                        )}
+                                        clearLabel={getUiString(
+                                            'filters.tileCard.stopFiltering',
+                                        )}
+                                        fieldsMap={isSqlTile ? null : fieldsMap}
+                                        groups={[firstGroup, secondGroup]}
+                                        searchable={
+                                            secondGroup.items.length > 0 ||
+                                            firstGroup.items.length >
+                                                SEARCH_THRESHOLD
+                                        }
+                                        nothingFoundMessage={getUiString(
+                                            isSqlTile
+                                                ? 'filters.tileCard.noColumnsMatch'
+                                                : 'filters.tileCard.noFieldsMatch',
+                                        )}
+                                        value={tileFieldId}
+                                        onChange={(value) =>
+                                            onSelect(tileUuid, value)
+                                        }
+                                    />
+                                </Box>
+                            </Tooltip>
                             {followUpLabel !== null && (
                                 <Box className={classes.followUp}>
                                     <Button
@@ -675,6 +711,7 @@ const EditedTileOverlays: FC = () => {
                             tileFieldId={null}
                             missingFieldId={null}
                             options={NO_FIELD_IDS}
+                            sharedNameFieldIds={NO_FIELD_IDS}
                             candidates={starters}
                             fieldsMap={fieldsMap}
                             highlight={isReachable ? 'available' : null}
@@ -777,6 +814,9 @@ const EditedTileOverlays: FC = () => {
                         tileFieldId={tileFieldId}
                         missingFieldId={missingFieldId}
                         options={options}
+                        sharedNameFieldIds={
+                            fieldTileActions?.sharedNameFieldIds ?? NO_FIELD_IDS
+                        }
                         candidates={candidates}
                         fieldsMap={fieldsMap}
                         highlight={highlight}

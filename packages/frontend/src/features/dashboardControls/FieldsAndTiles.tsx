@@ -285,6 +285,8 @@ export const FieldsAndTiles: FC = () => {
                             key={fieldId}
                             field={row.field}
                             label={row.label}
+                            name={row.name}
+                            isNameShared={row.isNameShared}
                             tableLabel={row.tableLabel}
                             applied={row.everyTabScope.applied}
                             possible={row.everyTabScope.possible}

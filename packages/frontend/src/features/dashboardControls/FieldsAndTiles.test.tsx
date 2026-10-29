@@ -1363,6 +1363,40 @@ describe('FieldsAndTiles', () => {
         expect(fieldSearch()).toBeInTheDocument();
     });
 
+    it('puts the table in front of rows that share a name', () => {
+        const customerStatus = dimension('status', 'Status', {
+            table: 'customers',
+            tableLabel: 'Customers',
+        });
+        mockDashboardContext.current = {
+            ...mockDashboardContext.current,
+            allFilterableFields: [status, region, customerStatus],
+            allFilterableFieldsMap: {
+                orders_status: status,
+                orders_region: region,
+                customers_status: customerStatus,
+            },
+            filterableFieldsByTileUuid: {
+                'tile-1': [status, region],
+                'tile-2': [customerStatus],
+            },
+        };
+        setSidebar(
+            rule('orders_status', {
+                'tile-2': {
+                    fieldId: 'customers_status',
+                    tableName: 'customers',
+                },
+            }),
+        );
+        renderWithProviders(<FieldsAndTiles />);
+
+        expect(screen.getByText('Orders')).toBeVisible();
+        expect(screen.getByText('Customers')).toBeVisible();
+        expect(removeButtonOf('Orders Status')).toBeVisible();
+        expect(removeButtonOf('Customers Status')).toBeVisible();
+    });
+
     it('renders nothing when no control is edited', () => {
         mockSidebar.current = { ...mockSidebar.current, editingRule: null };
         renderWithProviders(<FieldsAndTiles />);
