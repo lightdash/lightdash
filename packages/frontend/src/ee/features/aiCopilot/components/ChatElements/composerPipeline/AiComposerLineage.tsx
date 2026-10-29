@@ -17,7 +17,6 @@ import {
 import { clsx } from 'clsx';
 import { useEffect, useMemo, useRef, useState, type FC } from 'react';
 import '@xyflow/react/dist/style.css';
-import MantineIcon from '../../../../../../components/common/MantineIcon';
 import DefaultEdge from '../../../../../../components/common/ReactFlow/DefaultEdge';
 import reactFlowStyles from '../../../../../../components/common/ReactFlow/reactFlow.module.css';
 import ResizableSplitter from '../../../../../../components/common/ResizableSplitter';
@@ -26,8 +25,8 @@ import { useComposerNodeStatusLabel } from '../composerNodeStatus';
 import { NodeStatusIndicator } from '../ComposerNodeStatusIndicator';
 import { type ComposerRunNodeStatus } from '../useComposerRunNodeStatuses';
 import styles from './AiComposerLineage.module.css';
+import { ComposerNodeIcon } from './ComposerNodeIcon';
 import { groupPipeline, type PipelineLayer } from './groupPipeline';
-import { nodeTypeIcon } from './nodeTypeIcon';
 import {
     PipelineNotebook,
     type PipelineNotebookHandle,
@@ -98,11 +97,7 @@ const LineageNodeView: FC<NodeProps<PipelineFlowNode>> = ({ data }) => {
             />
             <Group gap="xs" wrap="nowrap" className={styles.graphNodeHead}>
                 <Box className={styles.graphNodeIcon}>
-                    <MantineIcon
-                        icon={nodeTypeIcon(data.query)}
-                        size={14}
-                        stroke={1.5}
-                    />
+                    <ComposerNodeIcon query={data.query} size={14} />
                 </Box>
                 <Box className={styles.graphNodeText}>
                     <Text

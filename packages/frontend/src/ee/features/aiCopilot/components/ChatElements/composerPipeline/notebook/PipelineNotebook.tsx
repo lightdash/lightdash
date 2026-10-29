@@ -32,8 +32,8 @@ import { useUiStrings } from '../../../../../../providers/Embed/useUiStrings';
 import { useCanViewAiAgentSql } from '../../../../hooks/useCanViewAiAgentSql';
 import { NodeStatusIndicator } from '../../ComposerNodeStatusIndicator';
 import { type ComposerRunNodeStatus } from '../../useComposerRunNodeStatuses';
+import { ComposerNodeIcon } from '../ComposerNodeIcon';
 import { nodeTypeLabelOf, type PipelineNode } from '../groupPipeline';
-import { nodeTypeIcon } from '../nodeTypeIcon';
 import { CellQueryPanels, CellQueryToggles, ExploreSource } from './NodeQuery';
 import styles from './PipelineNotebook.module.css';
 import {
@@ -80,12 +80,7 @@ const CellStatus: FC<{
             {status && status.status !== 'success' ? (
                 <NodeStatusIndicator status={status.status} />
             ) : (
-                <MantineIcon
-                    icon={nodeTypeIcon(query)}
-                    size={14}
-                    stroke={1.5}
-                    aria-hidden
-                />
+                <ComposerNodeIcon query={query} size={14} />
             )}
         </Box>
     </Tooltip>
@@ -330,10 +325,9 @@ const NotebookCell: FC<CellProps> = ({
                                 onMouseEnter={() => onLineageHover(true)}
                                 onMouseLeave={() => onLineageHover(false)}
                             >
-                                <MantineIcon
-                                    icon={nodeTypeIcon(reference.query)}
+                                <ComposerNodeIcon
+                                    query={reference.query}
                                     size={12}
-                                    stroke={1.5}
                                 />
                                 {reference.title}
                             </UnstyledButton>
