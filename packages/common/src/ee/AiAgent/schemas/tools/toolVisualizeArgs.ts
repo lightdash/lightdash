@@ -7,7 +7,7 @@ export const TOOL_VISUALIZE_DESCRIPTION = `Visualize a node's result for the use
 
 nodeId names a node from a successful query call in this thread, in this turn or an earlier one, so a result can be visualized again with a different vizConfig without rerunning query. vizConfig references are that node's result columns, as listed in its query result.
 
-Measures that share an x column read best side by side in one card, not a card each: list them in y, and put one on a different scale on y2. When they need more axes than y and y2, or bars and lines together, render them through a custom chart type whose slots fit, when the project has one.
+Show related measures that answer one comparison over the same x in one card, unless the user asks for separate charts: same-scale measures in y, and a measure on a different scale in y2 instead. When they need more scales than y and y2 hold, or bars and lines together, use a custom chart type whose slots fit, when the project has one. Visualize the same node again for a different x or chart, not for one card per measure.
 
 Pie and series-split charts return readability notes when they have many slices or series.`;
 
