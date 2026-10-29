@@ -873,6 +873,16 @@ type ResultsCacheDeleteEvent = BaseTrack & {
     };
 };
 
+type ResultsCacheInvalidatedEvent = BaseTrack & {
+    event: 'results_cache.invalidated';
+    properties: {
+        organizationId: string;
+        projectId: string;
+        scope: 'project' | 'chart' | 'dashboard';
+        contentUuid: string | null;
+    };
+};
+
 /** The one engine merges run on; kept as a property so the event shape holds. */
 export type MergeEngine = 'compose';
 export type MergeSourceKind = 'metric' | 'result';
@@ -4838,6 +4848,7 @@ type TypedEvent =
     | ResultsCacheWriteEvent
     | ResultsCacheReadEvent
     | ResultsCacheDeleteEvent
+    | ResultsCacheInvalidatedEvent
     | ModeDashboardChartEvent
     | UpdateSavedChartEvent
     | SavedChartExploreChangedEvent

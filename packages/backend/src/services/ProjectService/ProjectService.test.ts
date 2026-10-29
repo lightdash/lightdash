@@ -515,9 +515,19 @@ const projectModel = {
     delete: vi.fn(async () => undefined),
     deleteContentInBatches: vi.fn(async () => undefined),
     getResultsCacheSettings: vi.fn<ProjectModel['getResultsCacheSettings']>(
-        async () => ({ cacheTtlSeconds: null }),
+        async () => ({
+            cacheTtlSeconds: null,
+            cacheGeneration: 0,
+            lastInvalidatedAt: null,
+        }),
     ),
     updateResultsCacheSettings: vi.fn(async () => undefined),
+    invalidateResultsCache: vi.fn<ProjectModel['invalidateResultsCache']>(
+        async () => ({
+            cacheGeneration: 1,
+            invalidatedAt: new Date('2026-10-29T12:00:00Z'),
+        }),
+    ),
     getEffectiveResultsCacheTtlSeconds: vi.fn(async () => 86400),
     deleteMergedManifest: vi.fn<ProjectModel['deleteMergedManifest']>(
         async () => undefined,
@@ -2372,6 +2382,7 @@ describe('ProjectService', () => {
                 instanceDefaultTtlSeconds:
                     lightdashConfigWithGoogleOAuthMock.results
                         .cacheStateTimeSeconds,
+                lastInvalidatedAt: null,
             });
         });
 
@@ -2392,6 +2403,59 @@ describe('ProjectService', () => {
                 instanceDefaultTtlSeconds:
                     lightdashConfigWithGoogleOAuthMock.results
                         .cacheStateTimeSeconds,
+                lastInvalidatedAt: null,
+            });
+        });
+    });
+
+    describe('invalidateProjectResultsCache', () => {
+        const cachingService = getMockedProjectService({
+            ...lightdashConfigWithGoogleOAuthMock,
+            results: {
+                ...lightdashConfigWithGoogleOAuthMock.results,
+                cacheEnabled: true,
+            },
+        });
+        const projectAdmin: SessionUser = {
+            ...user,
+            ability: new Ability<PossibleAbilities>([
+                { subject: 'Project', action: ['manage'] },
+            ]),
+        };
+
+        beforeEach(() => {
+            projectModel.invalidateResultsCache.mockClear();
+        });
+
+        test('rejects users who cannot manage the project', async () => {
+            await expect(
+                cachingService.invalidateProjectResultsCache(user, projectUuid),
+            ).rejects.toThrow(ForbiddenError);
+            expect(projectModel.invalidateResultsCache).not.toHaveBeenCalled();
+        });
+
+        test('rejects invalidation while results caching is disabled', async () => {
+            await expect(
+                service.invalidateProjectResultsCache(
+                    projectAdmin,
+                    projectUuid,
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            expect(projectModel.invalidateResultsCache).not.toHaveBeenCalled();
+        });
+
+        test('starts a new cache generation for the project', async () => {
+            const result = await cachingService.invalidateProjectResultsCache(
+                projectAdmin,
+                projectUuid,
+            );
+
+            expect(projectModel.invalidateResultsCache).toHaveBeenCalledWith(
+                projectUuid,
+            );
+            expect(result).toEqual({
+                projectUuid,
+                invalidatedAt: new Date('2026-10-29T12:00:00Z'),
             });
         });
     });

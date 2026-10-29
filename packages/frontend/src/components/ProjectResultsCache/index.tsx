@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import {
     MAX_RESULTS_CACHE_TTL_SECONDS,
     MIN_RESULTS_CACHE_TTL_SECONDS,
@@ -13,11 +14,15 @@ import {
     Title,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { type FC } from 'react';
+import { formatDistanceToNow } from 'date-fns';
+import { useState, type FC } from 'react';
 import {
+    useInvalidateResultsCache,
     useResultsCacheSettings,
     useUpdateResultsCacheSettings,
 } from '../../hooks/useProjectResultsCacheSettings';
+import useApp from '../../providers/App/useApp';
+import MantineModal from '../common/MantineModal';
 import { NumberInput } from '../common/NumberInput';
 import { SettingsGridCard } from '../common/Settings/SettingsCard';
 
@@ -144,32 +149,108 @@ const ProjectResultsCacheForm: FC<FormProps> = ({
     );
 };
 
+type ClearCacheProps = {
+    projectUuid: string;
+    lastInvalidatedAt: Date | null;
+};
+
+const ClearResultsCache: FC<ClearCacheProps> = ({
+    projectUuid,
+    lastInvalidatedAt,
+}) => {
+    const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+    const { mutate: invalidateCache, isLoading } =
+        useInvalidateResultsCache(projectUuid);
+
+    return (
+        <SettingsGridCard>
+            <Box>
+                <Title order={5}>Clear cached results</Title>
+                <Text c="dimmed" fz="xs">
+                    Charts and dashboards query the warehouse again the next
+                    time they load.
+                </Text>
+            </Box>
+            <Group justify="space-between">
+                <Text c="dimmed" fz="sm">
+                    {lastInvalidatedAt
+                        ? `Last cleared ${formatDistanceToNow(
+                              new Date(lastInvalidatedAt),
+                              { addSuffix: true },
+                          )}`
+                        : 'Never cleared'}
+                </Text>
+                <Button
+                    variant="default"
+                    loading={isLoading}
+                    onClick={() => setIsConfirmOpen(true)}
+                >
+                    Clear cache
+                </Button>
+            </Group>
+            <MantineModal
+                opened={isConfirmOpen}
+                onClose={() => setIsConfirmOpen(false)}
+                title="Clear cached results?"
+                role="alertdialog"
+                description="Cached results in this project stop being reused. The next load of each chart and dashboard runs its query against the warehouse, so it can take longer."
+                confirmLabel="Clear cache"
+                confirmLoading={isLoading}
+                onConfirm={() =>
+                    invalidateCache(undefined, {
+                        onSettled: () => setIsConfirmOpen(false),
+                    })
+                }
+            />
+        </SettingsGridCard>
+    );
+};
+
 type Props = {
     projectUuid: string;
 };
 
 const ProjectResultsCache: FC<Props> = ({ projectUuid }) => {
     const { data: settings, isLoading } = useResultsCacheSettings(projectUuid);
+    const { user } = useApp();
+    const canClearCache =
+        user.data?.ability.can(
+            'manage',
+            subject('Project', {
+                organizationUuid: user.data.organizationUuid,
+                projectUuid,
+            }),
+        ) ?? false;
 
     return (
-        <SettingsGridCard>
-            <Box>
-                <Title order={5}>Cache duration</Title>
-                <Text c="dimmed" fz="xs">
-                    How long cached results are kept before Lightdash queries
-                    the warehouse again.
-                </Text>
-            </Box>
-            {isLoading || !settings ? (
-                <Loader size="sm" />
-            ) : (
-                <ProjectResultsCacheForm
+        <Stack gap="lg">
+            <SettingsGridCard>
+                <Box>
+                    <Title order={5}>Cache duration</Title>
+                    <Text c="dimmed" fz="xs">
+                        How long cached results are kept before Lightdash
+                        queries the warehouse again.
+                    </Text>
+                </Box>
+                {isLoading || !settings ? (
+                    <Loader size="sm" />
+                ) : (
+                    <ProjectResultsCacheForm
+                        projectUuid={projectUuid}
+                        initialTtlSeconds={settings.cacheTtlSeconds}
+                        instanceDefaultSeconds={
+                            settings.instanceDefaultTtlSeconds
+                        }
+                    />
+                )}
+            </SettingsGridCard>
+            {canClearCache && settings && (
+                <ClearResultsCache
                     projectUuid={projectUuid}
-                    initialTtlSeconds={settings.cacheTtlSeconds}
-                    instanceDefaultSeconds={settings.instanceDefaultTtlSeconds}
+                    lastInvalidatedAt={settings.lastInvalidatedAt}
                 />
             )}
-        </SettingsGridCard>
+        </Stack>
     );
 };
 

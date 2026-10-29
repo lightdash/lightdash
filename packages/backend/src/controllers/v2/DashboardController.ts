@@ -4,9 +4,11 @@ import {
     type ApiDashboardPaginatedSchedulersResponse,
     type ApiErrorPayload,
     type ApiJobScheduledResponse,
+    type ApiResultsCacheInvalidationResponse,
     type ApiSchedulerRunsResponse,
     type ExportContentRequest,
     type KnexPaginateArgs,
+    type UUID,
 } from '@lightdash/common';
 import {
     Body,
@@ -32,6 +34,7 @@ import {
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
+    unauthorisedInDemo,
 } from '../authentication/middlewares';
 import { BaseController } from '../baseController';
 import { VALID_SCHEDULER_RUN_DESTINATIONS } from '../schedulerConstants';
@@ -186,6 +189,37 @@ export class DashboardControllerV2 extends BaseController {
                     searchQuery,
                     sort,
                     filters,
+                ),
+        };
+    }
+
+    /**
+     * Invalidate the cached results of this dashboard for every user. Covers every tile, including for embedded viewers.
+     * Queries that share a cache key are invalidated too, and the next run
+     * queries the warehouse. Requires project admin access.
+     * @summary Invalidate dashboard results cache
+     * @param dashboardUuid The uuid of the dashboard
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Invalidated')
+    @Post('/results-cache/invalidate')
+    @OperationId('invalidateDashboardResultsCache')
+    async invalidateResultsCache(
+        @Path() dashboardUuid: UUID,
+        @Request() req: express.Request,
+    ): Promise<ApiResultsCacheInvalidationResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getAsyncQueryService()
+                .invalidateDashboardResultsCache(
+                    toSessionUser(req.account),
+                    dashboardUuid,
                 ),
         };
     }
