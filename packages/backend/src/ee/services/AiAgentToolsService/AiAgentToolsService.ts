@@ -146,6 +146,7 @@ import type { BuiltInSkills } from '../ai/skills/builtInSkills';
 import type { ApproveSqlFn } from '../ai/tools/sqlApprovals';
 import {
     AnalyzeFieldImpactFn,
+    ComposerNodeStatus,
     ComposerNodeStatusUpdate,
     CreateContentFn,
     CreateScheduledDeliveryFn,
@@ -4909,15 +4910,35 @@ export class AiAgentToolsService extends BaseService {
                 });
 
             if (queryResults.status === QueryHistoryStatus.READY) {
-                // Terminal ready implies every upstream node finished.
-                submissions.forEach((submission) =>
-                    emitNodeStatus({
-                        nodeId: submission.nodeId,
-                        queryUuid: submission.queryUuid,
-                        status: 'success',
-                        errorMessage: null,
-                    }),
+                // eslint-disable-next-line no-await-in-loop
+                const nodeStatuses = await this.readComposerNodeStatuses(
+                    context,
+                    submissions,
                 );
+                nodeStatuses.forEach(({ nodeId, state, error }) => {
+                    const submission = submissions.find(
+                        (candidate) => candidate.nodeId === nodeId,
+                    );
+                    if (!submission) return;
+                    if (state === QueryHistoryStatus.READY) {
+                        emitNodeStatus({
+                            nodeId,
+                            queryUuid: submission.queryUuid,
+                            status: 'success',
+                            errorMessage: null,
+                        });
+                    } else if (
+                        state === QueryHistoryStatus.ERROR ||
+                        state === QueryHistoryStatus.CANCELLED
+                    ) {
+                        emitNodeStatus({
+                            nodeId,
+                            queryUuid: submission.queryUuid,
+                            status: 'error',
+                            errorMessage: error,
+                        });
+                    }
+                });
                 const wrappedRows = (queryResults.rows ?? []) as Record<
                     string,
                     AnyType
@@ -4938,6 +4959,7 @@ export class AiAgentToolsService extends BaseService {
                         rows,
                         rowCount: queryResults.totalResults,
                     },
+                    nodeStatuses,
                 };
             }
 
@@ -5007,6 +5029,38 @@ export class AiAgentToolsService extends BaseService {
         }
     }
 
+    private async readComposerNodeStatuses(
+        context: AiAgentToolsRuntimeContext,
+        submissions: { nodeId: string; queryUuid: string }[],
+    ): Promise<ComposerNodeStatus[]> {
+        const { statuses } =
+            await this.querySourceService.getSourceQueryStatuses(
+                context.account,
+                context.projectUuid,
+                submissions.map((submission) => submission.queryUuid),
+            );
+        return submissions.flatMap(({ nodeId, queryUuid }) => {
+            const status = statuses.find(
+                (candidate) => candidate.queryUuid === queryUuid,
+            );
+            if (!status) return [];
+            return [
+                {
+                    nodeId,
+                    state: status.status,
+                    error:
+                        status.error === null
+                            ? null
+                            : truncateMiddle(
+                                  status.error,
+                                  COMPOSER_NODE_ERROR_MAX_CHARS,
+                              ),
+                    rowCount: status.totalRowCount,
+                },
+            ];
+        });
+    }
+
     /**
      * Best-effort per-node failure lookup so composer errors name the failing
      * node the model should fix. Never throws — falls back to an empty list.
@@ -5016,28 +5070,13 @@ export class AiAgentToolsService extends BaseService {
         submissions: { nodeId: string; queryUuid: string }[],
     ): Promise<{ nodeId: string; error: string | null }[]> {
         try {
-            const { statuses } =
-                await this.querySourceService.getSourceQueryStatuses(
-                    context.account,
-                    context.projectUuid,
-                    submissions.map((submission) => submission.queryUuid),
-                );
-            return statuses
-                .filter((status) => status.status === QueryHistoryStatus.ERROR)
-                .map((status) => ({
-                    nodeId:
-                        submissions.find(
-                            (submission) =>
-                                submission.queryUuid === status.queryUuid,
-                        )?.nodeId ?? status.queryUuid,
-                    error:
-                        status.error === null
-                            ? null
-                            : truncateMiddle(
-                                  status.error,
-                                  COMPOSER_NODE_ERROR_MAX_CHARS,
-                              ),
-                }));
+            const nodeStatuses = await this.readComposerNodeStatuses(
+                context,
+                submissions,
+            );
+            return nodeStatuses.filter(
+                ({ state }) => state === QueryHistoryStatus.ERROR,
+            );
         } catch {
             return [];
         }

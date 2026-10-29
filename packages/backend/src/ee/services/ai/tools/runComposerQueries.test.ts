@@ -4,6 +4,7 @@ import {
     getComposerNodeConflictMessage,
     isSameComposerNodeDefinition,
     ParameterError,
+    QueryHistoryStatus,
     QuerySourceType,
     toolComposerQueryNodeToSourceQuery,
     type AiWebAppPrompt,
@@ -226,6 +227,47 @@ const successMetadata = (output: ComposerOutput) => {
     return output.metadata;
 };
 
+const readyNode = (nodeId: string, rowCount: number) => ({
+    nodeId,
+    state: QueryHistoryStatus.READY,
+    error: null,
+    rowCount,
+});
+
+const defaultRunResult = {
+    submissions: [
+        {
+            nodeId: 'revenue',
+            sourceType: QuerySourceType.SEMANTIC_LAYER,
+            queryUuid: 'query-1',
+        },
+        {
+            nodeId: 'signups',
+            sourceType: QuerySourceType.SQL,
+            queryUuid: 'query-2',
+        },
+        {
+            nodeId: 'joined',
+            sourceType: QuerySourceType.DUCKDB,
+            queryUuid: 'query-3',
+        },
+    ],
+    terminal: {
+        queryUuid: 'query-3',
+        columns: {
+            month: { reference: 'month', type: 'string' },
+            signups: { reference: 'signups', type: 'number' },
+        },
+        rows: [{ month: '2026-01', signups: 12 }],
+        rowCount: 1,
+    },
+    nodeStatuses: [
+        readyNode('revenue', 12),
+        readyNode('signups', 12),
+        readyNode('joined', 1),
+    ],
+};
+
 const makeTool = ({
     reviewQuery,
     autoApproveSql = false,
@@ -262,34 +304,7 @@ const makeTool = ({
         reviewQuery,
         filterValueHints,
         updateProgress: vi.fn().mockResolvedValue(undefined),
-        runComposerQueries: vi.fn().mockResolvedValue({
-            submissions: [
-                {
-                    nodeId: 'revenue',
-                    sourceType: QuerySourceType.SEMANTIC_LAYER,
-                    queryUuid: 'query-1',
-                },
-                {
-                    nodeId: 'signups',
-                    sourceType: QuerySourceType.SQL,
-                    queryUuid: 'query-2',
-                },
-                {
-                    nodeId: 'joined',
-                    sourceType: QuerySourceType.DUCKDB,
-                    queryUuid: 'query-3',
-                },
-            ],
-            terminal: {
-                queryUuid: 'query-3',
-                columns: {
-                    month: { reference: 'month', type: 'string' },
-                    signups: { reference: 'signups', type: 'number' },
-                },
-                rows: [{ month: '2026-01', signups: 12 }],
-                rowCount: 1,
-            },
-        }),
+        runComposerQueries: vi.fn().mockResolvedValue(defaultRunResult),
         getPrompt: vi.fn().mockResolvedValue(prompt),
         updateSlackMessage: vi.fn().mockResolvedValue(undefined),
         siteUrl: 'https://lightdash.example',
@@ -365,9 +380,9 @@ describe('getRunComposerQueries', () => {
             [
                 'Composer query complete. Terminal node "joined" returned 1 rows.',
                 'Nodes in this pipeline:',
-                '- revenue: "Revenue by month" (semanticLayer)',
-                '- signups: "Signups by month" (sql)',
-                '- joined: "Revenue vs signups" (duckdb)',
+                '- revenue: "Revenue by month" (semanticLayer): 12 rows, limit 500.',
+                '- signups: "Signups by month" (sql): 12 rows, limit 500.',
+                '- joined: "Revenue vs signups" (duckdb): 1 rows, limit 500.',
                 'Terminal columns: month (string), signups (number).',
             ].join('\n'),
         );
@@ -381,16 +396,22 @@ describe('getRunComposerQueries', () => {
                     nodeId: 'revenue',
                     title: 'Revenue by month',
                     sourceType: QuerySourceType.SEMANTIC_LAYER,
+                    rowCount: 12,
+                    limit: 500,
                 },
                 {
                     nodeId: 'signups',
                     title: 'Signups by month',
                     sourceType: QuerySourceType.SQL,
+                    rowCount: 12,
+                    limit: 500,
                 },
                 {
                     nodeId: 'joined',
                     title: 'Revenue vs signups',
                     sourceType: QuerySourceType.DUCKDB,
+                    rowCount: 1,
+                    limit: 500,
                 },
             ],
             columns: [
@@ -404,6 +425,30 @@ describe('getRunComposerQueries', () => {
                 truncated: false,
             },
         });
+    });
+
+    it('flags a node that reached its limit and warns on the nodes that read it', async () => {
+        const { tool, dependencies } = makeTool({ autoApproveSql: true });
+        dependencies.runComposerQueries.mockResolvedValueOnce({
+            ...defaultRunResult,
+            nodeStatuses: [
+                readyNode('revenue', 500),
+                readyNode('signups', 12),
+                readyNode('joined', 1),
+            ],
+        });
+
+        const output = await executeTool(tool, makeArgs());
+
+        expect(output.result).toContain(
+            [
+                '- revenue: "Revenue by month" (semanticLayer): 500 rows, limit 500. Reached its limit of 500, so more rows may exist (max 5000).',
+                '- signups: "Signups by month" (sql): 12 rows, limit 500.',
+                '- joined: "Revenue vs signups" (duckdb): 1 rows, limit 500.',
+                'Warning: "joined" reads "revenue", which reached its limit, so "joined" may be computed on incomplete rows.',
+            ].join('\n'),
+        );
+        expect(output.result).not.toContain('truncated');
     });
 
     it('defaults the terminal node to the unique sink', async () => {
@@ -779,6 +824,7 @@ describe('getRunComposerQueries', () => {
                         rows: [],
                         rowCount: 0,
                     },
+                    nodeStatuses: [],
                 };
             },
         );
@@ -914,6 +960,9 @@ const runReuse = async ({
                 rows: [{ total: 3 }],
                 rowCount: 1,
             },
+            nodeStatuses: args.queries.map((node) =>
+                readyNode(node.nodeId ?? '', 1),
+            ),
         }),
     );
 
@@ -991,10 +1040,10 @@ describe('composer artifact with reused nodes', () => {
             [
                 'Composer query complete. Terminal node "summary" returned 1 rows.',
                 'Nodes in this pipeline:',
-                '- orders: "Orders by customer" (semanticLayer)',
-                '- customers: "Customers" (semanticLayer)',
-                '- enriched: "Orders with customer names" (duckdb)',
-                '- summary: "Spend summary" (duckdb)',
+                '- orders: "Orders by customer" (semanticLayer): 1 rows, limit 500.',
+                '- customers: "Customers" (semanticLayer): 1 rows, limit 500.',
+                '- enriched: "Orders with customer names" (duckdb): 1 rows, limit 500.',
+                '- summary: "Spend summary" (duckdb): 1 rows, limit 500.',
                 'Terminal columns: total (number).',
             ].join('\n'),
         );
@@ -1154,6 +1203,7 @@ describe('composer query review', () => {
                 rows: [],
                 rowCount: 0,
             },
+            nodeStatuses: [],
         });
         const output = await executeTool(tool, makeArgs());
         expect(output.result).toContain('Preserve the user’s scope');
@@ -1511,6 +1561,7 @@ describe('semanticLayer node filters', () => {
                     rows: [],
                     rowCount: 0,
                 },
+                nodeStatuses: [],
             });
             return {
                 ...made,

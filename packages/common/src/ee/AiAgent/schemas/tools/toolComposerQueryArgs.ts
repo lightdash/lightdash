@@ -637,6 +637,19 @@ const composerQueryNodeSummarySchema = z.object({
     nodeId: nodeIdSchema,
     title: z.string().nullable().describe('What users see for this node.'),
     sourceType: z.nativeEnum(QuerySourceType),
+    rowCount: z
+        .number()
+        .int()
+        .nonnegative()
+        .nullable()
+        .describe('Rows this node returned; null when its query is not ready.'),
+    limit: z
+        .number()
+        .int()
+        .positive()
+        .describe(
+            'Row limit this node ran with. A rowCount equal to it means the node reached its limit, so more rows may exist.',
+        ),
 });
 
 const composerQueryColumnSchema = z.object({

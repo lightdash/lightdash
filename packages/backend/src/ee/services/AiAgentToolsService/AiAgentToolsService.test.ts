@@ -3631,13 +3631,28 @@ describe('AiAgentToolsService runComposerQueries', () => {
         },
     };
 
+    const readyStatuses = {
+        statuses: submissions.map(({ queryUuid }) => ({
+            queryUuid,
+            status: QueryHistoryStatus.READY,
+            error: null,
+            totalRowCount: 1,
+            warehouseExecutionTimeMs: null,
+        })),
+    };
+
     it('submits the pipeline with the AI context and returns the terminal snapshot', async () => {
         const executeSourceQueries = vi
             .fn()
             .mockResolvedValue({ queries: submissions });
         const getAsyncQueryResults = vi.fn().mockResolvedValue(readyResults);
         const service = makeService({
-            querySourceService: { executeSourceQueries },
+            querySourceService: {
+                executeSourceQueries,
+                getSourceQueryStatuses: vi
+                    .fn()
+                    .mockResolvedValue(readyStatuses),
+            },
             asyncQueryService: { getAsyncQueryResults },
         });
 
@@ -3670,13 +3685,127 @@ describe('AiAgentToolsService runComposerQueries', () => {
         });
     });
 
+    it("reads every node's status once the terminal is ready", async () => {
+        const getSourceQueryStatuses = vi.fn().mockResolvedValue({
+            statuses: [
+                {
+                    queryUuid: 'query-1',
+                    status: QueryHistoryStatus.READY,
+                    error: null,
+                    totalRowCount: 500,
+                    warehouseExecutionTimeMs: 12,
+                },
+                {
+                    queryUuid: 'query-2',
+                    status: QueryHistoryStatus.READY,
+                    error: null,
+                    totalRowCount: 1,
+                    warehouseExecutionTimeMs: 3,
+                },
+            ],
+        });
+        const service = makeService({
+            querySourceService: {
+                executeSourceQueries: vi
+                    .fn()
+                    .mockResolvedValue({ queries: submissions }),
+                getSourceQueryStatuses,
+            },
+            asyncQueryService: {
+                getAsyncQueryResults: vi.fn().mockResolvedValue(readyResults),
+            },
+        });
+
+        const result = await service
+            .createRuntime(makeRuntimeContext())
+            .runComposerQueries({
+                queries: composerQueries,
+                terminalNodeId: 'joined',
+            });
+
+        expect(getSourceQueryStatuses).toHaveBeenCalledWith(
+            account,
+            projectUuid,
+            ['query-1', 'query-2'],
+        );
+        expect(result.nodeStatuses).toEqual([
+            {
+                nodeId: 'orders',
+                state: QueryHistoryStatus.READY,
+                error: null,
+                rowCount: 500,
+            },
+            {
+                nodeId: 'joined',
+                state: QueryHistoryStatus.READY,
+                error: null,
+                rowCount: 1,
+            },
+        ]);
+    });
+
+    it('does not report a node successful when its status read says otherwise', async () => {
+        const onNodeStatus = vi.fn();
+        const service = makeService({
+            querySourceService: {
+                executeSourceQueries: vi
+                    .fn()
+                    .mockResolvedValue({ queries: submissions }),
+                getSourceQueryStatuses: vi.fn().mockResolvedValue({
+                    statuses: [
+                        {
+                            queryUuid: 'query-1',
+                            status: QueryHistoryStatus.EXECUTING,
+                            error: null,
+                            totalRowCount: null,
+                            warehouseExecutionTimeMs: null,
+                        },
+                        {
+                            queryUuid: 'query-2',
+                            status: QueryHistoryStatus.READY,
+                            error: null,
+                            totalRowCount: 1,
+                            warehouseExecutionTimeMs: 3,
+                        },
+                    ],
+                }),
+            },
+            asyncQueryService: {
+                getAsyncQueryResults: vi.fn().mockResolvedValue(readyResults),
+            },
+        });
+
+        const result = await service
+            .createRuntime(makeRuntimeContext())
+            .runComposerQueries({
+                queries: composerQueries,
+                terminalNodeId: 'joined',
+                onNodeStatus,
+            });
+
+        expect(result.nodeStatuses[0]).toEqual({
+            nodeId: 'orders',
+            state: QueryHistoryStatus.EXECUTING,
+            error: null,
+            rowCount: null,
+        });
+        expect(onNodeStatus).not.toHaveBeenCalledWith(
+            expect.objectContaining({ nodeId: 'orders', status: 'success' }),
+        );
+    });
+
     it('carries the runtime user attribute overrides into the pipeline', async () => {
         const executeSourceQueries = vi
             .fn()
             .mockResolvedValue({ queries: submissions });
         const getAsyncQueryResults = vi.fn().mockResolvedValue(readyResults);
         const service = makeService({
-            querySourceService: { executeSourceQueries },
+            querySourceService: {
+                executeSourceQueries,
+                getSourceQueryStatuses: vi
+                    .fn()
+                    .mockResolvedValue(readyStatuses),
+            },
             asyncQueryService: { getAsyncQueryResults },
         });
 
@@ -3710,20 +3839,23 @@ describe('AiAgentToolsService runComposerQueries', () => {
                 .mockResolvedValue(readyResults);
             // While the terminal is still running, the upstream node has
             // already finished.
-            const getSourceQueryStatuses = vi.fn().mockResolvedValue({
-                statuses: [
-                    {
-                        queryUuid: 'query-1',
-                        status: QueryHistoryStatus.READY,
-                        error: null,
-                    },
-                    {
-                        queryUuid: 'query-2',
-                        status: QueryHistoryStatus.EXECUTING,
-                        error: null,
-                    },
-                ],
-            });
+            const getSourceQueryStatuses = vi
+                .fn()
+                .mockResolvedValueOnce({
+                    statuses: [
+                        {
+                            queryUuid: 'query-1',
+                            status: QueryHistoryStatus.READY,
+                            error: null,
+                        },
+                        {
+                            queryUuid: 'query-2',
+                            status: QueryHistoryStatus.EXECUTING,
+                            error: null,
+                        },
+                    ],
+                })
+                .mockResolvedValue(readyStatuses);
             const service = makeService({
                 querySourceService: {
                     executeSourceQueries,
@@ -4001,6 +4133,9 @@ describe('AiAgentToolsService runComposerQueries', () => {
                 executeSourceQueries: vi
                     .fn()
                     .mockResolvedValue({ queries: submissions }),
+                getSourceQueryStatuses: vi
+                    .fn()
+                    .mockResolvedValue(readyStatuses),
             },
             asyncQueryService: { getAsyncQueryResults },
         });

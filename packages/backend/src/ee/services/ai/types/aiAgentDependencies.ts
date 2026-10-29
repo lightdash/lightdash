@@ -39,6 +39,7 @@ import {
     ParametersValuesMap,
     ProjectType,
     QueryExecutionContext,
+    QueryHistoryStatus,
     ReadContentType,
     ResultColumns,
     SavedChart,
@@ -756,6 +757,15 @@ export type ComposerNodeStatusUpdate = {
     errorMessage: string | null;
 };
 
+/** How one node did in a run, read from its query history row. */
+export type ComposerNodeStatus = {
+    nodeId: string;
+    state: QueryHistoryStatus;
+    error: string | null;
+    /** Null until the node's query is ready. */
+    rowCount: number | null;
+};
+
 /**
  * Submits a composer query (multi-source pipeline) and waits for the terminal
  * node's results. Submissions carry the pinned nodeId → queryUuid mapping for
@@ -777,6 +787,8 @@ export type RunComposerQueriesFn = (args: {
         rows: Record<string, AnyType>[];
         rowCount: number;
     };
+    /** Every submitted node, read once after the terminal node is ready. */
+    nodeStatuses: ComposerNodeStatus[];
 }>;
 
 export type ListWarehouseTablesFn = (

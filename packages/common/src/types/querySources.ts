@@ -382,6 +382,15 @@ export type ApiScanQuerySourceSchemaResults = QuerySourceSchema;
 
 export const DEFAULT_SOURCE_QUERY_LIMIT = 500;
 
+export const getSourceQueryLimit = (query: { limit?: number }): number =>
+    query.limit ?? DEFAULT_SOURCE_QUERY_LIMIT;
+
+/** A node that returned at least its limit of rows reached it, so more rows may exist. */
+export const hasReachedSourceQueryLimit = (
+    query: { limit?: number },
+    rowCount: number,
+): boolean => rowCount >= getSourceQueryLimit(query);
+
 /** The metric query a semanticLayer node runs; unset fields take the empty-query defaults. */
 export const metricQueryOfSemanticNode = (
     query: SemanticLayerSourceQuery,
