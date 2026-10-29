@@ -35,7 +35,7 @@ import { GENERATE_DATA_APP_SECTION } from './systemV2DataApps';
 import { getKnowledgeDocumentsSection } from './systemV2KnowledgeDocuments';
 import { MEMORIES_SECTION } from './systemV2Memories';
 import {
-    COMPOSER_QUERY_PATH,
+    getComposerQueryPath,
     getQueryingComposerSection,
 } from './systemV2QueryingComposer';
 import { getRepoFsSection } from './systemV2RepoFs';
@@ -234,7 +234,7 @@ export const getSystemPromptV2 = (
     }
     const queryPath: QueryPath = composer
         ? {
-              ...COMPOSER_QUERY_PATH,
+              ...getComposerQueryPath(canRunSql),
               queryLanguageSections: getQueryingComposerSection({
                   enablePythonNodes: enableComposerPythonNodes,
                   enableApiNodes: enableComposerApiNodes,

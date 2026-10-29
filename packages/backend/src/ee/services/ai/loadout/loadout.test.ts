@@ -178,7 +178,7 @@ const contract = (loadout: Loadout) =>
         4,
     )}\n`;
 
-// Wording flags stay at their defaults; composer renders with the data access it requires.
+// Wording flags stay at their defaults; composer renders with the data access it requires and SQL access when sqlCatalog is on.
 const renderPrompt = (loadout: Loadout, input: LoadoutInput) =>
     getSystemPromptV2({
         availableExplores: [],
@@ -186,6 +186,9 @@ const renderPrompt = (loadout: Loadout, input: LoadoutInput) =>
         promptSections: loadout.promptSections,
         availableSkills: listedSkills(loadout, input),
         enableDataAccess: loadout.base === 'composer',
+        canRunSql:
+            loadout.base === 'composer' &&
+            loadout.toolNames.has('listWarehouseTables'),
         canRunQuery: loadout.toolNames.has('runQuery'),
     }).content;
 
