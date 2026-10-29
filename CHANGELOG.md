@@ -1,3 +1,10 @@
+# [3.106.0](https://github.com/lightdash/lightdash/compare/3.105.1...3.106.0) (2026-10-29)
+
+
+### Features
+
+* **pgwire:** track Metric SQL API usage and enforce the org setting ([#31758](https://github.com/lightdash/lightdash/issues/31758)) ([fb535f9](https://github.com/lightdash/lightdash/commit/fb535f9b12d3195bdde4f1866172d24dc3e6673c))
+
 ## [3.105.1](https://github.com/lightdash/lightdash/compare/3.105.0...3.105.1) (2026-10-29)
 
 
