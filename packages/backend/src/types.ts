@@ -1,5 +1,4 @@
 import {
-    DbtExternalModelNode,
     DbtPackages,
     DbtRpcGetManifestResults,
     Explore,
@@ -17,7 +16,6 @@ export type TrackingParams = {
 };
 
 export type DbtManifestFetchOptions = {
-    externalNodes: DbtExternalModelNode[];
     signal?: AbortSignal;
 };
 
