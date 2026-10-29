@@ -58,6 +58,8 @@ const connectorLabel = (connector: ApiConnectorType): string => {
             return 'PostHog';
         case ApiConnectorType.SEARCH_CONSOLE:
             return 'Search Console';
+        case ApiConnectorType.GA4:
+            return 'Google Analytics';
         default:
             return assertUnreachable(
                 connector,

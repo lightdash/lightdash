@@ -8,6 +8,10 @@ import {
     type ExternalConnectionAuthType,
 } from '@lightdash/common';
 import {
+    GA4_DATA_ORIGIN,
+    getGa4ReportPath,
+} from '../../../services/QuerySourceService/api/google/Ga4Connector';
+import {
     SEARCH_CONSOLE_ORIGIN,
     SEARCH_CONSOLE_SITES_PATH,
 } from '../../../services/QuerySourceService/api/google/SearchConsoleConnector';
@@ -21,6 +25,8 @@ const POSTHOG_TIMEOUT_MS = 45_000;
 const SEARCH_CONSOLE_TIMEOUT_MS = 30_000;
 const SEARCH_CONSOLE_SITE =
     /^(sc-domain:[a-z0-9.-]+|https?:\/\/[^\s/?#]+\/[^\s?#]*)$/i;
+const GA4_TIMEOUT_MS = 30_000;
+const GA4_PROPERTY_ID = /^\d{1,20}$/;
 const API_SOURCE_RESPONSE_MAX_BYTES = 25 * 1024 * 1024;
 
 type ApiSourceAccessRules = Required<
@@ -53,6 +59,14 @@ const getAccessRules = (
                 allowedMethods: ['POST'],
                 allowedContentTypes: ['application/json'],
                 timeoutMs: SEARCH_CONSOLE_TIMEOUT_MS,
+                responseMaxBytes: API_SOURCE_RESPONSE_MAX_BYTES,
+            };
+        case ApiConnectorType.GA4:
+            return {
+                allowedPathPrefixes: [getGa4ReportPath(apiSource.propertyId)],
+                allowedMethods: ['POST'],
+                allowedContentTypes: ['application/json'],
+                timeoutMs: GA4_TIMEOUT_MS,
                 responseMaxBytes: API_SOURCE_RESPONSE_MAX_BYTES,
             };
         default:
@@ -138,6 +152,27 @@ export const validateApiSourceConnection = ({
             ) {
                 throw new ParameterError(
                     'Search Console connections authenticate by signing in with Google',
+                );
+            }
+            return;
+        }
+        case ApiConnectorType.GA4: {
+            if (!GA4_PROPERTY_ID.test(apiSource.propertyId)) {
+                throw new ParameterError(
+                    'The GA4 property ID must be a number',
+                );
+            }
+            if (origin.replace(/\/+$/, '') !== GA4_DATA_ORIGIN) {
+                throw new ParameterError(
+                    `Google Analytics connections must use ${GA4_DATA_ORIGIN}`,
+                );
+            }
+            if (
+                type !== 'oauth_authorization_code' ||
+                oauthTokenUrl !== GOOGLE_TOKEN_URL
+            ) {
+                throw new ParameterError(
+                    'Google Analytics connections authenticate by signing in with Google',
                 );
             }
             return;
