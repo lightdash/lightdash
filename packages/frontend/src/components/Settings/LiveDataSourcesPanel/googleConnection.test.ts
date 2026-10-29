@@ -48,12 +48,19 @@ describe('getApiSourceTarget', () => {
                 siteUrl: 'sc-domain:example.com',
             }),
         ).toBe('sc-domain:example.com');
+        expect(
+            getApiSourceTarget({
+                connector: ApiConnectorType.GA4,
+                propertyId: '123456',
+            }),
+        ).toBe('Property 123456');
     });
 });
 
 describe('isGoogleConnector', () => {
     it('separates Google sources from PostHog', () => {
         expect(isGoogleConnector(ApiConnectorType.SEARCH_CONSOLE)).toBe(true);
+        expect(isGoogleConnector(ApiConnectorType.GA4)).toBe(true);
         expect(isGoogleConnector(ApiConnectorType.POSTHOG)).toBe(false);
     });
 });

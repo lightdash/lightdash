@@ -4,6 +4,7 @@ import {
     type CreateExternalConnection,
     type ExternalConnectionApiSource,
 } from '@lightdash/common';
+import { getGa4ReportPath } from '../../../services/QuerySourceService/api/google/Ga4Connector';
 import { getSearchConsoleQueryPath } from '../../../services/QuerySourceService/api/google/SearchConsoleConnector';
 import {
     validateApiSourceConnection,
@@ -134,6 +135,58 @@ describe('Search Console connections', () => {
                 type: 'bearer_token',
                 oauthTokenUrl: null,
             }),
+            'signing in with Google',
+        ],
+    ])('refuses %#', (connection, message) => {
+        expect(() => validateApiSourceConnection(connection)).toThrow(message);
+    });
+});
+
+describe('Google Analytics connections', () => {
+    const ga4 = (
+        propertyId: string,
+        overrides: Partial<CreateExternalConnection> = {},
+    ) =>
+        withApiSourceAccessRules(
+            config({
+                type: 'oauth_authorization_code',
+                origin: 'https://analyticsdata.googleapis.com',
+                oauthTokenUrl: GOOGLE_TOKEN_URL,
+                apiSource: { connector: ApiConnectorType.GA4, propertyId },
+                ...overrides,
+            }),
+        );
+
+    it('sends reports only to the connected property', () => {
+        const { allowedPathPrefixes, allowedMethods, origin } = ga4('123456');
+        expect(allowedMethods).toEqual(['POST']);
+        const path = normalizeAndValidatePath(
+            getGa4ReportPath('123456'),
+            allowedPathPrefixes,
+        );
+        expect(buildOutboundUrl(origin, path, undefined)).toBe(
+            'https://analyticsdata.googleapis.com/v1beta/properties/123456:runReport',
+        );
+        expect(() =>
+            normalizeAndValidatePath(
+                getGa4ReportPath('654321'),
+                allowedPathPrefixes,
+            ),
+        ).toThrow();
+    });
+
+    it('accepts a signed-in property', () => {
+        expect(() => validateApiSourceConnection(ga4('123456'))).not.toThrow();
+    });
+
+    it.each([
+        [ga4('properties/123456'), 'must be a number'],
+        [
+            ga4('123456', { origin: 'https://example.com' }),
+            'must use https://analyticsdata.googleapis.com',
+        ],
+        [
+            ga4('123456', { type: 'bearer_token', oauthTokenUrl: null }),
             'signing in with Google',
         ],
     ])('refuses %#', (connection, message) => {
