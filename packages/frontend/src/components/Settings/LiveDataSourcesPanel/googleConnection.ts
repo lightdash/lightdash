@@ -4,7 +4,9 @@ import {
     type ExternalConnectionApiSource,
 } from '@lightdash/common';
 
-export type GoogleConnector = ApiConnectorType.SEARCH_CONSOLE;
+export type GoogleConnector =
+    | ApiConnectorType.SEARCH_CONSOLE
+    | ApiConnectorType.GA4;
 
 export const GOOGLE_SOURCES: {
     connector: GoogleConnector;
@@ -18,6 +20,13 @@ export const GOOGLE_SOURCES: {
         defaultName: 'Search Console',
         description:
             'AI agents read search clicks, impressions, CTR and position for one Search Console site.',
+    },
+    {
+        connector: ApiConnectorType.GA4,
+        label: 'Google Analytics 4',
+        defaultName: 'Google Analytics',
+        description:
+            'AI agents run reports on users, sessions, events and revenue for one GA4 property.',
     },
 ];
 
@@ -46,13 +55,15 @@ export const getGoogleSignInUrl = (
     return `/api/v1/ee/projects/${projectUuid}/live-sources/google/oauth/start?${params.toString()}`;
 };
 
-/** What a source reads: a PostHog project or a Search Console site. */
+/** What a source reads: a PostHog project, a Search Console site or a GA4 property. */
 export const getApiSourceTarget = (apiSource: ExternalConnectionApiSource) => {
     switch (apiSource.connector) {
         case ApiConnectorType.POSTHOG:
             return `Project ${apiSource.projectId}`;
         case ApiConnectorType.SEARCH_CONSOLE:
             return apiSource.siteUrl;
+        case ApiConnectorType.GA4:
+            return `Property ${apiSource.propertyId}`;
         default:
             return assertUnreachable(apiSource, 'Unknown connector');
     }

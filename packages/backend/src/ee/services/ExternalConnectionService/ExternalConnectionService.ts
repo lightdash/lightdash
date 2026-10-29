@@ -49,6 +49,7 @@ import type {
     ApiConnector,
     ApiConnectorTransport,
 } from '../../../services/QuerySourceService/api/ApiConnector';
+import { Ga4Connector } from '../../../services/QuerySourceService/api/google/Ga4Connector';
 import { SearchConsoleConnector } from '../../../services/QuerySourceService/api/google/SearchConsoleConnector';
 import { PostHogConnector } from '../../../services/QuerySourceService/api/posthog/PostHogConnector';
 import type { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
@@ -1078,6 +1079,12 @@ export class ExternalConnectionService extends BaseService {
             case ApiConnectorType.SEARCH_CONSOLE:
                 connector = new SearchConsoleConnector({
                     siteUrl: apiSource.siteUrl,
+                    send,
+                });
+                return connector;
+            case ApiConnectorType.GA4:
+                connector = new Ga4Connector({
+                    propertyId: apiSource.propertyId,
                     send,
                 });
                 return connector;

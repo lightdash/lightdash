@@ -55,6 +55,7 @@ export enum QuerySourceType {
 export enum ApiConnectorType {
     POSTHOG = 'posthog',
     SEARCH_CONSOLE = 'search_console',
+    GA4 = 'ga4',
 }
 
 /**

@@ -5,6 +5,7 @@ import {
     type GoogleLiveSourceChoice,
 } from '@lightdash/common';
 import { z } from 'zod';
+import { GA4_DATA_ORIGIN } from '../../../services/QuerySourceService/api/google/Ga4Connector';
 import {
     SEARCH_CONSOLE_ORIGIN,
     SEARCH_CONSOLE_SITES_PATH,
@@ -14,7 +15,13 @@ export const GOOGLE_AUTHORIZE_URL =
     'https://accounts.google.com/o/oauth2/v2/auth';
 export const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 
-export type GoogleConnectorType = ApiConnectorType.SEARCH_CONSOLE;
+export type GoogleConnectorType =
+    | ApiConnectorType.SEARCH_CONSOLE
+    | ApiConnectorType.GA4;
+
+const GA4_ACCOUNT_SUMMARIES_URL =
+    'https://analyticsadmin.googleapis.com/v1beta/accountSummaries';
+const GA4_ACCOUNT_SUMMARY_PAGES = 5;
 
 /** Reads a Google API as the signed-in account; returns the status and parsed JSON body. */
 export type GoogleApiGet = (
@@ -39,6 +46,25 @@ const sitesSchema = z.object({
     siteEntry: z
         .array(z.object({ siteUrl: z.string(), permissionLevel: z.string() }))
         .optional(),
+});
+
+const accountSummariesSchema = z.object({
+    accountSummaries: z
+        .array(
+            z.object({
+                displayName: z.string().optional(),
+                propertySummaries: z
+                    .array(
+                        z.object({
+                            property: z.string(),
+                            displayName: z.string().optional(),
+                        }),
+                    )
+                    .optional(),
+            }),
+        )
+        .optional(),
+    nextPageToken: z.string().optional(),
 });
 
 const SITE_PERMISSION_LABELS: Record<string, string> = {
@@ -99,6 +125,51 @@ export const GOOGLE_CONNECTORS: Record<
         choiceOf: (apiSource) =>
             apiSource.connector === ApiConnectorType.SEARCH_CONSOLE
                 ? apiSource.siteUrl
+                : null,
+    },
+    [ApiConnectorType.GA4]: {
+        label: 'Google Analytics',
+        scope: 'https://www.googleapis.com/auth/analytics.readonly',
+        origin: GA4_DATA_ORIGIN,
+        listChoices: async (get, accessToken) => {
+            const choices: GoogleLiveSourceChoice[] = [];
+            let pageToken: string | undefined;
+            for (let page = 0; page < GA4_ACCOUNT_SUMMARY_PAGES; page += 1) {
+                const url = new URL(GA4_ACCOUNT_SUMMARIES_URL);
+                url.searchParams.set('pageSize', '200');
+                if (pageToken) url.searchParams.set('pageToken', pageToken);
+                // eslint-disable-next-line no-await-in-loop
+                const response = await get(url.href, accessToken);
+                assertOk(response, 'Google Analytics Admin');
+                const parsed = accountSummariesSchema.safeParse(response.body);
+                if (!parsed.success) break;
+                parsed.data.accountSummaries?.forEach((account) =>
+                    account.propertySummaries?.forEach((property) => {
+                        const propertyId = property.property.replace(
+                            /^properties\//,
+                            '',
+                        );
+                        choices.push({
+                            value: propertyId,
+                            label: property.displayName ?? property.property,
+                            description: `${
+                                account.displayName ?? 'Account'
+                            } · property ${propertyId}`,
+                        });
+                    }),
+                );
+                pageToken = parsed.data.nextPageToken;
+                if (!pageToken) break;
+            }
+            return choices.sort((a, b) => a.label.localeCompare(b.label));
+        },
+        toApiSource: (propertyId) => ({
+            connector: ApiConnectorType.GA4,
+            propertyId,
+        }),
+        choiceOf: (apiSource) =>
+            apiSource.connector === ApiConnectorType.GA4
+                ? apiSource.propertyId
                 : null,
     },
 };

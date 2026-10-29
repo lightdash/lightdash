@@ -27,10 +27,17 @@ export type SearchConsoleApiSource = {
     siteUrl: string;
 };
 
+export type Ga4ApiSource = {
+    connector: ApiConnectorType.GA4;
+    /** The numeric GA4 property id, without the properties/ prefix. */
+    propertyId: string;
+};
+
 /** Connector settings of a live source; the server fixes its access rules. */
 export type ExternalConnectionApiSource =
     | PostHogApiSource
-    | SearchConsoleApiSource;
+    | SearchConsoleApiSource
+    | Ga4ApiSource;
 
 /** A Google property the signed-in account can query, offered after sign-in. */
 export type GoogleLiveSourceChoice = {
