@@ -1268,9 +1268,9 @@ describe('organization MCP project policy at HTTP boundary', () => {
                         },
                     });
                     expect(response.status).toBe(403);
-                    expect(response.body).toContain(
-                        'MCP access to this project is disabled for your organization',
-                    );
+                    expect(JSON.parse(response.body)).toEqual({
+                        error: 'MCP access to this project is disabled for your organization',
+                    });
                     expect(mcpService.createServer).not.toHaveBeenCalled();
                 }),
             );

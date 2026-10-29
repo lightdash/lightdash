@@ -864,13 +864,13 @@ export class McpService extends BaseService {
             await this.aiOrganizationSettingsService.getMcpProjectAccess(
                 user.organizationUuid,
             );
-        if (
-            projects.some(
-                (projectUuid) => !isProjectAllowedForMcp(policy, projectUuid),
-            )
-        ) {
-            throw new ForbiddenError(
-                'MCP access to this project is disabled for your organization',
+        const deniedProjectUuid = projects.find(
+            (projectUuid) => !isProjectAllowedForMcp(policy, projectUuid),
+        );
+        if (deniedProjectUuid !== undefined) {
+            throw new AiAccessRefusedError(
+                AiAccessRefusalReason.MCP_PROJECT_NOT_ALLOWED,
+                { projectUuid: deniedProjectUuid },
             );
         }
     }
@@ -6529,12 +6529,21 @@ export class McpService extends BaseService {
                 if (error instanceof AiAccessRefusedError) {
                     const context = getMcpContext(extra);
                     const scope = mcpToolScopeArgsSchema.safeParse(toolArgs);
-                    const projectUuid = scope.success
-                        ? scope.data.projectUuid
-                        : (context.authInfo?.extra.headerProjectUuid ?? null);
+                    const projectUuid =
+                        error.refusal.projectUuid ??
+                        (scope.success
+                            ? scope.data.projectUuid
+                            : (context.authInfo?.extra.headerProjectUuid ??
+                              null));
+                    const loggedToolArgs = toolAllowed ? toolArgs : {};
                     this.recordToolCall({
                         toolName,
-                        toolArgs: toolAllowed ? toolArgs : {},
+                        toolArgs:
+                            error.refusal.reason ===
+                                AiAccessRefusalReason.MCP_PROJECT_NOT_ALLOWED &&
+                            projectUuid !== null
+                                ? { ...loggedToolArgs, projectUuid }
+                                : loggedToolArgs,
                         extra,
                         durationMs: Date.now() - startedAt,
                         status: 'error',

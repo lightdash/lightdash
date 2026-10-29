@@ -840,6 +840,28 @@ describe('every agent-scoped tool re-authorizes the agent it runs as', () => {
     });
 });
 
+const expectedProjectRefusal = (deniedProjectUuid = projectUuid) => ({
+    isError: true,
+    content: [
+        {
+            type: 'text',
+            text: 'MCP access to this project is disabled for your organization',
+        },
+    ],
+    structuredContent: {
+        refusal: {
+            code: 'ai_access_refused',
+            reason: 'mcp_project_not_allowed',
+            message:
+                'MCP access to this project is disabled for your organization',
+            action: null,
+            settingsUrl: null,
+            connectUrl: null,
+            projectUuid: deniedProjectUuid,
+        },
+    },
+});
+
 describe('organization MCP project allow-list', () => {
     beforeEach(() => mockRegisteredMcpTools.clear());
 
@@ -902,9 +924,7 @@ describe('organization MCP project allow-list', () => {
                             },
                             context,
                         ),
-                    ).rejects.toThrow(
-                        'MCP access to this project is disabled for your organization',
-                    );
+                    ).resolves.toEqual(expectedProjectRefusal());
                 }),
             );
         },
@@ -945,9 +965,7 @@ describe('organization MCP project allow-list', () => {
                         extra,
                     ),
                     `Excluded project through ${name}`,
-                ).rejects.toThrow(
-                    'MCP access to this project is disabled for your organization',
-                );
+                ).resolves.toEqual(expectedProjectRefusal());
             }),
         );
         expect(aiAgentToolsService.createRuntime).not.toHaveBeenCalled();
@@ -970,7 +988,39 @@ describe('organization MCP project allow-list', () => {
         });
         await expect(
             callback({ projectUuid, spaceSlug: null }, extra),
-        ).rejects.toThrow(ForbiddenError);
+        ).resolves.toEqual(expectedProjectRefusal());
+    });
+
+    it('logs the refused explicit project instead of saved context without rejected arguments', async () => {
+        const {
+            aiOrganizationSettingsService,
+            mcpToolCallModel,
+            storedContext,
+        } = makeMcpService();
+        storedContext.projectUuid = 'previous-project';
+        aiOrganizationSettingsService.getMcpProjectAccess.mockResolvedValue({
+            mode: 'selected',
+            projectUuids: ['previous-project'],
+        });
+        const callback = mockRegisteredMcpTools.get('read_content');
+        if (!callback) throw new Error('read_content was not registered');
+        await expect(
+            callback(
+                { projectUuid, slug: 'private-chart', sql: 'private SQL' },
+                extra,
+            ),
+        ).resolves.toEqual(expectedProjectRefusal());
+        await vi.waitFor(() =>
+            expect(mcpToolCallModel.createToolCall).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    project_uuid: projectUuid,
+                    tool_args: { projectUuid },
+                    status: 'error',
+                    error_message:
+                        'MCP access to this project is disabled for your organization',
+                }),
+            ),
+        );
     });
 
     it('hides excluded projects and their agents from discovery', async () => {
@@ -987,7 +1037,8 @@ describe('organization MCP project allow-list', () => {
     });
 
     it('rejects a share link resolving into an excluded project even with an allowed tool project', async () => {
-        const { aiOrganizationSettingsService } = makeMcpService();
+        const { aiOrganizationSettingsService, mcpToolCallModel } =
+            makeMcpService();
         aiOrganizationSettingsService.getMcpProjectAccess.mockResolvedValue({
             mode: 'selected',
             projectUuids: [projectUuid],
@@ -996,8 +1047,14 @@ describe('organization MCP project allow-list', () => {
         if (!callback) throw new Error('resolve_url was not registered');
         await expect(
             callback({ projectUuid, url: '/share/example' }, extra),
-        ).rejects.toThrow(
-            'MCP access to this project is disabled for your organization',
+        ).resolves.toEqual(expectedProjectRefusal('excluded-project'));
+        await vi.waitFor(() =>
+            expect(mcpToolCallModel.createToolCall).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    project_uuid: 'excluded-project',
+                    status: 'error',
+                }),
+            ),
         );
     });
 

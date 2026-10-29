@@ -653,9 +653,27 @@ describe('writeback identifiers obey the MCP project allow-list', () => {
         if (!callback) throw new Error('Status tool missing');
         await expect(
             callback({ projectUuid, aiWritebackRunUuid: runUuid }, makeExtra()),
-        ).rejects.toThrow(
-            'MCP access to this project is disabled for your organization',
-        );
+        ).resolves.toEqual({
+            isError: true,
+            content: [
+                {
+                    type: 'text',
+                    text: 'MCP access to this project is disabled for your organization',
+                },
+            ],
+            structuredContent: {
+                refusal: {
+                    code: 'ai_access_refused',
+                    reason: 'mcp_project_not_allowed',
+                    message:
+                        'MCP access to this project is disabled for your organization',
+                    action: null,
+                    settingsUrl: null,
+                    connectUrl: null,
+                    projectUuid: 'excluded-project',
+                },
+            },
+        });
     });
 
     it.each(['tasks/get', 'tasks/cancel'])(
