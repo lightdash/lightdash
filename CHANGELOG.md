@@ -1,3 +1,10 @@
+## [3.93.2](https://github.com/lightdash/lightdash/compare/3.93.1...3.93.2) (2026-10-29)
+
+
+### Bug Fixes
+
+* **ai-agent:** composer prefers explores over sql nodes, no-match routes to raw tables ([#31777](https://github.com/lightdash/lightdash/issues/31777)) ([2a884db](https://github.com/lightdash/lightdash/commit/2a884db9a12e5984b08a2c1e26e8fd05b8619f71))
+
 ## [3.93.1](https://github.com/lightdash/lightdash/compare/3.93.0...3.93.1) (2026-10-29)
 
 
