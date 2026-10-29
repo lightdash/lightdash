@@ -231,6 +231,7 @@ import {
     resolveMergeSorts,
     resolveQueryTimezone,
     ResultRow,
+    ResultsCacheInvalidation,
     ResultsCacheProjectSettings,
     SavedChartDAO,
     SavedChartsInfoForDashboardAvailableFilters,
@@ -11929,12 +11930,6 @@ export class ProjectService
                 // Key on the resolved timezone (not the raw setting) so the
                 // cache reflects project/user fallbacks and invalidates when the
                 // project timezone changes.
-                const hashParts = [
-                    projectUuid,
-                    userUuid,
-                    query,
-                    resolvedTimezone,
-                ];
                 const { enabled: identityEnabled } =
                     await this.featureFlagModel.get({
                         user,
@@ -11946,6 +11941,25 @@ export class ProjectService
                         (!user.organizationUuid ||
                             resultProducer === null ||
                             resultProducer.agentIdentity !== null));
+                const { enabled: resultsCacheEnabled } =
+                    await this.featureFlagModel.get({
+                        user,
+                        featureFlagId: FeatureFlags.ResultsCacheEnabled,
+                    });
+                const cacheGeneration = resultsCacheEnabled
+                    ? (
+                          await this.projectModel.getResultsCacheSettings(
+                              projectUuid,
+                          )
+                      ).cacheGeneration
+                    : 0;
+                const hashParts = [
+                    projectUuid,
+                    userUuid,
+                    query,
+                    resolvedTimezone,
+                    ...(cacheGeneration > 0 ? [`gen:${cacheGeneration}`] : []),
+                ];
                 const queryHash = buildCacheHash(
                     hashParts,
                     identityEnabled && resultProducer && user.organizationUuid
@@ -11958,12 +11972,6 @@ export class ProjectService
 
                 span.setAttribute('queryHash', queryHash);
                 span.setAttribute('cacheHit', false);
-
-                const { enabled: resultsCacheEnabled } =
-                    await this.featureFlagModel.get({
-                        user,
-                        featureFlagId: FeatureFlags.ResultsCacheEnabled,
-                    });
 
                 if (resultsCacheEnabled && !bypassCache && !invalidateCache) {
                     const cacheEntryMetadata = await this.s3CacheClient
@@ -13411,12 +13419,20 @@ export class ProjectService
                     user.userUuid,
                 );
 
+                const cacheGeneration = isUserCacheEnabled
+                    ? (
+                          await this.projectModel.getResultsCacheSettings(
+                              projectUuid,
+                          )
+                      ).cacheGeneration
+                    : 0;
                 const hashParts = [
                     projectUuid,
                     userUuid,
                     'cache_autocomplete',
                     query,
                     timezone,
+                    ...(cacheGeneration > 0 ? [`gen:${cacheGeneration}`] : []),
                 ];
                 const queryHash = buildCacheHash(
                     hashParts,
@@ -15837,13 +15853,14 @@ export class ProjectService
         ) {
             throw new ForbiddenError();
         }
-        const settings =
+        const { cacheTtlSeconds, lastInvalidatedAt } =
             await this.projectModel.getResultsCacheSettings(projectUuid);
         return {
             projectUuid,
-            ...settings,
+            cacheTtlSeconds,
             instanceDefaultTtlSeconds:
                 this.lightdashConfig.results.cacheStateTimeSeconds,
+            lastInvalidatedAt,
         };
     }
 
@@ -15890,12 +15907,64 @@ export class ProjectService
         await this.projectModel.updateResultsCacheSettings(projectUuid, {
             cacheTtlSeconds,
         });
+        const { lastInvalidatedAt } =
+            await this.projectModel.getResultsCacheSettings(projectUuid);
         return {
             projectUuid,
             cacheTtlSeconds,
             instanceDefaultTtlSeconds:
                 this.lightdashConfig.results.cacheStateTimeSeconds,
+            lastInvalidatedAt,
         };
+    }
+
+    protected async assertCanInvalidateResultsCache(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<{ organizationUuid: string }> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        const { enabled: resultsCacheEnabled } =
+            await this.featureFlagModel.get({
+                user,
+                featureFlagId: FeatureFlags.ResultsCacheEnabled,
+            });
+        if (!resultsCacheEnabled) {
+            throw new ForbiddenError('Results caching is not enabled');
+        }
+        return { organizationUuid };
+    }
+
+    async invalidateProjectResultsCache(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<ResultsCacheInvalidation> {
+        const { organizationUuid } = await this.assertCanInvalidateResultsCache(
+            user,
+            projectUuid,
+        );
+        const { invalidatedAt } =
+            await this.projectModel.invalidateResultsCache(projectUuid);
+        this.analytics.track({
+            event: 'results_cache.invalidated',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                scope: 'project',
+                contentUuid: null,
+            },
+        });
+        return { projectUuid, invalidatedAt };
     }
 
     async updatePreviewExpiresAt(

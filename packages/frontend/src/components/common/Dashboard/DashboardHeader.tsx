@@ -100,6 +100,10 @@ import { type TilePreAggregateStatus } from '../../../providers/Dashboard/types'
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import AddTileButton from '../../DashboardTiles/AddTileButton';
+import {
+    ClearCachedResultsMenuItem,
+    ClearCachedResultsModal,
+} from '../../ProjectResultsCache/ClearCachedResultsMenuItem';
 import ContentSlugRenameModal from '../ContentSlugRenameModal/ContentSlugRenameModal';
 import { FavoriteActionIcon } from '../FavoriteActionIcon';
 import MantineIcon from '../MantineIcon';
@@ -237,6 +241,8 @@ const DashboardHeader = memo(
             grantRoles: [],
         });
         const [isPreAggAuditOpen, preAggAuditHandlers] = useDisclosure(false);
+        const [isClearCacheModalOpen, clearCacheModalHandlers] =
+            useDisclosure(false);
         const [isCommentsPanelOpen, commentsPanelHandlers] =
             useDisclosure(false);
         const {
@@ -634,6 +640,16 @@ const DashboardHeader = memo(
                             contentName={dashboard.name}
                             opened={isRequestReviewModalOpen}
                             onClose={requestReviewModalHandlers.close}
+                        />
+                    )}
+                    {isClearCacheModalOpen && (
+                        <ClearCachedResultsModal
+                            opened={isClearCacheModalOpen}
+                            onClose={clearCacheModalHandlers.close}
+                            content={{
+                                type: 'dashboard',
+                                uuid: dashboard.uuid,
+                            }}
                         />
                     )}
                     {isTransferToSpaceModalOpen && projectUuid && (
@@ -1187,6 +1203,15 @@ const DashboardHeader = memo(
                                             >
                                                 Move dashboard
                                             </Menu.Item>
+
+                                            <ClearCachedResultsMenuItem
+                                                projectUuid={
+                                                    dashboard.projectUuid
+                                                }
+                                                onClick={
+                                                    clearCacheModalHandlers.open
+                                                }
+                                            />
 
                                             {contentReview.canRequest && (
                                                 <Menu.Item
