@@ -1,3 +1,10 @@
+# [3.104.0](https://github.com/lightdash/lightdash/compare/3.103.0...3.104.0) (2026-10-29)
+
+
+### Features
+
+* **live-sources:** log each live query and show data read and API calls ([#31818](https://github.com/lightdash/lightdash/issues/31818)) ([55fd268](https://github.com/lightdash/lightdash/commit/55fd2687313fbae39d3002251a2919f432e05b51)), closes [#31817](https://github.com/lightdash/lightdash/issues/31817)
+
 # [3.103.0](https://github.com/lightdash/lightdash/compare/3.102.0...3.103.0) (2026-10-29)
 
 

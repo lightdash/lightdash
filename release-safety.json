@@ -1,14 +1,30 @@
 {
   "schemaVersion": "2",
-  "version": "3.103.0",
-  "previousVersion": "3.102.0",
-  "releaseDate": "2026-10-29T17:59:14.607Z",
+  "version": "3.104.0",
+  "previousVersion": "3.103.0",
+  "releaseDate": "2026-10-29T18:05:22.396Z",
   "migrations": {
-    "present": false,
-    "count": 0,
+    "present": true,
+    "count": 1,
     "coreCount": 0,
-    "eeCount": 0,
-    "files": []
+    "eeCount": 1,
+    "files": [
+      {
+        "name": "20261029120000_add_api_source_calls.ts",
+        "edition": "ee",
+        "tables": [
+          "api_source_calls",
+          "external_connections",
+          "projects",
+          "users"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": true
+        }
+      }
+    ]
   },
   "compatibility": {
     "rollingUpdateSafe": true,
