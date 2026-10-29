@@ -311,18 +311,18 @@ if [ "$CREATE_ARCHIVES" = true ]; then
   fi
 
   # Also create a combined checksums file
-  if ls lightdash-cli-*.{tar.gz,zip} 1> /dev/null 2>&1; then
-    shasum -a 256 lightdash-cli-*.tar.gz lightdash-cli-*.zip 2>/dev/null | grep -v "No such file" > checksums-all-sha256.txt || true
-    if [ -s checksums-all-sha256.txt ]; then
-      echo "  Created checksums-all-sha256.txt"
-    else
-      rm -f checksums-all-sha256.txt
-    fi
+  shopt -s nullglob
+  archives=(lightdash-cli-*.tar.gz lightdash-cli-*.zip)
+  if ((${#archives[@]})); then
+    shasum -a 256 "${archives[@]}" > checksums-all-sha256.txt
+    echo "  Created checksums-all-sha256.txt"
   fi
 
   echo ""
   echo "📁 Distribution files created:"
-  ls -lah lightdash-cli-*.{tar.gz,zip} checksums-*.txt 2>/dev/null | grep -v "No such file" || true
+  if ((${#archives[@]})); then
+    ls -lah "${archives[@]}" checksums-*.txt
+  fi
 
   echo ""
   echo "📤 To upload to GitHub release:"
