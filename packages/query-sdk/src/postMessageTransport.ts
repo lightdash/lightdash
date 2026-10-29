@@ -13,11 +13,12 @@ import {
     createApiTransport,
     createHostExploreBaseTableResolver,
     createHostSpaceChartsResolver,
+    SpaceChartsUnsupportedError,
     type FetchAdapter,
 } from './apiTransport';
 import { AppStateError } from './appState';
 import { mountDeliveryRender } from './deliveryRender';
-import { mountHostContext } from './hostContext';
+import { mountHostContext, waitForHostContext } from './hostContext';
 import { announceSdkManifest } from './manifest';
 import { mountRuntimeErrorObserver } from './runtimeErrors';
 import type {
@@ -556,7 +557,17 @@ export function createPostMessageTransport(
         {
             resolveExploreBaseTable:
                 createHostExploreBaseTableResolver(adapter),
-            listSpaceCharts: createHostSpaceChartsResolver(adapter),
+            // Negotiated on the ready handshake: only hosts that announce
+            // `spaceCharts: true` answer the virtual route. On an older host
+            // the typed rejection makes `useSpaceCharts` report
+            // `available: false` instead of surfacing a blocked-route error.
+            listSpaceCharts: async (space) => {
+                const host = await waitForHostContext(READY_TIMEOUT_MS);
+                if (!host.spaceCharts) {
+                    throw new SpaceChartsUnsupportedError();
+                }
+                return createHostSpaceChartsResolver(adapter)(space);
+            },
         },
     );
     const externalFetch = createPostMessageExternalFetch({

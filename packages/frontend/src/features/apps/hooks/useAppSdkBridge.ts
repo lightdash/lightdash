@@ -1747,6 +1747,11 @@ export function useAppSdkBridge({
                 ...(captureRender ? { deliveryRender: true } : {}),
                 // Lets the SDK address app-scoped routes (AI prompts).
                 ...(appUuid ? { appUuid } : {}),
+                // Negotiates the space-charts virtual route: SDKs only call
+                // it on hosts that announce it, so `useSpaceCharts` can
+                // report `available: false` on older hosts instead of
+                // hitting a blocked route.
+                spaceCharts: true,
             },
             '*',
         );

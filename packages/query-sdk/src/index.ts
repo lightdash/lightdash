@@ -18,6 +18,7 @@ export { LightdashProvider, useLightdashClient } from './LightdashProvider';
 export {
     createApiTransport,
     LightdashApiError,
+    SpaceChartsUnsupportedError,
     type FetchAdapter,
 } from './apiTransport';
 export { createPostMessageTransport } from './postMessageTransport';

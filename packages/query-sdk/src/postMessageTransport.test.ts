@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { resetHostContext } from './hostContext';
 import {
     createPostMessageTransport,
     createRequestId,
@@ -153,5 +154,96 @@ describe('postMessage transport explore base-table lookup', () => {
         }));
 
         expect(dimensions).toEqual(['orders_with_custom_dims_status']);
+    });
+});
+
+describe('postMessage transport space-charts negotiation', () => {
+    afterEach(() => resetHostContext());
+
+    const installParentHost = () => {
+        const original = window.parent;
+        const parent = {} as Window;
+        const requests: SdkFetchRequest[] = [];
+        const reply = (data: unknown) =>
+            window.dispatchEvent(
+                new MessageEvent('message', { data, source: parent }),
+            );
+        Object.assign(parent, {
+            postMessage: (msg: { type?: string }) => {
+                if (msg?.type !== 'lightdash:sdk:fetch') return;
+                const req = msg as SdkFetchRequest;
+                requests.push(req);
+                queueMicrotask(() =>
+                    reply({
+                        type: 'lightdash:sdk:fetch-response',
+                        id: req.id,
+                        result: {
+                            space: {
+                                uuid: 'space-1',
+                                name: 'Sales',
+                                slug: 'sales',
+                            },
+                            charts: [],
+                        },
+                    }),
+                );
+            },
+        });
+        Object.defineProperty(window, 'parent', {
+            configurable: true,
+            value: parent,
+        });
+        return {
+            requests,
+            reply,
+            restore: () =>
+                Object.defineProperty(window, 'parent', {
+                    configurable: true,
+                    value: original,
+                }),
+        };
+    };
+
+    it('asks the host once the handshake announces the capability', async () => {
+        const host = installParentHost();
+        try {
+            const transport = createPostMessageTransport({
+                targetWindow: window.parent,
+                projectUuid: 'proj-1',
+            });
+            host.reply({ type: 'lightdash:sdk:ready', spaceCharts: true });
+            await expect(transport.listSpaceCharts?.('sales')).resolves.toEqual(
+                {
+                    space: { uuid: 'space-1', name: 'Sales', slug: 'sales' },
+                    charts: [],
+                },
+            );
+            expect(host.requests[0]).toMatchObject({
+                method: 'POST',
+                path: '/__sdk/space-charts',
+                body: { space: 'sales' },
+            });
+        } finally {
+            host.restore();
+        }
+    });
+
+    it('rejects as unsupported on a host that never announces it', async () => {
+        const host = installParentHost();
+        try {
+            const transport = createPostMessageTransport({
+                targetWindow: window.parent,
+                projectUuid: 'proj-1',
+            });
+            // Older hosts handshake without the flag.
+            host.reply({ type: 'lightdash:sdk:ready' });
+            await expect(transport.listSpaceCharts?.('sales')).rejects.toThrow(
+                /not supported by this Lightdash host/,
+            );
+            // Negotiated up front: the blocked route is never even tried.
+            expect(host.requests).toHaveLength(0);
+        } finally {
+            host.restore();
+        }
     });
 });

@@ -287,6 +287,18 @@ export type SpaceChartsResolver = (
     space: string,
 ) => Promise<SpaceChartsResult>;
 
+/**
+ * Thrown when the transport has the capability but the running host does not
+ * (a current SDK bundle on an older Lightdash). `useSpaceCharts` maps it to
+ * `available: false` instead of an error, so galleries hide cleanly.
+ */
+export class SpaceChartsUnsupportedError extends Error {
+    constructor() {
+        super('Space charts listing is not supported by this Lightdash host');
+        this.name = 'SpaceChartsUnsupportedError';
+    }
+}
+
 const EMPTY_SPACE_CHARTS: SpaceChartsResult = { space: null, charts: [] };
 
 const toNullableString = (value: unknown): string | null =>
