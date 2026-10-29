@@ -12,7 +12,7 @@ export const getComposerQueryPath = (
    - **Ambiguous**: several plausible explores and no knowledge document that resolves the choice. Ask the user which one they mean, list the candidates and wait for their answer before querying.
 ${
     canRunSql
-        ? '   - **No match**: no explore covers the request. Find the table with listWarehouseTables and query it with a `sql` node; when no table holds the data, tell the user and offer alternatives when there are any.'
+        ? '   - **No match**: no explore covers the request. Answer it with a `sql` node over the warehouse tables; when none holds the data, tell the user and offer alternatives when there are any.'
         : NO_MATCH_OUTCOME
 }`,
     queryStep:
@@ -36,7 +36,7 @@ export const getQueryingComposerSection = ({
         '- Query each explore with one semanticLayer node, and combine explores that are not joined in the semantic layer with a duckdb node that joins their results.',
         ...(canRunSql
             ? [
-                  "- Query anything discovery found in an explore this way, even when the user says the data lives only in a raw table, and say which explore you used: it is governed and reusable. Use a `sql` node only when the semantic layer cannot produce the result: a table outside every explore, a join key no explore exposes as a dimension, a join whose inputs would exceed a node's row limit, recursive CTEs, percentile functions (PERCENTILE_CONT) or warehouse-specific syntax, or an explicit request for raw SQL.",
+                  "- An explore discovery found wins over the user's claim that the data lives only in a raw table: it is governed and reusable. Say which explore you used. Use a `sql` node only when the semantic layer cannot produce the result: a table outside every explore, a join key no explore exposes as a dimension, a join whose inputs would exceed a node's row limit, recursive CTEs, percentile functions (PERCENTILE_CONT) or warehouse-specific syntax, or an explicit request for raw SQL.",
               ]
             : []),
         '- Compute what a metric query cannot express in a duckdb node that reads the semanticLayer nodes: arithmetic and ratios across metrics, % of total, aggregates of aggregated metrics, period-over-period change, running totals, moving averages, ranking and top N per group, cohort comparisons, row-level conditionals, reshaping, and a metric the explore lacks, derived from the metrics and dimensions it has.',

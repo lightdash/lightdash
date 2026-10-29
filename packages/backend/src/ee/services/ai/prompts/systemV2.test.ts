@@ -502,7 +502,7 @@ describe('getSystemPromptV2 composer queries', () => {
 
             expect(
                 content.includes(
-                    'even when the user says the data lives only in a raw table',
+                    "wins over the user's claim that the data lives only in a raw table",
                 ),
             ).toBe(scoped);
             expect(content).not.toContain('**When to use it:**');
