@@ -20,7 +20,7 @@
   embed's `rail` and `filterDropdown` classes; its body is a `dialog` named
   by the filter.
 - No tile overlay or card shows while a filter is open; they belong to
-  mapping.
+  mapping, while which the popover stays closed (`isMapping`).
 
 ## Structure
 
@@ -31,8 +31,8 @@ field search is the shipped picker, opened, and alone: no hint, no footer.
 
 - `FilterSettings`, value view: the shipped value form (`FilterValueSettings`),
   then for editors two quiet rows: "Applies to {n tiles}" (`formatTileCount`,
-  `useAppliedTileCount`) with "Choose tiles" (disabled until mapping), and
-  "Settings".
+  `useAppliedTileCount`) with "Choose tiles", which enters mapping
+  (`docs/fields-and-tiles.md`), and "Settings".
 - Settings view, in place: back arrow, Name (the label input), Section,
   then `ViewerControls` (Required, then Lock). Same footer.
 - Footer: Cancel (`discard`) and Apply (`close`), for a new filter too.
@@ -53,7 +53,10 @@ and Escape see the text. An all-space label is written as no label
 ## Focus on mount
 
 The value input after the operator takes focus when the value view mounts
-(open, back from Settings, a new filter's first field); a new filter's field
+(open, back from Settings, a new filter's first field), unless it is a
+typed input that owns a list (`aria-haspopup`, not read-only): those open
+on focus over the footer, so the operator takes it and the list waits for
+a click, typing or ArrowDown; a new filter's field
 search (`[data-controls-start]`) when it opens. The back arrow takes it when
 Settings opens. All with `preventScroll`: the popover is still being placed.
 The first target is marked `data-autofocus` too, since the focus trap hands
@@ -92,7 +95,7 @@ focus to it once the popover is placed.
 - Requirement alternatives are dimension and metric filters only.
 - Apply (editors only) is disabled, with the shipped wording as a tooltip,
   while a required filter has no value or the filter reaches no tile
-  (`useAppliedTileCount`). Save keeps a required filter's value as its
+  (`useApplyBlockedReason`, shared with the mapping row's Apply). Save keeps a required filter's value as its
   default.
 
 ## Escape (`useEditorDismiss`)

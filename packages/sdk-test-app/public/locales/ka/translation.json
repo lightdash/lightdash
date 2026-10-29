@@ -528,6 +528,9 @@
         "filters.tileCard.applyToOthersNameOnThisTab": "{field}-ის გამოყენება ამ ჩანართის დანარჩენ {tiles}-ზეც",
         "filters.tileCard.clearOthersName": "{field}-ის მოხსნა დანარჩენი {tiles}-დანაც",
         "filters.tileCard.clearOthersNameOnThisTab": "{field}-ის მოხსნა ამ ჩანართის დანარჩენი {tiles}-დანაც",
+        "filters.tileCard.filteredBy": "გაფილტრულია {field}-ით",
+        "filters.tileCard.filteredVia": "გაფილტრულია {field}-ის გავლით",
+        "filters.tileCard.notFilteredLabel": "არ არის გაფილტრული",
         "filters.fieldBar.region": "{field}-ით გაფილტრული ფილები",
         "filters.fieldBar.tilesOf.singular": "ფილა",
         "filters.fieldBar.tilesOf.plural": "ფილა",
@@ -553,6 +556,7 @@
         "filters.fieldBar.undoApplyName": "{field}-ის {tiles}-ზე გამოყენების დაბრუნება",
         "filters.fieldBar.undoClearName": "{field}-ის {tiles}-დან მოხსნის დაბრუნება",
         "filters.fieldBar.clearName": "{field}-ის მოხსნა ფილებიდან",
-        "filters.fieldBar.clearNameOnThisTab": "{field}-ის მოხსნა ამ ჩანართიდან"
+        "filters.fieldBar.clearNameOnThisTab": "{field}-ის მოხსნა ამ ჩანართიდან",
+        "filters.fieldBar.filterAllTiles": "ყველა ფილის გაფილტვრა"
     }
 }

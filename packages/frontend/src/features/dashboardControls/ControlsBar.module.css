@@ -1,0 +1,26 @@
+/* The filter row and the mapping row share one cell, so they cross-fade in
+   place and the grid never moves */
+.swap {
+    --controls-ease: ease-in-out;
+    --controls-duration-swap: 0.25s;
+
+    display: grid;
+
+    > * {
+        grid-area: 1 / 1;
+        min-width: 0;
+    }
+}
+
+/* Fades out under the mapping row; comes back at full opacity at once, as
+   the mapping row leaves at once */
+.filterRow[data-hidden] {
+    opacity: 0;
+    transition: opacity var(--controls-duration-swap) var(--controls-ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .filterRow[data-hidden] {
+        transition: none;
+    }
+}

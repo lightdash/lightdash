@@ -100,6 +100,7 @@ const Page: FC = () => {
                 <div data-controls-editor data-testid="editor">
                     <input
                         aria-label="Label"
+                        data-controls-label
                         onBlur={() => onLabelBlur(sidebar.current?.editing)}
                     />
                     <button type="button" aria-pressed>
@@ -235,6 +236,14 @@ describe('dismissing in the controls editor', () => {
             escape(label());
             // Blurred while the editor was still open on the filter
             expect(onLabelBlur).toHaveBeenCalledWith({ filterId: 'a' });
+        });
+
+        it('leaves focus where it is on anything but the label', () => {
+            const row = screen.getByRole('button', { name: 'Field row' });
+            act(() => row.focus());
+            const blur = vi.spyOn(row, 'blur');
+            escape(row);
+            expect(blur).not.toHaveBeenCalled();
         });
 
         it('clears a clicked field first and closes on the next press', () => {

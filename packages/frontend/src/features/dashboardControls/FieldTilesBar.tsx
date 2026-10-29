@@ -4,10 +4,19 @@ import { useLayoutEffect, useRef, type FC } from 'react';
 import { createPortal } from 'react-dom';
 import FieldIcon from '../../components/common/Filters/FieldIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
-import { selectActiveTabUuid, useDashboardSelector } from '../dashboard/store';
+import {
+    selectActiveTabUuid,
+    selectDashboardTiles,
+    useDashboardSelector,
+} from '../dashboard/store';
 import { formatTileCount } from './fieldLabels';
 import classes from './FieldTilesBar.module.css';
-import { type FieldScope } from './peers';
+import {
+    fieldBarMarker,
+    findFieldBarStart,
+    findSelectedChip,
+} from './mappingFocus';
+import { getFilterRows, type FieldScope } from './peers';
 import { useBarHost } from './useBarHost';
 import {
     useControlsSidebarSelector,
@@ -17,139 +26,75 @@ import {
     nameReplacedFields,
     useFieldTileActions,
     type FieldTiles,
-    type TileScope,
 } from './useFieldTileActions';
 import { useSqlColumnsByTile } from './useSqlColumnsByTile';
 
-// The tiles of a scope an apply would change
+// The tiles an apply would change
 const getChangeCount = (scope: FieldScope) => scope.unfiltered + scope.replaced;
 
-// What "Apply to all" would do over a scope: the tiles it ends up on and what
-// it replaces, in the button's name, and that again in a tooltip when it
-// replaces another field. Null: nothing to change
-type ApplyNameKey =
-    | 'filters.fieldBar.applyName'
-    | 'filters.fieldBar.applyNameOnThisTab'
-    | 'filters.fieldBar.applyNameOnEveryTab';
-
-const getUseOnAll = (
+// What "Filter all tiles" replaces, when it takes tiles off another field
+const getReplacesTooltip = (
     fieldTiles: FieldTiles,
     scope: FieldScope,
-    nameKey: ApplyNameKey,
     getUiString: UiStringResolver,
-): { name: string; tooltip: string | null } | null => {
-    if (getChangeCount(scope) === 0) return null;
-    const replaced = {
-        fields: nameReplacedFields(
-            scope.replacedFieldIds.map(fieldTiles.labelOf),
-            getUiString,
-        ),
-        tiles: formatTileCount(getUiString, scope.replaced),
-    };
-    const name = interpolateUiString(getUiString(nameKey), {
-        field: fieldTiles.label,
-        tiles: formatTileCount(getUiString, scope.possible),
-    });
-    return scope.replaced > 0
-        ? {
-              name: interpolateUiString(
-                  getUiString('filters.fieldBar.replacingName'),
-                  { name, ...replaced },
+): string | null =>
+    scope.replaced === 0
+        ? null
+        : interpolateUiString(getUiString('filters.fieldBar.replacesTooltip'), {
+              fields: nameReplacedFields(
+                  scope.replacedFieldIds.map(fieldTiles.labelOf),
+                  getUiString,
               ),
-              tooltip: interpolateUiString(
-                  getUiString('filters.fieldBar.replacesTooltip'),
-                  replaced,
-              ),
-          }
-        : { name, tooltip: null };
-};
+              tiles: formatTileCount(getUiString, scope.replaced),
+          });
 
-// After the count: what the last apply replaced, or what the last clear took
-const getUndoNote = (
-    { kind, tileCount, replaced, acrossTabs }: FieldApply,
-    getUiString: UiStringResolver,
-): string => {
-    if (kind === 'clear')
-        return interpolateUiString(
-            getUiString(
-                acrossTabs
-                    ? 'filters.fieldBar.clearedAcrossTabs'
-                    : 'filters.fieldBar.cleared',
-            ),
-            { count: tileCount },
-        );
-    if (replaced === 0) return '';
-    return interpolateUiString(
-        getUiString(
-            acrossTabs
-                ? 'filters.fieldBar.replacedAcrossTabs'
-                : 'filters.fieldBar.replaced',
-        ),
-        { count: replaced },
-    );
-};
-
+// One field's bar, over every tab: every action is always there, disabled
+// when it would change nothing
 const Bar: FC<{
     fieldTiles: FieldTiles;
-    // The last "Apply to all" on this field, while Undo can take it back
+    // The last change to this field Undo can take back
     undo: FieldApply | null;
     onUndo: () => void;
-}> = ({ fieldTiles, undo, onUndo }) => {
+    // The filter's only field: clearing it would leave no field
+    isOnlyRow: boolean;
+}> = ({ fieldTiles, undo, onUndo, isOnlyRow }) => {
     const {
         field,
         label,
         name,
         isNameShared,
         tableLabel,
-        thisTabScope,
         everyTabScope,
         canAct,
         applyToAll,
         clear,
     } = fieldTiles;
     const getUiString = useUiStrings();
-    // The tab in view, or every tile on a dashboard without tabs
-    const hasTabs = thisTabScope !== null;
-    const tileScope: TileScope = hasTabs ? 'this-tab' : 'every-tab';
-    const { applied, possible } = thisTabScope ?? everyTabScope;
-    // Ends the count
-    const countSuffix = getUiString(
-        hasTabs
-            ? possible === 1
-                ? 'filters.fieldBar.tilesOfOnThisTab.singular'
-                : 'filters.fieldBar.tilesOfOnThisTab.plural'
-            : possible === 1
-              ? 'filters.fieldBar.tilesOf.singular'
-              : 'filters.fieldBar.tilesOf.plural',
-    );
-    const useOnScope = getUseOnAll(
+    const { applied, possible } = everyTabScope;
+    const canFilterAll = canAct && getChangeCount(everyTabScope) > 0;
+    const canClear = canAct && applied > 0 && !isOnlyRow;
+    const replacesTooltip = getReplacesTooltip(
         fieldTiles,
-        thisTabScope ?? everyTabScope,
-        hasTabs
-            ? 'filters.fieldBar.applyNameOnThisTab'
-            : 'filters.fieldBar.applyName',
+        everyTabScope,
         getUiString,
     );
-    // Only when it would change a tile on another tab
-    const useOnEveryTab =
-        thisTabScope !== null &&
-        getChangeCount(everyTabScope) > getChangeCount(thisTabScope)
-            ? getUseOnAll(
-                  fieldTiles,
-                  everyTabScope,
-                  'filters.fieldBar.applyNameOnEveryTab',
-                  getUiString,
-              )
-            : null;
     const regionRef = useRef<HTMLDivElement>(null);
     const wasPressedRef = useRef(false);
-    // A pressed button leaves once its action is done: focus stays on the bar
+    // A pressed button that is switched off leaves focus on the bar
     useLayoutEffect(() => {
         const region = regionRef.current;
         if (!wasPressedRef.current || region === null) return;
         // Only the render that follows the press: a later one must not move focus
         wasPressedRef.current = false;
         const focused = document.activeElement;
+        if (
+            focused instanceof HTMLButtonElement &&
+            region.contains(focused) &&
+            focused.disabled
+        ) {
+            region.focus();
+            return;
+        }
         if (region.contains(focused)) return;
         if (focused === null || focused === document.body) region.focus();
     });
@@ -170,6 +115,22 @@ const Bar: FC<{
             shadow="md"
             radius="md"
             className={classes.bar}
+            data-controls-editor
+            {...fieldBarMarker}
+            // Shift+Tab from its start goes back to the chip it belongs to
+            onKeyDown={(event) => {
+                if (event.key !== 'Tab' || !event.shiftKey) return;
+                const target = event.target;
+                if (
+                    target !== regionRef.current &&
+                    target !== findFieldBarStart()
+                )
+                    return;
+                const chip = findSelectedChip();
+                if (chip === null) return;
+                event.preventDefault();
+                chip.focus();
+            }}
         >
             <Group gap="md" justify="center">
                 <Group gap={6} wrap="nowrap">
@@ -189,109 +150,92 @@ const Bar: FC<{
                 </Group>
                 <Divider orientation="vertical" />
                 <Group gap="sm">
-                    {possible === 0 ? (
-                        <Text fz="sm" c="dimmed" aria-live="polite">
-                            {getUiString(
-                                hasTabs
-                                    ? 'filters.fieldBar.noTileOnThisTab'
-                                    : 'filters.fieldBar.noTile',
-                            )}
-                        </Text>
-                    ) : (
-                        <Text fz="sm" aria-live="polite">
-                            <Text span fw={600} className={classes.count}>
-                                {interpolateUiString(
-                                    getUiString('filters.rail.countOf'),
-                                    { applied, total: possible },
-                                )}
-                            </Text>
-                            {` ${countSuffix}`}
-                            {undo !== null && getUndoNote(undo, getUiString)}
-                        </Text>
-                    )}
-                    {useOnScope !== null && (
-                        <Tooltip
-                            label={useOnScope.tooltip}
-                            disabled={useOnScope.tooltip === null}
-                        >
-                            <Button
-                                size="xs"
-                                variant="light"
-                                aria-label={useOnScope.name}
-                                onClick={press(() => applyToAll(tileScope))}
-                            >
-                                {getUiString('filters.fieldBar.applyToAll')}
-                            </Button>
-                        </Tooltip>
-                    )}
-                    {useOnEveryTab !== null && (
-                        <Tooltip
-                            label={useOnEveryTab.tooltip}
-                            disabled={useOnEveryTab.tooltip === null}
-                        >
-                            <Button
-                                size="xs"
-                                variant="subtle"
-                                aria-label={useOnEveryTab.name}
-                                onClick={press(() => applyToAll('every-tab'))}
-                            >
-                                {getUiString('filters.fieldBar.applyToAllTabs')}
-                            </Button>
-                        </Tooltip>
-                    )}
-                    {undo !== null && (
+                    <Text fz="sm" aria-live="polite">
+                        {possible === 0 ? (
+                            getUiString('filters.fieldBar.noTile')
+                        ) : (
+                            <>
+                                <Text span fw={600} className={classes.count}>
+                                    {interpolateUiString(
+                                        getUiString('filters.rail.countOf'),
+                                        { applied, total: possible },
+                                    )}
+                                </Text>
+                                {` ${getUiString(
+                                    possible === 1
+                                        ? 'filters.fieldBar.tilesOf.singular'
+                                        : 'filters.fieldBar.tilesOf.plural',
+                                )}`}
+                            </>
+                        )}
+                    </Text>
+                    <Button
+                        size="xs"
+                        // Right after a field is added, its Undo is the one step to take
+                        variant={undo?.kind === 'add' ? 'filled' : 'subtle'}
+                        disabled={undo === null}
+                        aria-label={
+                            undo === null
+                                ? undefined
+                                : interpolateUiString(
+                                      getUiString(
+                                          undo.kind === 'clear'
+                                              ? 'filters.fieldBar.undoClearName'
+                                              : 'filters.fieldBar.undoApplyName',
+                                      ),
+                                      {
+                                          field: label,
+                                          tiles: formatTileCount(
+                                              getUiString,
+                                              undo.tileCount,
+                                          ),
+                                      },
+                                  )
+                        }
+                        onClick={press(onUndo)}
+                    >
+                        {getUiString('filters.fieldBar.undo')}
+                    </Button>
+                    <Tooltip
+                        fz="xs"
+                        label={replacesTooltip}
+                        disabled={replacesTooltip === null || !canFilterAll}
+                    >
                         <Button
                             size="xs"
                             variant="subtle"
-                            aria-label={interpolateUiString(
-                                getUiString(
-                                    undo.kind === 'apply'
-                                        ? 'filters.fieldBar.undoApplyName'
-                                        : 'filters.fieldBar.undoClearName',
-                                ),
-                                {
-                                    field: label,
-                                    tiles: formatTileCount(
-                                        getUiString,
-                                        undo.tileCount,
-                                    ),
-                                },
-                            )}
-                            onClick={press(onUndo)}
+                            disabled={!canFilterAll}
+                            onClick={press(() => applyToAll('every-tab'))}
                         >
-                            {getUiString('filters.fieldBar.undo')}
+                            {getUiString('filters.fieldBar.filterAllTiles')}
                         </Button>
-                    )}
-                    {applied > 0 && (
-                        <Button
-                            size="xs"
-                            variant="subtle"
-                            color="gray"
-                            // Loading: what a tile offers is not known yet
-                            disabled={!canAct}
-                            aria-label={interpolateUiString(
-                                getUiString(
-                                    hasTabs
-                                        ? 'filters.fieldBar.clearNameOnThisTab'
-                                        : 'filters.fieldBar.clearName',
-                                ),
-                                { field: label },
-                            )}
-                            onClick={press(() => clear(tileScope))}
-                        >
-                            {getUiString('filters.fieldBar.clear')}
-                        </Button>
-                    )}
+                    </Tooltip>
+                    <Button
+                        size="xs"
+                        variant="subtle"
+                        color="gray"
+                        disabled={!canClear}
+                        aria-label={interpolateUiString(
+                            getUiString('filters.fieldBar.clearName'),
+                            { field: label },
+                        )}
+                        onClick={press(() => clear('every-tab'))}
+                    >
+                        {getUiString('filters.fieldBar.clear')}
+                    </Button>
                 </Group>
             </Group>
         </Paper>
     );
 };
 
-// Floats over the tiles while a field is clicked: what it is on, and what
-// would change that. Never for the hovered field
+// Floats over the tiles while a chip is selected in mapping: that one
+// field's count and actions. Never for the hovered field
 export const FieldTilesBar: FC = () => {
-    const editingRule = useControlsSidebarSelector((c) => c.editingRule);
+    const isMapping = useControlsSidebarSelector((c) => c.isMapping);
+    const editingRule = useControlsSidebarSelector((c) =>
+        c.isMapping ? c.editingRule : null,
+    );
     const highlightedFieldId = useControlsSidebarSelector(
         (c) => c.highlightedFieldId,
     );
@@ -300,9 +244,11 @@ export const FieldTilesBar: FC = () => {
     const sqlColumnsByTile = useSqlColumnsByTile(editingRule);
     const fieldTileActions = useFieldTileActions(sqlColumnsByTile);
     const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
+    const dashboardTiles = useDashboardSelector(selectDashboardTiles);
 
     // The provider only names a field that still is one
-    const fieldId = editingRule === null ? null : highlightedFieldId;
+    const fieldId =
+        editingRule === null || !isMapping ? null : highlightedFieldId;
     const isShown = fieldTileActions !== null && fieldId !== null;
     const host = useBarHost(activeTabUuid, isShown);
 
@@ -313,6 +259,10 @@ export const FieldTilesBar: FC = () => {
             fieldTiles={fieldTileActions.forField(fieldId)}
             undo={fieldUndo?.fieldId === fieldId ? fieldUndo : null}
             onUndo={undoApply}
+            isOnlyRow={
+                editingRule !== null &&
+                getFilterRows(editingRule, dashboardTiles).length <= 1
+            }
         />,
         host,
     );

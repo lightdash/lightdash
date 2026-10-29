@@ -533,6 +533,25 @@ export const getTabCounts = (
         }),
     );
 
+// Mapping's counts: over the tiles that can take the filter only, so the
+// tabs add up to the mapping row's total
+export const getTakeableTabCounts = (
+    rule: DashboardFilterRule,
+    tiles: DashboardTile[],
+    tabs: DashboardTab[],
+    fieldsByTile: FieldsByTile,
+    sqlColumnsByTile: SqlColumnsByTile = {},
+): Record<string, TabCount> =>
+    getTabCounts(
+        rule,
+        tiles.filter((tile) =>
+            canTileTakeFilter(tile, fieldsByTile, sqlColumnsByTile),
+        ),
+        tabs,
+        fieldsByTile,
+        sqlColumnsByTile,
+    );
+
 // Per tab: how many tiles the given field is on, out of every tile on the tab.
 export const getTabCountsForField = (
     rule: DashboardFilterRule,

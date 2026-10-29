@@ -355,6 +355,152 @@ describe('ControlsSidebarProvider', () => {
         expect(latest.changed).toBe(false);
     });
 
+    describe('mapping', () => {
+        const REGION = { fieldId: 'orders_region', tableName: 'orders' };
+        const withTargets = (
+            values: string[],
+            tileTargets: DashboardFilterRule['tileTargets'],
+        ): DashboardFilterRule => ({ ...rule('a', values), tileTargets });
+
+        it('is entered from an open filter and keeps its draft', () => {
+            const { result } = setup();
+            act(() => result.current.open('a'));
+            act(() => result.current.updateFilter(rule('a', ['9'])));
+            expect(result.current.isMapping).toBe(false);
+
+            act(() => result.current.startMapping());
+            expect(result.current.isMapping).toBe(true);
+            expect(result.current.isSidebarOpen).toBe(true);
+            expect(editedRule(result.current).values).toEqual(['9']);
+            expect(latest.filters).toEqual(initialFilters);
+        });
+
+        it('is never entered on a new filter with no field', () => {
+            const { result } = setup();
+            act(() => result.current.openNew());
+            act(() => result.current.startMapping());
+            expect(result.current.isMapping).toBe(false);
+        });
+
+        it('writes tiles to the draft only, and its Apply writes value and tiles once', () => {
+            const { result } = setup();
+            const writes: unknown[] = [];
+            const unsubscribe = currentStore.subscribe(() =>
+                writes.push(selectDashboardFilters(currentStore.getState())),
+            );
+            act(() => result.current.open('a'));
+            act(() => result.current.updateFilter(rule('a', ['9'])));
+            act(() => result.current.startMapping());
+            act(() =>
+                result.current.updateFilter(withTargets(['9'], { t1: false })),
+            );
+            expect(writes).toEqual([]);
+            expect(latest.filters).toEqual(initialFilters);
+
+            act(() => result.current.close());
+            unsubscribe();
+            expect(
+                new Set(writes.filter((filters) => filters !== initialFilters))
+                    .size,
+            ).toBe(1);
+            expect(latest.filters.dimensions[0]).toEqual(
+                withTargets(['9'], { t1: false }),
+            );
+            expect(result.current.isMapping).toBe(false);
+            expect(result.current.editing).toBeNull();
+        });
+
+        it('its Cancel puts the tiles back, keeps the value draft and returns to the popover', () => {
+            const { result } = setup();
+            act(() => result.current.open('a'));
+            act(() => result.current.updateFilter(rule('a', ['9'])));
+            act(() => result.current.startMapping());
+            act(() =>
+                result.current.updateFilter(withTargets(['9'], { t1: false })),
+            );
+
+            act(() => result.current.cancelMapping());
+            expect(result.current.isMapping).toBe(false);
+            expect(result.current.isSidebarOpen).toBe(true);
+            expect(editedRule(result.current)).toEqual(rule('a', ['9']));
+            expect(latest.filters).toEqual(initialFilters);
+        });
+
+        const pressEscapeInRow = () => {
+            const row = document.createElement('div');
+            row.setAttribute('data-controls-editor', '');
+            document.body.appendChild(row);
+            fireEvent.keyDown(row, { key: 'Escape' });
+            row.remove();
+        };
+
+        it('ignores a press outside, and Escape never drops its tile changes', () => {
+            const { result } = setup();
+            act(() => result.current.open('a'));
+            act(() => result.current.startMapping());
+            act(() =>
+                result.current.updateFilter(withTargets(['1'], { t1: false })),
+            );
+
+            fireEvent.pointerDown(document.body);
+            expect(result.current.isMapping).toBe(true);
+
+            pressEscapeInRow();
+            expect(result.current.isMapping).toBe(true);
+            expect(editedRule(result.current)).toEqual(
+                withTargets(['1'], { t1: false }),
+            );
+        });
+
+        it('Escape goes back to the popover while nothing changed', () => {
+            const { result } = setup();
+            act(() => result.current.open('a'));
+            act(() => result.current.startMapping());
+
+            pressEscapeInRow();
+            expect(result.current.isMapping).toBe(false);
+            expect(result.current.isSidebarOpen).toBe(true);
+            expect(editedRule(result.current)).toEqual(rule('a', ['1']));
+        });
+
+        it('Escape first deselects a chip, then cancels', () => {
+            const { result } = setup();
+            act(() => result.current.open('a'));
+            act(() => result.current.startMapping());
+            act(() => result.current.setHighlightedFieldId('orders_a'));
+            expect(result.current.highlightedFieldId).toBe('orders_a');
+
+            fireEvent.keyDown(document.body, { key: 'Escape' });
+            expect(result.current.highlightedFieldId).toBeNull();
+            expect(result.current.isMapping).toBe(true);
+        });
+
+        it('an added field leaves an Undo of its own that takes it back', () => {
+            const { result } = setup();
+            act(() => result.current.open('a'));
+            act(() => result.current.startMapping());
+            act(() => {
+                result.current.setHighlightedFieldId('orders_region');
+                result.current.applyWithUndo(
+                    withTargets(['1'], { t1: REGION }),
+                    {
+                        kind: 'add',
+                        fieldId: 'orders_region',
+                        tileCount: 1,
+                        replaced: 0,
+                        acrossTabs: true,
+                    },
+                );
+            });
+            expect(result.current.highlightedFieldId).toBe('orders_region');
+            expect(result.current.fieldUndo?.kind).toBe('add');
+
+            act(() => result.current.undoApply());
+            expect(editedRule(result.current)).toEqual(rule('a', ['1']));
+            expect(result.current.fieldUndo).toBeNull();
+        });
+    });
+
     describe('one filter at a time', () => {
         it('a click on the edited pill closes a clean edit and keeps a dirty one', () => {
             const { result } = setup();
@@ -2658,7 +2804,7 @@ describe('ControlsSidebarProvider', () => {
                 ),
             );
         const initial = callbacks();
-        expect(Object.keys(initial)).toHaveLength(19);
+        expect(Object.keys(initial)).toHaveLength(21);
         expect(initial).toHaveProperty('updateOtherFilters');
         // A pill hover marks tiles only; nothing in the sidebar follows it
         expect(initial).not.toHaveProperty('setHoveredFilterId');

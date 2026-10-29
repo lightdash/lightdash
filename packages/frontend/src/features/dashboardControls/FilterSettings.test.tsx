@@ -70,7 +70,15 @@ vi.mock('./FilterValueSettings', () => ({
             {`${filterType} for ${field?.label ?? 'no field'}`}
             <input aria-label="Operator" />
             {/* Stands in for a value input that cannot take focus */}
-            <input aria-label="Value" disabled={!!filterRule.disabled} />
+            {/* A list value input carries aria-haspopup and opens on focus */}
+            <input
+                aria-label="Value"
+                disabled={!!filterRule.disabled}
+                aria-haspopup={
+                    filterRule.operator === 'include' ? 'listbox' : undefined
+                }
+                onFocus={() => mockListOpens()}
+            />
         </div>
     ),
 }));
@@ -100,6 +108,8 @@ vi.mock('./ViewerControls', () => ({
     ),
 }));
 const close = vi.hoisted(() => vi.fn());
+const mockListOpens = vi.hoisted(() => vi.fn());
+const startMapping = vi.hoisted(() => vi.fn());
 const updateOtherFilters = vi.hoisted(() => vi.fn());
 const mockViewer = vi.hoisted(() => ({
     current: { isViewer: false },
@@ -114,6 +124,7 @@ vi.mock('./useControlsSidebar', () => ({
         selector({
             close,
             updateOtherFilters,
+            startMapping,
             isNew: false,
             ...mockViewer.current,
         }),
@@ -294,10 +305,14 @@ describe('FilterSettings', () => {
 
         expect(screen.getByTestId('value-settings')).toBeVisible();
         expect(screen.getByText('Applies to 3 tiles')).toBeInTheDocument();
-        // Mapping comes with the tiles themselves, not yet
-        expect(
-            screen.getByRole('button', { name: 'Choose tiles' }),
-        ).toBeDisabled();
+        // Mapping is entered on purpose, from this row only
+        const chooseTiles = screen.getByRole('button', {
+            name: 'Choose tiles',
+        });
+        expect(chooseTiles).toBeEnabled();
+        expect(startMapping).not.toHaveBeenCalled();
+        fireEvent.click(chooseTiles);
+        expect(startMapping).toHaveBeenCalledTimes(1);
         expect(
             screen.getByRole('button', { name: 'Settings' }),
         ).toBeInTheDocument();
@@ -311,6 +326,20 @@ describe('FilterSettings', () => {
             amount,
         );
         expect(screen.getByLabelText('Value')).toHaveFocus();
+    });
+
+    it('never focuses a value input that opens its list on focus, so the list cannot cover the footer', () => {
+        mockListOpens.mockClear();
+        renderSettings(
+            {
+                ...rule({ fieldId: 'orders_amount', tableName: 'orders' }),
+                operator: FilterOperator.INCLUDE,
+            },
+            amount,
+        );
+        expect(screen.getByLabelText('Value')).not.toHaveFocus();
+        expect(mockListOpens).not.toHaveBeenCalled();
+        expect(screen.getByLabelText('Operator')).toHaveFocus();
     });
 
     it('falls back to the first enabled input when the value input cannot take focus', () => {

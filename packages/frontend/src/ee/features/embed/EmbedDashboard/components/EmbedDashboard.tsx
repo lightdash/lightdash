@@ -50,6 +50,7 @@ import { ControlsSidebarProvider } from '../../../../../features/dashboardContro
 import { FieldTilesBar } from '../../../../../features/dashboardControls/FieldTilesBar';
 import { type RailContractClassNames } from '../../../../../features/dashboardControls/railContractClasses';
 import { TabCounts } from '../../../../../features/dashboardControls/TabCounts';
+import { TileOverlays } from '../../../../../features/dashboardControls/TileOverlay';
 import GuidedFilterSetupOverlay from '../../../../../features/dashboardFilters/FilterRequirements/GuidedFilterSetupOverlay';
 import {
     convertLayoutToBaseCoordinates,
@@ -1274,6 +1275,7 @@ const EmbedDashboard: FC<{
                 )}
                 {isControlsEnabled && (
                     <>
+                        <TileOverlays />
                         <TabCounts />
                         <FieldTilesBar />
                     </>
