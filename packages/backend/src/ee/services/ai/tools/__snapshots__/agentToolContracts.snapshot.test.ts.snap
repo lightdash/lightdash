@@ -19418,6 +19418,8 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
 
 nodeId names a node from a successful query call in this thread, in this turn or an earlier one, so a result can be visualized again with a different vizConfig without rerunning query. vizConfig references are that node's result columns, as listed in its query result.
 
+Measures that share an x column read best side by side in one card, not a card each: list them in y, and put one on a different scale on y2. When they need more axes than y and y2, or bars and lines together, render them through a custom chart type whose slots fit, when the project has one.
+
 Pie and series-split charts return readability notes when they have many slices or series.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
