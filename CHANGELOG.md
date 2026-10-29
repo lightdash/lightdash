@@ -1,3 +1,10 @@
+## [3.94.1](https://github.com/lightdash/lightdash/compare/3.94.0...3.94.1) (2026-10-29)
+
+
+### Bug Fixes
+
+* **data-apps:** apply the project's Tables configuration to the data app catalog ([#31787](https://github.com/lightdash/lightdash/issues/31787)) ([4689f4a](https://github.com/lightdash/lightdash/commit/4689f4a0894b62a3e9041406139fc6a5f22cc0f6)), closes [#30996](https://github.com/lightdash/lightdash/issues/30996)
+
 # [3.94.0](https://github.com/lightdash/lightdash/compare/3.93.6...3.94.0) (2026-10-29)
 
 
