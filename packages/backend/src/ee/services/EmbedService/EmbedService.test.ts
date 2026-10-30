@@ -9,6 +9,7 @@ import {
     FilterInteractivityValues,
     FilterOperator,
     ForbiddenError,
+    ProjectType,
     QueryExecutionContext,
     SchedulerFormat,
     type AnonymousAccount,
@@ -482,6 +483,106 @@ describe('EmbedService', () => {
             );
         },
     );
+
+    describe('dashboard usage capture', () => {
+        it.each([
+            {
+                externalId: 'viewer-1',
+                expected: 'viewer-1',
+                preview: false,
+                projectType: ProjectType.DEFAULT,
+            },
+            {
+                externalId: undefined,
+                expected: null,
+                preview: false,
+                projectType: ProjectType.DEFAULT,
+            },
+            {
+                externalId: '   ',
+                expected: null,
+                preview: false,
+                projectType: ProjectType.DEFAULT,
+            },
+            {
+                externalId: 'viewer-1',
+                expected: 'viewer-1',
+                preview: true,
+                projectType: ProjectType.DEFAULT,
+            },
+            {
+                externalId: 'viewer-1',
+                expected: 'viewer-1',
+                preview: false,
+                projectType: ProjectType.PREVIEW,
+            },
+        ])(
+            'keeps explicit viewer attribution separate from the issuer: %o',
+            async ({ externalId, expected, preview, projectType }) => {
+                const trackAccount = vi.fn();
+                const scopedService = new EmbedService({
+                    ...EmbedServiceArgumentsMock,
+                    dashboardModel: {
+                        getByIdOrSlug: vi.fn().mockResolvedValue({
+                            uuid: 'dashboard',
+                            name: 'Revenue',
+                            projectUuid: mockProjectUuid,
+                            organizationUuid: mockOrganizationUuid,
+                            projectType,
+                            tiles: [],
+                        }),
+                    },
+                    savedChartModel: {
+                        resolveColorPalette: vi
+                            .fn()
+                            .mockResolvedValue({
+                                colors: [],
+                                darkColors: null,
+                            }),
+                    },
+                    analytics: { trackAccount },
+                } as unknown as ConstructorParameters<typeof EmbedService>[0]);
+                const account = {
+                    ...mockAccountWithPermission,
+                    embed: {
+                        dashboardUuids: [],
+                        allowAllDashboards: true,
+                        user: null,
+                    },
+                    authentication: {
+                        type: 'jwt',
+                        source: 'secret-token',
+                        data: {
+                            content: {
+                                type: 'dashboard',
+                                dashboardUuid: 'dashboard',
+                                isPreview: preview,
+                            },
+                            user: { externalId },
+                        },
+                    },
+                    access: { content: { dashboardUuid: 'dashboard' } },
+                } as unknown as AnonymousAccount;
+                await scopedService.getDashboard(mockProjectUuid, account);
+                expect(trackAccount).toHaveBeenCalledWith(
+                    account,
+                    expect.objectContaining({
+                        event: 'embed_dashboard.viewed',
+                    }),
+                    expect.objectContaining({
+                        contentId: 'dashboard',
+                        contentName: 'Revenue',
+                        actorType: 'embed',
+                        context:
+                            preview || projectType === ProjectType.PREVIEW
+                                ? 'preview'
+                                : 'embed',
+                        externalUserId: expected,
+                    }),
+                );
+            },
+        );
+    });
 
     describe('updateConfig', () => {
         const validDashboardUpdate = {
