@@ -12,7 +12,7 @@
 }
 
 .compact td {
-    height: rem(28px) !important;
+    height: rem(28px);
 }
 
 .compact th {
