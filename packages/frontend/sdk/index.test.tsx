@@ -1122,6 +1122,37 @@ describe('SDK AI agent', () => {
         );
     });
 
+    it('reloads the iframe in the new scheme when the host changes theme', async () => {
+        const { container, rerender } = render(
+            <AiAgent
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                agentUuid="test-agent-uuid"
+                theme="light"
+            />,
+        );
+        await waitFor(() => {
+            expect(container.querySelector('iframe')).toBeTruthy();
+        });
+        const themeParam = () =>
+            new URL(
+                container.querySelector('iframe')?.getAttribute('src') ?? '',
+            ).searchParams.get('theme');
+        expect(themeParam()).toBe('light');
+
+        rerender(
+            <AiAgent
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                agentUuid="test-agent-uuid"
+                theme="dark"
+            />,
+        );
+        await waitFor(() => {
+            expect(themeParam()).toBe('dark');
+        });
+    });
+
     it('passes the thread binding and context in the iframe hash', async () => {
         const { container } = render(
             <AiAgent

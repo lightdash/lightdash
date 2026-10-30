@@ -7,6 +7,7 @@ import {
     type UiStringKey,
     type UUID,
 } from '@lightdash/common';
+import { type ColorSchemePreference } from '../../../theme';
 import { type SdkFilter } from '../../features/embed/EmbedDashboard/types';
 import {
     type ChartSavedAction,
@@ -16,7 +17,7 @@ import { type EmbedAiAgentThreadSetup } from './embedAiAgentThreadSetup';
 
 export const EMBED_KEY = 'lightdash-embed';
 
-export type EmbedTheme = 'light' | 'dark';
+export type EmbedTheme = ColorSchemePreference;
 
 export type InMemoryEmbed = {
     projectUuid?: string;
@@ -89,7 +90,7 @@ export interface EmbedContext {
     dashboardUuid?: string;
     // The mode of the embed: 'sdk' when embedded via SDK (no URL sync), 'direct' when navigating directly to /embed (sync URL)
     mode: EmbedMode;
-    // Theme color scheme for the embed, set via ?theme=light|dark URL param
+    // Theme color scheme for the embed, set via ?theme=light|dark|system URL param
     theme: EmbedTheme;
     // Custom background color for the embed, set via ?backgroundColor=<css-color> URL param
     backgroundColor: string | null;
