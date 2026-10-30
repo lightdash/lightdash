@@ -1,8 +1,4 @@
-import {
-    calculateKeyColorAssignment,
-    calculateSeriesColorAssignment,
-    type SeriesLike,
-} from '@lightdash/visualization/editor';
+import { calculateKeyColorAssignment } from '@lightdash/visualization/editor';
 import { useMantineTheme } from '@mantine/core';
 import { useCallback, useContext } from 'react';
 import { ChartColorMappingContext } from './context';
@@ -44,17 +40,7 @@ export const useChartColorConfig = ({
         [colorPalette, colorMappings, nullColor],
     );
 
-    const calculateSeriesColorAssignmentForSeries = useCallback(
-        (series: SeriesLike) =>
-            calculateSeriesColorAssignment(
-                { colorPalette, colorMappings, nullColor },
-                series,
-            ),
-        [colorPalette, colorMappings, nullColor],
-    );
-
     return {
         calculateKeyColorAssignment: calculateKeyColorAssignmentForGroup,
-        calculateSeriesColorAssignment: calculateSeriesColorAssignmentForSeries,
     };
 };

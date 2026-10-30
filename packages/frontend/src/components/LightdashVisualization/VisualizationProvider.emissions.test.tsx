@@ -37,11 +37,6 @@ vi.mock('@shopify/react-web-worker', () => ({
     useWorker: () => ({}),
 }));
 
-vi.mock('../../hooks/useServerOrClientFeatureFlag', async (importOriginal) => ({
-    ...(await importOriginal<object>()),
-    useServerFeatureFlag: () => ({ data: undefined }),
-}));
-
 const cases: { name: string; chartConfig: ChartConfig }[] = [
     {
         name: 'cartesian empty',
