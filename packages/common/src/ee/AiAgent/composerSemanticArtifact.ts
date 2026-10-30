@@ -198,6 +198,8 @@ const toRunQueryCustomMetrics = (
 ) => {
     const customMetrics = additionalMetrics.map((metric) => {
         if (isPeriodOverPeriodAdditionalMetric(metric)) {
+            // runQuery's comparison builder drops distinct keys.
+            if (metric.distinctKeys?.length) return undefined;
             return {
                 kind: 'periodComparison' as const,
                 baseMetricId: metric.baseMetricId,
