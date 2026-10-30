@@ -8,7 +8,7 @@ import {
     type DashboardTile,
     type FilterableDimension,
 } from '@lightdash/common';
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type ReactElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -206,9 +206,15 @@ describe('MappingRow', () => {
                 .getByRole('button', { name: 'Orders Status' })
                 .querySelector('svg'),
         ).toBeInTheDocument();
-        expect(
-            screen.getByRole('button', { name: 'Add a field' }),
-        ).toBeEnabled();
+        // The table and the field apart, as the explore's field preview
+        const status = screen.getByRole('button', { name: 'Orders Status' });
+        expect(within(status).getByText('Orders')).not.toBe(
+            within(status).getByText('Status'),
+        );
+        // Add a field is the plus alone, named for screen readers
+        const addField = screen.getByRole('button', { name: 'Add a field' });
+        expect(addField).toBeEnabled();
+        expect(addField).not.toHaveTextContent('Add a field');
         expect(screen.getByRole('button', { name: 'Cancel' })).toBeEnabled();
         expect(screen.getByRole('button', { name: 'Apply' })).toBeEnabled();
     });

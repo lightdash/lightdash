@@ -6,7 +6,15 @@ import {
     type DashboardFilterableField,
     type DashboardFilterRule,
 } from '@lightdash/common';
-import { Box, Button, Group, Popover, Text, Tooltip } from '@mantine/core';
+import {
+    ActionIcon,
+    Box,
+    Button,
+    Group,
+    Popover,
+    Text,
+    Tooltip,
+} from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import uniqBy from 'lodash/uniqBy';
 import { useLayoutEffect, useMemo, useRef, useState, type FC } from 'react';
@@ -176,8 +184,12 @@ const AddFieldMenu: FC<{
     return (
         <Tooltip
             fz="xs"
-            label={getUiString('filters.rail.noOtherField')}
-            disabled={hasAddable}
+            label={getUiString(
+                hasAddable
+                    ? 'filters.rail.addField'
+                    : 'filters.rail.noOtherField',
+            )}
+            disabled={isOpen}
         >
             <Box>
                 <Popover
@@ -192,20 +204,17 @@ const AddFieldMenu: FC<{
                     returnFocus={false}
                 >
                     <Popover.Target>
-                        <Button
-                            size="xs"
+                        <ActionIcon
+                            size="md"
                             variant="default"
-                            radius="xs"
                             className={addFilterClasses.dashed}
                             {...addFieldMarker}
-                            leftSection={
-                                <MantineIcon icon={IconPlus} size={14} />
-                            }
+                            aria-label={getUiString('filters.rail.addField')}
                             disabled={!hasAddable}
                             onClick={() => setIsOpen((open) => !open)}
                         >
-                            {getUiString('filters.rail.addField')}
-                        </Button>
+                            <MantineIcon icon={IconPlus} size={14} />
+                        </ActionIcon>
                     </Popover.Target>
                     <Popover.Dropdown
                         p="xs"
@@ -346,6 +355,8 @@ const MappingRowContent: FC<{ rule: DashboardFilterRule }> = ({ rule }) => {
         return {
             fieldId,
             label: tiles?.label ?? fieldId,
+            name: tiles?.name ?? fieldId,
+            tableLabel: tiles?.tableLabel ?? '',
             field: tiles?.field ?? null,
         };
     });
@@ -419,14 +430,13 @@ const MappingRowContent: FC<{ rule: DashboardFilterRule }> = ({ rule }) => {
             <Text fz="sm" className={classes.words}>
                 {getUiString('filters.rail.mappingUsing')}
             </Text>
-            {chips.map(({ fieldId, label, field }) => {
+            {chips.map(({ fieldId, label, name, tableLabel, field }) => {
                 const isSelected = highlightedFieldId === fieldId;
                 return (
                     <Button
                         key={fieldId}
                         size="xs"
                         variant="default"
-                        radius="xs"
                         className={classes.chip}
                         leftSection={
                             field !== null && (
@@ -459,7 +469,19 @@ const MappingRowContent: FC<{ rule: DashboardFilterRule }> = ({ rule }) => {
                         onFocus={() => hover(fieldId, true)}
                         onBlur={() => hover(fieldId, false)}
                     >
-                        {label}
+                        {/* As the explore's field preview: table dimmed, then the field */}
+                        {field !== null && tableLabel !== '' ? (
+                            <Group component="span" gap={4} wrap="nowrap">
+                                <Text span fz="inherit" c="dimmed">
+                                    {tableLabel}
+                                </Text>{' '}
+                                <Text span fz="inherit" fw={500}>
+                                    {name}
+                                </Text>
+                            </Group>
+                        ) : (
+                            label
+                        )}
                     </Button>
                 );
             })}
