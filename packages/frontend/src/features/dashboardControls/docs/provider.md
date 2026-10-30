@@ -17,7 +17,9 @@ edited: there is no separate list or open state.
 - Mapping (`startMapping`, `SidebarState.mappingStart`) writes tile targets
   to the same draft. Its Apply is `close`; `cancelMapping` puts the rule back
   as mapping found it (the value cannot change meanwhile) and the popover
-  returns. Escape in mapping (`dismiss`) never drops tile changes: with
+  returns; `endMapping` (the row's back arrow) returns to the popover with
+  the tile choices kept in the draft, for its Apply or Cancel. Both drop the
+  undo, the clicked field and waiting fields. Escape in mapping (`dismiss`) never drops tile changes: with
   none since `mappingStart` it returns to the popover, else it does nothing
   (the row's Cancel is the one discard). A press outside does nothing.
 - A section move is no edit: `updateFilter` writes a changed `sectionId` to
@@ -121,8 +123,9 @@ edited: there is no separate list or open state.
 
 ## Undo
 
-`applyWithUndo(rule, apply)` is `updateFilter` for the field bar's "Filter
-all tiles" / "Clear" and for "Add a field" (`kind: 'add'`). It keeps `undo` only while the field stays clicked before and
+`applyWithUndo(rule, apply)` is `updateFilter` for the field bar's Filter /
+Clear, for "Add a field" (`kind: 'add'`) and for a tile card's write on the
+clicked field (a pick in its select is `kind: 'pick'`). It keeps `undo` only while the field stays clicked before and
 after; `fieldUndo` is derived (`isUndoLive`). Any `updateFilter`,
 `updateOtherFilters`, `removeWaitingField`, field click change, open or end
 of edit drops it. `undoApply()` writes the rule back and restores waiting

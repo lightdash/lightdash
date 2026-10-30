@@ -11,12 +11,12 @@ import {
     useContextSelector,
 } from 'use-context-selector';
 
-// A "Filter all tiles", a "Clear" or an added field that Undo can take back:
+// A fill, a "Clear", an added field or a tile card's pick that Undo can take back:
 // its field, the tiles it applied the field to or cleared it from, how many
 // an apply took off other fields, and whether it was over every tab of a
 // dashboard with tabs
 export type FieldApply = {
-    kind: 'apply' | 'clear' | 'add';
+    kind: 'apply' | 'clear' | 'add' | 'pick';
     fieldId: string;
     tileCount: number;
     replaced: number;
@@ -55,6 +55,8 @@ export type ControlsSidebarContextValue = {
     startMapping: () => void;
     /** The mapping row's Cancel: tile targets back to where mapping started, and the popover again. */
     cancelMapping: () => void;
+    /** The mapping row's back arrow: the popover again, the tile choices kept in the draft. */
+    endMapping: () => void;
     /**
      * A pill, Add or a click outside met unapplied changes: the editor asks to
      * Apply or Discard first.

@@ -509,6 +509,7 @@
         "filters.rail.chooseTiles": "Elegir mosaicos",
         "filters.rail.addField": "Añadir un campo",
         "filters.rail.mappingFilters": "filtra",
+        "filters.rail.backToFilter": "Volver al filtro",
         "filters.rail.mappingUsing": "mediante",
         "filters.tileCard.locked": "Los mosaicos están bloqueados mientras se edita un filtro",
         "filters.tileCard.unreachable": "Este mosaico no tiene ningún campo que este filtro pueda usar",
@@ -567,6 +568,12 @@
         "filters.fieldBar.clearName": "Quitar {field} de los mosaicos",
         "filters.fieldBar.clearNameOnThisTab": "Quitar {field} de esta pestaña",
         "filters.fieldBar.filterAllTiles": "Filtrar todos los mosaicos",
-        "filters.fieldBar.undoFilterName": "Deshacer filtrar {tiles} por {field}"
+        "filters.fieldBar.undoFilterName": "Deshacer filtrar {tiles} por {field}",
+        "filters.fieldBar.filterMore": "Filtrar {count} más",
+        "filters.fieldBar.filterOnOtherTabs": "Filtrar {count} en otras pestañas",
+        "filters.fieldBar.filterMoreNone": "Filtrar más",
+        "filters.fieldBar.clearCount": "Quitar {count}",
+        "filters.fieldBar.clearOnOtherTabs": "Quitar {count} en otras pestañas",
+        "filters.fieldBar.onlyFieldClear": "Es el único campo del filtro"
     }
 }

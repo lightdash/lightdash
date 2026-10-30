@@ -242,9 +242,20 @@ const getFieldRowKey = (
 // A chip: its key, and the field id or column reference it filters by
 export type FilterChip = { key: string; fieldId: string };
 
-// The field id a chip filters by; a key that is no chip stands for itself
-export const getChipFieldId = (chips: FilterChip[], key: string): string =>
-    chips.find((chip) => chip.key === key)?.fieldId ?? key;
+// The field id a chip filters by. A key that is no chip (a field cleared off
+// its last tile) is the field a tile labels so; anything else stands for itself
+export const getChipFieldId = (
+    chips: FilterChip[],
+    key: string,
+    fieldsByTile: FieldsByTile,
+): string => {
+    const chip = chips.find((candidate) => candidate.key === key);
+    if (chip !== undefined) return chip.fieldId;
+    const field = Object.values(fieldsByTile ?? {})
+        .flat()
+        .find((candidate) => getDashboardFilterableFieldKey(candidate) === key);
+    return field === undefined ? key : getItemId(field);
+};
 
 // The chip a tile is on for the field: its own explore's, else the dashboard's
 export const getTileRowKey = (

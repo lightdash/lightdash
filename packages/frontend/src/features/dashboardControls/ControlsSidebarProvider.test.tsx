@@ -433,6 +433,30 @@ describe('ControlsSidebarProvider', () => {
             expect(latest.filters).toEqual(initialFilters);
         });
 
+        it('its back arrow keeps the tiles in the draft and returns to the popover', () => {
+            const { result } = setup();
+            act(() => result.current.open('a'));
+            act(() => result.current.updateFilter(rule('a', ['9'])));
+            act(() => result.current.startMapping());
+            act(() =>
+                result.current.updateFilter(withTargets(['9'], { t1: false })),
+            );
+
+            act(() => result.current.endMapping());
+            expect(result.current.isMapping).toBe(false);
+            expect(result.current.isSidebarOpen).toBe(true);
+            expect(editedRule(result.current)).toEqual(
+                withTargets(['9'], { t1: false }),
+            );
+            expect(latest.filters).toEqual(initialFilters);
+
+            // The popover's Apply then writes them
+            act(() => result.current.close());
+            expect(latest.filters.dimensions[0]).toEqual(
+                withTargets(['9'], { t1: false }),
+            );
+        });
+
         const pressEscapeInRow = () => {
             const row = document.createElement('div');
             row.setAttribute('data-controls-editor', '');
@@ -2936,7 +2960,8 @@ describe('ControlsSidebarProvider', () => {
                 ),
             );
         const initial = callbacks();
-        expect(Object.keys(initial)).toHaveLength(23);
+        expect(Object.keys(initial)).toHaveLength(24);
+        expect(initial).toHaveProperty('endMapping');
         expect(initial).toHaveProperty('updateOtherFilters');
         // A pill hover marks tiles only; nothing in the sidebar follows it
         expect(initial).not.toHaveProperty('setHoveredFilterId');

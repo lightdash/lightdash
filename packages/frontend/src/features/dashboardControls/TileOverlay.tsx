@@ -149,7 +149,8 @@ type TileOverlayProps = {
     scrollFieldId: string | null;
     // "Filtered by" its first field or "Filtered via" another, while filtered
     statusLabel: string | null;
-    onSelect: (tileUuid: string, value: string | null) => void;
+    // `isPick`: a field chosen in the card's select, which selects its chip
+    onSelect: (tileUuid: string, value: string | null, isPick: boolean) => void;
 };
 
 const TileOverlay = memo<TileOverlayProps>(
@@ -245,6 +246,7 @@ const TileOverlay = memo<TileOverlayProps>(
                                         event.currentTarget.checked
                                             ? DATA_APP_ON
                                             : null,
+                                        false,
                                     )
                                 }
                             />
@@ -263,7 +265,7 @@ const TileOverlay = memo<TileOverlayProps>(
                                 aria-label={selectLabel}
                                 onClick={() => {
                                     isSelectFocusPending.current = true;
-                                    onSelect(tileUuid, firstChoice);
+                                    onSelect(tileUuid, firstChoice, false);
                                 }}
                             >
                                 {getUiString('filters.tileCard.filterThisTile')}
@@ -331,7 +333,11 @@ const TileOverlay = memo<TileOverlayProps>(
                                         )}
                                         value={tileFieldId}
                                         onChange={(value) =>
-                                            onSelect(tileUuid, value)
+                                            onSelect(
+                                                tileUuid,
+                                                value,
+                                                value !== null,
+                                            )
                                         }
                                     />
                                 </Box>
@@ -366,6 +372,9 @@ const EditedTileOverlays: FC = () => {
     );
     const updateFilter = useControlsSidebarSelector((c) => c.updateFilter);
     const applyWithUndo = useControlsSidebarSelector((c) => c.applyWithUndo);
+    const setHighlightedFieldId = useControlsSidebarSelector(
+        (c) => c.setHighlightedFieldId,
+    );
     const clearHighlightedField = useControlsSidebarSelector(
         (c) => c.clearHighlightedField,
     );
@@ -403,7 +412,7 @@ const EditedTileOverlays: FC = () => {
     // One stable handler for every card: it reads the rule as it is when called
     // A cleared select (null) leaves the tile out
     const handleSelect = useCallbackRef(
-        (tileUuid: string, value: string | null) => {
+        (tileUuid: string, value: string | null, isPick: boolean) => {
             const tile = tiles.find((candidate) => candidate.uuid === tileUuid);
             if (editingRule === null || isPlaceholder || tile === undefined)
                 return;
@@ -454,6 +463,21 @@ const EditedTileOverlays: FC = () => {
                 fieldsByTile,
                 sqlColumnsByTile,
             );
+            // A pick selects its chip first, so the write leaves its Undo on the bar
+            if (isPick && value !== null) {
+                const rowKey = isSqlTile
+                    ? value
+                    : getTileRowKey(tile, value, fieldsByTile, fieldsMap);
+                setHighlightedFieldId(rowKey);
+                applyWithUndo(next, {
+                    kind: 'pick',
+                    fieldId: rowKey,
+                    tileCount: 1,
+                    replaced: previousFieldId !== null ? 1 : 0,
+                    acrossTabs: false,
+                });
+                return;
+            }
             // The field bar's Undo takes back a card's write on its own field
             if (
                 highlightedFieldId === null ||
@@ -461,6 +485,7 @@ const EditedTileOverlays: FC = () => {
                     getChipFieldId(
                         fieldTileActions?.chips ?? NO_CHIPS,
                         highlightedFieldId,
+                        fieldsByTile,
                     )
             ) {
                 updateFilter(next);
@@ -580,7 +605,7 @@ const EditedTileOverlays: FC = () => {
                         return false;
                     const chip = {
                         key: rowKey,
-                        fieldId: getChipFieldId(chips, rowKey),
+                        fieldId: getChipFieldId(chips, rowKey, fieldsByTile),
                     };
                     return (
                         isTargetOnRow(editingRule, tileTarget, chip.fieldId) &&

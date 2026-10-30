@@ -140,7 +140,7 @@ Each one has broken before or would break silently.
   mapping row's in mapping) is the only filled button on screen: the inert
   band draws Save dashboard as an outline, and the selection bar never uses
   `filled`. The one exception is the field bar's Undo right after "Add a
-  field" (a design decision).
+  field", or its Filter right after a tile card's pick (a design decision).
 - **No state reset in an effect.** Open/closed, mapping, highlighted field,
   pending switch, undo and selection are all derived on render. The one
   exception is the mode-change effect in the provider (browser Back, a typed

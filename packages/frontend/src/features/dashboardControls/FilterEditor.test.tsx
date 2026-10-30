@@ -131,6 +131,7 @@ const setSidebar = (overrides: Partial<ControlsSidebarContextValue>) => {
         canChooseTiles: true,
         startMapping: vi.fn(),
         cancelMapping: vi.fn(),
+        endMapping: vi.fn(),
         isAsking: false,
         resolvePending: vi.fn(),
         whenAnswered: vi.fn(),

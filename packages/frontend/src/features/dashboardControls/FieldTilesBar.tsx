@@ -1,8 +1,19 @@
 import { interpolateUiString, type UiStringResolver } from '@lightdash/common';
-import { Button, Divider, Group, Paper, Text, Tooltip } from '@mantine/core';
+import {
+    ActionIcon,
+    Box,
+    Button,
+    Divider,
+    Group,
+    Paper,
+    Text,
+    Tooltip,
+} from '@mantine/core';
+import { IconArrowBackUp } from '@tabler/icons-react';
 import { useLayoutEffect, useRef, useState, type FC } from 'react';
 import { createPortal } from 'react-dom';
 import FieldIcon from '../../components/common/Filters/FieldIcon';
+import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import { selectActiveTabUuid, useDashboardSelector } from '../dashboard/store';
 import { formatTileCount, formatTilesOf } from './fieldLabels';
@@ -22,13 +33,27 @@ import {
     nameReplacedFields,
     useFieldTileActions,
     type FieldTiles,
+    type TileScope,
 } from './useFieldTileActions';
 import { useSqlColumnsByTile } from './useSqlColumnsByTile';
 
 // The tiles an apply would change
 const getChangeCount = (scope: FieldScope) => scope.unfiltered + scope.replaced;
 
-// What "Filter all tiles" replaces, when it takes tiles off another field
+// The tab in view first, then the other tabs; null when neither has tiles left
+const getTarget = (
+    tabScope: FieldScope,
+    otherTabsScope: FieldScope | null,
+    getCount: (scope: FieldScope) => number,
+): { tileScope: TileScope; scope: FieldScope } | null => {
+    if (getCount(tabScope) > 0)
+        return { tileScope: 'this-tab', scope: tabScope };
+    if (otherTabsScope !== null && getCount(otherTabsScope) > 0)
+        return { tileScope: 'other-tabs', scope: otherTabsScope };
+    return null;
+};
+
+// What a fill replaces, when it takes tiles off another field
 const getReplacesTooltip = (
     fieldTiles: FieldTiles,
     scope: FieldScope,
@@ -44,8 +69,8 @@ const getReplacesTooltip = (
               tiles: formatTileCount(getUiString, scope.replaced),
           });
 
-// One field's bar, over every tab: every action is always there, disabled
-// when it would change nothing
+// One field's bar: the count over every tab, Filter and Clear over the tab in
+// view first, then the other tabs; disabled when they would change nothing
 const Bar: FC<{
     fieldTiles: FieldTiles;
     // The last change to this field Undo can take back
@@ -63,6 +88,8 @@ const Bar: FC<{
         label,
         name,
         tableLabel,
+        thisTabScope,
+        otherTabsScope,
         everyTabScope,
         canAct,
         applyToAll,
@@ -71,13 +98,43 @@ const Bar: FC<{
     const getUiString = useUiStrings();
     const { applied, possible } = everyTabScope;
     const tilesOf = formatTilesOf(getUiString, applied, possible);
-    const canFilterAll = canAct && getChangeCount(everyTabScope) > 0;
-    const canClear = canAct && applied > 0 && !isOnlyRow;
-    const replacesTooltip = getReplacesTooltip(
-        fieldTiles,
-        everyTabScope,
-        getUiString,
+    // Without tabs the tab in view is every tile
+    const tabScope = thisTabScope ?? everyTabScope;
+    const fill = getTarget(tabScope, otherTabsScope, getChangeCount);
+    const emptying = getTarget(
+        tabScope,
+        otherTabsScope,
+        (scope) => scope.applied,
     );
+    const canFill = canAct && fill !== null;
+    const canClear = canAct && emptying !== null && !isOnlyRow;
+    const fillLabel =
+        fill === null
+            ? getUiString('filters.fieldBar.filterMoreNone')
+            : interpolateUiString(
+                  getUiString(
+                      fill.tileScope === 'other-tabs'
+                          ? 'filters.fieldBar.filterOnOtherTabs'
+                          : 'filters.fieldBar.filterMore',
+                  ),
+                  { count: getChangeCount(fill.scope) },
+              );
+    // A Clear that cannot act carries no count: it would read as available
+    const clearLabel =
+        emptying === null || !canClear
+            ? getUiString('filters.fieldBar.clear')
+            : interpolateUiString(
+                  getUiString(
+                      emptying.tileScope === 'other-tabs'
+                          ? 'filters.fieldBar.clearOnOtherTabs'
+                          : 'filters.fieldBar.clearCount',
+                  ),
+                  { count: emptying.scope.applied },
+              );
+    const replacesTooltip =
+        fill === null
+            ? null
+            : getReplacesTooltip(fieldTiles, fill.scope, getUiString);
     const regionRef = useRef<HTMLDivElement>(null);
     const wasPressedRef = useRef(false);
     // A pressed button that is switched off leaves focus on the bar
@@ -163,60 +220,84 @@ const Bar: FC<{
                             </>
                         )}
                     </Text>
-                    <Button
-                        size="xs"
-                        // Right after a field is added, its Undo is the one step to take
-                        variant={undo?.kind === 'add' ? 'filled' : 'subtle'}
-                        disabled={undo === null}
-                        aria-label={
-                            undo === null
-                                ? undefined
-                                : interpolateUiString(
-                                      getUiString(
-                                          undo.kind === 'clear'
-                                              ? 'filters.fieldBar.undoClearName'
-                                              : 'filters.fieldBar.undoFilterName',
-                                      ),
-                                      {
-                                          field: label,
-                                          tiles: formatTileCount(
-                                              getUiString,
-                                              undo.tileCount,
-                                          ),
-                                      },
-                                  )
-                        }
-                        onClick={press(onUndo)}
-                    >
-                        {getUiString('filters.fieldBar.undo')}
-                    </Button>
                     <Tooltip
                         fz="xs"
                         label={replacesTooltip}
-                        disabled={replacesTooltip === null || !canFilterAll}
+                        disabled={replacesTooltip === null || !canFill}
                     >
                         <Button
                             size="xs"
-                            variant="subtle"
-                            disabled={!canFilterAll}
-                            onClick={press(() => applyToAll('every-tab'))}
+                            // Right after a tile card's pick, filling the rest is the next step
+                            variant={
+                                undo?.kind === 'pick' && canFill
+                                    ? 'filled'
+                                    : 'light'
+                            }
+                            disabled={!canFill}
+                            onClick={press(() => {
+                                if (fill !== null) applyToAll(fill.tileScope);
+                            })}
                         >
-                            {getUiString('filters.fieldBar.filterAllTiles')}
+                            {fillLabel}
                         </Button>
                     </Tooltip>
-                    <Button
-                        size="xs"
-                        variant="subtle"
-                        color="gray"
-                        disabled={!canClear}
-                        aria-label={interpolateUiString(
-                            getUiString('filters.fieldBar.clearName'),
-                            { field: label },
-                        )}
-                        onClick={press(() => clear('every-tab'))}
+                    {/* A disabled button gets no hover: the wrapper shows why */}
+                    <Tooltip
+                        fz="xs"
+                        label={getUiString('filters.fieldBar.onlyFieldClear')}
+                        disabled={!isOnlyRow}
                     >
-                        {getUiString('filters.fieldBar.clear')}
-                    </Button>
+                        <Box>
+                            <Button
+                                size="xs"
+                                variant="subtle"
+                                color="gray"
+                                disabled={!canClear}
+                                onClick={press(() => {
+                                    if (emptying !== null)
+                                        clear(emptying.tileScope);
+                                })}
+                            >
+                                {clearLabel}
+                            </Button>
+                        </Box>
+                    </Tooltip>
+                    {undo !== null && (
+                        <>
+                            <Divider orientation="vertical" />
+                            <Tooltip
+                                fz="xs"
+                                label={getUiString('filters.fieldBar.undo')}
+                            >
+                                <ActionIcon
+                                    size="sm"
+                                    // Right after a field is added, its Undo is the one step to take
+                                    variant={
+                                        undo.kind === 'add'
+                                            ? 'filled'
+                                            : 'subtle'
+                                    }
+                                    aria-label={interpolateUiString(
+                                        getUiString(
+                                            undo.kind === 'clear'
+                                                ? 'filters.fieldBar.undoClearName'
+                                                : 'filters.fieldBar.undoFilterName',
+                                        ),
+                                        {
+                                            field: label,
+                                            tiles: formatTileCount(
+                                                getUiString,
+                                                undo.tileCount,
+                                            ),
+                                        },
+                                    )}
+                                    onClick={press(onUndo)}
+                                >
+                                    <MantineIcon icon={IconArrowBackUp} />
+                                </ActionIcon>
+                            </Tooltip>
+                        </>
+                    )}
                 </Group>
             </Group>
         </Paper>
@@ -263,7 +344,13 @@ export const FieldTilesBar: FC = () => {
             undo={fieldUndo?.fieldId === fieldId ? fieldUndo : null}
             onUndo={undoApply}
             isArriving={drawnFieldId.current !== fieldId}
-            isOnlyRow={fieldTileActions.chips.length <= 1}
+            // A field cleared off every tile is no chip: not the only one
+            isOnlyRow={
+                fieldTileActions.chips.length <= 1 &&
+                fieldTileActions.chips.some(
+                    (chip) => chip.key === fieldId || chip.fieldId === fieldId,
+                )
+            }
         />,
         host,
     );

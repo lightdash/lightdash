@@ -15,7 +15,7 @@ import {
     Text,
     Tooltip,
 } from '@mantine/core';
-import { IconPlus } from '@tabler/icons-react';
+import { IconArrowLeft, IconPlus } from '@tabler/icons-react';
 import uniqBy from 'lodash/uniqBy';
 import { useLayoutEffect, useMemo, useRef, useState, type FC } from 'react';
 import FieldIcon from '../../components/common/Filters/FieldIcon';
@@ -342,6 +342,7 @@ const MappingRowContent: FC<{ rule: DashboardFilterRule }> = ({ rule }) => {
         (c) => c.setHoveredFieldId,
     );
     const cancelMapping = useControlsSidebarSelector((c) => c.cancelMapping);
+    const endMapping = useControlsSidebarSelector((c) => c.endMapping);
     const close = useControlsSidebarSelector((c) => c.close);
     const savedFilters = useDashboardContext((c) => c.dashboard?.filters);
     const pill = useBarPill(rule);
@@ -395,6 +396,16 @@ const MappingRowContent: FC<{ rule: DashboardFilterRule }> = ({ rule }) => {
 
     return (
         <>
+            <Tooltip fz="xs" label={getUiString('filters.rail.backToFilter')}>
+                <ActionIcon
+                    variant="subtle"
+                    size="sm"
+                    aria-label={getUiString('filters.rail.backToFilter')}
+                    onClick={endMapping}
+                >
+                    <MantineIcon icon={IconArrowLeft} />
+                </ActionIcon>
+            </Tooltip>
             {/* The open pill names the filter; it does nothing here */}
             <Box inert className={classes.pill}>
                 <FilterPillButton
@@ -516,8 +527,8 @@ const MappingRowContent: FC<{ rule: DashboardFilterRule }> = ({ rule }) => {
     );
 };
 
-// In the filter row's place while tiles are chosen: the open pill, the title
-// with its counts, a chip per field, "Add a field", Cancel and Apply
+// In the filter row's place while tiles are chosen: the back arrow, the open
+// pill, the title with its counts, a chip per field, "Add a field", Cancel and Apply
 export const MappingRow: FC = () => {
     const rule = useControlsSidebarSelector((c) =>
         c.isMapping ? c.editingRule : null,

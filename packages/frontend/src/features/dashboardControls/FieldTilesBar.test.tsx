@@ -203,9 +203,11 @@ describe('FieldTilesBar', () => {
 
     const button = (name: string | RegExp) =>
         within(bar()).getByRole('button', { name });
-    const undoButton = () => button(/^Undo/);
-    const filterAllButton = () => button('Filter all tiles');
+    const queryUndo = () =>
+        within(bar()).queryByRole('button', { name: /^Undo/ });
+    const filterAllButton = () => button(/^Filter/);
     const clearButton = () => button(/^Clear/);
+    const dividers = () => bar().querySelectorAll('.mantine-Divider-root');
 
     describe('when it shows', () => {
         it('is hidden while no field is clicked, even a hovered one', () => {
@@ -259,18 +261,18 @@ describe('FieldTilesBar', () => {
     });
 
     describe('its count and actions', () => {
-        it('shows the field, its count and Undo, Filter all tiles and Clear, all without hover', () => {
+        it('shows the field, its count, Filter and Clear, all without hover', () => {
             setSidebar(rule('orders_status', { 'tile-1': false }));
             renderWithProviders(<Dashboard />);
 
             expect(within(bar()).getByText('Status')).toBeInTheDocument();
             expect(countOf()).toHaveTextContent(/^1 of 2 tiles$/);
             expect(countOf()).toHaveAttribute('aria-live', 'polite');
-            expect(buttonTexts()).toEqual([
-                'Undo',
-                'Filter all tiles',
-                'Clear',
-            ]);
+            // No tabs: every tile is the tab in view; the only field's Clear has no count
+            expect(buttonTexts()).toEqual(['Filter 1 more', 'Clear']);
+            // Filter is the tinted action, Clear the quiet one
+            expect(filterAllButton()).toHaveAttribute('data-variant', 'light');
+            expect(clearButton()).toHaveAttribute('data-variant', 'subtle');
         });
 
         it('says "tile" for one tile', () => {
@@ -282,14 +284,15 @@ describe('FieldTilesBar', () => {
             expect(countOf('Region')).toHaveTextContent(/^1 of 1 tile$/);
         });
 
-        it('switches Undo off until there is something to undo', () => {
+        it('has no Undo, nor its divider, until there is something to undo', () => {
             setSidebar(rule('orders_status', { 'tile-1': false }));
             renderWithProviders(<Dashboard />);
 
-            expect(undoButton()).toBeDisabled();
+            expect(queryUndo()).not.toBeInTheDocument();
+            expect(dividers()).toHaveLength(1);
         });
 
-        it('offers Undo as a quiet button after an apply or a clear, and runs it', async () => {
+        it('offers Undo as a quiet icon at the end after an apply or a clear, and runs it', async () => {
             setSidebar(rule('orders_status', { 'tile-1': false }), {
                 fieldUndo: {
                     kind: 'apply',
@@ -304,6 +307,11 @@ describe('FieldTilesBar', () => {
             const undo = button('Undo filtering 2 tiles by Orders Status');
             expect(undo).toBeEnabled();
             expect(undo).toHaveAttribute('data-variant', 'subtle');
+            expect(undo).toHaveTextContent('');
+            expect(within(bar()).getAllByRole('button').at(-1)).toBe(undo);
+            expect(dividers()).toHaveLength(2);
+            await userEvent.hover(undo);
+            expect(await screen.findByText('Undo')).toBeInTheDocument();
             await userEvent.click(undo);
             expect(undoApply).toHaveBeenCalledTimes(1);
         });
@@ -331,10 +339,33 @@ describe('FieldTilesBar', () => {
             ).toHaveLength(1);
         });
 
-        it('switches Filter all tiles off when every tile that has the field is filtered by it', () => {
+        it("fills Filter right after a tile card's pick, as the one step to take", () => {
+            setSidebar(rule('orders_status', { 'tile-1': false }), {
+                fieldUndo: {
+                    kind: 'pick',
+                    fieldId: 'orders_status',
+                    tileCount: 1,
+                    replaced: 0,
+                    acrossTabs: false,
+                },
+            });
+            renderWithProviders(<Dashboard />);
+
+            expect(filterAllButton()).toHaveTextContent('Filter 1 more');
+            expect(filterAllButton()).toHaveAttribute('data-variant', 'filled');
+            expect(
+                button('Undo filtering 1 tile by Orders Status'),
+            ).toHaveAttribute('data-variant', 'subtle');
+            expect(
+                bar().querySelectorAll('[data-variant="filled"]'),
+            ).toHaveLength(1);
+        });
+
+        it('switches Filter off, and keeps the bar, when every tile that has the field is filtered by it', () => {
             setSidebar(rule('orders_status'));
             renderWithProviders(<Dashboard />);
 
+            expect(filterAllButton()).toHaveTextContent(/^Filter more$/);
             expect(filterAllButton()).toBeDisabled();
         });
 
@@ -380,11 +411,17 @@ describe('FieldTilesBar', () => {
             ).toBeInTheDocument();
         });
 
-        it("switches Clear off on the filter's only field", () => {
+        it("switches Clear off on the filter's only field, and says why", async () => {
             setSidebar(rule('orders_status'));
             renderWithProviders(<Dashboard />);
 
+            // No count on a Clear that cannot act; its wrapper says why
+            expect(clearButton()).toHaveTextContent(/^Clear$/);
             expect(clearButton()).toBeDisabled();
+            await userEvent.hover(clearButton().parentElement!);
+            expect(
+                await screen.findByText("This is the filter's only field"),
+            ).toBeInTheDocument();
         });
 
         it('clears a field from every tile while the filter has another', () => {
@@ -394,7 +431,7 @@ describe('FieldTilesBar', () => {
             renderWithProviders(<Dashboard />);
 
             const clear = within(bar('Region')).getByRole('button', {
-                name: 'Clear Orders Region from tiles',
+                name: 'Clear 1',
             });
             expect(clear).toBeEnabled();
             fireEvent.click(clear);
@@ -456,29 +493,92 @@ describe('FieldTilesBar', () => {
             };
         });
 
-        it('counts and acts over every tab, with no tab wording', () => {
+        it('counts over every tab and fills and clears the tab in view first', () => {
             setSidebar(
-                rule('orders_status', { 'tile-1': false, 'tile-3': false }),
+                rule('orders_status', { 'tile-1': REGION, 'tile-3': false }),
             );
             renderWithProviders(<TabbedDashboard />);
 
             expect(screen.getByTestId('grid-1').nextElementSibling).toBe(
                 bar().parentElement,
             );
+            // The total stays over every tab
             expect(countOf()).toHaveTextContent(/^1 of 3 tiles$/);
-            expect(buttonTexts()).toEqual([
-                'Undo',
-                'Filter all tiles',
-                'Clear',
-            ]);
-            expect(bar()).not.toHaveTextContent(/tab/);
+            expect(buttonTexts()).toEqual(['Filter 1 more', 'Clear 1']);
 
+            fireEvent.click(filterAllButton());
+            // Only this tab: tile-3 on the other tab stays left out
+            expect(getAppliedRule().tileTargets).toEqual({ 'tile-3': false });
+            expect(appliedUndo()).toMatchObject({
+                kind: 'apply',
+                tileCount: 2,
+                replaced: 1,
+                acrossTabs: false,
+            });
+        });
+
+        it('clears the tab in view only', () => {
+            setSidebar(rule('orders_status', { 'tile-1': REGION }));
+            renderWithProviders(<TabbedDashboard />);
+
+            fireEvent.click(button('Clear 1'));
+            expect(getAppliedRule().tileTargets).toEqual({
+                'tile-1': REGION,
+                'tile-2': false,
+            });
+            expect(appliedUndo()).toMatchObject({
+                kind: 'clear',
+                tileCount: 1,
+                acrossTabs: false,
+            });
+        });
+
+        it('fills the other tabs once the tab in view is done', () => {
+            setSidebar(rule('orders_status', { 'tile-3': false }));
+            renderWithProviders(<TabbedDashboard />);
+
+            expect(countOf()).toHaveTextContent(/^2 of 3 tiles$/);
+            expect(filterAllButton()).toHaveTextContent(
+                /^Filter 1 on other tabs$/,
+            );
             fireEvent.click(filterAllButton());
             expect(getAppliedRule().tileTargets).toBeUndefined();
             expect(appliedUndo()).toMatchObject({
-                tileCount: 3,
+                kind: 'apply',
+                tileCount: 1,
                 acrossTabs: true,
             });
+        });
+
+        it('clears the other tabs once the tab in view has none', () => {
+            setSidebar(
+                rule('orders_status', { 'tile-1': REGION, 'tile-2': false }),
+            );
+            renderWithProviders(<TabbedDashboard />);
+
+            expect(buttonTexts()).toEqual([
+                'Filter 2 more',
+                'Clear 1 on other tabs',
+            ]);
+            fireEvent.click(clearButton());
+            expect(getAppliedRule().tileTargets).toEqual({
+                'tile-1': REGION,
+                'tile-2': false,
+                'tile-3': false,
+            });
+            expect(appliedUndo()).toMatchObject({
+                kind: 'clear',
+                tileCount: 1,
+                acrossTabs: true,
+            });
+        });
+
+        it('switches Filter off, and keeps the bar, once every tab is done', () => {
+            setSidebar(rule('orders_status'));
+            renderWithProviders(<TabbedDashboard />);
+
+            expect(filterAllButton()).toHaveTextContent(/^Filter more$/);
+            expect(filterAllButton()).toBeDisabled();
         });
         it('slides in when a chip is selected, and not again on a tab switch', () => {
             setSidebar(rule('orders_status'));
@@ -563,7 +663,7 @@ describe('FieldTilesBar', () => {
             );
             fireEvent.click(
                 within(bar('country', null)).getByRole('button', {
-                    name: 'Filter all tiles',
+                    name: 'Filter 1 more',
                 }),
             );
             expect(getAppliedRule().tileTargets).toEqual({
@@ -604,7 +704,7 @@ describe('FieldTilesBar', () => {
             expect(countOf(REF, null)).toHaveTextContent(/^1 of 2 tiles$/);
             fireEvent.click(
                 within(bar(REF, null)).getByRole('button', {
-                    name: 'Filter all tiles',
+                    name: 'Filter 1 more',
                 }),
             );
             expect(getAppliedRule().tileTargets).toEqual({
@@ -658,7 +758,7 @@ describe('FieldTilesBar', () => {
                 </Dashboard>,
             );
 
-            // Undo is off: Filter all tiles is the first action that takes focus
+            // No Undo yet: Filter is the first action that takes focus
             filterAllButton().focus();
             await userEvent.tab({ shift: true });
             expect(
@@ -801,6 +901,37 @@ describe('FieldTilesBar', () => {
             });
         });
 
+        it('keeps its name and offers its tiles again once Clear took it off every tile', async () => {
+            // The joined chip's tiles are both left out: its key is no chip now
+            setSidebar(
+                rule('orders_status', { 'tile-2': false, 'tile-3': false }),
+                { highlightedFieldId: JOINED_KEY },
+            );
+            renderWithProviders(<Dashboard />);
+
+            const joinedBar = bar('Status', 'Order customer');
+            expect(within(joinedBar).getByText('Order customer')).toBeVisible();
+            expect(countOf('Status', 'Order customer')).toHaveTextContent(
+                /^0 of 2 tiles$/,
+            );
+            const fill = within(joinedBar).getByRole('button', {
+                name: 'Filter 2 more',
+            });
+            expect(fill).toBeEnabled();
+            // Not the filter's only field, though the other is its last chip
+            await userEvent.hover(
+                within(joinedBar).getByRole('button', { name: 'Clear' })
+                    .parentElement!,
+            );
+            expect(
+                screen.queryByText("This is the filter's only field"),
+            ).not.toBeInTheDocument();
+            fireEvent.click(fill);
+            // Back on the joined tiles only; tile-1 keeps its own chip
+            expect(getAppliedRule().tileTargets).toBeUndefined();
+            expect(appliedUndo()).toMatchObject({ fieldId: JOINED_KEY });
+        });
+
         it('clears and removes one chip without touching the other', () => {
             const result = renderActions();
             result.current!.forField(ORDERS_KEY).clear('every-tab');
@@ -833,8 +964,8 @@ describe('FieldTilesBar', () => {
             );
             const { rerender } = renderWithProviders(<Dashboard />);
 
-            const clear = screen.getByRole('button', {
-                name: 'Clear Orders Region from tiles',
+            const clear = within(bar('Region')).getByRole('button', {
+                name: /^Clear/,
             });
             expect(clear).toBeDisabled();
             fireEvent.click(clear);
@@ -846,9 +977,7 @@ describe('FieldTilesBar', () => {
             };
             rerender(<Dashboard />);
             expect(
-                screen.getByRole('button', {
-                    name: 'Clear Orders Region from tiles',
-                }),
+                within(bar('Region')).getByRole('button', { name: 'Clear 1' }),
             ).toBeEnabled();
         });
     });
