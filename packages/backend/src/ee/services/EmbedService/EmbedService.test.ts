@@ -533,12 +533,10 @@ describe('EmbedService', () => {
                         }),
                     },
                     savedChartModel: {
-                        resolveColorPalette: vi
-                            .fn()
-                            .mockResolvedValue({
-                                colors: [],
-                                darkColors: null,
-                            }),
+                        resolveColorPalette: vi.fn().mockResolvedValue({
+                            colors: [],
+                            darkColors: null,
+                        }),
                     },
                     analytics: { trackAccount },
                 } as unknown as ConstructorParameters<typeof EmbedService>[0]);
