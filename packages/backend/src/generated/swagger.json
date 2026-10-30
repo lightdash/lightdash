@@ -1521,6 +1521,71 @@
                 "required": ["sync"],
                 "type": "object"
             },
+            "ContentAsCodeSnapshotPruneResult": {
+                "properties": {
+                    "dashboards": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "sqlCharts": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "charts": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["dashboards", "sqlCharts", "charts"],
+                "type": "object"
+            },
+            "ApiContentAsCodeSnapshotPruneResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ContentAsCodeSnapshotPruneResult"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ContentAsCodeSnapshotPrune": {
+                "properties": {
+                    "dashboards": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "sqlCharts": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "charts": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "path": {
+                        "type": "string"
+                    }
+                },
+                "required": ["dashboards", "sqlCharts", "charts", "path"],
+                "type": "object"
+            },
             "ParameterValue": {
                 "anyOf": [
                     {
@@ -74490,7 +74555,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.112.0",
+        "version": "3.113.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -75369,6 +75434,57 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/code/snapshots/prune": {
+            "post": {
+                "operationId": "pruneContentAsCodeSnapshots",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiContentAsCodeSnapshotPruneResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Called by the CLI after a full upload of a directory so content whose\nfile was removed from the repo stops being Git-managed.",
+                "summary": "Prune content-as-code snapshots",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ContentAsCodeSnapshotPrune"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/projects/{projectUuid}/code/charts": {

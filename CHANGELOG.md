@@ -1,3 +1,15 @@
+# [3.113.0](https://github.com/lightdash/lightdash/compare/3.112.0...3.113.0) (2026-10-30)
+
+
+### Bug Fixes
+
+* **content-as-code:** stop agent edits from making content Git-managed ([#31858](https://github.com/lightdash/lightdash/issues/31858)) ([23d7371](https://github.com/lightdash/lightdash/commit/23d7371516a0c20b3b8a47fc3cdca0f6a1a50608))
+
+
+### Features
+
+* **content-as-code:** release Git-managed content removed from the repo on upload ([#31856](https://github.com/lightdash/lightdash/issues/31856)) ([3ce6dd2](https://github.com/lightdash/lightdash/commit/3ce6dd2cb75589abab71e4e78957049ba99e6224))
+
 # [3.112.0](https://github.com/lightdash/lightdash/compare/3.111.0...3.112.0) (2026-10-30)
 
 
