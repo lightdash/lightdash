@@ -1,6 +1,7 @@
 import prometheus from 'prom-client';
 import type { S3Config } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
+import type { UsageProcessingModel } from '../../models/UsageProcessingModel';
 import PrometheusMetrics from '../../prometheus/PrometheusMetrics';
 import { UsageProcessingMetrics } from '../../prometheus/UsageProcessingMetrics';
 import { queryEventsCompactedColumns } from './queryEventsStream';
@@ -125,6 +126,7 @@ type MetricsMock = ReturnType<typeof createMetricsMock>;
 const createCompactor = (
     metrics: MetricsMock,
     storageConfig: Omit<S3Config, 'expirationTime'> = s3Config,
+    usageProcessingModel?: Pick<UsageProcessingModel, 'start' | 'finish'>,
 ) =>
     new UsageEventsCompactor({
         featureFlagModel: {
@@ -144,6 +146,7 @@ const createCompactor = (
             async *getJsonLines() {},
         },
         prometheusMetrics: metrics as unknown as PrometheusMetrics,
+        usageProcessingModel,
     });
 
 const mockListedKeys = (keys: string[]) => {
@@ -368,6 +371,7 @@ describe('UsageEventsCompactor.run', () => {
         expect(UsageUserActivityBuilder.prototype.runAll).toHaveBeenCalledWith(
             NOW,
             ['org-2'],
+            expect.any(Function),
         );
         const refresher = vi.spyOn(UsageDimensionsRefresher.prototype, 'run');
         expect(refresher).toHaveBeenCalledOnce();
@@ -395,6 +399,7 @@ describe('UsageEventsCompactor.run', () => {
         expect(UsageUserActivityBuilder.prototype.runAll).toHaveBeenCalledWith(
             NOW,
             [],
+            expect.any(Function),
         );
     });
 
@@ -693,7 +698,11 @@ describe('UsageEventsCompactor.run', () => {
         await expect(createCompactor(metrics).run(NOW)).rejects.toThrow(
             'previous snapshots retained',
         );
-        expect(users).toHaveBeenCalledWith(NOW, ['org-1', 'org-2']);
+        expect(users).toHaveBeenCalledWith(
+            NOW,
+            ['org-1', 'org-2'],
+            expect.any(Function),
+        );
         expect(metrics.usageProcessing.finish).toHaveBeenCalledWith(
             'users',
             expect.objectContaining({ outcome: 'success' }),
@@ -708,6 +717,147 @@ describe('UsageEventsCompactor.run', () => {
             'dimensions',
             { outcome: 'failed', failed: 1, remaining: 1 },
             expect.any(Number),
+        );
+    });
+
+    it('records partial progress separately from another organization succeeding', async () => {
+        mockListedKeys([
+            rawKey('org-1', 'query_events', '2026-07-01'),
+            rawKey('org-2', 'query_events', '2026-07-01'),
+        ]);
+        const model = { start: vi.fn(), finish: vi.fn() };
+        vi.spyOn(UsageDimensionsRefresher.prototype, 'run').mockImplementation(
+            async (onOrganizationFinished) => {
+                onOrganizationFinished?.('org-1', { refreshed: 1, failed: 1 });
+                onOrganizationFinished?.('org-2', { refreshed: 2, failed: 0 });
+                return { refreshed: 3, failed: 1 };
+            },
+        );
+        vi.spyOn(
+            UsageUserActivityBuilder.prototype,
+            'runAll',
+        ).mockImplementation(async (_now, orgIds, onOrganizationFinished) => {
+            const summary = {
+                published: 0,
+                unchanged: 1,
+                skipped: 0,
+                failed: 0,
+                deferred: 0,
+                limitReached: false,
+            };
+            for (const orgId of orgIds) {
+                onOrganizationFinished?.(orgId, summary, true);
+            }
+            return { ...summary, unchanged: 2 };
+        });
+
+        await expect(
+            createCompactor(metrics, s3Config, model).run(NOW),
+        ).rejects.toThrow('previous snapshots retained');
+
+        expect(model.finish).toHaveBeenCalledWith(
+            expect.objectContaining({
+                organizationUuid: 'org-1',
+                status: 'partial',
+                stats: expect.objectContaining({
+                    partitionsDiscovered: 1,
+                    partitionsCompacted: 1,
+                    partitionsFailed: 0,
+                    rawObjectsDeleted: 1,
+                    dimensionsFailed: 1,
+                }),
+            }),
+        );
+        expect(model.finish).toHaveBeenCalledWith(
+            expect.objectContaining({
+                organizationUuid: 'org-2',
+                status: 'success',
+                stats: expect.objectContaining({
+                    partitionsDiscovered: 1,
+                    partitionsCompacted: 1,
+                    partitionsFailed: 0,
+                    dimensionsFailed: 0,
+                }),
+            }),
+        );
+    });
+
+    it('records failure when raw discovery fails before any work is completed', async () => {
+        mockListedKeys([]);
+        s3Mocks.listObjectsV2.mockRejectedValue(
+            new Error('Storage unavailable'),
+        );
+        const model = { start: vi.fn(), finish: vi.fn() };
+        await expect(
+            createCompactor(metrics, s3Config, model).run(NOW),
+        ).rejects.toThrow('Storage unavailable');
+        expect(model.finish).toHaveBeenCalledWith(
+            expect.objectContaining({
+                organizationUuid: 'org-1',
+                status: 'failed',
+            }),
+        );
+    });
+
+    it('keeps recovered checkpoint cleanup partial while listed late arrivals remain', async () => {
+        const original = rawKey(
+            'org-1',
+            'query_events',
+            '2026-07-01',
+            'original.jsonl.gz',
+        );
+        const late = rawKey(
+            'org-1',
+            'query_events',
+            '2026-07-01',
+            'late.jsonl.gz',
+        );
+        mockListedKeys([original, late]);
+        s3Mocks.getObject.mockResolvedValue({
+            Body: { transformToString: async () => JSON.stringify([original]) },
+        });
+        s3Mocks.headObject.mockResolvedValue({});
+        vi.spyOn(UsageDimensionsRefresher.prototype, 'run').mockImplementation(
+            async (finished) => {
+                finished?.('org-1', { refreshed: 1, failed: 0 });
+                return { refreshed: 1, failed: 0 };
+            },
+        );
+        vi.spyOn(
+            UsageUserActivityBuilder.prototype,
+            'runAll',
+        ).mockImplementation(async (_now, _orgIds, finished) => {
+            const summary = {
+                published: 0,
+                unchanged: 0,
+                skipped: 0,
+                failed: 0,
+                deferred: 0,
+                limitReached: false,
+            };
+            finished?.('org-1', summary, true);
+            return summary;
+        });
+        const model = { start: vi.fn(), finish: vi.fn() };
+
+        await createCompactor(metrics, s3Config, model).run(NOW);
+
+        expect(model.finish).toHaveBeenCalledWith(
+            expect.objectContaining({
+                organizationUuid: 'org-1',
+                status: 'partial',
+                stats: expect.objectContaining({
+                    partitionsDiscovered: 1,
+                    partitionsCompacted: 0,
+                    partitionsFailed: 0,
+                    rawObjectsDeleted: 1,
+                }),
+            }),
+        );
+        expect(s3Mocks.deleteObjects).toHaveBeenCalledWith(
+            expect.objectContaining({
+                Delete: { Objects: [{ Key: original }], Quiet: true },
+            }),
         );
     });
 

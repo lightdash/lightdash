@@ -20,6 +20,14 @@ export const useAnalyticsProject = () => {
             }),
         enabled: !!organization?.organizationUuid,
         retry: false,
+        refetchInterval: (data) => {
+            const processing = data?.project?.processing;
+            return processing?.status === 'running' &&
+                Date.now() - new Date(processing.startedAt).getTime() <=
+                    4 * 60 * 60 * 1000
+                ? 30_000
+                : false;
+        },
     });
 };
 

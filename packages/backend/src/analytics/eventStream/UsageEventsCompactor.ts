@@ -8,6 +8,7 @@ import { S3Config } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import type { UsageDimensionsModel } from '../../models/UsageDimensionsModel';
+import type { UsageProcessingModel } from '../../models/UsageProcessingModel';
 import PrometheusMetrics from '../../prometheus/PrometheusMetrics';
 import type {
     UsageProcessingResult,
@@ -22,6 +23,7 @@ import {
     type DimensionRefreshSummary,
 } from './UsageDimensionsRefresher';
 import { MAX_PARTITIONS_PER_RUN } from './usageProcessingLimits';
+import { UsageProcessingRun } from './UsageProcessingRun';
 import { usageProcessingStartDate } from './usageProcessingWindow';
 import {
     UsageUserActivityBuilder,
@@ -165,6 +167,7 @@ export type UsageEventsCompactorArgs = {
         UsageDimensionsModel,
         'getOrganizations' | 'getJsonLines'
     >;
+    usageProcessingModel?: Pick<UsageProcessingModel, 'start' | 'finish'>;
 };
 
 /**
@@ -187,6 +190,11 @@ export class UsageEventsCompactor extends S3BaseClient {
 
     private readonly featureFlagModel: Pick<FeatureFlagModel, 'get'>;
 
+    private readonly usageProcessingModel: Pick<
+        UsageProcessingModel,
+        'start' | 'finish'
+    > | null;
+
     constructor(args: UsageEventsCompactorArgs) {
         super(args.s3Config);
         this.bucket = args.s3Config.bucket;
@@ -194,6 +202,7 @@ export class UsageEventsCompactor extends S3BaseClient {
         this.s3Config = args.s3Config;
         this.prometheusMetrics = args.prometheusMetrics;
         this.usageDimensionsModel = args.usageDimensionsModel;
+        this.usageProcessingModel = args.usageProcessingModel ?? null;
     }
 
     async run(
@@ -206,6 +215,10 @@ export class UsageEventsCompactor extends S3BaseClient {
         }
     > {
         const runId = randomUUID();
+        const processing = new UsageProcessingRun(
+            this.usageProcessingModel,
+            runId,
+        );
         try {
             return await this.monitorStage(
                 runId,
@@ -230,12 +243,14 @@ export class UsageEventsCompactor extends S3BaseClient {
                     const orgIds = organizations.map(
                         (organization) => organization.organization_uuid,
                     );
+                    await processing.start(orgIds);
                     const summary = await this.monitorStage(
                         runId,
                         'compaction',
-                        () => this.compactEvents(now, orgIds),
+                        () => this.compactEvents(now, orgIds, processing),
                         UsageEventsCompactor.compactionOutcome,
                     );
+                    processing.compactionFinished();
                     const dimensions = await this.monitorStage(
                         runId,
                         'dimensions',
@@ -252,7 +267,9 @@ export class UsageEventsCompactor extends S3BaseClient {
                                         ),
                                 },
                                 this.createDuckdbClient(),
-                            ).run(),
+                            ).run((orgId, result) =>
+                                processing.dimensionsFinished(orgId, result),
+                            ),
                         (result) => ({
                             outcome: result.failed > 0 ? 'failed' : 'success',
                             failed: result.failed,
@@ -266,6 +283,12 @@ export class UsageEventsCompactor extends S3BaseClient {
                             new UsageUserActivityBuilder(this.s3Config).runAll(
                                 now,
                                 orgIds,
+                                (orgId, result, completed) =>
+                                    processing.usersFinished(
+                                        orgId,
+                                        result,
+                                        completed,
+                                    ),
                             ),
                         UsageEventsCompactor.usersOutcome,
                     );
@@ -300,6 +323,7 @@ export class UsageEventsCompactor extends S3BaseClient {
                 },
             );
         } finally {
+            await processing.finish();
             this.s3?.destroy();
         }
     }
@@ -380,6 +404,7 @@ export class UsageEventsCompactor extends S3BaseClient {
     private async compactEvents(
         now: Date,
         orgIds: string[],
+        processing: UsageProcessingRun,
     ): Promise<CompactionRunSummary> {
         const runStart = Date.now();
         const todayUtc = now.toISOString().slice(0, 10);
@@ -394,6 +419,10 @@ export class UsageEventsCompactor extends S3BaseClient {
             partitionsSkippedUnknownStream: 0,
             rawObjectsDeleted: 0,
         };
+        for (const partition of partitions) {
+            const stats = processing.stats(partition.orgId);
+            stats.partitionsDiscovered += 1;
+        }
         if (partitions.length === 0) {
             this.recordMetrics(() => {
                 this.prometheusMetrics?.setUsageEventsCompactionBacklog(0);
@@ -409,6 +438,10 @@ export class UsageEventsCompactor extends S3BaseClient {
             return summary;
         }
         if (partitions.length > MAX_PARTITIONS_PER_RUN) {
+            for (const partition of partitions.slice(MAX_PARTITIONS_PER_RUN)) {
+                const stats = processing.stats(partition.orgId);
+                stats.limitReached = true;
+            }
             Logger.warn(
                 `Usage events compaction: capping run to ${MAX_PARTITIONS_PER_RUN} of ${partitions.length} closed partitions`,
             );
@@ -440,6 +473,11 @@ export class UsageEventsCompactor extends S3BaseClient {
                     );
                     summary.partitionsCompacted += 1;
                     summary.rawObjectsDeleted += deleted;
+                    const stats = processing.stats(partition.orgId);
+                    if (deleted === partition.keys.length) {
+                        stats.partitionsCompacted += 1;
+                    }
+                    stats.rawObjectsDeleted += deleted;
                     this.recordMetrics(() => {
                         this.prometheusMetrics?.incrementUsageEventsCompactedPartitions();
                         this.prometheusMetrics?.observeUsageEventsCompactionPartition(
@@ -453,6 +491,8 @@ export class UsageEventsCompactor extends S3BaseClient {
                     );
                 } catch (error) {
                     summary.partitionsFailed += 1;
+                    const stats = processing.stats(partition.orgId);
+                    stats.partitionsFailed += 1;
                     this.recordMetrics(() => {
                         this.prometheusMetrics?.incrementUsageEventsCompactionFailures();
                         this.prometheusMetrics?.observeUsageEventsCompactionPartition(
