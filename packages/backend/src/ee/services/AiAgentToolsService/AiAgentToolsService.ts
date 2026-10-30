@@ -8,6 +8,7 @@ import {
     assertUnreachable,
     CatalogFilter,
     CatalogType,
+    COMPOSER_NODE_SAMPLE_ROW_LIMIT,
     COMPOSER_QUERY_PREVIEW_ROW_LIMIT,
     ConflictError,
     ContentType,
@@ -1012,7 +1013,10 @@ export class AiAgentToolsService extends BaseService {
                 return run;
             },
             runComposerQueriesUntilDeadline: (args) =>
-                this.runComposerQueries(context, args),
+                this.runComposerQueries(context, {
+                    ...args,
+                    sampleNodeIds: [],
+                }),
             listWarehouseTables: (queryContext) =>
                 this.listWarehouseTables(context, queryContext),
             describeWarehouseTable: (args) =>
@@ -4696,6 +4700,7 @@ export class AiAgentToolsService extends BaseService {
         {
             queries,
             terminalNodeId,
+            sampleNodeIds,
             onNodeStatus,
             deadlineMs,
             timeoutMessage,
@@ -4912,8 +4917,90 @@ export class AiAgentToolsService extends BaseService {
                 if (outcome.status === 'failure') {
                     emitUnfinishedAsError(outcome.error);
                 }
-                return outcome;
+                return {
+                    ...outcome,
+                    nodeStatuses: await this.readComposerNodeSamples(
+                        context,
+                        submissions,
+                        outcome.nodeStatuses,
+                        sampleNodeIds,
+                    ),
+                };
             },
+        );
+    }
+
+    /** Reads the composer terminal rows and node samples alike, so both get the same AI access checks. */
+    private readComposerResultsPage(
+        context: AiAgentToolsRuntimeContext,
+        queryUuid: string,
+        pageSize: number,
+    ) {
+        return this.asyncQueryService.getAsyncQueryResults({
+            account: context.account,
+            reader: buildResultReader(
+                context.account,
+                context.defaultQueryExecutionContext,
+                context.querySurface ?? null,
+            ),
+            projectUuid: context.projectUuid,
+            queryUuid,
+            page: 1,
+            aiAccessOnly: true,
+            pageSize,
+        });
+    }
+
+    private static unwrapComposerRows(
+        rows: unknown[] | undefined,
+    ): Record<string, AnyType>[] {
+        return ((rows ?? []) as Record<string, AnyType>[]).map((row) =>
+            Object.fromEntries(
+                Object.entries(row).map(([k, v]) => [
+                    k,
+                    AiAgentToolsService.unwrapCell(v),
+                ]),
+            ),
+        );
+    }
+
+    /** A failed sample read gives a null sample and never fails the run. */
+    private async readComposerNodeSamples(
+        context: AiAgentToolsRuntimeContext,
+        submissions: SourceQuerySubmission[],
+        nodeStatuses: ComposerNodeStatus[],
+        sampleNodeIds: string[],
+    ): Promise<ComposerNodeStatus[]> {
+        return Promise.all(
+            nodeStatuses.map(async (status) => {
+                const submission = submissions.find(
+                    ({ nodeId }) => nodeId === status.nodeId,
+                );
+                if (
+                    !submission ||
+                    status.state !== QueryHistoryStatus.READY ||
+                    !sampleNodeIds.includes(status.nodeId)
+                )
+                    return status;
+                try {
+                    const page = await this.readComposerResultsPage(
+                        context,
+                        submission.queryUuid,
+                        COMPOSER_NODE_SAMPLE_ROW_LIMIT,
+                    );
+                    return {
+                        ...status,
+                        sample:
+                            page.status === QueryHistoryStatus.READY
+                                ? AiAgentToolsService.unwrapComposerRows(
+                                      page.rows,
+                                  )
+                                : null,
+                    };
+                } catch {
+                    return status;
+                }
+            }),
         );
     }
 
@@ -4953,19 +5040,11 @@ export class AiAgentToolsService extends BaseService {
 
             const queryResults =
                 // eslint-disable-next-line no-await-in-loop
-                await this.asyncQueryService.getAsyncQueryResults({
-                    account: context.account,
-                    reader: buildResultReader(
-                        context.account,
-                        context.defaultQueryExecutionContext,
-                        context.querySurface ?? null,
-                    ),
-                    projectUuid: context.projectUuid,
-                    queryUuid: terminalSubmission.queryUuid,
-                    page: 1,
-                    aiAccessOnly: true,
+                await this.readComposerResultsPage(
+                    context,
+                    terminalSubmission.queryUuid,
                     pageSize,
-                });
+                );
 
             if (queryResults.status === QueryHistoryStatus.READY) {
                 // eslint-disable-next-line no-await-in-loop
@@ -4973,17 +5052,8 @@ export class AiAgentToolsService extends BaseService {
                     context,
                     submissions,
                 );
-                const wrappedRows = (queryResults.rows ?? []) as Record<
-                    string,
-                    AnyType
-                >[];
-                const rows = wrappedRows.map((row) =>
-                    Object.fromEntries(
-                        Object.entries(row).map(([k, v]) => [
-                            k,
-                            AiAgentToolsService.unwrapCell(v),
-                        ]),
-                    ),
+                const rows = AiAgentToolsService.unwrapComposerRows(
+                    queryResults.rows,
                 );
                 return {
                     status: 'success',
@@ -5084,6 +5154,7 @@ export class AiAgentToolsService extends BaseService {
                               ),
                     rowCount: status.totalRowCount,
                     columns: status.columns,
+                    sample: null,
                 },
             ];
         });

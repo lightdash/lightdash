@@ -3475,7 +3475,7 @@
                         "type": "array"
                     },
                     "terminalNodeId": {
-                        "description": "The terminal node. Null picks the unique sink, the one submitted node no other submitted node reads; name a node when there are several sinks.",
+                        "description": "The terminal node. Null picks the one submitted node no other submitted node reads; a node id returns that node of the pipeline instead, including a node from an earlier call.",
                         "type": "string"
                     },
                     "title": {
@@ -3589,10 +3589,10 @@
                                 "sourceType",
                                 "rowCount",
                                 "limit",
+                                "columns",
                                 "queryUuid",
                                 "status",
-                                "reachedLimit",
-                                "columns"
+                                "reachedLimit"
                             ],
                             "type": "object"
                         },
