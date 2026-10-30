@@ -3,7 +3,7 @@ import {
     type DashboardFilterableField,
     type DashboardFilterRule,
 } from '@lightdash/common';
-import { Box, Tooltip } from '@mantine/core';
+import { Box, Text, Tooltip } from '@mantine/core';
 import { useOs } from '@mantine/hooks';
 import { IconCheck } from '@tabler/icons-react';
 import {
@@ -11,6 +11,7 @@ import {
     useContext,
     useState,
     type FC,
+    type KeyboardEvent,
     type MouseEvent,
     type PointerEvent,
 } from 'react';
@@ -82,6 +83,7 @@ export const FilterPill: FC<Props> = memo(
         const removeFilterById = useControlsSidebarSelector(
             (c) => c.removeFilterById,
         );
+        const moveFilter = useControlsSidebarSelector((c) => c.moveFilter);
         const setDashboardFilters = useDashboardContext(
             (c) => c.setDashboardFilters,
         );
@@ -110,6 +112,31 @@ export const FilterPill: FC<Props> = memo(
                     event.target.closest('button:not([data-controls-pill])') !==
                         null,
             );
+        // Dashed pills say why first, in the tooltip the pill already has:
+        // the select hint, else the tables one. The open pill has its editor
+        const dashedNote =
+            isSelected && isSidebarOpen
+                ? null
+                : kind === 'viewerOwn'
+                  ? getUiString('filters.rail.onlyYouSeeFilter')
+                  : isDraft
+                    ? 'Not saved yet'
+                    : null;
+        const selectHint = `Click to edit · ${os === 'macos' ? '⌘' : 'Ctrl'} click to select`;
+        const tooltipLabel = isOrphaned ? (
+            orphanedTooltip
+        ) : !isSelectable ? null : dashedNote === null ? (
+            selectHint
+        ) : (
+            <>
+                <Text fz="xs">{dashedNote}</Text>
+                <Text fz="xs">{selectHint}</Text>
+            </>
+        );
+        const tablesTooltipNote =
+            dashedNote !== null && (isOrphaned || !isSelectable)
+                ? dashedNote
+                : undefined;
         const isLocked = isFilterLockedOnTab(filter, activeTabUuid, hasTabs);
         // As the shipped view-mode pill: a locked saved filter opens nothing
         const isReadOnlyLocked = kind === 'viewerSaved' && isLocked;
@@ -148,18 +175,25 @@ export const FilterPill: FC<Props> = memo(
             open(filter.id);
         };
 
+        // As a section's name: Alt with an arrow moves it one place
+        const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
+            if (
+                !event.altKey ||
+                (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight')
+            )
+                return;
+            event.preventDefault();
+            moveFilter(filter.id, event.key === 'ArrowLeft' ? 'left' : 'right');
+        };
+
         return (
             <EditorPopover isOpen={isSelected && isSidebarOpen}>
                 <Tooltip
                     fz="xs"
                     maw={300}
-                    disabled={(!isOrphaned && !isSelectable) || isOnAction}
+                    disabled={tooltipLabel === null || isOnAction}
                     openDelay={isOrphaned ? 0 : 500}
-                    label={
-                        isOrphaned
-                            ? orphanedTooltip
-                            : `Click to edit · ${os === 'macos' ? '⌘' : 'Ctrl'} click to select`
-                    }
+                    label={tooltipLabel}
                 >
                     <Box
                         className={classes.pill}
@@ -213,6 +247,7 @@ export const FilterPill: FC<Props> = memo(
                             )}
                             // One tooltip at a time: the hint takes the pill's
                             isTablesTooltipDisabled={isSelected || isSelectable}
+                            tablesTooltipNote={tablesTooltipNote}
                             triggerClassName={triggerClassName}
                             aria-pressed={isSelected || isPicked}
                             data-controls-pill={filter.id}
@@ -227,6 +262,9 @@ export const FilterPill: FC<Props> = memo(
                                 ) : undefined
                             }
                             onClick={handleClick}
+                            onKeyDown={
+                                kind === 'editor' ? handleKeyDown : undefined
+                            }
                         />
                     </Box>
                 </Tooltip>

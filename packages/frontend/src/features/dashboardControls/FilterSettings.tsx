@@ -23,12 +23,18 @@ import { useProjectUuid } from '../../hooks/useProjectUuid';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import {
     selectActiveTabUuid,
+    selectControlSections,
+    selectDashboardFilters,
     selectDashboardTiles,
     selectParameterValues,
     selectSqlChartTilesMetadata,
     useDashboardAllFilters,
     useDashboardSelector,
 } from '../dashboard/store';
+import {
+    isFilterHiddenOnTab,
+    useFilterTabPlacement,
+} from '../dashboardFilters/ActiveFilters/useFilterTabPlacement';
 import {
     getFilterRuleFilterType,
     getUniqueSqlColumns,
@@ -40,7 +46,11 @@ import classes from './FilterEditor.module.css';
 import { FilterValueSettings } from './FilterValueSettings';
 import { focusOnMount } from './mappingFocus';
 import { useRailContractClasses } from './railContractClasses';
-import { useControlsSidebarSelector } from './useControlsSidebar';
+import { getMoveNeighbours } from './sections';
+import {
+    useControlsSidebarSelector,
+    type MoveDirection,
+} from './useControlsSidebar';
 import { useFiltersStartOfWeek } from './useFiltersStartOfWeek';
 import { ViewerControls } from './ViewerControls';
 
@@ -68,6 +78,45 @@ const focusValueOnMount = (node: HTMLElement | null) => {
     // For the popover's focus trap, which focuses it once it is placed
     input?.setAttribute('data-autofocus', '');
     input?.focus({ preventScroll: true });
+};
+
+// The pill's place on the bar, as Alt with an arrow on it. An end stays
+// focusable, so a press that reaches it keeps the focus
+const MoveButtons: FC<{ filterId: string }> = ({ filterId }) => {
+    const filters = useDashboardSelector(selectDashboardFilters);
+    const sections = useDashboardSelector(selectControlSections);
+    const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
+    const { getTabsUsingFilter } = useFilterTabPlacement();
+    const moveFilter = useControlsSidebarSelector((c) => c.moveFilter);
+    const { before, after } = getMoveNeighbours(
+        filters,
+        filterId,
+        sections,
+        (rule) => !isFilterHiddenOnTab(getTabsUsingFilter(rule), activeTabUuid),
+    );
+    const moveButton = (
+        label: string,
+        direction: MoveDirection,
+        isEnd: boolean,
+    ) => (
+        <Button
+            size="xs"
+            variant="default"
+            data-disabled={isEnd || undefined}
+            aria-disabled={isEnd || undefined}
+            onClick={() => {
+                if (!isEnd) moveFilter(filterId, direction);
+            }}
+        >
+            {label}
+        </Button>
+    );
+    return (
+        <Group gap="xs" grow>
+            {moveButton('Move left', 'left', before === null)}
+            {moveButton('Move right', 'right', after === null)}
+        </Group>
+    );
 };
 
 type Props = {
@@ -173,6 +222,7 @@ export const FilterSettings: FC<Props> = ({
                         </Title>
                     </Group>
                     {sectionSelect}
+                    <MoveButtons filterId={rule.id} />
                     <ViewerControls
                         rule={rule}
                         filterType={filterType}

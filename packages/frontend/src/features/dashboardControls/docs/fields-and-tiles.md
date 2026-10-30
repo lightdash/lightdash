@@ -111,10 +111,14 @@ sticky. When a pressed button leaves, focus goes to the region.
 Mounted only in mapping (`isMapping`): opening or editing a value leaves
 every tile as it is. No wash: a tile that can take the filter keeps its
 look under its card; one that cannot dims (its own surface over it), with no
-card. Cards read "Filtered by {field}" on the filter's own field, "Filtered
-via {field}" with the select of fitting fields on another, and "Not
-filtered" with "Filter this tile" (the filter's field the tile has, else
-its first fitting one).
+card. Cards read "Filtered by" on the filter's own field, "Filtered via" on
+another, the select below naming the field (it stays in the heading only
+when the select cannot show it), and "Not filtered" with "Filter this tile"
+(the filter's field the tile has, else its first fitting one). While a chip
+is clicked a card's write on that chip's field goes through `applyWithUndo`
+(`acrossTabs: false`), so the field bar's Undo takes it back; a write on
+another field records none; a card's
+"Stop filtering" that removes a whole field (`remove()`) leaves no undo.
 
 - `data-highlighted` answers only "on this control?" and "on the active
   field?": `filtered`, `mapped` (blue), `other`, `available`, or none. Whether

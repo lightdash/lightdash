@@ -30,6 +30,8 @@ type Props = {
     isTablesTooltipDisabled: boolean;
     /** Default false: the value at weight 500. */
     isValueBold?: boolean;
+    /** A first line in the tables tooltip, shown even with no tables (default none). */
+    tooltipNote?: string;
 };
 
 export const FilterRuleLabel: FC<Props> = ({
@@ -38,6 +40,7 @@ export const FilterRuleLabel: FC<Props> = ({
     truncatedValuesDisplay,
     isTablesTooltipDisabled,
     isValueBold = false,
+    tooltipNote,
 }) => {
     const getUiString = useUiStrings();
     const allFilterableFields = useDashboardContext(
@@ -78,21 +81,29 @@ export const FilterRuleLabel: FC<Props> = ({
                 <Tooltip
                     position="top-start"
                     disabled={
-                        isTablesTooltipDisabled || !filterRuleTables?.length
+                        isTablesTooltipDisabled ||
+                        (!filterRuleTables?.length && tooltipNote === undefined)
                     }
                     openDelay={1000}
                     offset={8}
                     label={
-                        <Text>
-                            {getUiString(
-                                filterRuleTables?.length === 1
-                                    ? 'filters.tableLabel'
-                                    : 'filters.tablesLabel',
+                        <>
+                            {tooltipNote !== undefined && (
+                                <Text>{tooltipNote}</Text>
                             )}
-                            <Text span fw={600}>
-                                {filterRuleTables?.join(', ')}
-                            </Text>
-                        </Text>
+                            {!!filterRuleTables?.length && (
+                                <Text>
+                                    {getUiString(
+                                        filterRuleTables.length === 1
+                                            ? 'filters.tableLabel'
+                                            : 'filters.tablesLabel',
+                                    )}
+                                    <Text span fw={600}>
+                                        {filterRuleTables.join(', ')}
+                                    </Text>
+                                </Text>
+                            )}
+                        </>
                     }
                 >
                     <Text fw={600} span truncate>

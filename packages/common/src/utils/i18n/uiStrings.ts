@@ -385,6 +385,7 @@ export const DEFAULT_UI_STRINGS = {
     'filters.rail.discardFilter': 'Discard filter',
     'filters.rail.discardChanges': 'Discard changes',
     'filters.rail.removeFilter': 'Remove filter',
+    'filters.rail.onlyYouSeeFilter': 'Only you see this filter',
     'filters.rail.confirmRemove': 'Click again to remove',
     'filters.rail.collapse': 'Collapse',
     'filters.rail.collapseFilter': 'Collapse filter',
@@ -475,6 +476,8 @@ export const DEFAULT_UI_STRINGS = {
         'Clear {field} from the other {tiles} on this tab too',
     'filters.tileCard.filteredBy': 'Filtered by {field}',
     'filters.tileCard.filteredVia': 'Filtered via {field}',
+    'filters.tileCard.filteredByHeading': 'Filtered by',
+    'filters.tileCard.filteredViaHeading': 'Filtered via',
     'filters.tileCard.notFilteredLabel': 'Not filtered',
     'filters.tileCard.fieldNotOnTile':
         "The selected field '{field}' is not available on this tile",

@@ -5,6 +5,7 @@ import {
     type DashboardFilterRule,
     type DashboardFilters,
 } from '@lightdash/common';
+import { MantineProvider } from '@mantine/core';
 import {
     act,
     createEvent,
@@ -175,9 +176,11 @@ const Wrapper: FC = () => {
     };
     return (
         <DashboardStoreTestProvider store={dashboardStore}>
-            <ControlsSidebarProvider>
-                <Page />
-            </ControlsSidebarProvider>
+            <MantineProvider>
+                <ControlsSidebarProvider>
+                    <Page />
+                </ControlsSidebarProvider>
+            </MantineProvider>
         </DashboardStoreTestProvider>
     );
 };

@@ -24,6 +24,7 @@ import {
     useState,
     type FC,
 } from 'react';
+import { useWhenAnswered } from '../../../../features/dashboardControls/useControlsSidebar';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { JsonCellModal } from '../../JsonViewer/JsonCellViewer';
 import { type JsonCellValue } from '../../JsonViewer/utils';
@@ -74,7 +75,10 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
     const { copy } = useClipboard();
 
     const [isCopying, setCopying] = useState(false);
-    const [isMenuOpen, { toggle: toggleMenu }] = useDisclosure(false);
+    const [isMenuOpen, { toggle: toggleMenu, open: openMenu }] =
+        useDisclosure(false);
+    // On a dashboard whose filter editor asks first, the menu waits for it
+    const whenAnswered = useWhenAnswered();
     const [jsonModalValue, setJsonModalValue] = useState<
         JsonCellValue | undefined
     >();
@@ -186,7 +190,13 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
                     typeof displayValue === 'string' &&
                     displayValue.includes('\n')
                 }
-                onClick={canHaveMenu ? toggleMenu : undefined}
+                onClick={
+                    canHaveMenu
+                        ? isMenuOpen
+                            ? toggleMenu
+                            : () => whenAnswered(openMenu)
+                        : undefined
+                }
                 // Walkthrough anchor (data-tour-via): a metric cell, whose
                 // menu can open the records behind the number. The name is
                 // computed, so the hint is declared here:

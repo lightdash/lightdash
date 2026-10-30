@@ -75,8 +75,17 @@ _group_ (that is `requiredGroupId`).
 - A drag starts from the pill's grip alone (`PillDragHandleContext` hands
   `setActivatorNodeRef` and the listeners to `FilterPillButton`'s
   `dragHandle`). The wrapper is no tab stop, so Enter and Space on a pill
-  open it; the grip sits inside the pill's button, so there is no keyboard
-  reorder. While a filter is edited the grip is hidden, so no pill drags.
+  open it; the grip sits inside the pill's button, so it has no keyboard
+  drag. While a filter is edited the grip is hidden, so no pill drags.
+- Keyboard reorder: in edit mode Alt+ArrowLeft / Alt+ArrowRight on a pill,
+  and Move left / Move right in its Settings view, move it one place among
+  `getMoveNeighbours` (its kind, its section or the unsectioned run, shown
+  on the tab). `moveFilter(id, 'left' | 'right')` finds the neighbour from
+  the provider's latest state and writes the dashboard at once, as a
+  section move (no edit, Cancel keeps it), refocuses a focused pill and
+  announces the move in the provider's status region (edit mode only; a
+  counter key re-announces the same text). An end stays focusable
+  (`data-disabled`).
 - Targets: every saved pill, each capsule, the first button
   (`UNSECTIONED_TARGET_ID`), "New section" (`NEW_SECTION_TARGET_ID`) and the
   bar's empty space (`BAR_SPACE_TARGET_ID`), which also catches a pointer on

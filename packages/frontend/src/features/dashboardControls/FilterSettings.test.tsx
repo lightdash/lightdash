@@ -6,6 +6,7 @@ import {
     MetricType,
     type DashboardFilterableField,
     type DashboardFilterRule,
+    type DashboardFilters,
 } from '@lightdash/common';
 import { fireEvent, screen } from '@testing-library/react';
 import { useState, type ReactElement } from 'react';
@@ -18,11 +19,14 @@ import { FilterBarPopoversProvider } from '../dashboardFilters/FilterRequirement
 import { useFilterBarPopovers } from '../dashboardFilters/FilterRequirements/useFilterBarPopovers';
 import { FilterSettings, type EditorView } from './FilterSettings';
 
-// No filters and no parameter values in the dashboard store
+// No parameter values in the dashboard store, and no filters unless a test
+// gives them
+let storeFilters: DashboardFilters | undefined;
 const renderWithProviders = (ui: ReactElement) =>
     renderWithAppProviders(
         <DashboardStoreTestProvider
             store={createDashboardTestStore({
+                ...(storeFilters && { dashboardFilters: storeFilters }),
                 parameterValues: {},
                 sqlChartTilesMetadata: mockTileStatus.current
                     .sqlChartTilesMetadata as Record<
@@ -111,6 +115,7 @@ const close = vi.hoisted(() => vi.fn());
 const mockListOpens = vi.hoisted(() => vi.fn());
 const startMapping = vi.hoisted(() => vi.fn());
 const updateOtherFilters = vi.hoisted(() => vi.fn());
+const moveFilter = vi.hoisted(() => vi.fn());
 const mockViewer = vi.hoisted(() => ({
     current: { isViewer: false, canChooseTiles: true },
 }));
@@ -125,6 +130,7 @@ vi.mock('./useControlsSidebar', () => ({
             close,
             updateOtherFilters,
             startMapping,
+            moveFilter,
             isNew: false,
             ...mockViewer.current,
         }),
@@ -206,6 +212,8 @@ const RulesState = () => (
 describe('FilterSettings', () => {
     beforeEach(() => {
         useProject.mockClear();
+        storeFilters = undefined;
+        moveFilter.mockClear();
         mockEmbedded.current = false;
         close.mockClear();
         updateOtherFilters.mockClear();
@@ -455,5 +463,27 @@ describe('FilterSettings', () => {
         expect(
             screen.queryByRole('button', { name: 'Settings' }),
         ).not.toBeInTheDocument();
+    });
+
+    it('moves the pill left or right on the bar, an end staying focusable', () => {
+        const first = rule({ fieldId: 'orders_amount', tableName: 'orders' });
+        storeFilters = {
+            dimensions: [first, { ...first, id: 'filter-2' }],
+            metrics: [],
+            tableCalculations: [],
+        };
+        renderSettings(first, amount);
+        openSettings();
+
+        const left = screen.getByRole('button', { name: 'Move left' });
+        expect(left).toHaveAttribute('aria-disabled', 'true');
+        expect(left).toBeEnabled();
+        fireEvent.click(left);
+        expect(moveFilter).not.toHaveBeenCalled();
+
+        const right = screen.getByRole('button', { name: 'Move right' });
+        expect(right).not.toHaveAttribute('aria-disabled');
+        fireEvent.click(right);
+        expect(moveFilter).toHaveBeenCalledWith('filter-1', 'right');
     });
 });

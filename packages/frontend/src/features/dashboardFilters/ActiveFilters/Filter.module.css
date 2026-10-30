@@ -186,10 +186,9 @@
     border-color: var(--mantine-color-ldGray-3);
 }
 
-/* Not in effect: text, icons and border muted together */
+/* Not in effect: text and icons muted, the border stays */
 .button.button.plain:not([data-in-effect], :disabled),
 .button.button.plain:hover:not([data-in-effect], :disabled) {
-    border-color: var(--mantine-color-ldGray-2);
     color: var(--mantine-color-dimmed);
 }
 

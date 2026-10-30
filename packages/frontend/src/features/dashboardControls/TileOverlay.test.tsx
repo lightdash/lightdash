@@ -294,10 +294,8 @@ describe('TileOverlays', () => {
         };
         renderWithProviders(<TileOverlays />);
 
-        expect(status(both.uuid)).toBe('Filtered by Orders Status');
-        expect(status(statusOnly.uuid)).toBe(
-            'Filtered by Order customer Status',
-        );
+        expect(status(both.uuid)).toBe('Filtered by');
+        expect(status(statusOnly.uuid)).toBe('Filtered by');
         expect(select(statusOnly.uuid)).toHaveTextContent(
             'Order customer Status',
         );
@@ -332,8 +330,9 @@ describe('TileOverlays', () => {
     it('shows the field a filterable tile is filtered by', () => {
         renderWithProviders(<TileOverlays />);
 
-        // Named as the shipped tile select names it: with its table
-        expect(status(both.uuid)).toBe('Filtered by Orders Status');
+        // Named once, in the select, as the shipped tile select names it:
+        // with its table
+        expect(status(both.uuid)).toBe('Filtered by');
         expect(select(both.uuid)).toHaveTextContent('Orders Status');
         expect(select(both.uuid)).toHaveAccessibleName(
             'Status on Title tile-both',
@@ -469,8 +468,9 @@ describe('TileOverlays', () => {
         });
         renderWithProviders(<TileOverlays />);
 
-        expect(status(both.uuid)).toBe('Filtered via Orders Region');
-        expect(status(statusOnly.uuid)).toBe('Filtered by Orders Status');
+        expect(status(both.uuid)).toBe('Filtered via');
+        expect(select(both.uuid)).toHaveTextContent('Orders Region');
+        expect(status(statusOnly.uuid)).toBe('Filtered by');
     });
 
     it('marks a SQL chart tile as available, and as mapped once it is on a column', () => {
@@ -669,6 +669,51 @@ describe('TileOverlays', () => {
         expect(updateFilter.mock.calls[0][0].tileTargets[both.uuid]).toBe(
             false,
         );
+    });
+
+    describe("the field bar's Undo", () => {
+        beforeEach(() => {
+            applyWithUndo.mockClear();
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                dashboardTiles: [both, statusOnly],
+            };
+        });
+
+        it('takes back a card action while a field is clicked', async () => {
+            setSidebar({ highlightedFieldId: 'orders_status::Orders::Status' });
+            renderWithProviders(<TileOverlays />);
+
+            await userEvent.click(clearButton(both.uuid)!);
+            expect(applyWithUndo).toHaveBeenCalledTimes(1);
+            expect(applyWithUndo.mock.calls[0][0].tileTargets).toEqual({
+                [both.uuid]: false,
+            });
+            expect(applyWithUndo.mock.calls[0][1]).toEqual({
+                kind: 'clear',
+                fieldId: 'orders_status::Orders::Status',
+                tileCount: 1,
+                replaced: 0,
+                acrossTabs: false,
+            });
+        });
+
+        it('has nothing to take back when the card writes another field', async () => {
+            setSidebar({ highlightedFieldId: 'orders_region::Orders::Region' });
+            renderWithProviders(<TileOverlays />);
+
+            // Off the Status tile while Region is clicked
+            await userEvent.click(clearButton(both.uuid)!);
+            expect(applyWithUndo).not.toHaveBeenCalled();
+            expect(updateFilter).toHaveBeenCalledTimes(1);
+        });
+
+        it('has nothing to take back with no field clicked', async () => {
+            renderWithProviders(<TileOverlays />);
+            await userEvent.click(clearButton(both.uuid)!);
+            expect(applyWithUndo).not.toHaveBeenCalled();
+            expect(updateFilter).toHaveBeenCalledTimes(1);
+        });
     });
 
     describe('clearing the last tile of a field', () => {
@@ -1446,7 +1491,7 @@ describe('TileOverlays', () => {
         });
         renderWithProviders(<TileOverlays />);
 
-        expect(status(sql.uuid)).toBe('Filtered via amount');
+        expect(status(sql.uuid)).toBe('Filtered via');
         await userEvent.click(select(sql.uuid));
         const options = screen.getAllByRole('option', { hidden: true });
         expect(options.map((option) => option.textContent)).toEqual([
