@@ -1,3 +1,11 @@
+## [3.108.3](https://github.com/lightdash/lightdash/compare/3.108.2...3.108.3) (2026-10-30)
+
+
+### Bug Fixes
+
+* do not fail saving a Slack delivery when the app cannot auto-join the channel ([#31825](https://github.com/lightdash/lightdash/issues/31825)) ([a340614](https://github.com/lightdash/lightdash/commit/a34061471f3505b3072b6670b4c6c1f1c684351f))
+* **mcp:** stub project access in query tool test ([#31844](https://github.com/lightdash/lightdash/issues/31844)) ([b72d43c](https://github.com/lightdash/lightdash/commit/b72d43c99cabcd3af5abcc62d36e77e7e2efd43e)), closes [#31783](https://github.com/lightdash/lightdash/issues/31783) [#31814](https://github.com/lightdash/lightdash/issues/31814)
+
 ## [3.108.2](https://github.com/lightdash/lightdash/compare/3.108.1...3.108.2) (2026-10-30)
 
 
