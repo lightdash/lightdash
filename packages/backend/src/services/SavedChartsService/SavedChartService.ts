@@ -2368,7 +2368,7 @@ export class SavedChartService
                     access,
                     metadata: {
                         resolvedSpaceUuid,
-                        dashboardUuid: chartToSave.dashboardUuid,
+                        dashboardUuid: dashboard?.uuid,
                     },
                 }),
             )
@@ -2410,7 +2410,29 @@ export class SavedChartService
             );
         }
 
-        if (!resolvedSpaceUuid && !chartToSave.dashboardUuid) {
+        const chartBase = {
+            ...chartToSave,
+            chartConfig: applyNewChartDefaults(chartToSave.chartConfig),
+            slug: generateSlug(chartToSave.name),
+            updatedByUser: user,
+        };
+        let chartToCreate: CreateSavedChart & {
+            updatedByUser: UpdatedByUser;
+            slug: string;
+        };
+        if (resolvedSpaceUuid) {
+            chartToCreate = {
+                ...chartBase,
+                spaceUuid: resolvedSpaceUuid,
+                dashboardUuid: null,
+            };
+        } else if (dashboard) {
+            chartToCreate = {
+                ...chartBase,
+                dashboardUuid: dashboard.uuid,
+                spaceUuid: null,
+            };
+        } else {
             throw new Error(
                 'Unable to save chart; no space or dashboard provided.',
             );
@@ -2421,22 +2443,6 @@ export class SavedChartService
             chartToSave.metricQuery,
         );
 
-        const chartConfig = applyNewChartDefaults(chartToSave.chartConfig);
-        const chartToCreate = resolvedSpaceUuid
-            ? {
-                  ...chartToSave,
-                  chartConfig,
-                  spaceUuid: resolvedSpaceUuid,
-                  dashboardUuid: null as null,
-                  slug: generateSlug(chartToSave.name),
-                  updatedByUser: user,
-              }
-            : {
-                  ...chartToSave,
-                  chartConfig,
-                  slug: generateSlug(chartToSave.name),
-                  updatedByUser: user,
-              };
         const newSavedChart = await this.savedChartModel.create(
             projectUuid,
             user.userUuid,
