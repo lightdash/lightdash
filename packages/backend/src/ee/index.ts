@@ -850,6 +850,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     }),
                     shareService: repository.getShareService(),
                     fileStorageClient: clients.getFileStorageClient(),
+                    uploadsFileStorageClient:
+                        clients.getUploadsFileStorageClient(),
                     downloadFileModel: models.getDownloadFileModel(),
                     slackUnfurlImageModel: models.getSlackUnfurlImageModel(),
                     persistentDownloadFileService:
@@ -965,12 +967,17 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         aiModelCatalog,
                     }),
                 }),
-            aiThreadFileService: ({ models, repository }) =>
+            aiThreadFileService: ({ models, repository, clients, context }) =>
                 new AiThreadFileService({
                     aiThreadFileModel:
                         models.getAiThreadFileModel<AiThreadFileModel>(),
                     aiAgentService:
                         repository.getAiAgentService<AiAgentService>(),
+                    featureFlagModel: models.getFeatureFlagModel(),
+                    uploadsFileStorageClient:
+                        clients.getUploadsFileStorageClient(),
+                    durableUploadsConfigured:
+                        context.lightdashConfig.uploads.s3 !== null,
                 }),
             aiAgentSkillService: ({ models, repository, context }) =>
                 new AiAgentSkillService({
