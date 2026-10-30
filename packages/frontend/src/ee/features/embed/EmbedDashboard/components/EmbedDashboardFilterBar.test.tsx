@@ -50,13 +50,7 @@ vi.mock('../../../../../features/dashboardControls/FilterPills', async () => {
     const { default: DashboardContext } =
         await import('../../../../../providers/Dashboard/context');
     return {
-        FilterPills: ({
-            triggerClassName,
-            dropdownClassName,
-        }: {
-            triggerClassName?: string;
-            dropdownClassName?: string;
-        }) => {
+        FilterPills: ({ triggerClassName }: { triggerClassName?: string }) => {
             const isFirstLoad = useContextSelector(
                 DashboardContext,
                 (c) => c?.isLoadingDashboardFilters === true,
@@ -65,7 +59,6 @@ vi.mock('../../../../../features/dashboardControls/FilterPills', async () => {
                 <div
                     data-testid="rail-pills"
                     className={triggerClassName}
-                    data-dropdown-class={dropdownClassName}
                     data-skeletons={isFirstLoad || undefined}
                 />
             );
@@ -76,19 +69,19 @@ vi.mock('../../../../../features/dashboardControls/SectionedFilters', () => ({
     SectionedFilters: ({
         viewerActions,
         triggerClassName,
-        dropdownClassName,
     }: {
         viewerActions: ReactNode;
         triggerClassName?: string;
-        dropdownClassName?: string;
     }) => (
-        <div
-            data-testid="sectioned-filters"
-            className={triggerClassName}
-            data-dropdown-class={dropdownClassName}
-        >
+        <div data-testid="sectioned-filters" className={triggerClassName}>
             {viewerActions}
         </div>
+    ),
+}));
+// Reads the rail's provider, which the page puts around the bar
+vi.mock('../../../../../features/dashboardControls/ControlsBar', () => ({
+    MappingSwap: ({ children }: { children: ReactNode }) => (
+        <div data-testid="mapping-swap">{children}</div>
     ),
 }));
 vi.mock('./EmbedDashboardFilters', () => ({
@@ -176,6 +169,16 @@ describe('EmbedDashboardFilterBar', () => {
         renderBar(true, false);
         expect(screen.getByTestId('shipped-filters')).toBeInTheDocument();
         expect(screen.queryByTestId('rail-pills')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('mapping-swap')).not.toBeInTheDocument();
+    });
+
+    it("gives the rail's bar the mapping row's place, so a viewer can choose tiles", () => {
+        renderBar(true, true);
+        expect(
+            within(screen.getByTestId('mapping-swap')).getByTestId(
+                'rail-pills',
+            ),
+        ).toBeInTheDocument();
     });
 
     it('opens the rail from "Add filter" and the pills, with the class contract', () => {
@@ -193,11 +196,6 @@ describe('EmbedDashboardFilterBar', () => {
         expect(screen.getByTestId('rail-pills')).toHaveClass(
             'ld-dashboard-filter',
         );
-        // A saved pill's shipped popover carries the dropdown class
-        expect(screen.getByTestId('rail-pills')).toHaveAttribute(
-            'data-dropdown-class',
-            'ld-dashboard-filter-dropdown',
-        );
         expect(
             screen.queryByRole('button', { name: 'Reset' }),
         ).not.toBeInTheDocument();
@@ -214,10 +212,6 @@ describe('EmbedDashboardFilterBar', () => {
         renderWithProviders(barElement(false, true, sectionedStore()));
         const sectioned = screen.getByTestId('sectioned-filters');
         expect(sectioned).toHaveClass('ld-dashboard-filter');
-        expect(sectioned).toHaveAttribute(
-            'data-dropdown-class',
-            'ld-dashboard-filter-dropdown',
-        );
         // "Add filter" and the reset lead the sectioned bar
         expect(
             within(sectioned).getByRole('button', { name: 'Rail add' }),

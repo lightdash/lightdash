@@ -17,6 +17,10 @@ type Props = {
     onPopoverClose: () => void;
     triggerClassName?: string;
     dropdownClassName?: string;
+    /** Passed to each `Filter` (default false). */
+    isPlain?: boolean;
+    /** Passed to each `Filter` (default none). */
+    tablesTooltipNote?: string;
 };
 
 export const TemporaryFilters: FC<Props> = ({
@@ -27,6 +31,8 @@ export const TemporaryFilters: FC<Props> = ({
     onPopoverClose,
     triggerClassName,
     dropdownClassName,
+    isPlain = false,
+    tablesTooltipNote,
 }) => {
     const dashboardTemporaryFilters = useDashboardTemporaryFilters();
     const allFilterableFieldsMap = useDashboardContext(
@@ -76,6 +82,8 @@ export const TemporaryFilters: FC<Props> = ({
                         filterRule={item}
                         triggerClassName={triggerClassName}
                         dropdownClassName={dropdownClassName}
+                        isPlain={isPlain}
+                        tablesTooltipNote={tablesTooltipNote}
                         openPopoverId={openPopoverId}
                         onPopoverOpen={onPopoverOpen}
                         onPopoverClose={onPopoverClose}
@@ -125,6 +133,8 @@ export const TemporaryFilters: FC<Props> = ({
                         filterRule={item}
                         triggerClassName={triggerClassName}
                         dropdownClassName={dropdownClassName}
+                        isPlain={isPlain}
+                        tablesTooltipNote={tablesTooltipNote}
                         openPopoverId={openPopoverId}
                         onPopoverOpen={onPopoverOpen}
                         onPopoverClose={onPopoverClose}

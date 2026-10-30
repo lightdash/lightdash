@@ -1,4 +1,8 @@
-import { FilterOperator, type DashboardFilters } from '@lightdash/common';
+import {
+    FilterOperator,
+    type DashboardControlSection,
+    type DashboardFilters,
+} from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -21,6 +25,7 @@ const mockSidebar = vi.hoisted(() => ({
         canAddFilters: true,
         isNew: false,
         isPlaceholder: false,
+        editingRule: null as { sectionId?: string } | null,
         openNew: vi.fn(),
     },
 }));
@@ -33,7 +38,10 @@ const mockDashboardContext = vi.hoisted(() => ({
 const mockTileStatus = vi.hoisted(() => ({
     current: { sqlChartTilesMetadata: {} } as Record<string, unknown>,
 }));
-const renderWithProviders = (ui: ReactElement) =>
+const renderWithProviders = (
+    ui: ReactElement,
+    controlSections: DashboardControlSection[] = [],
+) =>
     renderWithAppProviders(
         <DashboardStoreTestProvider
             store={seedDashboardEditState(
@@ -46,7 +54,12 @@ const renderWithProviders = (ui: ReactElement) =>
                         SqlChartTileMetadata
                     >,
                 }),
-                mockDashboardContext.current as DashboardEditTestValues,
+                {
+                    ...(mockDashboardContext.current as DashboardEditTestValues),
+                    dashboard: {
+                        config: { isDateZoomDisabled: false, controlSections },
+                    },
+                } as DashboardEditTestValues,
             )}
         >
             {ui}
@@ -74,6 +87,7 @@ describe('AddControl', () => {
             canAddFilters: true,
             isNew: false,
             isPlaceholder: false,
+            editingRule: null,
             openNew: vi.fn(),
         };
         mockFilters.current = undefined;
@@ -103,6 +117,47 @@ describe('AddControl', () => {
         fireEvent.click(add());
 
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    it('anchors the editor of a new filter until its field is picked', () => {
+        const editor = () => document.querySelector('[data-controls-editor]');
+        const { unmount } = renderWithProviders(<AddControl />);
+        expect(editor()).toBeNull();
+        unmount();
+
+        mockSidebar.current = {
+            ...mockSidebar.current,
+            isSidebarOpen: true,
+            isNew: true,
+            isPlaceholder: true,
+        };
+        const { unmount: unmountPicking } = renderWithProviders(<AddControl />);
+        expect(editor()).not.toBeNull();
+        unmountPicking();
+
+        // Picked: the editor moves to the new filter's pill
+        mockSidebar.current = { ...mockSidebar.current, isPlaceholder: false };
+        renderWithProviders(<AddControl />);
+        expect(editor()).toBeNull();
+    });
+
+    it("leaves a new filter started from a section's + to that +, unless the section is gone", () => {
+        const editor = () => document.querySelector('[data-controls-editor]');
+        mockSidebar.current = {
+            ...mockSidebar.current,
+            isSidebarOpen: true,
+            isNew: true,
+            isPlaceholder: true,
+            editingRule: { sectionId: 's' },
+        };
+        const { unmount } = renderWithProviders(<AddControl />, [
+            { id: 's', name: 'Dates' },
+        ]);
+        expect(editor()).toBeNull();
+        unmount();
+
+        renderWithProviders(<AddControl />);
+        expect(editor()).not.toBeNull();
     });
 
     it('is "Add filter", which opens a new one, with a menu in place of the shipped eye', () => {
@@ -143,35 +198,46 @@ describe('AddControl', () => {
         ]);
     });
 
-    it('lets viewers add filters from a checkbox that keeps the menu open', async () => {
-        renderWithProviders(<AddControl />);
+    const openMenu = () =>
         fireEvent.click(
             screen.getByRole('button', { name: 'Filter bar settings' }),
         );
+
+    it('hides "Add filter" from viewers with an item named for the action, which closes the menu', async () => {
+        renderWithProviders(<AddControl />);
+        openMenu();
         const item = await screen.findByRole('menuitem', {
-            name: 'Viewers can add filters',
+            name: 'Hide for viewers',
         });
-        expect(screen.getByRole('checkbox')).toBeChecked();
+        expect(screen.queryByRole('menuitemcheckbox')).not.toBeInTheDocument();
+        expect(screen.queryByRole('switch')).not.toBeInTheDocument();
+        expect(item.querySelector('.tabler-icon-eye-off')).not.toBeNull();
 
         fireEvent.click(item);
 
+        expect(setIsAddFilterDisabled).toHaveBeenCalledTimes(1);
         expect(setIsAddFilterDisabled).toHaveBeenCalledWith(true);
-        expect(
-            screen.getByRole('menuitem', { name: 'Viewers can add filters' }),
-        ).toBeInTheDocument();
+        await waitFor(() =>
+            expect(
+                screen.queryByRole('menuitem', {
+                    name: 'Hide for viewers',
+                }),
+            ).not.toBeInTheDocument(),
+        );
     });
 
-    it('shows the box unchecked while viewers cannot add filters', async () => {
+    it('shows "Add filter" to viewers again while it is hidden from them', async () => {
         mockDashboardContext.current.isAddFilterDisabled = true;
         renderWithProviders(<AddControl />);
-        fireEvent.click(
-            screen.getByRole('button', { name: 'Filter bar settings' }),
-        );
-        fireEvent.click(
-            await screen.findByRole('menuitem', {
-                name: 'Viewers can add filters',
-            }),
-        );
+        openMenu();
+        const item = await screen.findByRole('menuitem', {
+            name: 'Show for viewers',
+        });
+        expect(item.querySelector('.tabler-icon-eye')).not.toBeNull();
+
+        item.focus();
+        await userEvent.keyboard('{Enter}');
+        expect(setIsAddFilterDisabled).toHaveBeenCalledTimes(1);
         expect(setIsAddFilterDisabled).toHaveBeenCalledWith(false);
     });
 
@@ -237,8 +303,12 @@ describe('AddControl', () => {
             const note = () =>
                 screen.getByLabelText<HTMLTextAreaElement>('Note for viewers');
             await userEvent.click(settings());
+            // Hidden to jsdom: the menu's floating reference has no size
             await userEvent.click(
-                await screen.findByRole('menuitem', { name: /Filter rules/ }),
+                await screen.findByRole('menuitem', {
+                    name: /Filter rules/,
+                    hidden: true,
+                }),
             );
             await userEvent.type(
                 await screen.findByLabelText('Note for viewers'),
@@ -248,7 +318,7 @@ describe('AddControl', () => {
             await userEvent.click(settings());
             await userEvent.click(
                 await screen.findByRole('menuitem', {
-                    name: 'Viewers can add filters',
+                    name: 'Hide for viewers',
                     hidden: true,
                 }),
             );
@@ -256,8 +326,10 @@ describe('AddControl', () => {
             expect(setIsAddFilterDisabled).toHaveBeenCalledWith(true);
             expect(note().value).toBe('Pick a region');
 
+            // The item closed the menu, as the shipped pin item does
+            await userEvent.click(settings());
             await userEvent.click(
-                screen.getByRole('menuitem', {
+                await screen.findByRole('menuitem', {
                     name: /Filter rules/,
                     hidden: true,
                 }),

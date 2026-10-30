@@ -154,6 +154,30 @@ events and render as unknown, with the project ID available for attribution.
 No tenant IDs, project names, credentials or internal issue links are embedded in
 the managed content.
 
+## Embed
+
+The managed `lightdash-analytics-embed` dashboard is installed by project creation
+and **Sync content**. Its **Audience** tab shows observed dashboard loads,
+distinct supplied external viewer IDs, active dashboards, daily and weekly trends,
+popular dashboards and viewer-ID coverage. **Query health** shows query volume,
+errors, outcomes, caching and median/P95 successful request-start response time.
+Number, line, bar and donut charts summarize usage; a custom ranking chart keeps
+long dashboard IDs in tooltips while leaving room for the bars. The Date filter maps
+to both models and defaults to the last 30 completed UTC days.
+
+Loads represent observed authorized embedded-dashboard fetches, not successful
+browser rendering or billed visits. Repeat fetches count, browser-cached views can
+be absent, and dashboard tiles can generate multiple queries. External IDs are
+supplied by the embedding application; missing IDs and token issuers do not become
+viewers. Unidentified loads remain in the totals and have a separate coverage
+segment. Latest captured dashboard names retain their IDs so equal names do not merge.
+
+Load capture starts with this version and has no historical backfill. Existing
+query history can cover a different period. Missing query timing is excluded from
+latency; missing cache flags remain unknown. This dashboard does not infer tenants
+from user attributes, reconcile invoices or provide a complete embed dependency
+inventory. Absence of observed usage is not evidence that content is safe to delete.
+
 ## Future work
 
 There is no out-of-date detection or installed version in this PR. Every Sync

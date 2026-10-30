@@ -184,10 +184,13 @@ describe('OrganizationSetup', () => {
             },
             health: {
                 mode: LightdashMode.DEFAULT,
+                license: { hasLicenseKey: true, valid: true },
             },
         });
 
         const nameInput = await screen.findByPlaceholderText('Acme Analytics');
+        expect(screen.getByText('Brand')).toBeInTheDocument();
+        expect(screen.getByText('Revenue overview')).toBeInTheDocument();
         await user.clear(nameInput);
         await user.type(nameInput, 'test organization');
         await user.click(
@@ -492,6 +495,73 @@ describe('OrganizationSetup', () => {
         );
     });
 
+    it.each([false, true])(
+        'completes setup without branding when license is invalid (has key: %s)',
+        async (hasLicenseKey) => {
+            const user = userEvent.setup();
+            mockOrgApi('');
+            mockOrgApi('New organization', { optional: true });
+            const fetchBrand = vi.fn(() => ({ status: 'ok', results: null }));
+            const saveBrand = vi.fn(() => ({ status: 'ok', results: null }));
+            nock(BASE_API_URL)
+                .post('/api/v1/org/brand/fetch')
+                .optionally()
+                .reply(200, fetchBrand);
+            nock(BASE_API_URL)
+                .put('/api/v1/org/brand')
+                .optionally()
+                .reply(200, saveBrand);
+            const complete = nock(BASE_API_URL)
+                .patch('/api/v1/user/me/complete')
+                .reply(200, {
+                    status: 'ok',
+                    results: {
+                        isSetupComplete: true,
+                        organizationName: 'New organization',
+                    },
+                });
+            renderSetupPage({
+                user: {
+                    isSetupComplete: false,
+                    organizationName: '',
+                    email: 'demo@lightdash.com',
+                },
+                health: {
+                    mode: LightdashMode.DEFAULT,
+                    hasBrandfetch: true,
+                    license: { hasLicenseKey, valid: false },
+                },
+            });
+            await screen.findByPlaceholderText('Acme Analytics');
+            expect(screen.queryByText('Brand')).not.toBeInTheDocument();
+            expect(
+                screen.queryByRole('button', { name: /Select theme color/ }),
+            ).not.toBeInTheDocument();
+            expect(screen.getByText('Revenue overview')).toBeInTheDocument();
+            expect(
+                screen.getByText('A preview of Lightdash.'),
+            ).toBeInTheDocument();
+            await user.click(
+                await screen.findByRole('button', { name: 'Continue' }),
+            );
+            await selectRole(user);
+            await user.type(
+                await screen.findByRole('textbox', {
+                    name: /How did you hear about us/,
+                }),
+                'A colleague',
+            );
+            await user.click(
+                await screen.findByRole('button', { name: 'Finish' }),
+            );
+            await screen.findByText('Home page');
+            expect(complete.isDone()).toBe(true);
+            expect(fetchBrand).not.toHaveBeenCalled();
+            expect(saveBrand).not.toHaveBeenCalled();
+            expect(toasterMocks.showToastApiError).not.toHaveBeenCalled();
+        },
+    );
+
     it('applies the sanitized brand name when detection resolves after the workspace step', async () => {
         const user = userEvent.setup();
 
@@ -512,6 +582,7 @@ describe('OrganizationSetup', () => {
             health: {
                 mode: LightdashMode.DEFAULT,
                 hasBrandfetch: true,
+                license: { hasLicenseKey: true, valid: true },
             },
         });
 
@@ -565,6 +636,7 @@ describe('OrganizationSetup', () => {
             health: {
                 mode: LightdashMode.DEFAULT,
                 hasBrandfetch: true,
+                license: { hasLicenseKey: true, valid: true },
             },
         });
 
@@ -616,6 +688,7 @@ describe('OrganizationSetup', () => {
             health: {
                 mode: LightdashMode.DEFAULT,
                 hasBrandfetch: true,
+                license: { hasLicenseKey: true, valid: true },
             },
         });
 

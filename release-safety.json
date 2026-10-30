@@ -1,14 +1,29 @@
 {
   "schemaVersion": "2",
-  "version": "3.108.4",
-  "previousVersion": "3.108.3",
-  "releaseDate": "2026-10-30T11:53:53.699Z",
+  "version": "3.114.0",
+  "previousVersion": "3.113.0",
+  "releaseDate": "2026-10-30T17:19:00.627Z",
   "migrations": {
-    "present": false,
-    "count": 0,
+    "present": true,
+    "count": 1,
     "coreCount": 0,
-    "eeCount": 0,
-    "files": []
+    "eeCount": 1,
+    "files": [
+      {
+        "name": "20261029160000_add_organization_brand_logo_files.ts",
+        "edition": "ee",
+        "tables": [
+          "organization_brand_logo_files",
+          "organizations",
+          "users"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": true
+        }
+      }
+    ]
   },
   "compatibility": {
     "rollingUpdateSafe": true,

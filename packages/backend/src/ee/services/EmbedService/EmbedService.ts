@@ -64,6 +64,7 @@ import {
     NotFoundError,
     NotSupportedError,
     ParameterError,
+    ProjectType,
     QueryExecutionContext,
     resolveQueryTimezone,
     RunQueryTags,
@@ -741,37 +742,61 @@ export class EmbedService extends BaseService {
             };
         }
 
-        this.analytics.trackAccount<EmbedDashboardViewed>(account, {
-            event: 'embed_dashboard.viewed',
-            properties: {
-                projectId: dashboard.projectUuid,
-                dashboardId: dashboard.uuid,
-                context: isPreview ? 'preview' : 'production',
-                tilesCount: dashboard.tiles.length,
-                chartTilesCount: dashboard.tiles.filter(
-                    isDashboardChartTileType,
-                ).length,
-                sqlChartTilesCount: dashboard.tiles.filter(
-                    isDashboardSqlChartTile,
-                ).length,
-                canExportCsv,
-                canExportImages,
-                canExportPagePdf: canExportPagePdf ?? true,
-                canDateZoom,
-                stickyHeader,
-                ...(account.access.filtering
-                    ? {
-                          dashboardFiltersInteractivity: {
-                              ...account.access.filtering,
-                              // when value is boolean, convert it to FilterInteractivityValues so that we can track it consistently
-                              enabled: getFilterInteractivityValue(
-                                  account.access.filtering.enabled,
-                              ),
-                          },
-                      }
-                    : {}),
+        const explicitExternalId = decodedToken.user?.externalId;
+        this.analytics.trackAccount<EmbedDashboardViewed>(
+            account,
+            {
+                event: 'embed_dashboard.viewed',
+                properties: {
+                    projectId: dashboard.projectUuid,
+                    dashboardId: dashboard.uuid,
+                    context: isPreview ? 'preview' : 'production',
+                    tilesCount: dashboard.tiles.length,
+                    chartTilesCount: dashboard.tiles.filter(
+                        isDashboardChartTileType,
+                    ).length,
+                    sqlChartTilesCount: dashboard.tiles.filter(
+                        isDashboardSqlChartTile,
+                    ).length,
+                    canExportCsv,
+                    canExportImages,
+                    canExportPagePdf: canExportPagePdf ?? true,
+                    canDateZoom,
+                    stickyHeader,
+                    ...(account.access.filtering
+                        ? {
+                              dashboardFiltersInteractivity: {
+                                  ...account.access.filtering,
+                                  // when value is boolean, convert it to FilterInteractivityValues so that we can track it consistently
+                                  enabled: getFilterInteractivityValue(
+                                      account.access.filtering.enabled,
+                                  ),
+                              },
+                          }
+                        : {}),
+                },
             },
-        });
+            {
+                contentId: dashboard.uuid,
+                contentType: 'dashboard',
+                contentName: dashboard.name,
+                projectName: dashboard.projectName ?? null,
+                spaceId: dashboard.spaceUuid,
+                spaceName: dashboard.spaceName,
+                createdAt: dashboard.createdAt?.toISOString() ?? null,
+                isVerified: !!dashboard.verification,
+                context:
+                    isPreview || dashboard.projectType === ProjectType.PREVIEW
+                        ? 'preview'
+                        : 'embed',
+                actorType: 'embed',
+                externalUserId:
+                    typeof explicitExternalId === 'string' &&
+                    explicitExternalId.trim()
+                        ? explicitExternalId
+                        : null,
+            },
+        );
         return {
             ...dashboard,
             inheritsFromOrgOrProject: true,

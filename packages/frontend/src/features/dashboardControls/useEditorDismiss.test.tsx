@@ -5,12 +5,21 @@ import {
     type DashboardFilterRule,
     type DashboardFilters,
 } from '@lightdash/common';
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { MantineProvider } from '@mantine/core';
+import {
+    act,
+    createEvent,
+    fireEvent,
+    render,
+    screen,
+    waitFor,
+} from '@testing-library/react';
 import { useState, type FC, type SetStateAction } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createDashboardTestStore } from '../../testing/dashboardStore';
 import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
 import {
+    dashboardEditActions,
     dashboardFiltersActions,
     selectDashboardFilters,
     selectHaveFiltersChanged,
@@ -77,6 +86,12 @@ const Page: FC = () => {
                         onClick={() => openNew()}
                     />
                 </div>
+                <button
+                    type="button"
+                    data-section-add="s"
+                    aria-label="Add filter to Dates"
+                    onClick={() => openNew('s')}
+                />
                 {filters.dimensions.map((filter) => (
                     <button
                         key={filter.id}
@@ -93,6 +108,7 @@ const Page: FC = () => {
                 <div data-controls-editor data-testid="editor">
                     <input
                         aria-label="Label"
+                        data-controls-label
                         onBlur={() => onLabelBlur(sidebar.current?.editing)}
                     />
                     <button type="button" aria-pressed>
@@ -160,9 +176,11 @@ const Wrapper: FC = () => {
     };
     return (
         <DashboardStoreTestProvider store={dashboardStore}>
-            <ControlsSidebarProvider>
-                <Page />
-            </ControlsSidebarProvider>
+            <MantineProvider>
+                <ControlsSidebarProvider>
+                    <Page />
+                </ControlsSidebarProvider>
+            </MantineProvider>
         </DashboardStoreTestProvider>
     );
 };
@@ -202,21 +220,40 @@ describe('dismissing in the controls editor', () => {
             expect(pill('a')).toHaveFocus();
         });
 
-        it('withdraws the question a pill asked and keeps the edit, focus on Apply', () => {
+        it('withdraws the question a pill asked and keeps the edit, focus on Apply', async () => {
             act(() => value().updateFilter({ ...rule('a'), values: ['9'] }));
             fireEvent.click(pill('b'));
-            expect(value().pendingRule?.id).toBe('b');
+            expect(value().isAsking).toBe(true);
 
             escape(apply());
-            expect(value().pendingRule).toBeNull();
+            expect(value().isAsking).toBe(false);
             expect(value().editing).toEqual({ filterId: 'a' });
-            expect(apply()).toHaveFocus();
+            await waitFor(() => expect(apply()).toHaveFocus());
+        });
+
+        it('withdraws the question from anywhere, focus back in the editor', async () => {
+            act(() => value().updateFilter({ ...rule('a'), values: ['9'] }));
+            fireEvent.click(pill('b'));
+            act(() => (document.activeElement as HTMLElement | null)?.blur());
+
+            escape(document.body);
+            expect(value().isAsking).toBe(false);
+            expect(value().editing).toEqual({ filterId: 'a' });
+            await waitFor(() => expect(apply()).toHaveFocus());
         });
 
         it('lets the label commit before it closes', () => {
             escape(label());
             // Blurred while the editor was still open on the filter
             expect(onLabelBlur).toHaveBeenCalledWith({ filterId: 'a' });
+        });
+
+        it('leaves focus where it is on anything but the label', () => {
+            const row = screen.getByRole('button', { name: 'Field row' });
+            act(() => row.focus());
+            const blur = vi.spyOn(row, 'blur');
+            escape(row);
+            expect(blur).not.toHaveBeenCalled();
         });
 
         it('clears a clicked field first and closes on the next press', () => {
@@ -232,16 +269,19 @@ describe('dismissing in the controls editor', () => {
             expect(value().isSidebarOpen).toBe(false);
         });
 
-        it('clears a clicked field from the page, and never closes from there', () => {
+        it('clears a clicked field from the page, then closes from there, never from elsewhere', () => {
             clickField();
             act(() => label().blur());
 
             escape();
             expect(value().highlightedFieldId).toBeNull();
 
-            escape();
             escape(screen.getByRole('button', { name: 'Tile card' }));
             expect(value().isSidebarOpen).toBe(true);
+
+            // Focus lost to the page still belongs to the open editor
+            escape();
+            expect(value().isSidebarOpen).toBe(false);
         });
 
         it.each([
@@ -279,7 +319,7 @@ describe('dismissing in the controls editor', () => {
                     dimensions: [{ ...rule('a'), values: ['9'] }],
                 }),
             );
-            expect(value().pendingRule).toBeNull();
+            expect(value().isAsking).toBe(false);
 
             escape(apply());
             expect(value().isSidebarOpen).toBe(false);
@@ -371,6 +411,101 @@ describe('dismissing in the controls editor', () => {
         });
     });
 
+    describe('a press outside the editor', () => {
+        const press = (target: Element) => fireEvent.pointerDown(target);
+        const savedA = () =>
+            selectDashboardFilters(store.current!.getState()).dimensions[0];
+
+        it('closes a clean edit', () => {
+            press(screen.getByText('Tile card'));
+            expect(value().isSidebarOpen).toBe(false);
+        });
+
+        it('asks first with unapplied changes, and Discard drops them', () => {
+            act(() => value().updateFilter({ ...rule('a'), values: ['9'] }));
+            press(document.body);
+            expect(value().isSidebarOpen).toBe(true);
+            expect(value().isAsking).toBe(true);
+
+            act(() => value().resolvePending(false));
+            expect(value().isSidebarOpen).toBe(false);
+            expect(savedA()).toEqual(rule('a'));
+        });
+
+        it('asks first, and Apply writes the draft and closes', () => {
+            act(() => value().updateFilter({ ...rule('a'), values: ['9'] }));
+            press(document.body);
+            act(() => value().resolvePending(true));
+            expect(value().isSidebarOpen).toBe(false);
+            expect(savedA().values).toEqual(['9']);
+        });
+
+        it.each([
+            ['the editor', () => screen.getByTestId('editor')],
+            ['a pill, whose click switches', () => pill('b')],
+        ])('on %s does nothing', (_, getTarget) => {
+            press(getTarget());
+            expect(value().isSidebarOpen).toBe(true);
+            expect(value().isAsking).toBe(false);
+        });
+
+        it('keeps focus where the question put it: its mousedown is prevented', () => {
+            act(() => value().updateFilter({ ...rule('a'), values: ['9'] }));
+            press(screen.getByText('Tile card'));
+            expect(value().isAsking).toBe(true);
+            const mouseDown = createEvent.mouseDown(
+                screen.getByText('Tile card'),
+            );
+            fireEvent(screen.getByText('Tile card'), mouseDown);
+            expect(mouseDown.defaultPrevented).toBe(true);
+
+            // The next press is its own
+            act(() => value().resolvePending(false));
+            const later = createEvent.mouseDown(document.body);
+            fireEvent(document.body, later);
+            expect(later.defaultPrevented).toBe(false);
+        });
+
+        it('leaves the mousedown of a press that closed a clean edit alone', () => {
+            const target = screen.getByText('Tile card');
+            press(target);
+            expect(value().isSidebarOpen).toBe(false);
+            const mouseDown = createEvent.mouseDown(target);
+            fireEvent(target, mouseDown);
+            expect(mouseDown.defaultPrevented).toBe(false);
+        });
+
+        it('dismisses a new filter with nothing picked outright, even with its list open, but not from the list', () => {
+            act(() => value().openNew());
+            expect(value().isPlaceholder).toBe(true);
+            const search = document.createElement('input');
+            search.setAttribute('aria-haspopup', 'listbox');
+            search.setAttribute('data-expanded', 'true');
+            document.body.appendChild(search);
+            const list = document.createElement('div');
+            list.setAttribute('role', 'listbox');
+            document.body.appendChild(list);
+
+            press(list);
+            expect(value().isSidebarOpen).toBe(true);
+
+            press(screen.getByText('Tile card'));
+            expect(value().isSidebarOpen).toBe(false);
+            search.remove();
+            list.remove();
+        });
+
+        it('only closes an open list', () => {
+            const target = document.createElement('input');
+            target.setAttribute('aria-haspopup', 'listbox');
+            target.setAttribute('data-expanded', 'true');
+            document.body.appendChild(target);
+            press(document.body);
+            expect(value().isSidebarOpen).toBe(true);
+            target.remove();
+        });
+    });
+
     describe('focus after the editor is gone', () => {
         it('returns to the pill after Apply and after Cancel', () => {
             fireEvent.click(apply());
@@ -418,6 +553,50 @@ describe('dismissing in the controls editor', () => {
             fireEvent.click(apply());
 
             expect(pill(newId ?? '')).toHaveFocus();
+        });
+
+        it("goes to the section's + after a new control from it ends, unless its pill takes it", () => {
+            const sectionAdd = () =>
+                screen.getByRole('button', { name: 'Add filter to Dates' });
+            const status = {
+                fieldType: FieldType.DIMENSION,
+                type: DimensionType.STRING,
+                name: 'status',
+                label: 'Status',
+                table: 'orders',
+                tableLabel: 'Orders',
+                sql: '${TABLE}.status',
+                hidden: false,
+            } as const;
+            fireEvent.click(apply());
+            act(() => {
+                store.current?.dispatch(
+                    dashboardEditActions.syncControlSections([
+                        { id: 's', name: 'Dates' },
+                    ]),
+                );
+            });
+
+            // Cancelled with no field
+            fireEvent.click(sectionAdd());
+            act(() => label().focus());
+            escape(label());
+            expect(value().isSidebarOpen).toBe(false);
+            expect(sectionAdd()).toHaveFocus();
+
+            // Cancelled with a field
+            fireEvent.click(sectionAdd());
+            act(() => value().addFirstField(status));
+            fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+            expect(sectionAdd()).toHaveFocus();
+
+            // Applied where its pill is not on screen (a folded section)
+            disabledPills.current = true;
+            fireEvent.click(sectionAdd());
+            act(() => value().addFirstField(status));
+            fireEvent.click(apply());
+            disabledPills.current = false;
+            expect(sectionAdd()).toHaveFocus();
         });
 
         it('goes to "Add" when the pill cannot take it', () => {

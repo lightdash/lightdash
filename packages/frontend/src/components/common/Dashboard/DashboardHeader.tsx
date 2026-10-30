@@ -1,7 +1,6 @@
 import { subject } from '@casl/ability';
 import {
     DirectAccessResourceType,
-    canMutateVerifiedContent,
     getDashboardDeleteAccess,
     ContentReviewContentType,
     ContentType,
@@ -24,7 +23,6 @@ import {
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
-    IconAlertTriangle,
     IconArrowAutofitHeight,
     IconBolt,
     IconCircleCheck,
@@ -84,7 +82,6 @@ import {
 } from '../../../features/promotion/hooks/usePromoteDashboard';
 import { DashboardSchedulersModal } from '../../../features/scheduler';
 import { getSchedulerUuidFromUrlParams } from '../../../features/scheduler/utils';
-import useDashboardPerformanceWarning from '../../../hooks/dashboard/useDashboardPerformanceWarning';
 import { useFavoriteMutation } from '../../../hooks/favorites/useFavoriteMutation';
 import { useFavorites } from '../../../hooks/favorites/useFavorites';
 import { useDashboardPinningMutation } from '../../../hooks/pinning/useDashboardPinningMutation';
@@ -125,9 +122,11 @@ import SpaceActionModal from '../SpaceActionModal';
 import { ActionType } from '../SpaceActionModal/types';
 import TransferItemsModal from '../TransferItemsModal/TransferItemsModal';
 import headerClasses from './DashboardHeader.module.css';
+import { DashboardPerformanceWarning } from './DashboardPerformanceWarning';
 import DashboardPreAggRefreshModal from './DashboardPreAggRefreshModal';
 import { DashboardRefreshButton } from './DashboardRefreshButton';
 import { PreAggregateAuditDrawer } from './PreAggregateAuditIndicator';
+import { useDashboardManageAccess } from './useDashboardManageAccess';
 
 type DashboardHeaderProps = {
     dashboard: Dashboard;
@@ -203,10 +202,6 @@ const DashboardHeader = memo(
     }: DashboardHeaderProps) => {
         const authoringEnabled = useContentAuthoringEnabled();
         const compact = useCompactContentHeader();
-        const performanceWarning = useDashboardPerformanceWarning(
-            dashboardTiles,
-            dashboardTabs,
-        );
         const { search, pathname } = useLocation();
         const navigate = useNavigate();
         const projectUuid = useProjectUuid();
@@ -369,24 +364,10 @@ const DashboardHeader = memo(
         const { user, health } = useApp();
         const preAggregatesEnabled =
             health.data?.preAggregates.enabled ?? false;
-        const hasDashboardManageAbility = !!user.data?.ability.can(
-            'manage',
-            subject('Dashboard', dashboard),
-        );
+        const { hasDashboardManageAbility, userCanManageDashboard } =
+            useDashboardManageAccess(dashboard);
         // Read-only, so verification does not restrict it
         const userCanViewPreAggregateAudit = hasDashboardManageAbility;
-        const userCanManageDashboard =
-            !!user.data &&
-            hasDashboardManageAbility &&
-            canMutateVerifiedContent(
-                user.data.ability,
-                {
-                    organizationUuid: dashboard.organizationUuid,
-                    projectUuid: dashboard.projectUuid,
-                },
-                dashboard.verification,
-                user.data.userUuid,
-            );
         const canAuthorDashboard = authoringEnabled && userCanManageDashboard;
         const canEditDashboard =
             canAuthorDashboard && !isEditMode && !isFullscreen;
@@ -706,39 +687,10 @@ const DashboardHeader = memo(
                 )}
                 {userCanManageDashboard && isEditMode ? (
                     <Group gap="xs">
-                        {performanceWarning.hasWarning && (
-                            <Tooltip
-                                label={
-                                    <Box>
-                                        <Text size="sm" fw={500} mb={6}>
-                                            Speed up this dashboard
-                                        </Text>
-                                        <Text size="xs">
-                                            With{' '}
-                                            {performanceWarning.totalChartCount}{' '}
-                                            charts, load times can be slower
-                                            depending on the user's machine.{' '}
-                                            {performanceWarning.totalTabs <= 1
-                                                ? `We recommend splitting this into multiple dashboard tabs, limited to ${performanceWarning.tabsExceedingLimit[0]?.limit ?? 10} charts per tab to keep things snappy for your team.`
-                                                : `We recommend splitting this into multiple dashboards to keep things snappy for your team.`}
-                                        </Text>
-                                    </Box>
-                                }
-                                withinPortal
-                                position="bottom"
-                                multiline
-                                maw={320}
-                                openDelay={200}
-                                transitionProps={{
-                                    transition: 'fade',
-                                    duration: 150,
-                                }}
-                            >
-                                <ActionIcon size="md" color="orange.6">
-                                    <MantineIcon icon={IconAlertTriangle} />
-                                </ActionIcon>
-                            </Tooltip>
-                        )}
+                        <DashboardPerformanceWarning
+                            dashboardTiles={dashboardTiles}
+                            dashboardTabs={dashboardTabs}
+                        />
 
                         <AddTileButton
                             onAddTiles={onAddTiles}

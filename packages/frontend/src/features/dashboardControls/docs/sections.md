@@ -70,16 +70,31 @@ _group_ (that is `requiredGroupId`).
 ## Drag and drop
 
 - One `DndContext` in `SectionedFilters`; sectioned passes of `FilterPills`
-  open no context and wrap pills in `BarDraggable`. Only the flat bar keeps
+  open no context and wrap pills in `PillDraggable`. Only the flat bar keeps
   the shipped per-group contexts.
+- An editor drags the pill itself (no grip): `PillDraggable` forwards a
+  pointer down on its `[data-controls-pill]` to dnd-kit's `onPointerDown`
+  alone (PointerSensor, 5px, on the flat bar too), so a click opens the
+  editor, the click ending a drag is swallowed, and Enter and Space keep
+  opening it. A pointer down in the portalled editor never drags. While a
+  filter is edited, or the fields load, no pill drags. Cursor `grab`, then
+  `grabbing` (`.pillDrag`).
+- Keyboard reorder: in edit mode Alt+ArrowLeft / Alt+ArrowRight on a pill,
+  and Move left / Move right in its Settings view, move it one place among
+  `getMoveNeighbours` (its kind, its section or the unsectioned run, shown
+  on the tab). `moveFilter(id, 'left' | 'right')` finds the neighbour from
+  the provider's latest state and writes the dashboard at once, as a
+  section move (no edit, Cancel keeps it), refocuses a focused pill and
+  announces the move in the provider's status region (edit mode only; a
+  counter key re-announces the same text). An end stays focusable
+  (`data-disabled`).
 - Targets: every saved pill, each capsule, the first button
   (`UNSECTIONED_TARGET_ID`), "New section" (`NEW_SECTION_TARGET_ID`) and the
   bar's empty space (`BAR_SPACE_TARGET_ID`), which also catches a pointer on
   no target. Resolution is `underPointerFor` (pointer first, `closestCenter`
   for the keyboard); a section drag only meets capsules.
 - Drops go through `moveRuleToSection`; a no-op drop writes nothing.
-  Every pill's drag, the edited one's included, survives Cancel and is no
-  edit. Capsule drag is off while a filter is edited.
+  A drag made before a filter opened survives its Cancel and is no edit. Capsule drag is off while a filter is edited.
 - Nothing changes size during a drag; feedback is drop lines, not slots.
 
 ## Selection
@@ -92,10 +107,14 @@ _group_ (that is `requiredGroupId`).
 - `SelectionBar` floats where the field bar does (`useBarHost`). Moves use
   `moveRulesToSection`, one write. Dragging a picked pill while several are
   picked carries them all.
+- It offers only moves that change something: "Move to" leaves out the
+  section every picked filter is in (`sharedSectionId`), "No section" shows
+  only while one is in a section (`isAnyInSection`), and "Shift click for a
+  range" only while one filter is picked.
 
 ## Naming
 
-`SectionNameInput` reports how naming ended (`NameExit`); the bar moves focus
-only when it is not `elsewhere`. Every way to start a section puts
+`SectionNameInput` reports how naming ended (`NameExit`, `nameFocus.ts`); the
+bar moves focus only when it is not `elsewhere`. Every way to start a section puts
 `NewSection` in the end slot; a committed name dispatches
 `addControlSection` and moves the picked pills in.

@@ -58,6 +58,8 @@ type Props = Omit<PillsInputProps, 'onChange' | 'ref'> & {
     footer?: ReactNode;
     comboboxProps?: ComboboxProps;
     scrollAreaProps?: ScrollAreaProps;
+    /** Closes the list once an option is picked (default false). */
+    closeOnOptionSubmit?: boolean;
     renderOption?: (
         option: MultiSelectComboboxOption,
         selected: boolean,
@@ -109,6 +111,7 @@ export const MultiSelectCombobox = forwardRef<HTMLInputElement, Props>(
             footer,
             comboboxProps,
             scrollAreaProps,
+            closeOnOptionSubmit = false,
             renderOption,
             renderPill,
             onDropdownOpen,
@@ -263,9 +266,10 @@ export const MultiSelectCombobox = forwardRef<HTMLInputElement, Props>(
                         onSearchChange('');
                         combobox.resetSelectedOption();
                         if (
-                            !isSelected &&
-                            maxValues !== undefined &&
-                            selectedValues.length + 1 >= maxValues
+                            closeOnOptionSubmit ||
+                            (!isSelected &&
+                                maxValues !== undefined &&
+                                selectedValues.length + 1 >= maxValues)
                         ) {
                             combobox.closeDropdown();
                         }

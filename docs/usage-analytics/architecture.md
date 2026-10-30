@@ -97,6 +97,21 @@ a columnar format suitable for analytics. The reader only sees compacted output,
 so capture is not immediately visible in Explore. Event delivery does not have
 an exactly-once guarantee.
 
+Embedded dashboard fetches reuse `content_views`. After a successful authorized
+fetch, `embed_dashboard.viewed` records an interaction ID and the explicit JWT
+`user.externalId`, when supplied. The usage-only metadata is not added to
+RudderStack. Preview traffic is excluded, the registered-user ID remains null,
+and neither the token issuer nor a generated fallback identity counts as an
+external viewer. Arbitrary user attributes are not captured.
+
+The Embed reach model deduplicates interaction IDs and counts external IDs
+within each organization/project. Refetches are separate loads; tile queries
+are not loads. This is observed backend usage, not confirmed browser rendering,
+configured embed dependencies, tenant attribution or invoice reconciliation.
+Existing partitions without the new nullable column remain readable; capture
+starts after deployment and requires no backfill. New loads appear after daily
+compaction, and **Sync content** installs the Explore and Embed dashboard.
+
 ### Current dimension snapshots
 
 After event compaction, the same `compactUsageEvents` job refreshes charts,
@@ -268,14 +283,14 @@ remains the source of truth; this does not change capture or nightly compaction.
    recursively. Normal query/bootstrap errors also run teardown. Later queries
    create new directories even when reusing the same in-memory bytes.
 
-| Resource                           | Limit / lifetime                                                                                                         |
-| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| Reusable memory cache              | 64 MiB of compressed bytes and 4,096 entries **per process**, shared capacity across orgs but separately keyed entries   |
-| Eligible file                      | At most 1 MiB, with a positive known size and ETag                                                                       |
-| Cache downloads                    | At most 8 in flight per process; pending bytes/entries reserve capacity; 10-second request timeout                       |
-| Per-query buffers and staged files | At most 32 MiB each; concurrent queries have separate staging directories                                                |
-| Memory eviction                    | Least recently used completed entries are evicted when capacity is needed; no time-based TTL; process exit clears memory |
-| Disk cleanup                       | At session teardown after success or error; no scheduled cleanup interval                                                |
+| Resource                           | Limit / lifetime                                                                                                                       |
+| ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Reusable memory cache              | 64 MiB of compressed bytes and 4,096 entries **per process**, shared capacity across orgs but separately keyed entries                 |
+| Eligible file                      | At most 1 MiB, with a positive known size and ETag                                                                                     |
+| Cache downloads                    | At most 16 in flight per process (two query sessions × eight files); pending bytes/entries reserve capacity; 10-second request timeout |
+| Per-query buffers and staged files | At most 32 MiB each; concurrent queries have separate staging directories                                                              |
+| Memory eviction                    | Least recently used completed entries are evicted when capacity is needed; no time-based TTL; process exit clears memory               |
+| Disk cleanup                       | At session teardown after success or error; no scheduled cleanup interval                                                              |
 
 The byte budget is not a process RSS limit: in-flight queries can still reference
 buffers evicted from the cache, and DuckDB, JavaScript and concurrent staging add

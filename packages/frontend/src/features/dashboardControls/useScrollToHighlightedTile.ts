@@ -11,6 +11,10 @@ const isInViewport = (element: Element): boolean => {
     return rect.height > 0 && visible / rect.height >= 0.5;
 };
 
+// Read when it scrolls, not as a hook: that would re-render every tile card
+const prefersReducedMotion = () =>
+    window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+
 // A clicked row scrolls the first tile on its field into view when none is
 // visible. Hover never does: the list passes the clicked field, not the active
 export const useScrollToHighlightedTile = (
@@ -24,6 +28,9 @@ export const useScrollToHighlightedTile = (
         const highlighted = [...document.querySelectorAll(HIGHLIGHTED_OVERLAY)];
         if (highlighted[0] !== element) return;
         if (highlighted.some(isInViewport)) return;
-        element.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        element.scrollIntoView({
+            block: 'center',
+            behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+        });
     }, [ref, highlightedFieldId, isHighlighted]);
 };

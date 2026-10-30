@@ -37,8 +37,6 @@ import {
     type OrganizationDesignPackageManifest,
     type UuidOrSlug,
 } from '@lightdash/common';
-import createDOMPurify from 'dompurify';
-import { JSDOM } from 'jsdom';
 import { Readable } from 'node:stream';
 import { v4 as uuidv4 } from 'uuid';
 import { createS3ClientFromConfig } from '../../clients/Aws/S3BaseClient';
@@ -47,6 +45,7 @@ import {
     OrganizationDesignModel,
     type OrganizationDesignFileWrite,
 } from '../../models/OrganizationDesignModel';
+import { sanitizeSvg } from '../../utils/sanitizeSvg';
 import { BaseService } from '../BaseService';
 import {
     buildOrganizationDesignPackage,
@@ -73,24 +72,7 @@ type OrganizationDesignServiceArguments = {
  * sandbox source tree, but future consumers (embed branding, settings
  * previews, etc.) may render them in other origins. Sanitize once on
  * write so every downstream consumer gets a clean asset.
- *
- * The jsdom window is constructed lazily so this module imports cleanly
- * in any process that doesn't actually call the sanitizer (e.g. tests
- * for unrelated service methods).
  */
-let svgPurifier: ReturnType<typeof createDOMPurify> | null = null;
-const getSvgPurifier = (): ReturnType<typeof createDOMPurify> => {
-    if (svgPurifier) return svgPurifier;
-    const { window } = new JSDOM('');
-    svgPurifier = createDOMPurify(window);
-    return svgPurifier;
-};
-
-const sanitizeSvg = (svgText: string): string =>
-    getSvgPurifier().sanitize(svgText, {
-        USE_PROFILES: { svg: true, svgFilters: true },
-    });
-
 const sanitizeOrganizationDesignFile = (
     body: Buffer,
     filename: string,

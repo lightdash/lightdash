@@ -46,10 +46,6 @@ import {
     useDashboardTemporaryFilters,
     useDashboardUnmetFilterRequirements,
 } from '../../../../../features/dashboard/store';
-import {
-    CONTROLS_RAIL_LAYOUT,
-    ControlSidebar,
-} from '../../../../../features/dashboardControls/ControlSidebar';
 import { ControlsSidebarProvider } from '../../../../../features/dashboardControls/ControlsSidebarProvider';
 import { FieldTilesBar } from '../../../../../features/dashboardControls/FieldTilesBar';
 import { type RailContractClassNames } from '../../../../../features/dashboardControls/railContractClasses';
@@ -175,8 +171,6 @@ const EmbedDashboardGrid: FC<{
     canEditChart?: (chart: SavedChart) => boolean;
     onExplore?: (options: EmbedExploreOptions) => void;
     useDashboardEditorTileQueries: boolean;
-    // The filter rail sits left of the grid (default false)
-    isControlsEnabled?: boolean;
 }> = ({
     filteredTiles,
     layouts,
@@ -196,15 +190,8 @@ const EmbedDashboardGrid: FC<{
     canEditChart,
     onExplore,
     useDashboardEditorTileQueries,
-    isControlsEnabled = false,
 }) => (
-    <Group
-        grow
-        pt="sm"
-        px="xs"
-        className={isControlsEnabled ? CONTROLS_RAIL_LAYOUT : undefined}
-    >
-        {isControlsEnabled && <ControlSidebar />}
+    <Group grow pt="sm" px="xs">
         {isTabEmpty ? (
             <Box mt="3xl" ta="center">
                 <SuboptimalState
@@ -1147,7 +1134,6 @@ const EmbedDashboard: FC<{
                 canEditChart={canEditChart}
                 onExplore={onExplore}
                 useDashboardEditorTileQueries={canWriteDashboard}
-                isControlsEnabled={isControlsEnabled}
             />
         </>
     );
@@ -1184,7 +1170,6 @@ const EmbedDashboard: FC<{
                             onDeleteTile={handleDeleteTile}
                             onEditTile={handleEditTile}
                             useDashboardEditorTileQueries={false}
-                            isControlsEnabled={false}
                         />
                     ))
                 )}
