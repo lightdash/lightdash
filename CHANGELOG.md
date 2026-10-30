@@ -1,3 +1,10 @@
+## [3.108.4](https://github.com/lightdash/lightdash/compare/3.108.3...3.108.4) (2026-10-30)
+
+
+### Bug Fixes
+
+* **learn:** re-cite the data app sharing sentence after a docs insert ([#31847](https://github.com/lightdash/lightdash/issues/31847)) ([0e10995](https://github.com/lightdash/lightdash/commit/0e10995fd7c6a496bafd9269bf8aa4514b53b0f8))
+
 ## [3.108.3](https://github.com/lightdash/lightdash/compare/3.108.2...3.108.3) (2026-10-30)
 
 
