@@ -901,7 +901,7 @@ describe('FieldTilesBar', () => {
             });
         });
 
-        it('keeps its name and offers its tiles again once Clear took it off every tile', () => {
+        it('keeps its name and offers its tiles again once Clear took it off every tile', async () => {
             // The joined chip's tiles are both left out: its key is no chip now
             setSidebar(
                 rule('orders_status', { 'tile-2': false, 'tile-3': false }),
@@ -918,6 +918,14 @@ describe('FieldTilesBar', () => {
                 name: 'Filter 2 more',
             });
             expect(fill).toBeEnabled();
+            // Not the filter's only field, though the other is its last chip
+            await userEvent.hover(
+                within(joinedBar).getByRole('button', { name: 'Clear' })
+                    .parentElement!,
+            );
+            expect(
+                screen.queryByText("This is the filter's only field"),
+            ).not.toBeInTheDocument();
             fireEvent.click(fill);
             // Back on the joined tiles only; tile-1 keeps its own chip
             expect(getAppliedRule().tileTargets).toBeUndefined();

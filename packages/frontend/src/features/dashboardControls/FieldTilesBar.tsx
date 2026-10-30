@@ -344,7 +344,13 @@ export const FieldTilesBar: FC = () => {
             undo={fieldUndo?.fieldId === fieldId ? fieldUndo : null}
             onUndo={undoApply}
             isArriving={drawnFieldId.current !== fieldId}
-            isOnlyRow={fieldTileActions.chips.length <= 1}
+            // A field cleared off every tile is no chip: not the only one
+            isOnlyRow={
+                fieldTileActions.chips.length <= 1 &&
+                fieldTileActions.chips.some(
+                    (chip) => chip.key === fieldId || chip.fieldId === fieldId,
+                )
+            }
         />,
         host,
     );
