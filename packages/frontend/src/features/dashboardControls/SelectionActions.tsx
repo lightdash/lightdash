@@ -9,6 +9,10 @@ export type SelectionActionsProps = {
     count: number;
     /** Each section with how many filters it holds. */
     sections: (DashboardControlSection & { count: number })[];
+    /** The section every selected filter is in, else null: "Move to" leaves it out. */
+    sharedSectionId: string | null;
+    /** Some selected filter is in a section: only then is "No section" a move. */
+    isAnyInSection: boolean;
     /** Null takes the selected filters out of their sections. */
     onMove: (sectionId: string | null) => void;
     /** Names a new section, then moves the selection into it. */
@@ -21,6 +25,8 @@ export type SelectionActionsProps = {
 export const SelectionActions: FC<SelectionActionsProps> = ({
     count,
     sections,
+    sharedSectionId,
+    isAnyInSection,
     onMove,
     onMoveToNewSection,
     onRemove,
@@ -28,6 +34,9 @@ export const SelectionActions: FC<SelectionActionsProps> = ({
     const getUiString = useUiStrings();
     // The first click arms "Remove", the second removes; Escape or leaving disarms
     const [isRemoveArmed, setIsRemoveArmed] = useState(false);
+    const targets = sections.filter(
+        (section) => section.id !== sharedSectionId,
+    );
     return (
         <>
             <Button
@@ -62,8 +71,8 @@ export const SelectionActions: FC<SelectionActionsProps> = ({
                     >
                         New section
                     </Menu.Item>
-                    <Menu.Divider />
-                    {sections.map((section) => (
+                    {targets.length > 0 && <Menu.Divider />}
+                    {targets.map((section) => (
                         <Menu.Item
                             key={section.id}
                             onClick={() => onMove(section.id)}
@@ -75,10 +84,12 @@ export const SelectionActions: FC<SelectionActionsProps> = ({
                             </Text>
                         </Menu.Item>
                     ))}
-                    {sections.length > 0 && <Menu.Divider />}
-                    <Menu.Item onClick={() => onMove(null)}>
-                        No section
-                    </Menu.Item>
+                    {isAnyInSection && <Menu.Divider />}
+                    {isAnyInSection && (
+                        <Menu.Item onClick={() => onMove(null)}>
+                            No section
+                        </Menu.Item>
+                    )}
                 </Menu.Dropdown>
             </Menu>
             <Button

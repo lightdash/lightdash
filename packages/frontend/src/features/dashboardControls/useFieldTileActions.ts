@@ -55,8 +55,9 @@ export const nameReplacedFields = (
     return labels.join('');
 };
 
-// Which tiles an action is over. Without tabs there is only 'every-tab'
-export type TileScope = 'this-tab' | 'every-tab';
+// Which tiles an action is over. Without tabs 'this-tab' is every tile and
+// 'other-tabs' none
+export type TileScope = 'this-tab' | 'other-tabs' | 'every-tab';
 
 export type FieldTiles = {
     field: DashboardFilterableField | null;
@@ -68,6 +69,8 @@ export type FieldTiles = {
     isWaiting: boolean;
     // Counted over the tiles of the active tab; null on a dashboard without tabs
     thisTabScope: FieldScope | null;
+    // Counted over the tiles of every other tab; null on a dashboard without tabs
+    otherTabsScope: FieldScope | null;
     // Counted over every tile
     everyTabScope: FieldScope;
     // False while the tiles' fields are not loaded: an action would write
@@ -224,8 +227,13 @@ export const useFieldTileActions = (
                 scopeTabUuid === undefined
                     ? null
                     : getTilesOnTab(tiles, dashboardTabs, scopeTabUuid);
+            const otherTabsTiles =
+                thisTabTiles === null
+                    ? null
+                    : tiles.filter((tile) => !thisTabTiles.includes(tile));
             const tilesByScope: Record<TileScope, DashboardTile[]> = {
                 'this-tab': thisTabTiles ?? tiles,
+                'other-tabs': otherTabsTiles ?? [],
                 'every-tab': tiles,
             };
             // Named as its own tiles' explore names it
@@ -264,13 +272,18 @@ export const useFieldTileActions = (
                 );
             const thisTabScope =
                 thisTabTiles === null ? null : getScope(thisTabTiles);
+            const otherTabsScope =
+                otherTabsTiles === null ? null : getScope(otherTabsTiles);
             const everyTabScope = getScope(tiles);
             const getScopeOf = (tileScope: TileScope) =>
-                tileScope === 'this-tab' && thisTabScope !== null
-                    ? thisTabScope
-                    : everyTabScope;
+                tileScope === 'this-tab'
+                    ? (thisTabScope ?? everyTabScope)
+                    : tileScope === 'other-tabs'
+                      ? (otherTabsScope ?? getScope([]))
+                      : everyTabScope;
+            // Undo for a this-tab action lives only while that tab is in view
             const isAcrossTabs = (tileScope: TileScope) =>
-                tileScope === 'every-tab' && thisTabScope !== null;
+                tileScope !== 'this-tab' && thisTabScope !== null;
 
             return {
                 field,
@@ -285,6 +298,7 @@ export const useFieldTileActions = (
                     : (field?.tableLabel ?? target?.tableName ?? ''),
                 isWaiting,
                 thisTabScope,
+                otherTabsScope,
                 everyTabScope,
                 canAct,
                 labelOf,

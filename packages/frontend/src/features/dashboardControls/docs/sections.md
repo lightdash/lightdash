@@ -107,6 +107,10 @@ _group_ (that is `requiredGroupId`).
 - `SelectionBar` floats where the field bar does (`useBarHost`). Moves use
   `moveRulesToSection`, one write. Dragging a picked pill while several are
   picked carries them all.
+- It offers only moves that change something: "Move to" leaves out the
+  section every picked filter is in (`sharedSectionId`), "No section" shows
+  only while one is in a section (`isAnyInSection`), and "Shift click for a
+  range" only while one filter is picked.
 
 ## Naming
 

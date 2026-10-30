@@ -567,6 +567,11 @@
         "filters.fieldBar.clearName": "Quitar {field} de los mosaicos",
         "filters.fieldBar.clearNameOnThisTab": "Quitar {field} de esta pestaña",
         "filters.fieldBar.filterAllTiles": "Filtrar todos los mosaicos",
-        "filters.fieldBar.undoFilterName": "Deshacer filtrar {tiles} por {field}"
+        "filters.fieldBar.undoFilterName": "Deshacer filtrar {tiles} por {field}",
+        "filters.fieldBar.filterMore": "Filtrar {count} más",
+        "filters.fieldBar.filterOnOtherTabs": "Filtrar {count} en otras pestañas",
+        "filters.fieldBar.filterMoreNone": "Filtrar más",
+        "filters.fieldBar.clearCount": "Quitar {count}",
+        "filters.fieldBar.clearOnOtherTabs": "Quitar {count} en otras pestañas"
     }
 }

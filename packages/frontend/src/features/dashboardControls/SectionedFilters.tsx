@@ -953,6 +953,13 @@ export const SectionedFilters: FC<Props> = ({
         .filter((id) => selectedIds.includes(id));
     const sectionOfRule = (rule: DashboardFilterRule) =>
         isRuleInSection(rule, null, sections) ? null : (rule.sectionId ?? null);
+    const selectedSectionIds = [
+        ...new Set(
+            allRules
+                .filter(({ rule }) => selected.includes(rule.id))
+                .map(({ rule }) => sectionOfRule(rule)),
+        ),
+    ];
     // A bar write that changed sections, tracked with how many filters moved
     const trackMoved = (count: number, method: DashboardFiltersMovedMethod) => {
         if (count > 0)
@@ -1203,6 +1210,14 @@ export const SectionedFilters: FC<Props> = ({
                             section === null
                                 ? []
                                 : [{ ...section, count: rules.length }],
+                        )}
+                        sharedSectionId={
+                            selectedSectionIds.length === 1
+                                ? selectedSectionIds[0]
+                                : null
+                        }
+                        isAnyInSection={selectedSectionIds.some(
+                            (id) => id !== null,
                         )}
                         onMove={(sectionId) =>
                             moveSelected(sectionId, 'selection_bar')

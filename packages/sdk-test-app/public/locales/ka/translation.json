@@ -567,6 +567,11 @@
         "filters.fieldBar.clearName": "{field}-ის მოხსნა ფილებიდან",
         "filters.fieldBar.clearNameOnThisTab": "{field}-ის მოხსნა ამ ჩანართიდან",
         "filters.fieldBar.filterAllTiles": "ყველა ფილის გაფილტვრა",
-        "filters.fieldBar.undoFilterName": "{tiles}-ის {field}-ით გაფილტვრის დაბრუნება"
+        "filters.fieldBar.undoFilterName": "{tiles}-ის {field}-ით გაფილტვრის დაბრუნება",
+        "filters.fieldBar.filterMore": "კიდევ {count}-ის გაფილტვრა",
+        "filters.fieldBar.filterOnOtherTabs": "{count}-ის გაფილტვრა სხვა ჩანართებზე",
+        "filters.fieldBar.filterMoreNone": "მეტის გაფილტვრა",
+        "filters.fieldBar.clearCount": "{count}-ის მოხსნა",
+        "filters.fieldBar.clearOnOtherTabs": "{count}-ის მოხსნა სხვა ჩანართებზე"
     }
 }

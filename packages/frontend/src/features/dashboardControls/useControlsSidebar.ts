@@ -11,12 +11,12 @@ import {
     useContextSelector,
 } from 'use-context-selector';
 
-// A "Filter all tiles", a "Clear" or an added field that Undo can take back:
+// A fill, a "Clear", an added field or a tile card's pick that Undo can take back:
 // its field, the tiles it applied the field to or cleared it from, how many
 // an apply took off other fields, and whether it was over every tab of a
 // dashboard with tabs
 export type FieldApply = {
-    kind: 'apply' | 'clear' | 'add';
+    kind: 'apply' | 'clear' | 'add' | 'pick';
     fieldId: string;
     tileCount: number;
     replaced: number;

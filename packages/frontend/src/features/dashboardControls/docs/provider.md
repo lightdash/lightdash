@@ -121,8 +121,9 @@ edited: there is no separate list or open state.
 
 ## Undo
 
-`applyWithUndo(rule, apply)` is `updateFilter` for the field bar's "Filter
-all tiles" / "Clear" and for "Add a field" (`kind: 'add'`). It keeps `undo` only while the field stays clicked before and
+`applyWithUndo(rule, apply)` is `updateFilter` for the field bar's Filter /
+Clear, for "Add a field" (`kind: 'add'`) and for a tile card's write on the
+clicked field (a pick in its select is `kind: 'pick'`). It keeps `undo` only while the field stays clicked before and
 after; `fieldUndo` is derived (`isUndoLive`). Any `updateFilter`,
 `updateOtherFilters`, `removeWaitingField`, field click change, open or end
 of edit drops it. `undoApply()` writes the rule back and restores waiting

@@ -148,6 +148,7 @@ const updateFilter = vi.fn();
 const applyWithUndo = vi.fn((next: DashboardFilterRule, _apply: unknown) =>
     updateFilter(next),
 );
+const setHighlightedFieldId = vi.fn();
 
 const setSidebar = (overrides: Record<string, unknown> = {}) => {
     mockSidebar.current = {
@@ -159,6 +160,7 @@ const setSidebar = (overrides: Record<string, unknown> = {}) => {
         highlightedFieldId: null,
         updateFilter,
         applyWithUndo,
+        setHighlightedFieldId,
         ...overrides,
     };
 };
@@ -215,6 +217,8 @@ const renderWithProviders = (ui: ReactElement) => {
 describe('TileOverlays', () => {
     beforeEach(() => {
         updateFilter.mockClear();
+        applyWithUndo.mockClear();
+        setHighlightedFieldId.mockClear();
         renderCounts.current = {};
         document.body.innerHTML = '';
         mockContainers.current = Object.fromEntries(
@@ -936,6 +940,38 @@ describe('TileOverlays', () => {
             expect(next.tileTargets).toEqual({
                 [both.uuid]: { fieldId: 'orders_region', tableName: 'orders' },
             });
+            // The pick selects its chip, and the bar's Undo takes it back
+            expect(setHighlightedFieldId).toHaveBeenCalledWith(
+                'orders_region::Orders::Region',
+            );
+            expect(
+                setHighlightedFieldId.mock.invocationCallOrder[0],
+            ).toBeLessThan(applyWithUndo.mock.invocationCallOrder[0]);
+            expect(applyWithUndo.mock.calls[0][1]).toEqual({
+                kind: 'pick',
+                fieldId: 'orders_region::Orders::Region',
+                tileCount: 1,
+                replaced: 1,
+                acrossTabs: false,
+            });
+        });
+
+        it('selects no chip for "Filter this tile"', async () => {
+            setSidebar({
+                editingRule: rule({
+                    tileTargets: { [statusOnly.uuid]: false },
+                }),
+            });
+            renderWithProviders(<TileOverlays />);
+
+            await userEvent.click(
+                card(statusOnly.uuid).getByRole('button', {
+                    name: /Filter this tile|on Title/,
+                }),
+            );
+            expect(updateFilter).toHaveBeenCalledTimes(1);
+            expect(setHighlightedFieldId).not.toHaveBeenCalled();
+            expect(applyWithUndo).not.toHaveBeenCalled();
         });
 
         describe('on a date with time grains', () => {

@@ -1302,12 +1302,63 @@ describe('SectionedFilters', () => {
             fireEvent.click(pillOf('three'), { ctrlKey: true });
             expect(pickedIds()).toEqual(['one', 'three']);
             expect(await screen.findByText('2 selected')).toBeInTheDocument();
+            // The range hint is for the first pick only
             expect(
-                within(bar()!).getByText('Shift click for a range'),
-            ).toBeInTheDocument();
+                within(bar()!).queryByText('Shift click for a range'),
+            ).not.toBeInTheDocument();
 
             fireEvent.click(pillOf('one'), { metaKey: true });
             expect(pickedIds()).toEqual(['three']);
+            expect(
+                within(bar()!).getByText('Shift click for a range'),
+            ).toBeInTheDocument();
+        });
+
+        it('offers in Move to only the moves that change something', async () => {
+            const user = userEvent.setup();
+            renderSectioned(rules(), 'tab-1');
+            const menuItems = async () => {
+                await user.click(
+                    await screen.findByRole('button', { name: 'Move to' }),
+                );
+                const names = screen
+                    .getAllByRole('menuitem')
+                    .map((item) => item.textContent);
+                await user.keyboard('{Escape}');
+                return names;
+            };
+
+            // Both in Dates: Dates is left out
+            fireEvent.click(pillOf('one'), { metaKey: true });
+            fireEvent.click(pillOf('two'), { metaKey: true });
+            expect(await menuItems()).toEqual([
+                'New section',
+                'Regions · 1',
+                'Empty · 0',
+                'No section',
+            ]);
+
+            // In two sections: both are moves
+            fireEvent.click(pillOf('three'), { metaKey: true });
+            expect(await menuItems()).toEqual([
+                'New section',
+                'Dates · 2',
+                'Regions · 1',
+                'Empty · 0',
+                'No section',
+            ]);
+
+            // None in a section: No section is no move
+            await user.click(
+                screen.getByRole('button', { name: 'Clear selection' }),
+            );
+            fireEvent.click(pillOf('loose'), { metaKey: true });
+            expect(await menuItems()).toEqual([
+                'New section',
+                'Dates · 2',
+                'Regions · 1',
+                'Empty · 0',
+            ]);
         });
 
         it('selects a Shift range in bar order, leaving out a folded capsule', async () => {

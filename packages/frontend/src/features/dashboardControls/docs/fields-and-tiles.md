@@ -83,26 +83,36 @@ outside never leaves mapping.
 The one place counts and actions are computed, for the field bar and the
 tile cards. It reads selectors only and takes the caller's
 `useSqlColumnsByTile` result. Returns `forField` / `forSqlColumn`, each with
-`thisTabScope`, `everyTabScope`, `applyToAll`, `clear`, `remove`.
+`thisTabScope`, `otherTabsScope`, `everyTabScope`, `applyToAll`, `clear`,
+`remove`.
 
 - Scope is only which tiles are passed (`tilesByScope`); an action never
-  writes outside it. `'this-tab'` exists only with two tabs or more.
+  writes outside it. Without two tabs `'this-tab'` is every tile and
+  `'other-tabs'` none (their scopes are null). An action's undo is
+  `acrossTabs` unless it was `'this-tab'` on a dashboard with tabs.
 - `FieldScope` (`getFieldScope`, `getSqlColumnScope`): `applied`,
   `unfiltered`, `replaced` never overlap and sum to `possible`.
 - `applyToAll` = `applyFieldToAllTiles`, `clear` = `removeFieldFromAll`, both
   through `applyWithUndo`. "Remove field" is whole-dashboard and never
   refused; on the only field it calls `removeLastField`.
-- The field bar always shows Undo, "Filter all tiles" and Clear, disabled
-  when they would change nothing (and while fields load).
+- The field bar always shows Filter and Clear, disabled when they would
+  change nothing (and while fields load); Undo only while there is one.
 
 ## Field bar (`FieldTilesBar`)
 
 Shown in mapping while a chip is selected (`highlightedFieldId`, never
 hover): one field only, its "{applied} of {total} tiles" over every tab,
-then Undo (off until `fieldUndo`; filled right after "Add a field", the one
-filled control on the bar), "Filter all tiles" (`applyToAll('every-tab')`,
-off when every tile with the field is on it) and Clear (`clear('every-tab')`,
-off on the filter's only field). Portalled into an element inserted after the
+then Filter, Clear and Undo. Filter and Clear act on the tab in view first:
+"Filter {count} more" (`applyToAll('this-tab')`, the tiles it changes:
+unfiltered plus replaced) while this tab has any, then "Filter {count} on
+other tabs" (`'other-tabs'`), else a disabled "Filter more"; "Clear {count}",
+then "Clear {count} on other tabs", else a disabled "Clear", always off on
+the filter's only field. Without tabs the tab in view is every tile. The
+"Replaces ..." tooltip names what that fill takes off other fields. Undo is
+an icon after a divider, only while `fieldUndo` is live (no disabled
+state). One of them is filled at most: Undo right after "Add a field"
+(`kind: 'add'`), Filter right after a tile card's pick (`kind: 'pick'`) while
+it can act. Portalled into an element inserted after the
 active tab's `.react-grid-layout` (`usePortalTargets`), keyed on the grid so
 a remounted grid gets a new one; it is not in `ControlsBar`, which is
 sticky. When a pressed button leaves, focus goes to the region.
@@ -120,6 +130,9 @@ is clicked a card's write on that chip's field goes through `applyWithUndo`
 (`acrossTabs: false`), so the field bar's Undo takes it back; a write on
 another field records none; a card's
 "Stop filtering" that removes a whole field (`remove()`) leaves no undo.
+A field picked in a card's select selects that field's chip first
+(`setHighlightedFieldId`, so the bar rises for it), then writes as
+`kind: 'pick'`; "Filter this tile" and a data app's switch select no chip.
 
 - `data-highlighted` answers only "on this control?" and "on the active
   field?": `filtered`, `mapped` (blue), `other`, `available`, or none. Whether
