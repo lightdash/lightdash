@@ -7,11 +7,13 @@ import EmbedProviderContext from '../../../../providers/Embed/context';
 import useEmbed from '../../../../providers/Embed/useEmbed';
 import EmbedExplore from '../../EmbedExplore/components/EmbedExplore';
 import { type ChartSavedAction } from '../../events/types';
+import { type EmbedChartSaveDashboard } from '../types';
 
 type Props = {
     opened: boolean;
     onClose: () => void;
     onChartSaved: (chart: SavedChart) => void;
+    chartSaveDashboard: EmbedChartSaveDashboard;
     // When set, the editor opens this chart and saving creates a new version
     // of it; when absent, it starts from the table picker and creates a chart.
     editChart?: SavedChart;
@@ -27,6 +29,7 @@ const EmbedDashboardChartEditorModal: FC<Props> = ({
     opened,
     onClose,
     onChartSaved,
+    chartSaveDashboard,
     editChart,
 }) => {
     const authoringEnabled = useContentAuthoringEnabled();
@@ -57,8 +60,9 @@ const EmbedDashboardChartEditorModal: FC<Props> = ({
             customSqlProvenanceChartUuid: editChart?.uuid,
             savedQueryUuid: undefined,
             onChartSaved: handleChartSaved,
+            chartSaveDashboard,
         }),
-        [editChart?.uuid, embedContext, handleChartSaved],
+        [chartSaveDashboard, editChart?.uuid, embedContext, handleChartSaved],
     );
 
     if (!authoringEnabled) return null;
