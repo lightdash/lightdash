@@ -11,6 +11,7 @@ import {
     type ParameterValue,
 } from '@lightdash/common';
 import { Button, Group, Tabs, Tooltip } from '@mantine/core';
+import { useMergedRef } from '@mantine/hooks';
 import { IconPlus } from '@tabler/icons-react';
 import { produce } from 'immer';
 import cloneDeep from 'lodash/cloneDeep';
@@ -74,25 +75,20 @@ import DuplicateTabModal from './DuplicateTabModal';
 import { TabEditModal } from './EditTabModal';
 import GridTile from './GridTile';
 import {
-    canFitGridToScreen,
     convertLayoutToBaseCoordinates,
     DEFAULT_ROW_HEIGHT,
+    FIT_TO_SCREEN_GRID_BOTTOM_PADDING,
     getDashboardLayouts,
-    getFitToScreenRowHeight,
-    getGridTotalRows,
     type DashboardLayouts,
     getResponsiveGridLayoutProps,
     GRID_COLS,
     GRID_CONTAINER_PADDING,
-    GRID_MARGIN,
-    isFitToScreenBreakpoint,
 } from './gridUtils';
 import { ResponsiveGridLayout } from './ResponsiveGridLayout';
 import DraggableTab from './Tab';
 import styles from './tabs.module.css';
 import { getDashboardTabPath, getDashboardUrlIdentifier } from './tabUrl';
 import { useAutoScrollOnDrag } from './useAutoScrollOnDrag';
-import { useAvailableGridHeight } from './useAvailableGridHeight';
 import { useGridStyles } from './useGridStyles';
 
 const EMPTY_LAYOUTS: DashboardLayouts = {
@@ -103,7 +99,6 @@ const EMPTY_LAYOUTS: DashboardLayouts = {
 };
 
 const DASHBOARD_GRID_BOTTOM_PADDING = 60;
-const FIT_TO_SCREEN_GRID_BOTTOM_PADDING = GRID_MARGIN[1];
 
 type TabGridPanelProps = {
     tabUuid: string;
@@ -233,10 +228,9 @@ type DashboardTabsProps = {
     setGridWidth: (value: React.SetStateAction<number>) => void;
     onNewChart?: () => void;
 
-    // fit to screen (view mode only)
-    isFitToScreen: boolean;
-    onFitToScreenChange: (isFitToScreen: boolean) => void;
-    onFitToScreenAvailableChange: (isAvailable: boolean) => void;
+    // fit to screen: the computed row height, null when not fitting
+    fitToScreenRowHeight: number | null;
+    gridContainerRef: (element: HTMLDivElement | null) => void;
 
     // parameters
     hasTilesThatSupportFilters: boolean;
@@ -265,9 +259,8 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     setGridWidth,
     setAddingTab,
     onNewChart,
-    isFitToScreen,
-    onFitToScreenChange,
-    onFitToScreenAvailableChange,
+    fitToScreenRowHeight,
+    gridContainerRef,
     // parameters
     hasTilesThatSupportFilters,
     parameterValues,
@@ -282,12 +275,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     onParameterReorder,
 }) => {
     const gridWrapperRef = useRef<HTMLDivElement>(null);
-    const [currentBreakpoint, setCurrentBreakpoint] = useState('lg');
-    const availableGridHeight = useAvailableGridHeight(
-        gridWrapperRef,
-        !isEditMode,
-        FIT_TO_SCREEN_GRID_BOTTOM_PADDING,
-    );
+    const mergedGridWrapperRef = useMergedRef(gridWrapperRef, gridContainerRef);
     const [currentCols, setCurrentCols] = useState<number>(GRID_COLS.lg);
     const { showToastError } = useToaster();
     const { health } = useApp();
@@ -351,10 +339,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         [handleUpdateTilesWithScaling, stopAutoScroll],
     );
     const handleBreakpointChange = useCallback(
-        (breakpoint: string, cols: number) => {
-            setCurrentCols(cols);
-            setCurrentBreakpoint(breakpoint);
-        },
+        (_: string, cols: number) => setCurrentCols(cols),
         [],
     );
     const handleWidthChange = useCallback(
@@ -492,61 +477,20 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         );
     }, [dashboardTiles, dashboardTabs, isEditMode]);
 
-    const activeGridTotalRows = useMemo(
-        () =>
-            getGridTotalRows(
-                tabsEnabled
-                    ? (tilesByTab.get(activeTab?.uuid ?? '') ?? [])
-                    : (visibleTiles ?? []),
-            ),
-        [tabsEnabled, tilesByTab, activeTab?.uuid, visibleTiles],
-    );
-    const fitsToScreen =
-        availableGridHeight !== null &&
-        canFitGridToScreen(availableGridHeight, activeGridTotalRows);
-    const isFitToScreenAvailable =
-        !isEditMode &&
-        fitsToScreen &&
-        isFitToScreenBreakpoint(currentBreakpoint);
-    const isFitToScreenApplied = isFitToScreen && isFitToScreenAvailable;
-    const rowHeight =
-        isFitToScreenApplied && availableGridHeight !== null
-            ? getFitToScreenRowHeight(availableGridHeight, activeGridTotalRows)
-            : DEFAULT_ROW_HEIGHT;
-
-    useEffect(() => {
-        onFitToScreenAvailableChange(isFitToScreenAvailable);
-    }, [isFitToScreenAvailable, onFitToScreenAvailableChange]);
-
-    // Turn fit off once the tab is too long; narrow breakpoints just ignore it
-    useEffect(() => {
-        if (
-            isFitToScreen &&
-            !isEditMode &&
-            availableGridHeight !== null &&
-            activeGridTotalRows > 0 &&
-            !fitsToScreen
-        ) {
-            onFitToScreenChange(false);
-        }
-    }, [
-        isFitToScreen,
-        isEditMode,
-        availableGridHeight,
-        activeGridTotalRows,
-        fitsToScreen,
-        onFitToScreenChange,
-    ]);
-
-    const dashboardGridBottomPadding = isFitToScreenApplied
-        ? FIT_TO_SCREEN_GRID_BOTTOM_PADDING
-        : DASHBOARD_GRID_BOTTOM_PADDING +
-          scrollToTopBottom -
-          SCROLL_TO_TOP_BOTTOM;
+    const dashboardGridBottomPadding =
+        fitToScreenRowHeight !== null
+            ? FIT_TO_SCREEN_GRID_BOTTOM_PADDING
+            : DASHBOARD_GRID_BOTTOM_PADDING +
+              scrollToTopBottom -
+              SCROLL_TO_TOP_BOTTOM;
 
     const gridProps = useMemo(
-        () => getResponsiveGridLayoutProps({ isEditMode, rowHeight }),
-        [isEditMode, rowHeight],
+        () =>
+            getResponsiveGridLayoutProps({
+                isEditMode,
+                rowHeight: fitToScreenRowHeight ?? DEFAULT_ROW_HEIGHT,
+            }),
+        [isEditMode, fitToScreenRowHeight],
     );
     const layoutsByTab = useMemo(() => {
         const map = new Map<string, DashboardLayouts>();
@@ -1261,7 +1205,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                     px="xs"
                                 >
                                     <div
-                                        ref={gridWrapperRef}
+                                        ref={mergedGridWrapperRef}
                                         className={[
                                             styles.tabGridContainer,
                                             showGridLines

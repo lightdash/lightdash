@@ -7,6 +7,7 @@ import {
     getFitToScreenRowHeight,
     getGridHeight,
     getGridTotalRows,
+    getViewModeActiveTabTiles,
     getDashboardLayouts,
     getMobileGridLayout,
     getResponsiveGridLayoutProps,
@@ -154,6 +155,42 @@ describe('fit to screen', () => {
         expect(canFitGridToScreen(natural / 2 - 1, 20)).toBe(false);
         expect(canFitGridToScreen(1000, 0)).toBe(false);
         expect(canFitGridToScreen(0, 5)).toBe(false);
+    });
+
+    it('takes the active tab tiles, with stale tabs on the first tab', () => {
+        const tab = (uuid: string, hidden = false) => ({
+            uuid,
+            name: uuid,
+            order: 0,
+            hidden,
+        });
+        const tiles = [
+            { ...chart('a', 0, 0), tabUuid: 't1' },
+            { ...chart('b', 0, 0), tabUuid: 't2' },
+            { ...chart('c', 0, 0), tabUuid: 'gone' },
+        ];
+        const uuids = (result: DashboardTile[]) => result.map((t) => t.uuid);
+
+        expect(
+            uuids(
+                getViewModeActiveTabTiles(tiles, [tab('t1'), tab('t2')], 't1'),
+            ),
+        ).toEqual(['a', 'c']);
+        expect(
+            uuids(
+                getViewModeActiveTabTiles(tiles, [tab('t1'), tab('t2')], 't2'),
+            ),
+        ).toEqual(['b']);
+        // one visible tab: single grid without the hidden tab's tiles
+        expect(
+            uuids(
+                getViewModeActiveTabTiles(
+                    tiles,
+                    [tab('t1'), tab('t2', true)],
+                    't1',
+                ),
+            ),
+        ).toEqual(['a', 'c']);
     });
 
     it('passes the row height to the grid', () => {

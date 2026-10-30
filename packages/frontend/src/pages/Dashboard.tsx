@@ -108,6 +108,7 @@ import { isEditBandShown } from '../features/dashboardControls/editBand';
 import { getDimensionFiltersToSave } from '../features/dashboardFilters/FilterConfiguration/utils';
 import { FilterBarPopoversProvider } from '../features/dashboardFilters/FilterRequirements/FilterBarPopoversProvider';
 import DashboardTabs from '../features/dashboardTabs';
+import { useFitToScreen } from '../features/dashboardTabs/useFitToScreen';
 import { isLeavingTrainingCopy } from '../features/scopeTours/trainingCopy';
 import {
     appendNewTilesToBottom,
@@ -1064,27 +1065,28 @@ const Dashboard: FC = () => {
     // A viewer-side layout option, kept in the url so a fitted link can be shared
     const isFitToScreen =
         searchParams.get(FIT_TO_SCREEN_SEARCH_PARAM) === 'true';
-    const [isFitToScreenAvailable, setIsFitToScreenAvailable] = useState(false);
-    const handleFitToScreenChange = useCallback(
-        (nextIsFitToScreen: boolean) => {
-            setSearchParams(
-                (params) => {
-                    if (nextIsFitToScreen) {
-                        params.set(FIT_TO_SCREEN_SEARCH_PARAM, 'true');
-                    } else {
-                        params.delete(FIT_TO_SCREEN_SEARCH_PARAM);
-                    }
-                    return params;
-                },
-                { replace: true },
-            );
-        },
-        [setSearchParams],
-    );
-    const handleToggleFitToScreen = useCallback(
-        () => handleFitToScreenChange(!isFitToScreen),
-        [handleFitToScreenChange, isFitToScreen],
-    );
+    const handleToggleFitToScreen = useCallback(() => {
+        setSearchParams(
+            (params) => {
+                if (isFitToScreen) {
+                    params.delete(FIT_TO_SCREEN_SEARCH_PARAM);
+                } else {
+                    params.set(FIT_TO_SCREEN_SEARCH_PARAM, 'true');
+                }
+                return params;
+            },
+            { replace: true },
+        );
+    }, [isFitToScreen, setSearchParams]);
+    const [gridElement, setGridElement] = useState<HTMLDivElement | null>(null);
+    const fitToScreen = useFitToScreen({
+        isFitToScreen,
+        isEditMode,
+        gridElement,
+        tiles: dashboardTiles,
+        tabs: dashboardTabs,
+        activeTabUuid: activeTab?.uuid,
+    });
     const chartFromUrl = useSavedQuery({
         uuidOrSlug:
             isChartEditorEnabled &&
@@ -1437,7 +1439,7 @@ const Dashboard: FC = () => {
         isFullScreenFeatureEnabled,
         onToggleFullscreen: handleToggleFullscreen,
         isFitToScreen,
-        isFitToScreenAvailable,
+        isFitToScreenAvailable: fitToScreen.isAvailable,
         onToggleFitToScreen: handleToggleFitToScreen,
         hasDashboardChanged,
         onAddTiles: handleAddTiles,
@@ -1688,11 +1690,8 @@ const Dashboard: FC = () => {
                                 handleEditTile={stableEditTile}
                                 setGridWidth={setGridWidth}
                                 setAddingTab={setAddingTab}
-                                isFitToScreen={isFitToScreen}
-                                onFitToScreenChange={handleFitToScreenChange}
-                                onFitToScreenAvailableChange={
-                                    setIsFitToScreenAvailable
-                                }
+                                fitToScreenRowHeight={fitToScreen.rowHeight}
+                                gridContainerRef={setGridElement}
                                 onNewChart={
                                     isChartEditorEnabled && isEditMode
                                         ? handleOpenNewChart
