@@ -396,7 +396,7 @@ To setup Development Environment without Docker you need following pre-requisite
 
 - Node.js 24.18.1 (managed by pnpm; pinned in `package.json` under `devEngines.runtime`)
 - python >= 3.8
-- pnpm 12.3.4 (pinned in `package.json`)
+- pnpm 12.16.1 (pinned in `package.json`)
 - postgres >= 12
 - dbt 1.7.x aliased to `dbt1.7`
 
@@ -424,7 +424,7 @@ For example, on macOS:
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
 # 2 Install the pinned pnpm version, then reopen your terminal so pnpm is on PATH
-curl -fsSL https://get.pnpm.io/install.sh | env PNPM_VERSION=12.3.4 sh -
+curl -fsSL https://get.pnpm.io/install.sh | env PNPM_VERSION=12.16.1 sh -
 
 # 3 Install Node through pnpm; this also creates its project-aware node command
 pnpm runtime set node 24.18.1 --global
