@@ -365,6 +365,7 @@ const EditedTileOverlays: FC = () => {
         (c) => c.highlightedFieldId,
     );
     const updateFilter = useControlsSidebarSelector((c) => c.updateFilter);
+    const applyWithUndo = useControlsSidebarSelector((c) => c.applyWithUndo);
     const clearHighlightedField = useControlsSidebarSelector(
         (c) => c.clearHighlightedField,
     );
@@ -446,15 +447,32 @@ const EditedTileOverlays: FC = () => {
                       : isSqlTile
                         ? toSqlColumnTarget(value)
                         : getFieldTarget(value, editingRule, fieldsMap);
-            updateFilter(
-                setTileField(
-                    editingRule,
-                    tile,
-                    field,
-                    fieldsByTile,
-                    sqlColumnsByTile,
-                ),
+            const next = setTileField(
+                editingRule,
+                tile,
+                field,
+                fieldsByTile,
+                sqlColumnsByTile,
             );
+            // The field bar's Undo takes back a card's write on its own field
+            if (
+                highlightedFieldId === null ||
+                (value ?? previousFieldId) !==
+                    getChipFieldId(
+                        fieldTileActions?.chips ?? NO_CHIPS,
+                        highlightedFieldId,
+                    )
+            ) {
+                updateFilter(next);
+                return;
+            }
+            applyWithUndo(next, {
+                kind: value === null ? 'clear' : 'apply',
+                fieldId: highlightedFieldId,
+                tileCount: 1,
+                replaced: value !== null && previousFieldId !== null ? 1 : 0,
+                acrossTabs: false,
+            });
         },
     );
 
@@ -582,17 +600,33 @@ const EditedTileOverlays: FC = () => {
                         : tileField
                           ? getTileFieldLabel(tileField)
                           : getFieldLabel(tileFieldId, fieldsMap);
+                const isFiltersOwnField =
+                    tileFieldId === editingRule.target.fieldId;
+                // The select below names the field once it lists it
+                const isShownInSelect =
+                    tileFieldId !== null &&
+                    (isSqlTile
+                        ? columns.includes(tileFieldId)
+                        : tileFields.some(
+                              (option) => getItemId(option) === tileFieldId,
+                          ));
                 const statusLabel =
                     tileFieldLabel === null || isDataAppTile
                         ? null
-                        : interpolateUiString(
-                              getUiString(
-                                  tileFieldId === editingRule.target.fieldId
-                                      ? 'filters.tileCard.filteredBy'
-                                      : 'filters.tileCard.filteredVia',
-                              ),
-                              { field: tileFieldLabel },
-                          );
+                        : isShownInSelect
+                          ? getUiString(
+                                isFiltersOwnField
+                                    ? 'filters.tileCard.filteredByHeading'
+                                    : 'filters.tileCard.filteredViaHeading',
+                            )
+                          : interpolateUiString(
+                                getUiString(
+                                    isFiltersOwnField
+                                        ? 'filters.tileCard.filteredBy'
+                                        : 'filters.tileCard.filteredVia',
+                                ),
+                                { field: tileFieldLabel },
+                            );
                 const highlight: TileHighlight | null = !isReachable
                     ? null
                     : !isOnTheControl

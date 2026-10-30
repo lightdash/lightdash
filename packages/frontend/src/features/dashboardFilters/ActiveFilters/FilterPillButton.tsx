@@ -61,6 +61,8 @@ type Props = Omit<
     /** Names the X and gives it a tooltip; default: neither. */
     removeLabel?: string;
     isTablesTooltipDisabled: boolean;
+    /** A first line in the tables tooltip (default none). */
+    tablesTooltipNote?: string;
     triggerClassName?: string;
     /** Shown in place of the field icon (default: the field's icon). */
     fieldIconOverride?: ReactNode;
@@ -89,6 +91,7 @@ export const FilterPillButton = forwardRef<HTMLButtonElement, Props>(
             onRemove,
             removeLabel,
             isTablesTooltipDisabled,
+            tablesTooltipNote,
             triggerClassName,
             fieldIconOverride,
             isPlain = false,
@@ -314,6 +317,7 @@ export const FilterPillButton = forwardRef<HTMLButtonElement, Props>(
                     field={field}
                     truncatedValuesDisplay={truncatedValuesDisplay}
                     isTablesTooltipDisabled={isTablesTooltipDisabled}
+                    tooltipNote={tablesTooltipNote}
                     isValueBold={isPlain}
                 />
             </Button>

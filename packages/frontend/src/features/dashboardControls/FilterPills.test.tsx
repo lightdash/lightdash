@@ -7,8 +7,16 @@ import {
     type DashboardFilterRule,
     type DashboardTile,
 } from '@lightdash/common';
-import { act, screen, waitFor, within } from '@testing-library/react';
+import {
+    act,
+    fireEvent,
+    screen,
+    waitFor,
+    within,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import fs from 'fs';
+import path from 'path';
 import { type ReactElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -177,6 +185,7 @@ describe('FilterPills', () => {
     const open = vi.fn();
     const close = vi.fn();
     const removeFilterById = vi.fn();
+    const moveFilter = vi.fn();
     const tileHoverOwner: { current: string | null } = { current: null };
     const setDashboardFilters = vi.fn();
     const setHaveFiltersChanged = vi.fn();
@@ -247,6 +256,7 @@ describe('FilterPills', () => {
             open,
             close,
             removeFilterById,
+            moveFilter,
             tileHoverOwner,
         };
     });
@@ -1151,6 +1161,30 @@ describe('FilterPills', () => {
             values: ['shipped'],
         };
 
+        it('says only you see it before its tables', async () => {
+            const user = userEvent.setup();
+            setContext({
+                dashboardTemporaryFilters: {
+                    ...noFilters,
+                    dimensions: [temporaryRule],
+                },
+            });
+            renderWithProviders(<FilterPills activeTabUuid={undefined} />);
+
+            const name = pill(/^Order status/).querySelector<HTMLElement>(
+                'p span[class*="Text"]',
+            );
+            await user.hover(name ?? pill(/^Order status/));
+            const tooltip = await screen.findByRole(
+                'tooltip',
+                {},
+                { timeout: 2000 },
+            );
+            expect(tooltip.textContent).toMatch(
+                /^Only you see this filterTable: orders/i,
+            );
+        });
+
         it('shows a temporary rule as a dashed pill after the saved ones', () => {
             setContext({
                 dashboardTemporaryFilters: {
@@ -1500,5 +1534,116 @@ describe('FilterPills', () => {
             await user.hover(pill(/^Region/));
             expect(hoveredTiles()).toEqual([]);
         });
+    });
+
+    describe('moving a pill with the keyboard', () => {
+        const altArrow = (element: HTMLElement, key: string) =>
+            fireEvent.keyDown(element, { key, altKey: true });
+
+        it('asks the provider to move it with Alt and an arrow', () => {
+            renderWithProviders(<FilterPills activeTabUuid={undefined} />);
+
+            altArrow(pill(/^Region/), 'ArrowLeft');
+            expect(moveFilter).toHaveBeenCalledWith('no-default', 'left');
+            altArrow(pill(/^Status/), 'ArrowRight');
+            expect(moveFilter).toHaveBeenLastCalledWith('saved', 'right');
+
+            moveFilter.mockClear();
+            fireEvent.keyDown(pill(/^Status/), { key: 'ArrowRight' });
+            expect(moveFilter).not.toHaveBeenCalled();
+        });
+
+        it("never moves a viewer's pill", () => {
+            mockSidebar.current = { ...mockSidebar.current, isViewer: true };
+            renderWithProviders(<FilterPills activeTabUuid={undefined} />);
+            altArrow(pill(/^Region/), 'ArrowLeft');
+            expect(moveFilter).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('a dashed pill', () => {
+        // The tables tooltip sits on the pill's field name
+        const fieldNameOf = (element: HTMLElement) =>
+            element.querySelector<HTMLElement>('p span[class*="Text"]') ??
+            element;
+
+        it('puts "Not saved yet" before the select hint in edit mode', async () => {
+            const user = userEvent.setup();
+            setContext({
+                dashboard: {
+                    uuid: 'dashboard-1',
+                    filters: { ...noFilters, dimensions: [noDefaultRule] },
+                },
+            });
+            renderWithProviders(
+                <BarSelectionContext.Provider
+                    value={{ selectedIds: [], pick: vi.fn(), clear: vi.fn() }}
+                >
+                    <FilterPills activeTabUuid={undefined} sectionId={null} />
+                </BarSelectionContext.Provider>,
+            );
+
+            await user.hover(pill(/^Status/));
+            expect((await screen.findByRole('tooltip')).textContent).toBe(
+                'Not saved yetClick to edit · Ctrl click to select',
+            );
+        });
+
+        it('puts "Not saved yet" before the tables on the flat bar', async () => {
+            const user = userEvent.setup();
+            setContext({
+                dashboard: {
+                    uuid: 'dashboard-1',
+                    filters: { ...noFilters, dimensions: [noDefaultRule] },
+                },
+            });
+            renderWithProviders(<FilterPills activeTabUuid={undefined} />);
+
+            await user.hover(fieldNameOf(pill(/^Status/)));
+            const tooltip = await screen.findByRole(
+                'tooltip',
+                {},
+                { timeout: 2000 },
+            );
+            expect(tooltip.textContent).toMatch(/^Not saved yetTable: orders/i);
+        });
+
+        it('puts "Only you see this filter" before a viewer\'s own tables', async () => {
+            const user = userEvent.setup();
+            mockSidebar.current = { ...mockSidebar.current, isViewer: true };
+            setContext({
+                dashboardTemporaryFilters: {
+                    ...noFilters,
+                    dimensions: [{ ...noDefaultRule, id: 'own' }],
+                },
+                dashboardFilters: { ...noFilters, dimensions: [savedRule] },
+            });
+            renderWithProviders(<FilterPills activeTabUuid={undefined} />);
+
+            await user.hover(fieldNameOf(pill(/^Region/)));
+            const tooltip = await screen.findByRole(
+                'tooltip',
+                {},
+                { timeout: 2000 },
+            );
+            expect(tooltip.textContent).toMatch(
+                /^Only you see this filterTable: orders/i,
+            );
+        });
+    });
+
+    it('keeps the standard border on a pill not in effect', () => {
+        const css = fs.readFileSync(
+            path.resolve(
+                __dirname,
+                '../dashboardFilters/ActiveFilters/Filter.module.css',
+            ),
+            'utf8',
+        );
+        const muted = css.match(
+            /\.plain:hover:not\(\[data-in-effect\], :disabled\) \{([^}]*)\}/,
+        );
+        expect(muted?.[1]).toContain('color: var(--mantine-color-dimmed)');
+        expect(muted?.[1]).not.toContain('border');
     });
 });

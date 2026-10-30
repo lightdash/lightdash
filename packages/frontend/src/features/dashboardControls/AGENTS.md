@@ -73,7 +73,8 @@ Openings (optional props, defaults are today's behaviour):
   `disabledReason`, `isListInPortal`, `withCard`.
 - `ActiveFilters/FilterPillButton`: `removeLabel`, `fieldIconOverride`,
   `isLockSpaceReserved`, `areActionsHidden`, `dragHandle` (drag from the
-  grip only), `isPlain` (the
+  grip only), `tablesTooltipNote` (through `Filter`, `TemporaryFilters`
+  and `FilterRuleLabel`'s `tooltipNote`), `isPlain` (the
   pill looks below; `Filter` and `TemporaryFilters` pass it through, and
   `FilterRuleLabel` takes `isValueBold`).
 - `FilterConfiguration/FilterFieldSelect`: `defaultOpened`, `withLabel`,
@@ -86,6 +87,9 @@ Openings (optional props, defaults are today's behaviour):
   and `MultiSelectCombobox` as `closeOnOptionSubmit`.
 - `FilterConfiguration/utils`: `getFilterRuleWithRequired` takes
   `savedDefaultRule` (only the editor passes it).
+- Chart tiles (`DashboardChartTile`, `EmbeddedDashboardChartInteractions`)
+  and table cells (`ScrollableTable/BodyCell`) open their menu through
+  `useWhenAnswered`, which opens at once without the provider.
 - Embed: `EmbedDashboardFilterBar` and `EmbedDashboardHeader` take
   `isControlsEnabled`; with it the filter bar sits in `MappingSwap`.
 
@@ -232,12 +236,15 @@ See `src/components/common/Filters/AGENTS.md`.
 Every flag-on pill is the default white pill; only these change it, all in
 `ActiveFilters/Filter.module.css` under `.plain`:
 
-- Not in effect (no value, or it reaches no tile): text, icons and border
-  muted, "is any value". In effect (`data-in-effect`): the value bold.
+- Not in effect (no value, or it reaches no tile): text and icons muted,
+  the standard border, "is any value". In effect (`data-in-effect`): the value bold.
 - Open (`data-open`, the filter in the editor): a 1.5px
   ink border, the extra 0.5px inset so the box keeps its size.
 - Not saved for everyone (`data-temporary`: a viewer's own filter, or an
-  editor's filter not in the saved dashboard): dashed.
+  editor's filter not in the saved dashboard, or a temporary pill): dashed.
+  "Only you see this filter" (`filters.rail.onlyYouSeeFilter`) or "Not saved
+  yet" is the first line of the tooltip the pill already has: the select
+  hint, else the tables tooltip (`tablesTooltipNote`).
 - Picked (edit mode): blue fill and a check, the only blue.
 - Required, locked and "changed since save" have no cue; Save in the band is
   the one unsaved signal.

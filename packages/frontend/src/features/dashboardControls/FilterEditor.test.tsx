@@ -133,6 +133,8 @@ const setSidebar = (overrides: Partial<ControlsSidebarContextValue>) => {
         cancelMapping: vi.fn(),
         isAsking: false,
         resolvePending: vi.fn(),
+        whenAnswered: vi.fn(),
+        moveFilter: vi.fn(),
         applyWithUndo: vi.fn(),
         undoApply: vi.fn(),
         fieldUndo: null,

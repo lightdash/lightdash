@@ -5,11 +5,13 @@ import {
     FilterOperator,
     isMetric,
     type Dashboard,
+    type DashboardControlSection,
     type DashboardFilterableField,
     type DashboardFilterRule,
     type DashboardFilters,
     type ResultColumn,
 } from '@lightdash/common';
+import { VisuallyHidden } from '@mantine/core';
 import isEqual from 'lodash/isEqual';
 import omit from 'lodash/omit';
 import omitBy from 'lodash/omitBy';
@@ -47,6 +49,11 @@ import {
     useDashboardSelector,
     useDashboardTemporaryFilters,
 } from '../dashboard/store';
+import { moveFilterRule } from '../dashboardFilters/ActiveFilters/filterOrder';
+import {
+    isFilterHiddenOnTab,
+    useFilterTabPlacement,
+} from '../dashboardFilters/ActiveFilters/useFilterTabPlacement';
 import {
     getFilterRuleWithDisabledState,
     isLockedRequiredMissingValue,
@@ -66,7 +73,7 @@ import {
     RailContractClasses,
     type RailContractClassNames,
 } from './railContractClasses';
-import { countFilters } from './sections';
+import { countFilters, getMoveNeighbours } from './sections';
 import {
     canKeepFilterRule,
     findFilterRule,
@@ -86,6 +93,7 @@ import {
     type FieldApply,
     useControlsSidebarSelector,
     type ControlsSidebarContextValue,
+    type MoveDirection,
 } from './useControlsSidebar';
 import { useEditorDismiss } from './useEditorDismiss';
 import { useFilterFieldsMap } from './useFilterFieldsMap';
@@ -282,6 +290,10 @@ type Latest = {
     filterFieldsMap: FieldsMap;
     dashboardTiles: Dashboard['tiles'] | undefined;
     controlSectionIds: string[];
+    controlSections: DashboardControlSection[];
+    getTabsUsingFilter: ReturnType<
+        typeof useFilterTabPlacement
+    >['getTabsUsingFilter'];
     highlightedFieldId: string | null;
     setHaveFiltersChanged: Dispatch<SetStateAction<boolean>>;
     track: TrackingContextType['track'];
@@ -480,6 +492,7 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
     const dashboardTiles = useDashboardSelector(selectDashboardTiles);
     const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
     const controlSections = useDashboardSelector(selectControlSections);
+    const { getTabsUsingFilter } = useFilterTabPlacement();
     const controlSectionIds = useMemo(
         () => controlSections.map((section) => section.id),
         [controlSections],
@@ -528,6 +541,8 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         filterFieldsMap,
         dashboardTiles,
         controlSectionIds,
+        controlSections,
+        getTabsUsingFilter,
         highlightedFieldId,
         setHaveFiltersChanged,
         track,
@@ -650,7 +665,11 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         setState(next);
     }, []);
 
+    // A tile's data-point menu clicked while the editor asked: it opens once
+    // the question is answered. Any new question or answer drops it
+    const afterAnswer = useRef<(() => void) | null>(null);
     const writePending = useCallback((next: Pending | null) => {
+        afterAnswer.current = null;
         latest.current.pending = next;
         setPending(next);
     }, []);
@@ -1513,6 +1532,7 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
             const current = latest.current;
             const next = getPending(current);
             if (next === null) return;
+            const openMenu = afterAnswer.current;
             if (current.state?.isViewer === false) {
                 current.track({
                     name: EventName.DASHBOARD_FILTER_EDITOR_SWITCH_ANSWERED,
@@ -1529,16 +1549,17 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
             else discard();
             switch (next.kind) {
                 case 'close':
-                    return;
+                    break;
                 case 'open':
                     openExisting(next.filterId);
-                    return;
+                    break;
                 case 'new':
                     openPlaceholder(next.sectionId ?? undefined);
-                    return;
+                    break;
                 default:
                     assertUnreachable(next, 'Unknown pending step');
             }
+            openMenu?.();
         },
         [close, discard, openExisting, openPlaceholder, trackClosed],
     );
@@ -1577,6 +1598,71 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         // Once the question has left: it held the focus
         setTimeout(focusInEditor);
     }, [discard, writePending, trackClosed, cancelMapping, toSavedNow]);
+
+    const whenAnswered = useCallback((openMenu: () => void) => {
+        const current = latest.current;
+        if (getEditingRule(current) === null || getPending(current) === null) {
+            openMenu();
+            return;
+        }
+        afterAnswer.current = openMenu;
+    }, []);
+
+    // A move along the bar is no edit, as a section move: it reaches the
+    // dashboard at once, and a focused pill keeps the focus
+    // A count keys the text, so the same move twice is announced twice
+    const [moveAnnouncement, setMoveAnnouncement] = useState({
+        text: '',
+        count: 0,
+    });
+    const moveFilter = useCallback(
+        (filterId: string, direction: MoveDirection) => {
+            const current = latest.current;
+            const filters = getStoreFilters(current);
+            const neighbours = getMoveNeighbours(
+                filters,
+                filterId,
+                current.controlSections,
+                (rule) =>
+                    !isFilterHiddenOnTab(
+                        current.getTabsUsingFilter(rule),
+                        current.activeTabUuid,
+                    ),
+            );
+            const overId =
+                direction === 'left' ? neighbours.before : neighbours.after;
+            if (overId === null) return;
+            const group: FilterGroup = filters.metrics.some(
+                (rule) => rule.id === filterId,
+            )
+                ? 'metrics'
+                : 'dimensions';
+            const ids = filters[group].map((rule) => rule.id);
+            const from = ids.indexOf(filterId);
+            const to = ids.indexOf(overId);
+            if (from === -1 || to === -1 || from === to) return;
+            const nameOf = (index: number) => {
+                const rule = filters[group][index];
+                return (
+                    rule.label ||
+                    latest.current.filterFieldsMap[rule.target.fieldId]
+                        ?.label ||
+                    rule.target.fieldId
+                );
+            };
+            const pill = findPill(filterId);
+            const hadFocus = pill !== null && document.activeElement === pill;
+            writeStore((next) => moveFilterRule(next, group, filterId, overId));
+            writeFiltersChanged(true);
+            setMoveAnnouncement(({ count }) => ({
+                text: `${nameOf(from)} moved ${to < from ? 'before' : 'after'} ${nameOf(to)}`,
+                count: count + 1,
+            }));
+            // Once the bar has redrawn: a moved node loses focus
+            if (hadFocus) setTimeout(() => findPill(filterId)?.focus());
+        },
+        [writeStore, writeFiltersChanged],
+    );
 
     // The editor's Apply and Cancel, tracked; the provider's own ways out
     // call `close` and `discard` and track their own outcome
@@ -1687,6 +1773,8 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
             cancelMapping,
             isAsking,
             resolvePending,
+            whenAnswered,
+            moveFilter,
             newTileUuids,
             dismissedLinks,
             dismissLink,
@@ -1733,6 +1821,8 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
             cancelMapping,
             isAsking,
             resolvePending,
+            whenAnswered,
+            moveFilter,
             editing,
             isPlaceholder,
             editingRule,
@@ -1770,6 +1860,14 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
                 {children}
             </RailContractClasses.Provider>
             <FocusReturn target={focusReturn} />
+            {/* Moves happen in edit mode only */}
+            {isEditMode && (
+                <VisuallyHidden role="status">
+                    <span key={moveAnnouncement.count}>
+                        {moveAnnouncement.text}
+                    </span>
+                </VisuallyHidden>
+            )}
         </ControlsSidebarContext.Provider>
     );
 };

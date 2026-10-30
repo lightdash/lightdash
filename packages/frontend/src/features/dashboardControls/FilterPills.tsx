@@ -217,6 +217,7 @@ export const FilterPills: FC<Props> = ({
     ) => {
         const isSelected = editingFilterId === filter.id;
         const appliesToTabs = getTabsUsingFilter(filter);
+
         if (isFilterHiddenOnTab(appliesToTabs, activeTabUuid) && !isSelected) {
             return null;
         }

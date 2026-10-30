@@ -10,6 +10,7 @@ import {
     type DashboardTile,
     type ResultColumn,
 } from '@lightdash/common';
+import { MantineProvider } from '@mantine/core';
 import { act, fireEvent, render, renderHook } from '@testing-library/react';
 import {
     useState,
@@ -45,6 +46,7 @@ import { isNewFilterIn } from './sidebarState';
 import {
     useControlsSidebar,
     useControlsSidebarSelector,
+    useWhenAnswered,
     type ControlsSidebarContextValue,
 } from './useControlsSidebar';
 
@@ -239,9 +241,11 @@ const DashboardState: FC<
     latest.temporaryFilters = temporaryFilters;
     latest.changed = haveFiltersChanged;
     return (
-        <ControlsSidebarProvider isEditMode={providerMode.isEditMode}>
-            {children}
-        </ControlsSidebarProvider>
+        <MantineProvider>
+            <ControlsSidebarProvider isEditMode={providerMode.isEditMode}>
+                {children}
+            </ControlsSidebarProvider>
+        </MantineProvider>
     );
 };
 
@@ -1307,6 +1311,116 @@ describe('ControlsSidebarProvider', () => {
         expect(result.current.isAsking).toBe(false);
         expect(result.current.isPlaceholder).toBe(true);
         expect(latest.filters).toEqual(initialFilters);
+    });
+
+    describe("a tile's data-point menu", () => {
+        // A data point clicked: its press outside, then the tile's click
+        const clickDataPoint = (
+            context: ControlsSidebarContextValue,
+            openMenu: () => void,
+        ) => {
+            fireEvent.pointerDown(document.body);
+            act(() => context.whenAnswered(openMenu));
+        };
+
+        it('opens at once on a page without the controls', () => {
+            const openMenu = vi.fn();
+            const { result } = renderHook(() => useWhenAnswered());
+            result.current(openMenu);
+            expect(openMenu).toHaveBeenCalledTimes(1);
+        });
+
+        it('opens at once with no unapplied changes', () => {
+            const { result } = setup();
+            const openMenu = vi.fn();
+            act(() => result.current.whenAnswered(openMenu));
+            expect(openMenu).toHaveBeenCalledTimes(1);
+
+            act(() => result.current.open('a'));
+            clickDataPoint(result.current, openMenu);
+            expect(openMenu).toHaveBeenCalledTimes(2);
+            expect(result.current.isSidebarOpen).toBe(false);
+        });
+
+        it.each([
+            ['Apply', true, ['9']],
+            ['Discard', false, ['1']],
+        ])(
+            'waits for the question, then opens once it is answered (%s)',
+            (_, isApply, values) => {
+                const { result } = setup();
+                const openMenu = vi.fn();
+                act(() => result.current.open('a'));
+                act(() => result.current.updateFilter(rule('a', ['9'])));
+
+                clickDataPoint(result.current, openMenu);
+                expect(result.current.isAsking).toBe(true);
+                expect(openMenu).not.toHaveBeenCalled();
+
+                act(() => result.current.resolvePending(isApply));
+                expect(openMenu).toHaveBeenCalledTimes(1);
+                expect(result.current.isSidebarOpen).toBe(false);
+                expect(latest.filters.dimensions[0].values).toEqual(values);
+            },
+        );
+
+        it('never opens when the question is withdrawn', () => {
+            const { result } = setup();
+            const openMenu = vi.fn();
+            act(() => result.current.open('a'));
+            act(() => result.current.updateFilter(rule('a', ['9'])));
+            clickDataPoint(result.current, openMenu);
+
+            fireEvent.keyDown(document.body, { key: 'Escape' });
+            expect(result.current.isAsking).toBe(false);
+            expect(result.current.isSidebarOpen).toBe(true);
+
+            // A later answer to another question opens nothing either
+            fireEvent.pointerDown(document.body);
+            act(() => result.current.resolvePending(false));
+            expect(openMenu).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('moving a pill', () => {
+        const ids = (filters: DashboardFilters) =>
+            filters.dimensions.map(({ id }) => id);
+
+        it('writes the dashboard at once and announces the move', () => {
+            const { result } = setup();
+            act(() => result.current.moveFilter('b', 'left'));
+            expect(ids(latest.filters)).toEqual(['b', 'a']);
+            expect(latest.changed).toBe(true);
+            expect(document.querySelector('[role="status"]')).toHaveTextContent(
+                'orders_b moved before orders_a',
+            );
+
+            // At an end nothing moves
+            act(() => result.current.moveFilter('b', 'left'));
+            expect(ids(latest.filters)).toEqual(['b', 'a']);
+
+            act(() => result.current.moveFilter('b', 'right'));
+            expect(document.querySelector('[role="status"]')).toHaveTextContent(
+                'orders_b moved after orders_a',
+            );
+            expect(ids(latest.filters)).toEqual(['a', 'b']);
+        });
+
+        it('has no status region outside edit mode', () => {
+            mockParams.current = { mode: 'view' };
+            setup();
+            expect(document.querySelector('[role="status"]')).toBeNull();
+        });
+
+        it('is no edit: Cancel keeps it', () => {
+            const { result } = setup();
+            act(() => result.current.open('a'));
+            act(() => result.current.moveFilter('a', 'right'));
+            expect(result.current.isDirty).toBe(false);
+            act(() => result.current.discard());
+            expect(ids(latest.filters)).toEqual(['b', 'a']);
+            expect(latest.changed).toBe(true);
+        });
     });
 
     it('Add keeps a new filter that has a field but no label', () => {
@@ -2822,7 +2936,7 @@ describe('ControlsSidebarProvider', () => {
                 ),
             );
         const initial = callbacks();
-        expect(Object.keys(initial)).toHaveLength(21);
+        expect(Object.keys(initial)).toHaveLength(23);
         expect(initial).toHaveProperty('updateOtherFilters');
         // A pill hover marks tiles only; nothing in the sidebar follows it
         expect(initial).not.toHaveProperty('setHoveredFilterId');

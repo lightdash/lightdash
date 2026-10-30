@@ -23,6 +23,8 @@ export type FieldApply = {
     acrossTabs: boolean;
 };
 
+export type MoveDirection = 'left' | 'right';
+
 export type ControlsSidebarContextValue = {
     /** The filter control being edited, or null when the sidebar is closed. */
     editing: { filterId: string } | null;
@@ -60,6 +62,13 @@ export type ControlsSidebarContextValue = {
     isAsking: boolean;
     /** Applies (true) or discards (false) the edit, then opens the pill clicked or the new filter, if any. */
     resolvePending: (isApply: boolean) => void;
+    /**
+     * A tile's data-point menu: opens at once, or, while the editor asks,
+     * once the question is answered; never when it is withdrawn.
+     */
+    whenAnswered: (openMenu: () => void) => void;
+    /** Edit mode: moves a pill one place among its kind in its section, on the dashboard at once; nothing at an end. */
+    moveFilter: (filterId: string, direction: MoveDirection) => void;
     /**
      * A pill's click. Opens the filter; on the edited one it closes a clean
      * edit and focuses Apply otherwise; another filter switches a clean edit
@@ -160,4 +169,13 @@ export const useControlsSidebarSelector = <Selected>(
 ): Selected =>
     useContextSelector(ControlsSidebarContext, (context) =>
         selector(assertProvided(context)),
+    );
+
+const openAtOnce = (openMenu: () => void) => openMenu();
+
+/** A tile's data-point menu: waits while the editor asks; at once without the controls. */
+export const useWhenAnswered = (): ((openMenu: () => void) => void) =>
+    useContextSelector(
+        ControlsSidebarContext,
+        (context) => context?.whenAnswered ?? openAtOnce,
     );
