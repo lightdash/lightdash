@@ -102,6 +102,7 @@ import {
 } from '../features/dashboard/store';
 import { ControlsSidebarPage } from '../features/dashboardControls/ControlsSidebarPage';
 import { DashboardHeaderGuard } from '../features/dashboardControls/DashboardHeaderGuard';
+import guardClasses from '../features/dashboardControls/DashboardHeaderGuard.module.css';
 import { getDimensionFiltersToSave } from '../features/dashboardFilters/FilterConfiguration/utils';
 import { FilterBarPopoversProvider } from '../features/dashboardFilters/FilterRequirements/FilterBarPopoversProvider';
 import DashboardTabs from '../features/dashboardTabs';
@@ -1546,7 +1547,13 @@ const Dashboard: FC = () => {
                 withFullHeight
                 fullPageScroll
             >
-                <div>
+                <div
+                    className={
+                        isDashboardControlsEnabled && isEditMode
+                            ? guardClasses.bandScope
+                            : undefined
+                    }
+                >
                     {isDashboardControlsEnabled ? (
                         <DashboardHeaderGuard {...dashboardHeaderProps} />
                     ) : (
