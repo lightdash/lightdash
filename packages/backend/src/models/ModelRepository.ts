@@ -56,6 +56,7 @@ import { OpenIdIdentityModel } from './OpenIdIdentitiesModel';
 import { OrganizationAgentIdentityRulesModel } from './OrganizationAgentIdentityRulesModel';
 import { OrganizationAgentIdentitySettingsModel } from './OrganizationAgentIdentitySettingsModel';
 import { OrganizationAllowedEmailDomainsModel } from './OrganizationAllowedEmailDomainsModel';
+import { OrganizationBrandModel } from './OrganizationBrandModel';
 import { OrganizationDesignModel } from './OrganizationDesignModel';
 import { OrganizationDomainVerificationModel } from './OrganizationDomainVerificationModel';
 import { OrganizationEmailDomainModel } from './OrganizationEmailDomainModel';
@@ -158,6 +159,7 @@ export type ModelManifest = {
     userAvatarModel: UserAvatarModel;
     userOnboardingModel: UserOnboardingModel;
     userLearnProgressModel: UserLearnProgressModel;
+    organizationBrandModel: OrganizationBrandModel;
     organizationModel: OrganizationModel;
     usageDimensionsModel: UsageDimensionsModel;
     usageHistoryModel: UsageHistoryModel;
@@ -1259,6 +1261,13 @@ export class ModelRepository
 
     public getExternalSourceModel<ModelImplT>(): ModelImplT {
         return this.getModel('externalSourceModel');
+    }
+
+    public getOrganizationBrandModel(): OrganizationBrandModel {
+        return this.getModel(
+            'organizationBrandModel',
+            () => new OrganizationBrandModel(this.database),
+        );
     }
 
     public getReleaseHighlightsModel<ModelImplT>(): ModelImplT {
