@@ -1,6 +1,7 @@
 /* Compact variant: a dense, monospace grid for raw query results. */
 .compact {
     font-family: var(--mantine-font-family-monospace);
+    margin-bottom: var(--mantine-spacing-lg);
 }
 
 .compact th,
@@ -12,7 +13,7 @@
 }
 
 .compact td {
-    height: rem(28px) !important;
+    height: rem(28px);
 }
 
 .compact th {
