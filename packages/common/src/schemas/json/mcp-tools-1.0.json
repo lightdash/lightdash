@@ -3612,8 +3612,8 @@
                         "description": "Total rows in the terminal result; null while running."
                     },
                     "sessionId": {
-                        "description": "Composer session of these nodes; pass it as sessionId to read them by node id in a later call.",
-                        "type": "string"
+                        "description": "Composer session holding the ready nodes; pass it as sessionId to read them by node id in a later call. Null when no node was saved and no sessionId was passed.",
+                        "type": ["string", "null"]
                     },
                     "status": {
                         "description": "running when the terminal node outlived the wait; poll get_query_result with its queryUuid.",

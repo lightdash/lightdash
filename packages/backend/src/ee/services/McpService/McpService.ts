@@ -1597,31 +1597,41 @@ export class McpService extends BaseService {
             terminalNodeId,
             deadlineMs,
         });
+        // Only ready nodes are saved, as in the agent; other node ids stay free to resubmit.
+        const saved = run.nodeStatuses.filter(isSaved);
         const sessionId =
             args.sessionId ??
-            (await this.aiAgentModel.createComposerSession(sessionOwner));
-        // A running pipeline was accepted, so its nodes join the session; a settled run saves only its ready nodes.
-        const saved =
-            run.status === 'running' ? null : run.nodeStatuses.filter(isSaved);
-        await this.aiAgentModel.registerComposerQueryNodes({
-            scope: composerSessionScope(sessionId),
-            nodes: saved
-                ? queries.filter((node) =>
-                      saved.some(({ nodeId }) => nodeId === node.nodeId),
-                  )
-                : queries,
-            nodeColumns: {
-                ...(saved ? toNodeColumns(saved) : {}),
-                ...(run.status === 'success'
-                    ? {
-                          [terminalNodeId]: toComposerNodeColumns(
-                              run.terminal.columns,
-                          ),
-                      }
-                    : {}),
-            },
-        });
-        const sessionNote = `sessionId: ${sessionId} (pass it back to read these nodes by node id).`;
+            (saved.length > 0
+                ? await this.aiAgentModel.createComposerSession(sessionOwner)
+                : null);
+        if (sessionId !== null && saved.length > 0) {
+            await this.aiAgentModel.registerComposerQueryNodes({
+                scope: composerSessionScope(sessionId),
+                nodes: queries.filter((node) =>
+                    saved.some(({ nodeId }) => nodeId === node.nodeId),
+                ),
+                nodeColumns: {
+                    ...toNodeColumns(saved),
+                    ...(run.status === 'success'
+                        ? {
+                              [terminalNodeId]: toComposerNodeColumns(
+                                  run.terminal.columns,
+                              ),
+                          }
+                        : {}),
+                },
+            });
+        }
+        const sessionNote = [
+            run.status === 'success'
+                ? ''
+                : renderSavedNodes(queries, run.nodeStatuses, reusableNodes),
+            sessionId === null
+                ? 'No sessionId: no node was saved.'
+                : `sessionId: ${sessionId} (pass it back to read saved nodes by node id).`,
+        ]
+            .filter(Boolean)
+            .join('\n');
         const queryUuids = new Map(
             ('submissions' in run ? run.submissions : []).map(
                 ({ nodeId, queryUuid }) => [nodeId, queryUuid],
@@ -1642,7 +1652,7 @@ export class McpService extends BaseService {
         );
         if (run.status === 'failure') {
             return mcpQueryTool.result.error(
-                `${run.error}\nNodes:\n${nodeSummary}\n${renderSavedNodes(queries, run.nodeStatuses, reusableNodes)}\n${sessionNote}`,
+                `${run.error}\nNodes:\n${nodeSummary}\n${sessionNote}`,
             );
         }
         const nodeColumns = {

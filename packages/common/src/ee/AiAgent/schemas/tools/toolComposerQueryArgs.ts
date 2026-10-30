@@ -722,8 +722,9 @@ export const toolComposerQueriesStructuredContentSchema = z.object({
 export const mcpQueryStructuredOutputSchema = z.object({
     sessionId: z
         .string()
+        .nullable()
         .describe(
-            'Composer session of these nodes; pass it as sessionId to read them by node id in a later call.',
+            'Composer session holding the ready nodes; pass it as sessionId to read them by node id in a later call. Null when no node was saved and no sessionId was passed.',
         ),
     status: z
         .enum(['done', 'running'])

@@ -756,7 +756,7 @@ describe('McpService query tool', () => {
             const { sessionId } = mcpQueryStructuredOutputSchema.parse(
                 result.structuredContent,
             );
-            expect(composerSessions.sessions.has(sessionId)).toBe(true);
+            expect(composerSessions.sessions.has(sessionId!)).toBe(true);
             expect(textOf(result)).toContain(`sessionId: ${sessionId}`);
         });
 
@@ -820,6 +820,91 @@ describe('McpService query tool', () => {
                     )
                 ).map(({ nodeId }) => nodeId),
             ).toEqual(['orders']);
+        });
+
+        it('saves only the ready nodes of a call still running at the deadline', async () => {
+            const { service, call, composerSessions } = makeService({
+                terminalOutcome: 'running',
+            });
+            await createServer(service);
+
+            const result = await call(
+                McpToolName.QUERY,
+                pipelineArgs([ordersNode, totalsNode]),
+            );
+
+            const { sessionId } = mcpQueryStructuredOutputSchema.parse(
+                result.structuredContent,
+            );
+            expect(sessionId).not.toBeNull();
+            expect(textOf(result)).toContain(
+                'Saved from this call: orders. Not saved: totals (not finished: executing).',
+            );
+            expect(
+                (
+                    await composerSessions.model.listComposerQueryNodes(
+                        composerSessionScope(sessionId!),
+                    )
+                ).map(({ nodeId }) => nodeId),
+            ).toEqual(['orders']);
+        });
+
+        it.each(['running', 'failure'] as const)(
+            'starts no session when a %s call saves no node',
+            async (terminalOutcome) => {
+                const { service, call, composerSessions } = makeService({
+                    terminalOutcome,
+                });
+                await createServer(service);
+
+                const result = await call(
+                    McpToolName.QUERY,
+                    pipelineArgs([ordersNode]),
+                );
+
+                expect(composerSessions.sessions.size).toBe(0);
+                expect(textOf(result)).toContain(
+                    'No sessionId: no node was saved.',
+                );
+                if (terminalOutcome === 'running') {
+                    expect(result.structuredContent).toMatchObject({
+                        sessionId: null,
+                    });
+                }
+            },
+        );
+
+        it('keeps the given session when a call saves no node', async () => {
+            const {
+                service,
+                call,
+                composerSessions,
+                runComposerQueriesUntilDeadline,
+            } = makeService();
+            await createServer(service);
+            const sessionId = await startSession(call);
+            runComposerQueriesUntilDeadline.mockResolvedValueOnce({
+                status: 'running',
+                submissions: [
+                    {
+                        nodeId: 'orders',
+                        sourceType: QuerySourceType.SEMANTIC_LAYER,
+                        queryUuid: queryUuidFor('orders'),
+                    },
+                ],
+                nodeStatuses: [],
+            });
+
+            const result = await call(McpToolName.QUERY, {
+                ...pipelineArgs([ordersNode]),
+                sessionId,
+            });
+
+            expect(result.structuredContent).toMatchObject({
+                status: 'running',
+                sessionId,
+            });
+            expect(composerSessions.sessions.size).toBe(1);
         });
 
         it('lists the readable nodes of the session when a node reads an unknown node id', async () => {
