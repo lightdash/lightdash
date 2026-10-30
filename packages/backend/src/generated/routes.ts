@@ -25974,6 +25974,7 @@ const models: TsoaRoute.Models = {
             'mcp.run_metric_query',
             'mcp.run_sql',
             'mcp.search_field_values',
+            'mcp.query',
             'api',
             'cli',
             'metricsExplorer',
