@@ -168,6 +168,16 @@
                     "mcp": []
                 }
             }
+        },
+        "data-app-auto-analysis-app-column-dropped": {
+            "reason": "Drops apps.auto_analysis. Releases from 3.89.0 onward neither read nor write it, so a rolling upgrade from 3.89.0 or later is unaffected. An instance upgrading straight from 2.279.0 through 3.88.x should use the Recreate strategy: old pods still write the column, so saving a data app's analyse-on-load setting fails on them until they are replaced.",
+            "requiredStop": false,
+            "migration": "packages/backend/src/database/migrations/20261029164939_drop_auto_analysis_from_apps.ts"
+        },
+        "data-app-auto-analysis-org-setting-column-dropped": {
+            "reason": "Drops ai_organization_settings.data_app_auto_analysis_enabled alongside apps.auto_analysis. Releases from 3.89.0 onward neither read nor write it. An instance upgrading straight from 2.279.0 through 3.88.x should use the Recreate strategy: old pods still write the column, so saving the organization AI settings fails on them until they are replaced.",
+            "requiredStop": false,
+            "migration": "packages/backend/src/ee/database/migrations/20261029164944_drop_data_app_auto_analysis_enabled_from_ai_org_settings.ts"
         }
     }
 }
