@@ -485,6 +485,7 @@ import {
 import { pickEmbedProject } from '../../utils/embedProject';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { ExploreCompilationSummary } from '../../utils/ExploreCompilationSummary';
+import { inheritUpstreamSshTunnelPrivateKey } from '../../utils/inheritUpstreamSshTunnelPrivateKey';
 import { createComposeMergeQueryBuilder } from '../../utils/QueryBuilder/composeMergeSql';
 import { applyMergeTerminalWrapper } from '../../utils/QueryBuilder/MergeQueryBuilder';
 import { PivotQueryBuilder } from '../../utils/QueryBuilder/PivotQueryBuilder';
@@ -2791,6 +2792,38 @@ export class ProjectService
             };
         }
         return data;
+    }
+
+    private async inheritTrustedUpstreamSshTunnelPrivateKey<
+        T extends { warehouseConnection: CreateWarehouseCredentials },
+    >(
+        data: T,
+        savedProject: {
+            organizationUuid: string;
+            upstreamProjectUuid?: string | null;
+        },
+        upstreamCredentials: CreateWarehouseCredentials | undefined,
+    ): Promise<T> {
+        if (!upstreamCredentials || !savedProject.upstreamProjectUuid) {
+            return data;
+        }
+        const warehouseConnection = inheritUpstreamSshTunnelPrivateKey(
+            data.warehouseConnection,
+            upstreamCredentials,
+        );
+        if (warehouseConnection === data.warehouseConnection) return data;
+        const upstreamProject = await this.projectModel
+            .getSummary(savedProject.upstreamProjectUuid)
+            .catch((error) => {
+                if (error instanceof NotFoundError) return undefined;
+                throw error;
+            });
+        if (
+            upstreamProject?.organizationUuid !== savedProject.organizationUuid
+        ) {
+            return data;
+        }
+        return { ...data, warehouseConnection };
     }
 
     // TODO: getWarehouseCredentials could be moved to a client WarehouseClientManager. However, this client shouldn't be using a model. Perhaps this information can be passed as a prop to the client so that other services can use the warehouse client credentials logic?
@@ -6532,13 +6565,14 @@ export class ProjectService
         );
 
         let updateData = data;
+        let upstreamCredentials: CreateWarehouseCredentials | undefined;
         if (
             savedProject.type === ProjectType.PREVIEW &&
             savedProject.upstreamProjectUuid &&
             (method === RequestMethod.CLI || method === RequestMethod.CLI_CI) &&
             data.warehouseConnection
         ) {
-            const upstreamCredentials = await this.projectModel
+            upstreamCredentials = await this.projectModel
                 .getWarehouseCredentialsForBinding(
                     savedProject.upstreamProjectUuid,
                     { kind: 'original' },
@@ -6587,7 +6621,11 @@ export class ProjectService
             ],
         };
         const createProject = await this._resolveWarehouseClientCredentials(
-            this.mergeSavedSecretsForResolution(updateData, savedProject),
+            await this.inheritTrustedUpstreamSshTunnelPrivateKey(
+                this.mergeSavedSecretsForResolution(updateData, savedProject),
+                savedProject,
+                upstreamCredentials,
+            ),
             account.user.id,
             savedProject.organizationUuid,
         );
