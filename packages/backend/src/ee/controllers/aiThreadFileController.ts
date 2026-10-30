@@ -73,6 +73,35 @@ export class AiThreadFileController extends BaseController {
     }
 
     /**
+     * Upload raw PNG, JPEG or WebP bytes. The image is private and unclaimed
+     * until sent with a prompt as a `thread_image` context item.
+     * @summary Upload conversation image
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+        requireOAuthScopeOperation('AiThreadFileController.uploadImage'),
+    ])
+    @SuccessResponse('201', 'Created')
+    @Post('/images')
+    @OperationId('uploadAiThreadImage')
+    async uploadImage(
+        @Request() req: express.Request,
+        @Query() filename: string,
+    ): Promise<ApiAiThreadFileResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(201);
+        return {
+            status: 'ok',
+            results: await this.getService().uploadImage(req.account, {
+                fileName: filename,
+                bytes: getRawThreadFileBody(req) ?? Buffer.alloc(0),
+            }),
+        };
+    }
+
+    /**
      * Delete a document that has not been sent yet.
      * @summary Delete an unsent conversation document
      */

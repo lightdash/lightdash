@@ -288,6 +288,7 @@ export const OAUTH_UNCHECKED_OPERATIONS = {
     'AiOrganizationSettingsController.getRuntimeSettings': 'read',
     'AiAgentController.getAgentExploreAccessSummary': 'read',
     'AiThreadFileController.upload': 'write',
+    'AiThreadFileController.uploadImage': 'write',
     'AiThreadFileController.delete': 'write',
     'MobilePushNotificationController.registerInstallation': 'write',
     'MobilePushNotificationController.registerLiveActivityPushToStartToken':

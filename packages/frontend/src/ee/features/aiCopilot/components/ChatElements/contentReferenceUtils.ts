@@ -14,6 +14,7 @@ import { dataAppHref } from '../../../../../features/apps/utils/appUrls';
 // Element references and pipeline nodes never render inline; they always show as pills.
 // Restore items live on hidden turns and are rendered as build cards.
 // A theme pick is a composer setting, not a mention, so it stays a chip.
+// Images always show their original-prompt metadata/expiry pill, never an inline filename mention.
 type InlineReferenceItem = Exclude<
     AiPromptContextItem,
     {
@@ -21,7 +22,8 @@ type InlineReferenceItem = Exclude<
             | 'data_app_element'
             | 'composer_node'
             | 'data_app_restore'
-            | 'design';
+            | 'design'
+            | 'thread_image';
     }
 >;
 
@@ -31,7 +33,8 @@ const isInlineReferenceItem = (
     item.type !== 'data_app_element' &&
     item.type !== 'composer_node' &&
     item.type !== 'data_app_restore' &&
-    item.type !== 'design';
+    item.type !== 'design' &&
+    item.type !== 'thread_image';
 
 export type ContentReferenceSegment =
     | {
@@ -63,6 +66,8 @@ export const getPromptContextItemKey = (
             return `external_source:${item.sourceUuid}`;
         case 'thread_file':
             return `thread_file:${item.fileUuid}`;
+        case 'thread_image':
+            return `thread_image:${item.fileUuid}`;
         case 'pull_request':
             return `pull_request:${item.prUrl}`;
         case 'proposed_change':
@@ -171,6 +176,7 @@ export const getPromptContextItemHref = (
         case 'repository':
         case 'external_source':
         case 'thread_file':
+        case 'thread_image':
             return null;
         case 'pull_request':
             return item.prUrl;

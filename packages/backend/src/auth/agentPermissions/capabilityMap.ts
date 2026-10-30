@@ -524,6 +524,7 @@ export const REST_OPERATION_CAPABILITIES = {
     'AiServiceAccountController.upsert': [AgentCapability.Administration],
     'AiThreadFileController.delete': [AgentCapability.Delete],
     'AiThreadFileController.upload': [AgentCapability.DeployUpload],
+    'AiThreadFileController.uploadImage': [AgentCapability.DeployUpload],
     'AiWritebackController.closeWritebackPullRequest': [
         AgentCapability.DbtWriteback,
     ],

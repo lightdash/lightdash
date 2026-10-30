@@ -9,6 +9,7 @@ import {
     type AiPromptExternalSourceSnapshot,
     type AiPromptResponseTiming,
     type AiPromptThreadFileSnapshot,
+    type AiPromptThreadImageSnapshot,
     type AiPromptTokenUsage,
     type AiProviderApiKeyHints,
     type AiProviderBaseUrls,
@@ -581,6 +582,7 @@ export type AiPromptContextEntityType =
     | 'repository'
     | 'external_source'
     | 'thread_file'
+    | 'thread_image'
     | 'pull_request'
     | 'proposed_change'
     | 'review_finding'
@@ -648,6 +650,7 @@ export type DbAiPromptContext = {
         | AiDashboardRuntimeOverrides
         | AiPromptExternalSourceSnapshot
         | AiPromptThreadFileSnapshot
+        | AiPromptThreadImageSnapshot
         | AiPromptDataAppElementSnapshot
         | AiPromptComposerNodeSnapshot
         | AiPromptDataAppRestoreSnapshot
