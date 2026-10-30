@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1",
-  "generatedAt": "2026-10-30T17:19:00.658Z",
+  "generatedAt": "2026-10-30T18:44:38.094Z",
   "backfillFloorVersion": "0.1893.0",
   "entries": [
     {
@@ -47529,6 +47529,16 @@
       "version": "3.114.0",
       "previousVersion": "3.113.0",
       "releaseDate": "2026-10-30T17:19:00.627Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.114.1",
+      "previousVersion": "3.114.0",
+      "releaseDate": "2026-10-30T18:44:38.076Z",
       "rollingUpdateSafe": true,
       "requiredStops": [],
       "minPreviousVersion": "2.497.1",

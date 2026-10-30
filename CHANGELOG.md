@@ -1,3 +1,10 @@
+## [3.114.1](https://github.com/lightdash/lightdash/compare/3.114.0...3.114.1) (2026-10-30)
+
+
+### Bug Fixes
+
+* **data-apps:** reject a UUID manifest spaceSlug instead of creating a space ([#31884](https://github.com/lightdash/lightdash/issues/31884)) ([69b2d26](https://github.com/lightdash/lightdash/commit/69b2d26945f87e91c2cfaddf40d19fea5a6493b5)), closes [#31701](https://github.com/lightdash/lightdash/issues/31701)
+
 # [3.114.0](https://github.com/lightdash/lightdash/compare/3.113.0...3.114.0) (2026-10-30)
 
 
