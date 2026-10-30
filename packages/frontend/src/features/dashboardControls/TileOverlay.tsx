@@ -485,6 +485,7 @@ const EditedTileOverlays: FC = () => {
                     getChipFieldId(
                         fieldTileActions?.chips ?? NO_CHIPS,
                         highlightedFieldId,
+                        fieldsByTile,
                     )
             ) {
                 updateFilter(next);
@@ -604,7 +605,7 @@ const EditedTileOverlays: FC = () => {
                         return false;
                     const chip = {
                         key: rowKey,
-                        fieldId: getChipFieldId(chips, rowKey),
+                        fieldId: getChipFieldId(chips, rowKey, fieldsByTile),
                     };
                     return (
                         isTargetOnRow(editingRule, tileTarget, chip.fieldId) &&

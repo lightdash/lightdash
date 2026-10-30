@@ -412,7 +412,7 @@ export const useFieldTileActions = (
         return {
             chips,
             forField: (rowKey) => {
-                const fieldId = getChipFieldId(chips, rowKey);
+                const fieldId = getChipFieldId(chips, rowKey, fieldsByTile);
                 return build(
                     { key: rowKey, fieldId },
                     isSqlColumnRow(editingRule, fieldId),

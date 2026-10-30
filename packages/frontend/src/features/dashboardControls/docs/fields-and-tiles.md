@@ -25,8 +25,9 @@
   `forField` and an undo's `fieldId` hold that key; a chip's counts and
   actions run over its own tiles only (`isTileInRow`), while the row's
   "n of m" stays the filter's total. A column's key is its reference. Never
-  parse a key: look its field id up in the chips (`getChipFieldId`); a key
-  that is no chip stands for itself.
+  parse a key: look its field id up with `getChipFieldId` (the chips, then the
+  tiles' fields, for a field cleared off its last tile); any other key
+  stands for itself.
 - A data app tile takes the filter as a whole (on: no entry, off: `false`).
   It counts as filtered, never in a field's count; clear/remove leave it.
 - A mapping to a field the tile no longer offers (`getMissingTileFieldId`)

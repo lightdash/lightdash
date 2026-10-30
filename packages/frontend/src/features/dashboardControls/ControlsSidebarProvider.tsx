@@ -343,6 +343,7 @@ const getClickedFieldId = (
                   current.filterFieldsMap,
               ),
               current.highlightedFieldId,
+              current.filterableFieldsByTileUuid,
           );
 
 // Fields of the filter on no tile yet, keyed by filter so a stale entry
@@ -1725,7 +1726,11 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         );
         return chips.some((chip) => chip.key === highlightedFieldId) ||
             waitingFieldIds.includes(
-                getChipFieldId(chips, highlightedFieldId),
+                getChipFieldId(
+                    chips,
+                    highlightedFieldId,
+                    filterableFieldsByTileUuid,
+                ),
             ) ||
             fieldUndo?.fieldId === highlightedFieldId
             ? highlightedFieldId

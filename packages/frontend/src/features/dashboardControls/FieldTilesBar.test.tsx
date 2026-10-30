@@ -893,6 +893,29 @@ describe('FieldTilesBar', () => {
             });
         });
 
+        it('keeps its name and offers its tiles again once Clear took it off every tile', () => {
+            // The joined chip's tiles are both left out: its key is no chip now
+            setSidebar(
+                rule('orders_status', { 'tile-2': false, 'tile-3': false }),
+                { highlightedFieldId: JOINED_KEY },
+            );
+            renderWithProviders(<Dashboard />);
+
+            const joinedBar = bar('Status', 'Order customer');
+            expect(within(joinedBar).getByText('Order customer')).toBeVisible();
+            expect(countOf('Status', 'Order customer')).toHaveTextContent(
+                /^0 of 2 tiles$/,
+            );
+            const fill = within(joinedBar).getByRole('button', {
+                name: 'Filter 2 more',
+            });
+            expect(fill).toBeEnabled();
+            fireEvent.click(fill);
+            // Back on the joined tiles only; tile-1 keeps its own chip
+            expect(getAppliedRule().tileTargets).toBeUndefined();
+            expect(appliedUndo()).toMatchObject({ fieldId: JOINED_KEY });
+        });
+
         it('clears and removes one chip without touching the other', () => {
             const result = renderActions();
             result.current!.forField(ORDERS_KEY).clear('every-tab');
