@@ -16,6 +16,14 @@ describe('FilterMultiStringInput', () => {
         expect(container.querySelectorAll('button')).toHaveLength(2);
     });
 
+    it('opens its list on focus, as the shipped filter popovers expect', () => {
+        renderWithProviders(
+            <FilterMultiStringInput values={[]} onChange={vi.fn()} />,
+        );
+        fireEvent.focus(screen.getByRole('textbox'));
+        expect(screen.getByRole('listbox')).toBeInTheDocument();
+    });
+
     it('adds a custom value on Enter', async () => {
         const user = userEvent.setup();
         const onChange = vi.fn();

@@ -69,6 +69,7 @@ const DefaultFilterInputs = <T extends BaseFilterRule>({
                             onDropdownOpen={popoverProps?.onOpen}
                             onDropdownClose={popoverProps?.onClose}
                             closeOnOptionSubmit={popoverProps?.closeListOnPick}
+                            openOnFocus={popoverProps?.openListOnFocus}
                             values={(rule.values || []).filter(isString)}
                             onChange={(values) =>
                                 onChange({
@@ -91,6 +92,7 @@ const DefaultFilterInputs = <T extends BaseFilterRule>({
                             onDropdownOpen={popoverProps?.onOpen}
                             onDropdownClose={popoverProps?.onClose}
                             closeOnOptionSubmit={popoverProps?.closeListOnPick}
+                            openOnFocus={popoverProps?.openListOnFocus}
                             values={(rule.values || []).filter(isString)}
                             singleValue={isSingleValue}
                             showNullOption={

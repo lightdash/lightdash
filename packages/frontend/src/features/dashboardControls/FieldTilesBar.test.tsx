@@ -394,7 +394,7 @@ describe('FieldTilesBar', () => {
             expect(appliedUndo()).toEqual({
                 kind: 'apply' as const,
                 fieldId: 'orders_status',
-                tileCount: 3,
+                tileCount: 2,
                 replaced: 1,
                 acrossTabs: false,
             });
@@ -511,8 +511,21 @@ describe('FieldTilesBar', () => {
             expect(getAppliedRule().tileTargets).toEqual({ 'tile-3': false });
             expect(appliedUndo()).toMatchObject({
                 kind: 'apply',
-                tileCount: 2,
+                tileCount: 1,
                 replaced: 1,
+                acrossTabs: false,
+            });
+        });
+
+        it('records for Undo only the tiles Filter changes, as its label counts', () => {
+            setSidebar(rule('orders_status', { 'tile-2': false }));
+            renderWithProviders(<TabbedDashboard />);
+
+            expect(filterAllButton()).toHaveTextContent(/^Filter 1 more$/);
+            fireEvent.click(filterAllButton());
+            expect(appliedUndo()).toMatchObject({
+                kind: 'apply',
+                tileCount: 1,
                 acrossTabs: false,
             });
         });
@@ -897,7 +910,7 @@ describe('FieldTilesBar', () => {
             expect(appliedUndo()).toMatchObject({
                 kind: 'apply',
                 fieldId: JOINED_KEY,
-                tileCount: 2,
+                tileCount: 1,
             });
         });
 

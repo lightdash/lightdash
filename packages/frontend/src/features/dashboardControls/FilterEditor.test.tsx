@@ -134,7 +134,6 @@ const setSidebar = (overrides: Partial<ControlsSidebarContextValue>) => {
         endMapping: vi.fn(),
         isAsking: false,
         resolvePending: vi.fn(),
-        whenAnswered: vi.fn(),
         moveFilter: vi.fn(),
         applyWithUndo: vi.fn(),
         undoApply: vi.fn(),
@@ -484,7 +483,7 @@ describe('EditorPopover', () => {
         });
     });
 
-    describe('a pill or a click outside with changes unapplied', () => {
+    describe('a pill or Add with changes unapplied', () => {
         it('asks at the top: Discard or Apply, with the rest dimmed and inert', () => {
             const { resolvePending, close, discard } = setSidebar({
                 isNew: false,

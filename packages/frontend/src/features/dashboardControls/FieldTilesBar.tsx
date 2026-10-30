@@ -23,7 +23,7 @@ import {
     findFieldBarStart,
     findSelectedChip,
 } from './mappingFocus';
-import { type FieldScope } from './peers';
+import { getChangeCount, type FieldScope } from './peers';
 import { useBarHost } from './useBarHost';
 import {
     useControlsSidebarSelector,
@@ -36,9 +36,6 @@ import {
     type TileScope,
 } from './useFieldTileActions';
 import { useSqlColumnsByTile } from './useSqlColumnsByTile';
-
-// The tiles an apply would change
-const getChangeCount = (scope: FieldScope) => scope.unfiltered + scope.replaced;
 
 // The tab in view first, then the other tabs; null when neither has tiles left
 const getTarget = (

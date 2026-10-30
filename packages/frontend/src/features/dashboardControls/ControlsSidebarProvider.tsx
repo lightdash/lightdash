@@ -113,10 +113,9 @@ const findPill = (filterId: string): HTMLElement | null =>
         (element) => element.getAttribute(PILL_ATTRIBUTE) === filterId,
     ) ?? null;
 
-// What follows once the prompt is answered: the pill clicked, a new filter
-// (in a section, or null), or nothing after a click outside
+// What follows once the prompt is answered: the pill clicked, or a new
+// filter (in a section, or null)
 type Pending =
-    | { kind: 'close' }
     | { kind: 'open'; filterId: string }
     | { kind: 'new'; sectionId: string | null };
 
@@ -666,11 +665,7 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         setState(next);
     }, []);
 
-    // A tile's data-point menu clicked while the editor asked: it opens once
-    // the question is answered. Any new question or answer drops it
-    const afterAnswer = useRef<(() => void) | null>(null);
     const writePending = useCallback((next: Pending | null) => {
-        afterAnswer.current = null;
         latest.current.pending = next;
         setPending(next);
     }, []);
@@ -1520,19 +1515,14 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         [close, hasUnappliedChanges, openExisting, writePending, trackClosed],
     );
 
-    // A click outside: a clean edit closes, else the editor asks first (true).
-    // Mapping is left only by its own Cancel or Apply
+    // A click outside cancels, unapplied changes and all, so what was clicked
+    // acts at once. Mapping is left only by its own Cancel or Apply
     const requestClose = useCallback(() => {
-        if (latest.current.state === null) return false;
-        if (latest.current.state.mappingStart !== null) return false;
-        if (hasUnappliedChanges()) {
-            writePending({ kind: 'close' });
-            return true;
-        }
+        if (latest.current.state === null) return;
+        if (latest.current.state.mappingStart !== null) return;
         trackClosed('cancel');
         discard();
-        return false;
-    }, [discard, hasUnappliedChanges, writePending, trackClosed]);
+    }, [discard, trackClosed]);
 
     // The prompt's answer: Apply or Discard the edit, then open the filter
     // that was clicked, if one was
@@ -1541,7 +1531,6 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
             const current = latest.current;
             const next = getPending(current);
             if (next === null) return;
-            const openMenu = afterAnswer.current;
             if (current.state?.isViewer === false) {
                 current.track({
                     name: EventName.DASHBOARD_FILTER_EDITOR_SWITCH_ANSWERED,
@@ -1551,14 +1540,10 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
                     },
                 });
             }
-            trackClosed(
-                next.kind !== 'close' ? 'switch' : isApply ? 'apply' : 'cancel',
-            );
+            trackClosed('switch');
             if (isApply) close();
             else discard();
             switch (next.kind) {
-                case 'close':
-                    break;
                 case 'open':
                     openExisting(next.filterId);
                     break;
@@ -1568,7 +1553,6 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
                 default:
                     assertUnreachable(next, 'Unknown pending step');
             }
-            openMenu?.();
         },
         [close, discard, openExisting, openPlaceholder, trackClosed],
     );
@@ -1607,15 +1591,6 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         // Once the question has left: it held the focus
         setTimeout(focusInEditor);
     }, [discard, writePending, trackClosed, cancelMapping, toSavedNow]);
-
-    const whenAnswered = useCallback((openMenu: () => void) => {
-        const current = latest.current;
-        if (getEditingRule(current) === null || getPending(current) === null) {
-            openMenu();
-            return;
-        }
-        afterAnswer.current = openMenu;
-    }, []);
 
     // A move along the bar is no edit, as a section move: it reaches the
     // dashboard at once, and a focused pill keeps the focus
@@ -1787,7 +1762,6 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
             endMapping,
             isAsking,
             resolvePending,
-            whenAnswered,
             moveFilter,
             newTileUuids,
             dismissedLinks,
@@ -1836,7 +1810,6 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
             endMapping,
             isAsking,
             resolvePending,
-            whenAnswered,
             moveFilter,
             editing,
             isPlaceholder,
