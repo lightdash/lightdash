@@ -46,17 +46,16 @@ export type RouterDecision = {
     shouldSkipForwardingQuery: boolean;
 };
 
-/** What the router knows about one candidate agent, independent of which decision path consumes it. */
 export type RoutingCandidate = {
     uuid: string;
     name: string;
     description: string | null;
     instruction: string | null;
     explores: string[];
-    verifiedQuestions: string[];
+    questions: string[];
 };
 
-/** Everything a routing decision is made from. Both the decisions provider and the LLM render from this. */
+// The decisions provider receives this object as-is, so its field names are part of that request.
 export type RoutingContext = {
     prompt: string;
     instructions: string | null;
@@ -80,10 +79,10 @@ export const buildRoutingContext = ({
     candidates: candidates.map((agent) => ({
         uuid: agent.uuid,
         name: agent.name,
-        description: agent.description ?? null,
-        instruction: agent.instruction ?? null,
+        description: agent.description,
+        instruction: agent.instruction,
         explores: agent.context.explores,
-        verifiedQuestions: agent.context.verifiedQuestions.slice(
+        questions: agent.context.verifiedQuestions.slice(
             0,
             MAX_VERIFIED_QUESTIONS_PER_CANDIDATE,
         ),
@@ -139,8 +138,8 @@ function renderCandidate(candidate: RoutingCandidate, index: number): string {
         candidate.explores.length > 0
             ? `   Data Access: ${candidate.explores.join(', ')}`
             : null,
-        candidate.verifiedQuestions.length > 0
-            ? `   Example Questions:\n${candidate.verifiedQuestions
+        candidate.questions.length > 0
+            ? `   Example Questions:\n${candidate.questions
                   .map((q) => `     - "${q}"`)
                   .join('\n')}`
             : null,
@@ -160,7 +159,6 @@ ${instructions}
 `;
 }
 
-/** The LLM path: the context rendered as a system prompt plus the user's query. */
 export function renderRouterMessages(context: RoutingContext): ModelMessage[] {
     const systemPrompt = ROUTER_SYSTEM_PROMPT.replace(
         '{{candidates}}',
@@ -178,22 +176,6 @@ export function renderRouterMessages(context: RoutingContext): ModelMessage[] {
     ];
 }
 
-/** The decisions-provider path: the same context as structured state. */
-export function renderRouterDecisionState(context: RoutingContext) {
-    return {
-        prompt: context.prompt,
-        instructions: context.instructions,
-        candidates: context.candidates.map((candidate) => ({
-            uuid: candidate.uuid,
-            name: candidate.name,
-            description: candidate.description,
-            instruction: candidate.instruction,
-            explores: candidate.explores,
-            questions: candidate.verifiedQuestions,
-        })),
-    };
-}
-
 // The provider caps a choice question at 255 criteria, one of which is 'none'.
 const MAX_DECISION_CANDIDATES = 254;
 
@@ -203,7 +185,7 @@ async function decideWithProvider(
 ): Promise<RouterDecision | null> {
     const answers = await decisions.evaluate({
         operation: 'agent-routing',
-        state: renderRouterDecisionState(context),
+        state: context,
         questions: {
             agent: {
                 type: 'choice',
@@ -248,12 +230,12 @@ async function decideWithModel({
     model,
     context,
     telemetry,
-    hasDecisionsProvider,
+    unmatchedDecision,
 }: {
     model: LanguageModel;
     context: RoutingContext;
     telemetry: AiCallAttribution | undefined;
-    hasDecisionsProvider: boolean;
+    unmatchedDecision: (selectedAgentUuid: string) => RouterDecision;
 }): Promise<RouterDecision> {
     const telemetryConfig = getAiCallTelemetry({
         functionId: 'selectAgent',
@@ -277,16 +259,7 @@ async function decideWithModel({
     );
 
     if (!exists) {
-        return {
-            selectedAgentUuid: hasDecisionsProvider
-                ? null
-                : context.candidates[0].uuid,
-            reasoning: hasDecisionsProvider
-                ? 'No accessible agent matched. Choose an agent to continue.'
-                : `Selected agent "${selection.agentUuid}" not found. Defaulting to first available agent.`,
-            confidence: 'low',
-            shouldSkipForwardingQuery: false,
-        };
+        return unmatchedDecision(selection.agentUuid);
     }
 
     return {
@@ -297,10 +270,6 @@ async function decideWithModel({
     };
 }
 
-/**
- * Selects the agent for a query. The decisions provider is tried first when
- * available; the LLM is the fallback. Both read the same routing context.
- */
 export async function selectAgent({
     model,
     candidates,
@@ -336,10 +305,25 @@ export async function selectAgent({
         if (decision) return decision;
     }
 
+    // Without a decisions provider the legacy fallback keeps picking the first agent.
     return decideWithModel({
         model,
         context,
         telemetry,
-        hasDecisionsProvider: decisions !== undefined,
+        unmatchedDecision: (selectedAgentUuid) =>
+            decisions
+                ? {
+                      selectedAgentUuid: null,
+                      reasoning:
+                          'No accessible agent matched. Choose an agent to continue.',
+                      confidence: 'low',
+                      shouldSkipForwardingQuery: false,
+                  }
+                : {
+                      selectedAgentUuid: candidates[0].uuid,
+                      reasoning: `Selected agent "${selectedAgentUuid}" not found. Defaulting to first available agent.`,
+                      confidence: 'low',
+                      shouldSkipForwardingQuery: false,
+                  },
     });
 }
