@@ -63,7 +63,7 @@ export type RoutingContext = {
     candidates: RoutingCandidate[];
 };
 
-const MAX_VERIFIED_QUESTIONS_PER_CANDIDATE = 15;
+const MAX_VERIFIED_QUESTIONS_PER_CANDIDATE = 5;
 
 export const buildRoutingContext = ({
     candidates,

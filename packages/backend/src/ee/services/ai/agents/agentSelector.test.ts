@@ -161,7 +161,7 @@ describe('routing context', () => {
                 expect(systemText).toContain(question),
             );
         });
-        expect(state.candidates[0].questions).toHaveLength(15);
+        expect(state.candidates[0].questions).toHaveLength(5);
     });
 
     it('treats blank admin instructions as none on both paths', () => {
