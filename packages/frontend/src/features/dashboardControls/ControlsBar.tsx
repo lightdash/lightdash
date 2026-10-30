@@ -53,8 +53,8 @@ export const ControlsBar: FC<Props> = (props) => {
 };
 
 // While tiles are chosen the mapping row cross-fades into the filter row's
-// place. The filter row stays, faded and inert, so the grid keeps its place
-// and the row comes back at once
+// place. The filter row stays mounted, faded, inert and out of the layout,
+// so the bar shrinks to one line and the row comes back at once
 export const MappingSwap: FC<{ children: ReactNode }> = ({ children }) => {
     const isMapping = useControlsSidebarSelector((c) => c.isMapping);
     return (

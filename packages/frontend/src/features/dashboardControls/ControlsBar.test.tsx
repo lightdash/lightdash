@@ -130,7 +130,7 @@ describe('ControlsBar', () => {
             renderWithProviders(<ControlsBar {...baseProps} isEditMode />);
 
             expect(screen.getByTestId('mapping-row')).toBeInTheDocument();
-            // Kept in place so the grid does not move, but out of reach
+            // Kept mounted so it comes back at once, but out of reach
             const filterRow = screen
                 .getByTestId('sectioned-filters')
                 .closest('[data-hidden]');
