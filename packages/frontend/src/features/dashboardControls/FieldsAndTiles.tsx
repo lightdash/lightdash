@@ -41,7 +41,6 @@ import { useRailContractClasses } from './railContractClasses';
 import { useControlsSidebar } from './useControlsSidebar';
 import { useFieldTileActions } from './useFieldTileActions';
 import { useFilterRuleField } from './useFilterRuleField';
-import { focusLabelInput } from './useLabelDraft';
 import { useSqlColumnsByTile } from './useSqlColumnsByTile';
 
 const NO_FIELDS: DashboardFilterableField[] = [];
@@ -233,11 +232,7 @@ export const FieldsAndTiles: FC = () => {
                                 'filters.rail.searchFields',
                             )}
                             withinPortal
-                            onChange={(field) => {
-                                addFirstField(field);
-                                // Naming it comes next
-                                focusLabelInput();
-                            }}
+                            onChange={addFirstField}
                         />
                     ) : (
                         <SqlColumnSelect
@@ -255,7 +250,6 @@ export const FieldsAndTiles: FC = () => {
                                         ]),
                                     ),
                                 );
-                                focusLabelInput();
                             }}
                         />
                     )}

@@ -16,7 +16,7 @@ import {
 } from '../../testing/dashboardStore';
 import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
 import { renderWithProviders as renderWithAppProviders } from '../../testing/testUtils';
-import { ControlSidebar } from './ControlSidebar';
+import { EditorPopover } from './FilterEditor';
 import { RailContractClasses } from './railContractClasses';
 import { type ControlsSidebarContextValue } from './useControlsSidebar';
 import { LABEL_COMMIT_DELAY } from './useLabelDraft';
@@ -53,23 +53,27 @@ vi.mock('./FieldsAndTiles', () => ({
     ),
 }));
 
+// Both views at once: its own tests switch them
 vi.mock('./FilterSettings', () => ({
     FilterSettings: ({
         field,
+        nameInput,
         sectionSelect,
-        tilesSummary,
+        appliedTileCount,
     }: {
         field: { label: string } | null;
+        nameInput: ReactNode;
         sectionSelect: ReactNode;
-        tilesSummary: string;
+        appliedTileCount: number;
     }) => (
         <div data-testid="filter-settings">
             <div data-controls-value>
                 <input aria-label="Operator" />
             </div>
             {field ? `Settings for ${field.label}` : 'Settings with no field'}
+            {nameInput}
             {sectionSelect}
-            <span data-testid="tiles-summary">{tilesSummary}</span>
+            <span data-testid="applied-count">{appliedTileCount}</span>
         </div>
     ),
 }));
@@ -115,13 +119,11 @@ const setSidebar = (overrides: Partial<ControlsSidebarContextValue>) => {
         isPlaceholder: false,
         editingRule: makeRule({}),
         isSidebarOpen: true,
-        pendingRule: null,
+        isAsking: false,
         resolvePending: vi.fn(),
         applyWithUndo: vi.fn(),
         undoApply: vi.fn(),
         fieldUndo: null,
-        activeSection: null,
-        setActiveSection: vi.fn(),
         open: vi.fn(),
         openNew: vi.fn(),
         addFirstField: vi.fn(),
@@ -192,7 +194,15 @@ const renderWithProviders = (
     };
 };
 
-describe('ControlSidebar', () => {
+// The editor as a pill opens it
+const Editor = () => (
+    <EditorPopover isOpen>
+        <button type="button">Pill</button>
+    </EditorPopover>
+);
+const editor = () => document.querySelector('[data-controls-editor]');
+
+describe('EditorPopover', () => {
     beforeEach(() => {
         mockDashboardContext.current = {
             allFilterableFields: [field],
@@ -220,104 +230,53 @@ describe('ControlSidebar', () => {
     const placeholder = makeRule({ target: { fieldId: '', tableName: '' } });
     const button = (name: string) => screen.getByRole('button', { name });
 
-    it('summarises the tiles and fields of the open filter', () => {
+    it('hands the settings the tiles the filter is on, over every tab', () => {
         setSidebar({});
-        const { rerender } = renderWithProviders(<ControlSidebar />);
-        expect(screen.getByTestId('tiles-summary')).toHaveTextContent(
-            '2 tiles · 1 field',
-        );
+        const { rerender } = renderWithProviders(<Editor />);
+        expect(screen.getByTestId('applied-count')).toHaveTextContent('2');
 
         setSidebar({
             editingRule: makeRule({ tileTargets: { a: false, b: REGION } }),
         });
-        rerender(<ControlSidebar />);
-        expect(screen.getByTestId('tiles-summary')).toHaveTextContent(
-            '1 tile · 2 fields',
-        );
-    });
+        rerender(<Editor />);
+        expect(screen.getByTestId('applied-count')).toHaveTextContent('1');
 
-    it('counts the tiles over every tab', () => {
         mockDashboardContext.current = {
             ...mockDashboardContext.current,
             dashboardTiles: [tile('a', 't1'), tile('b', 't1'), tile('c', 't2')],
             dashboardTabs: [tab('t1', 0), tab('t2', 1)],
         };
         setSidebar({});
-        renderWithProviders(<ControlSidebar />);
-        expect(screen.getByTestId('tiles-summary')).toHaveTextContent(
-            '2 tiles · 1 field',
-        );
+        rerender(<Editor />);
+        expect(screen.getByTestId('applied-count')).toHaveTextContent('2');
     });
 
     it('renders nothing while no filter is edited', () => {
         setSidebar({ editing: null, editingRule: null, isSidebarOpen: false });
-        const { container } = renderWithProviders(<ControlSidebar />);
-        expect(container.querySelector('[data-controls-editor]')).toBeNull();
+        renderWithProviders(<Editor />);
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
 
-    it('heads the rail with the filter alone: its type and name, no count, menu or X', () => {
+    it('is a dialog named by the filter: no header, badge or X', () => {
         setSidebar({
             isNew: false,
-            isDirty: false,
             editingRule: makeRule({ label: 'Order status' }),
         });
-        const { container } = renderWithProviders(
-            <ControlSidebar />,
-            filters([makeRule({ label: 'Order status' })]),
-        );
-        const header = container.querySelector(
-            '[data-controls-editor] > [class*="header"]',
-        ) as HTMLElement;
-        expect(header).toHaveTextContent(/^Order status$/);
-        expect(header.querySelector('svg')).not.toBeNull();
-        expect(container.querySelector('.mantine-Badge-root')).toBeNull();
-        expect(screen.queryByRole('button', { name: 'Close' })).toBeNull();
-        expect(screen.queryByRole('button', { name: 'More' })).toBeNull();
-        // Removing is the pill's X; Cancel is the way to discard
+        renderWithProviders(<Editor />);
+        expect(
+            screen.getByRole('dialog', { name: 'Order status' }),
+        ).toBeInTheDocument();
+        expect(editor()?.querySelector('.mantine-Badge-root')).toBeNull();
         expect(
             screen.queryByRole('button', { name: 'Remove filter' }),
         ).toBeNull();
-        expect(screen.queryByRole('button', { name: /Discard/ })).toBeNull();
-        expect(
-            screen.queryByRole('button', { name: 'Collapse filter' }),
-        ).toBeNull();
-    });
-
-    it('is a region named by the filter it edits', () => {
-        setSidebar({ editingRule: makeRule({ label: 'Order status' }) });
-        renderWithProviders(<ControlSidebar />);
-        expect(
-            screen.getByRole('region', { name: 'Order status' }),
-        ).toHaveAttribute('data-controls-editor');
-        expect(screen.getByRole('textbox', { name: 'Name' })).toHaveValue(
-            'Order status',
-        );
-    });
-
-    it('badges a changed filter Edited, and a new one with a field New', () => {
-        setSidebar({ isNew: false, isDirty: true });
-        const { container, rerender } = renderWithProviders(<ControlSidebar />);
-        const badge = () => container.querySelector('.mantine-Badge-root');
-        expect(badge()).toHaveTextContent('Edited');
-
-        setSidebar({ isNew: true, isDirty: true });
-        rerender(<ControlSidebar />);
-        expect(badge()).toHaveTextContent('New');
-
-        // A new filter with no field yet has nothing to lose
-        setSidebar({
-            isNew: true,
-            isDirty: false,
-            isPlaceholder: true,
-            editingRule: placeholder,
-        });
-        rerender(<ControlSidebar />);
-        expect(badge()).toBeNull();
+        // The provider owns Escape and outside clicks: the pill reads as no open list
+        expect(button('Pill')).not.toHaveAttribute('aria-expanded');
     });
 
     it('ends with Cancel and Apply, the only filled button', () => {
         const { close, discard } = setSidebar({ isNew: false });
-        renderWithProviders(<ControlSidebar />);
+        renderWithProviders(<Editor />);
 
         const apply = button('Apply');
         expect(apply).toBeEnabled();
@@ -337,20 +296,19 @@ describe('ControlSidebar', () => {
             isPlaceholder: true,
             editingRule: placeholder,
         });
-        const { container, rerender } = renderWithProviders(<ControlSidebar />);
+        const { rerender } = renderWithProviders(<Editor />);
 
-        expect(screen.getByText('New filter')).toBeInTheDocument();
-        expect(screen.queryByLabelText('Name')).not.toBeInTheDocument();
+        expect(
+            screen.getByRole('dialog', { name: 'New filter' }),
+        ).toBeInTheDocument();
         expect(screen.getByTestId('fields-and-tiles')).toBeInTheDocument();
         expect(screen.queryByTestId('filter-settings')).not.toBeInTheDocument();
-        // No field yet: no type to show
-        expect(container.querySelector('[class*="header"] svg')).toBeNull();
         expect(button('Create')).toBeDisabled();
         fireEvent.click(button('Cancel'));
         expect(discard).toHaveBeenCalledTimes(1);
 
         setSidebar({ isPlaceholder: false, editingRule: makeRule({}) });
-        rerender(<ControlSidebar />);
+        rerender(<Editor />);
         expect(button('Create')).toBeEnabled();
     });
 
@@ -364,12 +322,11 @@ describe('ControlSidebar', () => {
                 target: { fieldId: '', tableName: '' },
             }),
         });
-        renderWithProviders(<ControlSidebar />);
+        renderWithProviders(<Editor />);
 
-        expect(screen.queryByText('New filter')).not.toBeInTheDocument();
-        const label = screen.getByLabelText('Name');
-        expect(label).toHaveValue('Order status');
-        expect(label).toHaveAttribute('placeholder', 'Status');
+        expect(
+            screen.getByRole('dialog', { name: 'Order status' }),
+        ).toBeInTheDocument();
         expect(button('Apply')).toBeDisabled();
     });
 
@@ -383,7 +340,7 @@ describe('ControlSidebar', () => {
                     disabled: true,
                 }),
             });
-            const { rerender } = renderWithProviders(<ControlSidebar />);
+            const { rerender } = renderWithProviders(<Editor />);
             expect(button('Apply')).toBeDisabled();
             await userEvent.hover(button('Apply').parentElement!);
             expect(
@@ -394,7 +351,7 @@ describe('ControlSidebar', () => {
                 isNew: false,
                 editingRule: makeRule({ required: true }),
             });
-            rerender(<ControlSidebar />);
+            rerender(<Editor />);
             expect(button('Apply')).toBeEnabled();
         });
 
@@ -403,7 +360,7 @@ describe('ControlSidebar', () => {
                 isNew: false,
                 editingRule: makeRule({ tileTargets: { a: false, b: false } }),
             });
-            renderWithProviders(<ControlSidebar />);
+            renderWithProviders(<Editor />);
             expect(button('Apply')).toBeDisabled();
             await userEvent.hover(button('Apply').parentElement!);
             expect(
@@ -419,55 +376,77 @@ describe('ControlSidebar', () => {
                 isNew: false,
                 editingRule: makeRule({ tileTargets: { a: false, b: false } }),
             });
-            renderWithProviders(<ControlSidebar />);
+            renderWithProviders(<Editor />);
             expect(button('Apply')).toBeEnabled();
         });
     });
 
-    describe('a pill clicked with changes unapplied', () => {
-        const region = makeRule({ id: 'filter-2', label: 'Region' });
-
-        it('asks in the footer: Discard or Apply, then that filter opens', () => {
+    describe('a pill or a click outside with changes unapplied', () => {
+        it('asks at the top: Discard or Apply, with the rest dimmed and inert', () => {
             const { resolvePending, close, discard } = setSidebar({
                 isNew: false,
-                pendingRule: region,
+                isAsking: true,
             });
-            renderWithProviders(<ControlSidebar />);
+            renderWithProviders(<Editor />);
 
-            expect(
-                screen.getByText('Apply before opening Region?'),
-            ).toBeInTheDocument();
-            expect(
-                screen.queryByRole('button', { name: 'Cancel' }),
-            ).not.toBeInTheDocument();
+            expect(screen.getByRole('status')).toHaveTextContent(
+                'Apply changes to Status first?',
+            );
+            expect(editor()?.firstElementChild?.firstElementChild).toBe(
+                screen.getByRole('status').parentElement,
+            );
+            const footer = button('Cancel').closest('[inert]');
+            expect(footer).toHaveAttribute('data-dimmed');
+            expect(footer).not.toHaveAttribute('data-controls-apply');
+            // The value, the rows and Settings wait with the footer
+            expect(footer).toContainElement(
+                screen.getByTestId('filter-settings'),
+            );
+            // The prompt's Apply takes the marker and the focus
+            const asked = editor()?.querySelector('[data-controls-apply]');
+            expect(asked).toHaveTextContent('Apply');
+            expect(asked).toHaveFocus();
+            expect(footer?.contains(asked ?? null)).toBe(false);
+            expect(button('Discard')).toHaveAttribute('data-variant', 'subtle');
+            expect(asked).toHaveAttribute('data-variant', 'default');
+
             fireEvent.click(button('Discard'));
             expect(resolvePending).toHaveBeenLastCalledWith(false);
-            fireEvent.click(button('Apply'));
+            fireEvent.click(asked as HTMLElement);
             expect(resolvePending).toHaveBeenLastCalledWith(true);
             expect(close).not.toHaveBeenCalled();
             expect(discard).not.toHaveBeenCalled();
         });
 
-        it('keeps the focused Apply as the footer changes', () => {
-            setSidebar({ isNew: false });
-            const { rerender } = renderWithProviders(<ControlSidebar />);
-            act(() => button('Apply').focus());
-
-            setSidebar({ isNew: false, pendingRule: region });
-            rerender(<ControlSidebar />);
-            expect(button('Apply')).toHaveFocus();
+        it('focuses Discard when Apply cannot answer', () => {
+            setSidebar({
+                isNew: false,
+                isAsking: true,
+                editingRule: makeRule({ tileTargets: { a: false, b: false } }),
+            });
+            renderWithProviders(<Editor />);
+            expect(button('Discard')).toHaveFocus();
         });
 
-        it('reads Create for a new filter, by the field name of the pill', () => {
+        it('has no prompt and a live footer otherwise', () => {
+            setSidebar({ isNew: false });
+            renderWithProviders(<Editor />);
+            expect(screen.queryByRole('status')).not.toBeInTheDocument();
+            expect(button('Cancel').closest('[inert]')).toBeNull();
+            expect(button('Apply')).toHaveAttribute('data-controls-apply');
+        });
+
+        it('cannot Apply from the prompt what Apply could not', () => {
             setSidebar({
-                isNew: true,
-                pendingRule: makeRule({ id: 'filter-2' }),
+                isNew: false,
+                isAsking: true,
+                editingRule: makeRule({ tileTargets: { a: false, b: false } }),
             });
-            renderWithProviders(<ControlSidebar />);
+            renderWithProviders(<Editor />);
             expect(
-                screen.getByText('Create before opening Status?'),
-            ).toBeInTheDocument();
-            expect(button('Create')).toBeEnabled();
+                editor()?.querySelector('[data-controls-apply]'),
+            ).toBeDisabled();
+            expect(button('Discard')).toBeEnabled();
         });
     });
 
@@ -489,7 +468,7 @@ describe('ControlSidebar', () => {
             const { updateFilter, editingRule } = setSidebar({
                 editingRule: makeRule({ sectionId: 'section-b' }),
             });
-            renderWithProviders(<ControlSidebar />);
+            renderWithProviders(<Editor />);
 
             const select = screen.getByRole('combobox', { name: 'Section' });
             expect(select).toHaveValue('Regions');
@@ -513,17 +492,9 @@ describe('ControlSidebar', () => {
             expect(unsectioned && 'sectionId' in unsectioned).toBe(false);
         });
 
-        it('is not offered without sections, nor to a viewer', () => {
+        it('is not offered without sections', () => {
             setSidebar({});
-            const { unmount } = renderWithProviders(<ControlSidebar />);
-            expect(
-                screen.queryByRole('combobox', { name: 'Section' }),
-            ).not.toBeInTheDocument();
-            unmount();
-
-            withSections();
-            setSidebar({ isViewer: true });
-            renderWithProviders(<ControlSidebar />);
+            renderWithProviders(<Editor />);
             expect(
                 screen.queryByRole('combobox', { name: 'Section' }),
             ).not.toBeInTheDocument();
@@ -532,7 +503,7 @@ describe('ControlSidebar', () => {
 
     it('names the open filter after its field while it has no label', () => {
         setSidebar({});
-        renderWithProviders(<ControlSidebar />);
+        renderWithProviders(<Editor />);
 
         const input = screen.getByLabelText('Name');
         expect(input).toHaveValue('');
@@ -548,7 +519,7 @@ describe('ControlSidebar', () => {
                 target: { fieldId: 'orders_gone', tableName: 'orders' },
             }),
         });
-        renderWithProviders(<ControlSidebar />);
+        renderWithProviders(<Editor />);
 
         expect(screen.getByLabelText('Name')).toHaveAttribute(
             'placeholder',
@@ -578,7 +549,7 @@ describe('ControlSidebar', () => {
 
         it('is named by its metric and hands it to its settings', () => {
             setSidebar({ editingRule: metricRule });
-            renderWithProviders(<ControlSidebar />);
+            renderWithProviders(<Editor />);
 
             expect(screen.getByLabelText('Name')).toHaveAttribute(
                 'placeholder',
@@ -587,9 +558,7 @@ describe('ControlSidebar', () => {
             expect(screen.getByTestId('filter-settings')).toHaveTextContent(
                 'Settings for Revenue',
             );
-            expect(screen.getByTestId('tiles-summary')).toHaveTextContent(
-                '1 tile · 1 field',
-            );
+            expect(screen.getByTestId('applied-count')).toHaveTextContent('1');
         });
     });
 
@@ -603,7 +572,7 @@ describe('ControlSidebar', () => {
                 },
             }),
         });
-        renderWithProviders(<ControlSidebar />);
+        renderWithProviders(<Editor />);
 
         expect(screen.getByLabelText('Name')).toHaveAttribute(
             'placeholder',
@@ -614,29 +583,32 @@ describe('ControlSidebar', () => {
         );
     });
 
-    it('moves focus to the label when the editor opens', () => {
-        setSidebar({});
-        renderWithProviders(<ControlSidebar />);
-
-        expect(screen.getByLabelText('Name')).toHaveFocus();
-    });
-
     it('moves focus to the field search when a new filter opens', async () => {
         setSidebar({
             isPlaceholder: true,
             editingRule: makeRule({ target: { fieldId: '', tableName: '' } }),
         });
-        renderWithProviders(<ControlSidebar />);
+        renderWithProviders(<Editor />);
 
-        // Handed over on the next frame, once the rail can take focus
         await waitFor(() =>
             expect(screen.getByLabelText('Search fields')).toHaveFocus(),
         );
     });
 
+    it('keeps focus inside while it is open: Tab from Apply goes around', async () => {
+        setSidebar({ isNew: false });
+        renderWithProviders(<Editor />);
+        act(() => button('Apply').focus());
+        await userEvent.tab();
+        expect(editor()).toContainElement(
+            document.activeElement as HTMLElement,
+        );
+        expect(document.activeElement).not.toBe(button('Apply'));
+    });
+
     it('stays open on Enter with no label', () => {
         const { close } = setSidebar({});
-        renderWithProviders(<ControlSidebar />);
+        renderWithProviders(<Editor />);
 
         fireEvent.keyDown(screen.getByLabelText('Name'), {
             key: 'Enter',
@@ -656,7 +628,7 @@ describe('ControlSidebar', () => {
         it('reacts to typing at once and writes the label after a pause', () => {
             vi.useFakeTimers();
             const { updateFilter, editingRule } = setSidebar({});
-            renderWithProviders(<ControlSidebar />);
+            renderWithProviders(<Editor />);
 
             typeLabel('Or');
             typeLabel('Order');
@@ -680,7 +652,7 @@ describe('ControlSidebar', () => {
             const { updateFilter, editingRule } = setSidebar({
                 editingRule: makeRule({ label: 'Order status' }),
             });
-            renderWithProviders(<ControlSidebar />);
+            renderWithProviders(<Editor />);
 
             typeLabel('');
             fireEvent.blur(labelInput());
@@ -695,7 +667,7 @@ describe('ControlSidebar', () => {
 
         it('writes a label of spaces as no label', () => {
             const { updateFilter, editingRule } = setSidebar({});
-            renderWithProviders(<ControlSidebar />);
+            renderWithProviders(<Editor />);
 
             typeLabel('   ');
             fireEvent.blur(labelInput());
@@ -716,7 +688,7 @@ describe('ControlSidebar', () => {
                 isNew: false,
                 editingRule: saved,
             });
-            const { rerender } = renderWithProviders(<ControlSidebar />);
+            const { rerender } = renderWithProviders(<Editor />);
 
             typeLabel('Status of the order');
             fireEvent.blur(labelInput());
@@ -724,7 +696,7 @@ describe('ControlSidebar', () => {
             expect(typed.label).toBe('Status of the order');
 
             setSidebar({ isNew: false, editingRule: typed, updateFilter });
-            rerender(<ControlSidebar />);
+            rerender(<Editor />);
             typeLabel('');
             fireEvent.blur(labelInput());
 
@@ -735,7 +707,7 @@ describe('ControlSidebar', () => {
 
         it('trims the outer spaces of a label when it is written', () => {
             const { updateFilter } = setSidebar({});
-            renderWithProviders(<ControlSidebar />);
+            renderWithProviders(<Editor />);
 
             typeLabel('  Order status ');
             fireEvent.blur(labelInput());
@@ -749,7 +721,7 @@ describe('ControlSidebar', () => {
             const { updateFilter, close, editingRule } = setSidebar({
                 isNew: false,
             });
-            renderWithProviders(<ControlSidebar />);
+            renderWithProviders(<Editor />);
 
             await userEvent.type(labelInput(), 'Order status');
             await userEvent.click(
@@ -769,7 +741,7 @@ describe('ControlSidebar', () => {
         it('sends the typed label on Enter, once, and stays open', () => {
             vi.useFakeTimers();
             const { updateFilter, close, editingRule } = setSidebar({});
-            renderWithProviders(<ControlSidebar />);
+            renderWithProviders(<Editor />);
 
             typeLabel('Order status');
             fireEvent.keyDown(labelInput(), { key: 'Enter' });
@@ -788,7 +760,7 @@ describe('ControlSidebar', () => {
         it('starts over when another filter is opened, with no late write', () => {
             vi.useFakeTimers();
             const first = setSidebar({ isNew: false });
-            const { rerender } = renderWithProviders(<ControlSidebar />);
+            const { rerender } = renderWithProviders(<Editor />);
             typeLabel('Half typed');
 
             const second = setSidebar({
@@ -796,7 +768,7 @@ describe('ControlSidebar', () => {
                 editing: { filterId: 'filter-2' },
                 editingRule: makeRule({ id: 'filter-2', label: 'Region' }),
             });
-            rerender(<ControlSidebar />);
+            rerender(<Editor />);
 
             expect(labelInput()).toHaveValue('Region');
             act(() => {
@@ -809,7 +781,7 @@ describe('ControlSidebar', () => {
         it('writes nothing after the editor is gone', () => {
             vi.useFakeTimers();
             const { updateFilter } = setSidebar({});
-            const { unmount } = renderWithProviders(<ControlSidebar />);
+            const { unmount } = renderWithProviders(<Editor />);
             typeLabel('Half typed');
 
             unmount();
@@ -821,83 +793,35 @@ describe('ControlSidebar', () => {
     describe('for a viewer', () => {
         const own = makeRule({ id: 'own', label: undefined });
 
-        it('carries the class an embed gives the rail', () => {
+        it('carries the classes an embed gives the editor and its lists', () => {
             setSidebar({
                 isViewer: true,
-                editing: { filterId: 'own' },
-                editingRule: own,
-            });
-            const { container } = renderWithProviders(
-                <RailContractClasses.Provider
-                    value={{
-                        rail: 'ld-dashboard-filter-rail',
-                        addFilterDropdown: 'add-list',
-                        filterDropdown: 'value-list',
-                    }}
-                >
-                    <ControlSidebar />
-                </RailContractClasses.Provider>,
-            );
-            expect(
-                container.querySelector('[data-controls-editor]'),
-            ).toHaveClass('ld-dashboard-filter-rail');
-        });
-
-        it('sends focus to the value once a new filter gets a field', () => {
-            setSidebar({
-                isViewer: true,
-                isNew: true,
-                isPlaceholder: true,
-                editing: { filterId: 'own' },
-                editingRule: {
-                    ...own,
-                    target: { fieldId: '', tableName: '' },
-                },
-            });
-            const { rerender } = renderWithProviders(<ControlSidebar />);
-            setSidebar({
-                isViewer: true,
-                isNew: true,
-                isPlaceholder: false,
-                editing: { filterId: 'own' },
-                editingRule: own,
-            });
-            rerender(<ControlSidebar />);
-            expect(screen.getByLabelText('Operator')).toHaveFocus();
-        });
-
-        it('focuses the name of an own filter it opens', () => {
-            setSidebar({
-                isViewer: true,
-                isNew: false,
                 editing: { filterId: 'own' },
                 editingRule: own,
             });
             renderWithProviders(
-                <ControlSidebar />,
-                filters([]),
-                filters([own]),
+                <RailContractClasses.Provider
+                    value={{
+                        rail: 'ld-dashboard-filter-rail',
+                        addFilterDropdown: 'add-list',
+                        filterDropdown: 'ld-dashboard-filter-dropdown',
+                    }}
+                >
+                    <Editor />
+                </RailContractClasses.Provider>,
             );
-            expect(document.activeElement).toHaveAttribute(
-                'data-controls-label',
-            );
+            expect(editor()).toHaveClass('ld-dashboard-filter-rail');
+            expect(editor()).toHaveClass('ld-dashboard-filter-dropdown');
         });
 
-        it('edits their own filter in the same editor: no label input, Cancel and Apply', () => {
+        it('edits their own filter in the same editor, with Cancel and Apply', () => {
             const { close, discard } = setSidebar({
                 isViewer: true,
                 isNew: false,
                 editing: { filterId: 'own' },
                 editingRule: own,
             });
-            renderWithProviders(
-                <ControlSidebar />,
-                filters([]),
-                filters([own]),
-            );
-            expect(
-                screen.queryByRole('textbox', { name: 'Name' }),
-            ).not.toBeInTheDocument();
+            renderWithProviders(<Editor />, filters([]), filters([own]));
             fireEvent.click(button('Apply'));
             expect(close).toHaveBeenCalledTimes(1);
             fireEvent.click(button('Cancel'));
@@ -911,7 +835,7 @@ describe('ControlSidebar', () => {
                 editing: { filterId: 'own' },
                 editingRule: own,
             });
-            renderWithProviders(<ControlSidebar />);
+            renderWithProviders(<Editor />);
             expect(button('Create')).toBeEnabled();
         });
     });

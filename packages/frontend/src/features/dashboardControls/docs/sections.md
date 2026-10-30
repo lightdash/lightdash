@@ -70,16 +70,20 @@ _group_ (that is `requiredGroupId`).
 ## Drag and drop
 
 - One `DndContext` in `SectionedFilters`; sectioned passes of `FilterPills`
-  open no context and wrap pills in `BarDraggable`. Only the flat bar keeps
+  open no context and wrap pills in `PillDraggable`. Only the flat bar keeps
   the shipped per-group contexts.
+- A drag starts from the pill's grip alone (`PillDragHandleContext` hands
+  `setActivatorNodeRef` and the listeners to `FilterPillButton`'s
+  `dragHandle`). The wrapper is no tab stop, so Enter and Space on a pill
+  open it; the grip sits inside the pill's button, so there is no keyboard
+  reorder. While a filter is edited the grip is hidden, so no pill drags.
 - Targets: every saved pill, each capsule, the first button
   (`UNSECTIONED_TARGET_ID`), "New section" (`NEW_SECTION_TARGET_ID`) and the
   bar's empty space (`BAR_SPACE_TARGET_ID`), which also catches a pointer on
   no target. Resolution is `underPointerFor` (pointer first, `closestCenter`
   for the keyboard); a section drag only meets capsules.
 - Drops go through `moveRuleToSection`; a no-op drop writes nothing.
-  Every pill's drag, the edited one's included, survives Cancel and is no
-  edit. Capsule drag is off while a filter is edited.
+  A drag made before a filter opened survives its Cancel and is no edit. Capsule drag is off while a filter is edited.
 - Nothing changes size during a drag; feedback is drop lines, not slots.
 
 ## Selection

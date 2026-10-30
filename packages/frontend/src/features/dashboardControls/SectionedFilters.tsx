@@ -100,7 +100,6 @@ import { SelectionBar } from './SelectionBar';
 import { removeFilterRule } from './sidebarState';
 import { useControlsSidebarSelector } from './useControlsSidebar';
 import { hasOpenLayer } from './useEditorDismiss';
-import { type PillPopoverState } from './ViewerSavedPills';
 
 const ADD_FILTER_SELECTOR =
     '[data-filter-actions] > button[data-dashboard-filter-control]';
@@ -155,9 +154,7 @@ type CapsuleProps = {
     startsOpen: boolean;
     onToggle: () => void;
     activeTabUuid: string | undefined;
-    popover: PillPopoverState;
     triggerClassName: string | undefined;
-    dropdownClassName: string | undefined;
     actions: CapsuleActions | null;
     /** The sections in bar order: which side a dragged capsule lands on. */
     sectionOrder: string[];
@@ -172,9 +169,7 @@ const SectionCapsule: FC<CapsuleProps> = ({
     startsOpen,
     onToggle,
     activeTabUuid,
-    popover,
     triggerClassName,
-    dropdownClassName,
     actions,
     sectionOrder,
 }) => {
@@ -346,9 +341,7 @@ const SectionCapsule: FC<CapsuleProps> = ({
                         <FilterPills
                             activeTabUuid={activeTabUuid}
                             sectionId={section.id}
-                            popover={popover}
                             triggerClassName={triggerClassName}
-                            dropdownClassName={dropdownClassName}
                         />
                     </Box>
                 ) : (
@@ -503,8 +496,6 @@ type Props = {
     viewerActions?: ReactNode;
     /** An embed's class contract hook on each pill (default none). */
     triggerClassName?: string;
-    /** An embed's class contract hook on a saved pill's popover (default none). */
-    dropdownClassName?: string;
 };
 
 const LOOSE_START = 'loose-start';
@@ -514,18 +505,15 @@ const LOOSE_START = 'loose-start';
 // capsule per section with a member on this tab (its toggle, then its pills
 // inline), then an editor's entry (the New section capsule, or the new
 // section's name). Collapsing is local state keyed by section id, as the
-// ids whose state differs from their default; one saved popover is open across
-// every pass. In edit mode one drag context spans the passes: a pill dropped
+// ids whose state differs from their default. In edit mode one drag context spans the passes: a pill dropped
 // on a pill takes its place and section, on a capsule joins that section
 // last, on the first button or the bar's empty space leaves its section
 export const SectionedFilters: FC<Props> = ({
     activeTabUuid,
     viewerActions = <AddControl />,
     triggerClassName,
-    dropdownClassName,
 }) => {
     const [flippedIds, setFlippedIds] = useState<Set<string>>(() => new Set());
-    const [openPopoverId, setOpenPopoverId] = useState<string>();
     const [draggedId, setDraggedId] = useState<string | null>(null);
     // An editor's picked pills, and the pill picked last (a range's start)
     const [picked, setPicked] = useState<{
@@ -538,7 +526,6 @@ export const SectionedFilters: FC<Props> = ({
         moveIds: string[];
         source: DashboardSectionCreatedSource;
     } | null>(null);
-    const onPopoverClose = useCallback(() => setOpenPopoverId(undefined), []);
     const getUiString = useUiStrings();
     const isViewer = useControlsSidebarSelector((c) => c.isViewer);
     // A viewer's flips last for one visit: a mode change starts from the saved state
@@ -673,20 +660,6 @@ export const SectionedFilters: FC<Props> = ({
     const isOpen = (section: DashboardControlSection, total: number) =>
         !isCollapsedByDefault(section, total) !==
         (isViewer && flippedIds.has(section.id));
-    // A popover in a collapsed or hidden section is closed with it
-    const sectionOfOpenPopover = groupRulesBySection(
-        dashboardFilters,
-        sections,
-    ).find(({ rules }) => rules.some(({ rule }) => rule.id === openPopoverId));
-    const isPopoverShown =
-        openPopoverId === undefined ||
-        sectionOfOpenPopover === undefined ||
-        sectionOfOpenPopover.section === null ||
-        groups.some(
-            ({ section, rules }) =>
-                section.id === sectionOfOpenPopover.section?.id &&
-                isOpen(section, rules.length),
-        );
     // The pills on screen in bar order: each open capsule's, then the
     // unsectioned ones; a folded capsule's are left out. Read when a pill is
     // picked, so the selection does not change with it
@@ -777,12 +750,6 @@ export const SectionedFilters: FC<Props> = ({
             document.removeEventListener('keydown', handleKeyDown, true);
     }, [hasSelection, clearSelection]);
 
-    const popover: PillPopoverState = {
-        openPopoverId: isPopoverShown ? openPopoverId : undefined,
-        onPopoverOpen: setOpenPopoverId,
-        onPopoverClose,
-    };
-
     const sectionOrder = sections.map(({ id }) => id);
     const moveSection = (id: string, overId: string | undefined) => {
         if (overId === undefined || overId === id) return;
@@ -846,9 +813,7 @@ export const SectionedFilters: FC<Props> = ({
                 toggle(section.id);
             }}
             activeTabUuid={activeTabUuid}
-            popover={popover}
             triggerClassName={triggerClassName}
-            dropdownClassName={dropdownClassName}
             sectionOrder={sectionOrder}
             actions={
                 isViewer
@@ -892,10 +857,8 @@ export const SectionedFilters: FC<Props> = ({
         <FilterPills
             activeTabUuid={activeTabUuid}
             sectionId={null}
-            popover={popover}
             looseEnds={isViewer ? undefined : looseEnds}
             triggerClassName={triggerClassName}
-            dropdownClassName={dropdownClassName}
         />
     );
 

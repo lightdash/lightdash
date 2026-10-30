@@ -1,39 +1,58 @@
 # Editor, settings and dismissing
 
-## Rail placement
+## Popover
 
-- `ControlSidebar` is always rendered under the flag and returns null while
-  nothing is edited, so the grid wrapper keeps its index in the row and never
-  remounts. `CONTROLS_RAIL_LAYOUT` undoes `Group grow`'s equal split.
-- `useRailTop` writes `--controls-rail-offset` (sticky `top` and the
-  `max-height` subtraction) so Apply in the footer stays in view; below `sm`
-  `useRailIntoView` scrolls the stacked rail under the stuck bar.
+- `EditorPopover` (`FilterEditor.tsx`) wraps each pill (`FilterPill`) and,
+  for a new filter with no pill yet, "Add filter" (`AddControl`). It opens
+  when its filter is edited, under the target, set up as the shipped pill's
+  popover (`bottom-start`, arrow, `offset` 1, portalled), so the grid never
+  moves. It arrives with `usePopoverTransition` (`popoverMotion.ts`): a fade
+  and 4px settle at Mantine's duration, none under reduced motion.
+- Focus stays inside while it is open (`trapFocus`); `FocusReturn` hands it
+  back to the pill once it closes.
+- Mantine's Escape, click outside and roles are off: the provider owns both
+  (`useEditorDismiss`), and an `aria-expanded` target would read as an open
+  list to `hasOpenLayer`. The dropdown carries `data-controls-editor` and the
+  embed's `rail` and `filterDropdown` classes; its body is a `dialog` named
+  by the filter.
+- No tile overlay or card shows while a filter is open; they belong to
+  mapping.
 
 ## Structure
 
-`EditorShell` (`data-controls-editor`, the embed contract class) holds
-`FilterEditor`, keyed by the filter id so the label draft and mount focus
-restart on every switch. Body: label input (editors only), then a
-placeholder's field search or `FilterSettings` (value, Section select,
-"Tiles", "Rules"). Footer: Cancel (`discard`) and Apply (`close`, "Create"
-for a new filter); with a `pendingRule` it becomes the switch question,
-keeping the same Apply button so focus stays.
+`FilterEditor`, keyed by the filter id so the label draft and the view
+restart on every switch. Top to bottom: the prompt (while `isAsking`), a
+placeholder's field search or `FilterSettings`, the footer.
 
-A viewer's own filter has no label input, no "Rules" and no Section.
+- `FilterSettings`, value view: the shipped value form (`FilterValueSettings`),
+  then for editors two quiet rows: "Applies to {n tiles}" (`formatTileCount`,
+  `useAppliedTileCount`) with "Choose tiles" (disabled until mapping), and
+  "Settings".
+- Settings view, in place: back arrow, Name (the label input), Section,
+  then `ViewerControls` (Required, then Lock). Same footer.
+- Footer: Cancel (`discard`) and Apply (`close`, "Create" for a new filter).
+- Prompt: "Apply changes to {filter} first?" with Discard (subtle) and Apply
+  (default, `data-controls-apply` while it shows) takes focus as it appears
+  (Discard when Apply is blocked). Everything under it, value, rows and
+  footer, is dimmed and `inert` meanwhile.
+
+A viewer's popover (own or saved filter) is the value view alone.
 
 ## Label draft (`useLabelDraft`)
 
-Commits after 300ms idle, on blur and on Enter. Blur commits synchronously,
-which is what lets Apply, Cancel and Escape see the text. An all-space label
-is written as no label (`withFilterRuleLabel`), so emptying it restores the
-rule exactly.
+Held by `FilterEditor`, so Back keeps it. Commits after 300ms idle, on blur
+and on Enter. Blur commits synchronously, which is what lets Apply, Cancel
+and Escape see the text. An all-space label is written as no label
+(`withFilterRuleLabel`), so emptying it restores the rule exactly.
 
 ## Focus on mount
 
-The label input focuses itself on mount (`preventScroll`); a new filter's
-field search (`[data-controls-start]`) instead. The first field keeps the
-same editor mounted (same id), so the pick calls `focusLabelInput()`. A
-viewer's new filter focuses `[data-controls-value]`.
+The value input after the operator takes focus when the value view mounts
+(open, back from Settings, a new filter's first field); a new filter's field
+search (`[data-controls-start]`) when it opens. The back arrow takes it when
+Settings opens. All with `preventScroll`: the popover is still being placed.
+The first target is marked `data-autofocus` too, since the focus trap hands
+focus to it once the popover is placed.
 
 ## Fields and SQL columns
 
@@ -46,16 +65,16 @@ viewer's new filter focuses `[data-controls-value]`.
 
 ## Settings rules
 
-- Every edit is written at once (Apply only ends the edit) through
-  `getFilterRuleWithDisabledState`: a rule with a value is never `disabled`;
-  a required rule with no value always is.
+- Every edit is written to the draft (Apply takes it to the dashboard)
+  through `getFilterRuleWithDisabledState`: a rule with a value is never
+  `disabled`; a required rule with no value always is.
 - Incomplete default is the shipped reading: enabled and
   `!hasFilterValueSet(rule)` (`isDefaultValueIncomplete`). Nothing blocks
   closing; `close()` writes `disabled: true`.
 - "Required" is the shipped `RequiredFilterCard`; the alternative filter it
-  adds goes through `onChangeOtherFilterRule` = `updateOtherFilters`, so
-  Cancel undoes it. Off restores the saved default (`savedDefaultRule`), so
-  on then off is a no-op.
+  adds goes through `onChangeOtherFilterRule` = `updateOtherFilters`, so it
+  waits in the draft with the rest. Off restores the saved default
+  (`savedDefaultRule`), so on then off is a no-op.
 - The lock locks the saved tabs, else the tab in view; all changes go
   through `getFilterLockToggle` one tab at a time (one tracking event per
   tab).
@@ -76,7 +95,12 @@ does one thing, in order: an open layer (`hasOpenLayer`: `aria-expanded` or
 Mantine `data-expanded`, or a modal) owns it; an element in
 `[data-own-escape]` owns it; a clicked field is unclicked; else, with focus
 in the editor, blur (commits the label) then withdraw a pending question or
-cancel. From the page, Escape never cancels.
+cancel. From the page, Escape never cancels; while the prompt asks, Escape
+withdraws it wherever focus is.
+
+A `pointerdown` outside the editor and the pills acts as a click outside a
+popover: nothing while a list is open (the press closes it), else
+`requestClose` closes a clean edit and asks on a dirty one.
 
 ## Header guard
 

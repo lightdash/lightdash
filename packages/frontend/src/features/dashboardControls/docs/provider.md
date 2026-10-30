@@ -1,8 +1,24 @@
 # Provider contract (`useControlsSidebar`)
 
 `ControlsSidebarProvider.tsx` owns the edit; pure helpers are in
-`sidebarState.ts`. The rail is on screen exactly while a filter is edited:
-there is no separate list or open state.
+`sidebarState.ts`. The editor popover is on screen exactly while a filter is
+edited: there is no separate list or open state.
+
+## The draft
+
+- Opening a filter copies its filter set into `draft`. `updateFilter`,
+  `updateOtherFilters`, `addFirst*`, `removeLastField` and the field bar's
+  applies write the draft only (`writeFilters`); the context's `editingRule`
+  reads it. Tiles query the dashboard's filters, so they keep their results.
+- Apply (`close`) writes the edited rule and `touchedFilterIds` onto the
+  dashboard once (`applyDraft`, in each rule's current section), raises
+  "changed", then ends the edit. A clean edit writes nothing.
+- Cancel (`discard`) drops the draft: nothing of it reached the dashboard.
+- A section move is no edit: `updateFilter` writes a changed `sectionId` to
+  the dashboard at once as well, and Cancel keeps it.
+- Outside an edit (a link prompt), `updateFilter` writes the dashboard at
+  once. Writes from outside (a drag, another pill's X) go to the dashboard;
+  the draft never sees them, and Apply leaves them in place.
 
 ## Reading the context
 
@@ -14,58 +30,64 @@ there is no separate list or open state.
   `latest.current` (synced after each render, written eagerly by the
   `write*` helpers) so two calls in one event agree, e.g. `updateFilter` then
   `close`.
-- `isSidebarOpen`, `highlightedFieldId`, `pendingRule` and `fieldUndo` are
-  derived on render. A rule removed from outside closes the rail at once; the
-  next `open`/`openNew` starts over.
+- `isSidebarOpen`, `highlightedFieldId`, `isAsking` and `fieldUndo` are
+  derived on render. An existing rule removed from the dashboard from outside
+  closes the editor at once; the next `open`/`openNew` starts over. A new
+  rule lives only in the draft until Apply.
 
 ## Modes
 
 - Mode is the route's, or the provider's `isEditMode` input (embeds). An
   edit belongs to the mode it started in (`SidebarState.isViewer`) and keeps
-  writing that mode's filters.
-- A viewer's edit writes only temporary filters
+  writing that edit's filter set (`SidebarState.filterSet`).
+- A viewer's own filter and a viewer's new one are on the temporary filters
   (`setDashboardTemporaryFilters`), new rules made `isTemporary` and through
-  `getFilterRuleWithDisabledState(rule, false)`. `open(id)` on a viewer's
-  saved filter does nothing: those keep the shipped popover.
+  `getFilterRuleWithDisabledState(rule, false)`. A viewer's saved filter
+  opens too; its Apply goes through the shipped
+  `updateDimensionDashboardFilter` / `updateMetricDashboardFilter` in view
+  mode, so the URL carries the override and nothing is saved.
 - A mode change closes the edit as Apply does, in the one effect that writes
   the store. In the app the header is inert while editing, so it only meets
   browser Back, a typed URL, or an embed's `isEditMode`.
 
 ## Opening and switching
 
-- `openNew()` opens a placeholder (no field, never on the bar). It closes any
-  current edit first. `addFirstField` / `addFirstSqlColumn` turn it into a
-  filter on every tile that offers the field; `addFirstFieldOnTile` puts it
-  on that tile only (`setTileField(rule, tile, null)` for the rest).
+- `openNew()` opens a placeholder (no field, never on the bar, the popover
+  anchored on "Add filter"). It applies any current edit first.
+  `addFirstField` / `addFirstSqlColumn` turn it into a filter on every tile
+  that offers the field; `addFirstFieldOnTile` puts it on that tile only
+  (`setTileField(rule, tile, null)` for the rest). Until Apply it is only in
+  the draft, so it has no pill.
 - `open(id)` on a pill: nothing edited, it opens. Same pill: closes if no
   unapplied changes, else focuses Apply. Another pill: closes and opens if
-  clean; with unapplied changes keeps the clicked id as `pendingFilterId`
-  (`getPendingId` treats a vanished rule as none) and the footer asks.
-  `resolvePending(isApply)` applies or discards, then opens it.
+  clean; with unapplied changes keeps `pending = { filterId }` (`getPending`
+  treats a vanished rule as none) and the popover asks at its top (`isAsking`).
+- A press outside the editor (`useEditorDismiss`, `pointerdown`, never on a
+  pill or while a list is open) closes a clean edit, else asks with
+  `pending = { filterId: null }`.
+- `resolvePending(isApply)` applies or discards, then opens the pill clicked,
+  if one was.
 - "Unapplied changes" is `hasUnappliedChanges`, i.e. `isDirty`: a new filter
   without a field has none.
 
 ## Ways out
 
-- `close()` (Apply) keeps the edits: they already live in the dashboard
-  draft. A rule that cannot be kept (`canKeepFilterRule`: no field) is
-  dropped; a viewer's new filter with no value is kept as any value
-  (`disabled`) and tracked; an empty enabled default is written
+- `close()` (Apply) commits the draft (see above). A rule that cannot be
+  kept (`canKeepFilterRule`: no field) is dropped: an existing one leaves the
+  dashboard as "Remove filter"; a viewer's new filter with no value is kept
+  as any value (`disabled`) and tracked; an empty enabled default is written
   `disabled: true`.
-- `discard()` (Cancel) and removing the edited filter undo what the editor
-  wrote and nothing else: the edited rule goes back to its snapshot
-  (`restoreFilterRule`, keeping its current section and place), and other
-  rules the editor wrote are restored over `touchedFilterIds`
-  (`restoreFilterRules`). Writes from outside the editor survive. Saving to
-  the server stays with the dashboard's Save.
-- `removeLastField(label)` takes the rule out and reopens a placeholder with
-  the same id, label, `required`, `requiredGroupId`, `lockedTabUuids`; the
-  next `addFirst*` puts it back at its old index, and so does Cancel, in the
-  placeholder's section.
+- `discard()` (Cancel) drops the draft; removing the edited filter takes it
+  off the dashboard and drops the draft. Writes from outside the editor
+  survive. Saving to the server stays with the dashboard's Save.
+- `removeLastField(label)` takes the rule out of the draft and reopens a
+  placeholder with the same id, label, `required`, `requiredGroupId`,
+  `lockedTabUuids`; the next `addFirst*` puts it back at its old index. The
+  dashboard keeps the rule until Apply.
 - `haveFiltersChanged` is settled on every way out (`settleFiltersChanged`):
   lowered only if the editor raised it and temporary filters are as they
   were, so a flag shipped code raised is never lowered.
-- Every way out clears waiting fields and, once the rail has unmounted
+- Every way out clears waiting fields and, once the editor has unmounted
   (`FocusReturn`, rendered after children), focuses the control's pill
   (`data-controls-pill`) or "Add filter". A switch moves no focus.
 
@@ -77,11 +99,11 @@ there is no separate list or open state.
 - Never normalised: a `false` tile exclusion (copied by duplicated tiles, and
   applies if the tile later gains the field) and whether `tileTargets` exists
   (required-filter tab gating reads it).
-- `isDirty` also counts other rules the editor wrote
-  (`haveOtherFilterRulesChanged`). Section membership never counts: a move by
-  the Section select or the bar's drag applies to the dashboard at once, and
-  Cancel keeps each rule in the section and place it is in now
-  (`restoreFilterRule` keeps the current `sectionId`).
+- `isDirty` compares the draft with the snapshot taken on open, and also
+  counts other rules the editor wrote (`haveOtherFilterRulesChanged`).
+  Section membership never counts: a move by the Section select or the bar's
+  drag applies to the dashboard at once, and Apply keeps each rule in the
+  section it is in on the dashboard (`applyDraft`).
 
 ## Undo
 

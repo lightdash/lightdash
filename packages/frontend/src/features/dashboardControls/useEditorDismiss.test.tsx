@@ -205,12 +205,22 @@ describe('dismissing in the controls editor', () => {
         it('withdraws the question a pill asked and keeps the edit, focus on Apply', () => {
             act(() => value().updateFilter({ ...rule('a'), values: ['9'] }));
             fireEvent.click(pill('b'));
-            expect(value().pendingRule?.id).toBe('b');
+            expect(value().isAsking).toBe(true);
 
             escape(apply());
-            expect(value().pendingRule).toBeNull();
+            expect(value().isAsking).toBe(false);
             expect(value().editing).toEqual({ filterId: 'a' });
             expect(apply()).toHaveFocus();
+        });
+
+        it('withdraws the question from anywhere, focus on Apply', () => {
+            act(() => value().updateFilter({ ...rule('a'), values: ['9'] }));
+            fireEvent.click(pill('b'));
+            act(() => (document.activeElement as HTMLElement | null)?.blur());
+
+            escape(document.body);
+            expect(value().isAsking).toBe(false);
+            expect(value().editing).toEqual({ filterId: 'a' });
         });
 
         it('lets the label commit before it closes', () => {
@@ -279,7 +289,7 @@ describe('dismissing in the controls editor', () => {
                     dimensions: [{ ...rule('a'), values: ['9'] }],
                 }),
             );
-            expect(value().pendingRule).toBeNull();
+            expect(value().isAsking).toBe(false);
 
             escape(apply());
             expect(value().isSidebarOpen).toBe(false);
@@ -368,6 +378,55 @@ describe('dismissing in the controls editor', () => {
                 add.mock.calls.filter(([type]) => type === 'mousedown'),
             ).toHaveLength(0);
             add.mockRestore();
+        });
+    });
+
+    describe('a press outside the editor', () => {
+        const press = (target: Element) => fireEvent.pointerDown(target);
+        const savedA = () =>
+            selectDashboardFilters(store.current!.getState()).dimensions[0];
+
+        it('closes a clean edit', () => {
+            press(screen.getByText('Tile card'));
+            expect(value().isSidebarOpen).toBe(false);
+        });
+
+        it('asks first with unapplied changes, and Discard drops them', () => {
+            act(() => value().updateFilter({ ...rule('a'), values: ['9'] }));
+            press(document.body);
+            expect(value().isSidebarOpen).toBe(true);
+            expect(value().isAsking).toBe(true);
+
+            act(() => value().resolvePending(false));
+            expect(value().isSidebarOpen).toBe(false);
+            expect(savedA()).toEqual(rule('a'));
+        });
+
+        it('asks first, and Apply writes the draft and closes', () => {
+            act(() => value().updateFilter({ ...rule('a'), values: ['9'] }));
+            press(document.body);
+            act(() => value().resolvePending(true));
+            expect(value().isSidebarOpen).toBe(false);
+            expect(savedA().values).toEqual(['9']);
+        });
+
+        it.each([
+            ['the editor', () => screen.getByTestId('editor')],
+            ['a pill, whose click switches', () => pill('b')],
+        ])('on %s does nothing', (_, getTarget) => {
+            press(getTarget());
+            expect(value().isSidebarOpen).toBe(true);
+            expect(value().isAsking).toBe(false);
+        });
+
+        it('only closes an open list', () => {
+            const target = document.createElement('input');
+            target.setAttribute('aria-haspopup', 'listbox');
+            target.setAttribute('data-expanded', 'true');
+            document.body.appendChild(target);
+            press(document.body);
+            expect(value().isSidebarOpen).toBe(true);
+            target.remove();
         });
     });
 

@@ -11,7 +11,7 @@ import {
     getFilterRuleWithDisabledState,
     isLockedRequiredMissingValue,
 } from '../dashboardFilters/FilterConfiguration/utils';
-import classes from './ControlSidebar.module.css';
+import classes from './FilterEditor.module.css';
 import { isDefaultValueIncomplete } from './sidebarState';
 
 type Props = {

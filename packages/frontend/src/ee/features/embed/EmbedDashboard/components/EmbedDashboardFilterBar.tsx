@@ -66,9 +66,6 @@ const ControlsFilterArea: FC<{ canAddFilters: boolean }> = ({
         </>
     );
     const triggerClassName = embedContractClass('ld-dashboard-filter');
-    const dropdownClassName = embedContractClass(
-        'ld-dashboard-filter-dropdown',
-    );
     // A tile added or removed keeps the pills, as on the app's bar
     return (
         <SettledFilterFields>
@@ -77,7 +74,6 @@ const ControlsFilterArea: FC<{ canAddFilters: boolean }> = ({
                     activeTabUuid={activeTabUuid}
                     viewerActions={actions}
                     triggerClassName={triggerClassName}
-                    dropdownClassName={dropdownClassName}
                 />
             ) : (
                 <>
@@ -85,7 +81,6 @@ const ControlsFilterArea: FC<{ canAddFilters: boolean }> = ({
                     <FilterPills
                         activeTabUuid={activeTabUuid}
                         triggerClassName={triggerClassName}
-                        dropdownClassName={dropdownClassName}
                     />
                 </>
             )}

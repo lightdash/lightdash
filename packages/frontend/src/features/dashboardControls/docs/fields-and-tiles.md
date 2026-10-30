@@ -9,12 +9,12 @@
   through a mapping on an existing tile (`getFilterFields`; `undefined` tiles
   means not loaded, every mapping counts).
 - A field on no tile cannot be saved, so it _waits_ (`waitingFieldIds`) until
-  it lands on a tile; waiting fields vanish when the rail closes.
+  it lands on a tile; waiting fields vanish when the editor closes.
   `updateFilter` promotes the next field when the first loses its last tile.
 - A SQL column is never a field, even when its name matches a field id: use
   `isSqlColumnRow` / `isTargetOnRow` for counts, clearing, highlight, scroll
   and tab counts. SQL chart tiles map per tile with `isSqlColumn` targets.
-- The rail lists `getFilterRows`: the fields, then every column a SQL chart
+- The fields list (`FieldsAndTiles`) shows `getFilterRows`: the fields, then every column a SQL chart
   tile is mapped to, so the list matches the tile cards. Removing such a
   column row takes it off its tiles. Removing the first row promotes the
   next one (a field, else a column); only the last row empties the filter.
@@ -55,6 +55,9 @@ a remounted grid gets a new one; it is not in `ControlsBar`, which is
 sticky. When a pressed button leaves, focus goes to the region.
 
 ## Tile overlays (`TileOverlay`, `TileOverlays`)
+
+Not mounted while the editor is a popover with no mapping step: opening or
+editing a value leaves every tile at full prominence. Mapping mounts them.
 
 - `data-highlighted` answers only "on this control?" and "on the active
   field?": `filtered`, `mapped` (blue), `other`, `available`, or none. Whether

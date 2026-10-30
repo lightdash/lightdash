@@ -10,9 +10,6 @@ import {
     useContextSelector,
 } from 'use-context-selector';
 
-/** The disclosure open under the edited filter's default value. */
-export type ControlsSidebarSection = 'tiles' | 'rules';
-
 // An "Apply to all" or a "Clear" that Undo can take back: its field, the
 // tiles it applied the field to or cleared it from, how many an apply took
 // off other fields, and whether it was over every tab of a dashboard with tabs
@@ -45,19 +42,16 @@ export type ControlsSidebarContextValue = {
      */
     isSidebarOpen: boolean;
     /**
-     * A pill clicked while the edit had unapplied changes: the footer asks to
-     * Apply or Discard before opening it. Null otherwise.
+     * A pill or a click outside met unapplied changes: the editor asks to
+     * Apply or Discard first.
      */
-    pendingRule: DashboardFilterRule | null;
-    /** Applies (true) or discards (false) the edit, then opens the pending filter. */
+    isAsking: boolean;
+    /** Applies (true) or discards (false) the edit, then opens the pill clicked, if one was. */
     resolvePending: (isApply: boolean) => void;
-    /** Null when both are closed, as they are each time a filter opens. */
-    activeSection: ControlsSidebarSection | null;
-    setActiveSection: (section: ControlsSidebarSection | null) => void;
     /**
      * A pill's click. Opens the filter; on the edited one it closes a clean
      * edit and focuses Apply otherwise; another filter switches a clean edit
-     * and sets `pendingRule` otherwise.
+     * and asks (`isAsking`) otherwise.
      */
     open: (filterId: string) => void;
     /** A new filter (a placeholder until its first field), in a section when one is given. */
@@ -105,6 +99,7 @@ export type ControlsSidebarContextValue = {
     waitingFieldIds: string[];
     addWaitingField: (fieldId: string) => void;
     removeWaitingField: (fieldId: string) => void;
+    /** Writes the edited filter to the draft; a section change reaches the dashboard at once. */
     updateFilter: (next: DashboardFilterRule) => void;
     /**
      * `updateFilter` for an "Apply to all", which `undoApply` can take back
@@ -116,22 +111,16 @@ export type ControlsSidebarContextValue = {
     undoApply: () => void;
     /** The last apply, while Undo can still take it back; else null. */
     fieldUndo: FieldApply | null;
-    /**
-     * Writes filters other than the edited one on the editor's behalf.
-     * Discard and Remove put them back as they were when the control opened.
-     */
+    /** Writes filters other than the edited one to the draft, for Apply to take along. */
     updateOtherFilters: (rules: DashboardFilterRule[]) => void;
     /** The pill's X: on the edited filter it ends the edit too. */
     removeFilterById: (filterId: string) => void;
-    /**
-     * Cancel: puts the edited filter back as it was when it was opened, or
-     * removes it when it was new, undoes the editor's own writes to other
-     * filters and closes the rail.
-     */
+    /** Cancel: drops the draft and closes the editor; nothing reached the dashboard. */
     discard: () => void;
     /**
-     * Apply: closes the rail and keeps the edits; saving stays with the
-     * dashboard's own Save. A control with no field is discarded.
+     * Apply: writes the draft to the dashboard once and closes the editor;
+     * saving stays with the dashboard's own Save. A control with no field is
+     * discarded.
      */
     close: () => void;
     /** Apply or Cancel would change something; a new filter with no field yet would not. */

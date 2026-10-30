@@ -182,8 +182,10 @@ const Editor = () => {
     useEditorDismiss({
         isOpen: true,
         isFieldClicked: false,
+        isAsking: false,
         clearField: clearHighlightedField,
         dismiss: close,
+        dismissOutside: close,
     });
     return (
         <Box data-controls-editor>
@@ -277,12 +279,7 @@ describe('FieldsAndTiles', () => {
     describe('a new control', () => {
         it('picks its first field in the shipped field search', async () => {
             setSidebar(rule(''), { isPlaceholder: true });
-            renderWithProviders(
-                <>
-                    <input data-controls-label aria-label="Label" />
-                    <FieldsAndTiles />
-                </>,
-            );
+            renderWithProviders(<FieldsAndTiles />);
 
             expect(
                 screen.queryByText('Select a field to filter'),
@@ -307,8 +304,6 @@ describe('FieldsAndTiles', () => {
             );
             expect(addFirstField).toHaveBeenCalledTimes(1);
             expect(addFirstField).toHaveBeenCalledWith(status);
-            // Naming it comes next
-            expect(screen.getByLabelText('Label')).toHaveFocus();
         });
 
         it('keeps Escape for the open list, then hands it to the editor', async () => {
@@ -409,12 +404,7 @@ describe('FieldsAndTiles', () => {
                 },
             };
             setSidebar(rule(''), { isPlaceholder: true });
-            renderWithProviders(
-                <>
-                    <input data-controls-label aria-label="Label" />
-                    <FieldsAndTiles />
-                </>,
-            );
+            renderWithProviders(<FieldsAndTiles />);
 
             expect(fieldSearch()).not.toBeInTheDocument();
             expect(
@@ -437,7 +427,6 @@ describe('FieldsAndTiles', () => {
                 'tile-2': [country],
             });
             expect(addFirstField).not.toHaveBeenCalled();
-            expect(screen.getByLabelText('Label')).toHaveFocus();
         });
     });
 

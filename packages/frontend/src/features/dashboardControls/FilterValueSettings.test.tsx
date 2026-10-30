@@ -8,7 +8,7 @@ import { fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../testing/testUtils';
-import classes from './ControlSidebar.module.css';
+import classes from './FilterEditor.module.css';
 import { FilterValueSettings } from './FilterValueSettings';
 
 // Stands in for the value input, with one way to empty it
