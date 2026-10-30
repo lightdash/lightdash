@@ -6,6 +6,7 @@ import {
     AiCallFeature,
     getAiCallTelemetry,
     getLanguageModelAttribution,
+    hasBinaryModelInputs,
 } from '../utils/aiCallTelemetry';
 
 export const getDeepResearchTelemetryExtra = (
@@ -42,6 +43,7 @@ export const getAgentTelemetryConfig = (
         organizationId,
         userId,
         telemetryEnabled,
+        messageHistory,
         model,
         keyManagement,
         channel,
@@ -55,6 +57,7 @@ export const getAgentTelemetryConfig = (
         | 'organizationId'
         | 'userId'
         | 'telemetryEnabled'
+        | 'messageHistory'
         | 'model'
         | 'keyManagement'
         | 'channel'
@@ -86,4 +89,5 @@ export const getAgentTelemetryConfig = (
             ...(loadout ? loadoutTelemetryMetadata(loadout) : {}),
         },
         recordIO: telemetryEnabled,
+        hasBinaryInputs: hasBinaryModelInputs(messageHistory),
     });

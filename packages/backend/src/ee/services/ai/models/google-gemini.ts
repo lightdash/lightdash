@@ -2,6 +2,10 @@ import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { wrapLanguageModel, type LanguageModelMiddleware } from 'ai';
 import { LightdashConfig } from '../../../../config/parseConfig';
 import { ModelPreset } from './presets';
+import {
+    createRequestSizeGuardedFetch,
+    IMAGE_MODEL_REQUEST_MAX_BYTES,
+} from './requestSizeGuard';
 import { AiModel, ProviderOptionsMap } from './types';
 
 const PROVIDER = 'google';
@@ -39,6 +43,9 @@ export const getGoogleGeminiModel = (
     options?: { enableReasoning?: boolean },
 ): AiModel<typeof PROVIDER> => {
     const google = createGoogleGenerativeAI({
+        fetch: createRequestSizeGuardedFetch(
+            IMAGE_MODEL_REQUEST_MAX_BYTES.google,
+        ),
         apiKey: config.apiKey,
         ...(config.baseUrl ? { baseURL: config.baseUrl } : {}),
     });

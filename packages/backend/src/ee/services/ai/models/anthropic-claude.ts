@@ -9,6 +9,11 @@ import {
     XHIGH_MAX_OUTPUT_TOKENS,
     XHIGH_THINKING_BUDGET_TOKENS,
 } from './presets';
+import {
+    createRequestSizeGuardedFetch,
+    IMAGE_MODEL_GATEWAY_REQUEST_MAX_BYTES,
+    IMAGE_MODEL_REQUEST_MAX_BYTES,
+} from './requestSizeGuard';
 import { AiModel } from './types';
 
 const PROVIDER = 'anthropic';
@@ -33,11 +38,17 @@ export const getAnthropicModel = (
 ): AiModel<typeof PROVIDER> => {
     const anthropic = config.baseUrl
         ? createAnthropic({
+              fetch: createRequestSizeGuardedFetch(
+                  IMAGE_MODEL_GATEWAY_REQUEST_MAX_BYTES,
+              ),
               authToken: config.apiKey,
               baseURL: getAnthropicApiBaseUrl(config.baseUrl),
               headers: config.customHeaders,
           })
         : createAnthropic({
+              fetch: createRequestSizeGuardedFetch(
+                  IMAGE_MODEL_REQUEST_MAX_BYTES.anthropic,
+              ),
               apiKey: config.apiKey,
               baseURL: getAnthropicApiBaseUrl(),
               headers: config.customHeaders,

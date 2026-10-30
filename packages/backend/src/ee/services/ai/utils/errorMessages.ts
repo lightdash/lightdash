@@ -8,6 +8,7 @@ import {
     type ErrorCategory,
     type ErrorDomain,
 } from '../decisions/errorClassification';
+import { AiModelRequestTooLargeError } from '../models/requestSizeGuard';
 import {
     getKnownMcpErrorMessage,
     getLegacyMcpErrorMessage,
@@ -127,6 +128,7 @@ export const getKnownUserFacingErrorMessage = (
 ): string | undefined => {
     // Already worded for the person who was refused.
     if (error instanceof AiCreditsPausedError) return error.message;
+    if (error instanceof AiModelRequestTooLargeError) return error.message;
 
     // Config resolution fails closed with admin-actionable messages (broken
     // or flag-disabled credential pins); pass them through verbatim.

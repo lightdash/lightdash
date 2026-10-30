@@ -11,6 +11,10 @@ import {
     XHIGH_MAX_OUTPUT_TOKENS,
     XHIGH_THINKING_BUDGET_TOKENS,
 } from './presets';
+import {
+    createRequestSizeGuardedFetch,
+    IMAGE_MODEL_REQUEST_MAX_BYTES,
+} from './requestSizeGuard';
 import { AiModel } from './types';
 
 const PROVIDER = 'bedrock';
@@ -35,9 +39,11 @@ export const getBedrockProvider = (
     config: NonNullable<
         LightdashConfig['ai']['copilot']['providers']['bedrock']
     >,
+    fetch?: typeof globalThis.fetch,
 ): AmazonBedrockProvider => {
     if ('apiKey' in config) {
         return createAmazonBedrock({
+            fetch,
             apiKey: config.apiKey,
             region: config.region,
             ...(config.baseUrl ? { baseURL: config.baseUrl } : {}),
@@ -46,6 +52,7 @@ export const getBedrockProvider = (
     }
     if ('accessKeyId' in config) {
         return createAmazonBedrock({
+            fetch,
             region: config.region,
             ...(config.baseUrl ? { baseURL: config.baseUrl } : {}),
             accessKeyId: config.accessKeyId,
@@ -57,6 +64,7 @@ export const getBedrockProvider = (
         });
     }
     return createAmazonBedrock({
+        fetch,
         region: config.region,
         ...(config.baseUrl ? { baseURL: config.baseUrl } : {}),
         headers: config.customHeaders,
@@ -71,7 +79,10 @@ export const getBedrockModel = (
     preset: ModelPreset<'bedrock'>,
     options?: { enableReasoning?: boolean; reasoningEffort?: ReasoningEffort },
 ): AiModel<typeof PROVIDER> => {
-    const bedrock = getBedrockProvider(config);
+    const bedrock = getBedrockProvider(
+        config,
+        createRequestSizeGuardedFetch(IMAGE_MODEL_REQUEST_MAX_BYTES.bedrock),
+    );
     /** @ref https://platform.claude.com/docs/en/build-with-claude/claude-on-amazon-bedrock#api-model-ids */
     const modelPrefix = getBedrockModelPrefix(
         config.region,
