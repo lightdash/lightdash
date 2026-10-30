@@ -97,7 +97,7 @@ ${getComposerNodeKindsDescription({
 
 Reuse across calls: a node id names one node for the whole thread. To build on a node from an earlier call, read its node id in "references" without resubmitting it; it is copied into this pipeline with everything it reads and served from cache when possible. Resubmitting a node id with a different definition is an error, so give a changed node a new node id.`;
 
-export const MCP_TOOL_QUERY_DESCRIPTION = `Run a pipeline: one or more nodes submitted together, where duckdb and python nodes join or transform other nodes' results. Use it when an answer joins, transforms or mixes sources, or needs Python; for one semantic-layer query use run_metric_query.
+export const MCP_TOOL_QUERY_DESCRIPTION = `Run a pipeline: one or more nodes submitted together, where duckdb and python nodes join or transform other nodes' results. A pipeline of one node runs a single semantic-layer or SQL query, and later calls can reuse its node.
 
 ${getComposerNodeKindsDescription({
     enablePythonNodes: true,
@@ -105,9 +105,11 @@ ${getComposerNodeKindsDescription({
     sqlNote: 'available only when run_sql is',
 })}
 
-Reuse across calls: the result carries a sessionId. Pass it back as sessionId to read nodes of earlier calls by node id in "references" without resubmitting them; omit it to start a new session. A node id names one node for the whole session, so give a changed node a new node id.
+A python node's "code" defines \`def run(inputs, params)\`, and semanticLayer "filters" are flat expression strings; each field documents its contract.
 
-Returns a preview of the terminal node's rows and every node's queryUuid. If running, call get_query_result with the terminal node's queryUuid; never resubmit the pipeline. get_query_result also returns the result of any other node by its queryUuid.`;
+Reuse earlier nodes: a result returns a sessionId once a node has finished; finished nodes are saved in it. On a follow-up, pass that sessionId and read saved nodes by node id in "references", submitting only the new nodes. Reused nodes come with everything they read and are served from cache when possible, so results come back faster. A saved node id names one node for the whole session, so give a changed node a new node id; a failed or unfinished node is not saved, so resubmit it under the same id. Omit sessionId to start a new session.
+
+Returns a preview of the terminal node's rows and every node's queryUuid. The terminal node is the unique sink, or the node named in terminalNodeId. If the result is running, follow up with get_query_result on the terminal node's queryUuid; it also fetches the first page of any node's result by its queryUuid. query computes data only; it saves and charts nothing.`;
 
 export const TOOL_COMPOSER_QUERIES_DESCRIPTION =
     getToolComposerQueriesDescription({
