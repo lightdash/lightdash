@@ -1,7 +1,10 @@
 import {
     DndContext,
     DragOverlay,
+    PointerSensor,
     useDraggable,
+    useSensor,
+    useSensors,
     type DragEndEvent,
 } from '@dnd-kit/core';
 import {
@@ -12,15 +15,13 @@ import {
 import { Box } from '@mantine/core';
 import {
     Fragment,
-    useLayoutEffect,
     useMemo,
-    useRef,
     type FC,
+    type PointerEvent,
     type ReactNode,
 } from 'react';
 import { DroppableArea } from '../../components/common/DndHelpers';
 import dndClasses from '../../components/common/DndHelpers.module.css';
-import { useDndSensors } from '../../hooks/useDndSensors';
 import { useStableCallback } from '../../hooks/useStableCallback';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import {
@@ -39,7 +40,6 @@ import {
 } from '../dashboardFilters/ActiveFilters/useFilterTabPlacement';
 import { FilterPill, type FilterPillKind } from './FilterPill';
 import classes from './FilterPills.module.css';
-import { PillDragHandleContext } from './pillDragHandle';
 import { isRuleInSection } from './sections';
 import { isPlaceholderRule } from './sidebarState';
 import { TemporaryFilterPills } from './TemporaryFilterPills';
@@ -65,10 +65,10 @@ type FilterPillGroup = 'dimensions' | 'metrics';
 
 const GROUPS: FilterPillGroup[] = ['dimensions', 'metrics'];
 
-// A pill's drag: it starts from the grip alone, so the wrapper takes no
-// focus and Enter or Space on the pill opens it. On the sectioned bar's one
-// drag context the overlay moves and the source fades, also while a filter
-// is edited; on the flat bar the pill itself moves
+// A pill's drag: the pill itself, by pointer only, so Enter or Space on it
+// still opens it (Alt+arrows move it). A drag swallows the click that ends
+// it. On the sectioned bar's one drag context the overlay moves and the
+// source fades; on the flat bar the pill itself moves
 const PillDraggable: FC<{
     id: string;
     isInBarContext: boolean;
@@ -76,49 +76,30 @@ const PillDraggable: FC<{
     looseEnd: string | undefined;
     children: ReactNode;
 }> = ({ id, isInBarContext, isDisabled, looseEnd, children }) => {
-    const {
-        listeners,
-        setNodeRef,
-        setActivatorNodeRef,
-        isDragging,
-        transform,
-    } = useDraggable({ id, disabled: isDisabled });
-    // The sensors are rebuilt on every bar render: the handle calls the
-    // latest listeners, so the memoised pill never re-renders for them
-    const latestListeners = useRef(listeners);
-    useLayoutEffect(() => {
-        latestListeners.current = listeners;
+    const { listeners, setNodeRef, isDragging, transform } = useDraggable({
+        id,
+        disabled: isDisabled,
     });
-    const eventNames = Object.keys(listeners ?? {}).join(' ');
-    const handle = useMemo(
-        () =>
-            isDisabled
-                ? null
-                : {
-                      setNode: setActivatorNodeRef,
-                      listeners: Object.fromEntries(
-                          eventNames
-                              .split(' ')
-                              .filter(Boolean)
-                              .map((name) => [
-                                  name,
-                                  (event: unknown) =>
-                                      latestListeners.current?.[name]?.(event),
-                              ]),
-                      ),
-                  },
-        [isDisabled, setActivatorNodeRef, eventNames],
-    );
+    // Only from the pill button: not its portalled editor or tooltip
+    const handlePointerDown = (event: PointerEvent<HTMLElement>) => {
+        if (
+            event.target instanceof Element &&
+            event.target.closest('[data-controls-pill]') !== null
+        )
+            listeners?.onPointerDown?.(event);
+    };
     return (
         <Box
             ref={setNodeRef}
-            className={
+            className={`${classes.pillDrag} ${
                 isInBarContext ? classes.barDraggable : dndClasses.draggable
-            }
+            }`}
+            data-can-drag={!isDisabled || undefined}
             data-dragging={
                 (isInBarContext ? isDragging : !!transform) || undefined
             }
             data-loose-end={looseEnd}
+            onPointerDown={isDisabled ? undefined : handlePointerDown}
             style={{
                 '--drag-x':
                     !isInBarContext && transform
@@ -130,9 +111,7 @@ const PillDraggable: FC<{
                         : undefined,
             }}
         >
-            <PillDragHandleContext.Provider value={handle}>
-                {children}
-            </PillDragHandleContext.Provider>
+            {children}
         </Box>
     );
 };
@@ -199,7 +178,9 @@ export const FilterPills: FC<Props> = ({
     const isDraft = (filter: DashboardFilterRule, group: FilterPillGroup) =>
         savedFilters !== undefined &&
         !savedFilters[group].some((rule) => rule.id === filter.id);
-    const dragSensors = useDndSensors();
+    const dragSensors = useSensors(
+        useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    );
 
     const handleDragEnd = (group: FilterPillGroup, event: DragEndEvent) => {
         const { active, over } = event;
@@ -330,8 +311,9 @@ export const FilterPills: FC<Props> = ({
                                               sectionId !== undefined
                                           }
                                           isDisabled={
-                                              sectionId === undefined &&
-                                              isSidebarOpen
+                                              isSidebarOpen ||
+                                              (!areFieldsLoaded &&
+                                                  !filter.target.isSqlColumn)
                                           }
                                           looseEnd={looseEnds?.[filter.id]}
                                       >

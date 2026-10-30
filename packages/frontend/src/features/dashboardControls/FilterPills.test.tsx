@@ -1,5 +1,5 @@
 import type * as DndKitCore from '@dnd-kit/core';
-import { type DragEndEvent } from '@dnd-kit/core';
+import { DndContext, type DragEndEvent } from '@dnd-kit/core';
 import {
     DashboardTileTypes,
     DimensionType,
@@ -158,6 +158,26 @@ const tile = (uuid: string, tabUuid?: string) =>
         type: DashboardTileTypes.SAVED_CHART,
         properties: {},
     }) as DashboardTile;
+
+// jsdom has no PointerEvent: dnd-kit's PointerSensor needs `isPrimary`
+if (typeof window.PointerEvent === 'undefined') {
+    window.PointerEvent = class extends MouseEvent {
+        isPrimary: boolean;
+        constructor(type: string, init: PointerEventInit = {}) {
+            super(type, init);
+            this.isPrimary = init.isPrimary ?? false;
+        }
+    } as typeof PointerEvent;
+}
+// A real pointer gesture through dnd-kit's PointerSensor
+const pointerDrag = (element: HTMLElement, distance: number) => {
+    fireEvent.pointerDown(element, { isPrimary: true, button: 0 });
+    fireEvent.pointerMove(document, {
+        isPrimary: true,
+        clientX: distance,
+        clientY: 0,
+    });
+};
 
 const dragEvent = (activeId: string, overId: string) =>
     ({ active: { id: activeId }, over: { id: overId } }) as DragEndEvent;
@@ -474,7 +494,7 @@ describe('FilterPills', () => {
         expect(
             screen.getByRole('button', { name: /^Region/, pressed: false }),
         ).not.toHaveAttribute('data-open');
-        // The field icon stays first, after the hidden grip
+        // The field icon comes first: the pill has no grip
         const icons = leadingIconsOf(pill(/^Status/));
         expect(icons.some(isFieldIcon)).toBe(true);
         expect(pill(/^Status/)).not.toHaveClass(/pickedPill/);
@@ -506,24 +526,7 @@ describe('FilterPills', () => {
         expect(pill(/^Region/).closest('[data-loose-end]')).toBeNull();
     });
 
-    it("keeps the sectioned bar's drag handle while a filter is edited, hidden", () => {
-        mockSidebar.current = {
-            ...mockSidebar.current,
-            editing: { filterId: 'saved' },
-            isSidebarOpen: true,
-        };
-        renderWithProviders(
-            <FilterPills activeTabUuid={undefined} sectionId={null} />,
-        );
-        const handle = pill(/^Status/).querySelector('[data-drag-handle]');
-        expect(handle).not.toBeNull();
-        expect(handle).toHaveAttribute(
-            'class',
-            expect.stringMatching(/hiddenAction/),
-        );
-    });
-
-    describe('drag from the grip only', () => {
+    describe('drag from the pill itself', () => {
         it.each([
             ['flat', undefined],
             ['sectioned', null],
@@ -554,13 +557,68 @@ describe('FilterPills', () => {
                 await user.keyboard(' ');
                 expect(open).toHaveBeenLastCalledWith('saved');
                 expect(
-                    pill(/^Status/).querySelector('[data-drag-handle]'),
-                ).not.toBeNull();
+                    pill(/^Status/).querySelector('.tabler-icon-grip-vertical'),
+                ).toBeNull();
             },
         );
+
+        it('opens on a click and moves past 5px without opening', () => {
+            renderWithProviders(<FilterPills activeTabUuid={undefined} />);
+            const wrapper = () =>
+                pill(/^Status/).closest('[data-can-drag]') as HTMLElement;
+
+            fireEvent.click(pill(/^Status/));
+            expect(open).toHaveBeenLastCalledWith('saved');
+            open.mockClear();
+
+            pointerDrag(pill(/^Status/), 3);
+            expect(wrapper()).not.toHaveAttribute('data-dragging');
+            fireEvent.pointerUp(document);
+
+            pointerDrag(pill(/^Status/), 20);
+            expect(wrapper()).toHaveAttribute('data-dragging');
+            fireEvent.pointerUp(document);
+            fireEvent.click(pill(/^Status/));
+            expect(open).not.toHaveBeenCalled();
+        });
+
+        it("starts the bar's drag from a picked pill's button only", () => {
+            const onDragStart = vi.fn();
+            renderWithProviders(
+                <DndContext onDragStart={onDragStart}>
+                    <BarSelectionContext.Provider
+                        value={{
+                            selectedIds: ['saved', 'no-default'],
+                            pick: vi.fn(),
+                            clear: vi.fn(),
+                        }}
+                    >
+                        <FilterPills
+                            activeTabUuid={undefined}
+                            sectionId={null}
+                        />
+                    </BarSelectionContext.Provider>
+                </DndContext>,
+            );
+            // Off the pill button (as in its portalled editor) nothing drags
+            pointerDrag(
+                pill(/^Region/).closest('[data-can-drag]') as HTMLElement,
+                20,
+            );
+            expect(onDragStart).not.toHaveBeenCalled();
+            fireEvent.pointerUp(document);
+
+            pointerDrag(pill(/^Region/), 20);
+            expect(onDragStart).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    active: expect.objectContaining({ id: 'no-default' }),
+                }),
+            );
+            fireEvent.pointerUp(document);
+        });
     });
 
-    it('keeps the X, and the grip and lock in place but hidden and inert, while a filter is edited', async () => {
+    it('keeps the X, and the lock in place but hidden and inert, while a filter is edited', async () => {
         const user = userEvent.setup();
         mockSidebar.current = { ...mockSidebar.current, isSidebarOpen: true };
         setContext({
@@ -584,11 +642,6 @@ describe('FilterPills', () => {
             expect(lock.closest('[inert]')).not.toBeNull();
             expect(lock.closest('[class*="hiddenAction"]')).not.toBeNull();
         });
-        // The grip of a pill that is not open, hidden (its class replaces
-        // the icon's own)
-        expect(
-            pill(/^Region/).querySelector('svg[cursor="grab"]'),
-        ).toHaveAttribute('class', expect.stringMatching(/hiddenAction/));
         await user.click(
             screen.getAllByRole('button', { name: 'Remove filter' })[0],
         );
@@ -1127,29 +1180,32 @@ describe('FilterPills', () => {
             expect(setHaveFiltersChanged).not.toHaveBeenCalled();
         });
 
-        it('offers the grip and drag only while the sidebar is closed', () => {
+        it('drags a pill only while the sidebar is closed and its field is loaded', () => {
             const { unmount } = renderWithProviders(
                 <FilterPills activeTabUuid={undefined} />,
             );
-            const status = pill(/^Status/);
-            expect(
-                status.querySelector(
-                    '[data-drag-handle] .tabler-icon-grip-vertical',
-                ),
-            ).not.toBeNull();
+            expect(pill(/^Status/).closest('[data-can-drag]')).not.toBeNull();
             unmount();
 
             mockSidebar.current = {
                 ...mockSidebar.current,
                 isSidebarOpen: true,
             };
+            const { unmount: unmountOpen } = renderWithProviders(
+                <FilterPills activeTabUuid={undefined} />,
+            );
+            pointerDrag(pill(/^Status/), 20);
+            expect(pill(/^Status/).closest('[data-dragging]')).toBeNull();
+            expect(pill(/^Status/).closest('[data-can-drag]')).toBeNull();
+            unmountOpen();
+
+            mockSidebar.current = {
+                ...mockSidebar.current,
+                isSidebarOpen: false,
+            };
+            setContext({ allFilterableFields: undefined });
             renderWithProviders(<FilterPills activeTabUuid={undefined} />);
-            const disabled = pill(/^Status/);
-            // Kept in place, hidden, so the pill keeps its width
-            expect(
-                disabled.querySelector('svg[cursor="grab"]'),
-            ).toHaveAttribute('class', expect.stringMatching(/hiddenAction/));
-            expect(disabled.querySelector('[data-drag-handle]')).toBeNull();
+            expect(pill(/^Status/).closest('[data-can-drag]')).toBeNull();
         });
     });
 
@@ -1558,6 +1614,9 @@ describe('FilterPills', () => {
             renderWithProviders(<FilterPills activeTabUuid={undefined} />);
             altArrow(pill(/^Region/), 'ArrowLeft');
             expect(moveFilter).not.toHaveBeenCalled();
+            pointerDrag(pill(/^Region/), 20);
+            expect(pill(/^Region/).closest('[data-can-drag]')).toBeNull();
+            expect(pill(/^Region/).closest('[data-dragging]')).toBeNull();
         });
     });
 

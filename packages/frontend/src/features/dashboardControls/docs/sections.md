@@ -72,11 +72,13 @@ _group_ (that is `requiredGroupId`).
 - One `DndContext` in `SectionedFilters`; sectioned passes of `FilterPills`
   open no context and wrap pills in `PillDraggable`. Only the flat bar keeps
   the shipped per-group contexts.
-- A drag starts from the pill's grip alone (`PillDragHandleContext` hands
-  `setActivatorNodeRef` and the listeners to `FilterPillButton`'s
-  `dragHandle`). The wrapper is no tab stop, so Enter and Space on a pill
-  open it; the grip sits inside the pill's button, so it has no keyboard
-  drag. While a filter is edited the grip is hidden, so no pill drags.
+- An editor drags the pill itself (no grip): `PillDraggable` forwards a
+  pointer down on its `[data-controls-pill]` to dnd-kit's `onPointerDown`
+  alone (PointerSensor, 5px, on the flat bar too), so a click opens the
+  editor, the click ending a drag is swallowed, and Enter and Space keep
+  opening it. A pointer down in the portalled editor never drags. While a
+  filter is edited, or the fields load, no pill drags. Cursor `grab`, then
+  `grabbing` (`.pillDrag`).
 - Keyboard reorder: in edit mode Alt+ArrowLeft / Alt+ArrowRight on a pill,
   and Move left / Move right in its Settings view, move it one place among
   `getMoveNeighbours` (its kind, its section or the unsectioned run, shown

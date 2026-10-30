@@ -56,3 +56,12 @@
     transform: translate(50%, -50%);
     pointer-events: none;
 }
+
+/* An editor drags the pill itself */
+.pillDrag[data-can-drag] [data-controls-pill]:not(:disabled) {
+    cursor: grab;
+}
+
+.pillDrag[data-dragging] [data-controls-pill] {
+    cursor: grabbing;
+}

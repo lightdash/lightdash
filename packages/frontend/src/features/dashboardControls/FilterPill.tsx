@@ -8,7 +8,6 @@ import { useOs } from '@mantine/hooks';
 import { IconCheck } from '@tabler/icons-react';
 import {
     memo,
-    useContext,
     useState,
     type FC,
     type KeyboardEvent,
@@ -28,7 +27,6 @@ import { FilterPillButton } from '../dashboardFilters/ActiveFilters/FilterPillBu
 import { useBarSelection } from './barSelection';
 import { EditorPopover } from './FilterEditor';
 import classes from './FilterPills.module.css';
-import { PillDragHandleContext } from './pillDragHandle';
 import { replaceFilterRule } from './sidebarState';
 import { useControlsSidebarSelector } from './useControlsSidebar';
 import { useTileHover } from './useTileHover';
@@ -91,7 +89,6 @@ export const FilterPill: FC<Props> = memo(
             (c) => c.setHaveFiltersChanged,
         );
         const selection = useBarSelection();
-        const dragHandle = useContext(PillDragHandleContext);
         const os = useOs();
         // On an editor's sectioned bar a modified click picks the pill
         const isSelectable =
@@ -208,11 +205,11 @@ export const FilterPill: FC<Props> = memo(
                             isPlain
                             // Not saved for everyone: dashed
                             isTemporary={kind === 'viewerOwn' || isDraft}
-                            // While a filter is edited the grip and lock stay in
-                            // place, hidden and inert, so no pill changes width.
-                            // The lock shows only on a locked filter
-                            isDraggable={kind === 'editor'}
-                            dragHandle={dragHandle ?? undefined}
+                            // The pill itself drags (`PillDraggable`): no grip.
+                            // While a filter is edited the lock stays in place,
+                            // hidden and inert, so no pill changes width. The
+                            // lock shows only on a locked filter
+                            isDraggable={false}
                             isLocked={isLocked}
                             lockLabel={
                                 kind === 'editor' && lockKey && isLocked
