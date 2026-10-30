@@ -283,6 +283,10 @@ describe('toComposerSemanticArtifactVersion', () => {
                 'a comparison over a distinct-key metric, whose keys runQuery drops',
                 [{ ...lastYear, distinctKeys: ['orders.order_id'] }],
             ],
+            [
+                'a comparison over a percentile metric, whose percentile runQuery drops',
+                [{ ...lastYear, type: MetricType.PERCENTILE, percentile: 90 }],
+            ],
         ] as [string, AdditionalMetric[]][])(
             'is null for %s',
             (_, additionalMetrics) => {
