@@ -1,6 +1,7 @@
 /* Compact variant: a dense, monospace grid for raw query results. */
 .compact {
     font-family: var(--mantine-font-family-monospace);
+    margin-bottom: var(--mantine-spacing-lg);
 }
 
 .compact th,
