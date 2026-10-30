@@ -1,3 +1,10 @@
+## [3.114.2](https://github.com/lightdash/lightdash/compare/3.114.1...3.114.2) (2026-10-30)
+
+
+### Bug Fixes
+
+* **dashboard-controls:** fix data-point menu, undo count, value focus ([#31885](https://github.com/lightdash/lightdash/issues/31885)) ([76fa170](https://github.com/lightdash/lightdash/commit/76fa170fac771baba36684deae55db42fb16b511))
+
 ## [3.114.1](https://github.com/lightdash/lightdash/compare/3.114.0...3.114.1) (2026-10-30)
 
 
