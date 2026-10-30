@@ -9,30 +9,16 @@
     --dashboard-header-height: var(--dashboard-edit-band-height);
 }
 
-/* Two classes: beats the sticky header's surface colour. A soft brand
-   violet sets edit mode apart from the ink nav above and the page below;
-   the theme's own buttons and focus ring sit on it unchanged */
+/* The header's own surface: the "Editing" badge names the mode */
 .guard > .band {
     position: relative;
     z-index: var(--dashboard-header-zindex);
     height: var(--dashboard-header-height);
     padding-inline: var(--header-padding-x, var(--mantine-spacing-xl));
     gap: var(--mantine-spacing-md);
-    background-color: var(--mantine-color-ldBrandViolet-0);
-    box-shadow: inset 0 -1px var(--mantine-color-ldBrandViolet-1);
+    background-color: var(--mantine-color-body);
+    box-shadow: inset 0 -1px var(--mantine-color-default-border);
     color: var(--mantine-color-text);
-}
-
-/* The pencil and "Editing": the one place the mode is named. Over the
-   Title's own colour */
-.band .mode {
-    color: var(--mantine-color-ldBrandViolet-7);
-}
-
-.separator {
-    align-self: center;
-    height: var(--mantine-spacing-md);
-    border-color: var(--mantine-color-ldBrandViolet-2);
 }
 
 .more {
@@ -46,42 +32,12 @@
         color var(--ld-motion-duration) var(--ld-motion-easing);
 }
 
-:global([data-mantine-color-scheme='dark']) .guard > .band {
-    background-color: color-mix(
-        in srgb,
-        var(--mantine-color-ldBrandViolet-9) 40%,
-        var(--ld-color-page)
-    );
-    box-shadow: inset 0 -1px
-        color-mix(
-            in srgb,
-            var(--mantine-color-ldBrandViolet-7) 45%,
-            var(--ld-color-page)
-        );
-
-    .mode {
-        color: var(--mantine-color-ldBrandViolet-2);
-    }
-
-    .separator {
-        border-color: color-mix(
-            in srgb,
-            var(--mantine-color-ldBrandViolet-5) 40%,
-            transparent
-        );
-    }
-}
-
 /* The editor's Apply is the one filled button while a filter is edited:
    Save draws as an outline until then */
 .guard[inert] .band .save {
     background-color: transparent;
     color: inherit;
-    border: 1px solid var(--mantine-color-ldBrandViolet-2);
-}
-
-:global([data-mantine-color-scheme='dark']) .guard[inert] .band .save {
-    border-color: var(--mantine-color-default-border);
+    border: 1px solid var(--mantine-color-default-border);
 }
 
 @media (prefers-reduced-motion: reduce) {

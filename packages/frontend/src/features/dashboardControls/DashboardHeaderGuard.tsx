@@ -1,11 +1,10 @@
 import {
     ActionIcon,
+    Badge,
     Box,
     Button,
-    Divider,
     Group,
     Menu,
-    Title,
     Tooltip,
 } from '@mantine/core';
 import { IconDots, IconPencil } from '@tabler/icons-react';
@@ -51,11 +50,14 @@ const EditBand: FC<Props> = ({
             data-testid="dashboard-edit-band"
         >
             <Group gap="xs" wrap="nowrap" miw={0}>
-                <MantineIcon icon={IconPencil} className={classes.mode} />
-                <Title order={6} lh="sm" className={classes.mode}>
+                <Badge
+                    color="indigo"
+                    size="sm"
+                    flex="0 0 auto"
+                    leftSection={<MantineIcon icon={IconPencil} size={12} />}
+                >
                     Editing
-                </Title>
-                <Divider orientation="vertical" className={classes.separator} />
+                </Badge>
                 <TruncatedText fz="sm" c="inherit" maxWidth="100%">
                     {dashboard.name}
                 </TruncatedText>
