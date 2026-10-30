@@ -1,3 +1,10 @@
+## [3.106.1](https://github.com/lightdash/lightdash/compare/3.106.0...3.106.1) (2026-10-30)
+
+
+### Bug Fixes
+
+* **ai-agent:** group invalid tool calls by tool, tag model on all turn captures ([#31838](https://github.com/lightdash/lightdash/issues/31838)) ([d4744f0](https://github.com/lightdash/lightdash/commit/d4744f0409433a30926f90e5b7a6521e556e1ac3))
+
 # [3.106.0](https://github.com/lightdash/lightdash/compare/3.105.1...3.106.0) (2026-10-29)
 
 
