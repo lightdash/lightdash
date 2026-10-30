@@ -11,6 +11,7 @@ on:
       - 'scripts/**'
       - 'package.json'
       - '.github/workflows/release-safety-tests.yml'
+      - '.github/workflows/release.yml'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

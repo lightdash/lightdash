@@ -170,4 +170,7 @@ jobs:
         run: pnpm build-published-packages
 
       - name: Publish npm packages
+        env:
+          # Wait for npm's malware scan before publishing dependent packages.
+          PNPM_CONFIG_PUBLISH_WAIT_TIMEOUT: '7200000'
         run: pnpm release-packages
