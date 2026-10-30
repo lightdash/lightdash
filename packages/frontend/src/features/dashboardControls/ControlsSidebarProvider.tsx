@@ -95,6 +95,8 @@ const ADD_SELECTOR =
     '[data-filter-actions] > button[data-dashboard-filter-control]';
 // `FilterPill` sets it
 const PILL_ATTRIBUTE = 'data-controls-pill';
+// A section's "+" (`SectionedFilters`)
+const SECTION_ADD_ATTRIBUTE = 'data-section-add';
 // The editor's Apply (or Create), the prompt's while it asks
 const APPLY_SELECTOR = '[data-controls-apply]';
 
@@ -140,8 +142,9 @@ const focusInEditor = () =>
         )
     )?.focus();
 
-// The filter whose pill takes focus back, null for "Add"
-type FocusTarget = { filterId: string | null };
+// The filter whose pill takes focus back, else the "+" of the section a new
+// filter was in, else "Add"
+type FocusTarget = { filterId: string | null; sectionId: string | null };
 
 // Focus is a DOM matter: it moves once the editor has left the page. The bar
 // reads the context through selectors, which update after the provider's own
@@ -157,9 +160,15 @@ const FocusReturn: FC<{ target: RefObject<FocusTarget | null> }> = ({
         // A pill disabled by a refetch cannot take it
         const pill =
             current.filterId === null ? null : findPill(current.filterId);
+        const sectionAdd =
+            current.sectionId === null
+                ? null
+                : document.querySelector<HTMLElement>(
+                      `[${SECTION_ADD_ATTRIBUTE}="${current.sectionId}"]`,
+                  );
         (pill !== null && !pill.hasAttribute('disabled')
             ? pill
-            : document.querySelector<HTMLElement>(ADD_SELECTOR)
+            : (sectionAdd ?? document.querySelector<HTMLElement>(ADD_SELECTOR))
         )?.focus();
     }, [isSidebarOpen, target]);
     return null;
@@ -682,6 +691,9 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         // A control with no field yet was never on the bar
         focusReturn.current = {
             filterId: rule === null ? (editingState?.filterId ?? null) : null,
+            sectionId: editingState?.isNew
+                ? (getEditingRule(latest.current)?.sectionId ?? null)
+                : null,
         };
     }, []);
 

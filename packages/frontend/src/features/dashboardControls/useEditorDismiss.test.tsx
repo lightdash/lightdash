@@ -18,6 +18,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createDashboardTestStore } from '../../testing/dashboardStore';
 import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
 import {
+    dashboardEditActions,
     dashboardFiltersActions,
     selectDashboardFilters,
     selectHaveFiltersChanged,
@@ -84,6 +85,12 @@ const Page: FC = () => {
                         onClick={() => openNew()}
                     />
                 </div>
+                <button
+                    type="button"
+                    data-section-add="s"
+                    aria-label="Add filter to Dates"
+                    onClick={() => openNew('s')}
+                />
                 {filters.dimensions.map((filter) => (
                     <button
                         key={filter.id}
@@ -543,6 +550,50 @@ describe('dismissing in the controls editor', () => {
             fireEvent.click(apply());
 
             expect(pill(newId ?? '')).toHaveFocus();
+        });
+
+        it("goes to the section's + after a new control from it ends, unless its pill takes it", () => {
+            const sectionAdd = () =>
+                screen.getByRole('button', { name: 'Add filter to Dates' });
+            const status = {
+                fieldType: FieldType.DIMENSION,
+                type: DimensionType.STRING,
+                name: 'status',
+                label: 'Status',
+                table: 'orders',
+                tableLabel: 'Orders',
+                sql: '${TABLE}.status',
+                hidden: false,
+            } as const;
+            fireEvent.click(apply());
+            act(() => {
+                store.current?.dispatch(
+                    dashboardEditActions.syncControlSections([
+                        { id: 's', name: 'Dates' },
+                    ]),
+                );
+            });
+
+            // Cancelled with no field
+            fireEvent.click(sectionAdd());
+            act(() => label().focus());
+            escape(label());
+            expect(value().isSidebarOpen).toBe(false);
+            expect(sectionAdd()).toHaveFocus();
+
+            // Cancelled with a field
+            fireEvent.click(sectionAdd());
+            act(() => value().addFirstField(status));
+            fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+            expect(sectionAdd()).toHaveFocus();
+
+            // Applied where its pill is not on screen (a folded section)
+            disabledPills.current = true;
+            fireEvent.click(sectionAdd());
+            act(() => value().addFirstField(status));
+            fireEvent.click(apply());
+            disabledPills.current = false;
+            expect(sectionAdd()).toHaveFocus();
         });
 
         it('goes to "Add" when the pill cannot take it', () => {

@@ -1,10 +1,15 @@
 import { Box } from '@mantine/core';
 import { type FC, type ReactNode } from 'react';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
+import {
+    selectControlSections,
+    useDashboardSelector,
+} from '../dashboard/store';
 import AddFilterButton from '../dashboardFilters/AddFilterButton';
 import { FilterBarMenu } from './FilterBarMenu';
 import { EditorPopover } from './FilterEditor';
 import classes from './FilterPills.module.css';
+import { isNewFilterIn, isPickingNewField } from './sidebarState';
 import { useControlsSidebarSelector } from './useControlsSidebar';
 
 const noop = () => {};
@@ -44,9 +49,11 @@ export const AddControl: FC<Props> = ({
     const openNew = useControlsSidebarSelector((c) => c.openNew);
     const canAddFilters = useControlsSidebarSelector((c) => c.canAddFilters);
     const isViewer = useControlsSidebarSelector((c) => c.isViewer);
-    // Until its field is picked a new filter has no pill: the editor is here
+    const sectionIds = useDashboardSelector(selectControlSections).map(
+        (section) => section.id,
+    );
     const isNewOpen = useControlsSidebarSelector(
-        (c) => c.isSidebarOpen && c.isNew && c.isPlaceholder,
+        (c) => isPickingNewField(c) && !isNewFilterIn(c, sectionIds),
     );
     const resetDashboardFilters = useDashboardContext(
         (c) => c.resetDashboardFilters,

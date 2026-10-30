@@ -1,4 +1,8 @@
-import { FilterOperator, type DashboardFilters } from '@lightdash/common';
+import {
+    FilterOperator,
+    type DashboardControlSection,
+    type DashboardFilters,
+} from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -21,6 +25,7 @@ const mockSidebar = vi.hoisted(() => ({
         canAddFilters: true,
         isNew: false,
         isPlaceholder: false,
+        editingRule: null as { sectionId?: string } | null,
         openNew: vi.fn(),
     },
 }));
@@ -33,7 +38,10 @@ const mockDashboardContext = vi.hoisted(() => ({
 const mockTileStatus = vi.hoisted(() => ({
     current: { sqlChartTilesMetadata: {} } as Record<string, unknown>,
 }));
-const renderWithProviders = (ui: ReactElement) =>
+const renderWithProviders = (
+    ui: ReactElement,
+    controlSections: DashboardControlSection[] = [],
+) =>
     renderWithAppProviders(
         <DashboardStoreTestProvider
             store={seedDashboardEditState(
@@ -46,7 +54,12 @@ const renderWithProviders = (ui: ReactElement) =>
                         SqlChartTileMetadata
                     >,
                 }),
-                mockDashboardContext.current as DashboardEditTestValues,
+                {
+                    ...(mockDashboardContext.current as DashboardEditTestValues),
+                    dashboard: {
+                        config: { isDateZoomDisabled: false, controlSections },
+                    },
+                } as DashboardEditTestValues,
             )}
         >
             {ui}
@@ -74,6 +87,7 @@ describe('AddControl', () => {
             canAddFilters: true,
             isNew: false,
             isPlaceholder: false,
+            editingRule: null,
             openNew: vi.fn(),
         };
         mockFilters.current = undefined;
@@ -125,6 +139,25 @@ describe('AddControl', () => {
         mockSidebar.current = { ...mockSidebar.current, isPlaceholder: false };
         renderWithProviders(<AddControl />);
         expect(editor()).toBeNull();
+    });
+
+    it("leaves a new filter started from a section's + to that +, unless the section is gone", () => {
+        const editor = () => document.querySelector('[data-controls-editor]');
+        mockSidebar.current = {
+            ...mockSidebar.current,
+            isSidebarOpen: true,
+            isNew: true,
+            isPlaceholder: true,
+            editingRule: { sectionId: 's' },
+        };
+        const { unmount } = renderWithProviders(<AddControl />, [
+            { id: 's', name: 'Dates' },
+        ]);
+        expect(editor()).toBeNull();
+        unmount();
+
+        renderWithProviders(<AddControl />);
+        expect(editor()).not.toBeNull();
     });
 
     it('is "Add filter", which opens a new one, with a menu in place of the shipped eye', () => {
