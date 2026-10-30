@@ -50,5 +50,13 @@
     {
         "column": "dashboard_tile_headings.config",
         "reason": "Previous releases read dashboard_tile_headings only in the two dashboard tile queries, which select table-qualified columns and join none of the other tables that have a config column, and in the preview copy, which reads it without a join."
+    },
+    {
+        "column": "ai_thread_file.kind",
+        "reason": "Previous releases read and update ai_thread_file only through single-table queries in AiThreadFileModel, so the defaulted discriminator cannot make an existing joined column ambiguous."
+    },
+    {
+        "column": "ai_thread_file.storage_key",
+        "reason": "Previous releases read and update ai_thread_file only through single-table queries in AiThreadFileModel; no existing join can become ambiguous when the nullable object reference is added."
     }
 ]

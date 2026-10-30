@@ -183,6 +183,81 @@ resolver while its backend checked only ENV. Enabling Console made the menu
 visible but could never enable the API. An ENV workaround can restore availability;
 the proper fix is to use the standard resolver across entry points.
 
+## AI conversation images
+
+`ai-thread-images` is off by default on Cloud, self-hosted instances and previews.
+It uses the standard resolver, without a custom handler. Prefer Console organization
+overrides; standard user overrides and the generic self-hosted ENV lists also apply.
+The upload action and new image context items are gated on the backend, and the
+composer uses the server-resolved flag. Existing text attachment routing is unchanged.
+
+The first version supports regular browser chat with a specific agent: first and
+follow-up prompts in one conversation. Auto-routing and comparison composers ask
+users to choose an agent or start a single conversation before attaching images;
+these paths cannot await one definitive attachment claim. Deep research cannot
+consume an image-bearing draft. Urgent steering sends text immediately and leaves
+images unsent for the next normal message. Image submission failures keep the draft
+and local previews; successful claims release local previews. History shows metadata,
+dimensions and expiry, not downloadable images or persisted thumbnails.
+
+Enable only after every API/worker pod and browser bundle supports `thread_image`.
+Reload existing browser tabs before use. Older readers cannot load image-bearing
+threads, so after activation rollback must use compatible code or a forward fix,
+not the pre-feature version. Console changes affect subsequent backend resolutions;
+the composer needs a flag refetch or page reload. ENV changes need a process restart.
+
+Images additionally require a private, durable `UPLOADS_S3_BUCKET`; the purgeable
+exports-bucket fallback is refused. The scheduler must run even while the flag is
+off. Images expire for model access 30 days after upload; physical deletion is
+asynchronous and retried in bounded batches. Unsent uploads expire after 24 hours.
+An independent cleanup ledger survives thread, prompt and organization deletion.
+Unreferenced objects have a one-hour grace period for interrupted uploads.
+Operators must ensure bucket versioning/noncurrent-object retention does not retain
+expired image versions beyond the retention contract. Disabling the flag stops new
+attachments, not historical replay or cleanup, and does not erase completed writes.
+
+The final serialized model request is measured after provider image encoding,
+including system instructions, tools and conversation history. Image-bearing
+request ceilings are 32 MB for direct Anthropic, 512 MB for direct OpenAI, and a
+conservative 20 MB for custom OpenAI/Anthropic gateways, Google, Vertex, Bedrock,
+Azure and OpenRouter (decimal MB). Unknown
+routes and gateways may impose lower limits; these application ceilings do not
+promise route compatibility. Text-only requests are not subject to this guard.
+An over-limit conversation must remove unsent images or start a new thread.
+Streaming or multipart provider bodies are not buffered or measured; a one-time
+server warning identifies that transport gap. Current language-provider request
+serialization is covered by tests.
+See [Claude request limits](https://platform.claude.com/docs/en/api/overview#request-size-limits),
+[Gemini inline requests](https://ai.google.dev/gemini-api/docs/image-understanding)
+and [OpenAI image inputs](https://developers.openai.com/api/docs/guides/images-vision).
+
+Server normalization preserves PNG pixels losslessly. JPEG/WebP containing
+metadata or orientation are re-encoded at high quality (92); this can make an
+originally lossless WebP lossy. Malformed images may need re-saving before upload.
+
+Application limits are 3 MiB and a 2560-pixel longest edge per uploaded image,
+5 images per prompt, 10 images and 12 MiB of image bytes per thread. Browser input
+limits are 10 MiB and 40 megapixels, checked from headers before decoding and again
+on the oriented bitmap. Backend decoding and validation remain mandatory. These are application limits, not universal provider limits.
+Preserve screenshot labels: proportional downscaling, no cropping/upscaling, no
+lossy fallback for PNG. Image bytes must not be recorded in model input telemetry
+or exception payloads; cost and audit metadata remain available.
+
+Both Sentry tracing modes exclude incoming bodies across the entire thread-files
+upload prefix, including documents. Parsed raw bytes move into request-identity
+private custody before JSON/error middleware; controllers read them through an
+accessor, preventing Express error capture from reintroducing the body. Browser
+upload requests also opt out of network-history payload capture. Other request-body
+capture is unchanged. Operations follow-up: separately assess global customer query
+body capture; do not treat this narrow upload control as global body redaction.
+
+Existing text/CSV follow-ups, outside this image rollout: homepage Auto navigation
+carries only prompt text and loses attachment context; comparison conversations
+reuse claim-once document IDs; and rejected mixed-image submissions retain CSV
+source ownership even while the draft remains. Those legacy routing/ownership
+semantics are not redesigned here. Validate browser clipboard/encoding behavior,
+model vision support and gateway image forwarding before enabling an organization.
+
 ## Pre-aggregates
 
 Pre-aggregates are not behind a feature flag. They are on for every
