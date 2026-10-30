@@ -1,30 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "3.108.0",
-  "previousVersion": "3.107.0",
-  "releaseDate": "2026-10-30T08:51:23.891Z",
+  "version": "3.108.1",
+  "previousVersion": "3.108.0",
+  "releaseDate": "2026-10-30T09:01:35.022Z",
   "migrations": {
-    "present": true,
-    "count": 1,
+    "present": false,
+    "count": 0,
     "coreCount": 0,
-    "eeCount": 1,
-    "files": [
-      {
-        "name": "20261028120000_add_mcp_project_access.ts",
-        "edition": "ee",
-        "tables": [
-          "ai_organization_mcp_projects",
-          "ai_organization_settings",
-          "organizations",
-          "projects"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": true
-        }
-      }
-    ]
+    "eeCount": 0,
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,
@@ -36,11 +20,8 @@
       "breaking": false,
       "changes": [],
       "breakingCount": 0,
-      "advisories": [
-        "GET /api/v2/projects/{projectUuid}/ai-access/me — added the new `mcp_project_not_allowed` enum value to the `results/refusal/allOf[#/components/schemas/AiAccessRefusal]/blockers/items/reason` response property for the response status `200`",
-        "GET /api/v2/projects/{projectUuid}/ai-access/me — added the new `mcp_project_not_allowed` enum value to the `results/refusal/allOf[#/components/schemas/AiAccessRefusal]/reason` response property for the response status `200`"
-      ],
-      "advisoryCount": 2
+      "advisories": [],
+      "advisoryCount": 0
     },
     "mcp": {
       "checked": true,

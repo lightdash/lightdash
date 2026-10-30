@@ -1,3 +1,10 @@
+## [3.108.1](https://github.com/lightdash/lightdash/compare/3.108.0...3.108.1) (2026-10-30)
+
+
+### Bug Fixes
+
+* avoid analytics content inventory join expansion ([#31840](https://github.com/lightdash/lightdash/issues/31840)) ([0c20730](https://github.com/lightdash/lightdash/commit/0c20730fff4bd02f86d48caeca739e8ec668f00d))
+
 # [3.108.0](https://github.com/lightdash/lightdash/compare/3.107.0...3.108.0) (2026-10-30)
 
 
