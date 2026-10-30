@@ -61,7 +61,7 @@ export const embedChartSpecs: UsageChartSpec[] = [
         key: 'embed-popular-dashboards',
         name: 'Most-loaded dashboards',
         description:
-            'Top 10 dashboards by observed embed fetches. IDs keep dashboards with the same name separate; names reflect the latest available snapshot. Missing names retain their dashboard identity.',
+            'Top 10 dashboards by observed embed fetches. IDs keep dashboards with the same name separate; names reflect the latest captured fetch. Missing names retain their dashboard identity.',
         explore: 'embed_reach',
         dimensions: ['embed_reach_dashboard_label'],
         metrics: ['embed_reach_total_loads'],

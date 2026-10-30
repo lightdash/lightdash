@@ -169,7 +169,7 @@ browser rendering or billed visits. Repeat fetches count, browser-cached views c
 be absent, and dashboard tiles can generate multiple queries. External IDs are
 supplied by the embedding application; missing IDs and token issuers do not become
 viewers. Unidentified loads remain in the totals and have a separate coverage
-segment. Current dashboard names retain their IDs so equal names do not merge.
+segment. Latest captured dashboard names retain their IDs so equal names do not merge.
 
 Load capture starts with this version and has no historical backfill. Existing
 query history can cover a different period. Missing query timing is excluded from
