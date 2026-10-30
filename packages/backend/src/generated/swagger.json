@@ -62958,190 +62958,6 @@
             "UpdateOrganization": {
                 "$ref": "#/components/schemas/Partial_Omit_Organization.organizationUuid-or-needsProject__"
             },
-            "OrganizationBrandLogo": {
-                "properties": {
-                    "format": {
-                        "type": "string",
-                        "nullable": true,
-                        "description": "File format, e.g. 'svg', 'png', 'jpeg'"
-                    },
-                    "url": {
-                        "type": "string"
-                    },
-                    "theme": {
-                        "type": "string",
-                        "nullable": true,
-                        "description": "Colour of the artwork itself: 'light' is a light/white logo (for dark\nbackgrounds), 'dark' is a dark logo (for light backgrounds)."
-                    },
-                    "type": {
-                        "type": "string",
-                        "description": "Brandfetch logo type, e.g. 'logo', 'symbol', 'icon', 'other'"
-                    }
-                },
-                "required": ["format", "url", "theme", "type"],
-                "type": "object",
-                "description": "Brand profile fetched from the Brandfetch Brand API and stored on the\norganization. https://docs.brandfetch.com/reference/brand-api"
-            },
-            "OrganizationBrandColor": {
-                "properties": {
-                    "brightness": {
-                        "type": "number",
-                        "format": "double",
-                        "nullable": true
-                    },
-                    "type": {
-                        "type": "string",
-                        "description": "Brandfetch color type, e.g. 'accent', 'brand', 'dark', 'light'"
-                    },
-                    "hex": {
-                        "type": "string"
-                    }
-                },
-                "required": ["brightness", "type", "hex"],
-                "type": "object"
-            },
-            "OrganizationBrandFont": {
-                "properties": {
-                    "origin": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "type": {
-                        "type": "string",
-                        "description": "Brandfetch font type, e.g. 'title' or 'body'"
-                    },
-                    "name": {
-                        "type": "string"
-                    }
-                },
-                "required": ["origin", "type", "name"],
-                "type": "object"
-            },
-            "OrganizationBrand": {
-                "properties": {
-                    "updatedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "fonts": {
-                        "items": {
-                            "$ref": "#/components/schemas/OrganizationBrandFont"
-                        },
-                        "type": "array"
-                    },
-                    "colors": {
-                        "items": {
-                            "$ref": "#/components/schemas/OrganizationBrandColor"
-                        },
-                        "type": "array"
-                    },
-                    "logos": {
-                        "items": {
-                            "$ref": "#/components/schemas/OrganizationBrandLogo"
-                        },
-                        "type": "array"
-                    },
-                    "description": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "name": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "domain": {
-                        "type": "string",
-                        "description": "Domain the brand was fetched for, e.g. 'acme.com'"
-                    },
-                    "organizationUuid": {
-                        "type": "string",
-                        "format": "uuid"
-                    }
-                },
-                "required": [
-                    "updatedAt",
-                    "fonts",
-                    "colors",
-                    "logos",
-                    "description",
-                    "name",
-                    "domain",
-                    "organizationUuid"
-                ],
-                "type": "object"
-            },
-            "ApiOrganizationBrandResponse": {
-                "properties": {
-                    "results": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/OrganizationBrand"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "UpdateOrganizationBrandRequest": {
-                "properties": {
-                    "domain": {
-                        "type": "string",
-                        "description": "Company domain or website URL, e.g. 'acme.com'"
-                    }
-                },
-                "required": ["domain"],
-                "type": "object"
-            },
-            "SaveOrganizationBrandRequest": {
-                "properties": {
-                    "fonts": {
-                        "items": {
-                            "$ref": "#/components/schemas/OrganizationBrandFont"
-                        },
-                        "type": "array"
-                    },
-                    "colors": {
-                        "items": {
-                            "$ref": "#/components/schemas/OrganizationBrandColor"
-                        },
-                        "type": "array"
-                    },
-                    "logos": {
-                        "items": {
-                            "$ref": "#/components/schemas/OrganizationBrandLogo"
-                        },
-                        "type": "array"
-                    },
-                    "description": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "name": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "domain": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "fonts",
-                    "colors",
-                    "logos",
-                    "description",
-                    "name",
-                    "domain"
-                ],
-                "type": "object",
-                "description": "The editable brand payload persisted when the user saves their brand\nappearance. Unlike a fetch, this does not call Brandfetch — it stores the\nvalues exactly as edited in the settings form."
-            },
             "OrganizationProject": {
                 "properties": {
                     "provisioningSource": {
@@ -64264,6 +64080,217 @@
                     }
                 },
                 "required": ["impersonationEnabled"],
+                "type": "object"
+            },
+            "OrganizationBrandLogo": {
+                "properties": {
+                    "format": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "File format, e.g. 'svg', 'png', 'jpeg'"
+                    },
+                    "url": {
+                        "type": "string"
+                    },
+                    "theme": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Colour of the artwork itself: 'light' is a light/white logo (for dark\nbackgrounds), 'dark' is a dark logo (for light backgrounds)."
+                    },
+                    "type": {
+                        "type": "string",
+                        "description": "Brandfetch logo type, e.g. 'logo', 'symbol', 'icon', 'other'"
+                    }
+                },
+                "required": ["format", "url", "theme", "type"],
+                "type": "object",
+                "description": "Brand profile fetched from the Brandfetch Brand API and stored on the\norganization. https://docs.brandfetch.com/reference/brand-api"
+            },
+            "OrganizationBrandColor": {
+                "properties": {
+                    "brightness": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "type": {
+                        "type": "string",
+                        "description": "Brandfetch color type, e.g. 'accent', 'brand', 'dark', 'light'"
+                    },
+                    "hex": {
+                        "type": "string"
+                    }
+                },
+                "required": ["brightness", "type", "hex"],
+                "type": "object"
+            },
+            "OrganizationBrandFont": {
+                "properties": {
+                    "origin": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "type": {
+                        "type": "string",
+                        "description": "Brandfetch font type, e.g. 'title' or 'body'"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["origin", "type", "name"],
+                "type": "object"
+            },
+            "OrganizationBrand": {
+                "properties": {
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "fonts": {
+                        "items": {
+                            "$ref": "#/components/schemas/OrganizationBrandFont"
+                        },
+                        "type": "array"
+                    },
+                    "colors": {
+                        "items": {
+                            "$ref": "#/components/schemas/OrganizationBrandColor"
+                        },
+                        "type": "array"
+                    },
+                    "logos": {
+                        "items": {
+                            "$ref": "#/components/schemas/OrganizationBrandLogo"
+                        },
+                        "type": "array"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "domain": {
+                        "type": "string",
+                        "description": "Domain the brand was fetched for, e.g. 'acme.com'"
+                    },
+                    "organizationUuid": {
+                        "type": "string",
+                        "format": "uuid"
+                    }
+                },
+                "required": [
+                    "updatedAt",
+                    "fonts",
+                    "colors",
+                    "logos",
+                    "description",
+                    "name",
+                    "domain",
+                    "organizationUuid"
+                ],
+                "type": "object"
+            },
+            "ApiOrganizationBrandResponse": {
+                "properties": {
+                    "results": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/OrganizationBrand"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "UpdateOrganizationBrandRequest": {
+                "properties": {
+                    "domain": {
+                        "type": "string",
+                        "description": "Company domain or website URL, e.g. 'acme.com'"
+                    }
+                },
+                "required": ["domain"],
+                "type": "object"
+            },
+            "SaveOrganizationBrandRequest": {
+                "properties": {
+                    "fonts": {
+                        "items": {
+                            "$ref": "#/components/schemas/OrganizationBrandFont"
+                        },
+                        "type": "array"
+                    },
+                    "colors": {
+                        "items": {
+                            "$ref": "#/components/schemas/OrganizationBrandColor"
+                        },
+                        "type": "array"
+                    },
+                    "logos": {
+                        "items": {
+                            "$ref": "#/components/schemas/OrganizationBrandLogo"
+                        },
+                        "type": "array"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "domain": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "fonts",
+                    "colors",
+                    "logos",
+                    "description",
+                    "name",
+                    "domain"
+                ],
+                "type": "object",
+                "description": "The editable brand payload persisted when the user saves their brand\nappearance. Unlike a fetch, this does not call Brandfetch — it stores the\nvalues exactly as edited in the settings form."
+            },
+            "OrganizationBrandLogoUpload": {
+                "properties": {
+                    "format": {
+                        "type": "string",
+                        "enum": ["png", "jpeg", "webp", "gif", "svg"]
+                    },
+                    "url": {
+                        "type": "string"
+                    }
+                },
+                "required": ["format", "url"],
+                "type": "object"
+            },
+            "ApiOrganizationBrandLogoUploadResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/OrganizationBrandLogoUpload"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
                 "type": "object"
             },
             "NotificationBase": {
@@ -74555,7 +74582,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.113.0",
+        "version": "3.114.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -105612,124 +105639,6 @@
                 }
             }
         },
-        "/api/v1/org/brand": {
-            "get": {
-                "operationId": "GetOrganizationBrand",
-                "responses": {
-                    "200": {
-                        "description": "Ok",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiOrganizationBrandResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Get the organization's brand profile, previously fetched from Brandfetch.\nReturns null if no brand profile has been fetched yet.",
-                "summary": "Get organization brand",
-                "tags": ["Organizations"],
-                "security": [],
-                "parameters": []
-            },
-            "put": {
-                "operationId": "SaveOrganizationBrand",
-                "responses": {
-                    "200": {
-                        "description": "Ok",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiOrganizationBrandResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Save the organization's brand appearance as edited by the user. Stores the\nprovided colors, logos, fonts and domain as-is without calling Brandfetch.",
-                "summary": "Save organization brand",
-                "tags": ["Organizations"],
-                "security": [],
-                "parameters": [],
-                "requestBody": {
-                    "description": "the brand appearance to persist",
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/SaveOrganizationBrandRequest",
-                                "description": "the brand appearance to persist"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/org/brand/fetch": {
-            "post": {
-                "operationId": "FetchOrganizationBrand",
-                "responses": {
-                    "200": {
-                        "description": "Ok",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiOrganizationBrandResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Fetch the brand profile for a domain from Brandfetch without storing it.\nUsed to preview a brand in the appearance settings before saving.\nRequires the Brandfetch API key to be configured on the instance.",
-                "summary": "Fetch organization brand",
-                "tags": ["Organizations"],
-                "security": [],
-                "parameters": [],
-                "requestBody": {
-                    "description": "the domain to fetch the brand for",
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/UpdateOrganizationBrandRequest",
-                                "description": "the domain to fetch the brand for"
-                            }
-                        }
-                    }
-                }
-            }
-        },
         "/api/v1/org/{organizationUuid}": {
             "delete": {
                 "operationId": "DeleteMyOrganization",
@@ -106908,6 +106817,191 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/org/brand": {
+            "get": {
+                "operationId": "GetOrganizationBrand",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiOrganizationBrandResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get the organization's brand profile, previously fetched from Brandfetch.\nReturns null if no brand profile has been fetched yet.",
+                "summary": "Get organization brand",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": []
+            },
+            "put": {
+                "operationId": "SaveOrganizationBrand",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiOrganizationBrandResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Save the organization's brand appearance as edited by the user. Stores the\nprovided colors, logos, fonts and domain as-is without calling Brandfetch.",
+                "summary": "Save organization brand",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "description": "the brand appearance to persist",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SaveOrganizationBrandRequest",
+                                "description": "the brand appearance to persist"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/org/brand/fetch": {
+            "post": {
+                "operationId": "FetchOrganizationBrand",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiOrganizationBrandResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Fetch the brand profile for a domain from Brandfetch without storing it.\nUsed to preview a brand in the appearance settings before saving.\nRequires the Brandfetch API key to be configured on the instance.",
+                "summary": "Fetch organization brand",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "description": "the domain to fetch the brand for",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateOrganizationBrandRequest",
+                                "description": "the domain to fetch the brand for"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/org/brand/logos": {
+            "post": {
+                "operationId": "UploadOrganizationBrandLogo",
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiOrganizationBrandLogoUploadResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Upload a logo image for the organization brand. Send the raw image bytes\nas the body (PNG, JPEG, WebP, GIF or SVG). Returns the URL to store in\nthe brand's logos when saving the brand.",
+                "summary": "Upload organization brand logo",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/org/brand/logos/{logoUuid}": {
+            "get": {
+                "operationId": "GetOrganizationBrandLogo",
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get an uploaded organization brand logo image.",
+                "summary": "Get organization brand logo",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "the uuid of the uploaded logo",
+                        "in": "path",
+                        "name": "logoUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/notifications": {
