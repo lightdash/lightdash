@@ -19,7 +19,7 @@ import {
 } from '@mantine/core';
 import { useCallbackRef } from '@mantine/hooks';
 import { IconAlertTriangle, IconFilter } from '@tabler/icons-react';
-import { memo, useMemo, useRef, useState, type FC } from 'react';
+import { memo, useLayoutEffect, useMemo, useRef, type FC } from 'react';
 import { createPortal } from 'react-dom';
 import FieldIcon from '../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../components/common/MantineIcon';
@@ -36,7 +36,6 @@ import {
     getCandidateOptions,
     getTileFieldCandidateIds,
 } from './fieldCandidates';
-import { formatTileCount } from './fieldLabels';
 import { LazySelect } from './LazySelect';
 import {
     doesTileOfferField,
@@ -64,32 +63,21 @@ import {
     WAVE_BUCKETS,
 } from './tileSelector';
 import { useControlsSidebarSelector } from './useControlsSidebar';
-import { useFieldTileActions, type TileScope } from './useFieldTileActions';
+import { useFieldTileActions } from './useFieldTileActions';
 import { usePortalTargets } from './usePortalTargets';
 import { useScrollToHighlightedTile } from './useScrollToHighlightedTile';
 import { useSqlColumnsByTile } from './useSqlColumnsByTile';
 
 const NO_COLUMNS: SqlColumn[] = [];
-const NO_FIELD_IDS: string[] = [];
 // A tile card's select: the stand-in button, or the real input once used
 const SELECT_SELECTOR = '[aria-haspopup="listbox"]';
+const NO_FIELD_IDS: string[] = [];
 // What a data app tile's switch reports when it is turned on
 const DATA_APP_ON = 'on';
 // Past this many entries the dropdown is searchable
 const SEARCH_THRESHOLD = 8;
 
 type FieldsMap = Record<string, DashboardFilterableField>;
-
-// The last change made from a tile card, which that card then offers for the
-// rest of the tab. Whether it still applies is worked out on each render
-type FollowUp = {
-    ruleId: string;
-    tabUuid: string | null;
-    tileUuid: string;
-    fieldId: string;
-    isSqlColumn: boolean;
-    kind: 'filter' | 'clear';
-};
 
 const getFieldLabel = (fieldId: string, fieldsMap: FieldsMap): string =>
     fieldsMap[fieldId]?.label ?? fieldId;
@@ -157,11 +145,9 @@ type TileOverlayProps = {
     scrollFieldId: string | null;
     // Bucket for the arrival wave
     wave: number;
-    // Offers the change just made here for the rest of the tab, or null
-    followUpLabel: string | null;
-    followUpName: string | null;
+    // "Filtered by" its first field or "Filtered via" another, while filtered
+    statusLabel: string | null;
     onSelect: (tileUuid: string, value: string | null) => void;
-    onFollowUp: () => void;
 };
 
 const TileOverlay = memo<TileOverlayProps>(
@@ -180,10 +166,8 @@ const TileOverlay = memo<TileOverlayProps>(
         highlight,
         scrollFieldId,
         wave,
-        followUpLabel,
-        followUpName,
+        statusLabel,
         onSelect,
-        onFollowUp,
     }) => {
         const overlayRef = useRef<HTMLDivElement>(null);
         const getUiString = useUiStrings();
@@ -192,6 +176,15 @@ const TileOverlay = memo<TileOverlayProps>(
             scrollFieldId,
             scrollFieldId !== null,
         );
+        // "Filter this tile" leaves with its card's state: its select takes focus
+        const isSelectFocusPending = useRef(false);
+        useLayoutEffect(() => {
+            if (!isSelectFocusPending.current || tileFieldId === null) return;
+            isSelectFocusPending.current = false;
+            overlayRef.current
+                ?.querySelector<HTMLElement>(SELECT_SELECTOR)
+                ?.focus();
+        }, [tileFieldId]);
         // A tile the control cannot reach recedes, with nothing on top of it
         if (!isReachable) {
             return (
@@ -261,6 +254,8 @@ const TileOverlay = memo<TileOverlayProps>(
                     radius="md"
                     className={classes.card}
                     title=""
+                    // Escape from a card leaves mapping as the row's Cancel does
+                    data-controls-editor
                 >
                     <Box
                         key={tileFieldId ?? 'none'}
@@ -293,17 +288,38 @@ const TileOverlay = memo<TileOverlayProps>(
                                 }
                             />
                         </Stack>
+                    ) : tileFieldId === null ? (
+                        <Group justify="space-between" gap="xs" wrap="nowrap">
+                            <Text fz="xs" c="dimmed">
+                                {getUiString(
+                                    'filters.tileCard.notFilteredLabel',
+                                )}
+                            </Text>
+                            {/* Onto the filter's field the tile has, else its first fitting one */}
+                            <Button
+                                size="xs"
+                                variant="default"
+                                aria-label={selectLabel}
+                                onClick={() => {
+                                    isSelectFocusPending.current = true;
+                                    onSelect(
+                                        tileUuid,
+                                        options[0] ?? candidates[0] ?? null,
+                                    );
+                                }}
+                            >
+                                {getUiString('filters.tileCard.filterThisTile')}
+                            </Button>
+                        </Group>
                     ) : (
                         <Stack gap="xs">
                             <Group gap="xxs" wrap="nowrap">
-                                <Text fz="xs" c="dimmed">
-                                    {getUiString(
-                                        missingFieldId !== null
-                                            ? 'filters.tileCard.missingField'
-                                            : tileFieldId !== null
-                                              ? 'filters.tileCard.filteredOn'
-                                              : 'filters.tileCard.notFiltered',
-                                    )}
+                                <Text fz="xs" c="dimmed" truncate>
+                                    {missingFieldId !== null
+                                        ? getUiString(
+                                              'filters.tileCard.missingField',
+                                          )
+                                        : statusLabel}
                                 </Text>
                                 {missingFieldId !== null && (
                                     <MissingFieldWarning
@@ -361,18 +377,6 @@ const TileOverlay = memo<TileOverlayProps>(
                                     />
                                 </Box>
                             </Tooltip>
-                            {followUpLabel !== null && (
-                                <Box className={classes.followUp}>
-                                    <Button
-                                        variant="subtle"
-                                        size="compact-xs"
-                                        aria-label={followUpName ?? undefined}
-                                        onClick={onFollowUp}
-                                    >
-                                        {followUpLabel}
-                                    </Button>
-                                </Box>
-                            )}
                         </Stack>
                     )}
                 </Paper>
@@ -382,9 +386,9 @@ const TileOverlay = memo<TileOverlayProps>(
     areTilePropsEqual,
 );
 
-// Mounted while a control is edited, so what it remembers ends with the editor
+// Mounted only while tiles are chosen: opening a filter leaves every tile as it is
 export const TileOverlays: FC = () => {
-    const isEditing = useControlsSidebarSelector((c) => c.editingRule !== null);
+    const isEditing = useControlsSidebarSelector((c) => c.isMapping);
     const contractClasses = useRailContractClasses();
     // The tile cards' lists, as an embed's stylesheet targets them
     return (
@@ -425,8 +429,6 @@ const EditedTileOverlays: FC = () => {
     const sqlColumnsByTile = useSqlColumnsByTile(editingRule);
     const isActive = editingRule !== null;
     const fieldTileActions = useFieldTileActions(sqlColumnsByTile);
-    const [followUp, setFollowUp] = useState<FollowUp | null>(null);
-    const activeTabUuid = activeTab?.uuid ?? null;
 
     // As the grid draws them: a tile with no tab, or a stale one, is on the
     // first tab
@@ -458,21 +460,6 @@ const EditedTileOverlays: FC = () => {
             const previousFieldId =
                 getTileField(editingRule, tile, fieldsByTile, sqlColumnsByTile)
                     ?.fieldId ?? null;
-            // The follow-up moves to the tile changed last; a data app tile
-            // is on no field, so it gets none
-            const followedFieldId = value ?? previousFieldId;
-            setFollowUp(
-                isDashboardDataAppTileType(tile) || followedFieldId === null
-                    ? null
-                    : {
-                          ruleId: editingRule.id,
-                          tabUuid: activeTabUuid,
-                          tileUuid,
-                          fieldId: followedFieldId,
-                          isSqlColumn: isSqlTile,
-                          kind: value === null ? 'clear' : 'filter',
-                      },
-            );
             // A field cleared from its last tile leaves the filter, unless it
             // is the filter's only field
             if (
@@ -512,87 +499,6 @@ const EditedTileOverlays: FC = () => {
             );
         },
     );
-
-    // Another control, another tab or losing the last field ends it for good
-    if (
-        followUp !== null &&
-        (isPlaceholder ||
-            followUp.ruleId !== editingRule?.id ||
-            followUp.tabUuid !== activeTabUuid)
-    )
-        setFollowUp(null);
-
-    // The follow-up as it stands now: only for the control and tab it was made
-    // on, while its tile is still as the change left it and other tiles remain
-    const getShownFollowUp = () => {
-        if (
-            followUp === null ||
-            editingRule === null ||
-            isPlaceholder ||
-            fieldTileActions === null ||
-            followUp.ruleId !== editingRule.id ||
-            followUp.tabUuid !== activeTabUuid
-        )
-            return null;
-        const tile = tiles.find(
-            (candidate) => candidate.uuid === followUp.tileUuid,
-        );
-        if (tile === undefined) return null;
-        const tileFieldId =
-            getTileField(editingRule, tile, fieldsByTile, sqlColumnsByTile)
-                ?.fieldId ?? null;
-        const isFilter = followUp.kind === 'filter';
-        if (tileFieldId !== (isFilter ? followUp.fieldId : null)) return null;
-        const fieldTiles = followUp.isSqlColumn
-            ? fieldTileActions.forSqlColumn(followUp.fieldId)
-            : fieldTileActions.forField(followUp.fieldId);
-        const hasTabs = fieldTiles.thisTabScope !== null;
-        const scope = fieldTiles.thisTabScope ?? fieldTiles.everyTabScope;
-        // The other tiles of the scope that offer it and are not on it
-        const count = isFilter
-            ? scope.unfiltered + scope.replaced
-            : scope.applied;
-        // Not while the tiles' fields load: the count would be a guess
-        if (count === 0 || !fieldTiles.canAct) return null;
-        const tileScope: TileScope = hasTabs ? 'this-tab' : 'every-tab';
-        // The card is on the tab, so only the name says which scope
-        const nameKey = isFilter
-            ? hasTabs
-                ? 'filters.tileCard.applyToOthersNameOnThisTab'
-                : 'filters.tileCard.applyToOthersName'
-            : hasTabs
-              ? 'filters.tileCard.clearOthersNameOnThisTab'
-              : 'filters.tileCard.clearOthersName';
-        return {
-            tileUuid: followUp.tileUuid,
-            label: interpolateUiString(
-                getUiString(
-                    isFilter
-                        ? 'filters.tileCard.applyToOthers'
-                        : 'filters.tileCard.clearOthers',
-                ),
-                { count },
-            ),
-            name: interpolateUiString(getUiString(nameKey), {
-                field: fieldTiles.label,
-                tiles: formatTileCount(getUiString, count),
-            }),
-            run: () =>
-                isFilter
-                    ? fieldTiles.applyToAll(tileScope)
-                    : fieldTiles.clear(tileScope),
-        };
-    };
-    const shownFollowUp = getShownFollowUp();
-    const handleFollowUp = useCallbackRef(() => {
-        if (shownFollowUp === null) return;
-        // The button leaves once used: its tile's select takes the focus
-        targets[shownFollowUp.tileUuid]
-            ?.querySelector<HTMLElement>(SELECT_SELECTOR)
-            ?.focus();
-        shownFollowUp.run();
-        setFollowUp(null);
-    });
 
     // A waiting field is offered on every tile that could take it. A SQL
     // column filter has no field: its column is never looked up as one
@@ -688,6 +594,27 @@ const EditedTileOverlays: FC = () => {
                     isOnTheControl &&
                     !isDataAppTile &&
                     isTargetOnRow(editingRule, tileTarget, rowId);
+                const tileFieldLabel =
+                    tileFieldId === null || isSqlTile
+                        ? tileFieldId
+                        : fieldTileActions !== null &&
+                            fieldTileActions.sharedNameFieldIds.includes(
+                                tileFieldId,
+                            ) &&
+                            fieldsMap[tileFieldId]
+                          ? getItemLabel(fieldsMap[tileFieldId])
+                          : getFieldLabel(tileFieldId, fieldsMap);
+                const statusLabel =
+                    tileFieldLabel === null || isDataAppTile
+                        ? null
+                        : interpolateUiString(
+                              getUiString(
+                                  tileFieldId === editingRule.target.fieldId
+                                      ? 'filters.tileCard.filteredBy'
+                                      : 'filters.tileCard.filteredVia',
+                              ),
+                              { field: tileFieldLabel },
+                          );
                 const highlight: TileHighlight | null = !isReachable
                     ? null
                     : !isOnTheControl
@@ -730,18 +657,8 @@ const EditedTileOverlays: FC = () => {
                                 : null
                         }
                         wave={index % WAVE_BUCKETS}
-                        followUpLabel={
-                            shownFollowUp?.tileUuid === tile.uuid
-                                ? shownFollowUp.label
-                                : null
-                        }
-                        followUpName={
-                            shownFollowUp?.tileUuid === tile.uuid
-                                ? shownFollowUp.name
-                                : null
-                        }
+                        statusLabel={statusLabel}
                         onSelect={handleSelect}
-                        onFollowUp={handleFollowUp}
                     />,
                     element,
                     tile.uuid,

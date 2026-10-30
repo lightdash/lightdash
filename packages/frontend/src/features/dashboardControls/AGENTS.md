@@ -51,7 +51,7 @@ Gated on the flag:
 - `ee/features/embed/EmbedDashboard/components/EmbedDashboard.tsx`:
   `isEmbedFilterRailEnabled` (flag on, and not an embed editor in edit mode)
   turns on `isControlsEnabled` for the header and filter bar, and
-  renders `TabCounts` and `FieldTilesBar` (`TileOverlays` waits for mapping). A dashboard with
+  renders `TileOverlays`, `TabCounts` and `FieldTilesBar` (all three act only in mapping). A dashboard with
   no tiles has no grid, so its header gets `isControlsEnabled={false}`.
 - `pages/Dashboard.tsx` Save: `getDimensionFiltersToSave` keeps a required
   filter's value as its default with the flag on; off, it strips it as before.
@@ -99,8 +99,9 @@ Fix behaviour in the shared piece, once, never in a copy.
 | File | Owns |
 | --- | --- |
 | `ControlsSidebarProvider.tsx`, `useControlsSidebar.ts`, `sidebarState.ts` | The edit state, every write to filters, focus return; pure state helpers |
-| `ControlsSidebarPage.tsx` | Drop-in for `Page`: the provider plus tab counts, link prompts, field bar |
-| `ControlsBar.tsx` | The shipped bar with its openings; picks flat or `SectionedFilters` |
+| `ControlsSidebarPage.tsx` | Drop-in for `Page`: the provider plus tile overlays, tab counts, link prompts, field bar |
+| `ControlsBar.tsx` | The shipped bar with its openings; picks flat or `SectionedFilters`; cross-fades to `MappingRow` |
+| `MappingRow.tsx` | Mapping: the open pill, title and counts, field chips, "Add a field", Cancel and Apply |
 | `AddControl.tsx`, `FilterBarMenu.tsx` | "Add filter" and the editor's "..." menu (viewers setting, "Filter rules"); `InertWhileEditing` |
 | `FilterPills.tsx`, `FilterPill.tsx`, `TemporaryFilterPills.tsx` | Bar pills: an editor's, a viewer's saved and own pills (each anchors the editor), an editor's temporary pills (shipped) |
 | `SettledFilterFields.tsx` | Keeps the last fields while tiles reload, so the bar does not flash a first load |
@@ -124,11 +125,13 @@ Fix behaviour in the shared piece, once, never in a copy.
 
 Each one has broken before or would break silently.
 
-- **One filled button.** While a filter is edited the editor's Apply is the only
-  filled button on screen: the inert band draws Save dashboard as an outline, and the
-  field bar, selection bar and follow-ups never use `filled`.
-- **No state reset in an effect.** Open/closed, highlighted field, pending
-  switch, undo, follow-ups and selection are all derived on render. The one
+- **One filled button.** While a filter is edited the editor's Apply (the
+  mapping row's in mapping) is the only filled button on screen: the inert
+  band draws Save dashboard as an outline, and the selection bar never uses
+  `filled`. The one exception is the field bar's Undo right after "Add a
+  field" (a design decision).
+- **No state reset in an effect.** Open/closed, mapping, highlighted field,
+  pending switch, undo and selection are all derived on render. The one
   exception is the mode-change effect in the provider (browser Back, a typed
   URL, an embed's `isEditMode`), which closes the edit as Apply does.
 - **The provider is the only writer.** The editor writes the edited rule with

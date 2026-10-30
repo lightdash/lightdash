@@ -468,6 +468,9 @@ export const DEFAULT_UI_STRINGS = {
         'Clear {field} from the other {tiles} too',
     'filters.tileCard.clearOthersNameOnThisTab':
         'Clear {field} from the other {tiles} on this tab too',
+    'filters.tileCard.filteredBy': 'Filtered by {field}',
+    'filters.tileCard.filteredVia': 'Filtered via {field}',
+    'filters.tileCard.notFilteredLabel': 'Not filtered',
     'filters.fieldBar.region': 'Tiles filtered by {field}',
     'filters.fieldBar.tilesOf.singular': 'tile',
     'filters.fieldBar.tilesOf.plural': 'tiles',
@@ -496,6 +499,7 @@ export const DEFAULT_UI_STRINGS = {
     'filters.fieldBar.undoClearName': 'Undo clearing {field} from {tiles}',
     'filters.fieldBar.clearName': 'Clear {field} from tiles',
     'filters.fieldBar.clearNameOnThisTab': 'Clear {field} from this tab',
+    'filters.fieldBar.filterAllTiles': 'Filter all tiles',
     'dashboard.exportAllTiles': 'Export all tiles',
     'dashboard.printPage': 'Print this page',
     'dashboard.exportPdf': 'Export as PDF',

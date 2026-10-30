@@ -187,6 +187,8 @@ type SidebarState = {
     } | null;
     // Other filters the editor itself wrote since this control was opened
     touchedFilterIds: string[];
+    // While tiles are chosen: the rule as it was when mapping started
+    mappingStart: DashboardFilterRule | null;
 };
 
 // What Apply or Cancel would decide: a new filter with no field yet has
@@ -700,6 +702,7 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
                     haveFiltersChanged: current.haveFiltersChanged,
                 },
                 touchedFilterIds: [],
+                mappingStart: null,
             });
             if (!current.isPageViewer) {
                 current.track({
@@ -740,6 +743,7 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
                     haveFiltersChanged: current.haveFiltersChanged,
                 },
                 touchedFilterIds: [],
+                mappingStart: null,
             });
             if (!current.isPageViewer) {
                 current.track({
@@ -1102,6 +1106,40 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         [writeUndo],
     );
 
+    // Choose tiles: the popover gives way to the mapping row; its writes land
+    // in the same draft
+    const startMapping = useCallback(() => {
+        const current = latest.current;
+        const rule = getEditingRule(current);
+        if (
+            current.state === null ||
+            current.state.isViewer ||
+            current.placeholder !== null ||
+            rule === null
+        )
+            return;
+        writeUndo(null);
+        current.highlightedFieldId = null;
+        setHighlightedFieldId(null);
+        setHoveredFieldId(null);
+        writeState({ ...current.state, mappingStart: rule });
+    }, [writeState, writeUndo]);
+
+    // The mapping row's Cancel: tiles go back to where mapping found them and
+    // the popover returns. The value cannot change while mapping
+    const cancelMapping = useCallback(() => {
+        const current = latest.current;
+        const start = current.state?.mappingStart ?? null;
+        if (current.state === null || start === null) return;
+        writeUndo(null);
+        current.highlightedFieldId = null;
+        setHighlightedFieldId(null);
+        setHoveredFieldId(null);
+        setWaiting(null);
+        writeFilters((filters) => replaceFilterRule(filters, start));
+        writeState({ ...current.state, mappingStart: null });
+    }, [writeFilters, writeState, writeUndo]);
+
     // The context's `isDirty`, read from `latest`
     const hasUnappliedChanges = useCallback(() => {
         const current = latest.current;
@@ -1406,9 +1444,11 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         [close, hasUnappliedChanges, openExisting, writePending, trackClosed],
     );
 
-    // A click outside: a clean edit closes, else the editor asks first (true)
+    // A click outside: a clean edit closes, else the editor asks first (true).
+    // Mapping is left only by its own Cancel or Apply
     const requestClose = useCallback(() => {
         if (latest.current.state === null) return false;
+        if (latest.current.state.mappingStart !== null) return false;
         if (hasUnappliedChanges()) {
             writePending({ kind: 'close' });
             return true;
@@ -1455,9 +1495,25 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         [close, discard, openExisting, openPlaceholder, trackClosed],
     );
 
-    // Escape: a pending question is withdrawn, else the edit is cancelled
+    // Escape: a pending question is withdrawn, else the edit is cancelled.
+    // In mapping it only goes back to the popover while nothing changed:
+    // the row's Cancel is the one way to drop tile changes
     const dismiss = useCallback(() => {
         const current = latest.current;
+        const start = current.state?.mappingStart ?? null;
+        if (start !== null) {
+            const filters = getFilters(current);
+            if (
+                !isFilterRuleDirty(
+                    replaceFilterRule(filters, start),
+                    filters,
+                    start.id,
+                    toSavedNow,
+                )
+            )
+                cancelMapping();
+            return;
+        }
         if (getPending(current) === null) {
             trackClosed('cancel');
             discard();
@@ -1472,7 +1528,7 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         writePending(null);
         // Once the question has left: it held the focus
         setTimeout(focusInEditor);
-    }, [discard, writePending, trackClosed]);
+    }, [discard, writePending, trackClosed, cancelMapping, toSavedNow]);
 
     // The editor's Apply and Cancel, tracked; the provider's own ways out
     // call `close` and `discard` and track their own outcome
@@ -1488,6 +1544,11 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
     // Derived, not reset: a rule that left the dashboard filters closes the
     // sidebar, and the next open or Add starts over
     const isSidebarOpen = state !== null && editingRule !== null;
+    const isMapping =
+        state !== null &&
+        state.mappingStart !== null &&
+        isSidebarOpen &&
+        !isPlaceholder;
     const isAsking =
         isSidebarOpen &&
         getPending({
@@ -1566,6 +1627,9 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
             isPlaceholder,
             editingRule,
             isSidebarOpen,
+            isMapping,
+            startMapping,
+            cancelMapping,
             isAsking,
             resolvePending,
             newTileUuids,
@@ -1609,6 +1673,9 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
             isViewer,
             canAddFilters,
             isSidebarOpen,
+            isMapping,
+            startMapping,
+            cancelMapping,
             isAsking,
             resolvePending,
             editing,

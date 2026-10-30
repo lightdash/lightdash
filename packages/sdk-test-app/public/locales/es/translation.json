@@ -528,6 +528,9 @@
         "filters.tileCard.applyToOthersNameOnThisTab": "Aplicar {field} también a los otros {tiles} de esta pestaña",
         "filters.tileCard.clearOthersName": "Quitar {field} también de los otros {tiles}",
         "filters.tileCard.clearOthersNameOnThisTab": "Quitar {field} también de los otros {tiles} de esta pestaña",
+        "filters.tileCard.filteredBy": "Filtrado por {field}",
+        "filters.tileCard.filteredVia": "Filtrado mediante {field}",
+        "filters.tileCard.notFilteredLabel": "Sin filtrar",
         "filters.fieldBar.region": "Mosaicos filtrados por {field}",
         "filters.fieldBar.tilesOf.singular": "mosaico",
         "filters.fieldBar.tilesOf.plural": "mosaicos",
@@ -553,6 +556,7 @@
         "filters.fieldBar.undoApplyName": "Deshacer aplicar {field} a {tiles}",
         "filters.fieldBar.undoClearName": "Deshacer quitar {field} de {tiles}",
         "filters.fieldBar.clearName": "Quitar {field} de los mosaicos",
-        "filters.fieldBar.clearNameOnThisTab": "Quitar {field} de esta pestaña"
+        "filters.fieldBar.clearNameOnThisTab": "Quitar {field} de esta pestaña",
+        "filters.fieldBar.filterAllTiles": "Filtrar todos los mosaicos"
     }
 }

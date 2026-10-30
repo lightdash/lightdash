@@ -16,16 +16,14 @@
     cursor: default;
 }
 
-/* The veil, strong enough that the card is what the eye lands on. It has the
-   tile card's corner so the ring traces it, and its inset line paints out the
-   tile's own dashed edit border */
+/* No wash: the tile stays as it is under its card. The tile card's corner, so
+   the ring traces it; its inset line paints out the tile's dashed edit border */
 .overlay::before {
     content: '';
     position: absolute;
     inset: 0;
     border-radius: var(--mantine-radius-xs);
     box-shadow: inset 0 0 0 1px var(--mantine-color-body);
-    background-color: color-mix(in srgb, var(--ld-color-page) 70%, transparent);
     animation: fadeIn var(--controls-duration-state) var(--controls-ease);
 }
 
@@ -48,15 +46,15 @@
     animation: ringEnter var(--controls-duration-state) var(--controls-ease);
 }
 
-/* On the selected field: a solid hairline in the edit border's blue over a
-   faint neutral tint, mixed so the chart stays visible under it */
+/* On the hovered or selected chip's field: a 2px ink ring over a faint
+   neutral tint, mixed so the chart stays visible under it */
 .ring::before {
     background-color: color-mix(
         in srgb,
         var(--mantine-color-default-hover) 60%,
         transparent
     );
-    box-shadow: inset 0 0 0 1px var(--mantine-color-blue-5);
+    box-shadow: inset 0 0 0 2px var(--mantine-color-ldGray-9);
 }
 
 .overlay[data-highlighted='mapped'] > .ring::before {
@@ -103,8 +101,10 @@
     opacity: 1;
 }
 
+/* A tile that cannot take the filter dims: the tile's own surface over it
+   reads as the tile at low opacity, with no card */
 .unfilterable::before {
-    background-color: color-mix(in srgb, var(--ld-color-page) 94%, transparent);
+    background-color: color-mix(in srgb, var(--ld-color-tile) 60%, transparent);
 }
 
 /* A veiled tile cannot be dragged, resized or hovered */
@@ -167,12 +167,6 @@
 
 .overlay[data-wave='5'] > .card {
     animation-delay: calc(var(--controls-wave-step) * 5);
-}
-
-/* The change just made on this tile, offered for the rest of the tab */
-.followUp {
-    padding-top: var(--mantine-spacing-xs);
-    border-top: 1px solid var(--mantine-color-default-border);
 }
 
 /* Replays when the tile's choice changes: it is keyed by that choice */

@@ -19,14 +19,13 @@ import {
     selectControlSections,
     useDashboardSelector,
 } from '../dashboard/store';
-import { hasFilterValueSet } from '../dashboardFilters/FilterConfiguration/utils';
 import { FieldsAndTiles } from './FieldsAndTiles';
 import classes from './FilterEditor.module.css';
 import { FilterSettings, type EditorView } from './FilterSettings';
 import { useRailContractClasses } from './railContractClasses';
-import { isRuleRequired } from './requirements';
 import { withFilterRuleLabel } from './sidebarState';
 import { useAppliedTileCount } from './useAppliedTileCount';
+import { useApplyBlockedReason } from './useApplyBlockedReason';
 import { useControlsSidebarSelector } from './useControlsSidebar';
 import { useFilterRuleField } from './useFilterRuleField';
 import { useLabelDraft } from './useLabelDraft';
@@ -187,7 +186,6 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
     const isPlaceholder = useControlsSidebarSelector((c) => c.isPlaceholder);
     const isAsking = useControlsSidebarSelector((c) => c.isAsking);
     const updateFilter = useControlsSidebarSelector((c) => c.updateFilter);
-    const isViewer = useControlsSidebarSelector((c) => c.isViewer);
     const getUiString = useUiStrings();
     const [view, setView] = useState<EditorView>('value');
     // As the filter was opened: an emptied label goes back to exactly that
@@ -197,6 +195,7 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
         updateFilter(withFilterRuleLabel(filterRule, next, hadLabelKey)),
     );
     const appliedTileCount = useAppliedTileCount(filterRule);
+    const applyBlockedReason = useApplyBlockedReason(filterRule);
     // No props, so one element: typing a label does not re-render the list
     const fieldsAndTiles = useMemo(() => <FieldsAndTiles />, []);
 
@@ -205,15 +204,6 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
     const fieldName =
         field?.label ??
         (filterRule.target.isSqlColumn ? filterRule.target.fieldId : null);
-    // An editor's filter keeps a value when required and reaches a tile
-    const applyBlockedReason =
-        isViewer || isPlaceholder
-            ? null
-            : isRuleRequired(filterRule) && !hasFilterValueSet(filterRule)
-              ? getUiString('filters.config.applyRequiredTooltip')
-              : appliedTileCount === 0
-                ? getUiString('filters.notAppliedToAnyTiles')
-                : null;
     const name =
         isPlaceholder && isNew
             ? getUiString('filters.rail.newFilter')
@@ -310,9 +300,11 @@ type EditorPopoverProps = {
 // the provider (`FocusReturn`)
 export const EditorPopover: FC<EditorPopoverProps> = ({ isOpen, children }) => {
     const contractClasses = useRailContractClasses();
+    // Mapping stands in for the popover until its Cancel brings it back
+    const isMapping = useControlsSidebarSelector((c) => c.isMapping);
     return (
         <Popover
-            opened={isOpen}
+            opened={isOpen && !isMapping}
             position="bottom-start"
             withArrow
             offset={1}
@@ -326,7 +318,7 @@ export const EditorPopover: FC<EditorPopoverProps> = ({ isOpen, children }) => {
             <Popover.Target>{children}</Popover.Target>
             {/* Mounted only while open, so a closing popover draws nothing,
                 not even for the frame its transition takes to end */}
-            {isOpen && (
+            {isOpen && !isMapping && (
                 <Popover.Dropdown
                     p={0}
                     // The trap's last resort before its body has mounted

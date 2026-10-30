@@ -51,9 +51,15 @@ const focusValueOnMount = (node: HTMLElement | null) => {
             'input:not([type="hidden"])',
         ) ?? []),
     ];
+    // A typed input that owns a list opens it on focus, over the footer: it
+    // waits for a click, typing or ArrowDown, and the operator takes focus
     const input =
         [inputs[1], ...inputs].find(
-            (candidate) => candidate !== undefined && !candidate.disabled,
+            (candidate) =>
+                candidate !== undefined &&
+                !candidate.disabled &&
+                (candidate.readOnly ||
+                    candidate.closest('[aria-haspopup]') === null),
         ) ?? node?.querySelector<HTMLElement>('button:not(:disabled)');
     // For the popover's focus trap, which focuses it once it is placed
     input?.setAttribute('data-autofocus', '');
@@ -120,6 +126,7 @@ export const FilterSettings: FC<Props> = ({
     );
     const isViewer = useControlsSidebarSelector((c) => c.isViewer);
     const isNew = useControlsSidebarSelector((c) => c.isNew);
+    const startMapping = useControlsSidebarSelector((c) => c.startMapping);
     const getUiString = useUiStrings();
     const contractClasses = useRailContractClasses();
     const filterBarPopovers = useFilterBarPopovers();
@@ -207,7 +214,11 @@ export const FilterSettings: FC<Props> = ({
                                         appliedTileCount,
                                     )}
                                 </Text>
-                                <Button variant="subtle" size="xs" disabled>
+                                <Button
+                                    variant="subtle"
+                                    size="xs"
+                                    onClick={startMapping}
+                                >
                                     Choose tiles
                                 </Button>
                             </Group>

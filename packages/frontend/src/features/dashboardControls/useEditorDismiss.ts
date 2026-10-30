@@ -110,8 +110,12 @@ export const useEditorDismiss = ({
                 !target?.closest(`[${EDITOR_ATTRIBUTE}]`)
             )
                 return;
-            // Blur commits a label that is still being typed
-            if (document.activeElement instanceof HTMLElement)
+            // Blur commits a label that is still being typed; any other focus
+            // stays put, so an Escape that changes nothing keeps the place
+            if (
+                document.activeElement instanceof HTMLElement &&
+                document.activeElement.matches('[data-controls-label]')
+            )
                 document.activeElement.blur();
             dismiss();
         };
