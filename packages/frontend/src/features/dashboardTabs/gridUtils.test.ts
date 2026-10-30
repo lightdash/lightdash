@@ -1,6 +1,13 @@
 import { DashboardTileTypes, type DashboardTile } from '@lightdash/common';
 import {
+    canFitGridToScreen,
+    DEFAULT_ROW_HEIGHT,
+    FIT_TO_SCREEN_MIN_ROW_HEIGHT,
     getBreakpointForWidth,
+    getFitToScreenRowHeight,
+    getGridHeight,
+    getGridTotalRows,
+    getViewModeActiveTabTiles,
     getDashboardLayouts,
     getMobileGridLayout,
     getResponsiveGridLayoutProps,
@@ -110,6 +117,88 @@ describe('breakpoint for a measured width', () => {
     it('falls back to the smallest breakpoint when nothing is narrower', () => {
         expect(getBreakpointForWidth({ wide: 600, narrow: 300 }, 100)).toBe(
             'narrow',
+        );
+    });
+});
+
+describe('fit to screen', () => {
+    it('counts rows down to the lowest tile bottom', () => {
+        expect(getGridTotalRows([])).toBe(0);
+        expect(
+            getGridTotalRows([chart('a', 0, 0, 6), chart('b', 12, 3, 9)]),
+        ).toBe(12);
+    });
+
+    it('fills the available height, keeping row proportions', () => {
+        const rows = 12;
+        const rowHeight = getFitToScreenRowHeight(1000, rows);
+        const height = getGridHeight(rows, rowHeight);
+        expect(height).toBeLessThanOrEqual(1000);
+        expect(height).toBeGreaterThan(998);
+        // a 6-row tile takes half the grid
+        expect(getGridHeight(6, rowHeight)).toBeCloseTo((height - 10) / 2, 0);
+    });
+
+    it('clamps to the minimum row height', () => {
+        expect(getFitToScreenRowHeight(100, 50)).toBe(
+            FIT_TO_SCREEN_MIN_ROW_HEIGHT,
+        );
+    });
+
+    it('falls back to the default row height without rows', () => {
+        expect(getFitToScreenRowHeight(1000, 0)).toBe(DEFAULT_ROW_HEIGHT);
+    });
+
+    it('is only offered when the natural height is at most 2x the viewport', () => {
+        const natural = getGridHeight(20, DEFAULT_ROW_HEIGHT);
+        expect(canFitGridToScreen(natural / 2, 20)).toBe(true);
+        expect(canFitGridToScreen(natural / 2 - 1, 20)).toBe(false);
+        expect(canFitGridToScreen(1000, 0)).toBe(false);
+        expect(canFitGridToScreen(0, 5)).toBe(false);
+    });
+
+    it('takes the active tab tiles, with stale tabs on the first tab', () => {
+        const tab = (uuid: string, hidden = false) => ({
+            uuid,
+            name: uuid,
+            order: 0,
+            hidden,
+        });
+        const tiles = [
+            { ...chart('a', 0, 0), tabUuid: 't1' },
+            { ...chart('b', 0, 0), tabUuid: 't2' },
+            { ...chart('c', 0, 0), tabUuid: 'gone' },
+        ];
+        const uuids = (result: DashboardTile[]) => result.map((t) => t.uuid);
+
+        expect(
+            uuids(
+                getViewModeActiveTabTiles(tiles, [tab('t1'), tab('t2')], 't1'),
+            ),
+        ).toEqual(['a', 'c']);
+        expect(
+            uuids(
+                getViewModeActiveTabTiles(tiles, [tab('t1'), tab('t2')], 't2'),
+            ),
+        ).toEqual(['b']);
+        // one visible tab: single grid without the hidden tab's tiles
+        expect(
+            uuids(
+                getViewModeActiveTabTiles(
+                    tiles,
+                    [tab('t1'), tab('t2', true)],
+                    't1',
+                ),
+            ),
+        ).toEqual(['a', 'c']);
+    });
+
+    it('passes the row height to the grid', () => {
+        expect(getResponsiveGridLayoutProps().rowHeight).toBe(
+            DEFAULT_ROW_HEIGHT,
+        );
+        expect(getResponsiveGridLayoutProps({ rowHeight: 80 }).rowHeight).toBe(
+            80,
         );
     });
 });
