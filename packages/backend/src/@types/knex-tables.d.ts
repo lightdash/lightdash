@@ -538,6 +538,8 @@ import {
     AiAgentToolCallTableName,
     AiAgentToolResultTable,
     AiAgentToolResultTableName,
+    AiOrganizationMcpProjectsTable,
+    AiOrganizationMcpProjectsTableName,
     AiPromptContextTable,
     AiPromptContextTableName,
     AiPromptDecisionShadowTable,
@@ -686,6 +688,8 @@ import {
 import {
     ComposerQueryNodesTable,
     ComposerQueryNodesTableName,
+    ComposerSessionsTable,
+    ComposerSessionsTableName,
 } from '../ee/database/entities/composerQueryNodes';
 import {
     DataAppAnalysesTable,
@@ -789,6 +793,7 @@ declare module 'knex/types/tables' {
         [OAuth2AuthorizationCodesTableName]: OAuth2AuthorizationCodesTable;
         [OAuth2AccessTokensTableName]: OAuth2AccessTokensTable;
         [OAuth2RefreshTokensTableName]: OAuth2RefreshTokensTable;
+        [AiOrganizationMcpProjectsTableName]: AiOrganizationMcpProjectsTable;
         [ExploreNameAllocationsTableName]: ExploreNameAllocationsTable;
         [DbtSourceRefCatalogsTableName]: DbtSourceRefCatalogsTable;
         [ReleaseHighlightsTableName]: ReleaseHighlightsTable;
@@ -932,6 +937,7 @@ declare module 'knex/types/tables' {
         [AiArtifactsTableName]: AiArtifactsTable;
         [AiArtifactVersionsTableName]: AiArtifactVersionsTable;
         [ComposerQueryNodesTableName]: ComposerQueryNodesTable;
+        [ComposerSessionsTableName]: ComposerSessionsTable;
         [AiSlackPromptTableName]: AiSlackPromptTable;
         [AiSlackArtifactDeliveriesTableName]: AiSlackArtifactDeliveriesTable;
         [AiWebAppPromptTableName]: AiWebAppPromptTable;

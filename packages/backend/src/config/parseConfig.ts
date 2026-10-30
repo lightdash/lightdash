@@ -1889,9 +1889,6 @@ export type LightdashConfig = {
             enablePostMessage: boolean;
         };
     };
-    organizationWarehouseCredentials: {
-        enabled: boolean;
-    };
     athenaWarehouseIamRoleAuth: {
         enabled: boolean;
     };
@@ -3022,13 +3019,6 @@ const LEGACY_ENABLE_ENV_VARS: ReadonlyArray<
     // translate the env var to the unified allowlist for the flag system.
     ['EMBEDDING_ENABLED', 'embedding'],
     ['SCIM_ENABLED', 'scim-token-management'],
-    // ORGANIZATION_WAREHOUSE_CREDENTIALS_ENABLED is also read by HealthService
-    // (exposed via the health endpoint). Keep the config field, but translate
-    // the env var to the unified allowlist for the flag system.
-    [
-        'ORGANIZATION_WAREHOUSE_CREDENTIALS_ENABLED',
-        'organization-warehouse-credentials',
-    ],
     // Self-hosted switch for data apps; forces the flag on.
     ['APPS_RUNTIME_ENABLED', 'enable-data-apps'],
 ];
@@ -4071,11 +4061,6 @@ export const parseConfig = (): LightdashConfig => {
                     process.env.EMBED_EVENT_SYSTEM_POST_MESSAGE_ENABLED ===
                     'true',
             },
-        },
-        organizationWarehouseCredentials: {
-            enabled:
-                process.env.ORGANIZATION_WAREHOUSE_CREDENTIALS_ENABLED ===
-                'true',
         },
         athenaWarehouseIamRoleAuth: {
             enabled: process.env.ATHENA_WAREHOUSE_IAM_ROLE_AUTH === 'true',

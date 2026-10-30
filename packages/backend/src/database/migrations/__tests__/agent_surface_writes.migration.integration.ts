@@ -371,6 +371,9 @@ describe('trusted surface to persisted chart identity', () => {
                 aiOrganizationSettingsService: {
                     isMcpEnabled: vi.fn().mockResolvedValue(true),
                     isMcpContentWritesEnabled: vi.fn().mockResolvedValue(true),
+                    getMcpProjectAccess: vi
+                        .fn()
+                        .mockResolvedValue({ mode: 'all' }),
                 },
                 aiAgentSkillService: {
                     listMcpSkills: vi.fn().mockResolvedValue([]),

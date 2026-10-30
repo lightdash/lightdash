@@ -1,4 +1,8 @@
-import { ForbiddenError, NotFoundError } from '@lightdash/common';
+import {
+    ForbiddenError,
+    NotFoundError,
+    type McpProjectAccess,
+} from '@lightdash/common';
 import { McpError } from '@modelcontextprotocol/sdk/types.js'; // eslint-disable-line import/extensions
 import { getOAuthScopeContext } from '../../../auth/oauthScopes/scopedAbility';
 import { McpService, McpToolName } from './McpService';
@@ -123,14 +127,18 @@ const makeExtra = (meta?: Record<string, unknown>) => ({
 
 const makeMcpService = ({
     aiWritebackService,
+    policy = { mode: 'all' },
 }: {
     aiWritebackService: Record<string, unknown>;
+    policy?: McpProjectAccess;
 }) =>
     new McpService({
         agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         aiAgentService: {},
         aiAgentToolsService: { createRuntime: vi.fn() },
-        aiOrganizationSettingsService: {},
+        aiOrganizationSettingsService: {
+            getMcpProjectAccess: vi.fn().mockResolvedValue(policy),
+        },
         aiRouterService: {},
         aiWritebackService,
         analytics: { track: vi.fn() },
@@ -169,6 +177,7 @@ const makeMcpService = ({
 
 const runSnapshot = (overrides: Record<string, unknown> = {}) => ({
     status: 'agent',
+    projectUuid,
     prUrl: null,
     errorMessage: null,
     createdAt: new Date('2026-07-01T10:00:00Z'),
@@ -179,8 +188,15 @@ const runSnapshot = (overrides: Record<string, unknown> = {}) => ({
 
 const createServerWithWriteback = async (
     aiWritebackService: Record<string, unknown>,
+    policy?: McpProjectAccess,
 ) => {
-    const mcpService = makeMcpService({ aiWritebackService });
+    const mcpService = makeMcpService({
+        aiWritebackService: {
+            getRunSnapshot: vi.fn().mockResolvedValue(runSnapshot()),
+            ...aiWritebackService,
+        },
+        policy,
+    });
     mockRegisteredMcpTools.clear();
     mockRegisteredRequestHandlers.clear();
     mockRegisterCapabilities.mockClear();
@@ -617,4 +633,73 @@ describe('McpService AI writeback MCP tasks', () => {
             );
         });
     });
+});
+
+describe('writeback identifiers obey the MCP project allow-list', () => {
+    it('rejects an excluded run behind an allowed status-tool project argument', async () => {
+        await createServerWithWriteback(
+            {
+                getRunSnapshot: vi
+                    .fn()
+                    .mockResolvedValue(
+                        runSnapshot({ projectUuid: 'excluded-project' }),
+                    ),
+            },
+            { mode: 'selected', projectUuids: [projectUuid] },
+        );
+        const callback = mockRegisteredMcpTools.get(
+            McpToolName.GET_AI_WRITEBACK_STATUS,
+        );
+        if (!callback) throw new Error('Status tool missing');
+        await expect(
+            callback({ projectUuid, aiWritebackRunUuid: runUuid }, makeExtra()),
+        ).resolves.toEqual({
+            isError: true,
+            content: [
+                {
+                    type: 'text',
+                    text: 'MCP access to this project is disabled for your organization',
+                },
+            ],
+            structuredContent: {
+                refusal: {
+                    code: 'ai_access_refused',
+                    reason: 'mcp_project_not_allowed',
+                    message:
+                        'MCP access to this project is disabled for your organization',
+                    action: null,
+                    settingsUrl: null,
+                    connectUrl: null,
+                    projectUuid: 'excluded-project',
+                },
+            },
+        });
+    });
+
+    it.each(['tasks/get', 'tasks/cancel'])(
+        'denies %s for an excluded run project before revealing or cancelling the run',
+        async (method) => {
+            const cancelRun = vi
+                .fn()
+                .mockResolvedValue({ cancelled: true, status: 'cancelled' });
+            await createServerWithWriteback(
+                {
+                    getRunSnapshot: vi.fn().mockResolvedValue(runSnapshot()),
+                    cancelRun,
+                },
+                { mode: 'selected', projectUuids: [] },
+            );
+            const handler = mockRegisteredRequestHandlers.get(method);
+            if (!handler) throw new Error('Task handler missing');
+            await expect(
+                handler(
+                    { method, params: { taskId: runUuid } },
+                    makeExtra(tasksOptInMeta),
+                ),
+            ).rejects.toThrow(
+                'MCP access to this project is disabled for your organization',
+            );
+            expect(cancelRun).not.toHaveBeenCalled();
+        },
+    );
 });

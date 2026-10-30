@@ -36,6 +36,11 @@ import AppRoute from './AppRoute';
 const mockApi = sharedLightdashApi as unknown as Mock;
 
 const ORG_URL = '/org';
+const HOMEPAGE_OFF = {
+    organizationUuid: 'org',
+    enabled: false,
+    opening: null,
+};
 const PROJECT_ROUTE = '/projects/project-1/home';
 
 const organization = (needsProject: boolean) => ({
@@ -84,6 +89,9 @@ const setup = ({
                 enabled: true,
             });
         }
+        if (url === '/org/homepage-settings') {
+            return Promise.resolve(HOMEPAGE_OFF);
+        }
         return Promise.resolve(null);
     });
 
@@ -94,6 +102,7 @@ const setup = ({
         { updatedAt: Date.now() - cacheAgeMs },
     );
     if (primeFlagCache) {
+        queryClient.setQueryData(['org_homepage_settings'], HOMEPAGE_OFF);
         queryClient.setQueryData(['feature-flag', FeatureFlags.NewOnboarding], {
             id: FeatureFlags.NewOnboarding,
             enabled: true,

@@ -1,3 +1,48 @@
+## [3.108.3](https://github.com/lightdash/lightdash/compare/3.108.2...3.108.3) (2026-10-30)
+
+
+### Bug Fixes
+
+* do not fail saving a Slack delivery when the app cannot auto-join the channel ([#31825](https://github.com/lightdash/lightdash/issues/31825)) ([a340614](https://github.com/lightdash/lightdash/commit/a34061471f3505b3072b6670b4c6c1f1c684351f))
+* **mcp:** stub project access in query tool test ([#31844](https://github.com/lightdash/lightdash/issues/31844)) ([b72d43c](https://github.com/lightdash/lightdash/commit/b72d43c99cabcd3af5abcc62d36e77e7e2efd43e)), closes [#31783](https://github.com/lightdash/lightdash/issues/31783) [#31814](https://github.com/lightdash/lightdash/issues/31814)
+
+## [3.108.2](https://github.com/lightdash/lightdash/compare/3.108.1...3.108.2) (2026-10-30)
+
+
+### Bug Fixes
+
+* retry analytics compaction after GCS token expiry ([#31839](https://github.com/lightdash/lightdash/issues/31839)) ([43f9508](https://github.com/lightdash/lightdash/commit/43f950890d469521f5a1217aeaee49cc73d3e2e4))
+
+## [3.108.1](https://github.com/lightdash/lightdash/compare/3.108.0...3.108.1) (2026-10-30)
+
+
+### Bug Fixes
+
+* avoid analytics content inventory join expansion ([#31840](https://github.com/lightdash/lightdash/issues/31840)) ([0c20730](https://github.com/lightdash/lightdash/commit/0c20730fff4bd02f86d48caeca739e8ec668f00d))
+
+# [3.108.0](https://github.com/lightdash/lightdash/compare/3.107.0...3.108.0) (2026-10-30)
+
+
+### Features
+
+* **mcp:** restrict MCP access to selected projects ([#31783](https://github.com/lightdash/lightdash/issues/31783)) ([5ce56db](https://github.com/lightdash/lightdash/commit/5ce56db1101be361fdad300060bebe3a4dfc7c8a))
+
+# [3.107.0](https://github.com/lightdash/lightdash/compare/3.106.1...3.107.0) (2026-10-30)
+
+
+### Features
+
+* **mcp:** composer sessions for query tool node reuse ([#31813](https://github.com/lightdash/lightdash/issues/31813)) ([4c7452b](https://github.com/lightdash/lightdash/commit/4c7452b870fff03bc6558b7c0c4ef7036e3cf4fd))
+* **mcp:** register query tool for composer pipelines ([#31812](https://github.com/lightdash/lightdash/issues/31812)) ([68feca1](https://github.com/lightdash/lightdash/commit/68feca13234a6dc668bbf4b92a2b61fd13ce8a33))
+* **mcp:** teach node reuse in query tool description ([#31814](https://github.com/lightdash/lightdash/issues/31814)) ([1fd3d84](https://github.com/lightdash/lightdash/commit/1fd3d84d0a26dbbb0d9711728f704c398502c66a))
+
+## [3.106.1](https://github.com/lightdash/lightdash/compare/3.106.0...3.106.1) (2026-10-30)
+
+
+### Bug Fixes
+
+* **ai-agent:** group invalid tool calls by tool, tag model on all turn captures ([#31838](https://github.com/lightdash/lightdash/issues/31838)) ([d4744f0](https://github.com/lightdash/lightdash/commit/d4744f0409433a30926f90e5b7a6521e556e1ac3))
+
 # [3.106.0](https://github.com/lightdash/lightdash/compare/3.105.1...3.106.0) (2026-10-29)
 
 

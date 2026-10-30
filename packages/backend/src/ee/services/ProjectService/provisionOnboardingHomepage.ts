@@ -80,12 +80,14 @@ export const provisionOnboardingHomepage = async ({
             return;
         }
 
+        // An org that switched back to the classic homepage shouldn't get
+        // a homepage minted for its new projects.
         const orgHomepageSettings =
             await projectHomepageModel.findOrgHomepageSettings(
                 organizationUuid,
             );
         if (!isOrgHomepageEnabled(orgHomepageSettings)) {
-            trackSkipped('org_homepage_disabled');
+            trackSkipped('homepage_disabled');
             return;
         }
 
@@ -95,8 +97,8 @@ export const provisionOnboardingHomepage = async ({
             return;
         }
 
-        // An org that already chose a content-first opening shouldn't get an
-        // AI-first homepage minted for its new projects.
+        // An org that chose a content-first opening shouldn't get an
+        // AI-first homepage either.
         const homepage = await projectHomepageModel.create({
             projectUuid,
             name: 'Getting started',

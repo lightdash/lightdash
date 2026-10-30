@@ -639,6 +639,7 @@ const makeMcpService = ({
         aiAgentService,
         aiAgentToolsService,
         aiOrganizationSettingsService: {
+            getMcpProjectAccess: vi.fn().mockResolvedValue({ mode: 'all' }),
             isMcpAgentsEnabled: vi.fn().mockResolvedValue(true),
         },
         aiRouterService: {},
@@ -997,6 +998,7 @@ describe('MCP catalogue audit', () => {
                                 scheduledDeliveryEnabled: true,
                                 runSqlEnabled: true,
                                 runMetricQueryEnabled: false,
+                                queryEnabled: false,
                                 filterExpressionsEnabled: true,
                                 documentsEnabled: false,
                                 dataAppBuildsEnabled: false,

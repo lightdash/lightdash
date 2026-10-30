@@ -165,7 +165,7 @@ describe('provisionOnboardingHomepage', () => {
                 organizationId: ORGANIZATION_UUID,
                 projectId: PROJECT_UUID,
                 onboardingFlow: 'new',
-                reason: 'org_homepage_disabled',
+                reason: 'homepage_disabled',
             },
         });
     });
