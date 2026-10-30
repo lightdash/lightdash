@@ -1,0 +1,38 @@
+/* The Settings chip on its own row wraps, never truncates: its icon hangs
+   beside the first line and wrapped lines start under the text */
+.wrappingChip {
+    height: auto;
+    padding-block: calc(var(--mantine-spacing-xs) / 4);
+}
+
+.wrappingChipInner {
+    align-items: flex-start;
+}
+
+.wrappingChipSection {
+    height: calc(var(--mantine-font-size-xs) * var(--mantine-line-height-xs));
+}
+
+.wrappingChipLabel {
+    height: auto;
+    overflow: visible;
+    white-space: normal;
+    text-align: start;
+}
+
+/* Only the timestamp range overflows the popover: its two pickers stack, and
+   each picker's timezone drops to its own line */
+.form > :global(.mantine-Group-root),
+.form > :global(.mantine-Group-root) > :global(.mantine-Group-root) {
+    flex-wrap: wrap;
+}
+
+/* The add-control menu: the field list sits in the menu's flow, above the
+   types, rather than floating over them */
+.inlineList :global(.mantine-Combobox-dropdown) {
+    position: static !important;
+    width: auto !important;
+    margin-top: var(--mantine-spacing-xs);
+    border: 0;
+    box-shadow: none;
+}
