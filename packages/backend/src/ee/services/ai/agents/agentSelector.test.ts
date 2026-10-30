@@ -138,12 +138,14 @@ describe('routing context', () => {
         const context = buildRoutingContext({
             candidates: richCandidates,
             prompt: 'Revenue by region',
+            askedFrom: { type: 'dashboard', name: '[MRS] Weekly KPIs' },
             instructions: 'Route GBP questions to @[Sales](sales)',
         });
         const [system, user] = renderRouterMessages(context);
         const systemText = String(system.content);
 
         expect(String(user.content)).toContain(context.prompt);
+        expect(String(user.content)).toContain('dashboard "[MRS] Weekly KPIs"');
         expect(systemText).toContain(context.instructions);
         context.candidates.forEach((candidate) => {
             expect(systemText).toContain(candidate.uuid);
@@ -162,10 +164,22 @@ describe('routing context', () => {
         expect(context.candidates[0].questions).toHaveLength(5);
     });
 
+    it('leaves the query alone when the question is not asked from content', () => {
+        const context = buildRoutingContext({
+            candidates: richCandidates,
+            prompt: 'Revenue',
+            askedFrom: null,
+            instructions: null,
+        });
+        const [, user] = renderRouterMessages(context);
+        expect(String(user.content)).not.toContain('Asked from');
+    });
+
     it('treats blank admin instructions as none', () => {
         const context = buildRoutingContext({
             candidates: richCandidates,
             prompt: 'Revenue',
+            askedFrom: null,
             instructions: '   ',
         });
         expect(context.instructions).toBeNull();

@@ -160,6 +160,7 @@ export const useAiAgentRouterFlow = ({
                 const result = await routePrompt({
                     prompt: message,
                     projectUuid,
+                    context,
                 });
                 hasRouted = true;
 

@@ -5,10 +5,12 @@ import {
     NotFoundError,
     ParameterError,
     type AiAgentWithContext,
+    type AiPromptContextInput,
     type AiRouter,
     type AiRouterDecision,
     type AiRouterDecisionListFilters,
     type AiRouterInstruction,
+    type AiRouterRouteRequest,
     type AiRouterRouteResponseResult,
     type AiRouterSelectionMode,
     type RegisteredAccount,
@@ -23,8 +25,10 @@ import {
 } from '../../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../../config/parseConfig';
 import { BaseService } from '../../../services/BaseService';
+import { type DashboardService } from '../../../services/DashboardService/DashboardService';
+import { type SavedChartService } from '../../../services/SavedChartsService/SavedChartService';
 import { type AiRouterModel } from '../../models/AiRouterModel';
-import { selectAgent } from '../ai/agents/agentSelector';
+import { selectAgent, type RoutingAskedFrom } from '../ai/agents/agentSelector';
 import { getModel } from '../ai/models';
 import { OrgAiCopilotConfigResolver } from '../ai/OrgAiCopilotConfigResolver';
 import { type AiAgentService } from '../AiAgentService/AiAgentService';
@@ -34,6 +38,8 @@ type Deps = {
     lightdashConfig: LightdashConfig;
     aiRouterModel: AiRouterModel;
     aiAgentService: AiAgentService;
+    dashboardService: DashboardService;
+    savedChartService: SavedChartService;
     orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
 };
 
@@ -58,6 +64,10 @@ export class AiRouterService extends BaseService {
 
     private readonly aiAgentService: AiAgentService;
 
+    private readonly dashboardService: DashboardService;
+
+    private readonly savedChartService: SavedChartService;
+
     private readonly orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
 
     constructor({
@@ -65,6 +75,8 @@ export class AiRouterService extends BaseService {
         lightdashConfig,
         aiRouterModel,
         aiAgentService,
+        dashboardService,
+        savedChartService,
         orgAiCopilotConfigResolver,
     }: Deps) {
         super({ serviceName: 'AiRouterService' });
@@ -72,7 +84,39 @@ export class AiRouterService extends BaseService {
         this.lightdashConfig = lightdashConfig;
         this.aiRouterModel = aiRouterModel;
         this.aiAgentService = aiAgentService;
+        this.dashboardService = dashboardService;
+        this.savedChartService = savedChartService;
         this.orgAiCopilotConfigResolver = orgAiCopilotConfigResolver;
+    }
+
+    /**
+     * The first pinned dashboard, else the first pinned chart, resolved
+     * through the same access checks the thread creation applies.
+     */
+    private async resolveAskedFrom(
+        account: RegisteredAccount,
+        projectUuid: string,
+        context: AiPromptContextInput | undefined,
+    ): Promise<RoutingAskedFrom | null> {
+        const dashboard = context?.find((item) => item.type === 'dashboard');
+        if (dashboard) {
+            const { name } = await this.dashboardService.getByIdOrSlug(
+                account.user,
+                dashboard.dashboardUuid,
+                { projectUuid },
+            );
+            return { type: 'dashboard', name };
+        }
+        const chart = context?.find((item) => item.type === 'chart');
+        if (chart) {
+            const { name } = await this.savedChartService.get(
+                chart.chartUuid,
+                account,
+                { projectUuid },
+            );
+            return { type: 'chart', name };
+        }
+        return null;
     }
 
     private static organizationUuidOf(account: RegisteredAccount): string {
@@ -142,10 +186,12 @@ export class AiRouterService extends BaseService {
         {
             prompt,
             projectUuid,
+            context,
             mode,
         }: {
             prompt: string;
             projectUuid: string;
+            context?: AiPromptContextInput;
             mode: RoutePromptMode;
         },
     ): Promise<PromptRouteSelection> {
@@ -210,6 +256,11 @@ export class AiRouterService extends BaseService {
             decisions,
             candidates,
             prompt,
+            askedFrom: await this.resolveAskedFrom(
+                account,
+                projectUuid,
+                context,
+            ),
             instructions: instruction?.instruction ?? null,
             telemetry: {
                 organizationUuid,
@@ -379,13 +430,14 @@ export class AiRouterService extends BaseService {
      */
     async route(
         account: RegisteredAccount,
-        { prompt, projectUuid }: { prompt: string; projectUuid: string },
+        { prompt, projectUuid, context }: AiRouterRouteRequest,
     ): Promise<AiRouterRouteResponseResult> {
         const organizationUuid = AiRouterService.organizationUuidOf(account);
         this.assertViewAiAgent(account, organizationUuid, projectUuid);
         const selection = await this.routePromptToAgent(account, {
             prompt,
             projectUuid,
+            context,
             mode: 'web',
         });
         // Web routing requires at least two agents, so it always runs through an

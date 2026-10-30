@@ -937,6 +937,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     aiRouterModel: models.getAiRouterModel<AiRouterModel>(),
                     aiAgentService:
                         repository.getAiAgentService<AiAgentService>(),
+                    dashboardService: repository.getDashboardService(),
+                    savedChartService: repository.getSavedChartService(),
                     orgAiCopilotConfigResolver: new OrgAiCopilotConfigResolver({
                         lightdashConfig: context.lightdashConfig,
                         featureFlagModel: models.getFeatureFlagModel(),
