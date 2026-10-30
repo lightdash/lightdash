@@ -1,6 +1,5 @@
 import {
     CartesianSeriesType,
-    FeatureFlags,
     getDataAppVizFieldIds,
     isDimension,
     type DataAppVizContext,
@@ -17,7 +16,6 @@ import {
     calculateSeriesLikeIdentifier,
     getDimensionValueColor,
 } from '../../../hooks/useChartColorConfig/utils';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 
 type Args = {
     itemsMap: ItemsMap;
@@ -39,13 +37,9 @@ export const useDataAppVizResolvedColors = ({
     pivotDetails,
     colorPalette,
 }: Args): DataAppVizResolvedColors => {
-    const { calculateKeyColorAssignment, calculateSeriesColorAssignment } =
-        useChartColorConfig({ colorPalette });
-    const { data: calculateSeriesColorFlag } = useServerFeatureFlag(
-        FeatureFlags.CalculateSeriesColor,
-    );
-    const isCalculateSeriesColorEnabled =
-        calculateSeriesColorFlag?.enabled ?? false;
+    const { calculateKeyColorAssignment } = useChartColorConfig({
+        colorPalette,
+    });
 
     return useMemo(() => {
         const columnSeries = (pivotDetails?.valuesColumns ?? []).map(
@@ -85,11 +79,7 @@ export const useDataAppVizResolvedColors = ({
                               calculateSeriesLikeIdentifier(series).join('|')
                           ]
                         : undefined;
-                const color =
-                    fixedColor ??
-                    (isCalculateSeriesColorEnabled
-                        ? calculateSeriesColorAssignment(series)
-                        : paletteColor);
+                const color = fixedColor ?? paletteColor;
 
                 return color === undefined
                     ? []
@@ -132,10 +122,8 @@ export const useDataAppVizResolvedColors = ({
         return { seriesColors, valueColors };
     }, [
         calculateKeyColorAssignment,
-        calculateSeriesColorAssignment,
         colorPalette,
         fieldMapping,
-        isCalculateSeriesColorEnabled,
         itemsMap,
         pivotDetails,
         rows,

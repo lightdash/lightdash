@@ -86,7 +86,7 @@ export type ChartColors = {
     /**
      * Grouped series take a shared colour per group value (the same value is
      * the same colour in every chart) rather than the palette colour for
-     * their position. The `CalculateSeriesColor` feature flag in Lightdash.
+     * their position. Off by default, as in the Lightdash web app.
      */
     sharedSeriesColors?: boolean;
 };
