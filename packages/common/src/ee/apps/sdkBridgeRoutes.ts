@@ -125,3 +125,113 @@ export const extractExploreBaseTable = (body: unknown): string | null => {
         ? baseTable
         : null;
 };
+
+// Body and reply of the `APP_SDK_SPACE_CHARTS_PATH` virtual route.
+
+/** A space referenced the way app code knows it: by slug or uuid. */
+export type AppSdkSpaceChartsRequest = { space: string };
+
+/** The chart fields an app may see — a subset of `SpaceQuery`, nothing
+ *  viewer-specific and no access data. */
+export type AppSdkSpaceChartsChart = {
+    uuid: string;
+    name: string;
+    description: string | null;
+    chartKind: string | null;
+    slug: string | null;
+    updatedAt: string | null;
+};
+
+export type AppSdkSpaceChartsResult = {
+    /** Null when the space doesn't exist or the viewer can't access it —
+     *  deliberately indistinguishable, so apps can't probe for spaces. */
+    space: { uuid: string; name: string; slug: string } | null;
+    charts: AppSdkSpaceChartsChart[];
+};
+
+export const parseAppSdkSpaceChartsRequest = (
+    body: unknown,
+): AppSdkSpaceChartsRequest | null => {
+    if (typeof body !== 'object' || body === null) return null;
+    const { space } = body as { space?: unknown };
+    return typeof space === 'string' && space.trim().length > 0
+        ? { space: space.trim() }
+        : null;
+};
+
+/**
+ * Match a slug-or-uuid space reference against a spaces list body
+ * (`{ results: SpaceSummary[] }`). The list endpoint already returns only
+ * the spaces the viewer can access, so a miss means "not for you" as much
+ * as "doesn't exist".
+ */
+export const resolveAppSdkSpaceUuid = (
+    spacesListBody: unknown,
+    ref: string,
+): string | null => {
+    if (typeof spacesListBody !== 'object' || spacesListBody === null)
+        return null;
+    const { results } = spacesListBody as { results?: unknown };
+    if (!Array.isArray(results)) return null;
+    const match = results.find((entry: unknown) => {
+        if (typeof entry !== 'object' || entry === null) return false;
+        const { uuid, slug } = entry as { uuid?: unknown; slug?: unknown };
+        return uuid === ref || slug === ref;
+    }) as { uuid?: unknown } | undefined;
+    return typeof match?.uuid === 'string' ? match.uuid : null;
+};
+
+const toNullableString = (value: unknown): string | null =>
+    typeof value === 'string' && value.length > 0 ? value : null;
+
+/**
+ * Trim a space detail body (`{ results: Space }`) to what an app may see:
+ * the space identity and its saved-chart summaries. Access entries, member
+ * lists, dashboards and child spaces never leave the host.
+ */
+export const extractAppSdkSpaceCharts = (
+    spaceBody: unknown,
+): AppSdkSpaceChartsResult | null => {
+    if (typeof spaceBody !== 'object' || spaceBody === null) return null;
+    const { results } = spaceBody as { results?: unknown };
+    if (typeof results !== 'object' || results === null) return null;
+    const { uuid, name, slug, queries } = results as {
+        uuid?: unknown;
+        name?: unknown;
+        slug?: unknown;
+        queries?: unknown;
+    };
+    if (
+        typeof uuid !== 'string' ||
+        typeof name !== 'string' ||
+        typeof slug !== 'string'
+    ) {
+        return null;
+    }
+    const charts: AppSdkSpaceChartsChart[] = (
+        Array.isArray(queries) ? queries : []
+    ).flatMap((query: unknown) => {
+        if (typeof query !== 'object' || query === null) return [];
+        const chart = query as Record<string, unknown>;
+        if (typeof chart.uuid !== 'string' || typeof chart.name !== 'string') {
+            return [];
+        }
+        return [
+            {
+                uuid: chart.uuid,
+                name: chart.name,
+                description: toNullableString(chart.description),
+                chartKind: toNullableString(chart.chartKind),
+                slug: toNullableString(chart.slug),
+                updatedAt: toNullableString(chart.updatedAt),
+            },
+        ];
+    });
+    return { space: { uuid, name, slug }, charts };
+};
+
+/** The uniform "nothing to show" answer for a missing/inaccessible space. */
+export const emptyAppSdkSpaceCharts = (): AppSdkSpaceChartsResult => ({
+    space: null,
+    charts: [],
+});

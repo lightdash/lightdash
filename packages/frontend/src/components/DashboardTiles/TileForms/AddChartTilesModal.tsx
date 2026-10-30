@@ -40,6 +40,7 @@ import useDashboardContext from '../../../providers/Dashboard/useDashboardContex
 import MantineModal from '../../common/MantineModal';
 import { MultiSelectCombobox } from '../../common/MultiSelectCombobox/MultiSelectCombobox';
 import { ChartIcon } from '../../common/ResourceIcon';
+import classes from './AddChartTilesModal.module.css';
 
 type Props = {
     onAddTiles: (
@@ -262,7 +263,7 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose, spaceUuids }) => {
             <form
                 id="add-saved-charts-to-dashboard"
                 onSubmit={handleSubmit}
-                style={{ minHeight: 360 }}
+                className={classes.form}
             >
                 <MultiSelectCombobox
                     radius="md"
@@ -296,20 +297,9 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose, spaceUuids }) => {
                     comboboxProps={{
                         withinPortal: true,
                         zIndex: getDefaultZIndex('modal'),
-                        styles: {
-                            groupLabel: {
-                                position: 'sticky',
-                                top: 0,
-                                zIndex: getDefaultZIndex('modal'),
-                                color: 'var(--mantine-color-ldGray-6)',
-                                fontWeight: 500,
-                                backgroundColor:
-                                    'light-dark(var(--mantine-color-white), var(--mantine-color-dark-6))',
-                            },
-                            option: {
-                                paddingTop: 4,
-                                paddingBottom: 4,
-                            },
+                        classNames: {
+                            groupLabel: classes.comboboxGroupLabel,
+                            option: classes.comboboxOption,
                         },
                     }}
                     scrollAreaProps={{ viewportRef: selectScrollRef }}

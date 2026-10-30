@@ -44,7 +44,7 @@ const TableSkeleton: FC = () => (
 
 const PieSkeleton: FC = () => (
     <Center h="100%">
-        <Box w="100%" maw={'300px'} style={{ aspectRatio: 1 }}>
+        <Box w="100%" maw={'300px'} className={styles.pie}>
             <Skeleton h="100%" w="100%" circle />
         </Box>
     </Center>
@@ -78,11 +78,7 @@ const LoadingSkeletonOverlay = ({
     if (!visible) return null;
 
     return (
-        <Stack
-            className={clsx(styles.overlay, className)}
-            gap="sm"
-            style={{ zIndex: 1 }}
-        >
+        <Stack className={clsx(styles.overlay, className)} gap="sm">
             {hasTitle && <Box h={28} flex="0 0 auto" />}
             <Box flex={1} mih={0} className={styles.skeletonBody}>
                 {chartKind ? (

@@ -19,9 +19,10 @@ import {
 // oxlint-disable-next-line import/default
 import DiffsWorkerUrl from '@pierre/diffs/worker/worker.js?worker&url';
 import { IconFileDiff } from '@tabler/icons-react';
-import { useMemo, useState, type CSSProperties, type FC } from 'react';
+import { useMemo, useState, type FC } from 'react';
 import MantineModal from '../../../../../../components/common/MantineModal';
 import { usePullRequestDiff } from '../../../hooks/usePullRequestDiff';
+import classes from './WritebackDiffModal.module.css';
 
 // Tokenize with both Pierre themes; the diff renders via CSS `light-dark()`.
 // Writeback PRs touch dbt YAML/SQL plus the odd markdown doc, so cover those.
@@ -95,22 +96,23 @@ const SingleFileDiff: FC<{ patch: string }> = ({ patch }) => {
     // scroll past the end of the diff. PatchDiff renders all its rows, so the
     // Paper is just a plain scroll container whose scrollHeight equals the real
     // content. colorScheme pins the diff's light-dark() to the app theme.
-    const scrollStyle = {
-        overflow: 'auto',
-        colorScheme,
-    } as CSSProperties;
-
     return (
         <WorkerPoolContextProvider
             poolOptions={POOL_OPTIONS}
             highlighterOptions={HIGHLIGHTER_OPTIONS}
         >
-            <Paper radius="md" w="100%" h="100%" style={scrollStyle}>
+            <Paper
+                radius="md"
+                w="100%"
+                h="100%"
+                className={classes.diffScroll}
+                style={{ '--diff-color-scheme': colorScheme }}
+            >
                 <PatchDiff
                     // Remount per file so the highlighter resets cleanly.
                     key={patch.slice(0, 80)}
                     patch={patch}
-                    style={{ colorScheme }}
+                    className={classes.diffHost}
                     options={{
                         diffStyle: 'unified',
                         theme:
@@ -143,12 +145,7 @@ const DiffBrowser: FC<{ patch: string }> = ({ patch }) => {
 
     return (
         <Flex gap="md" align="stretch" w="100%" h={VIEWER_HEIGHT}>
-            <Box
-                w={260}
-                miw={260}
-                h="100%"
-                style={{ overflowY: 'auto', overflowX: 'hidden' }}
-            >
+            <Box w={260} miw={260} h="100%" className={classes.fileList}>
                 <Text size="xs" c="dimmed" fw={600} px="xs" pb={4}>
                     {files.length} file{files.length > 1 ? 's' : ''} changed
                 </Text>

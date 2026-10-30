@@ -217,7 +217,7 @@ export const LabelEditor: FC<LabelEditorProps> = ({
                     <Text
                         ml="sm"
                         pos="absolute"
-                        c="ldGray.5"
+                        c="dimmed"
                         fz="xs"
                         className={styles.placeholderText}
                     >

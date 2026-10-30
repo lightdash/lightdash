@@ -39,3 +39,7 @@
         display: none;
     }
 }
+
+.createTagInner {
+    justify-content: flex-start;
+}

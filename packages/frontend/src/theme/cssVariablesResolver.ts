@@ -1,13 +1,16 @@
 import {
+    rem,
     v8CssVariablesResolver,
     type CSSVariablesResolver,
     type MantineTheme,
 } from '@mantine/core';
 import {
+    DASHBOARD_EDIT_BAND_HEIGHT,
     DASHBOARD_HEADER_HEIGHT,
     DASHBOARD_HEADER_ZINDEX,
     DASHBOARD_TAB_HEIGHT,
     DASHBOARD_TABS_ZINDEX,
+    DASHBOARD_TILE_RADIUS,
     SCROLL_TO_TOP_BOTTOM_WITH_LAUNCHER,
     SCROLL_TO_TOP_SIZE,
 } from '../components/common/Dashboard/dashboard.constants';
@@ -22,8 +25,14 @@ import {
     PAGE_MIN_CONTENT_WIDTH,
     SIDEBAR_RESIZE_HANDLE_WIDTH,
     SIDEBAR_TOGGLE_RESERVE,
+    Z_INDEX_FLOATING,
+    Z_INDEX_STICKY,
+    Z_INDEX_STICKY_HEADER,
+    Z_INDEX_TOUR,
+    Z_INDEX_TOUR_CARD,
 } from '../components/common/Page/constants';
 import { LD_FIELD_COLORS } from './fieldColors';
+import { DROPDOWN_DURATION, DROPDOWN_EASING } from './motion';
 
 /**
  * Semantic colors. Mantine's own tokens (`--mantine-color-body`, `-text`,
@@ -67,10 +76,23 @@ export const cssVariablesResolver: CSSVariablesResolver = (theme) => ({
         '--page-content-max-width-large': `${PAGE_CONTENT_MAX_WIDTH_LARGE}px`,
         '--sidebar-toggle-reserve': `${SIDEBAR_TOGGLE_RESERVE}px`,
         '--sidebar-resize-handle-width': `${SIDEBAR_RESIZE_HANDLE_WIDTH}px`,
+        '--ld-z-sticky': `${Z_INDEX_STICKY}`,
+        '--ld-z-sticky-header': `${Z_INDEX_STICKY_HEADER}`,
+        '--ld-z-floating': `${Z_INDEX_FLOATING}`,
+        '--ld-z-tour': `${Z_INDEX_TOUR}`,
+        '--ld-z-tour-card': `${Z_INDEX_TOUR_CARD}`,
         '--dashboard-header-height': `${DASHBOARD_HEADER_HEIGHT}px`,
         '--dashboard-header-zindex': `${DASHBOARD_HEADER_ZINDEX}`,
+        '--dashboard-edit-band-height': `${DASHBOARD_EDIT_BAND_HEIGHT}px`,
         '--dashboard-tab-height': `${DASHBOARD_TAB_HEIGHT}px`,
         '--dashboard-tabs-zindex': `${DASHBOARD_TABS_ZINDEX}`,
+        '--dashboard-tile-radius-edit': rem(DASHBOARD_TILE_RADIUS.edit),
+        '--dashboard-tile-radius-view': rem(DASHBOARD_TILE_RADIUS.view),
+        // Motion: the theme's dropdown pop, and Mantine's Transition default
+        '--ld-motion-dropdown-duration': `${DROPDOWN_DURATION}ms`,
+        '--ld-motion-dropdown-easing': DROPDOWN_EASING,
+        '--ld-motion-duration': '250ms',
+        '--ld-motion-easing': 'ease',
         // The highest the dashboard's scroll-to-top button reaches
         '--dashboard-scroll-to-top-reach': `${SCROLL_TO_TOP_BOTTOM_WITH_LAUNCHER + SCROLL_TO_TOP_SIZE}px`,
         '--ld-field-dimension-bg': LD_FIELD_COLORS.dimension.bg,

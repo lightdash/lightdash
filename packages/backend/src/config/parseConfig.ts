@@ -1889,9 +1889,6 @@ export type LightdashConfig = {
             enablePostMessage: boolean;
         };
     };
-    organizationWarehouseCredentials: {
-        enabled: boolean;
-    };
     athenaWarehouseIamRoleAuth: {
         enabled: boolean;
     };
@@ -1906,6 +1903,13 @@ export type LightdashConfig = {
         clientId: string | undefined;
         clientSecret: string | undefined;
         redirectDomain: string;
+    };
+    liveSources: {
+        posthog: {
+            /** A registered client ID, or the URL of a client metadata document. */
+            oauthClientId: string | undefined;
+            oauthClientSecret: string | undefined;
+        };
     };
     contentAsCode: {
         maxDownloads: number;
@@ -2071,7 +2075,7 @@ export type LightdashConfig = {
     disabledFeatureFlags: Set<string>;
     previewFeatureFlags: {
         /**
-         * Preview/Okteto environments only: enables `PREVIEW_ENABLED_FEATURE_FLAGS`
+         * Preview environments only: enables `PREVIEW_ENABLED_FEATURE_FLAGS`
          * by default and exposes the feature-flag management API so QA can toggle
          * flags at runtime. Defaults on in PR mode.
          */
@@ -3015,13 +3019,6 @@ const LEGACY_ENABLE_ENV_VARS: ReadonlyArray<
     // translate the env var to the unified allowlist for the flag system.
     ['EMBEDDING_ENABLED', 'embedding'],
     ['SCIM_ENABLED', 'scim-token-management'],
-    // ORGANIZATION_WAREHOUSE_CREDENTIALS_ENABLED is also read by HealthService
-    // (exposed via the health endpoint). Keep the config field, but translate
-    // the env var to the unified allowlist for the flag system.
-    [
-        'ORGANIZATION_WAREHOUSE_CREDENTIALS_ENABLED',
-        'organization-warehouse-credentials',
-    ],
     // Self-hosted switch for data apps; forces the flag on.
     ['APPS_RUNTIME_ENABLED', 'enable-data-apps'],
 ];
@@ -4065,11 +4062,6 @@ export const parseConfig = (): LightdashConfig => {
                     'true',
             },
         },
-        organizationWarehouseCredentials: {
-            enabled:
-                process.env.ORGANIZATION_WAREHOUSE_CREDENTIALS_ENABLED ===
-                'true',
-        },
         athenaWarehouseIamRoleAuth: {
             enabled: process.env.ATHENA_WAREHOUSE_IAM_ROLE_AUTH === 'true',
         },
@@ -4088,6 +4080,13 @@ export const parseConfig = (): LightdashConfig => {
             redirectDomain:
                 process.env.GITLAB_REDIRECT_DOMAIN ||
                 siteUrl.split('.')[0].split('//')[1],
+        },
+        liveSources: {
+            posthog: {
+                oauthClientId: process.env.POSTHOG_OAUTH_CLIENT_ID || undefined,
+                oauthClientSecret:
+                    process.env.POSTHOG_OAUTH_CLIENT_SECRET || undefined,
+            },
         },
         contentAsCode: {
             maxDownloads:

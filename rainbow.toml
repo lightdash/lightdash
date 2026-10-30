@@ -6,8 +6,8 @@
 # One process: `pnpm dev` runs the common, visualization and warehouses tsc
 # watchers, the backend (tsx watch, :8080) and the Vite dev server (:3000).
 # The browser hits 8080: the backend serves the production bundle the
-# `frontend-build` tier writes to packages/frontend/build, as the Okteto
-# preview image did. The dev server stays up but nothing routes to it — the
+# `frontend-build` tier writes to packages/frontend/build, as the release
+# image does. The dev server stays up but nothing routes to it — the
 # bundle is ~180 requests per page against the dev server's ~1,200, and
 # that gap is what put the Cypress suites over their ten-second waits
 # (SRE-100).
@@ -18,9 +18,9 @@ ports = [8080, 3000]
 serve_port = 8080
 restart_on_inject = true           # re-exec on fork to read the injected SITE_URL (see [origin])
 
-# The Snowflake AI OAuth/SDK stub the API tests drive (snowflake-ai-stub in
-# docker/docker-compose.preview.yml). Plain node, no deps; it reads only PORT,
-# and the recipe's PORT is the backend's, so the stub's is set inline.
+# The Snowflake AI OAuth/SDK stub the API tests drive. Plain node, no deps;
+# it reads only PORT, and the recipe's PORT is the backend's, so the stub's
+# is set inline.
 [[app.service]]
 name = "snowflake-ai-stub"
 command = "PORT=3900 node packages/api-tests/stub/snowflake-ai-stub.mjs"
@@ -43,8 +43,8 @@ max_memory = "16gb"                # headroom the migrate rung and the pnpm inst
 # imports them) finds common in the cache; these steps run before the ladder's
 # first run rung. From then on the `pnpm dev` watchers keep them current. The
 # second is the dbt venv the seed's project compile shells out to (`dbt1.12`).
-# Its adapters and pins are dockerfile-prs's: the API and app tests compile
-# Snowflake, BigQuery, Databricks and Trino projects with dbt1.12 too.
+# Its adapters match the release image's dbt1.12 venv: the API and app tests
+# compile Snowflake, BigQuery, Databricks and Trino projects with it too.
 # The CLI step builds the CLI and links it onto PATH as `lightdash` (tsc does
 # not make it executable): the Learn sandbox runs `lightdash` and `dbt` as
 # child processes, finds `dbt` in the same venv, and reports itself unavailable
@@ -56,7 +56,7 @@ build = [
   "TURBO_TELEMETRY_DISABLED=1 TURBO_NO_UPDATE_NOTIFIER=1 pnpm turbo run build --filter=@lightdash/warehouses",
   "pnpm cli-build && chmod 755 packages/cli/dist/index.js && ln -sf /usr/app/packages/cli/dist/index.js /usr/local/bin/lightdash",
   "python3 -m venv /usr/local/dbt1.12 && /usr/local/dbt1.12/bin/pip install -q 'dbt-core==1.12.0' 'dbt-postgres~=1.10.0' 'dbt-snowflake~=1.12.0' 'dbt-bigquery~=1.12.0' 'dbt-databricks~=1.12.3' 'dbt-trino~=1.10.0' 'dbt-duckdb~=1.10.0' && ln -sf /usr/local/dbt1.12/bin/dbt /usr/local/bin/dbt1.12",
-  # The demo dbt project where the Okteto image and the test suites expect it
+  # The demo dbt project where the test suites expect it
   # (the backend's default project_dir is /usr/app/dbt).
   "ln -sfn /usr/app/examples/full-jaffle-shop-demo/dbt /usr/app/dbt && ln -sfn /usr/app/examples/full-jaffle-shop-demo/dbt /dbt",
 ]
@@ -72,7 +72,7 @@ mailpit = true                     # catches the mail the backend sends
 PORT = "8080"
 HOME = "/root"                     # the service unit sets no HOME; DuckDB refuses to start without one
 NODE_ENV = "development"
-# PR mode is what the Okteto previews ran as: the preview flag set and its
+# PR mode is what previews run as: the preview flag set and its
 # management API, a fixed 000000 email passcode, the relaxed cross-origin
 # opener policy, /api/docs. Hot reload is unaffected: it belongs to the dev
 # processes, not the mode. packages/backend's dev script defers to a mode
@@ -80,7 +80,7 @@ NODE_ENV = "development"
 LIGHTDASH_MODE = "pr"
 LIGHTDASH_LOG_LEVEL = "info"
 LIGHTDASH_LOG_FORMAT = "json"
-SECURE_COOKIES = "true"            # as the Okteto preview: served over https behind an ingress that
+SECURE_COOKIES = "true"            # served over https behind an ingress that
 TRUST_PROXY = "true"               # sets X-Forwarded-Proto (ingress.go SetXForwarded); iframe embedding needs it
 SCHEDULER_ENABLED = "true"
 ALLOW_MULTIPLE_ORGS = "true"
@@ -90,22 +90,22 @@ PGHOST = "localhost"
 PGPORT = "5432"
 PGUSER = "postgres"
 PGDATABASE = "postgres"
-PGMAXCONNECTIONS = "30"            # as the Okteto preview; the API tests run four workers
+PGMAXCONNECTIONS = "30"            # the API tests run four workers
 DBT_DEMO_DIR = "/usr/app/examples/full-jaffle-shop-demo"
 DBT_PROJECT_DIR = "/usr/app/examples/full-jaffle-shop-demo/dbt"
 # Object storage: the in-guest MinIO, unless the S3_* secrets are stored —
 # a stored secret is written after [env] and wins, so previews then use the
-# same bucket the Okteto previews do (usage events, exports, data apps), and
-# these lines are only the fallback. No S3_PUBLIC_ENDPOINT or APPS_S3_BUCKET,
-# as in docker-compose.preview.yml: presigned URLs and data apps follow
-# S3_ENDPOINT and S3_BUCKET. Path style works on MinIO and the cloud stores.
+# shared preview bucket (usage events, exports, data apps), and these lines
+# are only the fallback. No S3_PUBLIC_ENDPOINT or APPS_S3_BUCKET: presigned
+# URLs and data apps follow S3_ENDPOINT and S3_BUCKET. Path style works on
+# MinIO and the cloud stores.
 S3_ENDPOINT = "http://localhost:9000"
 S3_REGION = "us-east-1"
 S3_BUCKET = "default"
 S3_ACCESS_KEY = "minioadmin"
 S3_SECRET_KEY = "minioadmin"
 S3_FORCE_PATH_STYLE = "true"
-# Pre-aggregates stay off, as in the Okteto preview: with them on, an embed
+# Pre-aggregates stay off: with them on, an embed
 # reader's calculate-total was routed to a pre-aggregate whose result lineage
 # the AI access check refused (403 ai_access_refused, embedDashboard.test.ts
 # "with canExplore"). A product question for the owning team, not a preview
@@ -124,7 +124,7 @@ EMAIL_SMTP_SENDER_EMAIL = "noreply@lightdash.local"
 # later mode change cannot silently drop the flag-management API.
 LIGHTDASH_PREVIEW_FEATURE_FLAGS_ENABLED = "true"
 # Product analytics: the RUDDERSTACK_* secrets, when stored, point previews
-# at the same RudderStack source as the Okteto previews (stored secrets win
+# at the preview RudderStack source (stored secrets win
 # over [env]). The lines below are the fallback, and why it is not simply
 # "unset": the backend's config bakes in a default
 # RudderStack write key and data plane, so without these every environment
@@ -133,15 +133,14 @@ LIGHTDASH_PREVIEW_FEATURE_FLAGS_ENABLED = "true"
 # outside the egress list that was four TCP timeouts, 8m47s, on every fork.
 # RUDDERSTACK_ANALYTICS_DISABLED would be the obvious switch, but it also
 # empties health.rudder.writeKey, and the frontend hides the new-user
-# onboarding modal when that is undefined (UserCompletionModal.tsx) — the
-# Okteto preview carried a key, and space.cy.ts expects the modal. So: a key
+# onboarding modal when that is undefined (UserCompletionModal.tsx), and
+# the space spec expects the modal. So: a key
 # that is not the production one, and a data plane on a local port nothing
 # listens on (refused at once, no timeout; the SDK drops the batch).
 RUDDERSTACK_WRITE_KEY = "preview-notrack"
 RUDDERSTACK_DATA_PLANE_URL = "http://localhost:9"
 
-# Parity with the Okteto previews (docker/docker-compose.preview.yml): the
-# settings that switch on the surfaces e2e and QA exercise. Values that name
+# The settings that switch on the surfaces e2e and QA exercise. Values that name
 # a credential are declared under [secrets] below, not here.
 IS_PULL_REQUEST = "true"
 CUSTOM_ROLES_ENABLED = "true"
@@ -153,7 +152,7 @@ EXTENDED_USAGE_ANALYTICS = "true"
 MICROSOFT_TEAMS_ENABLED = "true"
 APPS_RUNTIME_ENABLED = "true"          # data apps; the E2B key below makes it usable
 ALLOW_MISSING_MIGRATIONS = "true"
-# SOFT_DELETE_ENABLED stays unset, as in the Okteto preview: with it on, a
+# SOFT_DELETE_ENABLED stays unset: with it on, a
 # deleted SQL chart keeps its slug and sqlRunner.test.ts "save & update SQL
 # chart" gets 409 reusing it. Cloud runs with soft delete; whether slug reuse
 # after a soft delete should work is the owning team's call.
@@ -218,8 +217,8 @@ routes = [
 [[tier]]
 preset = "pnpm"                    # lockfile globs; egress and memory headroom for the install
 
-# The production bundle the backend serves (dockerfile-prs's build-frontend
-# stage). turbo builds formula, common and visualization first — vite
+# The production bundle the backend serves. turbo builds formula, common
+# and visualization first — vite
 # resolves them from `dist` outside development mode — and skips whatever
 # its local cache (.turbo, gitignored, so a fork inherits the parent's)
 # already holds, so a frontend-only push rebuilds only the bundle. The
@@ -303,6 +302,10 @@ port = 443
 
 [[egress.allow]]
 host = "api.github.com"             # GitHub App: repo access for dbt projects
+port = 443
+
+[[egress.allow]]
+host = "lightdash.github.io"        # chart type registry (Chart library)
 port = 443
 
 # Runtime dbt deps needs the registry and the GitHub archive redirect destination.
@@ -406,8 +409,8 @@ GITHUB_APP_NAME = "github-app"
 GITHUB_CLIENT_ID = "github-app"
 GITHUB_CLIENT_SECRET = "github-app"
 GITHUB_PRIVATE_KEY = "github-app"
-# Analytics and object storage, as the Okteto previews (docker-compose.preview.yml).
-# Each overrides its [env] fallback when stored; the two hosts open egress.
+# Analytics and object storage. Each overrides its [env] fallback when
+# stored; the two hosts open egress.
 # The five S3_* are one set: store, rotate or delete them together, since the
 # fallback is per variable and a partial set mixes cloud and MinIO settings.
 # Deleting or rotating reaches existing previews only when they are rebuilt.

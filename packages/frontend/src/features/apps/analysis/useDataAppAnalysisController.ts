@@ -66,6 +66,7 @@ export const useDataAppAnalysisController = ({
     appUuid,
     queries,
     availability,
+    analyseOnLoad = false,
     instructions = null,
     onNeedsAgent,
     onSourcesExpired,
@@ -75,6 +76,8 @@ export const useDataAppAnalysisController = ({
     appUuid: string | undefined;
     queries: QueryEvent[];
     availability: DataAppAnalysisAvailability;
+    /** Declared in app code: run detect on a view with no stored analysis. */
+    analyseOnLoad?: boolean;
     /** App-author guidance for the model, declared in app code. */
     instructions?: string | null;
     /** Called when the app asks to investigate but no agent is picked yet. */
@@ -107,6 +110,7 @@ export const useDataAppAnalysisController = ({
         sources,
         inFlight,
         availability,
+        autoAnalyse: analyseOnLoad,
         instructions,
         onNeedsAgent,
         onSourcesExpired,

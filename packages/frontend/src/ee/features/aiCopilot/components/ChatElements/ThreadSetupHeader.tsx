@@ -133,7 +133,7 @@ const ThreadContextBlock: FC<{ threadContext: string }> = ({
             </UnstyledButton>
             <Collapse expanded={expanded}>
                 <ScrollArea.Autosize mah={240} mt="xs">
-                    <Text size="sm" c="ldGray.7" className={styles.contextText}>
+                    <Text size="sm" c="dimmed" className={styles.contextText}>
                         {threadContext}
                     </Text>
                 </ScrollArea.Autosize>

@@ -1,0 +1,7 @@
+.paper[data-dashed='true'] {
+    border-style: dashed;
+}
+
+.paper[data-error='true'] {
+    border-color: var(--mantine-color-red-3);
+}

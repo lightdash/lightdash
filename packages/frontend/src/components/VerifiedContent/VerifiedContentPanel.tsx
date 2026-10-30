@@ -13,7 +13,6 @@ import {
     Stack,
     Text,
     Tooltip,
-    useMantineTheme,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
@@ -83,7 +82,6 @@ const getItemPresentation = (
 };
 
 const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
-    const theme = useMantineTheme();
     const { data: verifiedContent, isLoading } =
         useVerifiedContentList(projectUuid);
 
@@ -199,7 +197,7 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
                 size: 140,
                 minSize: 80,
                 Cell: ({ row }) => (
-                    <TruncatedText maxWidth="100%" c="ldGray.7">
+                    <TruncatedText maxWidth="100%" c="dimmed">
                         {row.original.spaceName}
                     </TruncatedText>
                 ),
@@ -213,7 +211,7 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
                 Cell: ({ row }) => {
                     const { firstName, lastName } = row.original.verifiedBy;
                     return (
-                        <TruncatedText maxWidth="100%" c="ldGray.7">
+                        <TruncatedText maxWidth="100%" c="dimmed">
                             {`${firstName} ${lastName}`}
                         </TruncatedText>
                     );
@@ -228,7 +226,7 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
                 Cell: ({ row }) => {
                     const date = new Date(row.original.verifiedAt);
                     return (
-                        <Text fz="sm" c="ldGray.7">
+                        <Text fz="sm" c="dimmed">
                             {date.toLocaleDateString()}
                         </Text>
                     );
@@ -283,49 +281,13 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
             isLoading,
         },
         mantineTableContainerProps: {
-            style: { maxHeight: 'calc(100vh - 300px)' },
+            mah: 'calc(100vh - 300px)',
         },
         mantineTableProps: {
             highlightOnHover: true,
             withColumnBorders: Boolean(items.length),
         },
-        mantineTableHeadCellProps: (props) => {
-            const isFirstColumn =
-                props.table.getAllColumns().indexOf(props.column) === 0;
-            const isLastColumn =
-                props.table.getAllColumns().indexOf(props.column) ===
-                props.table.getAllColumns().length - 1;
-
-            return {
-                bg: 'ldGray.0',
-                h: '3xl',
-                pos: 'relative',
-                style: {
-                    userSelect: 'none',
-                    padding: `${theme.spacing.xs} ${theme.spacing.xl}`,
-                    borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                    borderRight: props.column.getIsResizing()
-                        ? `2px solid ${theme.colors.blue[3]}`
-                        : `1px solid ${
-                              isLastColumn || isFirstColumn
-                                  ? 'transparent'
-                                  : theme.colors.ldGray[2]
-                          }`,
-                    borderTop: 'none',
-                    borderLeft: 'none',
-                },
-            };
-        },
-        mantineTableBodyCellProps: () => ({
-            h: 48,
-            style: {
-                padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-                borderRight: 'none',
-                borderLeft: 'none',
-                borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                borderTop: 'none',
-            },
-        }),
+        mantineTableBodyCellProps: { h: 48 },
     });
 
     if (!isLoading && items.length === 0) {

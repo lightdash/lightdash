@@ -1,3 +1,8 @@
 .signInButton:hover {
     text-decoration: underline;
 }
+
+.addComputeButton {
+    align-self: flex-end;
+    box-shadow: var(--mantine-shadow-subtle);
+}

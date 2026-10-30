@@ -151,3 +151,7 @@
 .resizeHandle[data-active]::before {
     background-color: var(--mantine-color-ldGray-5);
 }
+
+.resizeHandle.resizeHandleHidden {
+    display: none;
+}

@@ -46,10 +46,6 @@ import {
     useDashboardTemporaryFilters,
     useDashboardUnmetFilterRequirements,
 } from '../../../../../features/dashboard/store';
-import {
-    CONTROLS_RAIL_LAYOUT,
-    ControlSidebar,
-} from '../../../../../features/dashboardControls/ControlSidebar';
 import { ControlsSidebarProvider } from '../../../../../features/dashboardControls/ControlsSidebarProvider';
 import { FieldTilesBar } from '../../../../../features/dashboardControls/FieldTilesBar';
 import { type RailContractClassNames } from '../../../../../features/dashboardControls/railContractClasses';
@@ -89,6 +85,7 @@ import {
     type EmbedChartSaveDashboard,
 } from '../types';
 import { canUseEmbeddedChartBuilder } from '../utils';
+import classes from './EmbedDashboard.module.css';
 import EmbedDashboardChartEditorModal from './EmbedDashboardChartEditorModal';
 import EmbedDashboardChartTile from './EmbedDashboardChartTile';
 import EmbedDashboardHeader from './EmbedDashboardHeader';
@@ -178,8 +175,6 @@ const EmbedDashboardGrid: FC<{
     canEditChart?: (chart: SavedChart) => boolean;
     onExplore?: (options: EmbedExploreOptions) => void;
     useDashboardEditorTileQueries: boolean;
-    // The filter rail sits left of the grid (default false)
-    isControlsEnabled?: boolean;
 }> = ({
     filteredTiles,
     layouts,
@@ -199,27 +194,15 @@ const EmbedDashboardGrid: FC<{
     canEditChart,
     onExplore,
     useDashboardEditorTileQueries,
-    isControlsEnabled = false,
 }) => (
-    <Group
-        grow
-        pt="sm"
-        px="xs"
-        className={isControlsEnabled ? CONTROLS_RAIL_LAYOUT : undefined}
-    >
-        {isControlsEnabled && <ControlSidebar />}
+    <Group grow pt="sm" px="xs">
         {isTabEmpty ? (
-            <div
-                style={{
-                    marginTop: '40px',
-                    textAlign: 'center',
-                }}
-            >
+            <Box mt="3xl" ta="center">
                 <SuboptimalState
                     title="Tab is empty"
                     description="This tab has no tiles"
                 />
-            </div>
+            </Box>
         ) : (
             <div className={tabStyles.tabGridContainer}>
                 {filteredTiles.map((tile) => (
@@ -1036,14 +1019,14 @@ const EmbedDashboard: FC<{
 
     if (!projectUuid) {
         return (
-            <div style={{ marginTop: '20px' }}>
+            <Box mt="lg">
                 <SuboptimalState title="Missing project UUID" />
-            </div>
+            </Box>
         );
     }
     if (dashboardError) {
         return (
-            <div style={{ marginTop: '20px' }}>
+            <Box mt="lg">
                 <SuboptimalState
                     title="Error loading dashboard"
                     icon={IconUnlink}
@@ -1053,15 +1036,15 @@ const EmbedDashboard: FC<{
                             : dashboardError.error.message
                     }
                 />
-            </div>
+            </Box>
         );
     }
 
     if (!dashboard) {
         return (
-            <div style={{ marginTop: '20px' }}>
+            <Box mt="lg">
                 <SuboptimalState title="Loading..." loading />
-            </div>
+            </Box>
         );
     }
 
@@ -1182,7 +1165,6 @@ const EmbedDashboard: FC<{
                 canEditChart={canEditChart}
                 onExplore={onExplore}
                 useDashboardEditorTileQueries={canWriteDashboard}
-                isControlsEnabled={isControlsEnabled}
             />
         </>
     );
@@ -1219,7 +1201,6 @@ const EmbedDashboard: FC<{
                             onDeleteTile={handleDeleteTile}
                             onEditTile={handleEditTile}
                             useDashboardEditorTileQueries={false}
-                            isControlsEnabled={false}
                         />
                     ))
                 )}
@@ -1234,12 +1215,9 @@ const EmbedDashboard: FC<{
         <div
             // Used by EmbedDashboardExportPdf to temporarily set height:auto for multipage PDF printing
             id="embed-scroll-container"
-            style={
-                containerStyles ?? {
-                    height: '100vh',
-                    overflowY: 'auto',
-                }
-            }
+            className={containerStyles ? undefined : classes.scrollContainer}
+            // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
+            style={containerStyles}
         >
             <ControlsSidebarProvider
                 // No route says the mode in an embed

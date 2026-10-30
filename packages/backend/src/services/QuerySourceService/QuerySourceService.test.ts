@@ -757,9 +757,12 @@ describe('QuerySourceService', () => {
             await expect(result).rejects.toThrow('revoked');
         });
 
-        it('returns the standard status and row count per query uuid', async () => {
+        it('returns the standard status, row count and result columns per query uuid', async () => {
             const fakes = createRegistryWithFakes();
             const { service, mocks } = createService(fakes.registry);
+            const columns = {
+                total: { reference: 'total', type: DimensionType.NUMBER },
+            };
             mocks.queryHistoryModel.get.mockImplementation(
                 async (queryUuid: string) => ({
                     queryUuid,
@@ -771,6 +774,7 @@ describe('QuerySourceService', () => {
                     totalRowCount: queryUuid === 'failed-uuid' ? null : 42,
                     warehouseExecutionTimeMs:
                         queryUuid === 'failed-uuid' ? null : 120,
+                    columns: queryUuid === 'failed-uuid' ? null : columns,
                 }),
             );
 
@@ -787,6 +791,7 @@ describe('QuerySourceService', () => {
                     error: null,
                     totalRowCount: 42,
                     warehouseExecutionTimeMs: 120,
+                    columns,
                 },
                 {
                     queryUuid: 'failed-uuid',
@@ -794,6 +799,7 @@ describe('QuerySourceService', () => {
                     error: 'boom',
                     totalRowCount: null,
                     warehouseExecutionTimeMs: null,
+                    columns: null,
                 },
             ]);
         });

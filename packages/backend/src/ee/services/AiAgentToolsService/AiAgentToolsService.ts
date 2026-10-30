@@ -50,6 +50,7 @@ import {
     RequestMethod,
     SessionUser,
     shouldUseStaticFilterAutocomplete,
+    SourceQuerySubmission,
     TimeoutError,
     toMcpCustomChartTypeVizSchema,
     UnexpectedServerError,
@@ -146,7 +147,10 @@ import type { BuiltInSkills } from '../ai/skills/builtInSkills';
 import type { ApproveSqlFn } from '../ai/tools/sqlApprovals';
 import {
     AnalyzeFieldImpactFn,
+    ComposerNodeStatus,
     ComposerNodeStatusUpdate,
+    ComposerRunningOutcome,
+    ComposerRunOutcome,
     CreateContentFn,
     CreateScheduledDeliveryFn,
     DescribeWarehouseTableFn,
@@ -183,6 +187,7 @@ import {
     ResolveUrlFn,
     RunAsyncQueryFn,
     RunComposerQueriesFn,
+    RunComposerQueriesUntilDeadlineFn,
     RunSavedChartQueryFn,
     RunSqlChartQueryFn,
     RunSqlJobFn,
@@ -344,6 +349,7 @@ export type AiAgentToolsRuntime = {
     runSqlChartQuery: RunSqlChartQueryFn;
     runSqlJob: RunSqlJobFn;
     runComposerQueries: RunComposerQueriesFn;
+    runComposerQueriesUntilDeadline: RunComposerQueriesUntilDeadlineFn;
     listWarehouseTables: ListWarehouseTablesFn;
     describeWarehouseTable: DescribeWarehouseTableFn;
     listContent: ListContentFn;
@@ -393,6 +399,7 @@ const AGENT_RUNTIME_TOOL_NAMES = {
     runSqlChartQuery: 'runSql',
     runSqlJob: 'runSql',
     runComposerQueries: 'query',
+    runComposerQueriesUntilDeadline: 'query',
     listWarehouseTables: 'listWarehouseTables',
     describeWarehouseTable: 'describeWarehouseTable',
     listContent: 'listContent',
@@ -991,7 +998,20 @@ export class AiAgentToolsService extends BaseService {
                 this.runSavedChartQuery(context, args),
             runSqlJob: (args) => this.runSqlJob(context, args),
             runSqlChartQuery: (args) => this.runSqlChartQuery(context, args),
-            runComposerQueries: (args) =>
+            runComposerQueries: async (args) => {
+                const run = await this.runComposerQueries(context, {
+                    ...args,
+                    deadlineMs: Date.now() + 5 * 60 * 1000,
+                    timeoutMessage: 'Composer query timed out after 5 minutes.',
+                });
+                if (run.status === 'running') {
+                    throw new UnexpectedServerError(
+                        'Composer query returned running after its timeout',
+                    );
+                }
+                return run;
+            },
+            runComposerQueriesUntilDeadline: (args) =>
                 this.runComposerQueries(context, args),
             listWarehouseTables: (queryContext) =>
                 this.listWarehouseTables(context, queryContext),
@@ -3634,7 +3654,11 @@ export class AiAgentToolsService extends BaseService {
                                 context.projectUuid,
                                 slug,
                                 patchedContent,
-                                { force: true, authorization: 'space_access' },
+                                {
+                                    force: true,
+                                    authorization: 'space_access',
+                                    syncEnabled: false,
+                                },
                             );
                         uuid = promotionChanges.dashboards[0]?.data.uuid;
                         break;
@@ -3681,7 +3705,11 @@ export class AiAgentToolsService extends BaseService {
                                 context.projectUuid,
                                 slug,
                                 patchedContent,
-                                { force: true, authorization: 'space_access' },
+                                {
+                                    force: true,
+                                    authorization: 'space_access',
+                                    syncEnabled: false,
+                                },
                             );
                         uuid = promotionChanges.charts[0]?.data.uuid;
                         break;
@@ -3824,6 +3852,7 @@ export class AiAgentToolsService extends BaseService {
                                 {
                                     mode: 'create',
                                     authorization: 'space_access',
+                                    syncEnabled: false,
                                 },
                             );
                         const finalSlug =
@@ -3862,6 +3891,7 @@ export class AiAgentToolsService extends BaseService {
                                 {
                                     mode: 'create',
                                     authorization: 'space_access',
+                                    syncEnabled: false,
                                 },
                             );
                         const finalSlug =
@@ -4677,8 +4707,14 @@ export class AiAgentToolsService extends BaseService {
             queries,
             terminalNodeId,
             onNodeStatus,
-        }: Parameters<RunComposerQueriesFn>[0],
-    ): ReturnType<RunComposerQueriesFn> {
+            deadlineMs,
+            timeoutMessage,
+        }: Parameters<RunComposerQueriesFn>[0] & {
+            deadlineMs: number;
+            /** Fails the run at the deadline instead of returning running. */
+            timeoutMessage?: string;
+        },
+    ): ReturnType<RunComposerQueriesUntilDeadlineFn> {
         return wrapSentryTransaction(
             `${AiAgentToolsService.transactionPrefix(context)}.runComposerQueries`,
             { projectUuid: context.projectUuid, queryCount: queries.length },
@@ -4748,6 +4784,31 @@ export class AiAgentToolsService extends BaseService {
                         errorMessage: null,
                     }),
                 );
+                // Only a ready, errored or cancelled query has settled.
+                const emitSettledNodeStatus = (
+                    { nodeId, queryUuid }: SourceQuerySubmission,
+                    state: QueryHistoryStatus,
+                    error: string | null,
+                ) => {
+                    if (state === QueryHistoryStatus.READY) {
+                        emitNodeStatus({
+                            nodeId,
+                            queryUuid,
+                            status: 'success',
+                            errorMessage: null,
+                        });
+                    } else if (
+                        state === QueryHistoryStatus.ERROR ||
+                        state === QueryHistoryStatus.CANCELLED
+                    ) {
+                        emitNodeStatus({
+                            nodeId,
+                            queryUuid,
+                            status: 'error',
+                            errorMessage: error,
+                        });
+                    }
+                };
                 const pollNodeStatuses = async () => {
                     if (!onNodeStatus) return;
                     const pending = submissions.filter((submission) => {
@@ -4772,24 +4833,11 @@ export class AiAgentToolsService extends BaseService {
                                     candidate.queryUuid === status.queryUuid,
                             );
                             if (!submission) return;
-                            if (status.status === QueryHistoryStatus.READY) {
-                                emitNodeStatus({
-                                    nodeId: submission.nodeId,
-                                    queryUuid: submission.queryUuid,
-                                    status: 'success',
-                                    errorMessage: null,
-                                });
-                            } else if (
-                                status.status === QueryHistoryStatus.ERROR ||
-                                status.status === QueryHistoryStatus.CANCELLED
-                            ) {
-                                emitNodeStatus({
-                                    nodeId: submission.nodeId,
-                                    queryUuid: submission.queryUuid,
-                                    status: 'error',
-                                    errorMessage: status.error ?? null,
-                                });
-                            }
+                            emitSettledNodeStatus(
+                                submission,
+                                status.status,
+                                status.error ?? null,
+                            );
                         });
                     } catch {
                         // status polling is best-effort; keep executing
@@ -4818,14 +4866,9 @@ export class AiAgentToolsService extends BaseService {
                 // Polling only the terminal node is sufficient: its execution
                 // waits on every referenced result and fails if any upstream
                 // query fails.
-                const maxWaitMs = 5 * 60 * 1000;
-                const startTime = Date.now();
 
-                // Results fetching throws for errored queries, so any throw
-                // below marks the unfinished nodes failed before propagating.
-                const emitUnfinishedAsError = (error: unknown) => {
-                    const message =
-                        error instanceof Error ? error.message : null;
+                // A failed run marks the nodes its status read did not settle.
+                const emitUnfinishedAsError = (message: string) => {
                     submissions.forEach((submission) => {
                         const emitted = emittedNodeStatuses.get(
                             submission.nodeId,
@@ -4841,21 +4884,45 @@ export class AiAgentToolsService extends BaseService {
                     });
                 };
 
+                let outcome: ComposerRunOutcome;
                 try {
-                    return await this.pollComposerTerminal({
+                    const polled = await this.pollComposerTerminal({
                         context,
                         submissions,
                         terminalSubmission,
                         pageSize,
-                        maxWaitMs,
-                        startTime,
-                        emitNodeStatus,
+                        deadlineMs,
                         pollNodeStatuses,
                     });
+                    if (polled.status === 'running') {
+                        if (timeoutMessage === undefined) return polled;
+                        outcome = await this.failComposerRun(
+                            context,
+                            submissions,
+                            timeoutMessage,
+                        );
+                    } else {
+                        outcome = polled;
+                    }
                 } catch (error) {
-                    emitUnfinishedAsError(error);
-                    throw error;
+                    // Results fetching throws for errored queries.
+                    outcome = await this.failComposerRun(
+                        context,
+                        submissions,
+                        getErrorMessage(error),
+                    );
                 }
+                outcome.nodeStatuses.forEach(({ nodeId, state, error }) => {
+                    const submission = submissions.find(
+                        (candidate) => candidate.nodeId === nodeId,
+                    );
+                    if (submission)
+                        emitSettledNodeStatus(submission, state, error);
+                });
+                if (outcome.status === 'failure') {
+                    emitUnfinishedAsError(outcome.error);
+                }
+                return outcome;
             },
         );
     }
@@ -4865,9 +4932,7 @@ export class AiAgentToolsService extends BaseService {
         submissions,
         terminalSubmission,
         pageSize,
-        maxWaitMs,
-        startTime,
-        emitNodeStatus,
+        deadlineMs,
         pollNodeStatuses,
     }: {
         context: AiAgentToolsRuntimeContext;
@@ -4878,18 +4943,22 @@ export class AiAgentToolsService extends BaseService {
             ReturnType<QuerySourceService['executeSourceQueries']>
         >['queries'][number];
         pageSize: number;
-        maxWaitMs: number;
-        startTime: number;
-        emitNodeStatus: (update: ComposerNodeStatusUpdate) => void;
+        deadlineMs: number;
         pollNodeStatuses: () => Promise<void>;
-    }): ReturnType<RunComposerQueriesFn> {
+    }): Promise<ComposerRunOutcome | ComposerRunningOutcome> {
         let delayMs = 500;
         // eslint-disable-next-line no-constant-condition
         while (true) {
-            if (Date.now() - startTime > maxWaitMs) {
-                throw new TimeoutError(
-                    'Composer query timed out after 5 minutes',
-                );
+            if (Date.now() > deadlineMs) {
+                return {
+                    status: 'running',
+                    submissions,
+                    // eslint-disable-next-line no-await-in-loop
+                    nodeStatuses: await this.readComposerNodeStatuses(
+                        context,
+                        submissions,
+                    ).catch(() => []),
+                };
             }
 
             const queryResults =
@@ -4909,14 +4978,10 @@ export class AiAgentToolsService extends BaseService {
                 });
 
             if (queryResults.status === QueryHistoryStatus.READY) {
-                // Terminal ready implies every upstream node finished.
-                submissions.forEach((submission) =>
-                    emitNodeStatus({
-                        nodeId: submission.nodeId,
-                        queryUuid: submission.queryUuid,
-                        status: 'success',
-                        errorMessage: null,
-                    }),
+                // eslint-disable-next-line no-await-in-loop
+                const nodeStatuses = await this.readComposerNodeStatuses(
+                    context,
+                    submissions,
                 );
                 const wrappedRows = (queryResults.rows ?? []) as Record<
                     string,
@@ -4931,6 +4996,7 @@ export class AiAgentToolsService extends BaseService {
                     ),
                 );
                 return {
+                    status: 'success',
                     submissions,
                     terminal: {
                         queryUuid: terminalSubmission.queryUuid,
@@ -4938,58 +5004,35 @@ export class AiAgentToolsService extends BaseService {
                         rows,
                         rowCount: queryResults.totalResults,
                     },
+                    nodeStatuses,
                 };
             }
 
             if (queryResults.status === QueryHistoryStatus.ERROR) {
                 // eslint-disable-next-line no-await-in-loop
-                const failedNodes = await this.findFailedComposerNodes(
+                const failed = await this.failComposerRun(
                     context,
                     submissions,
+                    'Composer query failed.',
                 );
-                failedNodes.forEach(({ nodeId, error }) => {
-                    const submission = submissions.find(
-                        (candidate) => candidate.nodeId === nodeId,
-                    );
-                    if (!submission) return;
-                    emitNodeStatus({
-                        nodeId,
-                        queryUuid: submission.queryUuid,
-                        status: 'error',
-                        errorMessage: error,
-                    });
-                });
-                emitNodeStatus({
-                    nodeId: terminalSubmission.nodeId,
-                    queryUuid: terminalSubmission.queryUuid,
-                    status: 'error',
-                    errorMessage: queryResults.error ?? null,
-                });
-                throw new WarehouseQueryError(
-                    `Composer query failed${
-                        failedNodes.length > 0
-                            ? ` on node(s): ${failedNodes
-                                  .map(
-                                      ({ nodeId, error }) =>
-                                          `"${nodeId}" (${error ?? 'Unknown error'})`,
-                                  )
-                                  .join(', ')}`
-                            : `: ${truncateMiddle(
-                                  queryResults.error ?? 'Unknown error',
-                                  COMPOSER_NODE_ERROR_MAX_CHARS,
-                              )}`
-                    }`,
-                );
+                // Node statuses carry each node's error; the terminal's is the fallback.
+                return failed.nodeStatuses.some(({ error }) => error !== null)
+                    ? failed
+                    : {
+                          ...failed,
+                          error: `Composer query failed: ${truncateMiddle(
+                              queryResults.error ?? 'Unknown error',
+                              COMPOSER_NODE_ERROR_MAX_CHARS,
+                          )}`,
+                      };
             }
 
             if (queryResults.status === QueryHistoryStatus.CANCELLED) {
-                emitNodeStatus({
-                    nodeId: terminalSubmission.nodeId,
-                    queryUuid: terminalSubmission.queryUuid,
-                    status: 'error',
-                    errorMessage: 'Query was cancelled',
-                });
-                throw new WarehouseQueryError('Composer query was cancelled');
+                return this.failComposerRun(
+                    context,
+                    submissions,
+                    'Composer query was cancelled.',
+                );
             }
 
             // Terminal still running: surface upstream nodes that have
@@ -5007,29 +5050,41 @@ export class AiAgentToolsService extends BaseService {
         }
     }
 
-    /**
-     * Best-effort per-node failure lookup so composer errors name the failing
-     * node the model should fix. Never throws — falls back to an empty list.
-     */
-    private async findFailedComposerNodes(
+    /** A failure outcome with one status read of every node; an unreadable read yields none. */
+    private async failComposerRun(
         context: AiAgentToolsRuntimeContext,
-        submissions: { nodeId: string; queryUuid: string }[],
-    ): Promise<{ nodeId: string; error: string | null }[]> {
-        try {
-            const { statuses } =
-                await this.querySourceService.getSourceQueryStatuses(
-                    context.account,
-                    context.projectUuid,
-                    submissions.map((submission) => submission.queryUuid),
-                );
-            return statuses
-                .filter((status) => status.status === QueryHistoryStatus.ERROR)
-                .map((status) => ({
-                    nodeId:
-                        submissions.find(
-                            (submission) =>
-                                submission.queryUuid === status.queryUuid,
-                        )?.nodeId ?? status.queryUuid,
+        submissions: SourceQuerySubmission[],
+        error: string,
+    ): Promise<Extract<ComposerRunOutcome, { status: 'failure' }>> {
+        return {
+            status: 'failure',
+            error,
+            nodeStatuses: await this.readComposerNodeStatuses(
+                context,
+                submissions,
+            ).catch(() => []),
+        };
+    }
+
+    private async readComposerNodeStatuses(
+        context: AiAgentToolsRuntimeContext,
+        submissions: SourceQuerySubmission[],
+    ): Promise<ComposerNodeStatus[]> {
+        const { statuses } =
+            await this.querySourceService.getSourceQueryStatuses(
+                context.account,
+                context.projectUuid,
+                submissions.map((submission) => submission.queryUuid),
+            );
+        return submissions.flatMap(({ nodeId, queryUuid }) => {
+            const status = statuses.find(
+                (candidate) => candidate.queryUuid === queryUuid,
+            );
+            if (!status) return [];
+            return [
+                {
+                    nodeId,
+                    state: status.status,
                     error:
                         status.error === null
                             ? null
@@ -5037,10 +5092,11 @@ export class AiAgentToolsService extends BaseService {
                                   status.error,
                                   COMPOSER_NODE_ERROR_MAX_CHARS,
                               ),
-                }));
-        } catch {
-            return [];
-        }
+                    rowCount: status.totalRowCount,
+                    columns: status.columns,
+                },
+            ];
+        });
     }
 
     private listWarehouseTables(

@@ -244,6 +244,7 @@ export enum EventName {
     ORGANIZATION_SETUP_STEP_COMPLETED = 'organization_setup_step.completed',
     ORGANIZATION_BRAND_DETECTED = 'organization_brand.detected',
     ONBOARDING_WAREHOUSE_SELECTED = 'onboarding_warehouse.selected',
+    LIVE_DATA_SOURCE_REQUESTED = 'live_data_source.requested',
     BIGQUERY_SSO_SIGNIN_CLICKED = 'bigquery_sso.signin_clicked',
     BIGQUERY_SSO_SIGNIN_COMPLETED = 'bigquery_sso.signin_completed',
     SNOWFLAKE_CLI_SSO_COMMAND_COPIED = 'snowflake_cli_sso.command_copied',

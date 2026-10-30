@@ -61,17 +61,7 @@ export const JsonCellPreview: FC<Props> = ({ value }) => {
     const preview = useMemo(() => getJsonPreview(value), [value]);
 
     return (
-        <Text
-            span
-            inherit
-            style={{
-                display: 'block',
-                maxWidth: '100%',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-            }}
-        >
+        <Text span inherit truncate display="block" maw="100%">
             {preview}
         </Text>
     );

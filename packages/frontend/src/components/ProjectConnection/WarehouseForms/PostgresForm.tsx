@@ -94,7 +94,7 @@ const PostgresForm: FC<{
                     name="warehouse.host"
                     {...form.getInputProps('warehouse.host')}
                     disabled={disabled}
-                    labelProps={{ style: { marginTop: '8px' } }}
+                    labelProps={{ mt: 'xs' }}
                 />
                 <TextInput
                     label="User"

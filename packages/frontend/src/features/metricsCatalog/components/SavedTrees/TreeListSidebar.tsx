@@ -74,7 +74,7 @@ const TreeListSidebar: FC<{
                         px="xs"
                         wrap="nowrap"
                     >
-                        <Text visibleFrom="sm" fz="sm" fw={600} c="ldGray.7">
+                        <Text visibleFrom="sm" fz="sm" fw={600} c="dimmed">
                             Saved Trees
                         </Text>
                         {canManageMetricsTree && (
@@ -139,7 +139,7 @@ const TreeListSidebar: FC<{
                                                 <Text
                                                     fz="xs"
                                                     fw={500}
-                                                    c="ldGray.7"
+                                                    c="dimmed"
                                                     truncate
                                                     flex={1}
                                                 >

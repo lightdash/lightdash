@@ -368,6 +368,7 @@ const ToasterDemo = () => {
 
 const toastClassNames = {
     root: toastStyles.root,
+    body: toastStyles.body,
     title: toastStyles.title,
     description: toastStyles.description,
     closeButton: toastStyles.closeButton,

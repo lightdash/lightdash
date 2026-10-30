@@ -10,13 +10,7 @@ import {
 } from '@mantine/core';
 import { IconHash } from '@tabler/icons-react';
 import { clsx } from 'clsx';
-import {
-    useCallback,
-    useState,
-    type CSSProperties,
-    type FC,
-    type KeyboardEvent,
-} from 'react';
+import { useCallback, useState, type FC, type KeyboardEvent } from 'react';
 import MantineIcon from '../common/MantineIcon';
 import classes from './ColorSelector.module.css';
 
@@ -85,17 +79,9 @@ const ColorSelector: FC<Props> = ({
                   ? DEFAULT_PICKER_COLOR_WITH_ALPHA
                   : DEFAULT_PICKER_COLOR));
     const pickerColor = getPickerColor(rawPickerColor, withAlpha);
-    const colorSwatchStyle =
-        colorSwatchProps?.style &&
-        !Array.isArray(colorSwatchProps.style) &&
-        typeof colorSwatchProps.style === 'object'
-            ? colorSwatchProps.style
-            : {};
     const showGradient = !isInteractive && Boolean(secondaryColor);
-    const gradientStyle = showGradient
-        ? ({
-              '--cs-gradient': `linear-gradient(135deg, ${primarySwatchColor} 0%, ${primarySwatchColor} 50%, ${secondaryColor} 50%, ${secondaryColor} 100%)`,
-          } as CSSProperties)
+    const swatchGradient = showGradient
+        ? `linear-gradient(135deg, ${primarySwatchColor} 0%, ${primarySwatchColor} 50%, ${secondaryColor} 50%, ${secondaryColor} 100%)`
         : undefined;
     const handleSwatchClick = useCallback(() => {
         setIsOpen((opened) => !opened);
@@ -204,10 +190,7 @@ const ColorSelector: FC<Props> = ({
                     ? { colorOverlay: classes.colorOverlayGradient }
                     : undefined
             }
-            style={{
-                ...gradientStyle,
-                ...colorSwatchStyle,
-            }}
+            style={{ '--cs-gradient': swatchGradient }}
         />
     );
 };

@@ -80,6 +80,8 @@ type Props = Omit<PillsInputProps, 'onChange' | 'ref'> & {
     onDropdownOpen?: () => void;
     onDropdownClose?: () => void;
     placeholder?: string;
+    /** Closes the list once an option is picked (default false). */
+    closeOnOptionSubmit?: boolean;
 };
 
 const RefreshIndicator: FC<{
@@ -174,7 +176,7 @@ const SearchErrorIndicator: FC<{
                     }
                     onMouseDown={(event) => event.preventDefault()}
                     onClick={canRetry ? onRetry : undefined}
-                    style={{ cursor: canRetry ? 'pointer' : 'default' }}
+                    className={canRetry ? undefined : classes.defaultCursor}
                 >
                     <MantineIcon icon={IconAlertCircle} color="red" />
                 </ActionIcon>
@@ -558,11 +560,9 @@ const FilterStringAutoComplete: FC<Props> = ({
                                 <Group
                                     gap="xxs"
                                     wrap="nowrap"
-                                    style={{
-                                        visibility: disabled
-                                            ? 'hidden'
-                                            : 'visible',
-                                    }}
+                                    className={
+                                        disabled ? classes.hidden : undefined
+                                    }
                                 >
                                     {isInitialLoading ? (
                                         <Loader size={14} color="gray" />
@@ -582,11 +582,11 @@ const FilterStringAutoComplete: FC<Props> = ({
                                         <ActionIcon
                                             size="sm"
                                             onClick={openManageValues}
-                                            style={{
-                                                visibility: isWrapperHovered
-                                                    ? 'visible'
-                                                    : 'hidden',
-                                            }}
+                                            className={
+                                                isWrapperHovered
+                                                    ? undefined
+                                                    : classes.hidden
+                                            }
                                         >
                                             <MantineIcon
                                                 icon={IconListDetails}

@@ -12,6 +12,7 @@ import { IconTrash } from '@tabler/icons-react';
 import { memo, useCallback, useState, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { type useAiAgentAdminFilters } from '../../hooks/useAiAgentAdminFilters';
+import adminClasses from './AdminTable.module.css';
 import AgentsFilter from './AgentsFilter';
 import { FeedbackFilter } from './FeedbackFilter';
 import ProjectsFilter from './ProjectsFilter';
@@ -160,14 +161,7 @@ export const AiAgentAdminTopToolbar: FC<AiAgentAdminTopToolbarProps> = memo(
                     <Group gap="xs">
                         <Box
                             bg="ldGray.1"
-                            c="ldGray.9"
-                            style={{
-                                borderRadius: 6,
-                                padding: `${theme.spacing.sm} ${theme.spacing.xs}`,
-                                height: 32,
-                                display: 'flex',
-                                alignItems: 'center',
-                            }}
+                            className={adminClasses.resultsCount}
                         >
                             <Text fz="sm" fw={500}>
                                 {isFetching

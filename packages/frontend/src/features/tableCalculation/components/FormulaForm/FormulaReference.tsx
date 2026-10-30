@@ -368,6 +368,7 @@ export const FormulaReferenceBar: FC<BarProps> = ({
                             <MantineIcon icon={IconMathFunction} size="sm" />
                         }
                         className={classes.helperButton}
+                        classNames={{ section: classes.helperSection }}
                         aria-expanded={opened}
                     >
                         Need help?

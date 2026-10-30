@@ -14,6 +14,7 @@ import { useTestConnectionConfig } from '../../../features/externalConnections/h
 import {
     getPostHogQueryPath,
     toPostHogCreatePayload,
+    type PostHogAuthMethod,
     type PostHogConnectionValues,
     type PostHogRegion,
 } from './postHogConnection';
@@ -22,13 +23,18 @@ type Props = {
     projectUuid: string;
     form: UseFormReturnType<PostHogConnectionValues>;
     isEditing: boolean;
+    canSignIn: boolean;
+    onReconnect: (() => void) | null;
 };
 
 export const PostHogConnectionStep: FC<Props> = ({
     projectUuid,
     form,
     isEditing,
+    canSignIn,
+    onReconnect,
 }) => {
+    const isSignIn = form.values.authMethod === 'signIn';
     const testMutation = useTestConnectionConfig();
 
     const handleTest = () => {
@@ -47,9 +53,27 @@ export const PostHogConnectionStep: FC<Props> = ({
         <Stack gap="sm">
             <Text c="dimmed" fz="sm">
                 AI agents send HogQL queries to this PostHog project and read
-                the results live. Use a personal API key with the Query Read
-                scope.
+                the results live.{' '}
+                {isSignIn
+                    ? 'Sign in to PostHog and pick the project to allow read-only query access.'
+                    : 'Use a personal API key with the Query Read scope.'}
             </Text>
+            {canSignIn && !isEditing && (
+                <SegmentedControl
+                    fullWidth
+                    data={[
+                        { value: 'signIn', label: 'Sign in with PostHog' },
+                        { value: 'apiKey', label: 'Personal API key' },
+                    ]}
+                    value={form.values.authMethod}
+                    onChange={(value) =>
+                        form.setFieldValue(
+                            'authMethod',
+                            value as PostHogAuthMethod,
+                        )
+                    }
+                />
+            )}
             <TextInput
                 required
                 label="Name"
@@ -62,6 +86,7 @@ export const PostHogConnectionStep: FC<Props> = ({
                 </Text>
                 <SegmentedControl
                     fullWidth
+                    disabled={isEditing && isSignIn}
                     data={[
                         { value: 'us', label: 'US Cloud' },
                         { value: 'eu', label: 'EU Cloud' },
@@ -72,33 +97,61 @@ export const PostHogConnectionStep: FC<Props> = ({
                     }
                 />
             </Stack>
-            <TextInput
-                required
-                label="Project ID"
-                description="The number after /project/ in your PostHog URL"
-                placeholder="12345"
-                {...form.getInputProps('projectId')}
-            />
-            <PasswordInput
-                required={!isEditing}
-                label="Personal API key"
-                description={
-                    isEditing ? 'Leave blank to keep the current key' : null
-                }
-                placeholder="phx_..."
-                {...form.getInputProps('apiKey')}
-            />
-            <Group>
-                <Button
-                    type="button"
-                    variant="default"
-                    onClick={handleTest}
-                    loading={testMutation.isLoading}
-                    disabled={isEditing && form.values.apiKey.trim() === ''}
-                >
-                    Test connection
-                </Button>
-            </Group>
+            {isSignIn && isEditing && (
+                <TextInput
+                    disabled
+                    label="Project ID"
+                    value={form.values.projectId}
+                />
+            )}
+            {onReconnect && (
+                <Group>
+                    <Button
+                        type="button"
+                        variant="default"
+                        onClick={onReconnect}
+                    >
+                        {isSignIn
+                            ? 'Reconnect to PostHog'
+                            : 'Sign in with PostHog instead'}
+                    </Button>
+                </Group>
+            )}
+            {!isSignIn && (
+                <>
+                    <TextInput
+                        required
+                        label="Project ID"
+                        description="The number after /project/ in your PostHog URL"
+                        placeholder="12345"
+                        {...form.getInputProps('projectId')}
+                    />
+                    <PasswordInput
+                        required={!isEditing}
+                        label="Personal API key"
+                        description={
+                            isEditing
+                                ? 'Leave blank to keep the current key'
+                                : null
+                        }
+                        placeholder="phx_..."
+                        {...form.getInputProps('apiKey')}
+                    />
+                    <Group>
+                        <Button
+                            type="button"
+                            variant="default"
+                            onClick={handleTest}
+                            loading={testMutation.isLoading}
+                            disabled={
+                                isEditing && form.values.apiKey.trim() === ''
+                            }
+                        >
+                            Test connection
+                        </Button>
+                    </Group>
+                </>
+            )}
             {testMutation.data && (
                 <ConnectionTestResult response={testMutation.data} />
             )}

@@ -9,6 +9,7 @@
     padding: var(--mantine-spacing-md);
     pointer-events: none;
     overflow: hidden;
+    z-index: 1;
 }
 
 .skeleton {
@@ -19,4 +20,8 @@
 
 .skeletonBody {
     overflow: hidden;
+}
+
+.pie {
+    aspect-ratio: 1;
 }

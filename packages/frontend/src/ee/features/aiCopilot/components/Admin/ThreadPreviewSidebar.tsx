@@ -113,7 +113,7 @@ const ExpandableReviewText = ({
         <Stack gap={4} align="flex-start">
             <Text
                 fz={size}
-                c="ldGray.7"
+                c="dimmed"
                 lh={1.55}
                 lineClamp={expanded || !canExpand ? undefined : collapsedLines}
                 className={styles.summaryText}
@@ -462,7 +462,7 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                                                 fw={600}
                                                 tt="uppercase"
                                                 lts={0.4}
-                                                c="ldGray.7"
+                                                c="dimmed"
                                             >
                                                 Why flagged
                                             </Text>
@@ -492,7 +492,7 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                                             fw={600}
                                             tt="uppercase"
                                             lts={0.4}
-                                            c="ldGray.7"
+                                            c="dimmed"
                                         >
                                             Activity
                                         </Text>
@@ -580,17 +580,8 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                                                         ? theme.colors.ldGray[0]
                                                         : 'white'
                                                 }
-                                                style={{
-                                                    border: `1px solid ${
-                                                        isSelected
-                                                            ? theme.colors
-                                                                  .violet[3]
-                                                            : theme.colors
-                                                                  .ldGray[2]
-                                                    }`,
-                                                    borderRadius:
-                                                        theme.radius.md,
-                                                }}
+                                                className={styles.reviewItem}
+                                                data-selected={isSelected}
                                             >
                                                 <Group
                                                     justify="space-between"
@@ -778,7 +769,7 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                                 fw={600}
                                 tt="uppercase"
                                 lts={0.4}
-                                c="ldGray.7"
+                                c="dimmed"
                             >
                                 Evidence
                             </Text>

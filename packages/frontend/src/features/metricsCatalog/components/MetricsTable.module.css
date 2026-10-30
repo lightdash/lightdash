@@ -1,0 +1,7 @@
+.bodyCell:not(:last-child) {
+    border-right: 1px solid var(--mantine-color-ldGray-2);
+}
+
+.bottomToolbar {
+    border-top: 1px solid var(--mantine-color-ldGray-3);
+}

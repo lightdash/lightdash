@@ -174,7 +174,7 @@ const ChangesReviewModal: FC<
             <Stack gap="md">
                 {/* Column Changes Section */}
                 <Stack gap="xs">
-                    <Text fz="sm" fw={500} c="ldGray.7">
+                    <Text fz="sm" fw={500} c="dimmed">
                         Column changes
                     </Text>
                     <Paper p="sm" radius="md" bg="ldGray.0">
@@ -186,7 +186,7 @@ const ChangesReviewModal: FC<
                                         color="green"
                                         size={16}
                                     />
-                                    <Text fz="sm" c="ldGray.7">
+                                    <Text fz="sm" c="dimmed">
                                         {newColumnsAddedNr} new column
                                         {newColumnsAddedNr > 1 ? 's' : ''} added
                                     </Text>
@@ -222,7 +222,7 @@ const ChangesReviewModal: FC<
                 {/* Affected Charts Section */}
                 {chartErrorEntries.length > 0 && (
                     <Stack gap="xs">
-                        <Text fz="sm" fw={500} c="ldGray.7">
+                        <Text fz="sm" fw={500} c="dimmed">
                             Affected charts ({chartErrorEntries.length})
                         </Text>
                         <Paper p="sm" radius="md" bg="ldGray.0">

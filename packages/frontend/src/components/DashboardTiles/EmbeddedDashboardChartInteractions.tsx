@@ -4,12 +4,19 @@ import {
     type SavedChart,
 } from '@lightdash/common';
 import { Menu, Portal } from '@mantine/core';
-import React, { useCallback, useState, type FC, type ReactNode } from 'react';
+import React, {
+    useCallback,
+    useState,
+    type CSSProperties,
+    type FC,
+    type ReactNode,
+} from 'react';
 import { type EmbedExploreOptions } from '../../ee/providers/Embed/types';
 import {
     selectIsDateZoomAppliedToTile,
     useDashboardSelector,
 } from '../../features/dashboard/store';
+import { useWhenAnswered } from '../../features/dashboardControls/useControlsSidebar';
 import { FilterDashboardTo } from '../../features/dashboardFilters/FilterDashboardTo';
 import { type DashboardChartReadyQuery } from '../../hooks/dashboard/useDashboardChartReadyQuery';
 import { useContextMenuPermissions } from '../../hooks/useContextMenuPermissions';
@@ -19,6 +26,7 @@ import { type EmbeddedDashboardInteractivity } from '../LightdashVisualization/c
 import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
 import { useMetricQueryDataContext } from '../MetricQueryData/useMetricQueryDataContext';
 import { type EchartsSeriesClickEvent } from '../SimpleChart';
+import tileClasses from './DashboardTiles.module.css';
 import {
     getAppliedTileDateZoom,
     type AppliedTileDateZoomArgs,
@@ -59,6 +67,7 @@ const EmbeddedDashboardChartInteractions: FC<Props> = ({
     interactions,
     children,
 }) => {
+    const whenAnswered = useWhenAnswered();
     const [contextMenuIsOpen, setContextMenuIsOpen] = useState(false);
     const [contextMenuTargetOffset, setContextMenuTargetOffset] = useState<{
         left: number;
@@ -134,13 +143,13 @@ const EmbeddedDashboardChartInteractions: FC<Props> = ({
             }
 
             setContextMenuOptions(options);
-            setContextMenuIsOpen(true);
+            whenAnswered(() => setContextMenuIsOpen(true));
             setContextMenuTargetOffset({
                 left: event.event.event.pageX,
                 top: event.event.event.pageY,
             });
         },
-        [canViewUnderlyingData, chart, explore, interactions],
+        [canViewUnderlyingData, chart, explore, interactions, whenAnswered],
     );
 
     return (
@@ -157,10 +166,13 @@ const EmbeddedDashboardChartInteractions: FC<Props> = ({
                     <Menu.Target>
                         <div
                             onContextMenu={(event) => event.preventDefault()}
-                            style={{
-                                position: 'absolute',
-                                ...contextMenuTargetOffset,
-                            }}
+                            className={tileClasses.contextMenuTarget}
+                            style={
+                                {
+                                    '--menu-left': `${contextMenuTargetOffset?.left ?? 0}px`,
+                                    '--menu-top': `${contextMenuTargetOffset?.top ?? 0}px`,
+                                } as CSSProperties
+                            }
                         />
                     </Menu.Target>
                 </Portal>

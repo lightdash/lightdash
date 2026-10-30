@@ -4,16 +4,10 @@ import {
     type VizColumnsConfig,
     type VizTableHeaderSortConfig,
 } from '@lightdash/common';
-import {
-    Flex,
-    Group,
-    type FlexProps,
-    Badge,
-    Tooltip,
-    useMantineTheme,
-} from '@mantine/core';
+import { Flex, Group, type FlexProps, Badge, Tooltip } from '@mantine/core';
 import { IconArrowDown, IconArrowUp } from '@tabler/icons-react';
 import { flexRender } from '@tanstack/react-table';
+import { clsx } from 'clsx';
 import { useMemo } from 'react';
 import { SMALL_TEXT_LENGTH } from '../../common/LightTable/constants';
 import MantineIcon from '../../common/MantineIcon';
@@ -22,6 +16,7 @@ import { VirtualizedArea } from '../../common/Table/ScrollableTable/TableBody';
 import { Table as TableStyled, Tr } from '../../common/Table/Table.styles';
 import { useVirtualTable } from '../hooks/useVirtualTable';
 import { RawResultCellContextMenu } from './RawResultCellContextMenu';
+import styles from './Table.module.css';
 
 type TableProps = {
     columnNames: string[];
@@ -44,7 +39,6 @@ export const ChartDataTable = ({
     thSortConfig,
     onTHClick,
 }: TableProps) => {
-    const theme = useMantineTheme();
     const { tableWrapperRef, getTableData, paddingTop, paddingBottom } =
         useVirtualTable({ columnNames, rows, config: columnsConfig });
 
@@ -57,16 +51,7 @@ export const ChartDataTable = ({
             direction="column"
             miw="100%"
             {...flexProps}
-            style={{
-                overflow: 'auto',
-                fontFeatureSettings: "'tnum'",
-                flexGrow: 1,
-                ...(typeof flexProps?.style === 'object' &&
-                !Array.isArray(flexProps.style)
-                    ? flexProps.style
-                    : {}),
-            }}
-            className="sentry-block ph-no-capture"
+            className={clsx('sentry-block ph-no-capture', styles.wrapper)}
             data-testid="chart-data-table"
         >
             <TableStyled>
@@ -86,19 +71,9 @@ export const ChartDataTable = ({
                                         <th
                                             key={header.id}
                                             onClick={onClick}
-                                            style={
-                                                onClick
-                                                    ? {
-                                                          cursor: 'pointer',
-                                                          backgroundColor:
-                                                              theme.colors
-                                                                  .ldGray[0],
-                                                      }
-                                                    : {
-                                                          backgroundColor:
-                                                              theme.colors
-                                                                  .ldGray[0],
-                                                      }
+                                            className={styles.headerCell}
+                                            data-sortable={
+                                                onClick ? true : undefined
                                             }
                                         >
                                             <Tooltip

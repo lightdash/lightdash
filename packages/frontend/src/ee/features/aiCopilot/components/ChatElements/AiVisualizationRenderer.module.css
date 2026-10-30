@@ -9,3 +9,27 @@
     border-right: 0;
     border-radius: 0;
 }
+
+.vizStack {
+    height: 100%;
+    width: 100%;
+    max-width: 100%;
+    min-height: 0;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.vizBody {
+    flex: 1;
+    width: 100%;
+    max-width: 100%;
+    min-height: 0;
+    min-width: 0;
+    /* Scrolling for tables */
+    overflow: auto;
+}
+
+.detailsToggle {
+    flex-shrink: 0;
+    border: none;
+}

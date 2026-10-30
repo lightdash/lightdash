@@ -227,6 +227,14 @@ export const SDK_FEATURES: SdkFeature[] = [
         wiring: "Pass the guidance where the app renders its view-level analysis: useInsights({ instructions: '<guidance>' }), or the instructions prop on the shipped InsightsSummary component. One string per app; keep it to a few short sentences.",
     },
     {
+        key: 'analysis-on-load',
+        appliesTo: ['data_app'],
+        label: 'AI analysis on load',
+        description:
+            'Run the AI analysis as soon as the app loads, without the viewer clicking Analyse. A stored analysis of the same rows is reused.',
+        wiring: 'Only when the user asks for it: set the analyseOnLoad prop on the shipped InsightsSummary component, or useInsights({ analyseOnLoad: true }) in a custom block. One value per app.',
+    },
+    {
         key: 'ai-prompt',
         appliesTo: ['data_app'],
         label: 'AI prompts',
@@ -281,6 +289,14 @@ export const SDK_FEATURES: SdkFeature[] = [
         description:
             "Result columns carry the semantic layer's url link patterns, so values with configured links render as links, matching dashboards.",
         wiring: 'In cell renderers (tables, underlying-data dialogs), call resolveColumnUrls({ column, row, columns, format }) and render the value as a link when it returns entries, styled visibly as a link.',
+    },
+    {
+        key: 'space-charts',
+        appliesTo: ['data_app'],
+        label: 'List charts in a space',
+        description:
+            'List the saved charts in a Lightdash space at runtime, so chart galleries update as charts are saved — limited to spaces the viewer can already access.',
+        wiring: "Call useSpaceCharts('<space slug or uuid>') where the app needs the list, render from its charts array (uuid, name, description, chartKind), and pass chart.uuid to savedChart(...) to show one. Check available first — it stays false on hosts without the capability.",
     },
 ];
 

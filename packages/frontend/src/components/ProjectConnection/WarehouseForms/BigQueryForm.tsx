@@ -536,7 +536,7 @@ const BigQueryForm: FC<{
                                         isLoadingProjects ||
                                         isLoadingProjectRecommendation
                                     }
-                                    labelProps={{ style: { marginTop: '8px' } }}
+                                    labelProps={{ mt: 'xs' }}
                                     w={hasDatasets ? '90%' : '100%'}
                                     data={
                                         gcpProjects?.map((p) => p.projectId) ??
@@ -618,7 +618,7 @@ const BigQueryForm: FC<{
                                     required
                                     {...form.getInputProps('warehouse.project')}
                                     disabled={disabled}
-                                    labelProps={{ style: { marginTop: '8px' } }}
+                                    labelProps={{ mt: 'xs' }}
                                     w={hasDatasets ? '90%' : '100%'}
                                     error={
                                         datasetsError ? (

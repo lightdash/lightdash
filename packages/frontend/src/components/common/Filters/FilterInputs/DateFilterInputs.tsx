@@ -369,7 +369,7 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
 
                     <FilterUnitOfTimeAutoComplete
                         disabled={disabled}
-                        style={{ flexShrink: 1, flexGrow: 3 }}
+                        className={classes.unitOfTime}
                         isTimestamp={isTimestamp}
                         minUnitOfTime={
                             isDimension(field) && field.timeInterval

@@ -13,6 +13,7 @@ import {
     type ApiContentAsCodeProposeResponse,
     type ApiContentAsCodePullResponse,
     type ApiContentAsCodeSettingsResponse,
+    type ApiContentAsCodeSnapshotPruneResponse,
     type ApiContentAsCodeUploadAdvisoryResponse,
     type ApiContentAsCodeWritebacksResponse,
     type ApiContentDraftRebaseResponse,
@@ -44,6 +45,7 @@ import {
     type ApiVirtualViewAsCodeUpsertResponse,
     type ChartAsCode,
     type ContentAsCodeSettingsStamp,
+    type ContentAsCodeSnapshotPrune,
     type ContentDraftRebaseRequest,
     type ContentSlugRenameRequest,
     type DashboardAsCode,
@@ -557,6 +559,29 @@ export class ProjectCoderController extends BaseController {
                 body,
             );
         return { status: 'ok', results: undefined };
+    }
+
+    /**
+     * Called by the CLI after a full upload of a directory so content whose
+     * file was removed from the repo stops being Git-managed.
+     * @summary Prune content-as-code snapshots
+     */
+    @Tags('Projects')
+    @Middlewares(CODE_WRITE_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Post('/code/snapshots/prune')
+    @OperationId('pruneContentAsCodeSnapshots')
+    async pruneContentAsCodeSnapshots(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Body() body: ContentAsCodeSnapshotPrune,
+    ): Promise<ApiContentAsCodeSnapshotPruneResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const results = await this.services
+            .getContentAsCodeWritebackService()
+            .pruneSnapshots(toSessionUser(req.account), projectUuid, body);
+        return { status: 'ok', results };
     }
 
     /**

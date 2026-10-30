@@ -1,10 +1,11 @@
 import { type ResultRow } from '@lightdash/common';
-import { Menu, Portal, type MenuProps } from '@mantine/core';
+import { Box, Menu, Portal, type MenuProps } from '@mantine/core';
 import { type Cell } from '@tanstack/react-table';
 import { type FC } from 'react';
 import { usePreventScroll } from '../../../../hooks/useBlockScroll';
 import { type JsonCellValue } from '../../JsonViewer/utils';
 import { type CellContextMenuProps } from '../types';
+import classes from './CellAnchor.module.css';
 
 type CellMenuProps = MenuProps & {
     menuItems: FC<React.PropsWithChildren<CellContextMenuProps>>;
@@ -38,15 +39,13 @@ const CellMenu: FC<React.PropsWithChildren<CellMenuProps>> = ({
                 </Menu.Dropdown>
 
                 <Menu.Target>
-                    <div
+                    <Box
+                        className={classes.anchor}
                         style={{
-                            pointerEvents: 'none',
-                            position: 'absolute',
-                            zIndex: -1,
-                            left: (elementBounds?.x ?? 0) + window.scrollX,
-                            top: (elementBounds?.y ?? 0) + window.scrollY,
-                            width: elementBounds?.width ?? 0,
-                            height: elementBounds?.height ?? 0,
+                            '--anchor-left': `${(elementBounds?.x ?? 0) + window.scrollX}px`,
+                            '--anchor-top': `${(elementBounds?.y ?? 0) + window.scrollY}px`,
+                            '--anchor-width': `${elementBounds?.width ?? 0}px`,
+                            '--anchor-height': `${elementBounds?.height ?? 0}px`,
                         }}
                     />
                 </Menu.Target>

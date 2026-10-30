@@ -181,7 +181,11 @@ const OpeningMenu: FC<{
                         </Popover>
                     </Box>
                 </Popover.Target>
-                <Popover.Dropdown bg="ldDark.9" c="ldGray.0" p={14}>
+                <Popover.Dropdown
+                    bg="ldDark.9"
+                    c="var(--mantine-color-body)"
+                    p={14}
+                >
                     <Stack gap="sm">
                         <Text fw={600} size="sm">
                             Your homepage has a new look
@@ -195,7 +199,7 @@ const OpeningMenu: FC<{
                                 onSelect={() => {}}
                             />
                         </Box>
-                        <Text size="sm" c="ldGray.3">
+                        <Text size="sm" c="var(--mantine-color-ldGray-3)">
                             Everyone in your organization now lands here. Pick
                             how it opens, or switch back to the classic homepage
                             any time.
@@ -204,7 +208,7 @@ const OpeningMenu: FC<{
                             <Button
                                 size="xs"
                                 variant="subtle"
-                                c="ldGray.0"
+                                c="var(--mantine-color-body)"
                                 onClick={closeNotice}
                             >
                                 Got it

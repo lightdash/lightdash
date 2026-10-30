@@ -280,66 +280,18 @@ jobs:
     name: Select Tests to Run
     runs-on: depot-ubuntu-24.04-4
     outputs:
-      # Which preview the E2E suites run against (see "Select preview backend").
-      # Only an explicit `rainbow-parity` run forces every suite; a PR the
-      # rollout picked keeps the usual change-based selection.
-      preview_backend: ${{ steps.backend.outputs.backend }}
-      # Must equal the backend's SNOWFLAKE_AI_TEST_ACCOUNT_URL_ORIGIN; the backend dials it, not the runner.
-      snowflake_ai_stub_url: ${{ steps.backend.outputs.backend == 'rainbow' && 'http://localhost:3900' || 'http://snowflake-ai-stub:3900' }}
-      preview: ${{ steps.backend.outputs.all_suites == 'true' || (steps.changes.outputs.preview == 'true' && github.event.pull_request.user.login != 'lightdash-renovate-bot[bot]' && !startsWith(github.event.pull_request.title, 'docs')) || contains(github.event.pull_request.body, 'deploy-preview') || contains(github.event.pull_request.body, 'test-all') }}
-      frontend: ${{ steps.backend.outputs.all_suites == 'true' || steps.changes.outputs.frontend == 'true' || contains(github.event.pull_request.body, 'test-frontend') || contains(github.event.pull_request.body, 'test-all') }}
-      backend: ${{ steps.backend.outputs.all_suites == 'true' || steps.changes.outputs.backend == 'true' || contains(github.event.pull_request.body, 'test-backend') || contains(github.event.pull_request.body, 'test-all') }}
+      # Rainbow builds a preview for same-repo PRs only; forks get no preview
+      # and no E2E suites (they would have no secrets anyway).
+      preview: ${{ github.event.pull_request.head.repo.full_name == github.repository && ((steps.changes.outputs.preview == 'true' && github.event.pull_request.user.login != 'lightdash-renovate-bot[bot]' && !startsWith(github.event.pull_request.title, 'docs')) || contains(github.event.pull_request.body, 'deploy-preview') || contains(github.event.pull_request.body, 'test-all')) }}
+      frontend: ${{ steps.changes.outputs.frontend == 'true' || contains(github.event.pull_request.body, 'test-frontend') || contains(github.event.pull_request.body, 'test-all') }}
+      backend: ${{ steps.changes.outputs.backend == 'true' || contains(github.event.pull_request.body, 'test-backend') || contains(github.event.pull_request.body, 'test-all') }}
       api_schema: ${{ steps.changes.outputs.api_schema == 'true' }}
-      timezone: ${{ steps.backend.outputs.all_suites == 'true' || steps.changes.outputs.timezone == 'true' || contains(github.event.pull_request.body, 'test-timezone') || contains(github.event.pull_request.body, 'test-all') }}
-      cli: ${{ steps.backend.outputs.all_suites == 'true' || steps.changes.outputs.cli == 'true' || contains(github.event.pull_request.body, 'test-cli') || contains(github.event.pull_request.body, 'test-all') }}
-      db_divert: ${{ steps.changes.outputs.preview_db_full != 'true' }}
+      timezone: ${{ steps.changes.outputs.timezone == 'true' || contains(github.event.pull_request.body, 'test-timezone') || contains(github.event.pull_request.body, 'test-all') }}
+      cli: ${{ steps.changes.outputs.cli == 'true' || contains(github.event.pull_request.body, 'test-cli') || contains(github.event.pull_request.body, 'test-all') }}
     steps:
       - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
-      # Rainbow for every same-repo PR (`rainbow-parity` in the body also runs
-      # every suite). `okteto-only` in the body opts out. Bots and forks stay
-      # on Okteto. This selects a path; it is not a security boundary (a PR
-      # can edit this file). Fork PRs get no secrets anyway.
-      - name: Select preview backend
-        id: backend
-        env:
-          RAINBOW_ROLLOUT_AFTER: "31583"
-          NUMBER: ${{ github.event.pull_request.number }}
-          AUTHOR: ${{ github.event.pull_request.user.login }}
-          REQUESTED: ${{ github.event_name == 'pull_request' && contains(github.event.pull_request.body, 'rainbow-parity') }}
-          OPTED_OUT: ${{ github.event_name == 'pull_request' && contains(github.event.pull_request.body, 'okteto-only') }}
-          SAME_REPO: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
-        run: |
-          backend=okteto all_suites=false picked=false
-          if [ "$SAME_REPO" != true ]; then
-            [ "$REQUESTED" = true ] && echo "::warning::rainbow-parity requested, but this PR comes from a fork; using Okteto."
-          elif [ "$REQUESTED" = true ]; then
-            backend=rainbow all_suites=true
-          # Back to the 50% rollout: swap the next elif for the commented one.
-          # elif [ "$OPTED_OUT" != true ] && [[ "$AUTHOR" != *"[bot]" ]] \
-          #      && [ "$NUMBER" -gt "$RAINBOW_ROLLOUT_AFTER" ] && [ $((NUMBER % 2)) -eq 0 ]; then
-          elif [ "$OPTED_OUT" != true ] && [[ "$AUTHOR" != *"[bot]" ]]; then
-            backend=rainbow picked=true
-          fi
-          echo "Preview backend: $backend (all suites: $all_suites, picked by rollout: $picked)"
-          {
-            echo "backend=$backend"
-            echo "all_suites=$all_suites"
-            echo "picked=$picked"
-          } >> "$GITHUB_OUTPUT"
-      # Off while every PR runs on Rainbow; uncomment with the 50% rollout.
-      # - name: Tell the author this PR runs on Rainbow
-      #   if: steps.backend.outputs.picked == 'true' && github.event.action == 'opened'
-      #   env:
-      #     GH_TOKEN: ${{ github.token }}
-      #     NUMBER: ${{ github.event.pull_request.number }}
-      #   run: |
-      #     gh pr comment "$NUMBER" --repo "$GITHUB_REPOSITORY" --body "🌈 **This PR was picked to run on Rainbow Machine.**
-      #
-      #     Half of new PRs now run their E2E tests against a Rainbow preview instead of Okteto, while we compare the two. Your tests and checks are the same; the preview link is in the Rainbow comment on this PR.
-      #
-      #     Something looks off? Add \`okteto-only\` to the PR description and push to go back to Okteto, and reply here with what you saw."
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - name: Check for files changes
         uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4
@@ -502,98 +454,17 @@ jobs:
     outputs:
       url: ${{ steps.preview-url.outputs.url }}
     env:
-      RAINBOW: ${{ needs.files-changed.outputs.preview_backend == 'rainbow' }}
-      PREVIEW_URL: ${{ needs.files-changed.outputs.preview_backend == 'rainbow' && format('https://lightdash--pr-{0}.lightdash.rainbowmachine.dev', github.event.number) || format('https://lightdash-preview-pr-{0}.lightdash.okteto.dev', github.event.number) }}
+      PREVIEW_URL: https://lightdash--pr-${{ github.event.number }}.lightdash.rainbowmachine.dev
     steps:
       - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
-
-      - name: Context
-        if: env.RAINBOW != 'true'
-        uses: okteto/context@5212ce5ebf9d3584bafd33f4a295a8521fc5abe7 # latest
-        with:
-          url: ${{ secrets.OKTETO_CONTEXT }}
-          token: ${{ secrets.OKTETO_TOKEN }}
-
-      - name: Create GitHub deployment
-        if: env.RAINBOW != 'true'
-        id: deployment
-        uses: chrnorm/deployment-action@500aa6a23c81ffa1acf71072aee3cfa2cc2e556a # v2
-        with:
-          token: ${{ secrets.CI_GITHUB_TOKEN }}
-          initial-status: pending
-          environment: pr-${{ github.event.number }}
-          environment-url: ${{ env.PREVIEW_URL }}
-
-      - name: Deploy preview environment
-        if: env.RAINBOW != 'true'
-        id: deploy
-        uses: okteto/deploy-preview@86c45b05007dbdd42a5c8c74372f7a5912608827 # latest
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          name: pr-${{ github.event.number }}
-          # Covers a bounded diverted attempt (18m) plus the blank-volume
-          # retry with a full migrate + seed (see okteto.preview.yaml)
-          timeout: 40m
-          file: okteto.preview.yaml
-          variables: SITE_URL=${{ env.PREVIEW_URL }},DB_DIVERT=${{ needs.files-changed.outputs.db_divert }},TURBO_TEAM=${{ vars.TURBO_TEAM }},TURBO_TOKEN=${{ secrets.TURBO_TOKEN }}
-
-      - name: Collect failed preview diagnostics
-        if: ${{ env.RAINBOW != 'true' && failure() && steps.deploy.outcome == 'failure' }}
-        continue-on-error: true
-        timeout-minutes: 3
-        env:
-          OKTETO_CONTEXT: ${{ secrets.OKTETO_CONTEXT }}
-          OKTETO_TOKEN: ${{ secrets.OKTETO_TOKEN }}
-          PREVIEW_NAMESPACE: pr-${{ github.event.number }}
-        run: |
-          curl -sSfL -o okteto https://github.com/okteto/okteto/releases/download/3.21.0/okteto-Linux-x86_64
-          echo "f1fc644e2c2d2285a557577eafc6d4494410dce17b36bac6c3c269fc04c573ef  okteto" | sha256sum --check
-          chmod +x okteto
-          sudo mv okteto /usr/local/bin/okteto
-
-          okteto context use "$OKTETO_CONTEXT" --token "$OKTETO_TOKEN" --namespace "$PREVIEW_NAMESPACE"
-          okteto kubeconfig
-
-          echo "::group::Preview pod status"
-          kubectl -n "$PREVIEW_NAMESPACE" get pods -o wide || true
-          echo "::endgroup::"
-
-          echo "::group::Recent warning events"
-          kubectl -n "$PREVIEW_NAMESPACE" get events \
-            --field-selector type=Warning \
-            --sort-by=.lastTimestamp | tail -n 100 || true
-          echo "::endgroup::"
-
-          preview_pods=$(kubectl -n "$PREVIEW_NAMESPACE" get pods \
-            -l stack.okteto.com/service=lightdash-preview \
-            -o name 2>/dev/null || true)
-
-          if [ -z "$preview_pods" ]; then
-            echo "No lightdash-preview pods found"
-            exit 0
-          fi
-
-          while IFS= read -r preview_pod; do
-            echo "::group::Current logs for $preview_pod"
-            kubectl -n "$PREVIEW_NAMESPACE" logs "$preview_pod" \
-              --all-containers=true --tail=300 --timestamps || true
-            echo "::endgroup::"
-
-            echo "::group::Previous logs for $preview_pod"
-            kubectl -n "$PREVIEW_NAMESPACE" logs "$preview_pod" \
-              --all-containers=true --previous --tail=300 --timestamps || true
-            echo "::endgroup::"
-          done <<< "$preview_pods"
 
       # Rainbow builds the preview itself on every push (GitHub App). Its
       # verdict is the `rainbow-machine/preview` commit status on the head
       # commit, so waiting on that status is the deploy, and the commit it
       # reports on is the commit the suites check out.
       - name: Wait for the Rainbow preview
-        if: env.RAINBOW == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           SHA: ${{ github.event.pull_request.head.sha }}
@@ -636,55 +507,6 @@ jobs:
         id: preview-url
         run: echo "url=$PREVIEW_URL" >> "$GITHUB_OUTPUT"
 
-      - name: Update deployment status
-        if: env.RAINBOW != 'true'
-        uses: chrnorm/deployment-status@6df8d036fd2fee9eb82936733953da1f8382b41e # v2
-        with:
-          token: ${{ secrets.CI_GITHUB_TOKEN }}
-          state: success
-          deployment-id: ${{ steps.deployment.outputs.deployment_id }}
-          environment-url: ${{ env.PREVIEW_URL }}
-
-      - name: Comment PR with preview info
-        if: env.RAINBOW != 'true'
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        with:
-          script: |
-            const marker = '<!-- preview-environment-comment -->';
-            const body = `${marker}
-            ## Preview Environment
-
-            🌐 **URL:** ${process.env.PREVIEW_URL}
-
-            📋 **Logs:** [View in GCP Console](https://console.cloud.google.com/logs/query;query=resource.labels.namespace_name%3D%22pr-${context.issue.number}%22;duration=PT30M?project=lightdash-previews)
-
-            🔧 **SSH:** \`./scripts/okteto-ssh.sh ${context.issue.number}\`
-            `;
-
-            const { data: comments } = await github.rest.issues.listComments({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-            });
-
-            const existing = comments.find(c => c.body.includes(marker));
-
-            if (existing) {
-              await github.rest.issues.updateComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                comment_id: existing.id,
-                body: body
-              });
-            } else {
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: context.issue.number,
-                body: body
-              });
-            }
-
   # ============================================================================
   # Stage 3: E2E and CLI tests (only after preview is up)
   # ============================================================================
@@ -698,7 +520,8 @@ jobs:
     env:
       PREVIEW_URL: ${{ needs.preview.outputs.url }}
       NODE_OPTIONS: "--max-old-space-size=8192"
-      SNOWFLAKE_AI_STUB_URL: ${{ needs.files-changed.outputs.snowflake_ai_stub_url }}
+      # Must equal the backend's SNOWFLAKE_AI_TEST_ACCOUNT_URL_ORIGIN (rainbow.toml); the backend dials it, not the runner.
+      SNOWFLAKE_AI_STUB_URL: http://localhost:3900
     steps:
       - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
@@ -743,7 +566,7 @@ jobs:
           TZ: "UTC"
 
       - name: Diagnose Rainbow availability after API failure
-        if: ${{ failure() && needs.files-changed.outputs.preview_backend == 'rainbow' }}
+        if: failure()
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.number }}

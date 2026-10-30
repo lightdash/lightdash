@@ -62,6 +62,9 @@ test.each(['oauth', 'pat', 'service-account'] as const)(
         };
         const getAgentPermissionService = vi.fn(() => permissions);
         const service = Object.assign(Object.create(McpService.prototype), {
+            aiOrganizationSettingsService: {
+                getMcpProjectAccess: vi.fn().mockResolvedValue({ mode: 'all' }),
+            },
             lightdashConfig: {
                 mcp: { enabled: true },
                 siteUrl: 'https://lightdash.example',
@@ -77,6 +80,7 @@ test.each(['oauth', 'pat', 'service-account'] as const)(
             isContentToolsEnabled: vi.fn().mockResolvedValue(true),
             isCreateScheduledDeliveryEnabled: vi.fn().mockResolvedValue(true),
             isRunSqlEnabled: vi.fn().mockResolvedValue(true),
+            isQueryEnabled: vi.fn().mockResolvedValue(false),
             isRunMetricQueryEnabled: vi.fn().mockResolvedValue(true),
             isFilterExpressionsEnabled: vi.fn().mockResolvedValue(false),
             isDataAppBuildsEnabled: vi.fn().mockResolvedValue(false),
@@ -176,6 +180,9 @@ test('records handler identity refusals against the explicit project instead of 
     };
     const analytics = { track: vi.fn() };
     const service = Object.assign(Object.create(McpService.prototype), {
+        aiOrganizationSettingsService: {
+            getMcpProjectAccess: vi.fn().mockResolvedValue({ mode: 'all' }),
+        },
         lightdashConfig: { siteUrl: 'https://lightdash.example' },
         mcpContextModel: {
             getContext: vi.fn().mockResolvedValue({

@@ -72,10 +72,7 @@
     border-radius: var(--mantine-radius-md);
     margin-bottom: 2px;
     font-weight: 500;
-    color: light-dark(
-        var(--mantine-color-ldGray-8),
-        var(--mantine-color-dark-1)
-    );
+    color: var(--mantine-color-ldGray-8);
     font-size: var(--mantine-font-size-sm);
     cursor: pointer;
     border: none;
@@ -99,10 +96,7 @@
 }
 
 .navItem:not(.navItemActive):hover {
-    background-color: light-dark(
-        var(--mantine-color-ldGray-1),
-        var(--mantine-color-dark-6)
-    );
+    background-color: var(--mantine-color-ldGray-1);
     color: var(--mantine-color-text);
 }
 
@@ -111,10 +105,7 @@
 }
 
 .navItemActive {
-    background-color: light-dark(
-        var(--mantine-color-ldGray-2),
-        var(--mantine-color-dark-5)
-    );
+    background-color: var(--mantine-color-ldGray-2);
     color: var(--mantine-color-text);
     font-weight: 600;
 }
@@ -355,10 +346,7 @@
 }
 
 .listItemActive {
-    background-color: light-dark(
-        var(--mantine-color-ldGray-2),
-        var(--mantine-color-dark-5)
-    );
+    background-color: var(--mantine-color-ldGray-2);
 }
 
 .listItemActive:hover {
@@ -474,4 +462,22 @@
     .centerInner {
         padding: var(--mantine-spacing-md);
     }
+}
+
+.inlineIcon {
+    margin-right: 6px;
+    margin-bottom: -2px;
+}
+
+.inlineIconTight {
+    margin-right: 4px;
+    margin-bottom: -2px;
+}
+
+.zoomablePreview {
+    cursor: zoom-in;
+}
+
+.fullRow {
+    grid-column: 1 / -1;
 }

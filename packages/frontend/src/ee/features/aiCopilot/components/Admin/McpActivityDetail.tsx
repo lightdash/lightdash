@@ -29,7 +29,7 @@ export const McpActivityDetailTitle: FC<{ toolCall: McpActivityItem }> = ({
 );
 
 const SectionLabel: FC<{ children: ReactNode }> = ({ children }) => (
-    <Text fz="xs" fw={600} c="ldGray.5" tt="uppercase" lts="0.05em">
+    <Text fz="xs" fw={600} c="dimmed" tt="uppercase" lts="0.05em">
         {children}
     </Text>
 );

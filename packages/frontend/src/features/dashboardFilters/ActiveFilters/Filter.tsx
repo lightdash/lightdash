@@ -35,6 +35,10 @@ type Props = {
     onPopoverClose: () => void;
     onUpdate: (filter: DashboardFilterRule) => void;
     onRemove: () => void;
+    /** The dashboard controls' pill, marked open with its popover (default false). */
+    isPlain?: boolean;
+    /** A first line in the pill's tables tooltip (default none). */
+    tablesTooltipNote?: string;
 };
 
 const Filter: FC<Props> = ({
@@ -51,6 +55,8 @@ const Filter: FC<Props> = ({
     onPopoverClose,
     onUpdate,
     onRemove,
+    isPlain = false,
+    tablesTooltipNote,
 }) => {
     const popoverId = useId();
 
@@ -207,7 +213,10 @@ const Filter: FC<Props> = ({
                                 isEditMode || isTemporary ? onRemove : null
                             }
                             isTablesTooltipDisabled={isPopoverOpen}
+                            tablesTooltipNote={tablesTooltipNote}
                             triggerClassName={triggerClassName}
+                            isPlain={isPlain}
+                            data-open={(isPlain && isPopoverOpen) || undefined}
                             onClick={() => {
                                 if (isReadOnlyLocked) return;
                                 if (isPopoverOpen) {

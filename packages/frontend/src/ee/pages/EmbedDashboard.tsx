@@ -1,4 +1,5 @@
 import { type EmbedDashboard as EmbedDashboardType } from '@lightdash/common';
+import { Box } from '@mantine/core';
 import { IconUnlink } from '@tabler/icons-react';
 import { type FC } from 'react';
 import SuboptimalState from '../../components/common/SuboptimalState/SuboptimalState';
@@ -33,12 +34,12 @@ const EmbedDashboardPage: FC<{
 
     if (!embedToken) {
         return (
-            <div style={{ marginTop: '20px' }}>
+            <Box mt="lg">
                 <SuboptimalState
                     icon={IconUnlink}
                     title="This embed link is not valid"
                 />
-            </div>
+            </Box>
         );
     }
 

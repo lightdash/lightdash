@@ -6,7 +6,9 @@ export type ExternalConnectionAuthType =
     | 'api_key'
     | 'bearer_token'
     | 'google_service_account'
-    | 'oauth_client_credentials';
+    | 'oauth_client_credentials'
+    /** Signed in through the source's OAuth flow; never set through the API. */
+    | 'oauth_authorization_code';
 
 export type OAuthClientAuthMethod = 'basic' | 'body';
 
@@ -19,8 +21,38 @@ export type PostHogApiSource = {
     projectId: string;
 };
 
+export type SearchConsoleApiSource = {
+    connector: ApiConnectorType.SEARCH_CONSOLE;
+    /** The Search Console property, such as https://example.com/ or sc-domain:example.com. */
+    siteUrl: string;
+};
+
+export type Ga4ApiSource = {
+    connector: ApiConnectorType.GA4;
+    /** The numeric GA4 property id, without the properties/ prefix. */
+    propertyId: string;
+};
+
 /** Connector settings of a live source; the server fixes its access rules. */
-export type ExternalConnectionApiSource = PostHogApiSource;
+export type ExternalConnectionApiSource =
+    | PostHogApiSource
+    | SearchConsoleApiSource
+    | Ga4ApiSource;
+
+/** A Google property the signed-in account can query, offered after sign-in. */
+export type GoogleLiveSourceChoice = {
+    value: string;
+    label: string;
+    /** Shown under the label, e.g. the account or permission level. */
+    description: string | null;
+};
+
+/** A Google sign-in waiting for the admin to pick what the source reads. */
+export type GoogleLiveSourcePendingChoice = {
+    connector: ApiConnectorType;
+    name: string;
+    choices: GoogleLiveSourceChoice[];
+};
 
 export const POSTHOG_REGION_ORIGINS = {
     us: 'https://us.posthog.com',
@@ -347,4 +379,18 @@ export type ApiSaveExternalConnectionSampleResponse = {
 export type ApiListExternalConnectionSamplesResponse = {
     status: 'ok';
     results: ExternalConnectionSample[];
+};
+
+/** What a live source has sent its integration across every logged query. */
+export type ExternalConnectionApiUsage = {
+    externalConnectionUuid: string;
+    apiCalls: number;
+    responseBytes: number;
+    /** Median time to fetch from the integration; null until it has been called. */
+    medianDurationMs: number | null;
+};
+
+export type ApiExternalConnectionApiUsageResponse = {
+    status: 'ok';
+    results: ExternalConnectionApiUsage[];
 };

@@ -101,6 +101,7 @@ const ModuleCard: FC<{
         >
             <Box
                 className={styles.band}
+                // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
                 style={groupVars(module.group)}
                 aria-hidden
             >
@@ -409,6 +410,7 @@ const LearnPage: FC = () => {
                         <Box
                             component="article"
                             className={styles.hero}
+                            // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
                             style={groupVars(upNext.group)}
                             data-learn-recommended={upNext.scope}
                         >
@@ -476,6 +478,7 @@ const LearnPage: FC = () => {
                                 className={`${styles.tab} ${
                                     groupFilter === group ? styles.tabOn : ''
                                 }`}
+                                // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
                                 style={groupVars(group)}
                                 aria-pressed={groupFilter === group}
                                 data-learn-chip={group}

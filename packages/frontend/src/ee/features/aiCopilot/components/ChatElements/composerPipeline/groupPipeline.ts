@@ -37,7 +37,7 @@ export const nodeTypeLabelOf = (query: SourceQuery): string => {
         case QuerySourceType.PYTHON:
             return 'Python';
         case QuerySourceType.API:
-            return 'Live API';
+            return 'Live data source';
         case QuerySourceType.DUCKDB:
             return 'DuckDB';
         default:

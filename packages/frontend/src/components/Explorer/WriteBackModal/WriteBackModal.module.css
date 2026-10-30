@@ -1,3 +1,9 @@
 .previewPane {
     overflow-y: auto;
 }
+
+.itemList {
+    border: 1px solid var(--mantine-color-ldGray-3);
+    border-radius: 4px;
+    overflow-y: auto;
+}

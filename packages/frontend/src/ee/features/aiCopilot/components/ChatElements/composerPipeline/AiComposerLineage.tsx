@@ -17,17 +17,19 @@ import {
 import { clsx } from 'clsx';
 import { useEffect, useMemo, useRef, useState, type FC } from 'react';
 import '@xyflow/react/dist/style.css';
-import MantineIcon from '../../../../../../components/common/MantineIcon';
 import DefaultEdge from '../../../../../../components/common/ReactFlow/DefaultEdge';
 import reactFlowStyles from '../../../../../../components/common/ReactFlow/reactFlow.module.css';
 import ResizableSplitter from '../../../../../../components/common/ResizableSplitter';
 import { useUiStrings } from '../../../../../providers/Embed/useUiStrings';
-import { useComposerNodeStatusLabel } from '../composerNodeStatus';
+import {
+    useComposerNodeRowsLabel,
+    useComposerNodeStatusLabel,
+} from '../composerNodeStatus';
 import { NodeStatusIndicator } from '../ComposerNodeStatusIndicator';
 import { type ComposerRunNodeStatus } from '../useComposerRunNodeStatuses';
 import styles from './AiComposerLineage.module.css';
+import { ComposerNodeIcon } from './ComposerNodeIcon';
 import { groupPipeline, type PipelineLayer } from './groupPipeline';
-import { nodeTypeIcon } from './nodeTypeIcon';
 import {
     PipelineNotebook,
     type PipelineNotebookHandle,
@@ -45,11 +47,12 @@ type GraphDisplay = {
     nodeStatuses: Readonly<Record<string, ComposerRunNodeStatus>>;
 };
 
-const NodeFacts: FC<{ status: ComposerRunNodeStatus | null }> = ({
-    status,
-}) => {
-    const getUiString = useUiStrings();
+const NodeFacts: FC<{
+    query: SourceQuery;
+    status: ComposerRunNodeStatus | null;
+}> = ({ query, status }) => {
     const statusLabel = useComposerNodeStatusLabel();
+    const rowsLabel = useComposerNodeRowsLabel();
     if (!status) return null;
     if (status.status !== 'success') {
         return (
@@ -64,14 +67,7 @@ const NodeFacts: FC<{ status: ComposerRunNodeStatus | null }> = ({
     if (status.totalRowCount === null) return null;
     return (
         <Text component="span" fz="xs" c="dimmed" className={styles.facts}>
-            {interpolateUiString(
-                getUiString(
-                    status.totalRowCount === 1
-                        ? 'aiAgent.composer.semanticNode.rows.singular'
-                        : 'aiAgent.composer.semanticNode.rows.plural',
-                ),
-                { count: status.totalRowCount.toLocaleString() },
-            )}
+            {rowsLabel(query, status.totalRowCount)}
         </Text>
     );
 };
@@ -98,11 +94,7 @@ const LineageNodeView: FC<NodeProps<PipelineFlowNode>> = ({ data }) => {
             />
             <Group gap="xs" wrap="nowrap" className={styles.graphNodeHead}>
                 <Box className={styles.graphNodeIcon}>
-                    <MantineIcon
-                        icon={nodeTypeIcon(data.query)}
-                        size={14}
-                        stroke={1.5}
-                    />
+                    <ComposerNodeIcon query={data.query} size={14} />
                 </Box>
                 <Box className={styles.graphNodeText}>
                     <Text
@@ -124,7 +116,7 @@ const LineageNodeView: FC<NodeProps<PipelineFlowNode>> = ({ data }) => {
                 justify="space-between"
                 className={styles.graphNodeFooter}
             >
-                <NodeFacts status={data.status} />
+                <NodeFacts query={data.query} status={data.status} />
                 {data.isTerminal && (
                     <Badge size="xs" ml="auto">
                         {getUiString('aiAgent.composer.node.finalResult')}

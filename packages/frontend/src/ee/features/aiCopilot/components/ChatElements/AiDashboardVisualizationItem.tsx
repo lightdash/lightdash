@@ -35,6 +35,7 @@ import {
 } from '../../hooks/useProjectAiAgents';
 import { AiAccessCallout } from './AiAccessCallout';
 import { AiChartQuickOptions } from './AiChartQuickOptions';
+import classes from './AiDashboardVisualizationItem.module.css';
 import { AiVisualizationRenderer } from './AiVisualizationRenderer';
 
 type Props = {
@@ -275,10 +276,8 @@ export const AiDashboardVisualizationItem: FC<Props> = memo(
                                             language="json"
                                             lineNumberFontSize={10}
                                             withLineNumbers
-                                            styles={{
-                                                code: {
-                                                    fontSize: 10,
-                                                },
+                                            classNames={{
+                                                code: classes.specCode,
                                             }}
                                         />
                                     </HoverCard.Dropdown>

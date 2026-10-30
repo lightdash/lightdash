@@ -18,6 +18,7 @@ import {
 import { type ParametersValuesMap } from './parameters';
 import { type PivotConfiguration } from './pivot';
 import { type QueryHistoryStatus } from './queryHistory';
+import { type ResultColumns } from './results';
 
 /**
  * Discriminator for every query source a project can execute queries against.
@@ -54,6 +55,8 @@ export enum QuerySourceType {
 /** The external APIs an api query source can call live. */
 export enum ApiConnectorType {
     POSTHOG = 'posthog',
+    SEARCH_CONSOLE = 'search_console',
+    GA4 = 'ga4',
 }
 
 /**
@@ -368,6 +371,8 @@ export type SourceQueryStatus = {
     totalRowCount: number | null;
     /** Warehouse run time; null while unknown or not recorded. */
     warehouseExecutionTimeMs: number | null;
+    /** Result columns; null until the query is ready. */
+    columns: ResultColumns | null;
 };
 
 export type ApiGetSourceQueryStatusResults = {
@@ -381,6 +386,15 @@ export type ApiListQuerySourcesResults = {
 export type ApiScanQuerySourceSchemaResults = QuerySourceSchema;
 
 export const DEFAULT_SOURCE_QUERY_LIMIT = 500;
+
+export const getSourceQueryLimit = (query: { limit?: number }): number =>
+    query.limit ?? DEFAULT_SOURCE_QUERY_LIMIT;
+
+/** A node that returned at least its limit of rows reached it, so more rows may exist. */
+export const hasReachedSourceQueryLimit = (
+    query: { limit?: number },
+    rowCount: number,
+): boolean => rowCount >= getSourceQueryLimit(query);
 
 /** The metric query a semanticLayer node runs; unset fields take the empty-query defaults. */
 export const metricQueryOfSemanticNode = (

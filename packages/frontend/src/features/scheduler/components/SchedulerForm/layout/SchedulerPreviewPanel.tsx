@@ -48,7 +48,7 @@ const AiSummaryChip: FC = () => (
                     icon={IconSparkles}
                     size="sm"
                     display="inline"
-                    style={{ marginRight: 4, marginBottom: -2 }}
+                    className={classes.inlineIconTight}
                 />
                 AI summary
             </Text>
@@ -75,7 +75,7 @@ const AttachmentChip: FC<{ filename: string }> = ({ filename }) => (
                 icon={IconPaperclip}
                 size="sm"
                 display="inline"
-                style={{ marginRight: 6, marginBottom: -2 }}
+                className={classes.inlineIcon}
             />
             {filename}
         </Text>
@@ -140,7 +140,7 @@ const AlertConditionCard: FC<{
                         icon={IconBell}
                         size="sm"
                         display="inline"
-                        style={{ marginRight: 6, marginBottom: -2 }}
+                        className={classes.inlineIcon}
                     />
                     Fires when…
                 </Text>
@@ -266,7 +266,7 @@ export const SchedulerPreviewPanel: FC<Props> = ({
                                     <Image
                                         src={previewUrl}
                                         radius="sm"
-                                        style={{ cursor: 'zoom-in' }}
+                                        className={classes.zoomablePreview}
                                         onClick={() => setIsEnlarged(true)}
                                     />
                                 ) : (

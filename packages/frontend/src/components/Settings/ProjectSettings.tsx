@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability';
 import { FeatureFlags } from '@lightdash/common';
-import { Stack, Text, Title } from '@mantine/core';
+import { Box, Stack, Text, Title } from '@mantine/core';
 import * as Sentry from '@sentry/react';
 import {
     useMemo,
@@ -728,9 +728,9 @@ const ProjectSettings: FC<{
         isAwaitingReviewRequestsRoute
     ) {
         return (
-            <div style={{ marginTop: '20px' }}>
+            <Box mt="lg">
                 <SuboptimalState title="Loading project" loading />
-            </div>
+            </Box>
         );
     }
 

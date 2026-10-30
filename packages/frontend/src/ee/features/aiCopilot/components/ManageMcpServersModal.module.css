@@ -13,10 +13,7 @@
 }
 
 .row:hover {
-    background: light-dark(
-        var(--mantine-color-ldGray-0),
-        var(--mantine-color-dark-6)
-    );
+    background: var(--mantine-color-default-hover);
 }
 
 .rowBody {

@@ -1,0 +1,28 @@
+/* The filter row and the mapping row share one cell, so they cross-fade in
+   place */
+.swap {
+    position: relative;
+    display: grid;
+
+    > * {
+        grid-area: 1 / 1;
+        min-width: 0;
+    }
+}
+
+/* Fades out under the mapping row, out of the layout so the bar takes the
+   mapping row's one line; comes back at full opacity at once, as the
+   mapping row leaves at once */
+.filterRow[data-hidden] {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition: opacity var(--ld-motion-duration) var(--ld-motion-easing);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .filterRow[data-hidden] {
+        transition: none;
+    }
+}

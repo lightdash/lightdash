@@ -5,6 +5,7 @@ import {
     DATA_APP_ANALYSIS_DEFAULT_LIMITS,
     ForbiddenError,
     ParameterError,
+    type McpProjectAccess,
 } from '@lightdash/common';
 import {
     fromOauth,
@@ -12,6 +13,7 @@ import {
     toSessionUser,
 } from '../../auth/account/account';
 import { aiCopilotConfigSchema } from '../../config/aiConfigSchema';
+import * as auditLogger from '../../logging/winston';
 import { AgentCapabilityPolicyModel } from '../../models/AgentCapabilityPolicyModel';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import type { ModelPreset, ModelPresetProvider } from './ai/models/presets';
@@ -437,6 +439,7 @@ describe('upsertSettings model validation', () => {
         storedMcpAgentsEnabled,
         storedMcpContentWritesEnabled,
         organizationMcpEnabled = null,
+        storedMcpProjectAccess,
         canManageAi = true,
     }: {
         storedVisibility?: unknown;
@@ -444,16 +447,25 @@ describe('upsertSettings model validation', () => {
         storedMcpAgentsEnabled?: boolean;
         storedMcpContentWritesEnabled?: boolean;
         organizationMcpEnabled?: boolean | null;
+        storedMcpProjectAccess?: McpProjectAccess;
         canManageAi?: boolean;
     } = {}) => {
         const upsert = vi.fn(async (_org: string, data: unknown) => data);
         const findMcpEnabled = vi.fn(async () => organizationMcpEnabled);
         const findAiOrganizationSettings = vi.fn(async () => ({
             defaultAiAgentModelConfig: storedDefault,
+            mcpProjectAccess: storedMcpProjectAccess,
             mcpAgentsEnabled: storedMcpAgentsEnabled,
             mcpContentWritesEnabled: storedMcpContentWritesEnabled,
         }));
+        const getAllByOrganizationUuid = vi
+            .fn()
+            .mockResolvedValue([
+                { projectUuid: 'project-a' },
+                { projectUuid: 'project-b' },
+            ]);
         const service = new AiOrganizationSettingsService({
+            projectModel: { getAllByOrganizationUuid },
             featureFlagModel: {
                 get: vi.fn().mockResolvedValue({ enabled: true }),
             } as Pick<FeatureFlagModel, 'get'> as FeatureFlagModel,
@@ -491,6 +503,7 @@ describe('upsertSettings model validation', () => {
             upsert,
             findMcpEnabled,
             findAiOrganizationSettings,
+            getAllByOrganizationUuid,
         };
     };
 
@@ -499,6 +512,105 @@ describe('upsertSettings model validation', () => {
         ability: new Ability([{ action: 'manage', subject: 'all' }]),
         abilityRules: [{ action: 'manage', subject: 'all' }],
     } as never);
+
+    it('requires AI settings management before validating project selections', async () => {
+        const { service, upsert, getAllByOrganizationUuid } = buildService({
+            canManageAi: false,
+        });
+        await expect(
+            service.upsertSettings(user, {
+                mcpProjectAccess: {
+                    mode: 'selected',
+                    projectUuids: ['project-a'],
+                },
+            }),
+        ).rejects.toThrow(ForbiddenError);
+        expect(upsert).not.toHaveBeenCalled();
+        expect(getAllByOrganizationUuid).not.toHaveBeenCalled();
+    });
+
+    it('rejects a foreign project without writing any settings', async () => {
+        const { service, upsert } = buildService();
+        await expect(
+            service.upsertSettings(user, {
+                mcpProjectAccess: {
+                    mode: 'selected',
+                    projectUuids: ['foreign-project'],
+                },
+            }),
+        ).rejects.toThrow(ParameterError);
+        expect(upsert).not.toHaveBeenCalled();
+    });
+
+    it('deduplicates the allow-list and audits the saved policy', async () => {
+        const audit = vi
+            .spyOn(auditLogger, 'logAuditEvent')
+            .mockImplementation(() => undefined);
+        try {
+            const { service, upsert } = buildService();
+            const policy = {
+                mode: 'selected' as const,
+                projectUuids: ['project-a'],
+            };
+            await service.upsertSettings(user, {
+                mcpProjectAccess: {
+                    mode: 'selected',
+                    projectUuids: ['project-a', 'project-a'],
+                },
+            });
+            expect(upsert).toHaveBeenCalledWith('org-uuid', {
+                mcpProjectAccess: policy,
+            });
+            expect(audit).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    resource: expect.objectContaining({
+                        metadata: { mcpProjectAccess: policy },
+                    }),
+                    status: 'allowed',
+                }),
+            );
+        } finally {
+            audit.mockRestore();
+        }
+    });
+
+    it('allows a selected-policy echo with reordered and duplicate stored UUIDs while MCP is disabled', async () => {
+        const { service } = buildService({
+            organizationMcpEnabled: false,
+            storedMcpProjectAccess: {
+                mode: 'selected',
+                projectUuids: ['project-b', 'project-a', 'project-a'],
+            },
+        });
+        await expect(
+            service.upsertSettings(user, {
+                mcpProjectAccess: {
+                    mode: 'selected',
+                    projectUuids: ['project-a', 'project-b'],
+                },
+            }),
+        ).resolves.toMatchObject({
+            mcpProjectAccess: {
+                mode: 'selected',
+                projectUuids: ['project-a', 'project-b'],
+            },
+        });
+    });
+
+    it('rejects policy changes while MCP is disabled, allowing a default policy echo', async () => {
+        const { service, upsert } = buildService({
+            organizationMcpEnabled: false,
+        });
+        await expect(
+            service.upsertSettings(user, {
+                mcpProjectAccess: { mode: 'selected', projectUuids: [] },
+            }),
+        ).rejects.toThrow(ForbiddenError);
+        expect(upsert).not.toHaveBeenCalled();
+        await expect(
+            service.upsertSettings(user, { mcpProjectAccess: { mode: 'all' } }),
+        ).resolves.toMatchObject({ mcpProjectAccess: { mode: 'all' } });
+    });
 
     it.each(
         (['mcpAgentsEnabled', 'mcpContentWritesEnabled'] as const).flatMap(

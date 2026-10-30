@@ -23,6 +23,7 @@ import {
     ApiProjectAccessListResponse,
     ApiProjectColorPaletteResponse,
     ApiProjectResponse,
+    ApiResultsCacheInvalidationResponse,
     ApiResultsCacheProjectSettingsResponse,
     ApiScheduledDeliveryAsCodeListResponse,
     ApiScheduledDeliveryAsCodeUpsertResponse,
@@ -1527,6 +1528,42 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
         return {
             status: 'ok',
             results: settings,
+        };
+    }
+
+    /**
+     * Invalidate every cached query result in the project. The next run of
+     * each chart, dashboard tile or API query executes against the warehouse
+     * and repopulates the cache. Query history and existing result files are
+     * kept. Requires project admin access.
+     *
+     * Call this from a data pipeline once a dbt run or load finishes, e.g.
+     * `curl -X POST -H "Authorization: ApiKey $LIGHTDASH_API_KEY"
+     * "$LIGHTDASH_URL/api/v1/projects/$PROJECT_UUID/results-cache/invalidate"`
+     * @summary Invalidate results cache
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Invalidated')
+    @Post('{projectUuid}/results-cache/invalidate')
+    @OperationId('invalidateProjectResultsCache')
+    async invalidateProjectResultsCache(
+        @Path() projectUuid: UUID,
+        @Request() req: express.Request,
+    ): Promise<ApiResultsCacheInvalidationResponse> {
+        assertRegisteredAccount(req.account);
+        const results = await this.services
+            .getProjectService()
+            .invalidateProjectResultsCache(
+                toSessionUser(req.account),
+                projectUuid,
+            );
+        return {
+            status: 'ok',
+            results,
         };
     }
 

@@ -1,4 +1,9 @@
-import { type UiStringKey } from '@lightdash/common';
+import {
+    hasReachedSourceQueryLimit,
+    interpolateUiString,
+    type SourceQuery,
+    type UiStringKey,
+} from '@lightdash/common';
 import { useCallback } from 'react';
 import { useUiStrings } from '../../../../providers/Embed/useUiStrings';
 
@@ -29,6 +34,30 @@ export const useComposerNodeStatusLabel = () => {
     return useCallback(
         (status: ComposerNodeStatus) =>
             uiStrings(NODE_STATUS_LABEL_KEYS[status]),
+        [uiStrings],
+    );
+};
+
+/** "1,000 rows", marked when the node returned its limit of rows. */
+export const useComposerNodeRowsLabel = () => {
+    const uiStrings = useUiStrings();
+    return useCallback(
+        (query: SourceQuery, rowCount: number) => {
+            const rows = interpolateUiString(
+                uiStrings(
+                    rowCount === 1
+                        ? 'aiAgent.composer.semanticNode.rows.singular'
+                        : 'aiAgent.composer.semanticNode.rows.plural',
+                ),
+                { count: rowCount.toLocaleString() },
+            );
+            return hasReachedSourceQueryLimit(query, rowCount)
+                ? interpolateUiString(
+                      uiStrings('aiAgent.composer.node.rowsReachedLimit'),
+                      { rows },
+                  )
+                : rows;
+        },
         [uiStrings],
     );
 };

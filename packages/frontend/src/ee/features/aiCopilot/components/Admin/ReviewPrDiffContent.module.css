@@ -1,3 +1,15 @@
 .diffPanel {
     overflow: hidden;
 }
+
+.diffViewport {
+    max-height: var(--diff-max-height);
+    overflow: auto;
+    color-scheme: var(--diff-color-scheme);
+    --diffs-font-size: 11px;
+    --diffs-line-height: 17px;
+}
+
+.diffHost {
+    color-scheme: var(--diff-color-scheme);
+}

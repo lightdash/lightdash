@@ -71,6 +71,7 @@ import React, {
     useMemo,
     useRef,
     useState,
+    type CSSProperties,
     type FC,
     type RefObject,
 } from 'react';
@@ -129,6 +130,7 @@ import {
     selectIsDateZoomAppliedToTile,
     useDashboardSelector,
 } from '../../features/dashboard/store';
+import { useWhenAnswered } from '../../features/dashboardControls/useControlsSidebar';
 import { FilterDashboardTo } from '../../features/dashboardFilters/FilterDashboardTo';
 import { DateZoomInfoOnTile } from '../../features/dateZoom';
 import { ExportToGoogleSheet } from '../../features/export';
@@ -188,6 +190,7 @@ import { useMetricQueryDataContext } from '../MetricQueryData/useMetricQueryData
 import { getDataFromChartClick } from '../MetricQueryData/utils';
 import { type EchartsSeriesClickEvent } from '../SimpleChart';
 import { DashboardExportImage } from './DashboardExportImage';
+import tileClasses from './DashboardTiles.module.css';
 import EditChartMenuItem from './EditChartMenuItem';
 import EmbeddedDashboardChartInteractions, {
     type EmbeddedDashboardInteractions,
@@ -672,6 +675,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
             (c) => c.setDashboardTiles,
         );
 
+        const whenAnswered = useWhenAnswered();
         const [contextMenuIsOpen, setContextMenuIsOpen] = useState(false);
         const [contextMenuTargetOffset, setContextMenuTargetOffset] = useState<{
             left: number;
@@ -1026,7 +1030,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                     ...dimensionOptions,
                     ...pivotOptions,
                 ]);
-                setContextMenuIsOpen(true);
+                whenAnswered(() => setContextMenuIsOpen(true));
                 setContextMenuTargetOffset({
                     left: e.event.event.pageX,
                     top: e.event.event.pageY,
@@ -1043,7 +1047,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                     dimensions: queryDimensions,
                 });
             },
-            [explore, chart],
+            [explore, chart, whenAnswered],
         );
         const { appliedFilterItems, chartFilterItems } = useMemo(
             () =>
@@ -1176,13 +1180,15 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                     <Popover.Dropdown
                                         maw="calc(100vw - 24px)"
                                         mah="calc(100dvh - 24px)"
-                                        style={{ overflowY: 'auto' }}
+                                        className={
+                                            tileClasses.scrollableDropdown
+                                        }
                                     >
                                         <Stack gap="xs" align="flex-start">
                                             {appliedFilterItems.length > 0 && (
                                                 <>
                                                     <Text
-                                                        c="ldGray.7"
+                                                        c="dimmed"
                                                         fw={500}
                                                         fz="xs"
                                                     >
@@ -1250,10 +1256,9 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                 <Badge
                                                                     maw="100%"
                                                                     h="auto"
-                                                                    style={{
-                                                                        whiteSpace:
-                                                                            'normal',
-                                                                    }}
+                                                                    className={
+                                                                        tileClasses.wrapBadge
+                                                                    }
                                                                     key={`${sourceId ?? ''}:${filterRule.id}`}
                                                                     variant="outline"
                                                                     color="ldGray.4"
@@ -1267,7 +1272,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                         <Text
                                                                             span
                                                                             inherit
-                                                                            c="ldGray.6"
+                                                                            c="dimmed"
                                                                         >
                                                                             {
                                                                                 sourceLabel
@@ -1330,7 +1335,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                             {chartFilterItems.length > 0 && (
                                                 <>
                                                     <Text
-                                                        c="ldGray.7"
+                                                        c="dimmed"
                                                         fw={500}
                                                         fz="xs"
                                                     >
@@ -1375,14 +1380,9 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                     field,
                                                                     getUiString,
                                                                 );
-                                                            const ruleStrikeStyle:
-                                                                | React.CSSProperties
-                                                                | undefined =
+                                                            const ruleTextDecoration =
                                                                 isOverridden
-                                                                    ? {
-                                                                          textDecoration:
-                                                                              'line-through',
-                                                                      }
+                                                                    ? 'line-through'
                                                                     : undefined;
                                                             return (
                                                                 <Badge
@@ -1396,25 +1396,21 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                     size="lg"
                                                                     fz="xs"
                                                                     fw="normal"
-                                                                    style={{
-                                                                        whiteSpace:
-                                                                            'normal',
-                                                                        textTransform:
-                                                                            'none',
-                                                                        color: 'black',
-                                                                        opacity:
-                                                                            isOverridden
-                                                                                ? 0.6
-                                                                                : 1,
-                                                                    }}
+                                                                    className={
+                                                                        tileClasses.overrideBadge
+                                                                    }
+                                                                    data-overridden={
+                                                                        isOverridden ||
+                                                                        undefined
+                                                                    }
                                                                 >
                                                                     <Text
                                                                         fw={600}
                                                                         span
                                                                         inherit
                                                                         c="foreground"
-                                                                        style={
-                                                                            ruleStrikeStyle
+                                                                        td={
+                                                                            ruleTextDecoration
                                                                         }
                                                                     >
                                                                         {
@@ -1427,8 +1423,8 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                             c="foreground"
                                                                             span
                                                                             inherit
-                                                                            style={
-                                                                                ruleStrikeStyle
+                                                                            td={
+                                                                                ruleTextDecoration
                                                                             }
                                                                         >
                                                                             is
@@ -1441,8 +1437,8 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                                 span
                                                                                 inherit
                                                                                 c="foreground"
-                                                                                style={
-                                                                                    ruleStrikeStyle
+                                                                                td={
+                                                                                    ruleTextDecoration
                                                                                 }
                                                                             >
                                                                                 {
@@ -1456,8 +1452,8 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                                 span
                                                                                 inherit
                                                                                 c="foreground"
-                                                                                style={
-                                                                                    ruleStrikeStyle
+                                                                                td={
+                                                                                    ruleTextDecoration
                                                                                 }
                                                                             >
                                                                                 {
@@ -1507,9 +1503,11 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                         <Popover.Dropdown
                                             maw="calc(100vw - 24px)"
                                             mah="calc(100dvh - 24px)"
-                                            style={{ overflowY: 'auto' }}
+                                            className={
+                                                tileClasses.scrollableDropdown
+                                            }
                                         >
-                                            <Text c="ldGray.7" fw={500} mb="xs">
+                                            <Text c="dimmed" fw={500} mb="xs">
                                                 Parameters
                                             </Text>
                                             <Stack
@@ -1882,10 +1880,15 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                 <Menu.Target>
                                     <div
                                         onContextMenu={handleCancelContextMenu}
-                                        style={{
-                                            position: 'absolute',
-                                            ...contextMenuTargetOffset,
-                                        }}
+                                        className={
+                                            tileClasses.contextMenuTarget
+                                        }
+                                        style={
+                                            {
+                                                '--menu-left': `${contextMenuTargetOffset?.left ?? 0}px`,
+                                                '--menu-top': `${contextMenuTargetOffset?.top ?? 0}px`,
+                                            } as CSSProperties
+                                        }
                                     />
                                 </Menu.Target>
                             </Portal>
@@ -2042,6 +2045,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMinimalProps> = (
 ) => {
     const authoringEnabled = useContentAuthoringEnabled();
     const getUiString = useUiStrings();
+    const whenAnswered = useWhenAnswered();
     const [contextMenuIsOpen, setContextMenuIsOpen] = useState(false);
     const [contextMenuTargetOffset, setContextMenuTargetOffset] = useState<{
         left: number;
@@ -2156,7 +2160,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMinimalProps> = (
                 return;
             }
 
-            setContextMenuIsOpen(true);
+            whenAnswered(() => setContextMenuIsOpen(true));
             setContextMenuTargetOffset({
                 left: e.event.event.pageX,
                 top: e.event.event.pageY,
@@ -2179,7 +2183,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMinimalProps> = (
                 dimensions: queryDimensions,
             });
         },
-        [explore, chart],
+        [explore, chart, whenAnswered],
     );
 
     const isEmbeddedExploreEnabled =
@@ -2315,10 +2319,13 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMinimalProps> = (
                             <Menu.Target>
                                 <div
                                     onContextMenu={handleCancelContextMenu}
-                                    style={{
-                                        position: 'absolute',
-                                        ...contextMenuTargetOffset,
-                                    }}
+                                    className={tileClasses.contextMenuTarget}
+                                    style={
+                                        {
+                                            '--menu-left': `${contextMenuTargetOffset?.left ?? 0}px`,
+                                            '--menu-top': `${contextMenuTargetOffset?.top ?? 0}px`,
+                                        } as CSSProperties
+                                    }
                                 />
                             </Menu.Target>
                         </Portal>

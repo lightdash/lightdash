@@ -1,20 +1,17 @@
 /* The subtle-variant colors come from the theme's Button vars; these rules
    only add the states the variant doesn't cover. */
-.filterButton :global(.mantine-Button-section)[data-position='left'] {
+.filterSection[data-position='left'] {
     margin-inline-end: 6px;
 }
 
-.filterButton :global(.mantine-Button-section)[data-position='right'] {
+.filterSection.filterSection[data-position='right'] {
     margin-inline-start: 4px;
 }
 
 .filterButton[data-expanded],
 .filterButton.filterButtonActive {
     background-color: var(--mantine-color-default-hover);
-    color: light-dark(
-        var(--mantine-color-ldGray-9),
-        var(--mantine-color-ldGray-9)
-    );
+    color: var(--mantine-color-text);
 }
 
 .clearSection {
@@ -23,17 +20,11 @@
     justify-content: center;
     border-radius: var(--mantine-radius-sm);
     cursor: pointer;
-    color: light-dark(
-        var(--mantine-color-ldGray-6),
-        var(--mantine-color-ldGray-7)
-    );
+    color: var(--mantine-color-dimmed);
 }
 
 .clearSection:hover {
-    color: light-dark(
-        var(--mantine-color-ldGray-9),
-        var(--mantine-color-ldGray-9)
-    );
+    color: var(--mantine-color-text);
 }
 
 /* Match Button's size="compact-xs" height exactly so expanding "Created by"

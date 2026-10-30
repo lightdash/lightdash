@@ -4,14 +4,7 @@
 preview:
   - "packages/**/*"
   - "docker/**/*"
-  - "okteto.preview.yaml"
-
-# Previews divert their database from a pre-seeded snapshot of main; PRs that
-# change the seed data itself must migrate and seed from scratch instead
-preview_db_full:
-  - "examples/full-jaffle-shop-demo/**"
-  - "packages/backend/src/database/seeds/**"
-  - "packages/backend/src/ee/database/seeds/**"
+  - "rainbow.toml"
 
 cli:
   - ".github/workflows/post-release.yml"

@@ -5,7 +5,7 @@ import {
     getItemLabelWithoutTableName,
     getMetrics,
 } from '@lightdash/common';
-import { Button, Group, rgba, Text, Tooltip } from '@mantine/core';
+import { Button, Group, Text, Tooltip } from '@mantine/core';
 import {
     IconCircleCheckFilled,
     IconDeviceFloppy,
@@ -45,6 +45,7 @@ import {
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
 import ChartCreateModal from '../../common/modal/ChartCreateModal';
+import classes from './SaveChartButton.module.css';
 
 export type VerificationSavePrompt = 'confirm-keep' | 'warn-removal';
 
@@ -287,19 +288,9 @@ const SaveChartButton: FC<{
                             if (!isAmbientAiEnabled) return;
                             triggerMetadataGeneration();
                         }}
-                        style={(theme) => ({
-                            '&[data-disabled="true"]': {
-                                pointerEvents: 'all',
-                            },
-                            ...(showSaveAsMenu && {
-                                borderRight: `1px solid ${rgba(
-                                    theme.colors.dark[3],
-                                    0.4,
-                                )}`,
-                                borderTopRightRadius: 0,
-                                borderBottomRightRadius: 0,
-                            }),
-                        })}
+                        className={
+                            showSaveAsMenu ? classes.saveWithSaveAs : undefined
+                        }
                         onClick={handleSaveChart}
                         // Scope-tour marker: the control manage:SavedChart
                         // unlocks. Path and follow-up declared here; see
@@ -332,10 +323,6 @@ const SaveChartButton: FC<{
                             p="xs"
                             disabled={isSaveAsDisabled}
                             aria-label="Save as new chart"
-                            style={{
-                                borderTopLeftRadius: 0,
-                                borderBottomLeftRadius: 0,
-                            }}
                             data-testid="SaveChartButton/SaveAsButton"
                             onClick={openSaveAsModal}
                         >

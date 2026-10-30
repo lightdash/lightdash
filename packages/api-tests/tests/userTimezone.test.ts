@@ -14,7 +14,7 @@ import {
  * timezone (`users.timezone`) is only used when the query explicitly sets
  * `timezone: 'user_timezone'`. An IANA zone is an override that wins over both.
  *
- * Uses the same `timezone_test` fixture as `queryTimezone.test.ts`. Asia/Tokyo
+ * Uses the same `timezone_test` fixture as `tests/timezone/queryTimezone.ts`. Asia/Tokyo
  * (+9) shifts events into Jan 15/16/17 — distinct from the UTC layout
  * (Jan 15/16), so a wrong grouping is immediately visible.
  *

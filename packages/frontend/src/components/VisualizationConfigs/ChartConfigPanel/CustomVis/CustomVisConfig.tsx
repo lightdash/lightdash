@@ -417,7 +417,7 @@ export const ConfigTabs: React.FC = memo(() => {
                     <Text
                         pos="absolute"
                         w="330px"
-                        c="ldGray.5"
+                        c="dimmed"
                         className={classes.editorPlaceholder}
                     >
                         {`Start by entering your Vega-Lite JSON code or choose from our pre-built templates to create your chart.`}

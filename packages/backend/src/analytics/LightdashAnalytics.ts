@@ -675,7 +675,7 @@ type QueryExecutionSource =
     | 'pre_aggregate_warehouse'
     | 'external_source_duckdb'
     | 'composer_duckdb'
-    | 'api_source';
+    | 'live_source';
 
 type QueryReadyEvent = BaseTrack & {
     event: 'query.ready';
@@ -750,7 +750,7 @@ export type QueryCompletedEvent = BaseTrack & {
         warehousePhaseTimings: WarehousePhaseTimings | null;
         totalRowCount: number | null;
         columnsCount: number | null;
-        // Set only when executionSource is 'api_source'.
+        // Set only when executionSource is 'live_source'.
         apiConnector?: ApiConnectorType;
         apiQueryOutcome?: ApiQueryOutcome;
         truncated?: boolean;
@@ -873,6 +873,16 @@ type ResultsCacheDeleteEvent = BaseTrack & {
     };
 };
 
+type ResultsCacheInvalidatedEvent = BaseTrack & {
+    event: 'results_cache.invalidated';
+    properties: {
+        organizationId: string;
+        projectId: string;
+        scope: 'project' | 'chart' | 'dashboard';
+        contentUuid: string | null;
+    };
+};
+
 /** The one engine merges run on; kept as a property so the event shape holds. */
 export type MergeEngine = 'compose';
 export type MergeSourceKind = 'metric' | 'result';
@@ -916,6 +926,59 @@ export type MergeQueryRefusedEvent = BaseTrack & {
         refusalCount: number;
         /** Set when the refusal arrived as the merged query's error, as the row cap does. */
         queryId: string | null;
+    };
+};
+
+export type PgWireAuthMethod = 'service_account' | 'personal_access_token';
+
+export type PgWireAuthenticationFailureReason =
+    | 'missing_password'
+    | 'invalid_token'
+    | 'scim_only_token'
+    | 'disabled_for_organization'
+    | 'database_not_found'
+    | 'database_ambiguous'
+    | 'project_inaccessible';
+
+/** `metadata` covers session statements and catalog lookups answered in memory. */
+export type PgWireStatementKind = 'explore' | 'schema_probe' | 'metadata';
+
+export type PgWireConnectedEvent = BaseTrack & {
+    event: 'pgwire.connected';
+    properties: {
+        organizationId: string;
+        projectId: string;
+        authMethod: PgWireAuthMethod;
+        applicationName: string | null;
+        exploreCount: number;
+    };
+};
+
+export type PgWireAuthenticationFailedEvent = BaseTrack & {
+    event: 'pgwire.authentication_failed';
+    properties: {
+        /** Known only once the token resolved to an account. */
+        organizationId: string | null;
+        authMethod: PgWireAuthMethod | null;
+        reason: PgWireAuthenticationFailureReason;
+        applicationName: string | null;
+    };
+};
+
+export type PgWireQueryExecutedEvent = BaseTrack & {
+    event: 'pgwire.query_executed';
+    properties: {
+        organizationId: string;
+        projectId: string;
+        /** Null when the statement failed before it was classified. */
+        statementKind: PgWireStatementKind | null;
+        exploreName: string | null;
+        status: 'success' | 'error';
+        /** SQLSTATE returned to the client. */
+        errorCode: string | null;
+        rowCount: number | null;
+        durationMs: number;
+        applicationName: string | null;
     };
 };
 
@@ -1302,7 +1365,6 @@ type OnboardingHomepageProvisionedEvent = BaseTrack & {
         projectId: string;
         homepageUuid: string;
         onboardingFlow: OnboardingFlow;
-        homepageBuilderEnablement: HomepageBuilderEnablement | null;
         codingAgentOnboardingEnablement: CodingAgentOnboardingEnablement | null;
     };
 };
@@ -1333,7 +1395,7 @@ type HomepagePublishedEvent = BaseTrack & {
 
 export type OnboardingHomepageSkippedReason =
     | 'new_onboarding_flag_disabled'
-    | 'homepage_builder_flag_disabled'
+    | 'homepage_disabled'
     | 'not_first_project'
     | 'homepage_already_exists';
 
@@ -1344,7 +1406,6 @@ type OnboardingHomepageSkippedEvent = BaseTrack & {
         organizationId: string;
         projectId: string;
         onboardingFlow: OnboardingFlow;
-        homepageBuilderEnablement: HomepageBuilderEnablement | null;
         codingAgentOnboardingEnablement: CodingAgentOnboardingEnablement | null;
         reason: OnboardingHomepageSkippedReason;
     };
@@ -1357,26 +1418,10 @@ type OnboardingHomepageFailedEvent = BaseTrack & {
         organizationId: string;
         projectId: string;
         onboardingFlow: OnboardingFlow;
-        homepageBuilderEnablement: HomepageBuilderEnablement | null;
         codingAgentOnboardingEnablement: CodingAgentOnboardingEnablement | null;
         errorType: string;
     };
 };
-
-type OnboardingOrgFlagsProvisionedEvent = BaseTrack & {
-    event: 'onboarding_org_flags.provisioned';
-    userId: string;
-    properties: {
-        organizationId: string;
-        onboardingFlow: OnboardingFlow;
-        homepageBuilderEnablement: HomepageBuilderEnablement;
-        codingAgentOnboardingEnablement: CodingAgentOnboardingEnablement | null;
-    };
-};
-
-export type HomepageBuilderEnablement =
-    | EnsureOrganizationOverrideOutcome
-    | 'failed';
 
 export type CodingAgentOnboardingEnablement =
     | EnsureOrganizationOverrideOutcome
@@ -4838,6 +4883,7 @@ type TypedEvent =
     | ResultsCacheWriteEvent
     | ResultsCacheReadEvent
     | ResultsCacheDeleteEvent
+    | ResultsCacheInvalidatedEvent
     | ModeDashboardChartEvent
     | UpdateSavedChartEvent
     | SavedChartExploreChangedEvent
@@ -4861,7 +4907,6 @@ type TypedEvent =
     | OnboardingHomepageFailedEvent
     | OrganizationHomepageSettingsUpdatedEvent
     | HomepagePublishedEvent
-    | OnboardingOrgFlagsProvisionedEvent
     | PlaygroundProjectProvisionedEvent
     | PlaygroundProjectSkippedEvent
     | PlaygroundProjectFailedEvent
@@ -4969,6 +5014,9 @@ type TypedEvent =
     | SubtotalQueryEvent
     | MergeQueryExecutedEvent
     | MergeQueryRefusedEvent
+    | PgWireConnectedEvent
+    | PgWireAuthenticationFailedEvent
+    | PgWireQueryExecutedEvent
     | DeprecatedRouteCalled
     | AiAgentCreatedEvent
     | AiAgentThreadDeletedEvent

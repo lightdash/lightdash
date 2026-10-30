@@ -20,6 +20,7 @@ import {
 import MantineIcon from '../../common/MantineIcon';
 import GroupsActionMenu from './GroupsActionMenu';
 import { GroupsTopToolbar } from './GroupsTopToolbar';
+import tableClasses from './UsersAndGroupsTable.module.css';
 
 const fetchSize = 50;
 const GROUP_MEMBERS_PER_PAGE = 2000;
@@ -145,12 +146,7 @@ const GroupsTable: FC<GroupsTableProps> = ({ onEditGroup }) => {
                             gap="xxs"
                             maw={400}
                             mah={55}
-                            style={{
-                                overflow: 'auto',
-                                border: `1px solid ${theme.colors.ldGray[2]}`,
-                                borderRadius: theme.radius.xs,
-                                padding: theme.spacing.xxs,
-                            }}
+                            className={tableClasses.members}
                         >
                             {group.members.map((member) => (
                                 <Badge
@@ -160,7 +156,7 @@ const GroupsTable: FC<GroupsTableProps> = ({ onEditGroup }) => {
                                     radius="xs"
                                     px="xxs"
                                 >
-                                    <Text fz="xs" fw={400} c="ldGray.8">
+                                    <Text fz="xs" fw={400}>
                                         {member.email}
                                     </Text>
                                 </Badge>
@@ -200,7 +196,7 @@ const GroupsTable: FC<GroupsTableProps> = ({ onEditGroup }) => {
                 },
             },
         ],
-        [canManageGroups, flatData.length, onEditGroup, theme],
+        [canManageGroups, flatData.length, onEditGroup],
     );
 
     const table = useContentTable({
@@ -215,49 +211,15 @@ const GroupsTable: FC<GroupsTableProps> = ({ onEditGroup }) => {
         enableTopToolbar: true,
         mantineTableContainerProps: {
             ref: tableContainerRef,
-            style: { maxHeight: 'calc(100dvh - 420px)' },
+            mah: 'calc(100dvh - 420px)',
             onScroll,
         },
         mantineTableProps: {
             highlightOnHover: true,
             withColumnBorders: Boolean(flatData.length),
         },
-        mantineTableHeadCellProps: (props) => {
-            const isLastColumn =
-                props.table.getAllColumns().indexOf(props.column) ===
-                props.table.getAllColumns().length - 1;
-
-            return {
-                bg: 'ldGray.0',
-                h: '3xl',
-                pos: 'relative',
-                style: {
-                    userSelect: 'none',
-                    padding: `${theme.spacing.xs} ${theme.spacing.xl}`,
-                    borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                    borderRight: props.column.getIsResizing()
-                        ? `2px solid ${theme.colors.blue[3]}`
-                        : `1px solid ${
-                              isLastColumn
-                                  ? 'transparent'
-                                  : theme.colors.ldGray[2]
-                          }`,
-                    borderTop: 'none',
-                    borderLeft: 'none',
-                },
-            };
-        },
-        mantineTableBodyCellProps: () => {
-            return {
-                style: {
-                    padding: `${theme.spacing.md} ${theme.spacing.xl}`,
-                    borderRight: 'none',
-                    borderLeft: 'none',
-                    borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                    borderTop: 'none',
-                },
-            };
-        },
+        mantineTableHeadCellProps: { px: 'xl' },
+        mantineTableBodyCellProps: { py: 'md', px: 'xl' },
         renderTopToolbar: () => (
             <GroupsTopToolbar search={search} setSearch={setSearch} />
         ),
@@ -266,18 +228,13 @@ const GroupsTable: FC<GroupsTableProps> = ({ onEditGroup }) => {
                 p={`${theme.spacing.sm} ${theme.spacing.xl} ${theme.spacing.md} ${theme.spacing.xl}`}
                 fz="xs"
                 fw={500}
-                c="ldGray.8"
-                style={{
-                    borderTop: `1px solid ${theme.colors.ldGray[3]}`,
-                }}
+                className={tableClasses.bottomToolbar}
             >
                 {isFetching ? (
-                    <Text c="ldGray.8" fz="xs">
-                        Loading more...
-                    </Text>
+                    <Text fz="xs">Loading more...</Text>
                 ) : (
                     <Group gap="two">
-                        <Text fz="xs" c="ldGray.8">
+                        <Text fz="xs">
                             {hasNextPage
                                 ? 'Scroll for more groups'
                                 : 'All groups loaded'}

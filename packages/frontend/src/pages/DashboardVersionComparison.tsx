@@ -15,6 +15,7 @@ import {
 } from '@lightdash/common';
 import {
     Badge,
+    Box,
     Collapse,
     Flex,
     Group,
@@ -265,7 +266,6 @@ const compareFilters = (
 
 // Tiles Table Component
 const TilesTable = ({ data }: { data: any[] }) => {
-    const theme = useMantineTheme();
     const [search, setSearch] = useState('');
     const tableContainerRef = useRef<HTMLDivElement>(null);
 
@@ -332,15 +332,15 @@ const TilesTable = ({ data }: { data: any[] }) => {
                 header: 'Difference',
                 size: 120,
                 Cell: ({ cell }) => (
-                    <div style={{ textAlign: 'right' }}>
+                    <Box ta="right">
                         <DifferenceBadge diff={cell.getValue<number>()} />
-                    </div>
+                    </Box>
                 ),
                 Footer: () =>
                     totals ? (
-                        <div style={{ textAlign: 'right' }}>
+                        <Box ta="right">
                             <DifferenceBadge diff={totals.difference} />
-                        </div>
+                        </Box>
                     ) : null,
             },
         ],
@@ -367,52 +367,12 @@ const TilesTable = ({ data }: { data: any[] }) => {
         initialState: {
             density: 'xs',
         },
-        mantinePaperProps: {
-            shadow: 'none',
-            withBorder: false,
-            style: {
-                backgroundColor: 'transparent',
-                padding: 0,
-            },
-        },
-        mantineTableContainerProps: {
-            ref: tableContainerRef,
-            style: {
-                maxHeight: '400px',
-                border: `1px solid ${theme.colors.ldGray[2]}`,
-                borderRadius: theme.spacing.sm,
-            },
-        },
+        mantineTableContainerProps: { ref: tableContainerRef, mah: 400 },
         mantineTableProps: {
             highlightOnHover: true,
             withColumnBorders: false,
         },
-        mantineTableHeadCellProps: {
-            style: {
-                backgroundColor: theme.colors.ldGray[0],
-                borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                fontSize: theme.fontSizes.xs,
-                fontWeight: 600,
-                color: theme.colors.ldGray[7],
-                padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-            },
-        },
-        mantineTableBodyCellProps: {
-            style: {
-                fontSize: theme.fontSizes.xs,
-                color: theme.colors.ldGray[7],
-                padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-            },
-        },
-        mantineTableFooterCellProps: {
-            style: {
-                backgroundColor: theme.colors.ldGray[0],
-                borderTop: `1px solid ${theme.colors.ldGray[2]}`,
-                fontSize: theme.fontSizes.xs,
-                color: theme.colors.ldGray[7],
-                padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-            },
-        },
+        mantineTableBodyCellProps: { fz: 'xs' },
         renderTopToolbar: () => (
             <TableToolbar
                 search={search}
@@ -433,7 +393,6 @@ const ChartsTable = ({
     data: any[];
     projectUuid: string | undefined;
 }) => {
-    const theme = useMantineTheme();
     const [search, setSearch] = useState('');
     const tableContainerRef = useRef<HTMLDivElement>(null);
 
@@ -539,7 +498,7 @@ const ChartsTable = ({
                 header: 'Rollback Action',
                 size: 150,
                 Cell: ({ row }) => (
-                    <div style={{ textAlign: 'center' }}>
+                    <Box ta="center">
                         {!row.original.inCurrent && row.original.inVersion && (
                             <Badge color="green" size="sm">
                                 Add
@@ -562,7 +521,7 @@ const ChartsTable = ({
                             !row.original.hasDifferentVersion && (
                                 <Badge size="sm">No change</Badge>
                             )}
-                    </div>
+                    </Box>
                 ),
                 enableSorting: true,
             },
@@ -590,43 +549,12 @@ const ChartsTable = ({
             density: 'xs',
             sorting: [{ id: 'chartName', desc: false }],
         },
-        mantinePaperProps: {
-            shadow: 'none',
-            withBorder: false,
-            style: {
-                backgroundColor: 'transparent',
-                padding: 0,
-            },
-        },
-        mantineTableContainerProps: {
-            ref: tableContainerRef,
-            style: {
-                maxHeight: '400px',
-                border: `1px solid ${theme.colors.ldGray[2]}`,
-                borderRadius: theme.spacing.sm,
-            },
-        },
+        mantineTableContainerProps: { ref: tableContainerRef, mah: 400 },
         mantineTableProps: {
             highlightOnHover: true,
             withColumnBorders: false,
         },
-        mantineTableHeadCellProps: {
-            style: {
-                backgroundColor: theme.colors.ldGray[0],
-                borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                fontSize: theme.fontSizes.xs,
-                fontWeight: 600,
-                color: theme.colors.ldGray[7],
-                padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-            },
-        },
-        mantineTableBodyCellProps: {
-            style: {
-                fontSize: theme.fontSizes.xs,
-                color: theme.colors.ldGray[7],
-                padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-            },
-        },
+        mantineTableBodyCellProps: { fz: 'xs' },
         renderTopToolbar: () => (
             <TableToolbar
                 search={search}
@@ -647,7 +575,6 @@ const FiltersTable = ({
     data: AlignedFilter[];
     searchPlaceholder?: string;
 }) => {
-    const theme = useMantineTheme();
     const [search, setSearch] = useState('');
     const tableContainerRef = useRef<HTMLDivElement>(null);
 
@@ -699,7 +626,7 @@ const FiltersTable = ({
                 header: 'Rollback Action',
                 size: 150,
                 Cell: ({ row }) => (
-                    <div style={{ textAlign: 'center' }}>
+                    <Box ta="center">
                         {!row.original.currentFilter &&
                             row.original.versionFilter && (
                                 <Badge color="green" size="sm">
@@ -724,7 +651,7 @@ const FiltersTable = ({
                             !row.original.hasChanged && (
                                 <Badge size="sm">No change</Badge>
                             )}
-                    </div>
+                    </Box>
                 ),
                 enableSorting: true,
             },
@@ -758,43 +685,12 @@ const FiltersTable = ({
         initialState: {
             density: 'xs',
         },
-        mantinePaperProps: {
-            shadow: 'none',
-            withBorder: false,
-            style: {
-                backgroundColor: 'transparent',
-                padding: 0,
-            },
-        },
-        mantineTableContainerProps: {
-            ref: tableContainerRef,
-            style: {
-                maxHeight: '400px',
-                border: `1px solid ${theme.colors.ldGray[2]}`,
-                borderRadius: theme.spacing.sm,
-            },
-        },
+        mantineTableContainerProps: { ref: tableContainerRef, mah: 400 },
         mantineTableProps: {
             highlightOnHover: true,
             withColumnBorders: false,
         },
-        mantineTableHeadCellProps: {
-            style: {
-                backgroundColor: theme.colors.ldGray[0],
-                borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                fontSize: theme.fontSizes.xs,
-                fontWeight: 600,
-                color: theme.colors.ldGray[7],
-                padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-            },
-        },
-        mantineTableBodyCellProps: {
-            style: {
-                fontSize: theme.fontSizes.xs,
-                color: theme.colors.ldGray[7],
-                padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-            },
-        },
+        mantineTableBodyCellProps: { fz: 'xs' },
         renderTopToolbar: () => (
             <TableToolbar
                 search={search}

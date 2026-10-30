@@ -460,6 +460,7 @@ export * from './utils/sqlDialect';
 export * from './utils/subtotals';
 export * from './utils/dateZoom';
 export * from './utils/tableCalculationFunctions';
+export * from './utils/tableSelection';
 export * from './utils/time';
 export * from './utils/timeFrames';
 export * from './utils/resolveQueryTimezone';

@@ -119,6 +119,7 @@ import {
     getMergeSourceTableLabel,
     getMetricOverridesWithPopInheritance,
     getMetrics,
+    getModelInventoryFromManifest,
     getModelsFromManifest,
     getParameterReferences,
     getPersonSignIn,
@@ -128,7 +129,6 @@ import {
     getUnaccountedDimensions,
     GroupType,
     hasConnectionChanges,
-    hasIntersection,
     hasWarehouseCredentials,
     isAdditionalMetric,
     isAiAccessQueryContext,
@@ -139,6 +139,7 @@ import {
     isDateItem,
     isDimension,
     isExploreError,
+    isExploreIncludedInTableSelection,
     isField,
     isFilterableDimension,
     isJwtUser,
@@ -231,6 +232,7 @@ import {
     resolveMergeSorts,
     resolveQueryTimezone,
     ResultRow,
+    ResultsCacheInvalidation,
     ResultsCacheProjectSettings,
     SavedChartDAO,
     SavedChartsInfoForDashboardAvailableFilters,
@@ -250,7 +252,6 @@ import {
     SupportedDbtAdapter,
     supportsConnectionDatabaseListing,
     TablesConfiguration,
-    TableSelectionType,
     TooManyRequestsError,
     UnexpectedServerError,
     UpdateAgentSqlScope,
@@ -484,6 +485,7 @@ import {
 import { pickEmbedProject } from '../../utils/embedProject';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { ExploreCompilationSummary } from '../../utils/ExploreCompilationSummary';
+import { inheritUpstreamSshTunnelPrivateKey } from '../../utils/inheritUpstreamSshTunnelPrivateKey';
 import { createComposeMergeQueryBuilder } from '../../utils/QueryBuilder/composeMergeSql';
 import { applyMergeTerminalWrapper } from '../../utils/QueryBuilder/MergeQueryBuilder';
 import { PivotQueryBuilder } from '../../utils/QueryBuilder/PivotQueryBuilder';
@@ -2790,6 +2792,38 @@ export class ProjectService
             };
         }
         return data;
+    }
+
+    private async inheritTrustedUpstreamSshTunnelPrivateKey<
+        T extends { warehouseConnection: CreateWarehouseCredentials },
+    >(
+        data: T,
+        savedProject: {
+            organizationUuid: string;
+            upstreamProjectUuid?: string | null;
+        },
+        upstreamCredentials: CreateWarehouseCredentials | undefined,
+    ): Promise<T> {
+        if (!upstreamCredentials || !savedProject.upstreamProjectUuid) {
+            return data;
+        }
+        const warehouseConnection = inheritUpstreamSshTunnelPrivateKey(
+            data.warehouseConnection,
+            upstreamCredentials,
+        );
+        if (warehouseConnection === data.warehouseConnection) return data;
+        const upstreamProject = await this.projectModel
+            .getSummary(savedProject.upstreamProjectUuid)
+            .catch((error) => {
+                if (error instanceof NotFoundError) return undefined;
+                throw error;
+            });
+        if (
+            upstreamProject?.organizationUuid !== savedProject.organizationUuid
+        ) {
+            return data;
+        }
+        return { ...data, warehouseConnection };
     }
 
     // TODO: getWarehouseCredentials could be moved to a client WarehouseClientManager. However, this client shouldn't be using a model. Perhaps this information can be passed as a prop to the client so that other services can use the warehouse client credentials logic?
@@ -6531,13 +6565,14 @@ export class ProjectService
         );
 
         let updateData = data;
+        let upstreamCredentials: CreateWarehouseCredentials | undefined;
         if (
             savedProject.type === ProjectType.PREVIEW &&
             savedProject.upstreamProjectUuid &&
             (method === RequestMethod.CLI || method === RequestMethod.CLI_CI) &&
             data.warehouseConnection
         ) {
-            const upstreamCredentials = await this.projectModel
+            upstreamCredentials = await this.projectModel
                 .getWarehouseCredentialsForBinding(
                     savedProject.upstreamProjectUuid,
                     { kind: 'original' },
@@ -6586,7 +6621,11 @@ export class ProjectService
             ],
         };
         const createProject = await this._resolveWarehouseClientCredentials(
-            this.mergeSavedSecretsForResolution(updateData, savedProject),
+            await this.inheritTrustedUpstreamSshTunnelPrivateKey(
+                this.mergeSavedSecretsForResolution(updateData, savedProject),
+                savedProject,
+                upstreamCredentials,
+            ),
             account.user.id,
             savedProject.organizationUuid,
         );
@@ -11930,12 +11969,6 @@ export class ProjectService
                 // Key on the resolved timezone (not the raw setting) so the
                 // cache reflects project/user fallbacks and invalidates when the
                 // project timezone changes.
-                const hashParts = [
-                    projectUuid,
-                    userUuid,
-                    query,
-                    resolvedTimezone,
-                ];
                 const { enabled: identityEnabled } =
                     await this.featureFlagModel.get({
                         user,
@@ -11947,6 +11980,25 @@ export class ProjectService
                         (!user.organizationUuid ||
                             resultProducer === null ||
                             resultProducer.agentIdentity !== null));
+                const { enabled: resultsCacheEnabled } =
+                    await this.featureFlagModel.get({
+                        user,
+                        featureFlagId: FeatureFlags.ResultsCacheEnabled,
+                    });
+                const cacheGeneration = resultsCacheEnabled
+                    ? (
+                          await this.projectModel.getResultsCacheSettings(
+                              projectUuid,
+                          )
+                      ).cacheGeneration
+                    : 0;
+                const hashParts = [
+                    projectUuid,
+                    userUuid,
+                    query,
+                    resolvedTimezone,
+                    ...(cacheGeneration > 0 ? [`gen:${cacheGeneration}`] : []),
+                ];
                 const queryHash = buildCacheHash(
                     hashParts,
                     identityEnabled && resultProducer && user.organizationUuid
@@ -11959,12 +12011,6 @@ export class ProjectService
 
                 span.setAttribute('queryHash', queryHash);
                 span.setAttribute('cacheHit', false);
-
-                const { enabled: resultsCacheEnabled } =
-                    await this.featureFlagModel.get({
-                        user,
-                        featureFlagId: FeatureFlags.ResultsCacheEnabled,
-                    });
 
                 if (resultsCacheEnabled && !bypassCache && !invalidateCache) {
                     const cacheEntryMetadata = await this.s3CacheClient
@@ -13412,12 +13458,20 @@ export class ProjectService
                     user.userUuid,
                 );
 
+                const cacheGeneration = isUserCacheEnabled
+                    ? (
+                          await this.projectModel.getResultsCacheSettings(
+                              projectUuid,
+                          )
+                      ).cacheGeneration
+                    : 0;
                 const hashParts = [
                     projectUuid,
                     userUuid,
                     'cache_autocomplete',
                     query,
                     timezone,
+                    ...(cacheGeneration > 0 ? [`gen:${cacheGeneration}`] : []),
                 ];
                 const queryHash = buildCacheHash(
                     hashParts,
@@ -14571,27 +14625,19 @@ export class ProjectService
               );
 
         if (filtered) {
-            const {
-                tableSelection: { type, value },
-            } = await this.getTablesConfiguration(account, projectUuid);
-            if (type === TableSelectionType.WITH_TAGS) {
-                return visibleExploreSummaries.filter(
-                    (explore) =>
-                        hasIntersection(explore.tags || [], value || []) ||
-                        isUserManagedExplore(explore) || // User-managed explores (virtual views, external source tables) are included by default
-                        (shouldIncludePreAggregateExplores &&
-                            explore.type === ExploreType.PRE_AGGREGATE),
-                );
-            }
-            if (type === TableSelectionType.WITH_NAMES) {
-                return visibleExploreSummaries.filter(
-                    (explore) =>
-                        (value || []).includes(explore.name) ||
-                        isUserManagedExplore(explore) || // User-managed explores (virtual views, external source tables) are included by default
-                        (shouldIncludePreAggregateExplores &&
-                            explore.type === ExploreType.PRE_AGGREGATE),
-                );
-            }
+            const { tableSelection } = await this.getTablesConfiguration(
+                account,
+                projectUuid,
+            );
+            return visibleExploreSummaries.filter(
+                (explore) =>
+                    isExploreIncludedInTableSelection(
+                        explore,
+                        tableSelection,
+                    ) ||
+                    (shouldIncludePreAggregateExplores &&
+                        explore.type === ExploreType.PRE_AGGREGATE),
+            );
         }
 
         return visibleExploreSummaries;
@@ -15846,13 +15892,14 @@ export class ProjectService
         ) {
             throw new ForbiddenError();
         }
-        const settings =
+        const { cacheTtlSeconds, lastInvalidatedAt } =
             await this.projectModel.getResultsCacheSettings(projectUuid);
         return {
             projectUuid,
-            ...settings,
+            cacheTtlSeconds,
             instanceDefaultTtlSeconds:
                 this.lightdashConfig.results.cacheStateTimeSeconds,
+            lastInvalidatedAt,
         };
     }
 
@@ -15899,12 +15946,64 @@ export class ProjectService
         await this.projectModel.updateResultsCacheSettings(projectUuid, {
             cacheTtlSeconds,
         });
+        const { lastInvalidatedAt } =
+            await this.projectModel.getResultsCacheSettings(projectUuid);
         return {
             projectUuid,
             cacheTtlSeconds,
             instanceDefaultTtlSeconds:
                 this.lightdashConfig.results.cacheStateTimeSeconds,
+            lastInvalidatedAt,
         };
+    }
+
+    protected async assertCanInvalidateResultsCache(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<{ organizationUuid: string }> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        const { enabled: resultsCacheEnabled } =
+            await this.featureFlagModel.get({
+                user,
+                featureFlagId: FeatureFlags.ResultsCacheEnabled,
+            });
+        if (!resultsCacheEnabled) {
+            throw new ForbiddenError('Results caching is not enabled');
+        }
+        return { organizationUuid };
+    }
+
+    async invalidateProjectResultsCache(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<ResultsCacheInvalidation> {
+        const { organizationUuid } = await this.assertCanInvalidateResultsCache(
+            user,
+            projectUuid,
+        );
+        const { invalidatedAt } =
+            await this.projectModel.invalidateResultsCache(projectUuid);
+        this.analytics.track({
+            event: 'results_cache.invalidated',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                scope: 'project',
+                contentUuid: null,
+            },
+        });
+        return { projectUuid, invalidatedAt };
     }
 
     async updatePreviewExpiresAt(
@@ -19066,6 +19165,11 @@ export class ProjectService
                         },
                         {
                             disableTimestampConversion,
+                            modelInventory:
+                                getModelInventoryFromManifest(manifest),
+                            allowCrossSourceJoinFallback:
+                                manifest.lightdash_model_inventory_complete !==
+                                false,
                             postProcessors: [preAggregatePostProcessor],
                         },
                     );

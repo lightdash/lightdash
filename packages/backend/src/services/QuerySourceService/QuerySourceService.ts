@@ -7,6 +7,7 @@ import {
     FeatureFlags,
     ForbiddenError,
     ParameterError,
+    QueryHistoryStatus,
     QuerySourceType,
     UnexpectedServerError,
     type Account,
@@ -637,6 +638,10 @@ export class QuerySourceService extends BaseService {
                     totalRowCount: queryHistory.totalRowCount,
                     warehouseExecutionTimeMs:
                         queryHistory.warehouseExecutionTimeMs,
+                    columns:
+                        queryHistory.status === QueryHistoryStatus.READY
+                            ? queryHistory.columns
+                            : null,
                 };
                 return status;
             }),

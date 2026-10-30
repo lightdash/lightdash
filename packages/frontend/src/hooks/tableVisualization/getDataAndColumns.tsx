@@ -74,10 +74,10 @@ export function findMatchingSubtotal(
 const getImageSize = (imageWidth: number | undefined) => {
     if (imageWidth !== undefined) {
         return {
-            style: {
-                width: imageWidth,
-                minWidth: imageWidth,
-                maxWidth: imageWidth,
+            styleProps: {
+                w: imageWidth,
+                miw: imageWidth,
+                maw: imageWidth,
             },
         };
     }
@@ -88,10 +88,10 @@ const getColumnWidthMeta = (width: number | undefined) => {
     if (width === undefined) return {};
     return {
         width,
-        style: {
-            width,
-            minWidth: width,
-            maxWidth: width,
+        styleProps: {
+            w: width,
+            miw: width,
+            maw: width,
         },
     };
 };

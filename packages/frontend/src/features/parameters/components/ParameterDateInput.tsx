@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import { type FC } from 'react';
 import CalendarPickerInput from '../../../components/common/DatePickers/CalendarPickerInput';
+import { Z_INDEX_FLOATING } from '../../../components/common/Page/constants';
 import {
     parseParameterDateValue,
     serializeParameterDateValue,
@@ -56,7 +57,7 @@ const ParameterDateInput: FC<Props> = ({
             popoverProps={{
                 shadow: 'sm',
                 withinPortal: false,
-                zIndex: 10000,
+                zIndex: Z_INDEX_FLOATING,
             }}
         />
     );

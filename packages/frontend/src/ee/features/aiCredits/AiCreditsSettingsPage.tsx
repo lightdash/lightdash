@@ -114,7 +114,7 @@ const UsageSummary: FC<{ usage: AiCreditUsageSummary }> = ({ usage }) => {
         >
             <Stack gap="sm">
                 <Group justify="space-between" align="baseline">
-                    <Title order={5} fz="sm" fw={500} c="ldGray.7">
+                    <Title order={5} fz="sm" fw={500} c="dimmed">
                         {formatDate(period.periodStart)} –{' '}
                         {formatLastDay(period.periodEnd)}
                     </Title>

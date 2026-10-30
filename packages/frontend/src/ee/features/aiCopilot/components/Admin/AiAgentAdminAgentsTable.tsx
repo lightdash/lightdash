@@ -50,6 +50,7 @@ import useSearchParams from '../../../../../hooks/useSearchParams';
 import SlackSvg from '../../../../../svgs/slack.svg?react';
 import { useAiAgentAdminAgents } from '../../hooks/useAiAgentAdmin';
 import { useAgentSettingsLinkState } from '../../utils/agentSettingsNavigation';
+import adminClasses from './AdminTable.module.css';
 import ProjectsFilter from './ProjectsFilter';
 import { SearchFilter } from './SearchFilter';
 
@@ -266,7 +267,7 @@ const AiAgentAdminAgentsTable = () => {
                     const agent = row.original;
                     if (!agent.tags || agent.tags.length === 0) {
                         return (
-                            <Text c="ldGray.5" fz="xs" fs="italic">
+                            <Text c="dimmed" fz="xs" fs="italic">
                                 No tags
                             </Text>
                         );
@@ -303,7 +304,7 @@ const AiAgentAdminAgentsTable = () => {
 
                     if (agent.integrations.length === 0) {
                         return (
-                            <Text c="ldGray.5" fz="xs" fs="italic">
+                            <Text c="dimmed" fz="xs" fs="italic">
                                 None
                             </Text>
                         );
@@ -335,12 +336,10 @@ const AiAgentAdminAgentsTable = () => {
                                                 <Paper
                                                     w="fit-content"
                                                     maw="100%"
-                                                    style={(t) =>
+                                                    className={
                                                         isResolved
                                                             ? undefined
-                                                            : {
-                                                                  border: `1px dashed ${t.colors.ldGray[4]}`,
-                                                              }
+                                                            : adminClasses.unresolvedChannel
                                                     }
                                                 >
                                                     <Group
@@ -349,14 +348,12 @@ const AiAgentAdminAgentsTable = () => {
                                                         wrap="nowrap"
                                                     >
                                                         <SlackSvg
-                                                            style={{
-                                                                width: '12px',
-                                                                height: '12px',
-                                                            }}
+                                                            width={12}
+                                                            height={12}
                                                         />
                                                         <Text
                                                             fz="xs"
-                                                            c="ldGray.7"
+                                                            c="dimmed"
                                                             fw={500}
                                                             truncate
                                                         >
@@ -393,7 +390,7 @@ const AiAgentAdminAgentsTable = () => {
 
                     if (totalCount === 0) {
                         return (
-                            <Text c="ldGray.5" fz="xs" fs="italic">
+                            <Text c="dimmed" fz="xs" fs="italic">
                                 No restrictions
                             </Text>
                         );
@@ -449,7 +446,7 @@ const AiAgentAdminAgentsTable = () => {
                 Cell: ({ row }) => {
                     const agent = row.original;
                     return (
-                        <Text fz="sm" c="ldGray.7">
+                        <Text fz="sm" c="dimmed">
                             {new Date(agent.createdAt).toLocaleDateString()}
                         </Text>
                     );
@@ -520,13 +517,12 @@ const AiAgentAdminAgentsTable = () => {
         enableTopToolbar: true,
         enableBottomToolbar: false,
         mantineTableContainerProps: {
-            style: {
-                maxHeight: 'calc(100dvh - 350px)',
-            },
+            mah: 'calc(100dvh - 350px)',
         },
         mantineTableProps: {
             highlightOnHover: true,
         },
+        mantineTableHeadCellProps: { px: 'xl' },
 
         mantineTableBodyRowProps: ({ row, table: mantineTable }) => {
             if (mantineTable.getState().showSkeletons) {
@@ -543,16 +539,7 @@ const AiAgentAdminAgentsTable = () => {
                 },
             };
         },
-        mantineTableBodyCellProps: {
-            h: 72,
-            style: {
-                padding: `${theme.spacing.md} ${theme.spacing.xl}`,
-                borderRight: 'none',
-                borderLeft: 'none',
-                borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                borderTop: 'none',
-            },
-        },
+        mantineTableBodyCellProps: { h: 72, py: 'md', px: 'xl' },
         renderTopToolbar: () => (
             <Box>
                 <Group
@@ -610,14 +597,7 @@ const AiAgentAdminAgentsTable = () => {
                     <Group gap="xs">
                         <Box
                             bg="ldGray.1"
-                            c="ldGray.9"
-                            style={{
-                                borderRadius: 6,
-                                padding: `${theme.spacing.sm} ${theme.spacing.xs}`,
-                                height: 32,
-                                display: 'flex',
-                                alignItems: 'center',
-                            }}
+                            className={adminClasses.resultsCount}
                         >
                             <Text fz="sm" fw={500}>
                                 {isLoading

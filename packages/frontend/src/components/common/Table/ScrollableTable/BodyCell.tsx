@@ -22,13 +22,13 @@ import {
     useMemo,
     useRef,
     useState,
-    type CSSProperties,
     type FC,
 } from 'react';
+import { useWhenAnswered } from '../../../../features/dashboardControls/useControlsSidebar';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { JsonCellModal } from '../../JsonViewer/JsonCellViewer';
 import { type JsonCellValue } from '../../JsonViewer/utils';
-import { Td } from '../Table.styles';
+import { Td, type CellStyleProps } from '../Table.styles';
 import { type CellContextMenuProps } from '../types';
 import bodyCellStyles from './BodyCell.module.css';
 import CellMenu from './CellMenu';
@@ -41,7 +41,7 @@ interface CommonBodyCellProps {
     hasData: boolean;
     cellContextMenu?: FC<React.PropsWithChildren<CellContextMenuProps>>;
     className?: string;
-    style?: CSSProperties;
+    styleProps?: CellStyleProps;
     backgroundColor?: string;
     fontColor?: string;
     textStyle?: ConditionalFormattingTextStyle;
@@ -64,7 +64,7 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
     isNumericItem,
     index,
     isLargeText = false,
-    style,
+    styleProps,
     tooltipContent,
     minimal = false,
     rowSpan,
@@ -75,7 +75,10 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
     const { copy } = useClipboard();
 
     const [isCopying, setCopying] = useState(false);
-    const [isMenuOpen, { toggle: toggleMenu }] = useDisclosure(false);
+    const [isMenuOpen, { toggle: toggleMenu, open: openMenu }] =
+        useDisclosure(false);
+    // On a dashboard whose filter editor asks first, the menu waits for it
+    const whenAnswered = useWhenAnswered();
     const [jsonModalValue, setJsonModalValue] = useState<
         JsonCellValue | undefined
     >();
@@ -170,7 +173,7 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
                     isMerged && bodyCellStyles.mergedDimCell,
                 )}
                 rowSpan={isMerged ? rowSpan : undefined}
-                style={style}
+                {...styleProps}
                 $rowIndex={index}
                 $isSelected={isMenuOpen}
                 $isLargeText={isLargeText}
@@ -187,7 +190,13 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
                     typeof displayValue === 'string' &&
                     displayValue.includes('\n')
                 }
-                onClick={canHaveMenu ? toggleMenu : undefined}
+                onClick={
+                    canHaveMenu
+                        ? isMenuOpen
+                            ? toggleMenu
+                            : () => whenAnswered(openMenu)
+                        : undefined
+                }
                 // Walkthrough anchor (data-tour-via): a metric cell, whose
                 // menu can open the records behind the number. The name is
                 // computed, so the hint is declared here:

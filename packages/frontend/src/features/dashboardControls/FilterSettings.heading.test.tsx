@@ -68,9 +68,11 @@ const renderSettings = (filterRule: DashboardFilterRule) =>
                 rule={filterRule}
                 field={amount}
                 onChange={vi.fn()}
+                view="value"
+                onViewChange={vi.fn()}
+                appliedTileCount={1}
+                title={null}
                 sectionSelect={null}
-                tiles={null}
-                tilesSummary="1 tile · 1 field"
             />
         </DashboardStoreTestProvider>,
     );
@@ -84,12 +86,24 @@ describe('FilterSettings headings', () => {
         };
     });
 
-    it('shows the shipped default switch once, with no heading', () => {
+    it('shows no default switch and no heading: edit mode edits the default', () => {
         renderSettings(rule({}));
 
-        expect(screen.getAllByText('Provide default value')).toHaveLength(1);
+        expect(
+            screen.queryByText('Provide default value'),
+        ).not.toBeInTheDocument();
         expect(screen.queryByText('Default value')).not.toBeInTheDocument();
         expect(screen.queryByText('Preview value')).not.toBeInTheDocument();
+    });
+
+    it("focuses an editor's enabled value input on a filter that is any value, as a new one is", () => {
+        renderSettings(rule({ values: [], disabled: true }));
+
+        const active = document.activeElement;
+        expect(active?.tagName).toBe('INPUT');
+        expect(active).toBeEnabled();
+        // The value, not the operator select before it
+        expect(active).not.toHaveValue('is');
     });
 
     it('shows no default switch on a required filter, as the shipped form', () => {

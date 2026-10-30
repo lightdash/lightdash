@@ -1,0 +1,11 @@
+.grabHandle {
+    cursor: grab;
+
+    &[data-disabled] {
+        cursor: default;
+    }
+
+    &[data-hidden] {
+        visibility: hidden;
+    }
+}

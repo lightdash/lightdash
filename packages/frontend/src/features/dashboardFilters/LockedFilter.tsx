@@ -50,7 +50,7 @@ const LockedFilter: FC<Props> = ({ isEditMode, filterRule, onRemove }) => {
                 size="xs"
                 variant="default"
                 data-disabled
-                style={{ borderRadius: '100px' }}
+                radius="xl"
                 leftSection={<MantineIcon icon={IconLock} color="ldGray.5" />}
                 rightSection={
                     isEditMode &&

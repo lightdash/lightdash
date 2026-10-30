@@ -18,6 +18,7 @@ import {
     useDashboardTemporaryFilters,
 } from '../../../../../features/dashboard/store';
 import { AddControl } from '../../../../../features/dashboardControls/AddControl';
+import { MappingSwap } from '../../../../../features/dashboardControls/ControlsBar';
 import { FilterPills } from '../../../../../features/dashboardControls/FilterPills';
 import { SectionedFilters } from '../../../../../features/dashboardControls/SectionedFilters';
 import { SettledFilterFields } from '../../../../../features/dashboardControls/SettledFilterFields';
@@ -66,9 +67,6 @@ const ControlsFilterArea: FC<{ canAddFilters: boolean }> = ({
         </>
     );
     const triggerClassName = embedContractClass('ld-dashboard-filter');
-    const dropdownClassName = embedContractClass(
-        'ld-dashboard-filter-dropdown',
-    );
     // A tile added or removed keeps the pills, as on the app's bar
     return (
         <SettledFilterFields>
@@ -77,7 +75,6 @@ const ControlsFilterArea: FC<{ canAddFilters: boolean }> = ({
                     activeTabUuid={activeTabUuid}
                     viewerActions={actions}
                     triggerClassName={triggerClassName}
-                    dropdownClassName={dropdownClassName}
                 />
             ) : (
                 <>
@@ -85,7 +82,6 @@ const ControlsFilterArea: FC<{ canAddFilters: boolean }> = ({
                     <FilterPills
                         activeTabUuid={activeTabUuid}
                         triggerClassName={triggerClassName}
-                        dropdownClassName={dropdownClassName}
                     />
                 </>
             )}
@@ -156,7 +152,7 @@ const EmbedDashboardFilterBar: FC<Props> = ({
         );
     }
 
-    return (
+    const bar = (
         <Group
             className={embedContractClass(
                 'ld-dashboard-filters',
@@ -235,6 +231,8 @@ const EmbedDashboardFilterBar: FC<Props> = ({
             </Group>
         </Group>
     );
+    // Choosing a filter's tiles: the mapping row takes the bar's place
+    return isControlsEnabled ? <MappingSwap>{bar}</MappingSwap> : bar;
 };
 
 export default EmbedDashboardFilterBar;

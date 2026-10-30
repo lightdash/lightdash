@@ -1,0 +1,4 @@
+.lockBadge {
+    border-radius: 50%;
+    border: 1px solid var(--mantine-color-default-border);
+}

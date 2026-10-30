@@ -1524,6 +1524,12 @@ export const APP_SDK_VIZ_POINT_MENU_PATH = '/__sdk/viz/point-menu';
 // only the base table; never forwarded to the API.
 export const APP_SDK_EXPLORE_BASE_TABLE_PATH = '/__sdk/explore-base-table';
 
+// Host-answered virtual route: the SDK asks for the saved charts in a space
+// (by slug or uuid). The bridge and the CLI preview proxy answer with a
+// trimmed chart list resolved with the viewer's own credentials — space
+// access/member data never enters the iframe. Never forwarded to the API.
+export const APP_SDK_SPACE_CHARTS_PATH = '/__sdk/space-charts';
+
 // Data-point menu intent a viz sends to the virtual route: the untransformed
 // source row and metric slot (as for drill-down), plus the click position in
 // the iframe's client coordinates so the host can place the menu.

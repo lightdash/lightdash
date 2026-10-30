@@ -4,6 +4,7 @@ import {
     AiProviderApiKeyHints,
     AiProviderApiKeysSet,
     AiProviderBaseUrls,
+    assertUnreachable,
     BEDROCK_INFERENCE_GEOGRAPHIES,
     BYO_AI_API_KEY_PROVIDERS,
     BYO_AI_PROVIDERS,
@@ -15,6 +16,7 @@ import {
     UpdateAiProviderApiKeys,
     type ByoAiApiKeyProvider,
     type ByoAiProvider,
+    type McpProjectAccess,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { z } from 'zod';
@@ -22,6 +24,7 @@ import { parseLlmGatewayBaseUrl } from '../../config/aiGatewayConfig';
 import Logger from '../../logging/logger';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import {
+    AiOrganizationMcpProjectsTableName,
     AiOrganizationSettingsTable,
     AiOrganizationSettingsTableName,
     DbAiOrganizationSettings,
@@ -281,9 +284,10 @@ export class AiOrganizationSettingsModel {
         return this.encryptionUtil.encrypt(JSON.stringify(keys));
     }
 
-    private mapDbToEntity(
+    private async mapDbToEntity(
         db: DbAiOrganizationSettings,
-    ): StoredAiOrganizationSettings {
+        database: Knex = this.database,
+    ): Promise<StoredAiOrganizationSettings> {
         const keys = this.decryptProviderApiKeys(db);
         return {
             organizationUuid: db.organization_uuid,
@@ -292,6 +296,10 @@ export class AiOrganizationSettingsModel {
             deepResearchLimits: db.deep_research_limits,
             deepResearchRawSqlEnabled: db.deep_research_raw_sql_enabled,
             mcpEnabled: db.mcp_enabled,
+            mcpProjectAccess: await this.getMcpProjectAccess(
+                db.organization_uuid,
+                database,
+            ),
             mcpContentWritesEnabled: db.mcp_content_writes_enabled,
             mcpAgentsEnabled: db.mcp_agents_enabled,
             dataAppRuntimeAiEnabled: db.data_app_runtime_ai_enabled,
@@ -331,7 +339,52 @@ export class AiOrganizationSettingsModel {
             .where('organization_uuid', organizationUuid)
             .first();
 
-        return row ? this.mapDbToEntity(row) : null;
+        return row ? this.mapDbToEntity(row, database) : null;
+    }
+
+    async getMcpProjectAccess(
+        organizationUuid: string,
+        database: Knex = this.database,
+    ): Promise<McpProjectAccess> {
+        const rows = await database<AiOrganizationSettingsTable>(
+            AiOrganizationSettingsTableName,
+        )
+            .leftJoin(
+                AiOrganizationMcpProjectsTableName,
+                `${AiOrganizationSettingsTableName}.organization_uuid`,
+                `${AiOrganizationMcpProjectsTableName}.organization_uuid`,
+            )
+            .where(
+                `${AiOrganizationSettingsTableName}.organization_uuid`,
+                organizationUuid,
+            )
+            .select<
+                {
+                    mcp_project_access_mode: 'all' | 'selected';
+                    project_uuid: string | null;
+                }[]
+            >(
+                `${AiOrganizationSettingsTableName}.mcp_project_access_mode`,
+                `${AiOrganizationMcpProjectsTableName}.project_uuid`,
+            )
+            .orderBy(`${AiOrganizationMcpProjectsTableName}.project_uuid`);
+        const mode = rows[0]?.mcp_project_access_mode ?? 'all';
+        switch (mode) {
+            case 'all':
+                return { mode: 'all' };
+            case 'selected':
+                return {
+                    mode: 'selected',
+                    projectUuids: rows.flatMap((row) =>
+                        row.project_uuid === null ? [] : [row.project_uuid],
+                    ),
+                };
+            default:
+                return assertUnreachable(
+                    mode,
+                    'Unknown MCP project access mode',
+                );
+        }
     }
 
     async findMcpEnabled(organizationUuid: string): Promise<boolean | null> {
@@ -382,7 +435,9 @@ export class AiOrganizationSettingsModel {
     }
 
     async create(
-        data: CreateAiOrganizationSettings,
+        data: Omit<CreateAiOrganizationSettings, 'mcpProjectAccess'> & {
+            mcpProjectAccess?: never;
+        },
         database: Knex = this.database,
     ): Promise<StoredAiOrganizationSettings> {
         const keys = applyProviderApiKeyUpdates({}, data.providerApiKeys ?? {});
@@ -417,12 +472,14 @@ export class AiOrganizationSettingsModel {
             })
             .returning('*');
 
-        return this.mapDbToEntity(row);
+        return this.mapDbToEntity(row, database);
     }
 
     async update(
         organizationUuid: string,
-        data: UpdateAiOrganizationSettings,
+        data: Omit<UpdateAiOrganizationSettings, 'mcpProjectAccess'> & {
+            mcpProjectAccess?: never;
+        },
         database: Knex = this.database,
     ): Promise<StoredAiOrganizationSettings> {
         const updateData: Partial<
@@ -551,7 +608,7 @@ export class AiOrganizationSettingsModel {
                     );
                 }
 
-                return this.mapDbToEntity(row);
+                return this.mapDbToEntity(row, trx);
             });
         }
         if (Object.keys(updateData).length === 0) {
@@ -571,7 +628,7 @@ export class AiOrganizationSettingsModel {
             );
         }
 
-        return this.mapDbToEntity(row);
+        return this.mapDbToEntity(row, database);
     }
 
     async upsert(
@@ -579,13 +636,57 @@ export class AiOrganizationSettingsModel {
         data: UpdateAiOrganizationSettings,
         database: Knex = this.database,
     ): Promise<StoredAiOrganizationSettings> {
+        const { mcpProjectAccess, ...settingsUpdate } = data;
+        if (mcpProjectAccess !== undefined) {
+            return database.transaction(async (trx) => {
+                await trx('organizations')
+                    .where('organization_uuid', organizationUuid)
+                    .forUpdate()
+                    .first();
+                await trx(AiOrganizationMcpProjectsTableName)
+                    .where('organization_uuid', organizationUuid)
+                    .delete();
+                switch (mcpProjectAccess.mode) {
+                    case 'all':
+                        break;
+                    case 'selected': {
+                        const projectUuids = [
+                            ...new Set(mcpProjectAccess.projectUuids),
+                        ];
+                        if (projectUuids.length > 0) {
+                            await trx(
+                                AiOrganizationMcpProjectsTableName,
+                            ).insert(
+                                projectUuids.map((projectUuid) => ({
+                                    organization_uuid: organizationUuid,
+                                    project_uuid: projectUuid,
+                                })),
+                            );
+                        }
+                        break;
+                    }
+                    default:
+                        assertUnreachable(
+                            mcpProjectAccess,
+                            'Unknown MCP project access mode',
+                        );
+                }
+                await this.upsert(organizationUuid, settingsUpdate, trx);
+                await trx<AiOrganizationSettingsTable>(
+                    AiOrganizationSettingsTableName,
+                )
+                    .where('organization_uuid', organizationUuid)
+                    .update({ mcp_project_access_mode: mcpProjectAccess.mode });
+                return this.getByOrganizationUuid(organizationUuid, trx);
+            });
+        }
         const existing = await this.findByOrganizationUuid(
             organizationUuid,
             database,
         );
 
         if (existing) {
-            return this.update(organizationUuid, data, database);
+            return this.update(organizationUuid, settingsUpdate, database);
         }
         return this.create(
             {

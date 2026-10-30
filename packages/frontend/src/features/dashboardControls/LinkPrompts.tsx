@@ -25,11 +25,7 @@ import {
 import { setTileField, type FieldsByTile } from './peers';
 import classes from './TileOverlay.module.css';
 import { getTileTitle } from './tileProps';
-import {
-    getTileSelector,
-    LOCKED_TILE_CLASS,
-    WAVE_BUCKETS,
-} from './tileSelector';
+import { getTileSelector, LOCKED_TILE_CLASS } from './tileSelector';
 import { useControlsSidebarSelector } from './useControlsSidebar';
 import { usePortalTargets } from './usePortalTargets';
 
@@ -281,14 +277,13 @@ export const LinkPrompts: FC = () => {
 
     return (
         <>
-            {prompts.map(({ tile, rows }, index) => {
+            {prompts.map(({ tile, rows }) => {
                 const element = targets[tile.uuid];
                 if (!element) return null;
                 return createPortal(
                     <div
                         className={`${classes.overlay} ${LOCKED_TILE_CLASS}`}
                         data-controls-overlay
-                        data-wave={index % WAVE_BUCKETS}
                     >
                         <Paper
                             shadow="md"

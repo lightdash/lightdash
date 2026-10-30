@@ -42,6 +42,7 @@ export const usageDimensionSchemas: Record<
         { name: 'org_id', type: 'VARCHAR' },
         { name: 'user_id', type: 'VARCHAR' },
         { name: 'name', type: 'VARCHAR' },
+        { name: 'email', type: 'VARCHAR' },
     ],
     agents: [
         { name: 'org_id', type: 'VARCHAR' },

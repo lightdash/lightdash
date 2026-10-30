@@ -13,7 +13,7 @@ Content-Type: application/json
 }
 
 ### Register claude client 
-POST https://lightdash-preview-pr-16161.lightdash.okteto.dev/api/v1/oauth/register
+POST https://lightdash--pr-16161.lightdash.rainbowmachine.dev/api/v1/oauth/register
 Content-Type: application/json
 
 {

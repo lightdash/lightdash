@@ -18931,10 +18931,29 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
                   "items": {
                     "additionalProperties": false,
                     "properties": {
+                      "limit": {
+                        "description": "Row limit this node ran with. A rowCount equal to it means the node reached its limit, so more rows may exist.",
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991,
+                        "type": "integer",
+                      },
                       "nodeId": {
                         "description": "Names this node so other nodes can read its result.",
                         "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$",
                         "type": "string",
+                      },
+                      "rowCount": {
+                        "anyOf": [
+                          {
+                            "maximum": 9007199254740991,
+                            "minimum": 0,
+                            "type": "integer",
+                          },
+                          {
+                            "type": "null",
+                          },
+                        ],
+                        "description": "Rows this node returned; null when its query is not ready.",
                       },
                       "sourceType": {
                         "enum": [
@@ -18959,6 +18978,8 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
                       "nodeId",
                       "title",
                       "sourceType",
+                      "rowCount",
+                      "limit",
                     ],
                     "type": "object",
                   },
@@ -19417,6 +19438,8 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
     "description": "Visualize a node's result for the user as a chart or table. Each call adds one card to the thread; a result stays hidden until it is visualized.
 
 nodeId names a node from a successful query call in this thread, in this turn or an earlier one, so a result can be visualized again with a different vizConfig without rerunning query. vizConfig references are that node's result columns, as listed in its query result.
+
+Show related metrics that answer one comparison over the same x in one visualize call, unless the user asks for separate charts: same-scale metrics in y, and a metric on a different scale in y2 instead. When they need more scales than y and y2 hold, or bars and lines together, use a custom chart type whose slots fit, when the project has one. Call visualize on the same node again for a different x or chart, not once per metric.
 
 Pie and series-split charts return readability notes when they have many slices or series.",
     "inputSchema": {

@@ -94,6 +94,7 @@ function getFilterButtonProps(hasFilter: boolean) {
         className: hasFilter
             ? `${classes.filterButton} ${classes.filterButtonActive}`
             : classes.filterButton,
+        classNames: { section: classes.filterSection },
     } as const;
 }
 

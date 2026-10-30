@@ -14,18 +14,22 @@ export const formatTileCount = (
         { count },
     );
 
-export const formatFieldCount = (
+// "2 of 5" and "tiles": the count and its noun, which the field bar sets apart
+export const formatTilesOf = (
     getUiString: UiStringResolver,
-    count: number,
-): string =>
-    interpolateUiString(
-        getUiString(
-            count === 1
-                ? 'filters.rail.fieldCount.singular'
-                : 'filters.rail.fieldCount.plural',
-        ),
-        { count },
-    );
+    applied: number,
+    total: number,
+): { count: string; noun: string } => ({
+    count: interpolateUiString(getUiString('filters.rail.countOf'), {
+        applied,
+        total,
+    }),
+    noun: getUiString(
+        total === 1
+            ? 'filters.fieldBar.tilesOf.singular'
+            : 'filters.fieldBar.tilesOf.plural',
+    ),
+});
 
 export const formatSectionCount = (
     getUiString: UiStringResolver,

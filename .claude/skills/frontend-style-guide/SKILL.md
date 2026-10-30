@@ -10,9 +10,9 @@ allowed-tools: Read, Edit, Write, Glob, Grep
 
 Apply these rules when working on any frontend component in `packages/frontend/`.
 
-## Mantine 8
+## Mantine 9
 
-The app runs on Mantine 8 (`@mantine/core`), with the theme in `src/theme/`.
+The app runs on Mantine 9 (`@mantine/core`), with the theme in `src/theme/`.
 
 ## Design principles
 
@@ -278,10 +278,10 @@ const { monaco, ace } = useEditorTheme();
 const isDark = useComputedColorScheme('light') === 'dark';
 ```
 
-## Use the clsx utility exported by @mantine/core
+## Use the clsx utility from the clsx package
 
 ```tsx
-import { clsx } from '@mantine/core';
+import { clsx } from 'clsx';
 
 const MyComponent = () => {
     return (

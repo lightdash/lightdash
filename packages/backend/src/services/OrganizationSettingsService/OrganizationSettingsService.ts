@@ -185,6 +185,19 @@ export class OrganizationSettingsService extends BaseService {
         );
     }
 
+    /** For the Postgres wire endpoint: any org member may connect once an admin enables it. */
+    async isSemanticLayerPgwireEnabled(
+        organizationUuid: string,
+    ): Promise<boolean> {
+        const raw = await this.organizationSettingsModel.get(organizationUuid);
+        const { semanticLayerPgwireEnabled } =
+            resolveEffectiveOrganizationSettings(
+                raw,
+                getOrganizationSettingsInstanceDefaults(this.lightdashConfig),
+            );
+        return semanticLayerPgwireEnabled === true;
+    }
+
     async updateOrganizationSettings(
         account: RegisteredAccount,
         data: UpdateOrganizationSettings,

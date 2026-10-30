@@ -156,19 +156,6 @@ const DebouncedSearchInput = memo(
                     w={{ base: '100%', sm: 309 }}
                     aria-label="Search by name"
                     classNames={{ input: classes.searchInput }}
-                    styles={(inputTheme) => ({
-                        input: {
-                            height: 32,
-                            width: '100%',
-                            textOverflow: 'ellipsis',
-                            fontSize: inputTheme.fontSizes.sm,
-                            fontWeight: 400,
-                            color: value
-                                ? inputTheme.colors.ldGray[8]
-                                : inputTheme.colors.ldGray[5],
-                            boxShadow: inputTheme.shadows.subtle,
-                        },
-                    })}
                     type="search"
                     variant="default"
                     placeholder="Search by name"
@@ -299,7 +286,7 @@ const InfiniteResourceTable = ({
                 if (space) {
                     return (
                         <Anchor
-                            c="ldGray.7"
+                            c="dimmed"
                             component={Link}
                             to={`/projects/${projectUrlIdentifier}/spaces/${space.uuid}`}
                             onClick={(e: React.MouseEvent<HTMLAnchorElement>) =>
@@ -336,7 +323,7 @@ const InfiniteResourceTable = ({
                     : undefined;
                 if (inaccessibleSpaceName) {
                     return (
-                        <Text fz="xs" fw={500} c="ldGray.7">
+                        <Text fz="xs" fw={500} c="dimmed">
                             {inaccessibleSpaceName}
                         </Text>
                     );
@@ -353,7 +340,7 @@ const InfiniteResourceTable = ({
             Cell: ({ row }) => {
                 if (isResourceViewSpaceItem(row.original))
                     return (
-                        <Text fz="xs" fw={500} c="ldGray.7">
+                        <Text fz="xs" fw={500} c="dimmed">
                             -
                         </Text>
                     );
@@ -385,7 +372,7 @@ const InfiniteResourceTable = ({
                 const ownerName =
                     `${firstName} ${lastName}`.trim() || email || '-';
                 return (
-                    <Text fz="xs" fw={500} c="ldGray.7">
+                    <Text fz="xs" fw={500} c="dimmed">
                         {ownerName}
                     </Text>
                 );
@@ -403,7 +390,7 @@ const InfiniteResourceTable = ({
                     isResourceViewDocumentItem(row.original)
                 )
                     return (
-                        <Text fz="xs" fw={500} c="ldGray.7">
+                        <Text fz="xs" fw={500} c="dimmed">
                             -
                         </Text>
                     );
@@ -414,7 +401,7 @@ const InfiniteResourceTable = ({
                         projectUuid={filters.projectUuid}
                         views={row.original.data.views}
                     >
-                        <Text fz="xs" fw={500} c="ldGray.7">
+                        <Text fz="xs" fw={500} c="dimmed">
                             {row.original.data.views}
                         </Text>
                     </ViewsCountPopover>
@@ -710,81 +697,16 @@ const InfiniteResourceTable = ({
         enableTopToolbar: true,
         mantineTableContainerProps: {
             ref: tableContainerRef,
-            sx: {
-                maxHeight: 'calc(100dvh - 350px)',
-                minHeight: compact ? '240px' : '600px',
-                display: 'flex',
-                flexDirection: 'column',
-            },
+            mah: 'calc(100dvh - 350px)',
+            mih: compact ? 240 : 600,
             onScroll,
         },
         mantineTableProps: {
             highlightOnHover: true,
             withColumnBorders: Boolean(flatData.length),
-            sx: {
-                flexGrow: 1,
-                display: 'flex',
-                flexDirection: 'column',
-            },
+            className: classes.table,
         },
-        mantineTableHeadCellProps: (props) => {
-            const isAnyColumnResizing = props.table
-                .getAllColumns()
-                .some((c) => c.getIsResizing());
-
-            const isLastColumn =
-                props.table.getAllColumns().indexOf(props.column) ===
-                props.table.getAllColumns().length - 1;
-
-            const canResize = props.column.getCanResize();
-
-            return {
-                bg: 'ldGray.0',
-                h: '3xl',
-                pos: 'relative',
-                // Adding to inline styles to override the default ones which can't be overridden with sx
-                style: {
-                    padding: `${theme.spacing.xs} ${theme.spacing.xl}`,
-                    borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                    borderRight: props.column.getIsResizing()
-                        ? `2px solid ${theme.colors.blue[3]}`
-                        : `1px solid ${
-                              isLastColumn
-                                  ? 'transparent'
-                                  : theme.colors.ldGray[2]
-                          }`,
-                    borderTop: 'none',
-                    borderLeft: 'none',
-                },
-                sx: {
-                    justifyContent: 'center',
-
-                    'tr > th:last-of-type': {
-                        borderLeft: `2px solid ${theme.colors.blue[3]}`,
-                    },
-                    '&:hover': canResize
-                        ? {
-                              borderRight: !isAnyColumnResizing
-                                  ? `2px solid ${theme.colors.blue[3]} !important` // This is needed to override the default inline styles
-                                  : undefined,
-                              transition: `border-right ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
-                          }
-                        : {},
-                },
-            };
-        },
-        mantineTableBodyProps: {
-            sx: {
-                flexGrow: 1,
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                'tr:last-of-type > td': {
-                    borderBottom: 'none',
-                    borderLeft: 'none !important',
-                },
-            },
-        },
+        mantineTableHeadCellProps: { px: 'xl' },
         mantineTableBodyRowProps: ({ row }) => {
             const isTableSelectionActive =
                 table.getIsSomeRowsSelected() || table.getIsAllRowsSelected();
@@ -850,24 +772,7 @@ const InfiniteResourceTable = ({
                 },
             };
         },
-        mantineTableBodyCellProps: () => {
-            return {
-                h: 72,
-                // Adding to inline styles to override the default ones which can't be overridden with sx
-                style: {
-                    padding: `${theme.spacing.md} ${theme.spacing.xl}`,
-                    borderRight: 'none',
-                    borderLeft: 'none',
-                    borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                    borderTop: 'none',
-                },
-                sx: {
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    flexShrink: 0,
-                },
-            };
-        },
+        mantineTableBodyCellProps: { h: 72, py: 'md', px: 'xl' },
         renderTopToolbar: () => {
             const selectedRows = table.getFilteredSelectedRowModel().flatRows;
             const selectedItems = selectedRows.map((row) => row.original);
@@ -1033,10 +938,7 @@ const InfiniteResourceTable = ({
                 p={`${theme.spacing.sm} ${theme.spacing.xl} ${theme.spacing.md} ${theme.spacing.xl}`}
                 fz="xs"
                 fw={500}
-                c="ldGray.8"
-                style={{
-                    borderTop: `1px solid ${theme.colors.ldGray[3]}`,
-                }}
+                className={classes.bottomToolbar}
             >
                 {isFetching ? (
                     <Text fz="xs">Loading more...</Text>

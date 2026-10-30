@@ -272,7 +272,6 @@ export const ContentReferenceLink = ({
                 component="span"
                 fz="xs"
                 fw={500}
-                c="ldGray.8"
                 className={`${styles.contentLink} ${styles.static}`}
                 data-content-link="true"
             >

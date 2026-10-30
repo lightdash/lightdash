@@ -168,6 +168,27 @@ export const ViewerControls: FC<Props> = ({
 
     return (
         <Stack gap="md">
+            <RequiredFilterCard
+                withCard={false}
+                filterRule={rule}
+                onToggleRequired={(checked) =>
+                    onChange(getRequiredRule(checked))
+                }
+                onChangeFilterRule={(next) =>
+                    onChange(getFilterRuleWithDisabledState(next, true))
+                }
+                onChangeOtherFilterRule={(other) => onChangeOthers([other])}
+                onEditRules={onEditRules ?? undefined}
+                isListInPortal
+                disabledReason={
+                    isRequiredBlocked
+                        ? 'A locked filter needs a default value to be required.'
+                        : undefined
+                }
+            />
+
+            <Divider />
+
             <Stack gap={6}>
                 <Group justify="space-between" wrap="nowrap">
                     <Group gap={6} wrap="nowrap">
@@ -204,9 +225,6 @@ export const ViewerControls: FC<Props> = ({
                         }}
                     />
                 </Group>
-                <Text size="xs" c="ldGray.7">
-                    Viewers see the value but can&apos;t change it.
-                </Text>
                 {hasTabs && isLockedSomewhere && (
                     <>
                         <SegmentedControl
@@ -254,27 +272,6 @@ export const ViewerControls: FC<Props> = ({
                     </Group>
                 )}
             </Stack>
-
-            <Divider />
-
-            <RequiredFilterCard
-                withCard={false}
-                filterRule={rule}
-                onToggleRequired={(checked) =>
-                    onChange(getRequiredRule(checked))
-                }
-                onChangeFilterRule={(next) =>
-                    onChange(getFilterRuleWithDisabledState(next, true))
-                }
-                onChangeOtherFilterRule={(other) => onChangeOthers([other])}
-                onEditRules={onEditRules ?? undefined}
-                isListInPortal
-                disabledReason={
-                    isRequiredBlocked
-                        ? 'A locked filter needs a default value to be required.'
-                        : undefined
-                }
-            />
         </Stack>
     );
 };

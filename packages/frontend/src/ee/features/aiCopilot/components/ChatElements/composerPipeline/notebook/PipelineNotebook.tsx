@@ -1,4 +1,4 @@
-import { interpolateUiString, type SourceQuery } from '@lightdash/common';
+import { type SourceQuery } from '@lightdash/common';
 import {
     ActionIcon,
     Badge,
@@ -30,10 +30,11 @@ import {
 import MantineIcon from '../../../../../../../components/common/MantineIcon';
 import { useUiStrings } from '../../../../../../providers/Embed/useUiStrings';
 import { useCanViewAiAgentSql } from '../../../../hooks/useCanViewAiAgentSql';
+import { useComposerNodeRowsLabel } from '../../composerNodeStatus';
 import { NodeStatusIndicator } from '../../ComposerNodeStatusIndicator';
 import { type ComposerRunNodeStatus } from '../../useComposerRunNodeStatuses';
+import { ComposerNodeIcon } from '../ComposerNodeIcon';
 import { nodeTypeLabelOf, type PipelineNode } from '../groupPipeline';
-import { nodeTypeIcon } from '../nodeTypeIcon';
 import { CellQueryPanels, CellQueryToggles, ExploreSource } from './NodeQuery';
 import styles from './PipelineNotebook.module.css';
 import {
@@ -80,12 +81,7 @@ const CellStatus: FC<{
             {status && status.status !== 'success' ? (
                 <NodeStatusIndicator status={status.status} />
             ) : (
-                <MantineIcon
-                    icon={nodeTypeIcon(query)}
-                    size={14}
-                    stroke={1.5}
-                    aria-hidden
-                />
+                <ComposerNodeIcon query={query} size={14} />
             )}
         </Box>
     </Tooltip>
@@ -118,6 +114,7 @@ const NotebookCell: FC<CellProps> = ({
     onLineageHover,
 }) => {
     const getUiString = useUiStrings();
+    const rowsLabel = useComposerNodeRowsLabel();
     const canViewSql = useCanViewAiAgentSql();
     const exploreFromHere = useExploreFromHere(projectUuid);
     const [resultsOpen, setResultsOpen] = useState(false);
@@ -133,14 +130,7 @@ const NotebookCell: FC<CellProps> = ({
             ? [
                   status.totalRowCount === null
                       ? null
-                      : interpolateUiString(
-                            getUiString(
-                                status.totalRowCount === 1
-                                    ? 'aiAgent.composer.semanticNode.rows.singular'
-                                    : 'aiAgent.composer.semanticNode.rows.plural',
-                            ),
-                            { count: status.totalRowCount.toLocaleString() },
-                        ),
+                      : rowsLabel(node.query, status.totalRowCount),
                   status.durationMs === null
                       ? null
                       : formatDuration(status.durationMs),
@@ -330,10 +320,9 @@ const NotebookCell: FC<CellProps> = ({
                                 onMouseEnter={() => onLineageHover(true)}
                                 onMouseLeave={() => onLineageHover(false)}
                             >
-                                <MantineIcon
-                                    icon={nodeTypeIcon(reference.query)}
+                                <ComposerNodeIcon
+                                    query={reference.query}
                                     size={12}
-                                    stroke={1.5}
                                 />
                                 {reference.title}
                             </UnstyledButton>
