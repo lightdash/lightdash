@@ -18470,6 +18470,13 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
                               ],
                               "type": "string",
                             },
+                            "description": {
+                              "description": "Shown to users as the metric's description. Null when the label is enough.",
+                              "type": [
+                                "string",
+                                "null",
+                              ],
+                            },
                             "dimensionFieldId": {
                               "description": "Field id of the dimension to aggregate, a dimension of "table".",
                               "type": "string",

@@ -2292,6 +2292,20 @@ describe('semanticLayer node custom metrics', () => {
         ...overrides,
     });
 
+    it("keeps a custom metric's description on the metric query", async () => {
+        const { submitted } = await run(
+            buyersNode({
+                customMetrics: [
+                    customMetric({ description: 'Distinct paying customers' }),
+                ],
+            }),
+        );
+
+        expect(submitted).toMatchObject({
+            additionalMetrics: [{ description: 'Distinct paying customers' }],
+        });
+    });
+
     it.each([
         {
             name: 'an unknown base dimension, listing the dimensions of its table',
