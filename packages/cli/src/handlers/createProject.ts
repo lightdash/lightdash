@@ -10,7 +10,6 @@ import {
     type ApiCreateProjectResults,
     type CreateWarehouseCredentials,
     type DbtVersionOption,
-    type OrganizationWarehouseCredentialsSummary,
 } from '@lightdash/common';
 import inquirer from 'inquirer';
 import path from 'path';
@@ -77,51 +76,6 @@ const askPermissionToStoreWarehouseCredentials = async (
     return savedAnswer;
 };
 
-export const resolveOrganizationCredentialsName = async (
-    name: string,
-): Promise<string> => {
-    GlobalState.debug(
-        `> Resolving organization warehouse credentials: ${name}`,
-    );
-
-    try {
-        const credentialsList = await lightdashApi<
-            OrganizationWarehouseCredentialsSummary[]
-        >({
-            method: 'GET',
-            url: '/api/v1/org/warehouse-credentials?summary=true',
-            body: undefined,
-        });
-
-        const credential = credentialsList.find((cred) => cred.name === name);
-
-        if (!credential) {
-            const availableNames =
-                credentialsList.length > 0
-                    ? credentialsList
-                          .map((c) => `  - ${c.name} (${c.warehouseType})`)
-                          .join('\n')
-                    : '  (none available)';
-            throw new Error(
-                `Organization warehouse credentials "${name}" not found.\n\nAvailable credentials:\n${availableNames}`,
-            );
-        }
-
-        GlobalState.debug(
-            `> Resolved "${name}" to UUID: ${credential.organizationWarehouseCredentialsUuid}`,
-        );
-
-        return credential.organizationWarehouseCredentialsUuid;
-    } catch (error) {
-        if (error instanceof Error) {
-            throw error;
-        }
-        throw new Error(
-            'Failed to resolve organization warehouse credentials. This may be an Enterprise Edition feature that is not available.',
-        );
-    }
-};
-
 type CreateProjectOptions = {
     name: string;
     projectDir: string;
@@ -135,7 +89,6 @@ type CreateProjectOptions = {
     copyContent?: boolean;
     asyncCopyContent?: boolean;
     warehouseCredentials?: boolean;
-    organizationCredentials?: string;
     targetPath?: string;
     assumeYes?: boolean;
     expiresIn?: number;
@@ -314,53 +267,12 @@ export const createProject = async (
         options.type,
     );
 
-    // Resolve organization credentials early before doing any heavy work
-    let organizationWarehouseCredentialsUuid: string | undefined;
-    if (options.organizationCredentials) {
-        organizationWarehouseCredentialsUuid =
-            await resolveOrganizationCredentialsName(
-                options.organizationCredentials,
-            );
-    }
-
-    const absoluteProjectPath = path.resolve(options.projectDir);
-
     let targetName: string | undefined;
     let credentials: CreateWarehouseCredentials | undefined;
     let isDbtCloudCLI = false;
     let dbtVersionOption: DbtVersionOption = getLatestSupportDbtVersion();
 
-    // If using organization credentials, don't load warehouse credentials from profiles
-    if (organizationWarehouseCredentialsUuid) {
-        GlobalState.debug(
-            `> Using organization warehouse credentials: ${options.organizationCredentials}`,
-        );
-
-        const dbtVersionResult = await tryGetDbtVersion();
-        if (!dbtVersionResult.success) {
-            throw dbtVersionResult.error;
-        }
-        isDbtCloudCLI = dbtVersionResult.version.isDbtCloudCLI;
-        dbtVersionOption = dbtVersionResult.version.versionOption;
-
-        // Still need to get target name for dbt connection
-        const context = await getDbtContext({
-            projectDir: absoluteProjectPath,
-            targetPath: options.targetPath,
-        });
-        GlobalState.debug(
-            `> Using profiles dir ${options.profilesDir} and profile ${
-                options.profile || context.profileName
-            }`,
-        );
-        targetName = await getDbtProfileTargetName({
-            isDbtCloudCLI,
-            profilesDir: options.profilesDir,
-            profile: options.profile || context.profileName,
-            target: options.target,
-        });
-        GlobalState.debug(`> Using target name ${targetName}`);
-    } else if (options.warehouseCredentials === false) {
+    if (options.warehouseCredentials === false) {
         GlobalState.debug('> Creating project without warehouse credentials');
         // No dbt needed - use defaults set above
     } else {
@@ -413,7 +325,6 @@ export const createProject = async (
         tableConfiguration: options.tableConfiguration,
         copyContent: options.copyContent,
         asyncCopyContent: options.asyncCopyContent ?? false,
-        organizationWarehouseCredentialsUuid,
         ...(options.expiresIn !== undefined
             ? { expiresInHours: options.expiresIn }
             : {}),

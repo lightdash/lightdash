@@ -3,7 +3,7 @@ import knex from 'knex';
 import { getTracker, MockClient } from 'knex-mock-client';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { type EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
-import { OrganizationWarehouseCredentialsModel } from '../OrganizationWarehouseCredentialsModel';
+import { RefreshTokenSourceChangedError } from '../RefreshTokenRotation/RefreshTokenRotation';
 import { WarehouseConnectionModel } from './WarehouseConnectionModel';
 
 const credentials: CreateTrinoCredentials = {
@@ -33,11 +33,6 @@ describe('updating an extra connection warehouse type', () => {
     const model = new WarehouseConnectionModel({
         database,
         encryptionUtil,
-        organizationWarehouseCredentialsModel:
-            new OrganizationWarehouseCredentialsModel({
-                database,
-                encryptionUtil,
-            }),
     });
     beforeEach(() => {
         tracker.reset();
@@ -64,24 +59,6 @@ describe('updating an extra connection warehouse type', () => {
         );
         expect(tracker.history.update).toHaveLength(0);
     });
-    it('refuses a type change from organization credentials under the row lock', async () => {
-        tracker.on.select('organization_warehouse_credentials').response([
-            {
-                warehouse_type: WarehouseTypes.TRINO,
-                organization_uuid: project.organizationUuid,
-            },
-        ]);
-        await expect(
-            model.updateExtraCredentials(project, 'connection', {
-                kind: 'organization',
-                organizationWarehouseCredentialsUuid:
-                    'organization-credentials',
-            }),
-        ).rejects.toThrow(
-            "A connection's warehouse type cannot be changed. Add a new connection instead.",
-        );
-        expect(tracker.history.update).toHaveLength(0);
-    });
     it('updates credentials without writing the warehouse type', async () => {
         await model.updateExtraCredentials(project, 'connection', {
             kind: 'project',
@@ -95,20 +72,46 @@ describe('updating an extra connection warehouse type', () => {
             type: WarehouseTypes.POSTGRES,
         });
     });
-    it('refuses organization credentials from another organization', async () => {
-        tracker.on.select('organization_warehouse_credentials').response([
-            {
-                warehouse_type: WarehouseTypes.TRINO,
-                organization_uuid: 'other-org',
-            },
-        ]);
+
+    it('rejects a retired organization link even when inline credentials exist', async () => {
+        tracker.reset();
+        tracker.on.select('warehouse_connections').response({
+            is_original: false,
+            organization_warehouse_credentials_uuid: 'retired-credential',
+            encrypted_credentials: Buffer.from(JSON.stringify(credentials)),
+        });
+
         await expect(
-            model.updateExtraCredentials(project, 'connection', {
-                kind: 'organization',
-                organizationWarehouseCredentialsUuid:
-                    'organization-credentials',
-            }),
-        ).rejects.toThrow('Organization warehouse credentials not found');
-        expect(tracker.history.update).toHaveLength(0);
+            model.getOwnCredentials(project, 'connection'),
+        ).rejects.toBeInstanceOf(RefreshTokenSourceChangedError);
+    });
+
+    it('clears a retired link and invalidates credentials when replaced with the same inline credentials', async () => {
+        const replacement = {
+            ...credentials,
+            type: WarehouseTypes.POSTGRES as const,
+        };
+        tracker.reset();
+        tracker.on.select('warehouse_connections').response({
+            is_original: false,
+            warehouse_type: replacement.type,
+            organization_warehouse_credentials_uuid: 'retired-credential',
+            encrypted_credentials: Buffer.from(JSON.stringify(replacement)),
+        });
+        tracker.on.update('warehouse_connections').response(1);
+
+        await model.updateExtraCredentials(project, 'connection', {
+            kind: 'project',
+            credentials: replacement,
+        });
+
+        const update = tracker.history.update[0];
+        expect(update.sql).toContain(
+            '"organization_warehouse_credentials_uuid" =',
+        );
+        expect(update.bindings).toContain(null);
+        expect(update.sql).toContain(
+            '"connection_credential_generation" = "connection_credential_generation" + 1',
+        );
     });
 });

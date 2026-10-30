@@ -18,11 +18,7 @@ import {
     connectionContextFromUser,
     WarehouseCredentialKind,
 } from '../WarehouseClientFactory/ConnectionContext';
-import {
-    preparedCredentials,
-    type MaterializedCredentials,
-    type PreparedCredentials,
-} from '../WarehouseClientFactory/CredentialResolver';
+import { type MaterializedCredentials } from '../WarehouseClientFactory/CredentialResolver';
 import type { CredentialResolverRegistry } from '../WarehouseClientFactory/CredentialResolverRegistry';
 import type {
     WarehouseCredentialBase,
@@ -43,10 +39,7 @@ const credentials: CreateDatabricksCredentials = {
     oauthClientId: 'cli-client',
 };
 const actor = { userUuid: 'person', organizationUuid: 'org' };
-const setup = (
-    mode = DatabricksAuthenticationType.OAUTH_U2M,
-    organizationCredentialUuid: string | null = null,
-) => {
+const setup = (mode = DatabricksAuthenticationType.OAUTH_U2M) => {
     const connection: CreateDatabricksCredentials = {
         ...credentials,
         authenticationType: mode,
@@ -58,7 +51,6 @@ const setup = (
         ...projectWithSensitiveFields,
         projectUuid: 'project',
         organizationUuid: 'org',
-        organizationWarehouseCredentialsUuid: organizationCredentialUuid,
         warehouseConnection: connection,
     };
     const projectModel = {
@@ -66,13 +58,6 @@ const setup = (
         getOwnWarehouseCredentialsForProject: vi
             .fn()
             .mockResolvedValue(connection),
-        rotateRefreshToken: vi.fn().mockResolvedValue(true),
-    };
-    const organizationWarehouseCredentialsModel = {
-        getByUuidWithSensitiveData: vi.fn().mockResolvedValue({
-            organizationUuid: 'org',
-            credentials: connection,
-        }),
         rotateRefreshToken: vi.fn().mockResolvedValue(true),
     };
     const userWarehouseCredentialsModel = {
@@ -91,7 +76,6 @@ const setup = (
         lightdashConfig: lightdashConfigMock,
         refreshTokenRotation: rotation,
         projectModel,
-        organizationWarehouseCredentialsModel,
         userWarehouseCredentialsModel,
         featureFlagModel: {
             get: vi.fn(async () => ({ enabled: false })),
@@ -118,12 +102,7 @@ const setup = (
         refreshCredentialsAndPersistRotation: (
             input: CreateDatabricksCredentials,
             userUuid: string,
-            source:
-                | { kind: 'project'; projectUuid: string }
-                | {
-                      kind: 'organization';
-                      organizationWarehouseCredentialsUuid: string;
-                  },
+            source: { kind: 'project'; projectUuid: string },
         ) => Promise<CreateWarehouseCredentials>;
         warehouseClientFactory: {
             credentialResolvers: CredentialResolverRegistry;
@@ -154,7 +133,6 @@ const setup = (
         probe,
         project,
         projectModel,
-        organizationWarehouseCredentialsModel,
         userWarehouseCredentialsModel,
         exchange,
         lockedExchange,
@@ -196,49 +174,6 @@ describe.each([
             'rotated-refresh',
             { raw: f.raw },
         );
-    });
-
-    test('direct organization refresh writes the source row', async () => {
-        const f = setup(mode, 'org-row');
-        await f.probe.refreshCredentialsAndPersistRotation(
-            f.project.warehouseConnection,
-            actor.userUuid,
-            {
-                kind: 'organization',
-                organizationWarehouseCredentialsUuid: 'org-row',
-            },
-        );
-        expect(
-            f.organizationWarehouseCredentialsModel.rotateRefreshToken,
-        ).toHaveBeenCalledExactlyOnceWith(
-            'org-row',
-            'stored-refresh',
-            'rotated-refresh',
-            { raw: f.raw },
-        );
-        expect(f.projectModel.rotateRefreshToken).not.toHaveBeenCalled();
-    });
-
-    test('legacy compile writes organization rotation', async () => {
-        const f = setup(mode, 'org-row');
-        const result = await f.probe.prepareLegacyCompileCredentials(
-            f.project,
-            actor,
-        );
-        expect(result).toMatchObject({
-            token: 'fresh-access',
-            refreshToken: 'rotated-refresh',
-        });
-        expect((result as PreparedCredentials)[preparedCredentials]).toBe(true);
-        expect(
-            f.organizationWarehouseCredentialsModel.rotateRefreshToken,
-        ).toHaveBeenCalledTimes(1);
-        expect(
-            f.organizationWarehouseCredentialsModel.rotateRefreshToken,
-        ).toHaveBeenCalledWith('org-row', 'stored-refresh', 'rotated-refresh', {
-            raw: f.raw,
-        });
-        expect(f.projectModel.rotateRefreshToken).not.toHaveBeenCalled();
     });
 
     test('legacy compile preserves raw errors', async () => {
@@ -438,7 +373,6 @@ describe.each(['query', 'compile', 'legacy compile'] as const)(
                           kind: 'original',
                           projectUuid: 'project',
                           organizationUuid: 'org',
-                          organizationWarehouseCredentialsUuid: null,
                           warehouseConnectionUuid: null,
                           connectionRoute: null,
                           credentials: {

@@ -82,11 +82,9 @@ const setup = (
     {
         enabled = true,
         compileEnabled = true,
-        organizationUuid = null,
     }: {
         enabled?: boolean;
         compileEnabled?: boolean;
-        organizationUuid?: string | null;
     } = {},
 ) => {
     const project = {
@@ -99,7 +97,6 @@ const setup = (
             webhook_hmac_secret: webhookSecret,
         },
         warehouseConnection: credentials,
-        organizationWarehouseCredentialsUuid: organizationUuid,
     };
     const { database } = createDatabase();
     const projectModel = {
@@ -113,7 +110,6 @@ const setup = (
                 projectUuid === 'preview-uuid'
                     ? ProjectType.PREVIEW
                     : ProjectType.DEFAULT,
-            organizationWarehouseCredentialsUuid: organizationUuid ?? undefined,
         })),
         createWithOptionalCredentials: vi.fn<
             ProjectModel['createWithOptionalCredentials']
@@ -124,9 +120,7 @@ const setup = (
         })),
         getWarehouseCredentialsForProject: vi.fn(async () => credentials),
         getOwnWarehouseCredentialsForProject: vi.fn(async () => credentials),
-        getProjectWarehouseConfig: vi.fn(async () => ({
-            organizationWarehouseCredentialsUuid: organizationUuid,
-        })),
+        getProjectWarehouseConfig: vi.fn(async () => ({})),
         getWarehouseClientFromCredentials: vi.fn<
             ProjectModel['getWarehouseClientFromCredentials']
         >((clientCredentials, options) =>
@@ -146,13 +140,6 @@ const setup = (
         getByUuidWithSecrets: vi.fn(),
         findForProjectWithSecrets:
             vi.fn<UserWarehouseCredentialsModel['findForProjectWithSecrets']>(),
-        rotateRefreshToken: vi.fn(async () => undefined),
-    };
-    const organizationWarehouseCredentialsModel = {
-        getByUuidWithSensitiveData: vi.fn(async () => ({
-            organizationUuid: project.organizationUuid,
-            credentials,
-        })),
         rotateRefreshToken: vi.fn(async () => undefined),
     };
     const userOAuthGrantsModel = { get: vi.fn() };
@@ -181,7 +168,6 @@ const setup = (
         analytics: { track: vi.fn() },
         projectDbtSourcesModel: { copySources: vi.fn(async () => undefined) },
         userWarehouseCredentialsModel,
-        organizationWarehouseCredentialsModel,
         userOAuthGrantsModel,
         schedulerClient: { generateValidation: vi.fn() },
         featureFlagModel: { get: vi.fn(async () => ({ enabled: false })) },
@@ -206,7 +192,6 @@ const setup = (
         projectModel,
         userModel,
         userWarehouseCredentialsModel,
-        organizationWarehouseCredentialsModel,
         userOAuthGrantsModel,
         save,
         create,
@@ -337,14 +322,12 @@ const authCases = [
         credentials: snowflake(),
         token: 'refreshed-snowflake',
         rotated: 'rotated-snowflake',
-        organizationUuid: null,
     },
     {
         name: 'Databricks M2M refresh',
         credentials: databricks(),
         token: 'refreshed-access',
         rotated: 'rotated-refresh',
-        organizationUuid: null,
     },
     {
         name: 'Databricks M2M exchange',
@@ -355,25 +338,12 @@ const authCases = [
         },
         token: 'exchanged-access',
         rotated: 'exchanged-refresh',
-        organizationUuid: null,
     },
     {
         name: 'Databricks U2M',
         credentials: databricks(DatabricksAuthenticationType.OAUTH_U2M),
         token: 'refreshed-access',
         rotated: 'rotated-refresh',
-        organizationUuid: null,
-    },
-    {
-        name: 'organisation Snowflake SSO',
-        credentials: {
-            ...snowflake(),
-            refreshToken: 'org-refresh',
-            requireUserCredentials: true,
-        },
-        token: 'refreshed-snowflake',
-        rotated: 'rotated-snowflake',
-        organizationUuid: 'org-credential-uuid',
     },
 ];
 
@@ -502,9 +472,6 @@ describe('dbt Cloud preview credential resolution', () => {
                 f.userWarehouseCredentialsModel.rotateRefreshToken,
             ).not.toHaveBeenCalled();
             expect(
-                f.organizationWarehouseCredentialsModel.rotateRefreshToken,
-            ).not.toHaveBeenCalled();
-            expect(
                 f.projectModel.createWithOptionalCredentials,
             ).not.toHaveBeenCalled();
             expect(warehouseClientFromCredentials).toHaveBeenCalledTimes(
@@ -569,8 +536,8 @@ describe('dbt Cloud preview credential resolution', () => {
 
     it.each(authCases)(
         'webhook resolves $name before client construction',
-        async ({ credentials, token, rotated, organizationUuid }) => {
-            const f = setup(credentials, { organizationUuid });
+        async ({ credentials, token, rotated }) => {
+            const f = setup(credentials, {});
             await expect(f.preview()).resolves.toBe('preview-uuid');
             expect(
                 warehouseClientFromCredentials,
@@ -611,19 +578,7 @@ describe('dbt Cloud preview credential resolution', () => {
                 expect.any(Object),
                 expect.any(Function),
             );
-            if (organizationUuid) {
-                expect(
-                    f.organizationWarehouseCredentialsModel.rotateRefreshToken,
-                ).toHaveBeenCalledExactlyOnceWith(
-                    organizationUuid,
-                    'org-refresh',
-                    rotated,
-                    expect.objectContaining({ raw: expect.any(Function) }),
-                );
-                expect(
-                    f.projectModel.rotateRefreshToken,
-                ).not.toHaveBeenCalled();
-            } else if (credentials.refreshToken) {
+            if (credentials.refreshToken) {
                 expect(
                     f.projectModel.rotateRefreshToken,
                 ).toHaveBeenCalledExactlyOnceWith(
@@ -632,9 +587,6 @@ describe('dbt Cloud preview credential resolution', () => {
                     rotated,
                     expect.objectContaining({ raw: expect.any(Function) }),
                 );
-                expect(
-                    f.organizationWarehouseCredentialsModel.rotateRefreshToken,
-                ).not.toHaveBeenCalled();
             } else {
                 expect(
                     f.projectModel.rotateRefreshToken,
@@ -677,8 +629,8 @@ describe('dbt Cloud preview credential resolution', () => {
 
     it.each(authCases)(
         'switch off passes raw $name credentials without refresh',
-        async ({ credentials, organizationUuid }) => {
-            const f = setup(credentials, { enabled: false, organizationUuid });
+        async ({ credentials }) => {
+            const f = setup(credentials, { enabled: false });
             await expect(f.preview()).rejects.toThrow(
                 'OAuth access token is required',
             );
@@ -692,9 +644,6 @@ describe('dbt Cloud preview credential resolution', () => {
                 UserService.generateSnowflakeAccessToken,
             ).not.toHaveBeenCalled();
             expect(f.projectModel.rotateRefreshToken).not.toHaveBeenCalled();
-            expect(
-                f.organizationWarehouseCredentialsModel.rotateRefreshToken,
-            ).not.toHaveBeenCalled();
             expect(
                 f.userWarehouseCredentialsModel.findForProjectWithSecrets,
             ).not.toHaveBeenCalled();

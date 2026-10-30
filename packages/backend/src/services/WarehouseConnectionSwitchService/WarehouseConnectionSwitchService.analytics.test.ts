@@ -246,13 +246,6 @@ describe('WarehouseConnectionSwitchService lifecycle analytics', () => {
             credentialSource: 'project' as const,
             connection: request.connection,
         },
-        {
-            credentialSource: 'organization' as const,
-            connection: {
-                name: 'Extra',
-                organizationWarehouseCredentialsUuid: 'credentials-uuid',
-            },
-        },
     ])(
         'tracks $credentialSource credentials on a preview refusal',
         async ({ credentialSource, connection }) => {
@@ -532,12 +525,8 @@ describe('WarehouseConnectionSwitchService mixed warehouse types', () => {
         );
     });
 
-    it('allows an organization BigQuery extra with the flag on', async () => {
-        const { service, connectionModel } = buildService(true);
-        const loadOrganizationCredentials = vi
-            .fn()
-            .mockResolvedValue({ type: WarehouseTypes.BIGQUERY });
-        Object.assign(connectionModel, { loadOrganizationCredentials });
+    it('rejects retired organization credentials even with mixed types enabled', async () => {
+        const { service } = buildService(true);
         await expect(
             service.preview(account, projectUuid, {
                 ...request,
@@ -547,11 +536,7 @@ describe('WarehouseConnectionSwitchService mixed warehouse types', () => {
                         'organization-credentials-uuid',
                 },
             }),
-        ).resolves.toMatchObject({
-            connection: expect.objectContaining({
-                warehouseType: WarehouseTypes.BIGQUERY,
-            }),
-        });
+        ).rejects.toThrow('no longer supported');
     });
 });
 

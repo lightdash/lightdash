@@ -23,7 +23,6 @@ import { randomUUID } from 'node:crypto';
 import { fromSession } from '../../../auth/account/account';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
-import { OrganizationWarehouseCredentialsModel } from '../../../models/OrganizationWarehouseCredentialsModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { UserWarehouseCredentialsModel } from '../../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseConnectionModel } from '../../../models/WarehouseConnectionModel/WarehouseConnectionModel';
@@ -318,11 +317,6 @@ describe('SQL runner catalog by connection on the real schema', () => {
                 },
             },
         } as never);
-        const organizationWarehouseCredentialsModel =
-            new OrganizationWarehouseCredentialsModel({
-                database,
-                encryptionUtil,
-            });
         tablesModel = new WarehouseConnectionTablesModel({ database });
         service = new ProjectService({
             lightdashConfig: lightdashConfigMock,
@@ -338,11 +332,9 @@ describe('SQL runner catalog by connection on the real schema', () => {
                 database,
                 encryptionUtil,
             }),
-            organizationWarehouseCredentialsModel,
             warehouseConnectionModel: new WarehouseConnectionModel({
                 database,
                 encryptionUtil,
-                organizationWarehouseCredentialsModel,
             }),
             warehouseConnectionTablesModel: tablesModel,
         } as never);

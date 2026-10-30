@@ -11,7 +11,6 @@ import {
 import knex, { type Knex } from 'knex';
 import { getTracker, MockClient } from 'knex-mock-client';
 import { lightdashConfigMock } from '../config/lightdashConfig.mock';
-import { OrganizationWarehouseCredentialsModel } from '../models/OrganizationWarehouseCredentialsModel';
 import { ProjectModel } from '../models/ProjectModel/ProjectModel';
 import { UserWarehouseCredentialsModel } from '../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseConnectionModel } from '../models/WarehouseConnectionModel/WarehouseConnectionModel';
@@ -54,10 +53,7 @@ const decode = (value: Buffer): CreateWarehouseCredentials => {
 describe('persisted opaque credential versions', () => {
     const database = knex({ client: MockClient, dialect: 'pg' });
     const tracker = getTracker();
-    const organizationModel = new OrganizationWarehouseCredentialsModel({
-        database,
-        encryptionUtil: encryption,
-    });
+
     const projectModel = new ProjectModel({
         database,
         encryptionUtil: encryption,
@@ -70,7 +66,6 @@ describe('persisted opaque credential versions', () => {
     const connectionModel = new WarehouseConnectionModel({
         database,
         encryptionUtil: encryption,
-        organizationWarehouseCredentialsModel: organizationModel,
     });
     const project = {
         projectUuid: 'project',
@@ -143,7 +138,7 @@ describe('persisted opaque credential versions', () => {
         },
     );
 
-    test.each(['project', 'organization', 'extra', 'personal'] as const)(
+    test.each(['project', 'extra', 'personal'] as const)(
         '%s edits change the version while refresh rotation preserves it',
         async (kind) => {
             let stored: CreateWarehouseCredentials = credentials;
@@ -151,8 +146,7 @@ describe('persisted opaque credential versions', () => {
                 project_id: 1,
                 warehouse_credentials_id: 9,
                 warehouse_connection_uuid: 'connection',
-                organization_warehouse_credentials_uuid:
-                    kind === 'organization' ? 'organization' : null,
+                organization_warehouse_credentials_uuid: null,
                 user_warehouse_credentials_uuid: 'personal',
                 organization_uuid: 'org',
                 name: 'Credentials',
@@ -168,7 +162,7 @@ describe('persisted opaque credential versions', () => {
             });
             const table = {
                 project: 'warehouse_credentials',
-                organization: 'organization_warehouse_credentials',
+
                 extra: 'warehouse_connections',
                 personal: 'user_warehouse_credentials',
             }[kind];
@@ -191,10 +185,7 @@ describe('persisted opaque credential versions', () => {
                             incoming,
                             { actorUserUuid: null, inheritFromProjectId: null },
                         );
-                    case 'organization':
-                        return organizationModel.update('organization', {
-                            credentials: incoming,
-                        });
+
                     case 'extra':
                         return connectionModel.updateExtraCredentials(
                             project,
@@ -221,12 +212,7 @@ describe('persisted opaque credential versions', () => {
                         return projectModel.getWarehouseCredentialsForProjectUncached(
                             'project',
                         );
-                    case 'organization':
-                        return (
-                            await organizationModel.getByUuidWithSensitiveData(
-                                'organization',
-                            )
-                        ).credentials;
+
                     case 'extra':
                         return (
                             await connectionModel.getExtraCredentialSource(
@@ -254,12 +240,7 @@ describe('persisted opaque credential versions', () => {
                             'old-refresh',
                             'new-refresh',
                         );
-                    case 'organization':
-                        return organizationModel.rotateRefreshToken(
-                            'organization',
-                            'old-refresh',
-                            'new-refresh',
-                        );
+
                     case 'extra':
                         return connectionModel.rotateRefreshToken(
                             project,
@@ -291,12 +272,7 @@ describe('persisted opaque credential versions', () => {
                 ),
             ).toBe(initialFingerprint);
             expect(await load()).toEqual(initialCredentials);
-            if (kind === 'organization') {
-                expect(
-                    (await organizationModel.getByUuid('organization'))
-                        .credentials,
-                ).not.toHaveProperty('resultIdentityVersion');
-            }
+
             const legacyVersion = getWarehouseCredentialVersion(await load());
             expect(legacyVersion).not.toBeNull();
             const legacyFingerprint = getWarehouseIdentityFingerprint(
