@@ -77,6 +77,7 @@ test.each(['oauth', 'pat', 'service-account'] as const)(
             isContentToolsEnabled: vi.fn().mockResolvedValue(true),
             isCreateScheduledDeliveryEnabled: vi.fn().mockResolvedValue(true),
             isRunSqlEnabled: vi.fn().mockResolvedValue(true),
+            isQueryEnabled: vi.fn().mockResolvedValue(false),
             isRunMetricQueryEnabled: vi.fn().mockResolvedValue(true),
             isFilterExpressionsEnabled: vi.fn().mockResolvedValue(false),
             isDataAppBuildsEnabled: vi.fn().mockResolvedValue(false),

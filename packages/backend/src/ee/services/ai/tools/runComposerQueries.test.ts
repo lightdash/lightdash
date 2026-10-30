@@ -30,10 +30,10 @@ import type { SearchFieldValuesFn } from '../types/aiAgentDependencies';
 import { AgentContext } from '../utils/AgentContext';
 import { getSlackTablePreviews } from '../utils/slackTablePreviews';
 import { mockOrdersExplore } from '../utils/validationExplore.mock';
+import { resolveTerminalNodeId } from './composerQueryPipeline';
 import { resolveComposerQueryNode } from './composerSemanticLayerFilters';
 import {
     getRunComposerQueries,
-    resolveTerminalNodeId,
     type FilterValueHintDependencies,
 } from './runComposerQueries';
 

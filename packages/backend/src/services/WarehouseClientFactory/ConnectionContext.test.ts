@@ -52,6 +52,7 @@ const expectedSurfaces = {
     [QueryExecutionContext.MCP_RUN_METRIC_QUERY]: ConnectionSurface.MCP,
     [QueryExecutionContext.MCP_RUN_SQL]: ConnectionSurface.MCP,
     [QueryExecutionContext.MCP_SEARCH_FIELD_VALUES]: ConnectionSurface.MCP,
+    [QueryExecutionContext.MCP_QUERY]: ConnectionSurface.MCP,
     [QueryExecutionContext.API]: ConnectionSurface.API,
     [QueryExecutionContext.CLI]: ConnectionSurface.API,
     [QueryExecutionContext.METRICS_EXPLORER]: ConnectionSurface.APP,
@@ -70,6 +71,7 @@ const expectedAiClients = {
     [QueryExecutionContext.MCP_RUN_METRIC_QUERY]: { kind: 'mcp' },
     [QueryExecutionContext.MCP_RUN_SQL]: { kind: 'mcp' },
     [QueryExecutionContext.MCP_SEARCH_FIELD_VALUES]: { kind: 'mcp' },
+    [QueryExecutionContext.MCP_QUERY]: { kind: 'mcp' },
     [QueryExecutionContext.DATA_APP_SAMPLE]: { kind: 'data_app' },
 } satisfies Partial<Record<QueryExecutionContext, ConnectionAiClient>>;
 

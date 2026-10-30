@@ -446,6 +446,7 @@ mcpRouter.all(
                     scheduledDeliveryEnabled,
                     runSqlEnabled,
                     runMetricQueryEnabled,
+                    queryEnabled,
                     filterExpressionsEnabled,
                     dataAppBuildsEnabled,
                     chartTypeBuildsEnabled,
@@ -461,6 +462,11 @@ mcpRouter.all(
                     mcpService.isRunMetricQueryEnabled(
                         req.user!,
                         pinnedProjectUuid,
+                    ),
+                    mcpService.isQueryEnabled(
+                        req.user!,
+                        pinnedProjectUuid,
+                        pinnedAgent,
                     ),
                     mcpService.isFilterExpressionsEnabled(req.user!),
                     mcpService.isDataAppBuildsEnabled(
@@ -489,6 +495,7 @@ mcpRouter.all(
                         scheduledDeliveryEnabled,
                         runSqlEnabled,
                         runMetricQueryEnabled,
+                        queryEnabled,
                         filterExpressionsEnabled,
                         documentsEnabled: true,
                         dataAppBuildsEnabled,

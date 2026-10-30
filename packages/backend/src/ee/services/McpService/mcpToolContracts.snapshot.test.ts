@@ -203,6 +203,7 @@ const registrationOnlyFeatures = {
     dataAppBuildsEnabled: true,
     chartTypeBuildsEnabled: true,
     customChartTypesEnabled: true,
+    queryEnabled: true,
 } satisfies Omit<
     McpServerToolOptions['featureAvailability'],
     keyof typeof defaultMcpAnalystPromptOptions
@@ -839,6 +840,7 @@ describe('MCP tool contracts', () => {
             makeMcpServerOptions({
                 runSqlEnabled: true,
                 runMetricQueryEnabled: true,
+                queryEnabled: true,
                 dataAppBuildsEnabled: true,
                 chartTypeBuildsEnabled: true,
                 customChartTypesEnabled: true,

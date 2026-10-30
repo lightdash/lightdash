@@ -134,6 +134,7 @@ const createMcpService = () =>
         isCustomChartTypesEnabled: vi.fn().mockResolvedValue(false),
         isAgentIdentityEnabled: vi.fn().mockResolvedValue(false),
         isRunSqlEnabled: vi.fn().mockResolvedValue(false),
+        isQueryEnabled: vi.fn().mockResolvedValue(false),
         recordToolList: vi.fn(),
     }) as McpService;
 

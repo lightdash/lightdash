@@ -55,16 +55,13 @@ type ComposerQueriesDescriptionOptions = {
     apiConnections: ComposerApiConnection[];
 };
 
-export const getToolComposerQueriesDescription = ({
+const getComposerNodeKindsDescription = ({
     enablePythonNodes,
     apiConnections,
-}: ComposerQueriesDescriptionOptions) => `Run a pipeline: one or more nodes submitted together, where ${
-    enablePythonNodes ? 'duckdb and python' : 'duckdb'
-} nodes join or transform other nodes' results. The terminal node's rows are returned to you.
-
-Node kinds:
+    sqlNote,
+}: ComposerQueriesDescriptionOptions & { sqlNote: string }) => `Node kinds:
 - "semanticLayer": a metric query against an explore. Result columns are the requested field ids.
-- "sql": raw SQL against the project warehouse; may need user approval.
+- "sql": raw SQL against the project warehouse; ${sqlNote}.
 - "external": DuckDB SQL over uploaded or connected tables declared in "tables".
 - "duckdb": DuckDB SQL over other results declared in "references".${
     enablePythonNodes
@@ -83,9 +80,32 @@ Node kinds:
         : ''
 }
 
-A node reads only the rows its references returned, so a referenced result that reached its limit is incomplete: before totalling, averaging or ranking over it, give that node a limit that holds its whole population, or aggregate there.
+A node reads only the rows its references returned, so a referenced result that reached its limit is incomplete: before totalling, averaging or ranking over it, give that node a limit that holds its whole population, or aggregate there.`;
+
+export const getToolComposerQueriesDescription = ({
+    enablePythonNodes,
+    apiConnections,
+}: ComposerQueriesDescriptionOptions) => `Run a pipeline: one or more nodes submitted together, where ${
+    enablePythonNodes ? 'duckdb and python' : 'duckdb'
+} nodes join or transform other nodes' results. The terminal node's rows are returned to you.
+
+${getComposerNodeKindsDescription({
+    enablePythonNodes,
+    apiConnections,
+    sqlNote: 'may need user approval',
+})}
 
 Reuse across calls: a node id names one node for the whole thread. To build on a node from an earlier call, read its node id in "references" without resubmitting it; it is copied into this pipeline with everything it reads and served from cache when possible. Resubmitting a node id with a different definition is an error, so give a changed node a new node id.`;
+
+export const MCP_TOOL_QUERY_DESCRIPTION = `Run a pipeline: one or more nodes submitted together, where duckdb and python nodes join or transform other nodes' results. Use it when an answer joins, transforms or mixes sources, or needs Python; for one semantic-layer query use run_metric_query.
+
+${getComposerNodeKindsDescription({
+    enablePythonNodes: true,
+    apiConnections: [],
+    sqlNote: 'available only when run_sql is',
+})}
+
+Returns a preview of the terminal node's rows and every node's queryUuid. If running, call get_query_result with the terminal node's queryUuid; never resubmit the pipeline. get_query_result also returns the result of any other node by its queryUuid.`;
 
 export const TOOL_COMPOSER_QUERIES_DESCRIPTION =
     getToolComposerQueriesDescription({
@@ -696,6 +716,44 @@ export const toolComposerQueriesStructuredContentSchema = z.object({
         ),
     review: z.string().nullable(),
 });
+
+export const mcpQueryStructuredOutputSchema = z.object({
+    status: z
+        .enum(['done', 'running'])
+        .describe(
+            'running when the terminal node outlived the wait; poll get_query_result with its queryUuid.',
+        ),
+    terminalNodeId: nodeIdSchema.describe('Node whose rows are previewed.'),
+    rowCount: z
+        .number()
+        .int()
+        .nonnegative()
+        .nullable()
+        .describe('Total rows in the terminal result; null while running.'),
+    nodes: z
+        .array(
+            composerQueryNodeSummarySchema.extend({
+                queryUuid: z
+                    .string()
+                    .describe('Pass to get_query_result to read this node.'),
+                status: z.enum(['done', 'running', 'failed']),
+                reachedLimit: z
+                    .boolean()
+                    .describe(
+                        'True when rowCount reached limit, so more rows may exist and nodes reading it may be computed on incomplete rows.',
+                    ),
+                columns: z
+                    .array(composerQueryColumnSchema)
+                    .nullable()
+                    .describe('Result columns; null until the node is done.'),
+            }),
+        )
+        .describe('Every node of the pipeline, in dependency order.'),
+});
+
+export type McpQueryStructuredContent = z.infer<
+    typeof mcpQueryStructuredOutputSchema
+>;
 
 const toolComposerQueriesSuccessMetadataSchema = z.object({
     status: z.literal('success'),

@@ -997,6 +997,7 @@ describe('MCP catalogue audit', () => {
                                 scheduledDeliveryEnabled: true,
                                 runSqlEnabled: true,
                                 runMetricQueryEnabled: false,
+                                queryEnabled: false,
                                 filterExpressionsEnabled: true,
                                 documentsEnabled: false,
                                 dataAppBuildsEnabled: false,

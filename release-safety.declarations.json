@@ -1,6 +1,18 @@
 {
     "$schema": "./scripts/release-safety-declarations.schema.json",
     "declarations": {
+        "mcp-run-composer-queries-renamed-to-query": {
+            "reason": "The published MCP tool schema listed run_composer_queries, but the MCP server never registered that tool, so tools/list never offered it and every call to it failed. The composer query tool now ships on MCP under its in-app name, query. MCP clients see no change in behaviour: the old name never worked and the new name is new.",
+            "requiredStop": false,
+            "impact": {
+                "kind": "no-external-callers",
+                "firstPartyOnly": "No client could ever call run_composer_queries because the MCP server never registered it; it existed only in the generated schema file.",
+                "covers": {
+                    "rest": [],
+                    "mcp": ["run_composer_queries"]
+                }
+            }
+        },
         "custom-chart-ordered-field-mappings": {
             "reason": "Custom chart inputs declared with multiple: true now return ordered arrays in fieldMapping; single-field inputs still return strings. API and query SDK consumers reading arbitrary mapping entries must narrow string versus string[] before using a field id. Existing scalar saved configurations remain valid.",
             "requiredStop": false
