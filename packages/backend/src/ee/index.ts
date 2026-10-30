@@ -32,7 +32,6 @@ import {
 import { ChartRegistryClient } from './clients/ChartRegistryClient';
 import { GithubReleaseNotesClient } from './clients/GithubReleaseNotes/GithubReleaseNotesClient';
 import LicenseClient from './clients/License/LicenseClient';
-import OpenAi from './clients/OpenAi';
 import { CommercialSlackClient } from './clients/Slack/SlackClient';
 import { AgentOnboardingRunModel } from './models/AgentOnboardingRunModel';
 import { AiAgentDocumentModel } from './models/AiAgentDocumentModel';
@@ -692,9 +691,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     analytics: context.lightdashAnalytics,
                     projectService: repository.getProjectService(),
                     featureFlagService: repository.getFeatureFlagService(),
-                    openAi: new OpenAi(
-                        context.lightdashConfig.ai.copilot.providers.openai,
-                    ), // TODO This should go in client repository as soon as it is available
                     orgAiCopilotConfigResolver: new OrgAiCopilotConfigResolver({
                         lightdashConfig: context.lightdashConfig,
                         featureFlagModel: models.getFeatureFlagModel(),

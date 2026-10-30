@@ -1,4 +1,3 @@
-import { FeatureFlags } from '@lightdash/common';
 import {
     Group,
     Loader,
@@ -12,6 +11,7 @@ import { type IDisposable, type languages } from 'monaco-editor';
 import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { useDeepCompareEffect } from 'react-use';
+import { useAmbientAiEnabled } from '../../../../ee/features/ambientAi/hooks/useAmbientAiEnabled';
 import { useCanCreateDataApp } from '../../../../features/apps/hooks/useCanCreateDataApp';
 import { useChartStudioAvailable } from '../../../../features/chartTypes/hooks/useChartStudioAvailable';
 import { useChartTypesEnabled } from '../../../../features/chartTypes/hooks/useChartTypesEnabled';
@@ -24,7 +24,6 @@ import {
 import { useSetCustomVisSpec } from '../../../../hooks/useCustomVisualizationConfig';
 import { useOptionalProjectRoute } from '../../../../hooks/useProjectRoute';
 import { useProjectUuid } from '../../../../hooks/useProjectUuid';
-import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
 import useTracking from '../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../types/Events';
 import { useIsInsideChartGallery } from '../../../common/ChartGallery/ChartGalleryContext';
@@ -221,10 +220,7 @@ export const ConfigTabs: React.FC = memo(() => {
         EditorProps['options'] | undefined
     >();
 
-    const { data: aiCustomVizFlag } = useServerFeatureFlag(
-        FeatureFlags.AiCustomViz,
-    );
-    const isAiEnabled = aiCustomVizFlag?.enabled ?? false;
+    const isAiEnabled = useAmbientAiEnabled(projectUuid);
 
     // Without chart types there is nothing to switch to, so Vega is the only
     // custom chart type there is and a picker would offer a choice of one.
