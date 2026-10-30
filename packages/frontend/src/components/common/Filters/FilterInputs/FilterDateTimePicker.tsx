@@ -194,10 +194,10 @@ const FilterDateTimePicker: FC<Props> = ({
     }
 
     return (
-        <Group wrap="nowrap" gap="xs" align="start" w="100%">
+        <Group gap="xs" align="start" w="100%">
             <DateTimePicker
                 size="xs"
-                w="100%"
+                flex="1 1 185px"
                 miw={185}
                 valueFormat={displayFormat}
                 {...rest}
