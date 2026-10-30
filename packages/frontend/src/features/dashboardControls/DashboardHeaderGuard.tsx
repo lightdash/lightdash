@@ -5,7 +5,7 @@ import {
     Divider,
     Group,
     Menu,
-    Text,
+    Title,
     Tooltip,
 } from '@mantine/core';
 import { IconDots, IconPencil } from '@tabler/icons-react';
@@ -13,6 +13,7 @@ import { clsx } from 'clsx';
 import { useState, type ComponentProps, type FC } from 'react';
 import DashboardHeader from '../../components/common/Dashboard/DashboardHeader';
 import { DashboardPerformanceWarning } from '../../components/common/Dashboard/DashboardPerformanceWarning';
+import { useDashboardManageAccess } from '../../components/common/Dashboard/useDashboardManageAccess';
 import MantineIcon from '../../components/common/MantineIcon';
 import DashboardUpdateModal from '../../components/common/modal/DashboardUpdateModal';
 import TruncatedText from '../../components/common/TruncatedText';
@@ -20,6 +21,7 @@ import AddTileButton from '../../components/DashboardTiles/AddTileButton';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 import classes from './DashboardHeaderGuard.module.css';
+import { isEditBandShown } from './editBand';
 import pillClasses from './FilterPills.module.css';
 import { useControlsSidebarSelector } from './useControlsSidebar';
 
@@ -50,9 +52,9 @@ const EditBand: FC<Props> = ({
         >
             <Group gap="xs" wrap="nowrap" miw={0}>
                 <MantineIcon icon={IconPencil} className={classes.mode} />
-                <Text fz="sm" fw={600} className={classes.mode}>
+                <Title order={6} lh="sm" className={classes.mode}>
                     Editing
-                </Text>
+                </Title>
                 <Divider orientation="vertical" className={classes.separator} />
                 <TruncatedText fz="sm" c="inherit" maxWidth="100%">
                     {dashboard.name}
@@ -110,14 +112,16 @@ const EditBand: FC<Props> = ({
                 </Button>
                 <Menu position="bottom-end" withArrow>
                     <Menu.Target>
-                        <ActionIcon
-                            className={classes.more}
-                            size="md"
-                            aria-label="Dashboard actions"
-                            disabled={isSaving}
-                        >
-                            <MantineIcon icon={IconDots} />
-                        </ActionIcon>
+                        <Tooltip fz="xs" label="Dashboard actions">
+                            <ActionIcon
+                                className={classes.more}
+                                size="md"
+                                aria-label="Dashboard actions"
+                                disabled={isSaving}
+                            >
+                                <MantineIcon icon={IconDots} />
+                            </ActionIcon>
+                        </Tooltip>
                     </Menu.Target>
                     <Menu.Dropdown>
                         <Menu.Item
@@ -154,13 +158,16 @@ export const DashboardHeaderGuard: FC<Props> = (props) => {
     const isLocked = useControlsSidebarSelector(
         (c) => c.isSidebarOpen && !c.isViewer,
     );
+    const { userCanManageDashboard } = useDashboardManageAccess(
+        props.dashboard,
+    );
     return (
         <div
             // The shared dimming of what is inert while a filter is edited
             className={`${classes.guard} ${pillClasses.inert}`}
             inert={isLocked || undefined}
         >
-            {props.isEditMode ? (
+            {isEditBandShown(props.isEditMode, true, userCanManageDashboard) ? (
                 <EditBand {...props} />
             ) : (
                 <DashboardHeader {...props} />

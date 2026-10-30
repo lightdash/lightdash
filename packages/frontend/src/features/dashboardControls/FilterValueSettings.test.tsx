@@ -15,11 +15,17 @@ vi.mock('../../components/common/Filters/FilterInputs', () => ({
     default: ({
         rule,
         onChange,
+        popoverProps,
     }: {
         rule: DashboardFilterRule;
         onChange: (next: DashboardFilterRule) => void;
+        popoverProps?: { closeListOnPick?: boolean };
     }) => (
-        <div data-testid="value-input" data-disabled={String(!!rule.disabled)}>
+        <div
+            data-testid="value-input"
+            data-disabled={String(!!rule.disabled)}
+            data-close-list-on-pick={String(!!popoverProps?.closeListOnPick)}
+        >
             <button
                 type="button"
                 onClick={() => onChange({ ...rule, values: [] })}
@@ -438,14 +444,30 @@ describe('FilterValueSettings', () => {
         });
     });
 
+    it('closes a value list once a value is picked, so it never covers Apply', () => {
+        renderSettings(makeRule({}));
+        expect(screen.getByTestId('value-input')).toHaveAttribute(
+            'data-close-list-on-pick',
+            'true',
+        );
+    });
+
+    it('keeps the list prop off date inputs, whose popover would put it on the page', () => {
+        renderSettings(makeRule({}), FilterType.DATE);
+        expect(screen.getByTestId('value-input')).toHaveAttribute(
+            'data-close-list-on-pick',
+            'false',
+        );
+    });
+
     describe('required filter', () => {
-        it('has no switch, and notes that its value is temporary', () => {
+        it('has no switch, and no note that its value is dropped on save', () => {
             renderSettings(makeRule({ required: true, values: ['done'] }));
 
             expect(
                 screen.queryByRole('switch', { name: 'Provide default value' }),
             ).not.toBeInTheDocument();
-            expect(screen.getByText(REQUIRED_NOTE)).toBeInTheDocument();
+            expect(screen.queryByText(REQUIRED_NOTE)).not.toBeInTheDocument();
         });
 
         it('shows the operator and the value input with no value set', () => {

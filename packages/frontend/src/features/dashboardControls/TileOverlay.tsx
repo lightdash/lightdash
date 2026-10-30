@@ -1,5 +1,5 @@
 import {
-    getItemLabel,
+    getItemId,
     interpolateUiString,
     isDashboardDataAppTileType,
     isDashboardFieldTarget,
@@ -21,6 +21,7 @@ import { useCallbackRef } from '@mantine/hooks';
 import { IconAlertTriangle, IconFilter } from '@tabler/icons-react';
 import { memo, useLayoutEffect, useMemo, useRef, type FC } from 'react';
 import { createPortal } from 'react-dom';
+import { getFieldSelectLabel } from '../../components/common/FieldSelect/fieldSelectLabel';
 import FieldIcon from '../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
@@ -31,23 +32,25 @@ import {
     selectDashboardTiles,
     useDashboardSelector,
 } from '../dashboard/store';
+import { getTileFieldOptions } from '../dashboardFilters/FilterConfiguration/utils';
 import { DropdownClass } from './DropdownClass';
-import {
-    getCandidateOptions,
-    getTileFieldCandidateIds,
-} from './fieldCandidates';
 import { LazySelect } from './LazySelect';
 import {
     doesTileOfferField,
     getFilterFields,
+    getChipFieldId,
+    getTileRowKey,
     getMissingTileFieldId,
     getTileField,
     getTilesOnTab,
     canTileTakeFilter,
     isTargetOnRow,
+    isTileInRow,
     isTileFieldKnown,
     setTileField,
     toSqlColumnTarget,
+    type FieldsMap,
+    type FilterChip,
     type SqlColumn,
 } from './peers';
 import { useRailContractClasses } from './railContractClasses';
@@ -57,13 +60,10 @@ import {
     getTileTitle,
     type TileHighlight,
 } from './tileProps';
-import {
-    getTileSelector,
-    LOCKED_TILE_CLASS,
-    WAVE_BUCKETS,
-} from './tileSelector';
+import { getTileSelector, LOCKED_TILE_CLASS } from './tileSelector';
 import { useControlsSidebarSelector } from './useControlsSidebar';
 import { useFieldTileActions } from './useFieldTileActions';
+import { useFilterFieldsMap } from './useFilterFieldsMap';
 import { usePortalTargets } from './usePortalTargets';
 import { useScrollToHighlightedTile } from './useScrollToHighlightedTile';
 import { useSqlColumnsByTile } from './useSqlColumnsByTile';
@@ -72,15 +72,17 @@ const NO_COLUMNS: SqlColumn[] = [];
 // A tile card's select: the stand-in button, or the real input once used
 const SELECT_SELECTOR = '[aria-haspopup="listbox"]';
 const NO_FIELD_IDS: string[] = [];
+const NO_FIELDS: DashboardFilterableField[] = [];
+const NO_CHIPS: FilterChip[] = [];
 // What a data app tile's switch reports when it is turned on
 const DATA_APP_ON = 'on';
-// Past this many entries the dropdown is searchable
-const SEARCH_THRESHOLD = 8;
-
-type FieldsMap = Record<string, DashboardFilterableField>;
 
 const getFieldLabel = (fieldId: string, fieldsMap: FieldsMap): string =>
     fieldsMap[fieldId]?.label ?? fieldId;
+
+// As the shipped tile select names a field: with its table
+const getTileFieldLabel = (field: DashboardFilterableField): string =>
+    getFieldSelectLabel(field, false);
 
 // Finds the target for a field id: a known field, else one already on the rule
 const getFieldTarget = (
@@ -101,12 +103,12 @@ const getFieldTarget = (
     return fromTile ?? null;
 };
 
-// The shipped wording for a mapped field that is gone, on a tile
-const MissingFieldWarning: FC<{ fieldId: string }> = ({ fieldId }) => {
+// A mapped field that is gone from the tile, by its label when it is known
+const MissingFieldWarning: FC<{ fieldLabel: string }> = ({ fieldLabel }) => {
     const getUiString = useUiStrings();
     const label = interpolateUiString(
-        getUiString('filters.config.fieldNotAvailableInChart'),
-        { field: fieldId },
+        getUiString('filters.tileCard.fieldNotOnTile'),
+        { field: fieldLabel },
     );
     return (
         <Tooltip fz="xs" label={label}>
@@ -132,19 +134,19 @@ type TileOverlayProps = {
     // A data app tile takes the filter as a whole: on or off, no field
     isDataAppTile: boolean;
     tileFieldId: string | null;
-    // The tile is mapped to this field or column, which it no longer offers
-    missingFieldId: string | null;
-    options: string[];
-    // Rows whose name another row has too: their options say the table
-    sharedNameFieldIds: string[];
-    // Fields the tile offers that the filter could take, never on a SQL tile
-    candidates: string[];
-    fieldsMap: FieldsMap;
+    // The field or column the tile is mapped to and no longer offers, by name
+    missingFieldLabel: string | null;
+    // What "Filter this tile" maps it to
+    firstChoice: string | null;
+    // The shipped tile select's options (`getTileFieldOptions`), from the
+    // tile's own fields, so a field id two explores share reads as this
+    // tile's explore names it. Empty on a SQL tile
+    tileFields: DashboardFilterableField[];
+    // A SQL tile's columns
+    columns: string[];
     highlight: TileHighlight | null;
     // The clicked field, on the tiles that are on it. Hover never changes it
     scrollFieldId: string | null;
-    // Bucket for the arrival wave
-    wave: number;
     // "Filtered by" its first field or "Filtered via" another, while filtered
     statusLabel: string | null;
     onSelect: (tileUuid: string, value: string | null) => void;
@@ -158,14 +160,12 @@ const TileOverlay = memo<TileOverlayProps>(
         isSqlTile,
         isDataAppTile,
         tileFieldId,
-        missingFieldId,
-        options,
-        sharedNameFieldIds,
-        candidates,
-        fieldsMap,
+        missingFieldLabel,
+        firstChoice,
+        tileFields,
+        columns,
         highlight,
         scrollFieldId,
-        wave,
         statusLabel,
         onSelect,
     }) => {
@@ -192,50 +192,17 @@ const TileOverlay = memo<TileOverlayProps>(
                     className={`${classes.overlay} ${classes.unfilterable} ${LOCKED_TILE_CLASS}`}
                     data-controls-overlay
                     data-highlighted={highlight ?? undefined}
-                    data-wave={wave}
                     title={getUiString('filters.tileCard.unreachable')}
                 />
             );
         }
 
         const usedField =
-            tileFieldId !== null && !isSqlTile && missingFieldId === null
-                ? fieldsMap[tileFieldId]
-                : undefined;
-        const ownLabels = options.map((fieldId) =>
-            isSqlTile ? fieldId : getFieldLabel(fieldId, fieldsMap),
-        );
-        const ownOptions = options.map((fieldId, index) => {
-            const field = fieldsMap[fieldId];
-            return {
-                value: fieldId,
-                label:
-                    !isSqlTile && field && sharedNameFieldIds.includes(fieldId)
-                        ? getItemLabel(field)
-                        : ownLabels[index],
-            };
-        });
+            tileFieldId === null || isSqlTile
+                ? undefined
+                : tileFields.find((field) => getItemId(field) === tileFieldId);
         // Full name when a long table name hides the field
-        const sharedNameLabel =
-            !isSqlTile &&
-            tileFieldId !== null &&
-            sharedNameFieldIds.includes(tileFieldId)
-                ? (ownOptions.find((option) => option.value === tileFieldId)
-                      ?.label ?? null)
-                : null;
-        const fieldOptions = getCandidateOptions(
-            candidates,
-            ownLabels,
-            fieldsMap,
-        );
-        const firstGroup = {
-            label: getUiString('filters.tileCard.inThisFilter'),
-            items: ownOptions,
-        };
-        const secondGroup = {
-            label: getUiString('filters.tileCard.otherFields'),
-            items: fieldOptions,
-        };
+        const fullLabel = usedField ? getTileFieldLabel(usedField) : null;
 
         return (
             <div
@@ -243,7 +210,6 @@ const TileOverlay = memo<TileOverlayProps>(
                 className={`${classes.overlay} ${LOCKED_TILE_CLASS}`}
                 data-controls-overlay
                 data-highlighted={highlight ?? undefined}
-                data-wave={wave}
                 title={getUiString('filters.tileCard.locked')}
             >
                 <Box className={classes.ring} aria-hidden />
@@ -257,11 +223,6 @@ const TileOverlay = memo<TileOverlayProps>(
                     // Escape from a card leaves mapping as the row's Cancel does
                     data-controls-editor
                 >
-                    <Box
-                        key={tileFieldId ?? 'none'}
-                        className={classes.confirm}
-                        aria-hidden
-                    />
                     {isDataAppTile ? (
                         <Stack gap="xs">
                             <Text fz="xs" c="dimmed">
@@ -302,10 +263,7 @@ const TileOverlay = memo<TileOverlayProps>(
                                 aria-label={selectLabel}
                                 onClick={() => {
                                     isSelectFocusPending.current = true;
-                                    onSelect(
-                                        tileUuid,
-                                        options[0] ?? candidates[0] ?? null,
-                                    );
+                                    onSelect(tileUuid, firstChoice);
                                 }}
                             >
                                 {getUiString('filters.tileCard.filterThisTile')}
@@ -315,22 +273,22 @@ const TileOverlay = memo<TileOverlayProps>(
                         <Stack gap="xs">
                             <Group gap="xxs" wrap="nowrap">
                                 <Text fz="xs" c="dimmed" truncate>
-                                    {missingFieldId !== null
+                                    {missingFieldLabel !== null
                                         ? getUiString(
                                               'filters.tileCard.missingField',
                                           )
                                         : statusLabel}
                                 </Text>
-                                {missingFieldId !== null && (
+                                {missingFieldLabel !== null && (
                                     <MissingFieldWarning
-                                        fieldId={missingFieldId}
+                                        fieldLabel={missingFieldLabel}
                                     />
                                 )}
                             </Group>
                             <Tooltip
                                 fz="xs"
-                                label={sharedNameLabel}
-                                disabled={sharedNameLabel === null}
+                                label={fullLabel}
+                                disabled={fullLabel === null}
                                 position="bottom"
                             >
                                 <Box>
@@ -358,12 +316,13 @@ const TileOverlay = memo<TileOverlayProps>(
                                         clearLabel={getUiString(
                                             'filters.tileCard.stopFiltering',
                                         )}
-                                        fieldsMap={isSqlTile ? null : fieldsMap}
-                                        groups={[firstGroup, secondGroup]}
-                                        searchable={
-                                            secondGroup.items.length > 0 ||
-                                            firstGroup.items.length >
-                                                SEARCH_THRESHOLD
+                                        options={
+                                            isSqlTile
+                                                ? { kind: 'columns', columns }
+                                                : {
+                                                      kind: 'fields',
+                                                      fields: tileFields,
+                                                  }
                                         }
                                         nothingFoundMessage={getUiString(
                                             isSqlTile
@@ -419,13 +378,7 @@ const EditedTileOverlays: FC = () => {
     const fieldsByTile = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,
     );
-    const dimensionsMap = useDashboardContext((c) => c.allFilterableFieldsMap);
-    const metricsMap = useDashboardContext((c) => c.allFilterableMetricsMap);
-    // A tile reports metrics too, and a filter can be on a metric
-    const fieldsMap = useMemo<FieldsMap>(
-        () => ({ ...dimensionsMap, ...metricsMap }),
-        [dimensionsMap, metricsMap],
-    );
+    const fieldsMap = useFilterFieldsMap();
     const sqlColumnsByTile = useSqlColumnsByTile(editingRule);
     const isActive = editingRule !== null;
     const fieldTileActions = useFieldTileActions(sqlColumnsByTile);
@@ -470,10 +423,15 @@ const EditedTileOverlays: FC = () => {
                 fieldTileActions !== null &&
                 getFilterFields(editingRule, dashboardTiles).length > 1
             ) {
-                const fieldTiles = fieldTileActions.forField(previousFieldId);
+                const rowKey = getTileRowKey(
+                    tile,
+                    previousFieldId,
+                    fieldsByTile,
+                    fieldsMap,
+                );
+                const fieldTiles = fieldTileActions.forField(rowKey);
                 if (fieldTiles.everyTabScope.applied === 1) {
-                    if (highlightedFieldId === previousFieldId)
-                        clearHighlightedField();
+                    if (highlightedFieldId === rowKey) clearHighlightedField();
                     fieldTiles.remove();
                     return;
                 }
@@ -514,30 +472,28 @@ const EditedTileOverlays: FC = () => {
         editingRule === null || isSqlColumnFilter
             ? undefined
             : fieldsMap[editingRule.target.fieldId];
-    // Keyed on the filter's fields, not the rule: an edit that keeps them, or
-    // a hover, hands every tile the list it already had
-    const takenKey = filterFieldIds.join('\n');
-    const candidatesByTile = useMemo(() => {
-        if (targetField === undefined) return {};
-        const takenFieldIds = takenKey === '' ? [] : takenKey.split('\n');
-        return Object.fromEntries(
-            tiles
-                .filter(
-                    (tile) => (sqlColumnsByTile[tile.uuid] ?? []).length === 0,
-                )
-                .map((tile): [string, string[]] => [
+    // The shipped tile select's options for each tile, one stable list per
+    // tile while the filter's field and the tiles' fields stay
+    const tileFieldsByTile = useMemo(
+        () =>
+            Object.fromEntries(
+                tiles.map((tile): [string, DashboardFilterableField[]] => [
                     tile.uuid,
-                    getTileFieldCandidateIds(
-                        fieldsByTile?.[tile.uuid] ?? [],
-                        takenFieldIds,
-                        targetField,
-                    ),
+                    targetField === undefined ||
+                    (sqlColumnsByTile[tile.uuid] ?? []).length > 0
+                        ? NO_FIELDS
+                        : (getTileFieldOptions(
+                              targetField,
+                              fieldsByTile?.[tile.uuid],
+                          ) ?? NO_FIELDS),
                 ]),
-        );
-    }, [takenKey, targetField, tiles, fieldsByTile, sqlColumnsByTile]);
+            ),
+        [targetField, tiles, fieldsByTile, sqlColumnsByTile],
+    );
 
     // Nothing on the canvas until the filter has a field
     if (editingRule === null || isPlaceholder) return null;
+    const chips = fieldTileActions?.chips ?? NO_CHIPS;
 
     const filterLabel =
         editingRule.label ??
@@ -546,7 +502,7 @@ const EditedTileOverlays: FC = () => {
             : getFieldLabel(editingRule.target.fieldId, fieldsMap));
     return (
         <>
-            {tiles.map((tile, index) => {
+            {tiles.map((tile) => {
                 const element = targets[tile.uuid];
                 if (!element) return null;
                 const tileTarget = getTileField(
@@ -567,20 +523,31 @@ const EditedTileOverlays: FC = () => {
                 );
                 // A field the tile no longer offers is never an option: the
                 // select reads empty and another field can be chosen
-                const options = isSqlTile
-                    ? sqlColumns.map((column) => column.reference)
-                    : filterFieldIds.filter((fieldId) =>
+                const columns = sqlColumns.map((column) => column.reference);
+                const tileFields = tileFieldsByTile[tile.uuid] ?? NO_FIELDS;
+                // Onto the filter's field the tile has, else its first fitting one
+                const firstChoice = isSqlTile
+                    ? (columns[0] ?? null)
+                    : (filterFieldIds.find((fieldId) =>
                           doesTileOfferField(tile, fieldId, fieldsByTile),
-                      );
-                const candidates = candidatesByTile[tile.uuid] ?? NO_FIELD_IDS;
+                      ) ?? (tileFields[0] ? getItemId(tileFields[0]) : null));
+                const missingField =
+                    missingFieldId === null || isSqlTile
+                        ? undefined
+                        : fieldsMap[missingFieldId];
+                const missingFieldLabel =
+                    missingFieldId === null
+                        ? null
+                        : missingField
+                          ? getTileFieldLabel(missingField)
+                          : missingFieldId;
                 // Reachable too: a tile that could add a field, a data app
                 // tile, and a broken mapping, which has to stay clearable
                 const isReachable =
                     canTileTakeFilter(tile, fieldsByTile, sqlColumnsByTile) &&
                     (isDataAppTile ||
                         missingFieldId !== null ||
-                        options.length > 0 ||
-                        candidates.length > 0);
+                        (isSqlTile ? columns : tileFields).length > 0);
                 // filtered: no field active. mapped: on the active field.
                 // other: filtered, not by the active field (a data app tile
                 // that is on). available: could be filtered
@@ -588,21 +555,32 @@ const EditedTileOverlays: FC = () => {
                     isReachable &&
                     tileFieldId !== null &&
                     missingFieldId === null;
-                // A SQL column is never one of the filter's fields
-                const isOnRow = (rowId: string | null) =>
-                    rowId !== null &&
-                    isOnTheControl &&
-                    !isDataAppTile &&
-                    isTargetOnRow(editingRule, tileTarget, rowId);
+                // A SQL column is never one of the filter's fields; a field's
+                // chip is the label this tile gives it
+                const isOnRow = (rowKey: string | null) => {
+                    if (rowKey === null || !isOnTheControl || isDataAppTile)
+                        return false;
+                    const chip = {
+                        key: rowKey,
+                        fieldId: getChipFieldId(chips, rowKey),
+                    };
+                    return (
+                        isTargetOnRow(editingRule, tileTarget, chip.fieldId) &&
+                        (isSqlTile ||
+                            isTileInRow(tile, chip, fieldsByTile, fieldsMap))
+                    );
+                };
+                const tileField =
+                    tileFieldId === null || isSqlTile
+                        ? undefined
+                        : fieldsByTile?.[tile.uuid]?.find(
+                              (field) => getItemId(field) === tileFieldId,
+                          );
                 const tileFieldLabel =
                     tileFieldId === null || isSqlTile
                         ? tileFieldId
-                        : fieldTileActions !== null &&
-                            fieldTileActions.sharedNameFieldIds.includes(
-                                tileFieldId,
-                            ) &&
-                            fieldsMap[tileFieldId]
-                          ? getItemLabel(fieldsMap[tileFieldId])
+                        : tileField
+                          ? getTileFieldLabel(tileField)
                           : getFieldLabel(tileFieldId, fieldsMap);
                 const statusLabel =
                     tileFieldLabel === null || isDataAppTile
@@ -641,13 +619,10 @@ const EditedTileOverlays: FC = () => {
                         isSqlTile={isSqlTile}
                         isDataAppTile={isDataAppTile}
                         tileFieldId={tileFieldId}
-                        missingFieldId={missingFieldId}
-                        options={options}
-                        sharedNameFieldIds={
-                            fieldTileActions?.sharedNameFieldIds ?? NO_FIELD_IDS
-                        }
-                        candidates={candidates}
-                        fieldsMap={fieldsMap}
+                        missingFieldLabel={missingFieldLabel}
+                        firstChoice={firstChoice}
+                        tileFields={tileFields}
+                        columns={columns}
                         highlight={highlight}
                         // The clicked field, never the hovered one: leaving
                         // another row would scroll again
@@ -656,7 +631,6 @@ const EditedTileOverlays: FC = () => {
                                 ? highlightedFieldId
                                 : null
                         }
-                        wave={index % WAVE_BUCKETS}
                         statusLabel={statusLabel}
                         onSelect={handleSelect}
                     />,

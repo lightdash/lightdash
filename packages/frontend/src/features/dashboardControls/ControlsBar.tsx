@@ -1,5 +1,5 @@
 import { Box } from '@mantine/core';
-import { type ComponentProps, type FC } from 'react';
+import { type ComponentProps, type FC, type ReactNode } from 'react';
 import {
     selectControlSections,
     useDashboardSelector,
@@ -18,11 +18,9 @@ type Props = Omit<
     'filterArea' | 'isCompactDrawerSuppressed'
 >;
 
-// The shipped bar with its filter area swapped, in edit and view mode alike.
-// While tiles are chosen the mapping row cross-fades into its place
+// The shipped bar with its filter area swapped, in edit and view mode alike
 export const ControlsBar: FC<Props> = (props) => {
     const isSidebarOpen = useControlsSidebarSelector((c) => c.isSidebarOpen);
-    const isMapping = useControlsSidebarSelector((c) => c.isMapping);
     const hasSections = useDashboardSelector(
         (state) => selectControlSections(state).length > 0,
     );
@@ -51,8 +49,14 @@ export const ControlsBar: FC<Props> = (props) => {
             }
         />
     );
-    // The filter row stays, faded and inert, so the grid keeps its place and
-    // the row comes back at once
+    return <MappingSwap>{filterRow}</MappingSwap>;
+};
+
+// While tiles are chosen the mapping row cross-fades into the filter row's
+// place. The filter row stays, faded and inert, so the grid keeps its place
+// and the row comes back at once
+export const MappingSwap: FC<{ children: ReactNode }> = ({ children }) => {
+    const isMapping = useControlsSidebarSelector((c) => c.isMapping);
     return (
         <Box className={classes.swap}>
             <Box
@@ -60,7 +64,7 @@ export const ControlsBar: FC<Props> = (props) => {
                 data-hidden={isMapping || undefined}
                 inert={isMapping || undefined}
             >
-                {filterRow}
+                {children}
             </Box>
             {isMapping && <MappingRow />}
         </Box>

@@ -504,6 +504,11 @@
         "filters.rail.applyBeforeOpening": "გამოვიყენოთ {filter}-ის გახსნამდე?",
         "filters.rail.createBeforeOpening": "შევქმნათ {filter}-ის გახსნამდე?",
         "filters.rail.applyChangesFirst": "ჯერ გამოვიყენოთ ცვლილებები {filter}-ში?",
+        "filters.rail.appliesTo": "ვრცელდება: {tiles}",
+        "filters.rail.chooseTiles": "ფილების არჩევა",
+        "filters.rail.addField": "ველის დამატება",
+        "filters.rail.mappingFilters": "ფილტრავს",
+        "filters.rail.mappingUsing": "ველით",
         "filters.tileCard.locked": "ფილები დაბლოკილია ფილტრის რედაქტირებისას",
         "filters.tileCard.unreachable": "ამ ფილას არ აქვს ველი, რომელსაც ეს ფილტრი გამოიყენებს",
         "filters.tileCard.filtered": "ეს ფილა გაფილტრულია",
@@ -531,6 +536,7 @@
         "filters.tileCard.filteredBy": "გაფილტრულია {field}-ით",
         "filters.tileCard.filteredVia": "გაფილტრულია {field}-ის გავლით",
         "filters.tileCard.notFilteredLabel": "არ არის გაფილტრული",
+        "filters.tileCard.fieldNotOnTile": "არჩეული ველი „{field}“ ამ ფილაზე მიუწვდომელია",
         "filters.fieldBar.region": "{field}-ით გაფილტრული ფილები",
         "filters.fieldBar.tilesOf.singular": "ფილა",
         "filters.fieldBar.tilesOf.plural": "ფილა",
@@ -557,6 +563,7 @@
         "filters.fieldBar.undoClearName": "{field}-ის {tiles}-დან მოხსნის დაბრუნება",
         "filters.fieldBar.clearName": "{field}-ის მოხსნა ფილებიდან",
         "filters.fieldBar.clearNameOnThisTab": "{field}-ის მოხსნა ამ ჩანართიდან",
-        "filters.fieldBar.filterAllTiles": "ყველა ფილის გაფილტვრა"
+        "filters.fieldBar.filterAllTiles": "ყველა ფილის გაფილტვრა",
+        "filters.fieldBar.undoFilterName": "{tiles}-ის {field}-ით გაფილტვრის დაბრუნება"
     }
 }

@@ -4,13 +4,14 @@ import {
     FieldType,
     FilterOperator,
     type DashboardFilterRule,
+    type DashboardFilters,
     type DashboardTile,
     type FilterableDimension,
 } from '@lightdash/common';
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type ReactElement } from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
     createDashboardTestStore,
     seedDashboardEditState,
@@ -60,6 +61,9 @@ const status = dimension('status', 'Status');
 const region = dimension('region', 'Region');
 const carrier = dimension('carrier', 'Carrier');
 const REGION = { fieldId: 'orders_region', tableName: 'orders' };
+// The chips' keys, as the shipped bar keys distinct filter fields
+const STATUS_KEY = 'orders_status::Orders::Status';
+const REGION_KEY = 'orders_region::Orders::Region';
 
 const tile = (uuid: string, tabUuid?: string) =>
     ({ uuid, tabUuid, type: DashboardTileTypes.SAVED_CHART }) as DashboardTile;
@@ -107,9 +111,16 @@ const setSidebar = (
     };
 };
 
-const renderRow = (ui: ReactElement = <MappingRow />) => {
+const renderRow = (
+    ui: ReactElement = <MappingRow />,
+    dashboardFilters?: DashboardFilters,
+    dashboardTemporaryFilters?: DashboardFilters,
+) => {
     const store = seedDashboardEditState(
-        createDashboardTestStore(),
+        createDashboardTestStore({
+            dashboardFilters,
+            dashboardTemporaryFilters,
+        }),
         mockDashboardContext.current as DashboardEditTestValues,
     );
     const wrap = (node: ReactElement) => (
@@ -125,7 +136,10 @@ const renderRow = (ui: ReactElement = <MappingRow />) => {
     };
 };
 
-// The chips: square buttons that toggle, after "via"
+const optionNames = () =>
+    screen.getAllByRole('option').map((option) => option.textContent);
+
+// The chips: square buttons that toggle, after "using"
 const chips = () =>
     screen
         .getAllByRole('button')
@@ -133,8 +147,17 @@ const chips = () =>
         .map((chip) => chip.textContent);
 
 describe('MappingRow', () => {
+    afterEach(() => vi.restoreAllMocks());
+
     beforeEach(() => {
         vi.clearAllMocks();
+        // The shipped field picker virtualises its list, which needs a size
+        vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(
+            300,
+        );
+        vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(
+            400,
+        );
         const tiles = [tile('tile-1'), tile('tile-2'), tile('tile-3')];
         mockDashboardContext.current = {
             dashboardTiles: tiles,
@@ -156,14 +179,18 @@ describe('MappingRow', () => {
         };
     });
 
-    it('reads as the open pill, the title with its count, a chip per field, Add a field, Cancel and Apply', () => {
+    it('reads as one sentence: the open pill filters its count using a chip per field, then Add a field, Cancel and Apply', () => {
         const editingRule = rule({ 'tile-1': REGION });
         setSidebar(editingRule);
-        renderRow();
+        const { container } = renderRow();
 
-        expect(screen.getByText('Choose the tiles it filters')).toBeVisible();
-        expect(screen.getByText('2 of 3 tiles')).toBeVisible();
-        expect(screen.getByText('via')).toBeVisible();
+        expect(screen.getByText('filters')).toBeVisible();
+        const count = screen.getByText('2 of 3 tiles').parentElement;
+        expect(count).toHaveAttribute('aria-live', 'polite');
+        expect(screen.getByText('using')).toBeVisible();
+        expect(container).toHaveTextContent(
+            /filters\s*2 of 3 tiles\s*using\s*Orders Status\s*Orders Region/,
+        );
         // One chip per row of the filter, in its order
         expect(
             getFilterRows(
@@ -171,12 +198,60 @@ describe('MappingRow', () => {
                 mockDashboardContext.current.dashboardTiles as DashboardTile[],
             ),
         ).toEqual(['orders_status', 'orders_region']);
-        expect(chips()).toEqual(['Status', 'Region']);
+        // Named as the shipped tile select names a field: with its table
+        expect(chips()).toEqual(['Orders Status', 'Orders Region']);
+        // Each chip carries its field's type icon, as the field pickers do
+        expect(
+            screen
+                .getByRole('button', { name: 'Orders Status' })
+                .querySelector('svg'),
+        ).toBeInTheDocument();
         expect(
             screen.getByRole('button', { name: 'Add a field' }),
         ).toBeEnabled();
         expect(screen.getByRole('button', { name: 'Cancel' })).toBeEnabled();
         expect(screen.getByRole('button', { name: 'Apply' })).toBeEnabled();
+    });
+
+    describe("its open pill reads as the filter row's pill", () => {
+        const pill = () => document.querySelector('[inert] [data-open]');
+
+        it('shows the filter as the bar does, not the draft', () => {
+            setSidebar(rule({ 'tile-1': REGION }));
+            renderRow(<MappingRow />, {
+                dimensions: [{ ...rule(), values: ['pending'] }],
+                metrics: [],
+                tableCalculations: [],
+            });
+            expect(pill()).toHaveTextContent(/Status.*is.*pending/);
+            expect(pill()).not.toHaveTextContent('shipped');
+        });
+
+        it('shows a new filter as not in effect until Apply', () => {
+            setSidebar(rule({ 'tile-1': REGION }));
+            renderRow(<MappingRow />, {
+                dimensions: [],
+                metrics: [],
+                tableCalculations: [],
+            });
+            expect(pill()).toHaveTextContent(/Status.*is any value/);
+        });
+
+        it("shows a viewer's own applied filter from the temporary filters", () => {
+            const own = { ...rule({ 'tile-1': REGION }), id: 'own' };
+            setSidebar(own, { isViewer: true });
+            const empty = {
+                dimensions: [],
+                metrics: [],
+                tableCalculations: [],
+            };
+            renderRow(<MappingRow />, empty, {
+                ...empty,
+                dimensions: [{ ...own, values: ['pending'] }],
+            });
+            expect(pill()).toHaveTextContent(/Status.*is.*pending/);
+            expect(pill()).not.toHaveTextContent('any value');
+        });
     });
 
     it('reserves the widest count so the row never shifts', () => {
@@ -187,7 +262,7 @@ describe('MappingRow', () => {
         expect(summary).toHaveAttribute('data-reserve', '3 of 3 tiles');
     });
 
-    it('counts the tabs it reaches, with tabs only', () => {
+    it('counts tiles only: the tabs show their own counts', () => {
         mockDashboardContext.current = {
             ...mockDashboardContext.current,
             dashboardTiles: [
@@ -203,48 +278,74 @@ describe('MappingRow', () => {
         setSidebar(rule());
         renderRow();
 
-        expect(screen.getByText('2 of 3 tiles · 1 tab')).toBeVisible();
+        expect(screen.getByText('2 of 3 tiles')).toBeVisible();
+        expect(screen.queryByText(/tab/)).not.toBeInTheDocument();
+    });
+
+    it('splits a field id two explores label differently into a chip each, and offers the other label to add', async () => {
+        const joinedStatus = { ...status, tableLabel: 'Order customer' };
+        mockDashboardContext.current = {
+            ...mockDashboardContext.current,
+            filterableFieldsByTileUuid: {
+                'tile-1': [status],
+                'tile-2': [joinedStatus],
+                'tile-3': [joinedStatus],
+            },
+        };
+        setSidebar(rule());
+        const { unmount } = renderRow();
+        expect(chips()).toEqual(['Orders Status', 'Order customer Status']);
+        await userEvent.hover(
+            screen.getByRole('button', { name: 'Order customer Status' }),
+        );
+        expect(setHoveredFieldId).toHaveBeenCalledWith(
+            'orders_status::Order customer::Status',
+        );
+        unmount();
+
+        // Off the joined tiles, its label is one to add again
+        setSidebar(rule({ 'tile-2': false, 'tile-3': false }));
+        renderRow();
+        expect(chips()).toEqual(['Orders Status']);
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Add a field' }),
+        );
+        await waitFor(() => expect(optionNames()).toEqual(['Status']));
     });
 
     it('selects a chip on click, deselects it on a second, and marks its tiles on hover', async () => {
         setSidebar(rule());
         const { unmount } = renderRow();
 
-        const chip = screen.getByRole('button', { name: 'Status' });
+        const chip = screen.getByRole('button', { name: 'Orders Status' });
         await userEvent.hover(chip);
-        expect(setHoveredFieldId).toHaveBeenCalledWith('orders_status');
+        expect(setHoveredFieldId).toHaveBeenCalledWith(STATUS_KEY);
         await userEvent.click(chip);
-        expect(setHighlightedFieldId).toHaveBeenCalledWith('orders_status');
+        expect(setHighlightedFieldId).toHaveBeenCalledWith(STATUS_KEY);
         unmount();
 
-        setSidebar(rule(), { highlightedFieldId: 'orders_status' });
+        setSidebar(rule(), { highlightedFieldId: STATUS_KEY });
         renderRow();
-        const selected = screen.getByRole('button', { name: 'Status' });
+        const selected = screen.getByRole('button', { name: 'Orders Status' });
         expect(selected).toHaveAttribute('aria-pressed', 'true');
         await userEvent.click(selected);
         expect(clearHighlightedField).toHaveBeenCalledTimes(1);
     });
 
-    it('lists the fitting fields of tiles not yet filtered, and filters only those tiles with the one picked', async () => {
+    it('lists the fitting fields of tiles not yet filtered in the shipped picker, and filters only those tiles with the one picked', async () => {
         setSidebar(rule({ 'tile-1': false }));
         renderRow();
 
         await userEvent.click(
             screen.getByRole('button', { name: 'Add a field' }),
         );
-        const menu = await screen.findByRole('menu');
-        expect(
-            within(menu).getByText('Fields on tiles not yet filtered'),
-        ).toBeInTheDocument();
-        const items = within(menu).getAllByRole('menuitem');
         // tile-1 and tile-3 are not filtered: Region on both, Carrier on one
-        expect(items.map((item) => item.textContent)).toEqual([
-            'Region2 tiles',
-            'Carrier1 tile',
-        ]);
+        await waitFor(() =>
+            expect(optionNames()).toEqual(['Carrier', 'Region']),
+        );
 
-        await userEvent.click(items[0]);
-        expect(setHighlightedFieldId).toHaveBeenCalledWith('orders_region');
+        await userEvent.click(screen.getByRole('option', { name: 'Region' }));
+        expect(setHighlightedFieldId).toHaveBeenCalledWith(REGION_KEY);
         expect(setHighlightedFieldId.mock.invocationCallOrder[0]).toBeLessThan(
             applyWithUndo.mock.invocationCallOrder[0],
         );
@@ -256,11 +357,15 @@ describe('MappingRow', () => {
         });
         expect(apply).toEqual({
             kind: 'add',
-            fieldId: 'orders_region',
+            fieldId: REGION_KEY,
             tileCount: 2,
             replaced: 0,
             acrossTabs: true,
         });
+        // The pick closes the picker
+        await waitFor(() =>
+            expect(screen.queryByRole('option')).not.toBeInTheDocument(),
+        );
     });
 
     it('offers nothing to add once every tile is filtered', () => {
@@ -339,7 +444,7 @@ describe('MappingRow', () => {
             ),
         );
         expect(tabCounts.reduce((sum, count) => sum + count.total, 0)).toBe(3);
-        expect(screen.getByText('3 of 3 tiles · 2 tabs')).toBeVisible();
+        expect(screen.getByText('3 of 3 tiles')).toBeVisible();
     });
 
     describe('the Add a field menu', () => {
@@ -348,9 +453,15 @@ describe('MappingRow', () => {
             table,
         });
 
-        it('sorts by tiles, then name, and tells apart fields that read the same', async () => {
-            const lastNameA = field('last_name', 'Last name', 'customers');
-            const lastNameB = field('last_name', 'Last name', 'buyers');
+        it('offers each field once, grouped by table as the shipped picker', async () => {
+            const lastNameA = {
+                ...field('last_name', 'Last name', 'customers'),
+                tableLabel: 'Customers',
+            };
+            const lastNameB = {
+                ...field('last_name', 'Last name', 'buyers'),
+                tableLabel: 'Buyers',
+            };
             mockDashboardContext.current = {
                 ...mockDashboardContext.current,
                 allFilterableFields: [
@@ -376,50 +487,29 @@ describe('MappingRow', () => {
             await userEvent.click(
                 screen.getByRole('button', { name: 'Add a field' }),
             );
-            const menu = await screen.findByRole('menu');
-            expect(
-                within(menu)
-                    .getAllByRole('menuitem')
-                    .map((item) => item.textContent),
-            ).toEqual([
-                'Carrier2 tiles',
-                'Region2 tiles',
-                'Orders Last name (buyers)1 tile',
-                'Orders Last name (customers)1 tile',
-            ]);
-            expect(within(menu).queryByRole('textbox')).not.toBeInTheDocument();
+            await waitFor(() =>
+                expect(optionNames()).toEqual([
+                    'Last name',
+                    'Last name',
+                    'Carrier',
+                    'Region',
+                ]),
+            );
+            expect(screen.getByText('Buyers')).toBeInTheDocument();
+            expect(screen.getByText('Customers')).toBeInTheDocument();
         });
 
-        it('has a search past eight fields', async () => {
-            const many = Array.from({ length: 9 }, (_, index) =>
-                field(`extra_${index}`, `Extra ${index}`),
-            );
-            mockDashboardContext.current = {
-                ...mockDashboardContext.current,
-                allFilterableFields: [status, ...many],
-                filterableFieldsByTileUuid: {
-                    'tile-1': [status, ...many],
-                    'tile-2': [status],
-                    'tile-3': [status],
-                },
-            };
+        it('opens with its search focused, and narrows the list', async () => {
             setSidebar(rule({ 'tile-1': false }));
             renderRow();
 
             await userEvent.click(
                 screen.getByRole('button', { name: 'Add a field' }),
             );
-            const menu = await screen.findByRole('menu');
-            expect(within(menu).getAllByRole('menuitem')).toHaveLength(9);
-            await userEvent.type(
-                within(menu).getByRole('textbox', { name: 'Search fields' }),
-                'Extra 3',
-            );
-            expect(
-                within(menu)
-                    .getAllByRole('menuitem')
-                    .map((item) => item.textContent),
-            ).toEqual(['Extra 31 tile']);
+            const search = screen.getByPlaceholderText('Search fields');
+            await waitFor(() => expect(search).toHaveFocus());
+            await userEvent.keyboard('Carr');
+            await waitFor(() => expect(optionNames()).toEqual(['Carrier']));
         });
 
         it('hands focus to the chip it added', async () => {
@@ -429,14 +519,16 @@ describe('MappingRow', () => {
             await userEvent.click(
                 screen.getByRole('button', { name: 'Add a field' }),
             );
-            await userEvent.click((await screen.findAllByRole('menuitem'))[0]);
+            await userEvent.click(
+                await screen.findByRole('option', { name: 'Region' }),
+            );
             // The provider's write lands: the chip is there, selected
             setSidebar(rule({ 'tile-1': REGION, 'tile-3': REGION }), {
-                highlightedFieldId: 'orders_region',
+                highlightedFieldId: REGION_KEY,
             });
             rerender();
             expect(
-                screen.getByRole('button', { name: 'Region' }),
+                screen.getByRole('button', { name: 'Orders Region' }),
             ).toHaveFocus();
         });
     });
@@ -452,7 +544,7 @@ describe('MappingRow', () => {
 
         it('goes from the selected chip to the bar on Tab', async () => {
             setSidebar(rule({ 'tile-1': REGION }), {
-                highlightedFieldId: 'orders_region',
+                highlightedFieldId: REGION_KEY,
             });
             renderRow(
                 <>
@@ -462,7 +554,7 @@ describe('MappingRow', () => {
                 </>,
             );
 
-            screen.getByRole('button', { name: 'Region' }).focus();
+            screen.getByRole('button', { name: 'Orders Region' }).focus();
             await userEvent.tab();
             expect(
                 screen.getByRole('button', { name: 'Filter all tiles' }),
@@ -471,7 +563,7 @@ describe('MappingRow', () => {
 
         it('comes back to the chip once the bar goes', () => {
             setSidebar(rule({ 'tile-1': REGION }), {
-                highlightedFieldId: 'orders_region',
+                highlightedFieldId: REGION_KEY,
             });
             const { rerender } = renderRow(
                 <>
@@ -485,13 +577,13 @@ describe('MappingRow', () => {
             setSidebar(rule({ 'tile-1': REGION }));
             rerender(<MappingRow />);
             expect(
-                screen.getByRole('button', { name: 'Region' }),
+                screen.getByRole('button', { name: 'Orders Region' }),
             ).toHaveFocus();
         });
 
         it('goes to "Add a field" when Undo took the chip away', () => {
             setSidebar(rule({ 'tile-1': REGION }), {
-                highlightedFieldId: 'orders_region',
+                highlightedFieldId: REGION_KEY,
             });
             const { rerender } = renderRow(
                 <>

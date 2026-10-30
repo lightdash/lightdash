@@ -1,14 +1,25 @@
-import { DASHBOARD_HEADER_HEIGHT } from '../../components/common/Dashboard/dashboard.constants';
+import {
+    DASHBOARD_EDIT_BAND_HEIGHT,
+    DASHBOARD_HEADER_HEIGHT,
+} from '../../components/common/Dashboard/dashboard.constants';
 
-// Matches `.bandScope` in DashboardHeaderGuard.module.css
-export const EDIT_BAND_HEIGHT = 44;
+// The band stands in for the header in edit mode, with the flag on, for
+// users who can manage the dashboard; anyone else keeps the shipped header
+export const isEditBandShown = (
+    isEditMode: boolean,
+    isControlsEnabled: boolean,
+    canManageDashboard: boolean,
+): boolean => isEditMode && isControlsEnabled && canManageDashboard;
 
-// What sticks above the tabs: the header in edit mode (the band with the
-// flag on), nothing in view mode
+// What sticks above the tabs: the header in edit mode (or the band in its
+// place), nothing in view mode
 export const getTabsStickyOffset = (
     isEditMode: boolean,
     isControlsEnabled: boolean,
+    canManageDashboard: boolean,
 ): number => {
     if (!isEditMode) return 0;
-    return isControlsEnabled ? EDIT_BAND_HEIGHT : DASHBOARD_HEADER_HEIGHT;
+    return isEditBandShown(isEditMode, isControlsEnabled, canManageDashboard)
+        ? DASHBOARD_EDIT_BAND_HEIGHT
+        : DASHBOARD_HEADER_HEIGHT;
 };

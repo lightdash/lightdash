@@ -71,7 +71,7 @@ const renderSettings = (filterRule: DashboardFilterRule) =>
                 view="value"
                 onViewChange={vi.fn()}
                 appliedTileCount={1}
-                nameInput={null}
+                title={null}
                 sectionSelect={null}
             />
         </DashboardStoreTestProvider>,

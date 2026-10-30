@@ -504,6 +504,11 @@
         "filters.rail.applyBeforeOpening": "¿Aplicar antes de abrir {filter}?",
         "filters.rail.createBeforeOpening": "¿Crear antes de abrir {filter}?",
         "filters.rail.applyChangesFirst": "¿Aplicar primero los cambios en {filter}?",
+        "filters.rail.appliesTo": "Se aplica a {tiles}",
+        "filters.rail.chooseTiles": "Elegir mosaicos",
+        "filters.rail.addField": "Añadir un campo",
+        "filters.rail.mappingFilters": "filtra",
+        "filters.rail.mappingUsing": "mediante",
         "filters.tileCard.locked": "Los mosaicos están bloqueados mientras se edita un filtro",
         "filters.tileCard.unreachable": "Este mosaico no tiene ningún campo que este filtro pueda usar",
         "filters.tileCard.filtered": "Este mosaico está filtrado",
@@ -531,6 +536,7 @@
         "filters.tileCard.filteredBy": "Filtrado por {field}",
         "filters.tileCard.filteredVia": "Filtrado mediante {field}",
         "filters.tileCard.notFilteredLabel": "Sin filtrar",
+        "filters.tileCard.fieldNotOnTile": "El campo seleccionado '{field}' no está disponible en este mosaico",
         "filters.fieldBar.region": "Mosaicos filtrados por {field}",
         "filters.fieldBar.tilesOf.singular": "mosaico",
         "filters.fieldBar.tilesOf.plural": "mosaicos",
@@ -557,6 +563,7 @@
         "filters.fieldBar.undoClearName": "Deshacer quitar {field} de {tiles}",
         "filters.fieldBar.clearName": "Quitar {field} de los mosaicos",
         "filters.fieldBar.clearNameOnThisTab": "Quitar {field} de esta pestaña",
-        "filters.fieldBar.filterAllTiles": "Filtrar todos los mosaicos"
+        "filters.fieldBar.filterAllTiles": "Filtrar todos los mosaicos",
+        "filters.fieldBar.undoFilterName": "Deshacer filtrar {tiles} por {field}"
     }
 }

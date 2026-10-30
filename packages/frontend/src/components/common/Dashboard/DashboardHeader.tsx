@@ -1,7 +1,6 @@
 import { subject } from '@casl/ability';
 import {
     DirectAccessResourceType,
-    canMutateVerifiedContent,
     getDashboardDeleteAccess,
     ContentReviewContentType,
     ContentType,
@@ -126,6 +125,7 @@ import { DashboardPerformanceWarning } from './DashboardPerformanceWarning';
 import DashboardPreAggRefreshModal from './DashboardPreAggRefreshModal';
 import { DashboardRefreshButton } from './DashboardRefreshButton';
 import { PreAggregateAuditDrawer } from './PreAggregateAuditIndicator';
+import { useDashboardManageAccess } from './useDashboardManageAccess';
 
 type DashboardHeaderProps = {
     dashboard: Dashboard;
@@ -357,24 +357,10 @@ const DashboardHeader = memo(
         const { user, health } = useApp();
         const preAggregatesEnabled =
             health.data?.preAggregates.enabled ?? false;
-        const hasDashboardManageAbility = !!user.data?.ability.can(
-            'manage',
-            subject('Dashboard', dashboard),
-        );
+        const { hasDashboardManageAbility, userCanManageDashboard } =
+            useDashboardManageAccess(dashboard);
         // Read-only, so verification does not restrict it
         const userCanViewPreAggregateAudit = hasDashboardManageAbility;
-        const userCanManageDashboard =
-            !!user.data &&
-            hasDashboardManageAbility &&
-            canMutateVerifiedContent(
-                user.data.ability,
-                {
-                    organizationUuid: dashboard.organizationUuid,
-                    projectUuid: dashboard.projectUuid,
-                },
-                dashboard.verification,
-                user.data.userUuid,
-            );
         const canAuthorDashboard = authoringEnabled && userCanManageDashboard;
         const canEditDashboard =
             canAuthorDashboard && !isEditMode && !isFullscreen;

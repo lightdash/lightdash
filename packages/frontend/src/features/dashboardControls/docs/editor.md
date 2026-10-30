@@ -29,23 +29,33 @@ restart on every switch. Top to bottom: the prompt (while `isAsking`), a
 placeholder's field search or `FilterSettings`, the footer. A new filter's
 field search is the shipped picker, opened, and alone: no hint, no footer.
 
-- `FilterSettings`, value view: the shipped value form (`FilterValueSettings`),
-  then for editors two quiet rows: "Applies to {n tiles}" (`formatTileCount`,
-  `useAppliedTileCount`) with "Choose tiles", which enters mapping
-  (`docs/fields-and-tiles.md`), and "Settings".
-- Settings view, in place: back arrow, Name (the label input), Section,
-  then `ViewerControls` (Required, then Lock). Same footer.
+- `FilterSettings`, value view: the name as its title (`FilterName`), the
+  shipped value form (`FilterValueSettings`), then two quiet rows: "Applies
+  to {n tiles}" (`formatTileCount`, `useAppliedTileCount`) with "Choose
+  tiles", which enters mapping (`docs/fields-and-tiles.md`), wherever
+  `canChooseTiles`; and, for editors, "Settings".
+- Name: the label, else the field's name (as the pill), as plain text. An
+  editor's has a "Rename" pencil after it (as the dashboard header's) that
+  turns it into the input (`data-controls-label`, `data-own-escape`, named
+  "Name", placeholder "Label for {field}" as the shipped "Filter label"
+  input); blur and Enter commit, Escape reverts to the label it had when
+  renaming started. Focus goes back to the pencil (`useRefocusAfter` in
+  `nameFocus.ts`, shared with section names). Text and input share one
+  height (`--controls-name-height`). A viewer's has no pencil.
+- Settings view, in place: back arrow, Section, then `ViewerControls`
+  (Required, then Lock). Same footer.
 - Footer: Cancel (`discard`) and Apply (`close`), for a new filter too.
 - Prompt: "Apply changes to {filter} first?" with Discard (subtle) and Apply
   (default, `data-controls-apply` while it shows) takes focus as it appears
   (Discard when Apply is blocked). Everything under it, value, rows and
   footer, is dimmed and `inert` meanwhile.
 
-A viewer's popover (own or saved filter) is the value view alone.
+A viewer's popover is the value view: the name, the value and, on their own
+filter, "Applies to" with "Choose tiles".
 
 ## Label draft (`useLabelDraft`)
 
-Held by `FilterEditor`, so Back keeps it. Commits after 300ms idle, on blur
+Held by `FilterEditor`, so a trip to Settings keeps it. Commits after 300ms idle, on blur
 and on Enter. Blur commits synchronously, which is what lets Apply, Cancel
 and Escape see the text. An all-space label is written as no label
 (`withFilterRuleLabel`), so emptying it restores the rule exactly.
@@ -67,9 +77,9 @@ focus to it once the popover is placed.
 - `useFilterRuleField` resolves the field as the shipped bar does. A SQL
   column filter (`target.isSqlColumn`) has no field; its type is the
   column's, else `fallbackType`.
-- Field search is always the shipped `FilterFieldSelect`. "Add another field"
-  offers `getFieldCandidates` (same kind, via shipped `matchFieldByType`, not
-  already a row).
+- A new filter's field search is the shipped `FilterFieldSelect`
+  (`FieldsAndTiles`). Mapping's "Add a field" offers `getFieldCandidates`
+  (same kind, via shipped `matchFieldByType`, not already a chip).
 
 ## Settings rules
 
@@ -94,7 +104,8 @@ focus to it once the popover is placed.
   (`key`) and shows the shipped message as `role="alert"`.
 - Requirement alternatives are dimension and metric filters only.
 - Apply (editors only) is disabled, with the shipped wording as a tooltip,
-  while a required filter has no value or the filter reaches no tile
+  while a required filter has no value, a required group has no member with
+  a value (read from the draft, `editorFilters`), or the filter reaches no tile
   (`useApplyBlockedReason`, shared with the mapping row's Apply). Save keeps a required filter's value as its
   default.
 

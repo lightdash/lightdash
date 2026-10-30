@@ -31,6 +31,8 @@ type Props = {
     onDropdownOpen?: () => void;
     onDropdownClose?: () => void;
     onBlur?: FocusEventHandler<HTMLInputElement>;
+    /** Closes the list once an option is picked (default false). */
+    closeOnOptionSubmit?: boolean;
 };
 
 const FilterMultiStringInput: FC<Props> = ({

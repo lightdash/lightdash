@@ -1,8 +1,9 @@
-/* The popover arrives on mount: a fade as it settles 4px onto its anchor */
+/* The popover arrives on mount: a fade as it settles 4px onto its anchor,
+   at the theme's dropdown pace. CSS, not Mantine's transition: the dropdown
+   mounts already open, also when the editor moves to a new pill */
 .dropdown {
-    --controls-duration-arrive: 150ms;
-
-    animation: controls-arrive var(--controls-duration-arrive) ease;
+    animation: controls-arrive var(--ld-motion-dropdown-duration)
+        var(--ld-motion-dropdown-easing);
 }
 
 @keyframes controls-arrive {
@@ -14,10 +15,10 @@
 
 /* The editor in its popover, as wide as the shipped filter popover */
 .root {
-    --controls-ease: ease-in-out;
-    --controls-duration-hover: 0.12s;
     /* ActionIcon sm: the shipped clear X beside the value input */
     --controls-action-size: rem(24px);
+    /* The theme's xs input height: the name and its input share it */
+    --controls-name-height: rem(28px);
 
     display: flex;
     flex-direction: column;
@@ -26,6 +27,28 @@
 
 .content {
     padding: var(--mantine-spacing-sm) var(--mantine-spacing-md);
+}
+
+.title {
+    padding: var(--mantine-spacing-sm) var(--mantine-spacing-md) 0;
+}
+
+/* The name above the value, as tall as the input it turns into */
+.nameRow {
+    height: var(--controls-name-height);
+}
+
+/* Its text where the input's starts */
+.name {
+    min-width: 0;
+    padding-inline: calc(var(--controls-name-height) / 3);
+    border: 1px solid transparent;
+    line-height: calc(var(--controls-name-height) - 2px);
+}
+
+.nameInput {
+    font-size: var(--mantine-font-size-sm);
+    font-weight: 500;
 }
 
 /* The shipped clear X sits beside the value input, so the operator select
@@ -50,12 +73,12 @@
     min-height: 36px;
     /* One end inset for the prompt, the rows and the footer */
     padding-inline: var(--mantine-spacing-md);
-    border-top: 1px solid var(--mantine-color-default-border);
 }
 
+/* `button.row` too: over the group button's border reset */
+.row,
 button.row {
-    transition: background-color var(--controls-duration-hover)
-        var(--controls-ease);
+    border-top: 1px solid var(--mantine-color-default-border);
 }
 
 button.row:hover {
@@ -79,21 +102,13 @@ button.row:hover {
     opacity: 0.4;
 }
 
-.apply {
-    transition: transform var(--controls-duration-hover) var(--controls-ease);
-}
-
-.footer .apply:active:not(:disabled) {
-    transform: scale(0.97);
-}
-
 @media (prefers-reduced-motion: reduce) {
     .dropdown {
         animation: none;
     }
 
-    .apply,
-    button.row {
-        transition: none;
+    /* The menus' theme pop, which Mantine writes inline */
+    .menu {
+        transition: none !important;
     }
 }

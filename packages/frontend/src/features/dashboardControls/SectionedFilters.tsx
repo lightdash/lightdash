@@ -74,9 +74,10 @@ import { BarSelectionContext, type BarSelection } from './barSelection';
 import { formatSectionCount } from './fieldLabels';
 import { FilterPills } from './FilterPills';
 import pillClasses from './FilterPills.module.css';
+import { focusAfterNaming, useRefocusAfter, type NameExit } from './nameFocus';
 import classes from './SectionedFilters.module.css';
 import { SectionMenu } from './SectionMenu';
-import { SectionNameInput, type NameExit } from './SectionNameInput';
+import { SectionNameInput } from './SectionNameInput';
 import {
     BAR_SPACE_TARGET_ID,
     countFilters,
@@ -107,28 +108,6 @@ const NEW_SECTION_SELECTOR = '[data-new-section]';
 const pillSelector = (id: string) => `[data-controls-pill="${id}"]`;
 const sectionNameSelector = (id: string) => `[data-section-name="${id}"]`;
 const sectionAddSelector = (id: string) => `[data-section-add="${id}"]`;
-
-// Moves focus once naming ended, unless a blur took it to another element
-// (Tab, a click on a control); no ring after a pointer
-const focusAfterNaming = (target: HTMLElement | null, exit: NameExit) => {
-    if (exit === 'elsewhere') return;
-    if (exit === 'pointer') target?.focus({ focusVisible: false });
-    else target?.focus();
-};
-
-// Focus goes back to `ref` once the input unmounts (Enter, Escape, the
-// check or X), never away from where a blur went
-const useRefocusAfter = (isEditing: boolean) => {
-    const ref = useRef<HTMLButtonElement>(null);
-    const exit = useRef<NameExit>('keyboard');
-    const wasEditing = useRef(isEditing);
-    useEffect(() => {
-        if (wasEditing.current && !isEditing)
-            focusAfterNaming(ref.current, exit.current);
-        wasEditing.current = isEditing;
-    }, [isEditing]);
-    return { ref, exit };
-};
 
 /** An editor's capsule controls; a viewer's capsule has none. */
 type CapsuleActions = {
@@ -330,20 +309,16 @@ const SectionCapsule: FC<CapsuleProps> = ({
                         )}
                     </Group>
                 )}
-                {/* Mounted on expand, so its pills arrive; `contents` keeps them
-                in the capsule's own flow */}
                 {!hasVisible ? (
                     <Text span id={summaryId} fz="xs" c="dimmed">
                         {formatSectionCount(getUiString, rules.length)}
                     </Text>
                 ) : isOpen ? (
-                    <Box display="contents" className={classes.pillsEnter}>
-                        <FilterPills
-                            activeTabUuid={activeTabUuid}
-                            sectionId={section.id}
-                            triggerClassName={triggerClassName}
-                        />
-                    </Box>
+                    <FilterPills
+                        activeTabUuid={activeTabUuid}
+                        sectionId={section.id}
+                        triggerClassName={triggerClassName}
+                    />
                 ) : (
                     <Text span id={summaryId} fz="xs" c="dimmed">
                         {changedCount > 0

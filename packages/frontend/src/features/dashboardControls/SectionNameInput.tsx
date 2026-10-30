@@ -2,11 +2,8 @@ import { ActionIcon, Box, Group, TextInput } from '@mantine/core';
 import { IconCheck, IconX } from '@tabler/icons-react';
 import { useRef, useState, type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
+import { type NameExit } from './nameFocus';
 import classes from './SectionedFilters.module.css';
-
-/** How naming ended: a key, a pointer, or a blur that took focus to
- * another element (which keeps it). */
-export type NameExit = 'keyboard' | 'pointer' | 'elsewhere';
 
 type NameInputProps = {
     name: string;

@@ -438,6 +438,11 @@ export const DEFAULT_UI_STRINGS = {
     'filters.rail.applyBeforeOpening': 'Apply before opening {filter}?',
     'filters.rail.createBeforeOpening': 'Create before opening {filter}?',
     'filters.rail.applyChangesFirst': 'Apply changes to {filter} first?',
+    'filters.rail.appliesTo': 'Applies to {tiles}',
+    'filters.rail.chooseTiles': 'Choose tiles',
+    'filters.rail.addField': 'Add a field',
+    'filters.rail.mappingFilters': 'filters',
+    'filters.rail.mappingUsing': 'using',
     'filters.tileCard.locked': 'Tiles are locked while a filter is edited',
     'filters.tileCard.unreachable':
         'This tile has no field this filter can use',
@@ -471,6 +476,8 @@ export const DEFAULT_UI_STRINGS = {
     'filters.tileCard.filteredBy': 'Filtered by {field}',
     'filters.tileCard.filteredVia': 'Filtered via {field}',
     'filters.tileCard.notFilteredLabel': 'Not filtered',
+    'filters.tileCard.fieldNotOnTile':
+        "The selected field '{field}' is not available on this tile",
     'filters.fieldBar.region': 'Tiles filtered by {field}',
     'filters.fieldBar.tilesOf.singular': 'tile',
     'filters.fieldBar.tilesOf.plural': 'tiles',
@@ -500,6 +507,7 @@ export const DEFAULT_UI_STRINGS = {
     'filters.fieldBar.clearName': 'Clear {field} from tiles',
     'filters.fieldBar.clearNameOnThisTab': 'Clear {field} from this tab',
     'filters.fieldBar.filterAllTiles': 'Filter all tiles',
+    'filters.fieldBar.undoFilterName': 'Undo filtering {tiles} by {field}',
     'dashboard.exportAllTiles': 'Export all tiles',
     'dashboard.printPage': 'Print this page',
     'dashboard.exportPdf': 'Export as PDF',

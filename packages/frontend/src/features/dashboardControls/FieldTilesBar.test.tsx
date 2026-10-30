@@ -133,10 +133,15 @@ const Dashboard = ({ children }: { children?: ReactNode }) => (
     </>
 );
 
-const bar = (label = 'Status') =>
-    screen.getByRole('region', { name: `Tiles filtered by ${label}` });
+// Fields are named with their table, as the shipped tile select names them;
+// a SQL column (null) has none
+const bar = (label = 'Status', table: string | null = 'Orders') =>
+    screen.getByRole('region', {
+        name: `Tiles filtered by ${table === null ? label : `${table} ${label}`}`,
+    });
 // The count sentence, in the element that reads changes out
-const countOf = (label = 'Status') => bar(label).querySelector('[aria-live]');
+const countOf = (label = 'Status', table: string | null = 'Orders') =>
+    bar(label, table).querySelector('[aria-live]');
 const queryBar = () => screen.queryByRole('region');
 const buttonTexts = () =>
     within(bar())
@@ -296,7 +301,7 @@ describe('FieldTilesBar', () => {
             });
             renderWithProviders(<Dashboard />);
 
-            const undo = button('Undo applying Status to 2 tiles');
+            const undo = button('Undo filtering 2 tiles by Orders Status');
             expect(undo).toBeEnabled();
             expect(undo).toHaveAttribute('data-variant', 'subtle');
             await userEvent.click(undo);
@@ -318,7 +323,7 @@ describe('FieldTilesBar', () => {
 
             expect(
                 within(bar('Region')).getByRole('button', {
-                    name: 'Undo applying Region to 1 tile',
+                    name: 'Undo filtering 1 tile by Orders Region',
                 }),
             ).toHaveAttribute('data-variant', 'filled');
             expect(
@@ -371,7 +376,7 @@ describe('FieldTilesBar', () => {
 
             await userEvent.hover(filterAllButton());
             expect(
-                await screen.findByText('Replaces Region on 1 tile'),
+                await screen.findByText('Replaces Orders Region on 1 tile'),
             ).toBeInTheDocument();
         });
 
@@ -389,7 +394,7 @@ describe('FieldTilesBar', () => {
             renderWithProviders(<Dashboard />);
 
             const clear = within(bar('Region')).getByRole('button', {
-                name: 'Clear Region from tiles',
+                name: 'Clear Orders Region from tiles',
             });
             expect(clear).toBeEnabled();
             fireEvent.click(clear);
@@ -408,10 +413,10 @@ describe('FieldTilesBar', () => {
             });
             renderWithProviders(<Dashboard />);
 
-            expect(countOf('City')).toHaveTextContent(
+            expect(countOf('City', 'Customers')).toHaveTextContent(
                 /^No tile has this field$/,
             );
-            within(bar('City'))
+            within(bar('City', 'Customers'))
                 .getAllByRole('button')
                 .forEach((action) => expect(action).toBeDisabled());
         });
@@ -475,6 +480,55 @@ describe('FieldTilesBar', () => {
                 acrossTabs: true,
             });
         });
+        it('slides in when a chip is selected, and not again on a tab switch', () => {
+            setSidebar(rule('orders_status'));
+            const { rerender } = renderWithProviders(<TabbedDashboard />);
+            expect(bar()).toHaveAttribute('data-arrive');
+
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                activeTab: TAB_2,
+            };
+            rerender(<TabbedDashboard />);
+            expect(screen.getByTestId('grid-2').nextElementSibling).toBe(
+                bar().parentElement,
+            );
+            expect(bar()).not.toHaveAttribute('data-arrive');
+
+            // Unselected and selected again: it arrives again
+            setSidebar(rule('orders_status'), { highlightedFieldId: null });
+            rerender(<TabbedDashboard />);
+            setSidebar(rule('orders_status'));
+            rerender(<TabbedDashboard />);
+            expect(bar()).toHaveAttribute('data-arrive');
+        });
+
+        it('slides in again when another chip is selected straight away, after a tab switch too', () => {
+            const regionRule = rule('orders_status', { 'tile-1': REGION });
+            setSidebar(regionRule);
+            const { rerender } = renderWithProviders(<TabbedDashboard />);
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                activeTab: TAB_2,
+            };
+            rerender(<TabbedDashboard />);
+            expect(bar()).not.toHaveAttribute('data-arrive');
+
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                activeTab: TAB_1,
+            };
+            rerender(<TabbedDashboard />);
+            expect(bar()).not.toHaveAttribute('data-arrive');
+
+            setSidebar(regionRule, { highlightedFieldId: 'orders_region' });
+            rerender(<TabbedDashboard />);
+            expect(bar('Region')).toHaveAttribute('data-arrive');
+
+            setSidebar(regionRule);
+            rerender(<TabbedDashboard />);
+            expect(bar()).toHaveAttribute('data-arrive');
+        });
     });
 
     describe('a SQL column filter', () => {
@@ -504,9 +558,11 @@ describe('FieldTilesBar', () => {
             );
             renderWithProviders(<Dashboard />);
 
-            expect(countOf('country')).toHaveTextContent(/^1 of 2 tiles$/);
+            expect(countOf('country', null)).toHaveTextContent(
+                /^1 of 2 tiles$/,
+            );
             fireEvent.click(
-                within(bar('country')).getByRole('button', {
+                within(bar('country', null)).getByRole('button', {
                     name: 'Filter all tiles',
                 }),
             );
@@ -514,6 +570,80 @@ describe('FieldTilesBar', () => {
                 'tile-1': column,
                 'tile-2': column,
             });
+        });
+    });
+
+    describe('a SQL column whose reference holds "::"', () => {
+        const REF = 'ORDER_DATE::DATE';
+        const column = {
+            fieldId: REF,
+            tableName: 'mock_table',
+            isSqlColumn: true,
+        };
+
+        beforeEach(() => {
+            mockSqlColumnsByTile.current = {
+                'tile-1': [{ reference: REF, type: 'string' }],
+                'tile-2': [{ reference: REF, type: 'string' }],
+            };
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                filterableFieldsByTileUuid: {},
+            };
+            setSidebar(
+                {
+                    ...rule(REF, { 'tile-1': column, 'tile-2': false }),
+                    target: column,
+                },
+                { highlightedFieldId: REF },
+            );
+        });
+
+        it('keeps its whole reference as its chip, label, count and action', () => {
+            renderWithProviders(<Dashboard />);
+            expect(countOf(REF, null)).toHaveTextContent(/^1 of 2 tiles$/);
+            fireEvent.click(
+                within(bar(REF, null)).getByRole('button', {
+                    name: 'Filter all tiles',
+                }),
+            );
+            expect(getAppliedRule().tileTargets).toEqual({
+                'tile-1': column,
+                'tile-2': column,
+            });
+            expect(appliedUndo().fieldId).toBe(REF);
+        });
+
+        it('clears only its own column', () => {
+            const store = seedDashboardEditState(
+                createDashboardTestStore(),
+                mockDashboardContext.current as DashboardEditTestValues,
+            );
+            const { result } = renderHook(
+                () =>
+                    useFieldTileActions({
+                        'tile-1': [
+                            { reference: REF, type: DimensionType.STRING },
+                        ],
+                        'tile-2': [
+                            { reference: REF, type: DimensionType.STRING },
+                        ],
+                    }),
+                {
+                    wrapper: ({ children }: { children: ReactNode }) => (
+                        <DashboardStoreTestProvider store={store}>
+                            {children}
+                        </DashboardStoreTestProvider>
+                    ),
+                },
+            );
+            expect(result.current?.chips).toEqual([{ key: REF, fieldId: REF }]);
+            const tiles = result.current!.forField(REF);
+            expect(tiles.label).toBe(REF);
+            expect(tiles.everyTabScope.applied).toBe(1);
+            tiles.clear('every-tab');
+            // A SQL chart tile with no column entry is not filtered
+            expect(getAppliedRule().tileTargets).toEqual({ 'tile-2': false });
         });
     });
 
@@ -613,6 +743,81 @@ describe('FieldTilesBar', () => {
         expect(removeLastField).toHaveBeenCalledWith('Status');
     });
 
+    describe('a field id two explores label differently', () => {
+        const joinedStatus = { ...status, tableLabel: 'Order customer' };
+        const ORDERS_KEY = 'orders_status::Orders::Status';
+        const JOINED_KEY = 'orders_status::Order customer::Status';
+        const renderActions = () => {
+            const store = seedDashboardEditState(
+                createDashboardTestStore(),
+                mockDashboardContext.current as DashboardEditTestValues,
+            );
+            return renderHook(() => useFieldTileActions({}), {
+                wrapper: ({ children }: { children: ReactNode }) => (
+                    <DashboardStoreTestProvider store={store}>
+                        {children}
+                    </DashboardStoreTestProvider>
+                ),
+            }).result;
+        };
+
+        beforeEach(() => {
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                dashboardTiles: [
+                    tile('tile-1'),
+                    tile('tile-2'),
+                    tile('tile-3'),
+                ],
+                filterableFieldsByTileUuid: {
+                    'tile-1': [status],
+                    'tile-2': [joinedStatus],
+                    'tile-3': [joinedStatus],
+                },
+            };
+            setSidebar(rule('orders_status', { 'tile-2': false }));
+        });
+
+        it('is a chip per label, each counting and acting on its own tiles', () => {
+            const result = renderActions();
+            expect(result.current?.chips.map((chip) => chip.key)).toEqual([
+                ORDERS_KEY,
+                JOINED_KEY,
+            ]);
+            const joined = result.current!.forField(JOINED_KEY);
+            expect(joined.label).toBe('Order customer Status');
+            expect(joined.everyTabScope).toMatchObject({
+                applied: 1,
+                possible: 2,
+            });
+
+            joined.applyToAll('every-tab');
+            // tile-2 is back on its default; tile-1 is left alone
+            expect(getAppliedRule().tileTargets).toBeUndefined();
+            expect(appliedUndo()).toMatchObject({
+                kind: 'apply',
+                fieldId: JOINED_KEY,
+                tileCount: 2,
+            });
+        });
+
+        it('clears and removes one chip without touching the other', () => {
+            const result = renderActions();
+            result.current!.forField(ORDERS_KEY).clear('every-tab');
+            expect(getAppliedRule().tileTargets).toEqual({
+                'tile-1': false,
+                'tile-2': false,
+            });
+
+            result.current!.forField(JOINED_KEY).remove();
+            expect(removeLastField).not.toHaveBeenCalled();
+            expect(updateFilter.mock.calls[0][0].tileTargets).toEqual({
+                'tile-2': false,
+                'tile-3': false,
+            });
+        });
+    });
+
     describe('while the tile fields are not loaded', () => {
         it('switches its actions off, and back on once they are there', () => {
             const fields =
@@ -629,7 +834,7 @@ describe('FieldTilesBar', () => {
             const { rerender } = renderWithProviders(<Dashboard />);
 
             const clear = screen.getByRole('button', {
-                name: 'Clear Region from tiles',
+                name: 'Clear Orders Region from tiles',
             });
             expect(clear).toBeDisabled();
             fireEvent.click(clear);
@@ -641,7 +846,9 @@ describe('FieldTilesBar', () => {
             };
             rerender(<Dashboard />);
             expect(
-                screen.getByRole('button', { name: 'Clear Region from tiles' }),
+                screen.getByRole('button', {
+                    name: 'Clear Orders Region from tiles',
+                }),
             ).toBeEnabled();
         });
     });

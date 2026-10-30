@@ -268,9 +268,16 @@ export const FilterPills: FC<Props> = ({
               ? 'metrics'
               : 'dimensions';
     // Where it lands on Apply: last in its group. It neither drags nor drops
+    // On Apply the store has the rule a render before the editor lets it go
+    const isNewPillListed = (group: FilterPillGroup) =>
+        newPillRule !== null &&
+        [...dashboardFilters[group], ...temporaryFilters[group]].some(
+            (filter) => filter.id === newPillRule.id,
+        );
     const renderNewPill = (group: FilterPillGroup) =>
         newPillRule !== null &&
         newGroup === group &&
+        !isNewPillListed(group) &&
         isRuleInSection(newPillRule, sectionId, sections) && (
             <Fragment key={newPillRule.id}>
                 {renderPill(

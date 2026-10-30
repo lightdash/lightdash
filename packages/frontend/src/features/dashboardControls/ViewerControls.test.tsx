@@ -163,11 +163,13 @@ describe('ViewerControls', () => {
     });
 
     describe('lock', () => {
-        it('says what a lock does, with the open lock while it is off', () => {
+        it('is a plain switch, off, with no explanation', () => {
             renderControls(makeRule('a'));
             expect(
-                screen.getByText("Viewers see the value but can't change it."),
-            ).toBeInTheDocument();
+                screen.queryByText(
+                    "Viewers see the value but can't change it.",
+                ),
+            ).not.toBeInTheDocument();
             expect(lockSwitch()).not.toBeChecked();
             expect(screen.queryAllByRole('radio')).toHaveLength(0);
         });

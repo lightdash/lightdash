@@ -1,15 +1,11 @@
 /* Counts swap with no fade: they change as rows are hovered. Tabular figures
    keep them from jittering */
 .count {
-    --controls-ease: ease-in-out;
-    --controls-duration-state: 0.15s;
-
     display: inline-grid;
     flex-shrink: 0;
     margin-inline-start: var(--mantine-spacing-xs);
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
-    animation: fadeIn var(--controls-duration-state) var(--controls-ease);
 
     /* The widest count the tab can show holds the space, unseen, so a count
        that changes never reflows the tabs */
@@ -43,19 +39,4 @@
 [role='tab']:has(> .count:not([data-capped])) {
     --dashboard-tab-max-width: none;
     flex-shrink: 0;
-}
-
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-    }
-    to {
-        opacity: 1;
-    }
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .count {
-        animation: none;
-    }
 }

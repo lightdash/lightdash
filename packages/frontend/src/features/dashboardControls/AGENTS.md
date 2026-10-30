@@ -41,13 +41,14 @@ is untouched and removing the flag is deleting these lines.
 Gated on the flag:
 
 - `pages/Dashboard.tsx`: `ControlsSidebarPage` instead of `Page`; the header
-  through `DashboardHeaderGuard`; in edit mode `bandScope` on the header and
-  tabs wrapper (the band's 44px `--dashboard-header-height`); `PageSpinner` until the flag's
+  through `DashboardHeaderGuard`; while the band shows (`isEditBandShown`:
+  edit mode and manage access) `bandScope` on the header and
+  tabs wrapper (`--dashboard-header-height` set to `--dashboard-edit-band-height`, `DASHBOARD_EDIT_BAND_HEIGHT`); `PageSpinner` until the flag's
   `isInitialLoading` ends, so `Page` is never swapped for
   `ControlsSidebarPage` (that remounts the grid).
 - `features/dashboardTabs/index.tsx`: `ControlsBar` instead of
   `DashboardFiltersBar`; `hasQuietActions` on each `DraggableTab`; the tabs' stuck detector offset
-  from `getTabsStickyOffset` (`editBand.ts`, the band's height in edit mode).
+  from `getTabsStickyOffset` (`editBand.ts`, the band's height while it shows).
 - `ee/features/embed/EmbedDashboard/components/EmbedDashboard.tsx`:
   `isEmbedFilterRailEnabled` (flag on, and not an embed editor in edit mode)
   turns on `isControlsEnabled` for the header and filter bar, and
@@ -77,12 +78,16 @@ Openings (optional props, defaults are today's behaviour):
   `FilterRuleLabel` takes `isValueBold`).
 - `FilterConfiguration/FilterFieldSelect`: `defaultOpened`, `withLabel`,
   `placeholder`, `withinPortal`.
-- `FilterConfiguration/FilterValueSection`: `withDefaultValueSwitch` (the
-  editor passes `false`: edit mode edits the default).
+- `FilterConfiguration/FilterValueSection`: `withDefaultValueSwitch` and
+  `withRequiredSaveNote` (the editor passes `false` for both: edit mode edits
+  the default, and Save keeps a required filter's value), and
+  `isListClosedOnPick` (the editor passes `true`: an open value list would
+  cover its Apply). It reaches the string inputs as `popoverProps.closeListOnPick`
+  and `MultiSelectCombobox` as `closeOnOptionSubmit`.
 - `FilterConfiguration/utils`: `getFilterRuleWithRequired` takes
   `savedDefaultRule` (only the editor passes it).
 - Embed: `EmbedDashboardFilterBar` and `EmbedDashboardHeader` take
-  `isControlsEnabled`.
+  `isControlsEnabled`; with it the filter bar sits in `MappingSwap`.
 
 Pure moves out of shipped files, now shared by both sides:
 `ActiveFilters/` (`FilterRuleLabel`, `FilterPillSkeletons`,
@@ -91,7 +96,9 @@ Pure moves out of shipped files, now shared by both sides:
 `FilterConfiguration/` (`FilterValueSection`, `SqlColumnSelect`, and in
 `utils` the rule helpers such as `getFilterRuleWithDisabledState`,
 `isLockedRequiredMissingValue`, `getFilterRuleFilterType`,
-`getRequiredGroupMemberUpdates`, `getDimensionFiltersToSave`), the embed's `EmbedResetFiltersButton`, and `Dashboard/DashboardPerformanceWarning`.
+`getRequiredGroupMemberUpdates`, `getDimensionFiltersToSave`, and
+`getTileFieldOptions`, the Tiles tab's per-tile options),
+`components/common/FieldSelect/fieldSelectLabel.ts` (`getFieldSelectLabel`), the embed's `EmbedResetFiltersButton`, and `Dashboard/DashboardPerformanceWarning`.
 Fix behaviour in the shared piece, once, never in a copy.
 
 ## Map
@@ -100,23 +107,23 @@ Fix behaviour in the shared piece, once, never in a copy.
 | --- | --- |
 | `ControlsSidebarProvider.tsx`, `useControlsSidebar.ts`, `sidebarState.ts` | The edit state, every write to filters, focus return; pure state helpers |
 | `ControlsSidebarPage.tsx` | Drop-in for `Page`: the provider plus tile overlays, tab counts, link prompts, field bar |
-| `ControlsBar.tsx` | The shipped bar with its openings; picks flat or `SectionedFilters`; cross-fades to `MappingRow` |
+| `ControlsBar.tsx` | The shipped bar with its openings; picks flat or `SectionedFilters`; `MappingSwap` cross-fades to `MappingRow` (the embed's bar uses it too) |
 | `MappingRow.tsx` | Mapping: the open pill, title and counts, field chips, "Add a field", Cancel and Apply |
-| `AddControl.tsx`, `FilterBarMenu.tsx` | "Add filter" and the editor's "..." menu (viewers setting, "Filter rules"); `InertWhileEditing` |
+| `AddControl.tsx`, `FilterBarMenu.tsx` | "Add filter" and the editor's "..." menu ("Hide for viewers" / "Show for viewers", named for the action as the shipped pin item; "Filter rules"); `InertWhileEditing` |
 | `FilterPills.tsx`, `FilterPill.tsx`, `TemporaryFilterPills.tsx` | Bar pills: an editor's, a viewer's saved and own pills (each anchors the editor), an editor's temporary pills (shipped) |
 | `SettledFilterFields.tsx` | Keeps the last fields while tiles reload, so the bar does not flash a first load |
 | `FilterEditor.tsx` | `EditorPopover`, under a pill or "Add filter": the prompt, the body, Cancel and Apply |
-| `FilterSettings.tsx`, `FilterValueSettings.tsx`, `ViewerControls.tsx` | Popover body: value, "Applies to", the Settings view (name, section, required, lock) |
-| `FieldsAndTiles.tsx`, `FieldRow.tsx`, `fieldCandidates.ts` | The filter's fields list and field search |
+| `FilterSettings.tsx`, `FilterValueSettings.tsx`, `ViewerControls.tsx` | Popover body: name, value, "Applies to", the Settings view (section, required, lock) |
+| `FieldsAndTiles.tsx`, `fieldCandidates.ts` | A new filter's field search; field candidates for "Add a field" and the cards |
 | `peers.ts` | Multi-field model on the saved shape, scopes, counts |
 | `FieldTilesBar.tsx`, `useFieldTileActions.ts`, `useBarHost.ts` | Floating field bar; the one place a field's counts and actions are computed |
 | `TileOverlay.tsx`, `LazySelect.tsx`, `tileProps.ts`, `tileSelector.ts` | Per-tile veil and card |
 | `TabCounts.tsx`, `usePortalTargets.ts`, `useTileHover.ts`, `useScrollToHighlightedTile.ts` | Tab counts, portal targets and sibling locking, pill hover marks, scroll to tile |
 | `LinkPrompts.tsx`, `linkCandidates.ts` | Link prompts on tiles added while editing |
-| `SectionedFilters.tsx`, `SectionMenu.tsx`, `SectionNameInput.tsx`, `sections.ts` | Sections bar, drag and drop, naming; pure section helpers |
+| `SectionedFilters.tsx`, `SectionMenu.tsx`, `SectionNameInput.tsx`, `sections.ts`, `nameFocus.ts` | Sections bar, drag and drop, naming (focus after naming, shared with the editor's name); pure section helpers |
 | `SelectionBar.tsx`, `SelectionActions.tsx`, `barSelection.ts` | Multi-select on the sectioned bar |
 | `sectionVersionChanges.ts` | Section rows for the version comparison page |
-| `DashboardHeaderGuard.tsx` | Edit mode band (Editing, name; Add tile, Save dashboard, Cancel, "...") in place of the header; inert while an editor's filter is edited |
+| `DashboardHeaderGuard.tsx` | Edit mode band (Editing, name; Add tile, Save dashboard, Cancel, "...") in place of the header for users who can manage the dashboard (`useDashboardManageAccess`, else the shipped header); inert while an editor's filter is edited |
 | `useEditorDismiss.ts` | Escape handling while a filter is edited |
 | `DropdownClass.tsx`, `railContractClasses.ts` | Embed class contract on the editor popover and portalled lists |
 | `requirements.ts`, `fieldLabels.ts` | Requirement rules, count copy |
@@ -153,7 +160,8 @@ Each one has broken before or would break silently.
   `withoutDefaultTileTargets`), but never normalises away a `false` tile
   exclusion or the presence of `tileTargets`: shipped code reads both.
 - **A viewer never saves filters.** Outside edit mode a viewer's own filters
-  go to the temporary filters; a saved filter's Apply goes through the
+  go to the temporary filters, their tile choices included (only their own
+  filters can be mapped, `canChooseTiles`); a saved filter's Apply goes through the
   shipped `updateDimensionDashboardFilter` / `updateMetricDashboardFilter`,
   the view-mode override the URL carries.
 - **Overlays never stop events.** No `stopPropagation` on an overlay: Mantine
@@ -189,18 +197,30 @@ their copy lives in `DEFAULT_UI_STRINGS` (`filters.rail.*`,
 read with `useUiStrings`; counts go through `formatTileCount` /
 `formatFieldCount` in `fieldLabels.ts`. Add every new key to both locale
 bundles in `packages/sdk-test-app/public/locales/`. Copy only an editor sees
-(Settings, "Applies to", link prompts, section controls, tips) stays literal.
+(Settings, the name input, link prompts, section controls, the "..." menu,
+tips) stays literal; "Applies to", "Choose tiles" and the mapping row are
+viewers' too.
 See `src/components/common/Filters/AGENTS.md`.
 
 ## Styling and motion
 
 - Animate `opacity` and `transform` only: other properties run once per tile.
   A shadow that must appear sits on its own layer and fades.
-- No React state, effects, refs, timers or context for motion; a replay is a
-  `key` on a small leaf. Closing is immediate.
-- Motion values are declared once per stylesheet as `--controls-*` custom
-  properties on its root class; every stylesheet switches them off under
-  `prefers-reduced-motion: reduce`.
+- Only this moves: the popover arrives (fade and 4px, CSS on mount), the
+  "Add a field" and "..." menus pop with the theme's dropdown transition
+  (`MENU_TRANSITION`, closing at once), the mapping row fades in over the filter row, the field
+  bar slides up for each new chip selection (keyed on the field; never on a
+  tab switch), tile rings
+  fade, Save's enabled state eases. Nothing on hover or press.
+- No React state, effects, refs, timers or context for motion. Closing is
+  immediate. The one exception: `FieldTilesBar` remembers the field it was
+  drawn for, since a tab switch remounts the bar in another grid.
+- Motion values come from the theme's global variables (`--ld-motion-*` in
+  `theme/cssVariablesResolver.ts`): the dropdown pace for the popover and
+  tile rings, Mantine's 250ms for the cross-fade, the bar's slide and Save.
+  Every stylesheet switches its motion off under
+  `prefers-reduced-motion: reduce`, the menus' inline transition included
+  (`.menu`).
 - No new `:has()` selectors.
 - Nothing changes width or reflows when the editor opens, a field row is
   hovered or a drag starts: a locked pill's lock always shows (an unlocked

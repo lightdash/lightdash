@@ -382,6 +382,22 @@ describe('FilterPills', () => {
             expect(created).toHaveAttribute('data-temporary');
             expect(created).toHaveAttribute('data-open');
         });
+
+        it('draws once when Apply has already put it in the store', () => {
+            editingNew({ isViewer: true });
+            setContext({
+                dashboardFilters: { ...noFilters, dimensions: [savedRule] },
+                dashboardTemporaryFilters: {
+                    ...noFilters,
+                    dimensions: [newRule],
+                },
+            });
+            renderWithProviders(<FilterPills activeTabUuid={undefined} />);
+
+            expect(
+                document.querySelectorAll('[data-controls-pill="new"]'),
+            ).toHaveLength(1);
+        });
     });
 
     describe('looks', () => {

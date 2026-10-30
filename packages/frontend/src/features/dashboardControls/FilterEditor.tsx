@@ -3,6 +3,7 @@ import {
     type DashboardFilterRule,
 } from '@lightdash/common';
 import {
+    ActionIcon,
     Box,
     Button,
     Group,
@@ -12,8 +13,17 @@ import {
     TextInput,
     Tooltip,
 } from '@mantine/core';
+import { IconPencil } from '@tabler/icons-react';
 import omit from 'lodash/omit';
-import { useCallback, useMemo, useState, type FC, type ReactNode } from 'react';
+import {
+    useCallback,
+    useMemo,
+    useRef,
+    useState,
+    type FC,
+    type ReactNode,
+} from 'react';
+import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import {
     selectControlSections,
@@ -22,6 +32,7 @@ import {
 import { FieldsAndTiles } from './FieldsAndTiles';
 import classes from './FilterEditor.module.css';
 import { FilterSettings, type EditorView } from './FilterSettings';
+import { useRefocusAfter, type NameExit } from './nameFocus';
 import { useRailContractClasses } from './railContractClasses';
 import { withFilterRuleLabel } from './sidebarState';
 import { useAppliedTileCount } from './useAppliedTileCount';
@@ -36,6 +47,7 @@ const NO_SECTION = 'none';
 const SectionSelect: FC<{ rule: DashboardFilterRule }> = ({ rule }) => {
     const sections = useDashboardSelector(selectControlSections);
     const updateFilter = useControlsSidebarSelector((c) => c.updateFilter);
+    const getUiString = useUiStrings();
     if (sections.length === 0) return null;
     const value =
         rule.sectionId !== undefined &&
@@ -48,10 +60,12 @@ const SectionSelect: FC<{ rule: DashboardFilterRule }> = ({ rule }) => {
             label="Section"
             allowDeselect={false}
             data={[
-                { value: NO_SECTION, label: 'None' },
+                { value: NO_SECTION, label: 'No section' },
                 ...sections.map((section) => ({
                     value: section.id,
-                    label: section.name || 'Untitled section',
+                    label:
+                        section.name ||
+                        getUiString('filters.rail.untitledSection'),
                 })),
             ]}
             value={value}
@@ -151,7 +165,6 @@ const Footer: FC<{ applyBlockedReason: string | null }> = ({
                 <Box>
                     <Button
                         size="xs"
-                        className={classes.apply}
                         data-controls-apply={!isAsking || undefined}
                         disabled={isPlaceholder || applyBlockedReason !== null}
                         onClick={close}
@@ -161,6 +174,96 @@ const Footer: FC<{ applyBlockedReason: string | null }> = ({
                 </Box>
             </Tooltip>
         </Group>
+    );
+};
+
+// The popover's title: the name as text and, for an editor, a pencil that
+// turns it into an input. Blur and Enter commit, Escape reverts
+const FilterName: FC<{
+    label: ReturnType<typeof useLabelDraft>;
+    /** Shown when there is no label: the field's name, as the pill. */
+    fallback: string;
+    /** The empty input's hint, as the shipped "Filter label" input's. */
+    placeholder: string;
+    isEditable: boolean;
+}> = ({ label, fallback, placeholder, isEditable }) => {
+    const [isRenaming, setIsRenaming] = useState(false);
+    const { ref: pencilRef, exit } = useRefocusAfter(isRenaming);
+    const start = useRef('');
+    // Set once naming ends, so a blur as the input unmounts keeps its exit
+    const isDone = useRef(false);
+    const shown = label.draft.trim() === '' ? fallback : label.draft;
+    const finish = (how: NameExit) => {
+        if (isDone.current) return;
+        isDone.current = true;
+        exit.current = how;
+        setIsRenaming(false);
+    };
+    if (!isRenaming)
+        return (
+            <Group gap={4} wrap="nowrap" className={classes.nameRow}>
+                <Text fz="sm" fw={500} truncate className={classes.name}>
+                    {shown}
+                </Text>
+                {isEditable && (
+                    <Tooltip fz="xs" label="Rename">
+                        <ActionIcon
+                            size="sm"
+                            aria-label="Rename"
+                            ref={pencilRef}
+                            onClick={() => {
+                                start.current = label.draft;
+                                isDone.current = false;
+                                setIsRenaming(true);
+                            }}
+                        >
+                            <MantineIcon
+                                icon={IconPencil}
+                                size={14}
+                                strokeWidth={2.25}
+                            />
+                        </ActionIcon>
+                    </Tooltip>
+                )}
+            </Group>
+        );
+    return (
+        <TextInput
+            aria-label="Name"
+            size="xs"
+            className={classes.nameRow}
+            classNames={{ input: classes.nameInput }}
+            // Left empty, the filter goes by its field's name
+            placeholder={placeholder}
+            data-controls-label
+            data-own-escape
+            autoFocus
+            value={label.draft}
+            onFocus={(event) => event.currentTarget.select()}
+            onChange={(event) => label.type(event.currentTarget.value)}
+            // Synchronous, so a click on Apply keeps the label
+            onBlur={(event) => {
+                if (isDone.current) return;
+                label.flush();
+                finish(
+                    event.relatedTarget instanceof HTMLElement &&
+                        event.relatedTarget !== document.body
+                        ? 'elsewhere'
+                        : 'pointer',
+                );
+            }}
+            onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    label.flush();
+                    finish('keyboard');
+                } else if (event.key === 'Escape') {
+                    event.preventDefault();
+                    if (label.draft !== start.current) label.set(start.current);
+                    finish('keyboard');
+                }
+            }}
+        />
     );
 };
 
@@ -185,12 +288,13 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
     );
     const isPlaceholder = useControlsSidebarSelector((c) => c.isPlaceholder);
     const isAsking = useControlsSidebarSelector((c) => c.isAsking);
+    const isViewer = useControlsSidebarSelector((c) => c.isViewer);
     const updateFilter = useControlsSidebarSelector((c) => c.updateFilter);
     const getUiString = useUiStrings();
     const [view, setView] = useState<EditorView>('value');
     // As the filter was opened: an emptied label goes back to exactly that
     const [hadLabelKey] = useState(() => 'label' in filterRule);
-    // Held here, not in Settings, so going back keeps what was typed
+    // Held here, so a trip to Settings and back keeps what was typed
     const label = useLabelDraft(filterRule.label ?? '', (next) =>
         updateFilter(withFilterRuleLabel(filterRule, next, hadLabelKey)),
     );
@@ -240,24 +344,19 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
                         view={view}
                         onViewChange={setView}
                         appliedTileCount={appliedTileCount}
-                        nameInput={
-                            <TextInput
-                                label="Name"
-                                size="xs"
-                                // Left empty, the filter goes by its field's name
-                                placeholder={fieldName ?? 'Filter name'}
-                                data-controls-label
-                                value={label.draft}
-                                onChange={(event) =>
-                                    label.type(event.currentTarget.value)
+                        title={
+                            <FilterName
+                                label={label}
+                                fallback={
+                                    fieldName ??
+                                    getUiString('filters.rail.filterName')
                                 }
-                                // Synchronous, so a click on Apply keeps the label
-                                onBlur={label.flush}
-                                onKeyDown={(event) => {
-                                    if (event.key !== 'Enter') return;
-                                    event.preventDefault();
-                                    label.flush();
-                                }}
+                                placeholder={
+                                    field
+                                        ? `Label for ${field.label}`
+                                        : 'Filter label'
+                                }
+                                isEditable={!isViewer}
                             />
                         }
                         sectionSelect={<SectionSelect rule={filterRule} />}
