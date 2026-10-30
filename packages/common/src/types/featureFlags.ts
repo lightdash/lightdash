@@ -161,9 +161,10 @@ export enum FeatureFlags {
     OrganizationTrialBlock = 'organization-trial-block',
 
     /**
-     * Gate the org-level export Limits settings panel (per-org query max rows
-     * and CSV cells limit). Backend enforcement of any stored overrides is
-     * always on; this flag only controls who can see/configure the panel.
+     * Gates the organization export limits panel and its API. With the flag
+     * on, org admins can lower the query row limit and raise the CSV cell
+     * limit, up to the instance caps. Stored limits apply whether or not the
+     * flag is on. Billing flag: enable it for Pro and Enterprise plans.
      */
     ProLimits = 'pro-limits',
 

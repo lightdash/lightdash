@@ -50,9 +50,9 @@ export class OrganizationSettingsService extends BaseService {
     }
 
     /**
-     * The export limits (query rows / CSV cells) are a Pro capability gated by
-     * the `pro-limits` flag. The panel is hidden without it, but the update API
-     * must enforce it too so the gate can't be bypassed via a direct call.
+     * Rejects writes to `queryLimit` and `csvCellsLimit` unless the
+     * `pro-limits` billing flag is on for the organization. The frontend hides
+     * the panel without the flag; this check blocks direct API calls.
      */
     private async assertCanManageLimits(
         account: RegisteredAccount,

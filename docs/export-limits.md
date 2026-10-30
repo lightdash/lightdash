@@ -106,15 +106,27 @@ default, so behavior is identical to before.
 
 ## Access — the `pro-limits` feature flag
 
-Unlike the scheduled-delivery Exporting panel, the **Limits** panel is gated behind the
-`FeatureFlags.ProLimits` (`pro-limits`) feature flag — it's a Pro capability, so only enable the panel for orgs
-that should configure it. Enable it via `LIGHTDASH_ENABLE_FEATURE_FLAGS=pro-limits` (self-hosted escape hatch),
-a `feature_flags` row, or a per-org `feature_flag_overrides` row.
+`pro-limits` (`FeatureFlags.ProLimits`) is a billing flag. Enable it for Pro and Enterprise plans, and leave it off
+for Starter.
 
-The flag gates **both** the panel (frontend) **and** the update API: `OrganizationSettingsService.updateOrganizationSettings`
-rejects changes to `query_limit`/`csv_cells_limit` for an org without the flag (`ForbiddenError`), so the gate
-can't be bypassed with a direct `PATCH`. The other org-settings fields (scheduled delivery) are not gated.
-**Reads and enforcement** of any already-stored override are always on — only writing the limits is gated.
+The flag gates two things:
+
+- The **Limits** panel in organization settings. Org admins also need `manage` on `Organization`.
+- Writes to `queryLimit` and `csvCellsLimit`. Without the flag, `OrganizationSettingsService.updateOrganizationSettings`
+  throws a `ForbiddenError`, so a direct `PATCH /api/v1/org/settings` can't bypass the panel. The other
+  org-settings fields aren't gated.
+
+With the flag on, org admins can lower the query row limit below `LIGHTDASH_QUERY_MAX_LIMIT` and raise the CSV
+cell limit up to `max(LIGHTDASH_CSV_MAX_LIMIT, LIGHTDASH_CSV_CELLS_LIMIT)`.
+
+Stored limits apply whether or not the flag is on. Query and export services read them through
+`resolveOrganizationExportLimits` (`resolveExportLimits.ts`).
+
+To enable the flag:
+
+- **Lightdash Cloud:** set it per customer in the Lightdash Console. The Console writes a `feature_flags` row or a
+  per-org `feature_flag_overrides` row.
+- **Self-hosted:** set `LIGHTDASH_ENABLE_FEATURE_FLAGS=pro-limits`.
 
 ---
 
