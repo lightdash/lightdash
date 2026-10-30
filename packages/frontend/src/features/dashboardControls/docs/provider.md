@@ -74,17 +74,13 @@ edited: there is no separate list or open state.
   (`getPending` treats a vanished rule as none) and the popover asks at its
   top (`isAsking`).
 - A press outside the editor (`useEditorDismiss`, `pointerdown`, never on a
-  pill or while a list is open) closes a clean edit, else asks with
-  `pending = { kind: 'close' }`.
+  pill or while a list is open) cancels the edit as Cancel does, unapplied
+  changes and any pending question included, and never asks: what was
+  clicked (a tile's data-point menu, a cell) acts at once.
 - `resolvePending(isApply)` applies or discards, then opens the pill clicked
   or the new filter asked for, if any.
 - "Unapplied changes" is `hasUnappliedChanges`, i.e. `isDirty`: a new filter
   without a field has none.
-- A tile's data-point menu goes through `whenAnswered` (`useWhenAnswered`
-  in the chart tiles, a no-op without the provider): the press that asks
-  comes first, so while asking the menu waits and opens after
-  `resolvePending`; a withdrawn question, a new question or another answer
-  drops it.
 
 ## Ways out
 

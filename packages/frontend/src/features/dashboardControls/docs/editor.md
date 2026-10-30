@@ -63,10 +63,12 @@ and Escape see the text. An all-space label is written as no label
 ## Focus on mount
 
 The value input after the operator takes focus when the value view mounts
-(open, back from Settings, a new filter's first field), unless it is a
-typed input that owns a list (`aria-haspopup`, not read-only): those open
-on focus over the footer, so the operator takes it and the list waits for
-a click, typing or ArrowDown; a new filter's field
+(open, back from Settings, a new filter's first field). A string value's
+list stays shut on focus (`openListOnFocus: false`, see below) and waits
+for typing, a click or ArrowDown. Any other typed input that owns a list
+(`aria-haspopup`, not read-only: the date inputs, the searchable unit
+select) opens it on focus over the footer, so the operator takes focus
+instead; a new filter's field
 search (`[data-controls-start]`) when it opens. The back arrow takes it when
 Settings opens. All with `preventScroll`: the popover is still being placed.
 The first target is marked `data-autofocus` too, since the focus trap hands
@@ -123,8 +125,8 @@ enabled control) once it has left.
 
 A `pointerdown` outside the editor and the pills acts as a click outside a
 popover: nothing while a list is open (the press closes it), else
-`requestClose` closes a clean edit and asks on a dirty one. A press that
-asks has its `mousedown` prevented, so focus stays on the question. A new
+`requestClose` cancels the edit, unapplied changes included, and never asks
+(only a pill or Add asks); its `mousedown` is left alone. A new
 filter with nothing picked has nothing to lose: a press outside dismisses it
 even with its list open, unless the press is on that list.
 

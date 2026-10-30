@@ -58,17 +58,12 @@ export type ControlsSidebarContextValue = {
     /** The mapping row's back arrow: the popover again, the tile choices kept in the draft. */
     endMapping: () => void;
     /**
-     * A pill, Add or a click outside met unapplied changes: the editor asks to
+     * A pill or Add met unapplied changes: the editor asks to
      * Apply or Discard first.
      */
     isAsking: boolean;
     /** Applies (true) or discards (false) the edit, then opens the pill clicked or the new filter, if any. */
     resolvePending: (isApply: boolean) => void;
-    /**
-     * A tile's data-point menu: opens at once, or, while the editor asks,
-     * once the question is answered; never when it is withdrawn.
-     */
-    whenAnswered: (openMenu: () => void) => void;
     /** Edit mode: moves a pill one place among its kind in its section, on the dashboard at once; nothing at an end. */
     moveFilter: (filterId: string, direction: MoveDirection) => void;
     /**
@@ -171,13 +166,4 @@ export const useControlsSidebarSelector = <Selected>(
 ): Selected =>
     useContextSelector(ControlsSidebarContext, (context) =>
         selector(assertProvided(context)),
-    );
-
-const openAtOnce = (openMenu: () => void) => openMenu();
-
-/** A tile's data-point menu: waits while the editor asks; at once without the controls. */
-export const useWhenAnswered = (): ((openMenu: () => void) => void) =>
-    useContextSelector(
-        ControlsSidebarContext,
-        (context) => context?.whenAnswered ?? openAtOnce,
     );

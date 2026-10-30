@@ -60,6 +60,8 @@ type Props = Omit<PillsInputProps, 'onChange' | 'ref'> & {
     scrollAreaProps?: ScrollAreaProps;
     /** Closes the list once an option is picked (default false). */
     closeOnOptionSubmit?: boolean;
+    /** Opens the list on focus (default true); else typing, a click or ArrowDown opens it. */
+    openOnFocus?: boolean;
     renderOption?: (
         option: MultiSelectComboboxOption,
         selected: boolean,
@@ -112,6 +114,7 @@ export const MultiSelectCombobox = forwardRef<HTMLInputElement, Props>(
             comboboxProps,
             scrollAreaProps,
             closeOnOptionSubmit = false,
+            openOnFocus = true,
             renderOption,
             renderPill,
             onDropdownOpen,
@@ -357,6 +360,7 @@ export const MultiSelectCombobox = forwardRef<HTMLInputElement, Props>(
                                         }}
                                         onFocus={(event) => {
                                             if (
+                                                openOnFocus &&
                                                 withDropdown &&
                                                 !disabled &&
                                                 !readOnly &&

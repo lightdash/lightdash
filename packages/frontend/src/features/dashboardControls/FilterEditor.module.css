@@ -85,7 +85,7 @@ button.row:hover {
     background-color: var(--mantine-color-default-hover);
 }
 
-/* The question a pill or a click outside asked, above everything */
+/* The question a pill or Add asked, above everything */
 .prompt {
     padding: var(--mantine-spacing-xs) var(--mantine-spacing-md);
     border-bottom: 1px solid var(--mantine-color-default-border);

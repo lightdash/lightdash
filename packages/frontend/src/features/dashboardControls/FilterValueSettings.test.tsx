@@ -19,12 +19,16 @@ vi.mock('../../components/common/Filters/FilterInputs', () => ({
     }: {
         rule: DashboardFilterRule;
         onChange: (next: DashboardFilterRule) => void;
-        popoverProps?: { closeListOnPick?: boolean };
+        popoverProps?: {
+            closeListOnPick?: boolean;
+            openListOnFocus?: boolean;
+        };
     }) => (
         <div
             data-testid="value-input"
             data-disabled={String(!!rule.disabled)}
             data-close-list-on-pick={String(!!popoverProps?.closeListOnPick)}
+            data-open-list-on-focus={String(popoverProps?.openListOnFocus)}
         >
             <button
                 type="button"
@@ -452,11 +456,23 @@ describe('FilterValueSettings', () => {
         );
     });
 
+    it('keeps a value list shut on focus, so it never covers Apply', () => {
+        renderSettings(makeRule({}));
+        expect(screen.getByTestId('value-input')).toHaveAttribute(
+            'data-open-list-on-focus',
+            'false',
+        );
+    });
+
     it('keeps the list prop off date inputs, whose popover would put it on the page', () => {
         renderSettings(makeRule({}), FilterType.DATE);
         expect(screen.getByTestId('value-input')).toHaveAttribute(
             'data-close-list-on-pick',
             'false',
+        );
+        expect(screen.getByTestId('value-input')).toHaveAttribute(
+            'data-open-list-on-focus',
+            'undefined',
         );
     });
 

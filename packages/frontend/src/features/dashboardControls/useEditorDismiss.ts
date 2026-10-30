@@ -35,8 +35,8 @@ type Args = {
     clearField: () => void;
     /** Withdraws a pending question, else cancels the edit. */
     dismiss: () => void;
-    /** A press outside the editor: closes a clean edit, else asks (true). */
-    dismissOutside: () => boolean;
+    /** A press outside the editor: cancels the edit. */
+    dismissOutside: () => void;
 };
 
 // One Escape listener while the editor is open, so one press does one thing:
@@ -54,11 +54,7 @@ export const useEditorDismiss = ({
 }: Args) => {
     useEffect(() => {
         if (!isOpen) return;
-        // The press that made the editor ask: its mousedown would move focus
-        // off the question to the page
-        let isAskingPress = false;
         const handlePointerDown = (event: PointerEvent) => {
-            isAskingPress = false;
             const target =
                 event.target instanceof Element ? event.target : null;
             if (target?.closest(`[${EDITOR_ATTRIBUTE}], ${PILL_SELECTOR}`))
@@ -71,23 +67,16 @@ export const useEditorDismiss = ({
                 (!isPristineNew || target?.closest(LIST_SELECTOR))
             )
                 return;
-            isAskingPress = dismissOutside();
-        };
-        const handleMouseDown = (event: MouseEvent) => {
-            if (!isAskingPress) return;
-            isAskingPress = false;
-            event.preventDefault();
+            dismissOutside();
         };
         // Capture: a list is still open when this runs
         document.addEventListener('pointerdown', handlePointerDown, true);
-        document.addEventListener('mousedown', handleMouseDown, true);
         return () => {
             document.removeEventListener(
                 'pointerdown',
                 handlePointerDown,
                 true,
             );
-            document.removeEventListener('mousedown', handleMouseDown, true);
         };
     }, [isOpen, isPristineNew, dismissOutside]);
     useEffect(() => {

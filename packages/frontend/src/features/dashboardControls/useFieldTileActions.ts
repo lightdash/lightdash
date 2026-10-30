@@ -31,6 +31,7 @@ import {
     isSqlColumnRow,
     isTileInRow,
     removeField,
+    getChangeCount,
     removeFieldFromAll,
     toSqlColumnTarget,
     type FieldScope,
@@ -319,7 +320,7 @@ export const useFieldTileActions = (
                         {
                             kind: 'apply',
                             fieldId: rowKey,
-                            tileCount: scope.possible,
+                            tileCount: getChangeCount(scope),
                             replaced: scope.replaced,
                             acrossTabs: isAcrossTabs(tileScope),
                         },

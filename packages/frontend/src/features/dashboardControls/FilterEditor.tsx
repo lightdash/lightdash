@@ -95,7 +95,7 @@ const focusAnswerOnMount = (node: HTMLElement | null) => {
     )?.focus({ preventScroll: true });
 };
 
-// At the top while a pill, Add or a click outside waits on the draft
+// At the top while a pill or Add waits on the draft
 const Prompt: FC<{ name: string; applyBlockedReason: string | null }> = ({
     name,
     applyBlockedReason,

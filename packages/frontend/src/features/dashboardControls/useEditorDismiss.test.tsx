@@ -421,23 +421,12 @@ describe('dismissing in the controls editor', () => {
             expect(value().isSidebarOpen).toBe(false);
         });
 
-        it('asks first with unapplied changes, and Discard drops them', () => {
+        it('discards unapplied changes with no question', () => {
             act(() => value().updateFilter({ ...rule('a'), values: ['9'] }));
             press(document.body);
-            expect(value().isSidebarOpen).toBe(true);
-            expect(value().isAsking).toBe(true);
-
-            act(() => value().resolvePending(false));
+            expect(value().isAsking).toBe(false);
             expect(value().isSidebarOpen).toBe(false);
             expect(savedA()).toEqual(rule('a'));
-        });
-
-        it('asks first, and Apply writes the draft and closes', () => {
-            act(() => value().updateFilter({ ...rule('a'), values: ['9'] }));
-            press(document.body);
-            act(() => value().resolvePending(true));
-            expect(value().isSidebarOpen).toBe(false);
-            expect(savedA().values).toEqual(['9']);
         });
 
         it.each([
@@ -449,24 +438,8 @@ describe('dismissing in the controls editor', () => {
             expect(value().isAsking).toBe(false);
         });
 
-        it('keeps focus where the question put it: its mousedown is prevented', () => {
+        it('leaves the mousedown of the press alone, unapplied changes or not', () => {
             act(() => value().updateFilter({ ...rule('a'), values: ['9'] }));
-            press(screen.getByText('Tile card'));
-            expect(value().isAsking).toBe(true);
-            const mouseDown = createEvent.mouseDown(
-                screen.getByText('Tile card'),
-            );
-            fireEvent(screen.getByText('Tile card'), mouseDown);
-            expect(mouseDown.defaultPrevented).toBe(true);
-
-            // The next press is its own
-            act(() => value().resolvePending(false));
-            const later = createEvent.mouseDown(document.body);
-            fireEvent(document.body, later);
-            expect(later.defaultPrevented).toBe(false);
-        });
-
-        it('leaves the mousedown of a press that closed a clean edit alone', () => {
             const target = screen.getByText('Tile card');
             press(target);
             expect(value().isSidebarOpen).toBe(false);
