@@ -244,9 +244,7 @@ describe('defineTool', () => {
 
         const agentInputSchema = tool.for('agent').inputSchema;
         const { jsonSchema, validate } = agentInputSchema;
-        expect(jsonSchema).toEqual(
-            toLlmJsonSchema(inputSchema, { reused: 'ref' }),
-        );
+        expect(jsonSchema).toEqual(toLlmJsonSchema(inputSchema));
         expect(validate?.(input)).toEqual({
             success: true,
             value: input,

@@ -5,6 +5,7 @@ import { type MetricFilterRule } from '../../../types/filter';
 import { type AdditionalMetric } from '../../../types/metricQuery';
 import { validPeriodOverPeriodGranularities } from '../../../types/periodOverPeriodComparison';
 import { type TimeFrames } from '../../../types/timeFrames';
+import { nameAgentDefinition } from './agentJsonSchema';
 import {
     booleanFilterSchema,
     dateFilterSchema,
@@ -266,3 +267,5 @@ Example B — "Revenue by month with year-over-year comparison"
   queryConfig.metrics: ["orders_revenue"]
   customMetrics: [{ kind: "periodComparison", baseMetricId: "orders_revenue", timeDimensionId: "orders_order_date_month", granularity: "MONTH", periodOffset: 12 }]`,
     );
+
+nameAgentDefinition('CustomMetrics', customMetricsSchema);
