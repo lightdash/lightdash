@@ -443,6 +443,7 @@ export const DEFAULT_UI_STRINGS = {
     'filters.rail.chooseTiles': 'Choose tiles',
     'filters.rail.addField': 'Add a field',
     'filters.rail.mappingFilters': 'filters',
+    'filters.rail.backToFilter': 'Back to filter',
     'filters.rail.mappingUsing': 'using',
     'filters.tileCard.locked': 'Tiles are locked while a filter is edited',
     'filters.tileCard.unreachable':
@@ -516,6 +517,7 @@ export const DEFAULT_UI_STRINGS = {
     'filters.fieldBar.filterMoreNone': 'Filter more',
     'filters.fieldBar.clearCount': 'Clear {count}',
     'filters.fieldBar.clearOnOtherTabs': 'Clear {count} on other tabs',
+    'filters.fieldBar.onlyFieldClear': "This is the filter's only field",
     'dashboard.exportAllTiles': 'Export all tiles',
     'dashboard.printPage': 'Print this page',
     'dashboard.exportPdf': 'Export as PDF',

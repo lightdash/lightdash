@@ -268,8 +268,11 @@ describe('FieldTilesBar', () => {
             expect(within(bar()).getByText('Status')).toBeInTheDocument();
             expect(countOf()).toHaveTextContent(/^1 of 2 tiles$/);
             expect(countOf()).toHaveAttribute('aria-live', 'polite');
-            // No tabs: every tile is the tab in view
-            expect(buttonTexts()).toEqual(['Filter 1 more', 'Clear 1']);
+            // No tabs: every tile is the tab in view; the only field's Clear has no count
+            expect(buttonTexts()).toEqual(['Filter 1 more', 'Clear']);
+            // Filter is the tinted action, Clear the quiet one
+            expect(filterAllButton()).toHaveAttribute('data-variant', 'light');
+            expect(clearButton()).toHaveAttribute('data-variant', 'subtle');
         });
 
         it('says "tile" for one tile', () => {
@@ -408,12 +411,17 @@ describe('FieldTilesBar', () => {
             ).toBeInTheDocument();
         });
 
-        it("switches Clear off on the filter's only field", () => {
+        it("switches Clear off on the filter's only field, and says why", async () => {
             setSidebar(rule('orders_status'));
             renderWithProviders(<Dashboard />);
 
-            expect(clearButton()).toHaveTextContent('Clear 2');
+            // No count on a Clear that cannot act; its wrapper says why
+            expect(clearButton()).toHaveTextContent(/^Clear$/);
             expect(clearButton()).toBeDisabled();
+            await userEvent.hover(clearButton().parentElement!);
+            expect(
+                await screen.findByText("This is the filter's only field"),
+            ).toBeInTheDocument();
         });
 
         it('clears a field from every tile while the filter has another', () => {

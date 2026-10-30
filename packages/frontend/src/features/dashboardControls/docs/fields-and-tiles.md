@@ -50,7 +50,9 @@ mapping writes their temporary filters only, on Apply. `MappingSwap`
 faded, `inert` and out of the layout, and fades the mapping row in over it,
 so the bar shrinks to the mapping row's one line (the grid moves up once as
 mapping starts, back once it ends). In view mode there is no band; nothing else changes. The row
-carries the embed's `rail` class, as the popover it stands in for. The row reads as one sentence: the open pill (inert, no grip or X)
+carries the embed's `rail` class, as the popover it stands in for. The row reads as one sentence after a back arrow ("Back to filter",
+`endMapping`: the popover again, tile choices kept in the draft): the open
+pill (inert, no grip or X)
 "filters {n} of {m} tiles using" (the count 600, its widest form reserved,
 `aria-live`; no tabs part, the tabs show their own counts), a chip per
 `getFilterRows` entry, "Add a field", Cancel
@@ -107,8 +109,10 @@ then Filter, Clear and Undo. Filter and Clear act on the tab in view first:
 "Filter {count} more" (`applyToAll('this-tab')`, the tiles it changes:
 unfiltered plus replaced) while this tab has any, then "Filter {count} on
 other tabs" (`'other-tabs'`), else a disabled "Filter more"; "Clear {count}",
-then "Clear {count} on other tabs", else a disabled "Clear", always off on
-the filter's only field. Without tabs the tab in view is every tile. The
+then "Clear {count} on other tabs", else a disabled "Clear". Clear is off on
+the filter's only field, with no count and a tooltip on its wrapper ("This
+is the filter's only field"; a disabled button gets no hover). Filter is
+`light` (the theme's ink tint), Clear subtle gray. Without tabs the tab in view is every tile. The
 "Replaces ..." tooltip names what that fill takes off other fields. Undo is
 an icon after a divider, only while `fieldUndo` is live (no disabled
 state). One of them is filled at most: Undo right after "Add a field"

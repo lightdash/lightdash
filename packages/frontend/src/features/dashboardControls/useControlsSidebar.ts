@@ -55,6 +55,8 @@ export type ControlsSidebarContextValue = {
     startMapping: () => void;
     /** The mapping row's Cancel: tile targets back to where mapping started, and the popover again. */
     cancelMapping: () => void;
+    /** The mapping row's back arrow: the popover again, the tile choices kept in the draft. */
+    endMapping: () => void;
     /**
      * A pill, Add or a click outside met unapplied changes: the editor asks to
      * Apply or Discard first.

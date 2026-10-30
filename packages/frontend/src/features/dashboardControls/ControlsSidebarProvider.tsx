@@ -1193,20 +1193,28 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         writeState({ ...current.state, mappingStart: rule });
     }, [writeState, writeUndo]);
 
-    // The mapping row's Cancel: tiles go back to where mapping found them and
-    // the popover returns. The value cannot change while mapping
-    const cancelMapping = useCallback(() => {
+    // The mapping row's back arrow: the popover returns, the tiles chosen stay
+    // in the draft for its Apply or Cancel
+    const endMapping = useCallback(() => {
         const current = latest.current;
-        const start = current.state?.mappingStart ?? null;
-        if (current.state === null || start === null) return;
+        if (current.state === null || current.state.mappingStart === null)
+            return;
         writeUndo(null);
         current.highlightedFieldId = null;
         setHighlightedFieldId(null);
         setHoveredFieldId(null);
         setWaiting(null);
-        writeFilters((filters) => replaceFilterRule(filters, start));
         writeState({ ...current.state, mappingStart: null });
-    }, [writeFilters, writeState, writeUndo]);
+    }, [writeState, writeUndo]);
+
+    // The mapping row's Cancel: tiles go back to where mapping found them and
+    // the popover returns. The value cannot change while mapping
+    const cancelMapping = useCallback(() => {
+        const start = latest.current.state?.mappingStart ?? null;
+        if (start === null) return;
+        writeFilters((filters) => replaceFilterRule(filters, start));
+        endMapping();
+    }, [writeFilters, endMapping]);
 
     // The context's `isDirty`, read from `latest`
     const hasUnappliedChanges = useCallback(() => {
@@ -1776,6 +1784,7 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
             canChooseTiles: state !== null && canChooseTiles(state),
             startMapping,
             cancelMapping,
+            endMapping,
             isAsking,
             resolvePending,
             whenAnswered,
@@ -1824,6 +1833,7 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
             isMapping,
             startMapping,
             cancelMapping,
+            endMapping,
             isAsking,
             resolvePending,
             whenAnswered,

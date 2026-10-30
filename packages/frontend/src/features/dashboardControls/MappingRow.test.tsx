@@ -84,6 +84,7 @@ const setHighlightedFieldId = vi.fn();
 const clearHighlightedField = vi.fn();
 const setHoveredFieldId = vi.fn();
 const cancelMapping = vi.fn();
+const endMapping = vi.fn();
 const close = vi.fn();
 
 const setSidebar = (
@@ -103,6 +104,7 @@ const setSidebar = (
         clearHighlightedField,
         setHoveredFieldId,
         cancelMapping,
+        endMapping,
         close,
         updateFilter: vi.fn(),
         removeLastField: vi.fn(),
@@ -389,6 +391,21 @@ describe('MappingRow', () => {
         expect(
             screen.getByRole('button', { name: 'Add a field' }),
         ).toBeDisabled();
+    });
+
+    it('starts with a back arrow that returns to the filter', async () => {
+        setSidebar(rule());
+        renderRow();
+
+        const back = screen.getByRole('button', { name: 'Back to filter' });
+        expect(screen.getAllByRole('button')[0]).toBe(back);
+        await userEvent.hover(back);
+        expect(
+            await screen.findByRole('tooltip', { name: 'Back to filter' }),
+        ).toBeInTheDocument();
+        await userEvent.click(back);
+        expect(endMapping).toHaveBeenCalledTimes(1);
+        expect(cancelMapping).not.toHaveBeenCalled();
     });
 
     it('Cancel leaves mapping, and Apply commits it', async () => {

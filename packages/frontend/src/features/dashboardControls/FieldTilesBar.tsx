@@ -1,6 +1,7 @@
 import { interpolateUiString, type UiStringResolver } from '@lightdash/common';
 import {
     ActionIcon,
+    Box,
     Button,
     Divider,
     Group,
@@ -118,8 +119,9 @@ const Bar: FC<{
                   ),
                   { count: getChangeCount(fill.scope) },
               );
+    // A Clear that cannot act carries no count: it would read as available
     const clearLabel =
-        emptying === null
+        emptying === null || !canClear
             ? getUiString('filters.fieldBar.clear')
             : interpolateUiString(
                   getUiString(
@@ -229,7 +231,7 @@ const Bar: FC<{
                             variant={
                                 undo?.kind === 'pick' && canFill
                                     ? 'filled'
-                                    : 'subtle'
+                                    : 'light'
                             }
                             disabled={!canFill}
                             onClick={press(() => {
@@ -239,17 +241,27 @@ const Bar: FC<{
                             {fillLabel}
                         </Button>
                     </Tooltip>
-                    <Button
-                        size="xs"
-                        variant="subtle"
-                        color="gray"
-                        disabled={!canClear}
-                        onClick={press(() => {
-                            if (emptying !== null) clear(emptying.tileScope);
-                        })}
+                    {/* A disabled button gets no hover: the wrapper shows why */}
+                    <Tooltip
+                        fz="xs"
+                        label={getUiString('filters.fieldBar.onlyFieldClear')}
+                        disabled={!isOnlyRow}
                     >
-                        {clearLabel}
-                    </Button>
+                        <Box>
+                            <Button
+                                size="xs"
+                                variant="subtle"
+                                color="gray"
+                                disabled={!canClear}
+                                onClick={press(() => {
+                                    if (emptying !== null)
+                                        clear(emptying.tileScope);
+                                })}
+                            >
+                                {clearLabel}
+                            </Button>
+                        </Box>
+                    </Tooltip>
                     {undo !== null && (
                         <>
                             <Divider orientation="vertical" />

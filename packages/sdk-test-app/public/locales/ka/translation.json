@@ -509,6 +509,7 @@
         "filters.rail.chooseTiles": "ფილების არჩევა",
         "filters.rail.addField": "ველის დამატება",
         "filters.rail.mappingFilters": "ფილტრავს",
+        "filters.rail.backToFilter": "ფილტრზე დაბრუნება",
         "filters.rail.mappingUsing": "ველით",
         "filters.tileCard.locked": "ფილები დაბლოკილია ფილტრის რედაქტირებისას",
         "filters.tileCard.unreachable": "ამ ფილას არ აქვს ველი, რომელსაც ეს ფილტრი გამოიყენებს",
@@ -572,6 +573,7 @@
         "filters.fieldBar.filterOnOtherTabs": "{count}-ის გაფილტვრა სხვა ჩანართებზე",
         "filters.fieldBar.filterMoreNone": "მეტის გაფილტვრა",
         "filters.fieldBar.clearCount": "{count}-ის მოხსნა",
-        "filters.fieldBar.clearOnOtherTabs": "{count}-ის მოხსნა სხვა ჩანართებზე"
+        "filters.fieldBar.clearOnOtherTabs": "{count}-ის მოხსნა სხვა ჩანართებზე",
+        "filters.fieldBar.onlyFieldClear": "ეს ფილტრის ერთადერთი ველია"
     }
 }
