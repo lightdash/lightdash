@@ -1,3 +1,10 @@
+## [3.109.1](https://github.com/lightdash/lightdash/compare/3.109.0...3.109.1) (2026-10-30)
+
+
+### Bug Fixes
+
+* avoid concurrent analytics cache download fallback ([#31860](https://github.com/lightdash/lightdash/issues/31860)) ([bb918a6](https://github.com/lightdash/lightdash/commit/bb918a6f44d0fc6fcb7725256d70fc5943368997))
+
 # [3.109.0](https://github.com/lightdash/lightdash/compare/3.108.4...3.109.0) (2026-10-30)
 
 
