@@ -323,7 +323,7 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
         >[0]['optimisticContext'];
     }) => {
         const promptContext = getPromptContext(context, optimisticContext);
-        void createAgentThreadMessage({
+        return createAgentThreadMessage({
             prompt: message,
             ...promptContext,
             enableSqlMode: sqlModeAvailable && sqlMode,
@@ -393,10 +393,10 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
     const retryPrompt = reviewItem?.remediation?.retryPrompt ?? null;
     const handleRetryOriginalQuestion = () => {
         if (!retryPrompt) return;
-        handleSubmit({
+        void handleSubmit({
             message: retryPrompt,
             toolHints: [],
-        });
+        }).catch(() => undefined);
     };
     const handleMarkFixed = () => {
         if (!reviewItem || reviewItem.status === 'resolved') return;
