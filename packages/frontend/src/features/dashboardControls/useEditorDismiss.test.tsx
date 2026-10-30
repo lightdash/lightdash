@@ -5,7 +5,14 @@ import {
     type DashboardFilterRule,
     type DashboardFilters,
 } from '@lightdash/common';
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import {
+    act,
+    createEvent,
+    fireEvent,
+    render,
+    screen,
+    waitFor,
+} from '@testing-library/react';
 import { useState, type FC, type SetStateAction } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createDashboardTestStore } from '../../testing/dashboardStore';
@@ -202,7 +209,7 @@ describe('dismissing in the controls editor', () => {
             expect(pill('a')).toHaveFocus();
         });
 
-        it('withdraws the question a pill asked and keeps the edit, focus on Apply', () => {
+        it('withdraws the question a pill asked and keeps the edit, focus on Apply', async () => {
             act(() => value().updateFilter({ ...rule('a'), values: ['9'] }));
             fireEvent.click(pill('b'));
             expect(value().isAsking).toBe(true);
@@ -210,10 +217,10 @@ describe('dismissing in the controls editor', () => {
             escape(apply());
             expect(value().isAsking).toBe(false);
             expect(value().editing).toEqual({ filterId: 'a' });
-            expect(apply()).toHaveFocus();
+            await waitFor(() => expect(apply()).toHaveFocus());
         });
 
-        it('withdraws the question from anywhere, focus on Apply', () => {
+        it('withdraws the question from anywhere, focus back in the editor', async () => {
             act(() => value().updateFilter({ ...rule('a'), values: ['9'] }));
             fireEvent.click(pill('b'));
             act(() => (document.activeElement as HTMLElement | null)?.blur());
@@ -221,6 +228,7 @@ describe('dismissing in the controls editor', () => {
             escape(document.body);
             expect(value().isAsking).toBe(false);
             expect(value().editing).toEqual({ filterId: 'a' });
+            await waitFor(() => expect(apply()).toHaveFocus());
         });
 
         it('lets the label commit before it closes', () => {
@@ -242,16 +250,19 @@ describe('dismissing in the controls editor', () => {
             expect(value().isSidebarOpen).toBe(false);
         });
 
-        it('clears a clicked field from the page, and never closes from there', () => {
+        it('clears a clicked field from the page, then closes from there, never from elsewhere', () => {
             clickField();
             act(() => label().blur());
 
             escape();
             expect(value().highlightedFieldId).toBeNull();
 
-            escape();
             escape(screen.getByRole('button', { name: 'Tile card' }));
             expect(value().isSidebarOpen).toBe(true);
+
+            // Focus lost to the page still belongs to the open editor
+            escape();
+            expect(value().isSidebarOpen).toBe(false);
         });
 
         it.each([
@@ -417,6 +428,52 @@ describe('dismissing in the controls editor', () => {
             press(getTarget());
             expect(value().isSidebarOpen).toBe(true);
             expect(value().isAsking).toBe(false);
+        });
+
+        it('keeps focus where the question put it: its mousedown is prevented', () => {
+            act(() => value().updateFilter({ ...rule('a'), values: ['9'] }));
+            press(screen.getByText('Tile card'));
+            expect(value().isAsking).toBe(true);
+            const mouseDown = createEvent.mouseDown(
+                screen.getByText('Tile card'),
+            );
+            fireEvent(screen.getByText('Tile card'), mouseDown);
+            expect(mouseDown.defaultPrevented).toBe(true);
+
+            // The next press is its own
+            act(() => value().resolvePending(false));
+            const later = createEvent.mouseDown(document.body);
+            fireEvent(document.body, later);
+            expect(later.defaultPrevented).toBe(false);
+        });
+
+        it('leaves the mousedown of a press that closed a clean edit alone', () => {
+            const target = screen.getByText('Tile card');
+            press(target);
+            expect(value().isSidebarOpen).toBe(false);
+            const mouseDown = createEvent.mouseDown(target);
+            fireEvent(target, mouseDown);
+            expect(mouseDown.defaultPrevented).toBe(false);
+        });
+
+        it('dismisses a new filter with nothing picked outright, even with its list open, but not from the list', () => {
+            act(() => value().openNew());
+            expect(value().isPlaceholder).toBe(true);
+            const search = document.createElement('input');
+            search.setAttribute('aria-haspopup', 'listbox');
+            search.setAttribute('data-expanded', 'true');
+            document.body.appendChild(search);
+            const list = document.createElement('div');
+            list.setAttribute('role', 'listbox');
+            document.body.appendChild(list);
+
+            press(list);
+            expect(value().isSidebarOpen).toBe(true);
+
+            press(screen.getByText('Tile card'));
+            expect(value().isSidebarOpen).toBe(false);
+            search.remove();
+            list.remove();
         });
 
         it('only closes an open list', () => {

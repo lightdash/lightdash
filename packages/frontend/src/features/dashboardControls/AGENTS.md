@@ -77,6 +77,8 @@ Openings (optional props, defaults are today's behaviour):
   `FilterRuleLabel` takes `isValueBold`).
 - `FilterConfiguration/FilterFieldSelect`: `defaultOpened`, `withLabel`,
   `placeholder`, `withinPortal`.
+- `FilterConfiguration/FilterValueSection`: `withDefaultValueSwitch` (the
+  editor passes `false`: edit mode edits the default).
 - `FilterConfiguration/utils`: `getFilterRuleWithRequired` takes
   `savedDefaultRule` (only the editor passes it).
 - Embed: `EmbedDashboardFilterBar` and `EmbedDashboardHeader` take

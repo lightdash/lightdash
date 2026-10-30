@@ -1,4 +1,5 @@
 import {
+    assertUnreachable,
     createDashboardFilterRuleFromField,
     createDashboardFilterRuleFromSqlColumn,
     FilterOperator,
@@ -55,10 +56,8 @@ import {
     getFieldCount,
     getFilterFields,
     getFilterRows,
-    getTileField,
     isSqlColumnRow,
     removeField,
-    setTileField,
     withoutDefaultTileTargets,
 } from './peers';
 import {
@@ -101,9 +100,12 @@ const findPill = (filterId: string): HTMLElement | null =>
         (element) => element.getAttribute(PILL_ATTRIBUTE) === filterId,
     ) ?? null;
 
-// What follows once the prompt is answered: the pill clicked, or (null) a
-// click outside that closes the editor
-type Pending = { filterId: string | null };
+// What follows once the prompt is answered: the pill clicked, a new filter
+// (in a section, or null), or nothing after a click outside
+type Pending =
+    | { kind: 'close' }
+    | { kind: 'open'; filterId: string }
+    | { kind: 'new'; sectionId: string | null };
 
 // A pending pill whose rule is gone is no question any more
 const getPending = ({
@@ -115,7 +117,7 @@ const getPending = ({
     'pending' | 'savedFilters' | 'temporaryFilters'
 >): Pending | null =>
     pending === null ||
-    pending.filterId === null ||
+    pending.kind !== 'open' ||
     findFilterRule(savedFilters, pending.filterId) !== null ||
     findFilterRule(temporaryFilters, pending.filterId) !== null
         ? pending
@@ -123,6 +125,17 @@ const getPending = ({
 
 const focusApply = () =>
     document.querySelector<HTMLElement>(APPLY_SELECTOR)?.focus();
+
+// Apply, else the editor's first enabled control
+const focusInEditor = () =>
+    (
+        document.querySelector<HTMLElement>(
+            `${APPLY_SELECTOR}:not(:disabled)`,
+        ) ??
+        document.querySelector<HTMLElement>(
+            '[data-controls-editor] [role="dialog"] input:not(:disabled), [data-controls-editor] [role="dialog"] button:not(:disabled)',
+        )
+    )?.focus();
 
 // The filter whose pill takes focus back, null for "Add"
 type FocusTarget = { filterId: string | null };
@@ -818,35 +831,6 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         [writeFirstRule],
     );
 
-    const addFirstFieldOnTile = useCallback(
-        (field: DashboardFilterableField, tileUuid: string) => {
-            const current = latest.current;
-            if (current.placeholder === null) return;
-            const fieldsByTile = current.filterableFieldsByTileUuid;
-            // What each tile offers is not known: leaving them out would be blind
-            if (fieldsByTile === undefined) return;
-            const base = getFirstFieldRule(
-                current.placeholder,
-                field,
-                fieldsByTile,
-                current.isViewer,
-            );
-            // Every tile the rule would filter is left out, except the clicked
-            // one, which is put on the field when the default does not do it
-            const rule = (current.dashboardTiles ?? []).reduce(
-                (next, tile) =>
-                    tile.uuid === tileUuid
-                        ? setTileField(next, tile, base.target, fieldsByTile)
-                        : getTileField(next, tile, fieldsByTile) === null
-                          ? next
-                          : setTileField(next, tile, null, fieldsByTile),
-                base,
-            );
-            writeFirstRule(rule, isMetric(field) ? 'metrics' : 'dimensions');
-        },
-        [writeFirstRule],
-    );
-
     const updateFilter = useCallback(
         (next: DashboardFilterRule) => {
             // Any write ends the undo of the last "Apply to all"
@@ -1362,9 +1346,9 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         if (!isEditMode) setDismissedLinks([]);
     }, [isEditMode, close, trackClosed]);
 
-    // Whatever is being edited is applied first. A new control with no field
-    // yet stays as it is, label included; asked for from a section, it moves
-    // there instead
+    // A clean edit is applied first, a dirty one asks as a pill switch does.
+    // A new control with no field yet stays as it is, label included; asked
+    // for from a section, it moves there instead
     const openNew = useCallback(
         (sectionId?: string) => {
             const { state: editingState, placeholder: editingPlaceholder } =
@@ -1374,11 +1358,27 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
                     writePlaceholder({ ...editingPlaceholder, sectionId });
                 return;
             }
+            // A stale edit, its rule taken away from outside, just closes
+            if (
+                getEditingRule(latest.current) !== null &&
+                hasUnappliedChanges()
+            ) {
+                writePending({ kind: 'new', sectionId: sectionId ?? null });
+                focusApply();
+                return;
+            }
             trackClosed('switch');
             close();
             openPlaceholder(sectionId);
         },
-        [close, openPlaceholder, writePlaceholder, trackClosed],
+        [
+            close,
+            hasUnappliedChanges,
+            openPlaceholder,
+            writePending,
+            writePlaceholder,
+            trackClosed,
+        ],
     );
 
     // A pill: with nothing edited it opens. On the edited filter it closes a
@@ -1390,7 +1390,7 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
             if (current.state !== null && getEditingRule(current) !== null) {
                 const isOwn = current.state.filterId === filterId;
                 if (hasUnappliedChanges()) {
-                    if (!isOwn) writePending({ filterId });
+                    if (!isOwn) writePending({ kind: 'open', filterId });
                     focusApply();
                     return;
                 }
@@ -1406,15 +1406,16 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         [close, hasUnappliedChanges, openExisting, writePending, trackClosed],
     );
 
-    // A click outside: a clean edit closes, else the editor asks first
+    // A click outside: a clean edit closes, else the editor asks first (true)
     const requestClose = useCallback(() => {
-        if (latest.current.state === null) return;
+        if (latest.current.state === null) return false;
         if (hasUnappliedChanges()) {
-            writePending({ filterId: null });
-            return;
+            writePending({ kind: 'close' });
+            return true;
         }
         trackClosed('cancel');
         discard();
+        return false;
     }, [discard, hasUnappliedChanges, writePending, trackClosed]);
 
     // The prompt's answer: Apply or Discard the edit, then open the filter
@@ -1434,17 +1435,24 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
                 });
             }
             trackClosed(
-                next.filterId !== null
-                    ? 'switch'
-                    : isApply
-                      ? 'apply'
-                      : 'cancel',
+                next.kind !== 'close' ? 'switch' : isApply ? 'apply' : 'cancel',
             );
             if (isApply) close();
             else discard();
-            if (next.filterId !== null) openExisting(next.filterId);
+            switch (next.kind) {
+                case 'close':
+                    return;
+                case 'open':
+                    openExisting(next.filterId);
+                    return;
+                case 'new':
+                    openPlaceholder(next.sectionId ?? undefined);
+                    return;
+                default:
+                    assertUnreachable(next, 'Unknown pending step');
+            }
         },
-        [close, discard, openExisting, trackClosed],
+        [close, discard, openExisting, openPlaceholder, trackClosed],
     );
 
     // Escape: a pending question is withdrawn, else the edit is cancelled
@@ -1462,7 +1470,8 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
             });
         }
         writePending(null);
-        focusApply();
+        // Once the question has left: it held the focus
+        setTimeout(focusInEditor);
     }, [discard, writePending, trackClosed]);
 
     // The editor's Apply and Cancel, tracked; the provider's own ways out
@@ -1534,6 +1543,7 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         isOpen: isSidebarOpen,
         isFieldClicked: clickedFieldId !== null,
         isAsking,
+        isPristineNew: isPlaceholder && state?.isNew === true,
         clearField: clearHighlightedField,
         dismiss,
         dismissOutside: requestClose,
@@ -1565,7 +1575,6 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
             openNew,
             addFirstField,
             addFirstSqlColumn,
-            addFirstFieldOnTile,
             removeLastField,
             waitingFieldIds,
             addWaitingField,
@@ -1609,7 +1618,6 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
             openNew,
             addFirstField,
             addFirstSqlColumn,
-            addFirstFieldOnTile,
             removeLastField,
             waitingFieldIds,
             addWaitingField,

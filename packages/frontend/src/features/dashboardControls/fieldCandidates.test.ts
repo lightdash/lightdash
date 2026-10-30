@@ -12,7 +12,6 @@ import {
     getFieldCandidates,
     getSharedNameFieldIds,
     getTileFieldCandidateIds,
-    getTileStarterFieldIds,
 } from './fieldCandidates';
 
 const dimension = (
@@ -180,23 +179,6 @@ describe('metrics on a tile', () => {
                 revenue,
             ),
         ).toEqual(['orders_profit']);
-    });
-
-    it('start a control from metrics and dimensions', () => {
-        expect(getTileStarterFieldIds([status, revenue])).toEqual([
-            'orders_revenue',
-            'orders_status',
-        ]);
-    });
-
-    it('start a control from any grain of a date', () => {
-        expect(
-            getTileStarterFieldIds([status, createdMonth, createdDay]),
-        ).toEqual([
-            'orders_created_day',
-            'orders_created_month',
-            'orders_status',
-        ]);
     });
 });
 

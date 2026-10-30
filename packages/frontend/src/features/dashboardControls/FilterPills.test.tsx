@@ -323,6 +323,67 @@ describe('FilterPills', () => {
         expect(pill(/^Region/)).not.toHaveAttribute('data-temporary');
     });
 
+    describe('a new filter', () => {
+        const draftPill = () =>
+            document.querySelector<HTMLElement>('[data-controls-pill="new"]');
+        const newRule: DashboardFilterRule = {
+            id: 'new',
+            label: undefined,
+            operator: FilterOperator.EQUALS,
+            target: { fieldId: 'orders_region', tableName: 'orders' },
+            values: ['EMEA'],
+        };
+        const editingNew = (overrides: Record<string, unknown>) => {
+            setContext({
+                dashboardFilters: { ...noFilters, dimensions: [savedRule] },
+            });
+            mockSidebar.current = {
+                ...mockSidebar.current,
+                editing: { filterId: 'new' },
+                isSidebarOpen: true,
+                isNew: true,
+                isPlaceholder: false,
+                editingRule: newRule,
+                ...overrides,
+            };
+        };
+
+        it('has no pill while its field is being picked', () => {
+            editingNew({
+                isPlaceholder: true,
+                editingRule: {
+                    ...newRule,
+                    target: { fieldId: '', tableName: '' },
+                },
+            });
+            renderWithProviders(<FilterPills activeTabUuid={undefined} />);
+            expect(draftPill()).toBeNull();
+        });
+
+        it('gets a dashed, open pill once its field is picked, in effect only after Apply', () => {
+            editingNew({});
+            renderWithProviders(<FilterPills activeTabUuid={undefined} />);
+
+            const created = draftPill();
+            expect(created).toHaveAttribute('data-temporary');
+            expect(created).toHaveAttribute('data-open');
+            expect(created).not.toHaveAttribute('data-in-effect');
+            expect(created).toHaveTextContent('Order region is any value');
+            // Last on the bar, after the saved pills
+            const pills = document.querySelectorAll('[data-controls-pill]');
+            expect(pills[pills.length - 1]).toBe(created);
+        });
+
+        it("is a viewer's own dashed pill for a viewer", () => {
+            editingNew({ isViewer: true });
+            renderWithProviders(<FilterPills activeTabUuid={undefined} />);
+
+            const created = draftPill();
+            expect(created).toHaveAttribute('data-temporary');
+            expect(created).toHaveAttribute('data-open');
+        });
+    });
+
     describe('looks', () => {
         it('reads a value in effect bold and mutes a pill not in effect', () => {
             renderWithProviders(<FilterPills activeTabUuid={undefined} />);

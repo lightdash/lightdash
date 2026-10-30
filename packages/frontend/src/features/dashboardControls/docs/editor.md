@@ -2,12 +2,16 @@
 
 ## Popover
 
-- `EditorPopover` (`FilterEditor.tsx`) wraps each pill (`FilterPill`) and,
-  for a new filter with no pill yet, "Add filter" (`AddControl`). It opens
+- `EditorPopover` (`FilterEditor.tsx`) wraps each pill (`FilterPill`) and
+  "Add filter" (`AddControl`), which anchors a new filter until its field is
+  picked. Then the new filter's draft pill takes the editor. It opens
   when its filter is edited, under the target, set up as the shipped pill's
   popover (`bottom-start`, arrow, `offset` 1, portalled), so the grid never
-  moves. It arrives with `usePopoverTransition` (`popoverMotion.ts`): a fade
-  and 4px settle at Mantine's duration, none under reduced motion.
+  moves. Mantine's transition is off (`duration: 0`), so closing is
+  immediate; the dropdown arrives with its own CSS animation on mount
+  (`.dropdown`: a fade and 4px settle, none under reduced motion). That
+  also plays when the editor moves from "Add filter" to a new pill, which
+  mounts already open, and nothing is drawn at the old spot.
 - Focus stays inside while it is open (`trapFocus`); `FocusReturn` hands it
   back to the pill once it closes.
 - Mantine's Escape, click outside and roles are off: the provider owns both
@@ -22,7 +26,8 @@
 
 `FilterEditor`, keyed by the filter id so the label draft and the view
 restart on every switch. Top to bottom: the prompt (while `isAsking`), a
-placeholder's field search or `FilterSettings`, the footer.
+placeholder's field search or `FilterSettings`, the footer. A new filter's
+field search is the shipped picker, opened, and alone: no hint, no footer.
 
 - `FilterSettings`, value view: the shipped value form (`FilterValueSettings`),
   then for editors two quiet rows: "Applies to {n tiles}" (`formatTileCount`,
@@ -30,7 +35,7 @@ placeholder's field search or `FilterSettings`, the footer.
   "Settings".
 - Settings view, in place: back arrow, Name (the label input), Section,
   then `ViewerControls` (Required, then Lock). Same footer.
-- Footer: Cancel (`discard`) and Apply (`close`, "Create" for a new filter).
+- Footer: Cancel (`discard`) and Apply (`close`), for a new filter too.
 - Prompt: "Apply changes to {filter} first?" with Discard (subtle) and Apply
   (default, `data-controls-apply` while it shows) takes focus as it appears
   (Discard when Apply is blocked). Everything under it, value, rows and
@@ -65,12 +70,14 @@ focus to it once the popover is placed.
 
 ## Settings rules
 
-- Every edit is written to the draft (Apply takes it to the dashboard)
-  through `getFilterRuleWithDisabledState`: a rule with a value is never
-  `disabled`; a required rule with no value always is.
-- Incomplete default is the shipped reading: enabled and
-  `!hasFilterValueSet(rule)` (`isDefaultValueIncomplete`). Nothing blocks
-  closing; `close()` writes `disabled: true`.
+- Edit mode edits the default: there is no "Provide default value" switch
+  (`withDefaultValueSwitch={false}`) and the value input is always enabled
+  (a `disabled` rule is shown enabled). An editor's edit is written as
+  `disabled: !hasFilterValueSet(rule)`: a value is in effect, no value is any
+  value. A viewer's goes through `getFilterRuleWithDisabledState`. Apply is
+  still refused for a required filter with no value.
+- `close()` still writes `disabled: true` on an enabled rule with no value
+  (`isDefaultValueIncomplete`), for rules that arrive that way.
 - "Required" is the shipped `RequiredFilterCard`; the alternative filter it
   adds goes through `onChangeOtherFilterRule` = `updateOtherFilters`, so it
   waits in the draft with the rest. Off restores the saved default
@@ -94,13 +101,18 @@ One capture listener on `document` while a filter is edited, so one press
 does one thing, in order: an open layer (`hasOpenLayer`: `aria-expanded` or
 Mantine `data-expanded`, or a modal) owns it; an element in
 `[data-own-escape]` owns it; a clicked field is unclicked; else, with focus
-in the editor, blur (commits the label) then withdraw a pending question or
-cancel. From the page, Escape never cancels; while the prompt asks, Escape
-withdraws it wherever focus is.
+in the editor or lost to the page (`body`), blur (commits the label) then
+withdraw a pending question or cancel. From elsewhere on the page Escape
+never cancels; while the prompt asks, Escape withdraws it wherever focus is.
+A withdrawn question hands focus back to the editor (Apply, else its first
+enabled control) once it has left.
 
 A `pointerdown` outside the editor and the pills acts as a click outside a
 popover: nothing while a list is open (the press closes it), else
-`requestClose` closes a clean edit and asks on a dirty one.
+`requestClose` closes a clean edit and asks on a dirty one. A press that
+asks has its `mousedown` prevented, so focus stays on the question. A new
+filter with nothing picked has nothing to lose: a press outside dismisses it
+even with its list open, unless the press is on that list.
 
 ## Header guard
 

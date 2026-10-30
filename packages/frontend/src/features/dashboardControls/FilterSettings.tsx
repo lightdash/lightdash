@@ -43,15 +43,18 @@ import { ViewerControls } from './ViewerControls';
 /** The value, or an editor's settings, in the same popover. */
 export type EditorView = 'value' | 'settings';
 
-// The value input after the operator select, else the operator; without
-// scrolling, as the popover is still being placed
+// The value input after the operator select, else the first enabled input or
+// control; without scrolling, as the popover is still being placed
 const focusValueOnMount = (node: HTMLElement | null) => {
     const inputs = [
         ...(node?.querySelectorAll<HTMLInputElement>(
             'input:not([type="hidden"])',
         ) ?? []),
     ];
-    const input = inputs[1] ?? inputs[0];
+    const input =
+        [inputs[1], ...inputs].find(
+            (candidate) => candidate !== undefined && !candidate.disabled,
+        ) ?? node?.querySelector<HTMLElement>('button:not(:disabled)');
     // For the popover's focus trap, which focuses it once it is placed
     input?.setAttribute('data-autofocus', '');
     input?.focus({ preventScroll: true });

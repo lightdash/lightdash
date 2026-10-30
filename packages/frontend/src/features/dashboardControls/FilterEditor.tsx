@@ -23,7 +23,6 @@ import { hasFilterValueSet } from '../dashboardFilters/FilterConfiguration/utils
 import { FieldsAndTiles } from './FieldsAndTiles';
 import classes from './FilterEditor.module.css';
 import { FilterSettings, type EditorView } from './FilterSettings';
-import { usePopoverTransition } from './popoverMotion';
 import { useRailContractClasses } from './railContractClasses';
 import { isRuleRequired } from './requirements';
 import { withFilterRuleLabel } from './sidebarState';
@@ -83,7 +82,7 @@ const focusAnswerOnMount = (node: HTMLElement | null) => {
     )?.focus({ preventScroll: true });
 };
 
-// At the top while a pill or a click outside waits on the draft
+// At the top while a pill, Add or a click outside waits on the draft
 const Prompt: FC<{ name: string; applyBlockedReason: string | null }> = ({
     name,
     applyBlockedReason,
@@ -130,7 +129,6 @@ const Prompt: FC<{ name: string; applyBlockedReason: string | null }> = ({
 const Footer: FC<{ applyBlockedReason: string | null }> = ({
     applyBlockedReason,
 }) => {
-    const isNew = useControlsSidebarSelector((c) => c.isNew);
     const isPlaceholder = useControlsSidebarSelector((c) => c.isPlaceholder);
     const isAsking = useControlsSidebarSelector((c) => c.isAsking);
     const discard = useControlsSidebarSelector((c) => c.discard);
@@ -159,9 +157,7 @@ const Footer: FC<{ applyBlockedReason: string | null }> = ({
                         disabled={isPlaceholder || applyBlockedReason !== null}
                         onClick={close}
                     >
-                        {getUiString(
-                            isNew ? 'filters.rail.create' : 'filters.apply',
-                        )}
+                        {getUiString('filters.apply')}
                     </Button>
                 </Box>
             </Tooltip>
@@ -277,7 +273,10 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
                         sectionSelect={<SectionSelect rule={filterRule} />}
                     />
                 )}
-                <Footer applyBlockedReason={applyBlockedReason} />
+                {/* A new filter shows only its field search until a field is picked */}
+                {!(isPlaceholder && isNew) && (
+                    <Footer applyBlockedReason={applyBlockedReason} />
+                )}
             </Box>
         </Box>
     );
@@ -293,6 +292,10 @@ const EditorContent: FC = () => {
     return <FilterEditor key={filterId} rule={editingRule} />;
 };
 
+// Closing is immediate and opening is the dropdown's own CSS arrival, which
+// also plays when the editor moves to a new pill
+const NO_TRANSITION = { duration: 0 };
+
 type EditorPopoverProps = {
     /** This target's filter is the one edited. */
     isOpen: boolean;
@@ -307,7 +310,6 @@ type EditorPopoverProps = {
 // the provider (`FocusReturn`)
 export const EditorPopover: FC<EditorPopoverProps> = ({ isOpen, children }) => {
     const contractClasses = useRailContractClasses();
-    const transitionProps = usePopoverTransition();
     return (
         <Popover
             opened={isOpen}
@@ -315,26 +317,30 @@ export const EditorPopover: FC<EditorPopoverProps> = ({ isOpen, children }) => {
             withArrow
             offset={1}
             arrowOffset={14}
-            transitionProps={transitionProps}
+            transitionProps={NO_TRANSITION}
             trapFocus
             closeOnEscape={false}
             closeOnClickOutside={false}
             withRoles={false}
         >
             <Popover.Target>{children}</Popover.Target>
-            <Popover.Dropdown
-                p={0}
-                // The trap's last resort before its body has mounted
-                tabIndex={-1}
-                data-controls-editor
-                className={
-                    contractClasses === null
-                        ? undefined
-                        : `${contractClasses.rail} ${contractClasses.filterDropdown}`
-                }
-            >
-                <EditorContent />
-            </Popover.Dropdown>
+            {/* Mounted only while open, so a closing popover draws nothing,
+                not even for the frame its transition takes to end */}
+            {isOpen && (
+                <Popover.Dropdown
+                    p={0}
+                    // The trap's last resort before its body has mounted
+                    tabIndex={-1}
+                    data-controls-editor
+                    className={
+                        contractClasses === null
+                            ? classes.dropdown
+                            : `${classes.dropdown} ${contractClasses.rail} ${contractClasses.filterDropdown}`
+                    }
+                >
+                    <EditorContent />
+                </Popover.Dropdown>
+            )}
         </Popover>
     );
 };

@@ -148,7 +148,6 @@ const updateFilter = vi.fn();
 const applyWithUndo = vi.fn((next: DashboardFilterRule, _apply: unknown) =>
     updateFilter(next),
 );
-const addFirstFieldOnTile = vi.fn();
 
 const groupLabels = () =>
     screen
@@ -164,7 +163,6 @@ const setSidebar = (overrides: Record<string, unknown> = {}) => {
         highlightedFieldId: null,
         updateFilter,
         applyWithUndo,
-        addFirstFieldOnTile,
         ...overrides,
     };
 };
@@ -221,7 +219,6 @@ const renderWithProviders = (ui: ReactElement) => {
 describe('TileOverlays', () => {
     beforeEach(() => {
         updateFilter.mockClear();
-        addFirstFieldOnTile.mockClear();
         renderCounts.current = {};
         document.body.innerHTML = '';
         mockContainers.current = Object.fromEntries(
@@ -1222,189 +1219,24 @@ describe('TileOverlays', () => {
         document.elementFromPoint = original;
     });
 
-    describe('a new control with no field yet', () => {
-        const placeholder = (label?: string) =>
-            rule({ label, target: { fieldId: '', tableName: '' } });
-        const newRenders = (tileUuid: string) =>
-            renderCounts.current[`New filter on Title ${tileUuid}`] ?? 0;
-        const allOptions = () =>
-            screen
-                .getAllByRole('option', { hidden: true })
-                .map((option) => option.textContent);
-        const choose = (name: string) =>
-            userEvent.click(screen.getByRole('option', { name, hidden: true }));
-
-        beforeEach(() => {
-            mockDashboardContext.current = {
-                ...mockDashboardContext.current,
-                dashboardTiles: [both, statusOnly, markdown, otherTab],
-                allFilterableFieldsMap: {
-                    orders_status: statusField,
-                    orders_region: regionField,
-                    orders_amount: amountField,
-                    orders_created_day: createdDay,
-                    orders_created_month: createdMonth,
-                },
-                filterableFieldsByTileUuid: {
-                    [both.uuid]: [
-                        statusField,
-                        regionField,
-                        amountField,
-                        createdMonth,
-                        createdDay,
-                    ],
-                    [statusOnly.uuid]: [statusField],
-                    [otherTab.uuid]: [statusField],
-                },
-            };
-            setSidebar({ editingRule: placeholder(), isPlaceholder: true });
+    it('draws nothing on the canvas for a new filter with no field yet', () => {
+        mockDashboardContext.current = {
+            ...mockDashboardContext.current,
+            dashboardTiles: [both, statusOnly, markdown],
+            filterableFieldsByTileUuid: {
+                [both.uuid]: [statusField, regionField],
+                [statusOnly.uuid]: [statusField],
+            },
+        };
+        setSidebar({
+            editingRule: rule({ target: { fieldId: '', tableName: '' } }),
+            isPlaceholder: true,
         });
+        renderWithProviders(<TileOverlays />);
 
-        it('shows an empty card on every tile it could start from', () => {
-            renderWithProviders(<TileOverlays />);
-
-            [both, statusOnly].forEach((t) => {
-                expect(overlay(t.uuid)).toHaveAttribute(
-                    'data-highlighted',
-                    'available',
-                );
-                expect(status(t.uuid)).toBe('This tile is not filtered');
-                expect(clearButton(t.uuid)).not.toBeInTheDocument();
-                expect(select(t.uuid).tagName).toBe('BUTTON');
-            });
-            expect(select(statusOnly.uuid)).toHaveTextContent('Select a field');
-            expect(select(statusOnly.uuid)).toHaveAccessibleName(
-                'New filter on Title tile-status',
-            );
-            expect(select(both.uuid)).toHaveTextContent('Select a field');
-            expect(overlay(otherTab.uuid)).toBeNull();
-        });
-
-        it('veils a tile with no fields, with no card', () => {
-            renderWithProviders(<TileOverlays />);
-
-            expect(overlay(markdown.uuid)).not.toHaveAttribute(
-                'data-highlighted',
-            );
-            expect(overlay(markdown.uuid)?.textContent).toBe('');
-            expect(overlay(markdown.uuid)).toHaveAttribute(
-                'title',
-                'This tile has no field this filter can use',
-            );
-        });
-
-        it('keeps a SQL chart tile out of reach, whatever it reports', () => {
-            mockDashboardContext.current = {
-                ...mockDashboardContext.current,
-                dashboardTiles: [sql],
-                filterableFieldsByTileUuid: { [sql.uuid]: [statusField] },
-            };
-            mockTileStatusContext.current = {
-                sqlChartTilesMetadata: {
-                    [sql.uuid]: {
-                        columns: [
-                            {
-                                reference: 'status_col',
-                                type: DimensionType.STRING,
-                            },
-                        ],
-                    },
-                },
-            };
-            renderWithProviders(<TileOverlays />);
-
-            expect(overlay(sql.uuid)).not.toHaveAttribute('data-highlighted');
-            expect(overlay(sql.uuid)?.textContent).toBe('');
-        });
-
-        it('lists the fields of every kind, each grain of a date included', async () => {
-            renderWithProviders(<TileOverlays />);
-
-            await userEvent.click(select(both.uuid));
-
-            expect(allOptions()).toEqual([
-                'Amount',
-                'Created day',
-                'Created month',
-                'Region',
-                'Status',
-            ]);
-            // The shipped field select groups by table
-            expect(groupLabels()).toEqual(['Orders']);
-            expect(select(both.uuid)).toHaveAttribute(
-                'placeholder',
-                'Select a field',
-            );
-        });
-
-        it("shows none of the rail's own group labels", async () => {
-            renderWithProviders(<TileOverlays />);
-
-            await userEvent.click(select(statusOnly.uuid));
-
-            expect(allOptions()).toEqual(['Status']);
-            // The shipped field select groups by table
-            expect(groupLabels()).toEqual(['Orders']);
-            expect(
-                screen.queryByText('Fields on this tile'),
-            ).not.toBeInTheDocument();
-        });
-
-        it('tells apart two fields that read the same by their table group', async () => {
-            mockDashboardContext.current = {
-                ...mockDashboardContext.current,
-                allFilterableFieldsMap: {
-                    orders_status: statusField,
-                    customers_status: customerStatusField,
-                },
-                filterableFieldsByTileUuid: {
-                    [statusOnly.uuid]: [statusField, customerStatusField],
-                },
-            };
-            renderWithProviders(<TileOverlays />);
-
-            await userEvent.click(select(statusOnly.uuid));
-
-            expect(allOptions()).toEqual(['Status', 'Status']);
-            expect(groupLabels()).toEqual(['Customers', 'Orders']);
-        });
-
-        it('starts the filter from the chosen grain on this tile', async () => {
-            renderWithProviders(<TileOverlays />);
-
-            await userEvent.click(select(both.uuid));
-            await choose('Created month');
-
-            expect(addFirstFieldOnTile).toHaveBeenCalledTimes(1);
-            expect(addFirstFieldOnTile).toHaveBeenCalledWith(
-                createdMonth,
-                both.uuid,
-            );
-            expect(updateFilter).not.toHaveBeenCalled();
-        });
-
-        it('re-renders no tile card while a label is typed', () => {
-            const { rerender } = renderWithProviders(<TileOverlays />);
-            expect(newRenders(both.uuid)).toBe(1);
-            expect(newRenders(statusOnly.uuid)).toBe(1);
-
-            ['R', 'Re', 'Region'].forEach((label) => {
-                setSidebar({
-                    editingRule: placeholder(label),
-                    isPlaceholder: true,
-                });
-                rerender(<TileOverlays />);
-            });
-            setSidebar({
-                editingRule: placeholder('Region'),
-                isPlaceholder: true,
-                activeFieldId: 'orders_region',
-            });
-            rerender(<TileOverlays />);
-
-            expect(newRenders(both.uuid)).toBe(1);
-            expect(newRenders(statusOnly.uuid)).toBe(1);
-        });
+        [both, statusOnly, markdown].forEach((t) =>
+            expect(overlay(t.uuid)).toBeNull(),
+        );
     });
 
     it('says on hover that tiles are locked while a filter is edited', () => {
@@ -1892,19 +1724,6 @@ describe('TileOverlays', () => {
             expect(renders(both.uuid)).toBe(1);
             expect(renders(statusOnly.uuid)).toBe(1);
         });
-
-        it('stays out of reach of a new control with no field yet', () => {
-            setSidebar({
-                editingRule: rule({ target: { fieldId: '', tableName: '' } }),
-                isPlaceholder: true,
-            });
-            renderWithProviders(<TileOverlays />);
-
-            expect(
-                card(app.uuid).queryByRole('switch'),
-            ).not.toBeInTheDocument();
-            expect(overlay(app.uuid)).not.toHaveAttribute('data-highlighted');
-        });
     });
 
     describe('the follow-up after a tile is changed', () => {
@@ -2274,28 +2093,6 @@ describe('TileOverlays', () => {
             );
         });
 
-        it('never shows on a new control started from a tile', async () => {
-            setSidebar({ editingRule: rule(), isPlaceholder: true });
-            const { rerender } = renderWithProviders(<TileOverlays />);
-
-            await choose(first.uuid, 'Status');
-            expect(addFirstFieldOnTile).toHaveBeenCalledTimes(1);
-            expect(anyFollowUp()).not.toBeInTheDocument();
-
-            // The control it became: on that tile only
-            setSidebar({
-                editingRule: rule({
-                    tileTargets: {
-                        [second.uuid]: false,
-                        [third.uuid]: false,
-                        [otherTab.uuid]: false,
-                    },
-                }),
-            });
-            rerender(<TileOverlays />);
-            expect(anyFollowUp()).not.toBeInTheDocument();
-        });
-
         it('never shows for a data app tile, and its switch ends the one there was', async () => {
             const app = tile('tile-app', 'tab-1', DashboardTileTypes.DATA_APP);
             addContainer(app.uuid);
@@ -2387,18 +2184,10 @@ describe('TileOverlays', () => {
                 isPlaceholder: true,
             });
             rerender(<TileOverlays />);
-            await choose(second.uuid, 'Status');
-            expect(addFirstFieldOnTile).toHaveBeenCalledTimes(1);
+            expect(anyFollowUp()).not.toBeInTheDocument();
 
-            // Back as a filter on the second tile only
-            setSidebar({
-                editingRule: rule({
-                    tileTargets: {
-                        [first.uuid]: false,
-                        [third.uuid]: false,
-                    },
-                }),
-            });
+            // Its field back: the follow-up is gone for good
+            setSidebar({ editingRule: rule() });
             rerender(<TileOverlays />);
             expect(anyFollowUp()).not.toBeInTheDocument();
         });

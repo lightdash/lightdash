@@ -105,7 +105,7 @@ describe('AddControl', () => {
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
 
-    it('anchors the editor of a new filter, which has no pill yet', () => {
+    it('anchors the editor of a new filter until its field is picked', () => {
         const editor = () => document.querySelector('[data-controls-editor]');
         const { unmount } = renderWithProviders(<AddControl />);
         expect(editor()).toBeNull();
@@ -115,9 +115,16 @@ describe('AddControl', () => {
             ...mockSidebar.current,
             isSidebarOpen: true,
             isNew: true,
+            isPlaceholder: true,
         };
-        renderWithProviders(<AddControl />);
+        const { unmount: unmountPicking } = renderWithProviders(<AddControl />);
         expect(editor()).not.toBeNull();
+        unmountPicking();
+
+        // Picked: the editor moves to the new filter's pill
+        mockSidebar.current = { ...mockSidebar.current, isPlaceholder: false };
+        renderWithProviders(<AddControl />);
+        expect(editor()).toBeNull();
     });
 
     it('is "Add filter", which opens a new one, with a menu in place of the shipped eye', () => {

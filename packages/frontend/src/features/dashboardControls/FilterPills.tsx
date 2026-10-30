@@ -151,6 +151,15 @@ export const FilterPills: FC<Props> = ({
         (c) => c.removeFilterById,
     );
     const isViewer = useControlsSidebarSelector((c) => c.isViewer);
+    // A new filter with its field picked: only in the draft until Apply
+    const newRule = useControlsSidebarSelector((c) =>
+        c.isSidebarOpen && c.isNew && !c.isPlaceholder ? c.editingRule : null,
+    );
+    // Its pill shows the dashboard as it is, so it is in effect only after Apply
+    const newPillRule = useMemo(
+        () => (newRule === null ? null : { ...newRule, disabled: true }),
+        [newRule],
+    );
     const temporaryFilters = useDashboardTemporaryFilters();
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
     const setDashboardFilters = useDashboardContext(
@@ -252,6 +261,26 @@ export const FilterPills: FC<Props> = ({
         );
     };
 
+    const newGroup: FilterPillGroup | null =
+        newPillRule === null
+            ? null
+            : allFilterableMetricsMap[newPillRule.target.fieldId] !== undefined
+              ? 'metrics'
+              : 'dimensions';
+    // Where it lands on Apply: last in its group. It neither drags nor drops
+    const renderNewPill = (group: FilterPillGroup) =>
+        newPillRule !== null &&
+        newGroup === group &&
+        isRuleInSection(newPillRule, sectionId, sections) && (
+            <Fragment key={newPillRule.id}>
+                {renderPill(
+                    newPillRule,
+                    group,
+                    isViewer ? 'viewerOwn' : 'editor',
+                )}
+            </Fragment>
+        );
+
     // The shipped placeholders on the first load, in both modes, so the bar
     // settles once; a refetch keeps the pills where they are
     if (isFirstLoad) return <FilterPillSkeletons />;
@@ -311,18 +340,22 @@ export const FilterPills: FC<Props> = ({
                               onDragEnd={(event) => handleDragEnd(group, event)}
                           >
                               {pills}
+                              {renderNewPill(group)}
                               <DragOverlay />
                           </DndContext>
                       ) : (
-                          <Fragment key={group}>{pills}</Fragment>
+                          <Fragment key={group}>
+                              {pills}
+                              {renderNewPill(group)}
+                          </Fragment>
                       );
                   })}
             {/* A viewer's own filters open the editor too; in edit mode
                 they keep the shipped popover. They are never in a section */}
             {isViewer
                 ? typeof sectionId !== 'string' &&
-                  GROUPS.flatMap((group) =>
-                      temporaryFilters[group].map((filter) => {
+                  GROUPS.flatMap((group) => [
+                      ...temporaryFilters[group].map((filter) => {
                           const pill = renderPill(filter, group, 'viewerOwn');
                           return (
                               pill && (
@@ -330,7 +363,8 @@ export const FilterPills: FC<Props> = ({
                               )
                           );
                       }),
-                  )
+                      renderNewPill(group),
+                  ])
                 : typeof sectionId !== 'string' && (
                       <TemporaryFilterPills activeTabUuid={activeTabUuid} />
                   )}

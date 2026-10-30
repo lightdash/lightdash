@@ -1,3 +1,17 @@
+/* The popover arrives on mount: a fade as it settles 4px onto its anchor */
+.dropdown {
+    --controls-duration-arrive: 150ms;
+
+    animation: controls-arrive var(--controls-duration-arrive) ease;
+}
+
+@keyframes controls-arrive {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+}
+
 /* The editor in its popover, as wide as the shipped filter popover */
 .root {
     --controls-ease: ease-in-out;
@@ -74,6 +88,10 @@ button.row:hover {
 }
 
 @media (prefers-reduced-motion: reduce) {
+    .dropdown {
+        animation: none;
+    }
+
     .apply,
     button.row {
         transition: none;

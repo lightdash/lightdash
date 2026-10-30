@@ -40,12 +40,7 @@ import {
     getFilterRuleWithRequired,
 } from '../dashboardFilters/FilterConfiguration/utils';
 import { ControlsSidebarProvider } from './ControlsSidebarProvider';
-import {
-    getFieldCount,
-    getTileField,
-    setTileField,
-    type FieldsByTile,
-} from './peers';
+import { getFieldCount, setTileField, type FieldsByTile } from './peers';
 import {
     useControlsSidebar,
     useControlsSidebarSelector,
@@ -800,12 +795,15 @@ describe('ControlsSidebarProvider', () => {
         expect(addFilterTracks()).toHaveLength(1);
         expect(addFilterTracks().at(-1)).toEqual(event);
 
-        // Kept by opening another control, from a tile or on a SQL column
-        mockFieldsByTile.current = { t1: [statusField] };
+        // Kept by Apply when Add asks first, or on a SQL column
         act(() => result.current.openNew());
-        act(() => result.current.addFirstFieldOnTile(statusField, 't1'));
+        act(() => result.current.addFirstField(statusField));
         act(() => result.current.openNew());
+        expect(result.current.isAsking).toBe(true);
+        expect(addFilterTracks()).toHaveLength(1);
+        act(() => result.current.resolvePending(true));
         expect(addFilterTracks()).toHaveLength(2);
+        expect(result.current.isPlaceholder).toBe(true);
         act(() =>
             result.current.addFirstSqlColumn(
                 { reference: 'total', type: DimensionType.NUMBER },
@@ -1017,48 +1015,6 @@ describe('ControlsSidebarProvider', () => {
             };
         });
 
-        it('picked on a tile filters that tile only, keeping id and label', () => {
-            const { result, placeholder } = start();
-
-            act(() => result.current.addFirstFieldOnTile(statusField, 't2'));
-
-            expect(result.current.isPlaceholder).toBe(false);
-            expect(result.current.isNew).toBe(true);
-            const added = result.current.editingRule;
-            if (!added) throw new Error('expected a rule');
-            expect(added.id).toBe(placeholder.id);
-            expect(added.label).toBe('S');
-            expect(added.target.fieldId).toBe('orders_status');
-            // The clicked tile follows the default; t3 does not offer the field
-            expect(added.tileTargets).toEqual({ t1: false, t4: false });
-            expect(
-                tiles
-                    .filter(
-                        (tile) =>
-                            getTileField(
-                                added,
-                                tile,
-                                mockFieldsByTile.current as FieldsByTile,
-                            ) !== null,
-                    )
-                    .map((tile) => tile.uuid),
-            ).toEqual(['t2']);
-            // What the sidebar row reads: "1 of 3 tiles", "All tiles" for 3
-            expect(
-                getFieldCount(
-                    added,
-                    'orders_status',
-                    tiles,
-                    mockFieldsByTile.current as FieldsByTile,
-                ),
-            ).toEqual({ applied: 1, possible: 3 });
-            expect(latest.changed).toBe(false);
-
-            act(() => result.current.discard());
-            expect(latest.filters).toEqual(initialFilters);
-            expect(latest.changed).toBe(false);
-        });
-
         it('picked in the sidebar filters every tile that offers it', () => {
             const { result } = start();
 
@@ -1077,31 +1033,27 @@ describe('ControlsSidebarProvider', () => {
             ).toEqual({ applied: 3, possible: 3 });
         });
 
-        it('picked on a tile does nothing while the tile fields are not loaded', () => {
+        it('picked, it is on every tile with the field in the draft only, and Cancel leaves no rule', () => {
             const { result } = start();
-            mockDashboardContext.current = {
-                ...mockDashboardContext.current,
-                filterableFieldsByTileUuid: undefined,
-            };
-            // Any change hands the provider the fields as they are now
-            act(() => result.current.setHoveredFieldId('x'));
 
-            act(() => result.current.addFirstFieldOnTile(statusField, 't2'));
-
-            expect(result.current.isPlaceholder).toBe(true);
+            act(() => result.current.addFirstField(statusField));
+            expect(result.current.isPlaceholder).toBe(false);
+            const added = result.current.editingRule;
+            if (!added) throw new Error('expected a rule');
+            expect(
+                getFieldCount(
+                    added,
+                    'orders_status',
+                    tiles,
+                    mockFieldsByTile.current as FieldsByTile,
+                ),
+            ).toEqual({ applied: 3, possible: 3 });
             expect(latest.filters).toEqual(initialFilters);
-        });
 
-        it('picked on a tile does nothing once the control has a field', () => {
-            const { result } = start();
-            act(() => result.current.addFirstFieldOnTile(statusField, 't2'));
-            act(() => result.current.addFirstFieldOnTile(regionField, 't3'));
-            act(() => result.current.close());
-
-            expect(latest.filters.dimensions).toHaveLength(3);
-            expect(latest.filters.dimensions[2].target.fieldId).toBe(
-                'orders_status',
-            );
+            act(() => result.current.discard());
+            expect(result.current.isSidebarOpen).toBe(false);
+            expect(latest.filters).toEqual(initialFilters);
+            expect(latest.changed).toBe(false);
         });
     });
 
@@ -1131,7 +1083,7 @@ describe('ControlsSidebarProvider', () => {
         expect(latest.changed).toBe(false);
     });
 
-    it('Add keeps the edits to an existing filter and opens a placeholder', () => {
+    it('Add asks first on unapplied edits; Apply keeps them and opens a placeholder', () => {
         const { result } = setup();
         act(() => result.current.open('a'));
         act(() => result.current.updateFilter(rule('a', ['9'])));
@@ -1139,6 +1091,12 @@ describe('ControlsSidebarProvider', () => {
         act(() => result.current.setHoveredFieldId('orders_a'));
 
         act(() => result.current.openNew());
+        expect(result.current.isAsking).toBe(true);
+        expect(result.current.editing).toEqual({ filterId: 'a' });
+        expect(latest.filters.dimensions[0].values).toEqual(['1']);
+
+        act(() => result.current.resolvePending(true));
+        expect(result.current.isAsking).toBe(false);
         expect(result.current.isNew).toBe(true);
         expect(result.current.isPlaceholder).toBe(true);
         expect(result.current.editing?.filterId).not.toBe('a');
@@ -1159,8 +1117,32 @@ describe('ControlsSidebarProvider', () => {
             result.current.updateFilter({ ...rule('a', []), disabled: false }),
         );
         act(() => result.current.openNew());
+        act(() => result.current.resolvePending(true));
         expect(result.current.isPlaceholder).toBe(true);
         expect(latest.filters.dimensions[0].disabled).toBe(true);
+    });
+
+    it('Add asks first on unapplied edits; Discard drops them and opens a placeholder in its section', () => {
+        const { result } = setup();
+        act(() => result.current.open('a'));
+        act(() => result.current.updateFilter(rule('a', ['9'])));
+
+        act(() => result.current.openNew('s1'));
+        expect(result.current.isAsking).toBe(true);
+        act(() => result.current.resolvePending(false));
+        expect(result.current.isAsking).toBe(false);
+        expect(result.current.isPlaceholder).toBe(true);
+        expect(result.current.editingRule?.sectionId).toBe('s1');
+        expect(latest.filters).toEqual(initialFilters);
+    });
+
+    it('Add on a clean edit closes it and opens a placeholder without asking', () => {
+        const { result } = setup();
+        act(() => result.current.open('a'));
+        act(() => result.current.openNew());
+        expect(result.current.isAsking).toBe(false);
+        expect(result.current.isPlaceholder).toBe(true);
+        expect(latest.filters).toEqual(initialFilters);
     });
 
     it('Add keeps a new filter that has a field but no label', () => {
@@ -1171,6 +1153,7 @@ describe('ControlsSidebarProvider', () => {
         expect(latest.filters.dimensions).toHaveLength(2);
 
         act(() => result.current.openNew());
+        act(() => result.current.resolvePending(true));
         expect(result.current.isNew).toBe(true);
         expect(result.current.isPlaceholder).toBe(true);
         expect(result.current.editing?.filterId).not.toBe(id);
@@ -1192,6 +1175,7 @@ describe('ControlsSidebarProvider', () => {
         act(() => result.current.updateFilter({ ...added, label: 'S' }));
 
         act(() => result.current.openNew());
+        act(() => result.current.resolvePending(true));
         expect(result.current.isNew).toBe(true);
         expect(result.current.isPlaceholder).toBe(true);
         expect(result.current.editing?.filterId).not.toBe(added.id);
@@ -1784,19 +1768,6 @@ describe('ControlsSidebarProvider', () => {
             expect(addFilterTracks()).toHaveLength(0);
         });
 
-        it('picking a field on a tile keeps the id and label too', () => {
-            mockFieldsByTile.current = { t1: [statusField] };
-            const { result } = openEmptied();
-            act(() => result.current.addFirstFieldOnTile(statusField, 't1'));
-            act(() => result.current.close());
-
-            expect(latest.filters.dimensions.map((r) => r.id)).toEqual([
-                'a',
-                'b',
-            ]);
-            expect(latest.filters.dimensions[0].label).toBe('A');
-        });
-
         it('a metric picked for a dimension control goes to the metrics', () => {
             const { result } = openEmptied();
             act(() =>
@@ -1984,6 +1955,7 @@ describe('ControlsSidebarProvider', () => {
 
             const second = openEmptied();
             act(() => second.result.current.openNew());
+            act(() => second.result.current.resolvePending(true));
             expect(second.result.current.isNew).toBe(true);
             expect(second.result.current.editing?.filterId).not.toBe('a');
             expect(latest.filters.dimensions.map((r) => r.id)).toEqual(['b']);
@@ -2686,7 +2658,7 @@ describe('ControlsSidebarProvider', () => {
                 ),
             );
         const initial = callbacks();
-        expect(Object.keys(initial)).toHaveLength(20);
+        expect(Object.keys(initial)).toHaveLength(19);
         expect(initial).toHaveProperty('updateOtherFilters');
         // A pill hover marks tiles only; nothing in the sidebar follows it
         expect(initial).not.toHaveProperty('setHoveredFilterId');
@@ -2694,7 +2666,7 @@ describe('ControlsSidebarProvider', () => {
         expect(initial).toHaveProperty('addFirstSqlColumn');
         expect(initial).toHaveProperty('clearHighlightedField');
         expect(initial).not.toHaveProperty('clearFields');
-        expect(initial).toHaveProperty('addFirstFieldOnTile');
+        expect(initial).not.toHaveProperty('addFirstFieldOnTile');
 
         act(() => result.current.open('a'));
         act(() => result.current.updateFilter(rule('a', ['9'])));
@@ -3255,7 +3227,7 @@ describe('ControlsSidebarProvider in view mode', () => {
         callbacksOf().forEach(([name, callback], index) => {
             expect([name, callback]).toEqual(before[index]);
         });
-        expect(before.length).toBeGreaterThan(19);
+        expect(before.length).toBeGreaterThan(18);
     });
 
     describe('a mode change closes the edit as Done does', () => {

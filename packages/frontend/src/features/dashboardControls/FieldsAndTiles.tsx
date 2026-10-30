@@ -232,6 +232,7 @@ export const FieldsAndTiles: FC = () => {
                                 'filters.rail.searchFields',
                             )}
                             withinPortal
+                            defaultOpened
                             onChange={addFirstField}
                         />
                     ) : (
@@ -254,13 +255,6 @@ export const FieldsAndTiles: FC = () => {
                         />
                     )}
                 </DropdownClass>
-                <Text fz="xs" c="dimmed">
-                    {getUiString(
-                        hasFields
-                            ? 'filters.rail.startHint'
-                            : 'filters.rail.startHintColumns',
-                    )}
-                </Text>
             </Stack>
         );
     }
