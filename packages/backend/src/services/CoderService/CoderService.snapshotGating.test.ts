@@ -45,7 +45,9 @@ const dashboardDao = {
     parameters: undefined,
 };
 
-const buildService = () => {
+const buildService = (
+    contentAsCodeProjectSettingsModel: AnyType = { upsert: vi.fn() },
+) => {
     const snapshotUpsert = vi.fn();
     const savedChartGet = vi.fn(async () => chartDao);
     const dashboardGet = vi.fn(async () => dashboardDao);
@@ -76,7 +78,7 @@ const buildService = () => {
         promoteService: {} as AnyType,
         spacePermissionService: {} as AnyType,
         contentAsCodeSnapshotModel: { upsert: snapshotUpsert } as AnyType,
-        contentAsCodeProjectSettingsModel: { upsert: vi.fn() } as AnyType,
+        contentAsCodeProjectSettingsModel,
         contentVerificationModel: {
             getByContentUuids: vi.fn(async () => new Map()),
         } as AnyType,
@@ -191,6 +193,28 @@ describe('CoderService snapshot recording gated on content_as_code.sync', () => 
             );
             expect(dashboardGet).not.toHaveBeenCalled();
             expect(snapshotUpsert).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('resolveSyncEnabled', () => {
+        const withStampedSync = (syncEnabled: boolean) =>
+            buildService({ get: vi.fn(async () => ({ syncEnabled })) }).service;
+
+        it('falls back to the stamped project setting when the caller does not say', async () => {
+            await expect(
+                withStampedSync(true)['resolveSyncEnabled'](PROJECT_UUID, {}),
+            ).resolves.toBe(true);
+            await expect(
+                withStampedSync(false)['resolveSyncEnabled'](PROJECT_UUID, {}),
+            ).resolves.toBe(false);
+        });
+
+        it('lets a non-upload caller opt out even when the project has sync stamped on', async () => {
+            await expect(
+                withStampedSync(true)['resolveSyncEnabled'](PROJECT_UUID, {
+                    syncEnabled: false,
+                }),
+            ).resolves.toBe(false);
         });
     });
 

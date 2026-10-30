@@ -3654,7 +3654,11 @@ export class AiAgentToolsService extends BaseService {
                                 context.projectUuid,
                                 slug,
                                 patchedContent,
-                                { force: true, authorization: 'space_access' },
+                                {
+                                    force: true,
+                                    authorization: 'space_access',
+                                    syncEnabled: false,
+                                },
                             );
                         uuid = promotionChanges.dashboards[0]?.data.uuid;
                         break;
@@ -3701,7 +3705,11 @@ export class AiAgentToolsService extends BaseService {
                                 context.projectUuid,
                                 slug,
                                 patchedContent,
-                                { force: true, authorization: 'space_access' },
+                                {
+                                    force: true,
+                                    authorization: 'space_access',
+                                    syncEnabled: false,
+                                },
                             );
                         uuid = promotionChanges.charts[0]?.data.uuid;
                         break;
@@ -3844,6 +3852,7 @@ export class AiAgentToolsService extends BaseService {
                                 {
                                     mode: 'create',
                                     authorization: 'space_access',
+                                    syncEnabled: false,
                                 },
                             );
                         const finalSlug =
@@ -3882,6 +3891,7 @@ export class AiAgentToolsService extends BaseService {
                                 {
                                     mode: 'create',
                                     authorization: 'space_access',
+                                    syncEnabled: false,
                                 },
                             );
                         const finalSlug =
