@@ -52,6 +52,21 @@ The partition budget is not a runtime guarantee. Graphile Worker expires job and
 queue locks after four hours; monitor processing times and backlog before increasing
 rollout cohorts so that scheduled and initial processing jobs do not overlap.
 
+Graphile Worker 0.13 normally expires job and queue locks after four hours.
+Usage processing reserves both owned locks once at startup for twelve hours,
+allowing multi-hour catch-up without changing other queues. There is no per-task
+expiry option in this version: the reservation moves both `locked_at` timestamps
+eight hours forward. Normal completion or failure releases the queue immediately.
+An abrupt worker crash can leave it blocked until twelve hours after reservation;
+a run that exceeds twelve hours can overlap again. This is a bounded allowance,
+not a job timeout or an unlimited lease. Recheck this integration when upgrading
+Graphile Worker and review actual runtime before increasing workload.
+
+Usage processing is exempt from the generic one-hour stuck-job rule; its
+lifecycle metrics and dedicated runtime/failure alerts measure actual elapsed
+time. Do not use the future queue lock timestamps to measure processing duration.
+Deploy to all workers before relying on the longer reservation.
+
 The explicit `build-usage-user-activity` command also checks the organization flag
 and rejects dates older than this window. It remains a privileged maintenance
 script, using the configured production database/usage storage. A newly enabled
