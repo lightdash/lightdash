@@ -1,5 +1,8 @@
 export type ColorScheme = 'light' | 'dark';
 
+/** What the viewer chose; `system` follows the OS preference. */
+export type ColorSchemePreference = ColorScheme | 'system';
+
 type ColorTuple = [
     string,
     string,

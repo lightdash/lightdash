@@ -1,43 +1,25 @@
-.themeToggleIcon {
-    font-size: 16px;
-    stroke-width: 2;
-    --theme-toggle__classic--duration: 750ms;
+/* Mantine's stock look: the shared theme flattens the pill to the body colour
+   plus a border, which is invisible inside the forced-dark navbar menu. */
+.switcherRoot {
+    background-color: light-dark(
+        var(--mantine-color-gray-1),
+        var(--mantine-color-dark-8)
+    );
 }
 
-.themeToggleIcon path {
-    transition-timing-function: cubic-bezier(0, 0, 0.15, 1.25);
-    transform-origin: center;
-    transition-duration: calc(var(--theme-toggle__classic--duration) * 0.8);
+.switcherIndicator {
+    background-color: light-dark(
+        var(--mantine-color-white),
+        var(--mantine-color-dark-5)
+    );
+    border: none;
+    box-shadow: var(--mantine-shadow-xs);
 }
 
-.themeToggleIcon g path {
-    transition-property: opacity, transform;
-    transition-delay: calc(var(--theme-toggle__classic--duration) * 0.2);
+.switcherLabel {
+    color: light-dark(var(--mantine-color-gray-7), var(--mantine-color-dark-1));
 }
 
-.themeToggleIcon :first-child path {
-    transition-property: transform, d;
-}
-
-.toggled.themeToggleIcon g path {
-    transform: scale(0.5) rotate(45deg);
-    opacity: 0;
-    transition-delay: 0s;
-}
-
-.toggled.themeToggleIcon :first-child path {
-    d: path('M-12 5h30a1 1 0 0 0 9 13v24h-39Z');
-    transition-delay: calc(var(--theme-toggle__classic--duration) * 0.2);
-}
-
-@supports not (d: path('')) {
-    .toggled.themeToggleIcon :first-child path {
-        transform: translate3d(-12px, 10px, 0);
-    }
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .themeToggleIcon * {
-        transition: none !important;
-    }
+.switcherLabel[data-active] {
+    color: light-dark(var(--mantine-color-black), var(--mantine-color-white));
 }

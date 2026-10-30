@@ -1,18 +1,43 @@
-import { Menu } from '@mantine/core';
-import { ThemeToggleIcon } from './ThemeToggleIcon';
+import { Group, Menu, SegmentedControl } from '@mantine/core';
+import { IconBrightness } from '@tabler/icons-react';
+import { type ColorSchemePreference } from '../../../theme';
+import MantineIcon from '../../common/MantineIcon';
+import classes from './ThemeSwitcher.module.css';
 import { useThemeToggle } from './useThemeToggle';
 
+const OPTIONS: { value: ColorSchemePreference; label: string }[] = [
+    { value: 'light', label: 'Light' },
+    { value: 'dark', label: 'Dark' },
+    { value: 'system', label: 'System' },
+];
+
+const isPreference = (value: string): value is ColorSchemePreference =>
+    OPTIONS.some((option) => option.value === value);
+
 export const ThemeSwitcherMenuItem = () => {
-    const { isDark, handleThemeToggle } = useThemeToggle();
+    const { colorSchemePreference, handleThemeChange } = useThemeToggle();
 
     return (
-        <Menu.Item
-            role="menuitem"
-            closeMenuOnClick={false}
-            onClick={handleThemeToggle}
-            leftSection={<ThemeToggleIcon isDark={isDark} />}
-        >
-            {isDark ? 'Light mode' : 'Dark mode'}
-        </Menu.Item>
+        <>
+            <Group p="xs" gap="xs" wrap="nowrap">
+                <MantineIcon icon={IconBrightness} color="text" />
+                <SegmentedControl
+                    size="xs"
+                    fullWidth
+                    aria-label="Theme"
+                    value={colorSchemePreference}
+                    onChange={(value) => {
+                        if (isPreference(value)) handleThemeChange(value);
+                    }}
+                    data={OPTIONS}
+                    classNames={{
+                        root: classes.switcherRoot,
+                        indicator: classes.switcherIndicator,
+                        label: classes.switcherLabel,
+                    }}
+                />
+            </Group>
+            <Menu.Divider />
+        </>
     );
 };

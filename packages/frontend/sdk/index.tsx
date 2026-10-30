@@ -88,6 +88,7 @@ import { PortalTargetContext } from '../src/providers/PortalTarget/PortalTargetC
 import ReactQueryProvider from '../src/providers/ReactQuery/ReactQueryProvider';
 import ThirdPartyServicesProvider from '../src/providers/ThirdPartyServicesProvider';
 import TrackingProvider from '../src/providers/Tracking/TrackingProvider';
+import { useResolvedColorScheme } from '../src/providers/useSystemColorScheme';
 import { setToInMemoryStorage } from '../src/utils/inMemoryStorage';
 import {
     createLightdashApiClient,
@@ -118,7 +119,7 @@ const LIGHTDASH_SDK_VERSION_LOCAL_STORAGE_KEY = '__lightdash_sdk_version';
 type BaseProps = {
     instanceUrl: string;
     token: Promise<string> | string;
-    theme?: 'light' | 'dark';
+    theme?: 'light' | 'dark' | 'system';
     styles?: {
         backgroundColor?: string;
         fontFamily?: string;
@@ -473,7 +474,7 @@ const SDK_BUNDLE_ID = Math.random().toString(36).slice(2, 8);
 const SdkProviders: FC<
     PropsWithChildren<{
         styles?: { backgroundColor?: string; fontFamily?: string };
-        theme?: 'light' | 'dark';
+        theme?: 'light' | 'dark' | 'system';
         token: string;
         projectUuid?: string;
         // Starts the router here and leaves routing to the children
@@ -489,7 +490,8 @@ const SdkProviders: FC<
     initialEntry,
     onError,
 }) => {
-    const colorScheme = theme ?? 'light';
+    const colorSchemePreference = theme ?? 'light';
+    const colorScheme = useResolvedColorScheme(colorSchemePreference);
     // Each SDK component sends its own token, so components with different
     // tokens can share a page. The ref picks up token rotation.
     const embedRef = useRef<InMemoryEmbed>({ token, projectUuid });
@@ -572,7 +574,7 @@ const SdkProviders: FC<
                     <MantineProvider
                         themeOverride={themeOverride}
                         notificationsLimit={0}
-                        forceColorScheme={colorScheme}
+                        forceColorScheme={colorSchemePreference}
                         cssVariablesSelector={`.${instanceClass}`}
                         getRootElement={getRootElement}
                         syncBodyColorMode={false}

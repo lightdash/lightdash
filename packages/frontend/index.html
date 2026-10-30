@@ -23,6 +23,39 @@
         />
 
         <title>Lightdash</title>
+        <script>
+            // Paint the first frame in the right scheme, before React mounts.
+            // Mirrors the resolution in src/providers/MantineProvider.tsx.
+            (function () {
+                try {
+                    var preference = 'light';
+                    if (location.pathname.indexOf('/embed') === 0) {
+                        preference =
+                            new URLSearchParams(location.search).get('theme') ||
+                            'light';
+                    } else {
+                        var stored = localStorage.getItem('color-scheme');
+                        if (stored) preference = JSON.parse(stored);
+                    }
+                    var scheme =
+                        preference === 'system'
+                            ? matchMedia('(prefers-color-scheme: dark)').matches
+                                ? 'dark'
+                                : 'light'
+                            : preference === 'dark'
+                              ? 'dark'
+                              : 'light';
+                    document.documentElement.setAttribute(
+                        'data-mantine-color-scheme',
+                        scheme,
+                    );
+                    document.documentElement.style.colorScheme = scheme;
+                    document.addEventListener('DOMContentLoaded', function () {
+                        document.body.dataset.colorMode = scheme;
+                    });
+                } catch (e) {}
+            })();
+        </script>
     </head>
     <body data-color-mode="light">
         <noscript>You need to enable JavaScript to run this app.</noscript>

@@ -14,7 +14,11 @@ export function parseEmbedThemeParams(): {
     const params = new URLSearchParams(window.location.search);
     const themeParam = params.get('theme');
     const theme: EmbedTheme =
-        themeParam === 'light' || themeParam === 'dark' ? themeParam : 'light';
+        themeParam === 'light' ||
+        themeParam === 'dark' ||
+        themeParam === 'system'
+            ? themeParam
+            : 'light';
     const bgParam = params.get('backgroundColor');
     if (bgParam === 'transparent') {
         return { theme, backgroundColor: 'transparent' };
