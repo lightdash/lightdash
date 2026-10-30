@@ -33,6 +33,7 @@ import { type AgentActionLogModel } from '../models/AgentActionLogModel';
 import { type RetentionCleanupOptions } from '../models/retentionCleanup';
 import type { UsageDimensionsModel } from '../models/UsageDimensionsModel';
 import type { UsageHistoryModel } from '../models/UsageHistoryModel';
+import type { UsageProcessingModel } from '../models/UsageProcessingModel';
 import type PrometheusMetrics from '../prometheus/PrometheusMetrics';
 import { type OrganizationNameResolver } from '../sentry/organizationNameResolver';
 import { LEARN_SANDBOX_COMMAND_TIMEOUT_MS } from '../services/LearnSandboxService/runtime';
@@ -63,6 +64,7 @@ export type SchedulerWorkerArguments = SchedulerTaskArguments & {
     agentActionLogModel: AgentActionLogModel;
     usageDimensionsModel: UsageDimensionsModel;
     usageHistoryModel: UsageHistoryModel;
+    usageProcessingModel?: UsageProcessingModel;
     // When omitted, no pg-ping interval runs and the health probe falls back to
     // job-activity events alone.
     workerHealth?: SchedulerWorkerHealth;
@@ -188,6 +190,8 @@ export class SchedulerWorker extends SchedulerTask {
     private readonly usageDimensionsModel: UsageDimensionsModel;
     private readonly usageHistoryModel: UsageHistoryModel;
 
+    private readonly usageProcessingModel: UsageProcessingModel | undefined;
+
     private readonly activeCompiles = new Set<CompileShutdownContext>();
 
     private readonly interruptedCompileFailures = new WeakMap<
@@ -232,6 +236,7 @@ export class SchedulerWorker extends SchedulerTask {
         this.prometheusMetrics = schedulerWorkerArgs.prometheusMetrics ?? null;
         this.usageDimensionsModel = schedulerWorkerArgs.usageDimensionsModel;
         this.usageHistoryModel = schedulerWorkerArgs.usageHistoryModel;
+        this.usageProcessingModel = schedulerWorkerArgs.usageProcessingModel;
         this.dailyJobRetryBackoffMs =
             schedulerWorkerArgs.dailyJobRetryBackoffMs ??
             DEFAULT_DAILY_JOB_RETRY_BACKOFF_MS;
@@ -2345,6 +2350,7 @@ export class SchedulerWorker extends SchedulerTask {
                     s3Config: usageEvents.s3,
                     prometheusMetrics: this.prometheusMetrics,
                     usageDimensionsModel: this.usageDimensionsModel,
+                    usageProcessingModel: this.usageProcessingModel,
                     featureFlagModel: this.featureFlagModel,
                 });
                 const summary = await compactor.run(

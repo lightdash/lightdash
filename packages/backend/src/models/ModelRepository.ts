@@ -96,6 +96,7 @@ import { SshKeyPairModel } from './SshKeyPairModel';
 import { TagsModel } from './TagsModel';
 import { UsageDimensionsModel } from './UsageDimensionsModel';
 import { UsageHistoryModel } from './UsageHistoryModel';
+import { UsageProcessingModel } from './UsageProcessingModel';
 import { UserAttributesModel } from './UserAttributesModel';
 import { UserAvatarModel } from './UserAvatarModel';
 import { UserFavoritesModel } from './UserFavoritesModel';
@@ -161,6 +162,7 @@ export type ModelManifest = {
     organizationModel: OrganizationModel;
     usageDimensionsModel: UsageDimensionsModel;
     usageHistoryModel: UsageHistoryModel;
+    usageProcessingModel: UsageProcessingModel;
     organizationDomainVerificationModel: OrganizationDomainVerificationModel;
     organizationEmailDomainModel: OrganizationEmailDomainModel;
     organizationSettingsModel: OrganizationSettingsModel;
@@ -379,6 +381,13 @@ export class ModelRepository
         return this.getModel(
             'usageHistoryModel',
             () => new UsageHistoryModel(this.database),
+        );
+    }
+
+    public getUsageProcessingModel(): UsageProcessingModel {
+        return this.getModel(
+            'usageProcessingModel',
+            () => new UsageProcessingModel(this.database),
         );
     }
 
