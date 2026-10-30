@@ -72,8 +72,8 @@ Openings (optional props, defaults are today's behaviour):
 - `FilterRequirements/RequiredFilterCard`: `onChangeOtherFilterRule`,
   `disabledReason`, `isListInPortal`, `withCard`.
 - `ActiveFilters/FilterPillButton`: `removeLabel`, `fieldIconOverride`,
-  `isLockSpaceReserved`, `areActionsHidden`, `dragHandle` (drag from the
-  grip only), `tablesTooltipNote` (through `Filter`, `TemporaryFilters`
+  `isLockSpaceReserved`, `areActionsHidden`, `dragHandle` (unused
+  by the bar since the pill itself drags), `tablesTooltipNote` (through `Filter`, `TemporaryFilters`
   and `FilterRuleLabel`'s `tooltipNote`), `isPlain` (the
   pill looks below; `Filter` and `TemporaryFilters` pass it through, and
   `FilterRuleLabel` takes `isValueBold`).
