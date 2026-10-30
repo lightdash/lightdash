@@ -332,6 +332,14 @@ mcpRouter.all(
                 throw new ForbiddenError('MCP is not enabled');
             }
 
+            const requestedProject = extractMcpProjectUuid(req, 'ignore');
+            if (requestedProject) {
+                await mcpService.assertMcpProjectAllowed(
+                    req.user!,
+                    requestedProject,
+                );
+            }
+
             if (req.method === 'GET') {
                 // Handle SSE transport for MCP
                 res.writeHead(200, {
@@ -378,6 +386,12 @@ mcpRouter.all(
                     : null;
                 const pinnedProjectUuid =
                     pinnedAgent?.projectUuid ?? requestedProjectUuid;
+                if (pinnedProjectUuid) {
+                    await mcpService.assertMcpProjectAllowed(
+                        user,
+                        pinnedProjectUuid,
+                    );
+                }
                 const parsedToolCall = legacyToolCallSchema.safeParse(req.body);
                 if (parsedToolCall.success) {
                     assertOAuthMcpToolAllowed(
@@ -446,6 +460,7 @@ mcpRouter.all(
                     scheduledDeliveryEnabled,
                     runSqlEnabled,
                     runMetricQueryEnabled,
+                    queryEnabled,
                     filterExpressionsEnabled,
                     dataAppBuildsEnabled,
                     chartTypeBuildsEnabled,
@@ -461,6 +476,11 @@ mcpRouter.all(
                     mcpService.isRunMetricQueryEnabled(
                         req.user!,
                         pinnedProjectUuid,
+                    ),
+                    mcpService.isQueryEnabled(
+                        req.user!,
+                        pinnedProjectUuid,
+                        pinnedAgent,
                     ),
                     mcpService.isFilterExpressionsEnabled(req.user!),
                     mcpService.isDataAppBuildsEnabled(
@@ -489,6 +509,7 @@ mcpRouter.all(
                         scheduledDeliveryEnabled,
                         runSqlEnabled,
                         runMetricQueryEnabled,
+                        queryEnabled,
                         filterExpressionsEnabled,
                         documentsEnabled: true,
                         dataAppBuildsEnabled,

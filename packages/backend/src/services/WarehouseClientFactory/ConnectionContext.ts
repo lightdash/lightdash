@@ -122,6 +122,7 @@ export const surfaceFromQueryContext = (
         case QueryExecutionContext.MCP_RUN_METRIC_QUERY:
         case QueryExecutionContext.MCP_RUN_SQL:
         case QueryExecutionContext.MCP_SEARCH_FIELD_VALUES:
+        case QueryExecutionContext.MCP_QUERY:
             return ConnectionSurface.MCP;
         case QueryExecutionContext.EMBED:
             return ConnectionSurface.EMBED;

@@ -25974,6 +25974,7 @@ const models: TsoaRoute.Models = {
             'mcp.run_metric_query',
             'mcp.run_sql',
             'mcp.search_field_values',
+            'mcp.query',
             'api',
             'cli',
             'metricsExplorer',
@@ -55609,6 +55610,41 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    McpProjectAccess: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        mode: {
+                            dataType: 'enum',
+                            enums: ['all'],
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        projectUuids: {
+                            dataType: 'array',
+                            array: { dataType: 'string' },
+                            required: true,
+                        },
+                        mode: {
+                            dataType: 'enum',
+                            enums: ['selected'],
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DataAppAnalysisLimits: {
         dataType: 'refAlias',
         type: {
@@ -55939,6 +55975,7 @@ const models: TsoaRoute.Models = {
                     dataType: 'boolean',
                     required: true,
                 },
+                mcpProjectAccess: { ref: 'McpProjectAccess' },
                 mcpEnabled: { dataType: 'boolean' },
                 deepResearchRawSqlEnabled: {
                     dataType: 'boolean',
@@ -56200,6 +56237,7 @@ const models: TsoaRoute.Models = {
                 dataAppRuntimeAiEnabled: { dataType: 'boolean' },
                 mcpAgentsEnabled: { dataType: 'boolean' },
                 mcpContentWritesEnabled: { dataType: 'boolean' },
+                mcpProjectAccess: { ref: 'McpProjectAccess' },
                 mcpEnabled: { dataType: 'boolean' },
                 deepResearchRawSqlEnabled: { dataType: 'boolean' },
                 deepResearchLimits: { ref: 'AiDeepResearchLimits' },
@@ -78820,6 +78858,7 @@ const models: TsoaRoute.Models = {
     AiAccessRefusalReason: {
         dataType: 'refEnum',
         enums: [
+            'mcp_project_not_allowed',
             'agent_access_disabled',
             'agent_capability_denied',
             'agent_project_denied',

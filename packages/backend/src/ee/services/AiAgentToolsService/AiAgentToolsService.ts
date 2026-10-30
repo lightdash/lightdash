@@ -149,6 +149,7 @@ import {
     AnalyzeFieldImpactFn,
     ComposerNodeStatus,
     ComposerNodeStatusUpdate,
+    ComposerRunningOutcome,
     ComposerRunOutcome,
     CreateContentFn,
     CreateScheduledDeliveryFn,
@@ -186,6 +187,7 @@ import {
     ResolveUrlFn,
     RunAsyncQueryFn,
     RunComposerQueriesFn,
+    RunComposerQueriesUntilDeadlineFn,
     RunSavedChartQueryFn,
     RunSqlChartQueryFn,
     RunSqlJobFn,
@@ -347,6 +349,7 @@ export type AiAgentToolsRuntime = {
     runSqlChartQuery: RunSqlChartQueryFn;
     runSqlJob: RunSqlJobFn;
     runComposerQueries: RunComposerQueriesFn;
+    runComposerQueriesUntilDeadline: RunComposerQueriesUntilDeadlineFn;
     listWarehouseTables: ListWarehouseTablesFn;
     describeWarehouseTable: DescribeWarehouseTableFn;
     listContent: ListContentFn;
@@ -396,6 +399,7 @@ const AGENT_RUNTIME_TOOL_NAMES = {
     runSqlChartQuery: 'runSql',
     runSqlJob: 'runSql',
     runComposerQueries: 'query',
+    runComposerQueriesUntilDeadline: 'query',
     listWarehouseTables: 'listWarehouseTables',
     describeWarehouseTable: 'describeWarehouseTable',
     listContent: 'listContent',
@@ -994,7 +998,20 @@ export class AiAgentToolsService extends BaseService {
                 this.runSavedChartQuery(context, args),
             runSqlJob: (args) => this.runSqlJob(context, args),
             runSqlChartQuery: (args) => this.runSqlChartQuery(context, args),
-            runComposerQueries: (args) =>
+            runComposerQueries: async (args) => {
+                const run = await this.runComposerQueries(context, {
+                    ...args,
+                    deadlineMs: Date.now() + 5 * 60 * 1000,
+                    timeoutMessage: 'Composer query timed out after 5 minutes.',
+                });
+                if (run.status === 'running') {
+                    throw new UnexpectedServerError(
+                        'Composer query returned running after its timeout',
+                    );
+                }
+                return run;
+            },
+            runComposerQueriesUntilDeadline: (args) =>
                 this.runComposerQueries(context, args),
             listWarehouseTables: (queryContext) =>
                 this.listWarehouseTables(context, queryContext),
@@ -4680,8 +4697,14 @@ export class AiAgentToolsService extends BaseService {
             queries,
             terminalNodeId,
             onNodeStatus,
-        }: Parameters<RunComposerQueriesFn>[0],
-    ): ReturnType<RunComposerQueriesFn> {
+            deadlineMs,
+            timeoutMessage,
+        }: Parameters<RunComposerQueriesFn>[0] & {
+            deadlineMs: number;
+            /** Fails the run at the deadline instead of returning running. */
+            timeoutMessage?: string;
+        },
+    ): ReturnType<RunComposerQueriesUntilDeadlineFn> {
         return wrapSentryTransaction(
             `${AiAgentToolsService.transactionPrefix(context)}.runComposerQueries`,
             { projectUuid: context.projectUuid, queryCount: queries.length },
@@ -4833,8 +4856,6 @@ export class AiAgentToolsService extends BaseService {
                 // Polling only the terminal node is sufficient: its execution
                 // waits on every referenced result and fails if any upstream
                 // query fails.
-                const maxWaitMs = 5 * 60 * 1000;
-                const startTime = Date.now();
 
                 // A failed run marks the nodes its status read did not settle.
                 const emitUnfinishedAsError = (message: string) => {
@@ -4855,15 +4876,24 @@ export class AiAgentToolsService extends BaseService {
 
                 let outcome: ComposerRunOutcome;
                 try {
-                    outcome = await this.pollComposerTerminal({
+                    const polled = await this.pollComposerTerminal({
                         context,
                         submissions,
                         terminalSubmission,
                         pageSize,
-                        maxWaitMs,
-                        startTime,
+                        deadlineMs,
                         pollNodeStatuses,
                     });
+                    if (polled.status === 'running') {
+                        if (timeoutMessage === undefined) return polled;
+                        outcome = await this.failComposerRun(
+                            context,
+                            submissions,
+                            timeoutMessage,
+                        );
+                    } else {
+                        outcome = polled;
+                    }
                 } catch (error) {
                     // Results fetching throws for errored queries.
                     outcome = await this.failComposerRun(
@@ -4892,8 +4922,7 @@ export class AiAgentToolsService extends BaseService {
         submissions,
         terminalSubmission,
         pageSize,
-        maxWaitMs,
-        startTime,
+        deadlineMs,
         pollNodeStatuses,
     }: {
         context: AiAgentToolsRuntimeContext;
@@ -4904,19 +4933,22 @@ export class AiAgentToolsService extends BaseService {
             ReturnType<QuerySourceService['executeSourceQueries']>
         >['queries'][number];
         pageSize: number;
-        maxWaitMs: number;
-        startTime: number;
+        deadlineMs: number;
         pollNodeStatuses: () => Promise<void>;
-    }): Promise<ComposerRunOutcome> {
+    }): Promise<ComposerRunOutcome | ComposerRunningOutcome> {
         let delayMs = 500;
         // eslint-disable-next-line no-constant-condition
         while (true) {
-            if (Date.now() - startTime > maxWaitMs) {
-                return this.failComposerRun(
-                    context,
+            if (Date.now() > deadlineMs) {
+                return {
+                    status: 'running',
                     submissions,
-                    'Composer query timed out after 5 minutes.',
-                );
+                    // eslint-disable-next-line no-await-in-loop
+                    nodeStatuses: await this.readComposerNodeStatuses(
+                        context,
+                        submissions,
+                    ).catch(() => []),
+                };
             }
 
             const queryResults =
