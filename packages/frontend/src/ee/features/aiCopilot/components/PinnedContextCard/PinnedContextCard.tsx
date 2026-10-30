@@ -16,6 +16,7 @@ import {
     getDataAppContextItemLabel,
     getThemeContextItemLabel,
 } from '../ChatElements/contentReferenceUtils';
+import { ThreadImageReference } from '../ChatElements/ThreadImageReference';
 import {
     isPlainLeftClick,
     useDataAppPreviewLink,
@@ -255,6 +256,8 @@ export const PinnedContextCard: FC<Props> = ({
                 </ContentReferenceLink>
             );
         }
+        case 'thread_image':
+            return <ThreadImageReference item={item} />;
         case 'data_app':
             return (
                 <PinnedDataAppCard

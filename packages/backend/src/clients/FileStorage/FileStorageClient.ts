@@ -50,11 +50,14 @@ export interface FileStorageClient {
         fileId: string,
     ): Promise<() => Promise<string>>;
 
-    getFileStream(fileId: string): Promise<FileStreamResult>;
+    getFileStream(
+        fileId: string,
+        options?: { abortSignal: AbortSignal },
+    ): Promise<FileStreamResult>;
 
     createUploadStream(
         fileName: string,
-        opts: { contentType: string },
+        opts: { contentType: string; abortController?: AbortController },
         attachmentDownloadName?: string,
     ): {
         write: (rows: WarehouseResults['rows']) => Promise<void>;
@@ -66,7 +69,10 @@ export interface FileStorageClient {
 
     objectExists(fileName: string): Promise<boolean>;
 
-    deleteFile(fileName: string): Promise<void>;
+    deleteFile(
+        fileName: string,
+        options?: { abortSignal: AbortSignal },
+    ): Promise<void>;
 
     isEnabled(): boolean;
 }
