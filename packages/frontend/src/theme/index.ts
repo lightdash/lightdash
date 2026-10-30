@@ -7,6 +7,7 @@ import { LD_FIELD_COLORS } from './fieldColors';
 
 export {
     DARK_MODE_COLORS,
+    isColorSchemePreference,
     type ColorScheme,
     type ColorSchemePreference,
 } from './colors';

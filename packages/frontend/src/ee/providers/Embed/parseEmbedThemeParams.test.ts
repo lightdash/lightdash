@@ -27,6 +27,16 @@ describe('iframe theme', () => {
     it('defaults to light without a theme param', () => {
         expect(parseEmbedThemeParams().theme).toBe('light');
     });
+
+    it('follows the system when the SDK flags it alongside a resolved theme', () => {
+        window.history.replaceState(
+            null,
+            '',
+            '/?theme=dark&followSystemTheme=true',
+        );
+
+        expect(parseEmbedThemeParams().theme).toBe('system');
+    });
 });
 
 describe('iframe background colors', () => {

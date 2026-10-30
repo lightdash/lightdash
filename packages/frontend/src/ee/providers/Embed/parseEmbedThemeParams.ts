@@ -1,3 +1,4 @@
+import { isColorSchemePreference } from '../../../theme';
 import { type EmbedTheme } from './types';
 
 const HEX_COLOR_REGEX = /^(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
@@ -13,12 +14,14 @@ export function parseEmbedThemeParams(): {
 } {
     const params = new URLSearchParams(window.location.search);
     const themeParam = params.get('theme');
+    // The SDK sends a resolved light|dark `theme` plus this flag, so an
+    // instance that predates `system` still gets a scheme it understands.
     const theme: EmbedTheme =
-        themeParam === 'light' ||
-        themeParam === 'dark' ||
-        themeParam === 'system'
-            ? themeParam
-            : 'light';
+        params.get('followSystemTheme') === 'true'
+            ? 'system'
+            : isColorSchemePreference(themeParam)
+              ? themeParam
+              : 'light';
     const bgParam = params.get('backgroundColor');
     if (bgParam === 'transparent') {
         return { theme, backgroundColor: 'transparent' };

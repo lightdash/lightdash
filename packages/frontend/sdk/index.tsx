@@ -88,7 +88,8 @@ import { PortalTargetContext } from '../src/providers/PortalTarget/PortalTargetC
 import ReactQueryProvider from '../src/providers/ReactQuery/ReactQueryProvider';
 import ThirdPartyServicesProvider from '../src/providers/ThirdPartyServicesProvider';
 import TrackingProvider from '../src/providers/Tracking/TrackingProvider';
-import { useResolvedColorScheme } from '../src/providers/useSystemColorScheme';
+import { useResolvedColorScheme } from '../src/providers/useResolvedColorScheme';
+import { type ColorScheme, type ColorSchemePreference } from '../src/theme';
 import { setToInMemoryStorage } from '../src/utils/inMemoryStorage';
 import {
     createLightdashApiClient,
@@ -119,7 +120,7 @@ const LIGHTDASH_SDK_VERSION_LOCAL_STORAGE_KEY = '__lightdash_sdk_version';
 type BaseProps = {
     instanceUrl: string;
     token: Promise<string> | string;
-    theme?: 'light' | 'dark' | 'system';
+    theme?: ColorSchemePreference;
     styles?: {
         backgroundColor?: string;
         fontFamily?: string;
@@ -364,6 +365,7 @@ const getAiAgentEmbedUrl = ({
     projectUuid,
     targetOrigin,
     theme,
+    followSystemTheme,
     threadSetup,
     threadUuid,
     token,
@@ -373,7 +375,8 @@ const getAiAgentEmbedUrl = ({
     instanceUrl: string;
     projectUuid: string;
     targetOrigin?: string;
-    theme: AiAgentProps['theme'];
+    theme: ColorScheme | undefined;
+    followSystemTheme: boolean;
     threadSetup: EmbedAiAgentThreadSetup | null;
     threadUuid?: string;
     token: string;
@@ -386,6 +389,9 @@ const getAiAgentEmbedUrl = ({
 
     if (theme) {
         url.searchParams.set('theme', theme);
+    }
+    if (followSystemTheme) {
+        url.searchParams.set('followSystemTheme', 'true');
     }
     if (targetOrigin) {
         url.searchParams.set('targetOrigin', targetOrigin);
@@ -474,7 +480,7 @@ const SDK_BUNDLE_ID = Math.random().toString(36).slice(2, 8);
 const SdkProviders: FC<
     PropsWithChildren<{
         styles?: { backgroundColor?: string; fontFamily?: string };
-        theme?: 'light' | 'dark' | 'system';
+        theme?: ColorSchemePreference;
         token: string;
         projectUuid?: string;
         // Starts the router here and leaves routing to the children
@@ -1109,6 +1115,12 @@ const IframeAiAgent: FC<Omit<AiAgentProps, 'renderMode'>> = ({
             ? window.location.origin
             : undefined;
 
+    const resolvedTheme = useResolvedColorScheme(theme ?? 'light');
+    // Frozen at mount: a changing src would reload the iframe, and the
+    // instance follows later OS changes itself via `followSystemTheme`.
+    const [iframeTheme] = useState<ColorScheme | undefined>(() =>
+        theme === undefined ? undefined : resolvedTheme,
+    );
     useEffect(() => {
         if (!tokenContext || !onEvent) {
             return undefined;
@@ -1171,7 +1183,8 @@ const IframeAiAgent: FC<Omit<AiAgentProps, 'renderMode'>> = ({
                 instanceUrl,
                 projectUuid: tokenContext.projectUuid,
                 targetOrigin,
-                theme,
+                theme: iframeTheme,
+                followSystemTheme: theme === 'system',
                 threadSetup,
                 threadUuid,
                 token: tokenContext.token,

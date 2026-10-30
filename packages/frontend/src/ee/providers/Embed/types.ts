@@ -7,6 +7,7 @@ import {
     type UiStringKey,
     type UUID,
 } from '@lightdash/common';
+import { type ColorSchemePreference } from '../../../theme';
 import { type SdkFilter } from '../../features/embed/EmbedDashboard/types';
 import {
     type ChartSavedAction,
@@ -16,7 +17,7 @@ import { type EmbedAiAgentThreadSetup } from './embedAiAgentThreadSetup';
 
 export const EMBED_KEY = 'lightdash-embed';
 
-export type EmbedTheme = 'light' | 'dark' | 'system';
+export type EmbedTheme = ColorSchemePreference;
 
 export type InMemoryEmbed = {
     projectUuid?: string;

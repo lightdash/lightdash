@@ -2,15 +2,19 @@ import { type MantineThemeOverride } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
 import { Notifications } from '@mantine/notifications';
 import { useEffect, useMemo, type FC } from 'react';
-import { type ColorSchemePreference } from '../theme';
-import { ColorSchemeContext } from './ColorSchemeContext';
-import MantineBaseProvider from './MantineBaseProvider';
 import {
     isColorSchemePreference,
-    useResolvedColorScheme,
-} from './useSystemColorScheme';
+    type ColorScheme,
+    type ColorSchemePreference,
+} from '../theme';
+import { ColorSchemeContext } from './ColorSchemeContext';
+import MantineBaseProvider from './MantineBaseProvider';
+import { useResolvedColorScheme } from './useResolvedColorScheme';
 
-const COLOR_SCHEME_STORAGE_KEY = 'color-scheme';
+// Older builds read `color-scheme` and only understand light|dark, so the
+// resolved scheme keeps living there and the preference gets its own key.
+const RESOLVED_SCHEME_STORAGE_KEY = 'color-scheme';
+const PREFERENCE_STORAGE_KEY = 'color-scheme-preference';
 
 type Props = {
     themeOverride?: MantineThemeOverride;
@@ -35,12 +39,17 @@ const MantineProvider: FC<React.PropsWithChildren<Props>> = ({
     getRootElement,
     syncBodyColorMode = true,
 }) => {
+    const [storedScheme, setStoredScheme] = useLocalStorage<ColorScheme>({
+        key: RESOLVED_SCHEME_STORAGE_KEY,
+        defaultValue: 'light',
+        getInitialValueInEffect: false,
+    });
     const [storedPreference, setStoredPreference] =
         useLocalStorage<ColorSchemePreference>({
-            key: COLOR_SCHEME_STORAGE_KEY,
-            defaultValue: 'light',
+            key: PREFERENCE_STORAGE_KEY,
+            defaultValue: storedScheme,
+            getInitialValueInEffect: false,
         });
-    // Guard against hand-edited or legacy storage values.
     const storedColorSchemePreference = isColorSchemePreference(
         storedPreference,
     )
@@ -50,6 +59,11 @@ const MantineProvider: FC<React.PropsWithChildren<Props>> = ({
     const colorSchemePreference =
         forceColorScheme ?? storedColorSchemePreference;
     const colorScheme = useResolvedColorScheme(colorSchemePreference);
+
+    useEffect(() => {
+        if (forceColorScheme || storedScheme === colorScheme) return;
+        setStoredScheme(colorScheme);
+    }, [colorScheme, forceColorScheme, setStoredScheme, storedScheme]);
 
     const colorSchemeContextValue = useMemo(
         () => ({

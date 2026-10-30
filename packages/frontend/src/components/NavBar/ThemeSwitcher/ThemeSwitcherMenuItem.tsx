@@ -1,40 +1,37 @@
 import { Group, Menu, SegmentedControl } from '@mantine/core';
 import { IconBrightness } from '@tabler/icons-react';
-import { type ColorSchemePreference } from '../../../theme';
+import {
+    isColorSchemePreference,
+    type ColorSchemePreference,
+} from '../../../theme';
 import MantineIcon from '../../common/MantineIcon';
-import classes from './ThemeSwitcher.module.css';
-import { useThemeToggle } from './useThemeToggle';
+import { useThemePreference } from './useThemePreference';
 
-const OPTIONS: { value: ColorSchemePreference; label: string }[] = [
+const THEME_OPTIONS: { value: ColorSchemePreference; label: string }[] = [
     { value: 'light', label: 'Light' },
     { value: 'dark', label: 'Dark' },
     { value: 'system', label: 'System' },
 ];
 
-const isPreference = (value: string): value is ColorSchemePreference =>
-    OPTIONS.some((option) => option.value === value);
-
 export const ThemeSwitcherMenuItem = () => {
-    const { colorSchemePreference, handleThemeChange } = useThemeToggle();
+    const { colorSchemePreference, handleThemeChange } = useThemePreference();
 
     return (
         <>
             <Group p="xs" gap="xs" wrap="nowrap">
                 <MantineIcon icon={IconBrightness} color="text" />
                 <SegmentedControl
+                    variant="raised"
                     size="xs"
                     fullWidth
                     aria-label="Theme"
                     value={colorSchemePreference}
                     onChange={(value) => {
-                        if (isPreference(value)) handleThemeChange(value);
+                        if (isColorSchemePreference(value)) {
+                            handleThemeChange(value);
+                        }
                     }}
-                    data={OPTIONS}
-                    classNames={{
-                        root: classes.switcherRoot,
-                        indicator: classes.switcherIndicator,
-                        label: classes.switcherLabel,
-                    }}
+                    data={THEME_OPTIONS}
                 />
             </Group>
             <Menu.Divider />

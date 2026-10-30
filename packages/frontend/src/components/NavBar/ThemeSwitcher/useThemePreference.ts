@@ -5,7 +5,7 @@ import useTracking from '../../../providers/Tracking/useTracking';
 import { type ColorSchemePreference } from '../../../theme';
 import { EventName } from '../../../types/Events';
 
-export const useThemeToggle = () => {
+export const useThemePreference = () => {
     const { data: account } = useAccount();
     const { organizationUuid } = account?.organization || {};
     const projectUuid = useProjectUuid();
