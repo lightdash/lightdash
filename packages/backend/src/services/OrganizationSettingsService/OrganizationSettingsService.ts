@@ -33,7 +33,6 @@ export class OrganizationSettingsService extends BaseService {
 
     private readonly organizationSettingsModel: OrganizationSettingsModel;
 
-
     constructor({
         lightdashConfig,
         organizationSettingsModel,
