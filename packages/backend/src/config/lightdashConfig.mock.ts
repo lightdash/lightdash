@@ -409,9 +409,6 @@ export const lightdashConfigMock: LightdashConfig = {
     microsoftTeams: {
         enabled: false,
     },
-    organizationWarehouseCredentials: {
-        enabled: false,
-    },
     athenaWarehouseIamRoleAuth: {
         enabled: false,
     },

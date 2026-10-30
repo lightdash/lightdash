@@ -127,7 +127,6 @@ import { McpService } from './services/McpService/McpService';
 import { MobilePushNotificationReconciler } from './services/MobilePushNotificationService/MobilePushNotificationReconciler';
 import { MobilePushNotificationService } from './services/MobilePushNotificationService/MobilePushNotificationService';
 import { OnboardingAgentService } from './services/OnboardingAgentService/OnboardingAgentService';
-import { provisionOnboardingOrgFlags } from './services/OrganizationService/provisionOnboardingOrgFlags';
 import { OrganizationWarehouseCredentialsService } from './services/OrganizationWarehouseCredentialsService';
 import { ProjectContextService } from './services/ProjectContextService/ProjectContextService';
 import { ProjectHomepageService } from './services/ProjectHomepageService';
@@ -938,6 +937,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     aiRouterModel: models.getAiRouterModel<AiRouterModel>(),
                     aiAgentService:
                         repository.getAiAgentService<AiAgentService>(),
+                    dashboardService: repository.getDashboardService(),
+                    savedChartService: repository.getSavedChartService(),
                     orgAiCopilotConfigResolver: new OrgAiCopilotConfigResolver({
                         lightdashConfig: context.lightdashConfig,
                         featureFlagModel: models.getFeatureFlagModel(),
@@ -1241,14 +1242,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     rolesModel: models.getRolesModel(),
                     organizationSettingsModel:
                         models.getOrganizationSettingsModel(),
-                    onOrganizationCreated: ({ user, organizationUuid }) =>
-                        provisionOnboardingOrgFlags({
-                            user,
-                            organizationUuid,
-                            featureFlagService:
-                                repository.getFeatureFlagService(),
-                            analytics: context.lightdashAnalytics,
-                        }),
                 }),
             organizationWarehouseCredentialsService: ({ models, context }) =>
                 new OrganizationWarehouseCredentialsService({

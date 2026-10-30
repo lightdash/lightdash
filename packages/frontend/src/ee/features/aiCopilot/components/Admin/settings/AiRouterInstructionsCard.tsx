@@ -180,10 +180,10 @@ export const AiRouterInstructionsCard: FC = () => {
                     Routing instructions
                 </Title>
                 <Text c="dimmed" fz="xs">
-                    Tell the router how to direct questions for a project. For
-                    example, send billing questions to a specific agent. Type @
-                    to tag an agent. Rules guide the router but never override
-                    an agent's access restrictions.
+                    Tell the router how to direct questions for a project. Type
+                    @ to tag an agent. The router sees the question, the
+                    dashboard or chart it was asked from, and each agent's
+                    setup. Rules never override an agent's access restrictions.
                 </Text>
             </Box>
 

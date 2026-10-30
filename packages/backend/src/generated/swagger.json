@@ -1521,6 +1521,71 @@
                 "required": ["sync"],
                 "type": "object"
             },
+            "ContentAsCodeSnapshotPruneResult": {
+                "properties": {
+                    "dashboards": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "sqlCharts": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "charts": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["dashboards", "sqlCharts", "charts"],
+                "type": "object"
+            },
+            "ApiContentAsCodeSnapshotPruneResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ContentAsCodeSnapshotPruneResult"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ContentAsCodeSnapshotPrune": {
+                "properties": {
+                    "dashboards": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "sqlCharts": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "charts": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "path": {
+                        "type": "string"
+                    }
+                },
+                "required": ["dashboards", "sqlCharts", "charts", "path"],
+                "type": "object"
+            },
             "ParameterValue": {
                 "anyOf": [
                     {
@@ -25527,8 +25592,472 @@
             "ApiAiRouterRouteResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_AiRouterRouteResponseResult_"
             },
+            "AiChartRuntimeOverrides": {
+                "properties": {
+                    "dateZoom": {
+                        "$ref": "#/components/schemas/DateZoom"
+                    },
+                    "dashboardParameters": {
+                        "$ref": "#/components/schemas/ParametersValuesMap"
+                    },
+                    "dashboardFilters": {
+                        "$ref": "#/components/schemas/DashboardFilters"
+                    }
+                },
+                "type": "object",
+                "description": "Runtime state captured at pin time for a chart context. When a user pins a\nchart from a dashboard view, these are the dashboard-level overrides that\nwere applied to the chart on screen at that moment."
+            },
+            "AiDashboardActiveTab": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name", "uuid"],
+                "type": "object"
+            },
+            "Pick_DashboardFilterRule.Exclude_keyofDashboardFilterRule.id-or-tileTargets-or-lockedTabUuids-or-requiredGroupId-or-sectionId__": {
+                "properties": {
+                    "target": {
+                        "$ref": "#/components/schemas/DashboardFieldTarget",
+                        "description": "Target field for the filter"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "settings": {
+                        "description": "Additional settings for date/time filters"
+                    },
+                    "disabled": {
+                        "type": "boolean",
+                        "description": "Whether this filter is disabled"
+                    },
+                    "required": {
+                        "type": "boolean",
+                        "description": "Whether this filter is required"
+                    },
+                    "caseSensitive": {
+                        "type": "boolean",
+                        "description": "Overrides the field/explore case-sensitivity for this rule only.\nUsed by internal features like autocomplete search that must always\nmatch case-insensitively regardless of the field's configured setting."
+                    },
+                    "operator": {
+                        "$ref": "#/components/schemas/FilterOperator",
+                        "description": "Filter operator"
+                    },
+                    "values": {
+                        "items": {},
+                        "type": "array",
+                        "description": "Values to filter by"
+                    },
+                    "includeNull": {
+                        "type": "boolean",
+                        "description": "For the `equals` operator on string fields, also match rows where the\nfield is null (compiles to `field IN (...) OR field IS NULL`). Lets users\ncombine null with selected values in a single \"is\" rule."
+                    },
+                    "singleValue": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["target", "operator"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_DashboardFilterRule.id-or-tileTargets-or-lockedTabUuids-or-requiredGroupId-or-sectionId_": {
+                "$ref": "#/components/schemas/Pick_DashboardFilterRule.Exclude_keyofDashboardFilterRule.id-or-tileTargets-or-lockedTabUuids-or-requiredGroupId-or-sectionId__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "AiDashboardFilterRule": {
+                "$ref": "#/components/schemas/Omit_DashboardFilterRule.id-or-tileTargets-or-lockedTabUuids-or-requiredGroupId-or-sectionId_"
+            },
+            "AiDashboardFilters": {
+                "properties": {
+                    "tableCalculations": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiDashboardFilterRule"
+                        },
+                        "type": "array"
+                    },
+                    "metrics": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiDashboardFilterRule"
+                        },
+                        "type": "array"
+                    },
+                    "dimensions": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiDashboardFilterRule"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["tableCalculations", "metrics", "dimensions"],
+                "type": "object"
+            },
+            "AiDashboardRuntimeOverrides": {
+                "properties": {
+                    "dateZoom": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DateZoom"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "dashboardParameters": {
+                        "$ref": "#/components/schemas/ParametersValuesMap"
+                    },
+                    "dashboardFilters": {
+                        "$ref": "#/components/schemas/AiDashboardFilters"
+                    },
+                    "activeTab": {
+                        "$ref": "#/components/schemas/AiDashboardActiveTab"
+                    }
+                },
+                "type": "object"
+            },
+            "AiPromptContextItemInput": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "runtimeOverrides": {
+                                "$ref": "#/components/schemas/AiChartRuntimeOverrides"
+                            },
+                            "chartSlug": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "chartUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["chart"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["chartUuid", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "runtimeOverrides": {
+                                "$ref": "#/components/schemas/AiDashboardRuntimeOverrides"
+                            },
+                            "dashboardSlug": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "dashboardUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["dashboard"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["dashboardUuid", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "promptUuid": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "threadUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["thread"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["threadUuid", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "path": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["file"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["path", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "fullName": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["repository"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["fullName", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "sourceUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["external_source"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["sourceUuid", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "fileUuid": {
+                                "$ref": "#/components/schemas/UUID"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["thread_file"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["fileUuid", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "prUrl": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["pull_request"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["prUrl", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "fingerprint": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["proposed_change"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["fingerprint", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "fingerprint": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["review_finding"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["fingerprint", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "previewProjectUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["preview_environment"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["previewProjectUuid", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "loc": {
+                                "type": "string"
+                            },
+                            "text": {
+                                "type": "string"
+                            },
+                            "tag": {
+                                "type": "string"
+                            },
+                            "version": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "appUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["data_app_element"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "loc",
+                            "text",
+                            "tag",
+                            "version",
+                            "appUuid",
+                            "type"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "nodeId": {
+                                "type": "string"
+                            },
+                            "versionUuid": {
+                                "type": "string"
+                            },
+                            "artifactUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["composer_node"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "nodeId",
+                            "versionUuid",
+                            "artifactUuid",
+                            "type"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "restoredFromVersion": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "version": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "appUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["data_app_restore"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "restoredFromVersion",
+                            "version",
+                            "appUuid",
+                            "type"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "appSlug": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "appUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["data_app"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["appUuid", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "documentSlug": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "documentUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["document"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["documentUuid", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "designUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["design"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["designUuid", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "arguments": {
+                                "type": "string"
+                            },
+                            "name": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["skill"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["arguments", "name", "type"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "AiPromptContextInput": {
+                "items": {
+                    "$ref": "#/components/schemas/AiPromptContextItemInput"
+                },
+                "type": "array"
+            },
             "AiRouterRouteRequest": {
                 "properties": {
+                    "context": {
+                        "$ref": "#/components/schemas/AiPromptContextInput",
+                        "description": "Content pinned to the prompt, so the router knows where the question is asked from."
+                    },
                     "projectUuid": {
                         "type": "string"
                     },
@@ -32320,131 +32849,6 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "AiChartRuntimeOverrides": {
-                "properties": {
-                    "dateZoom": {
-                        "$ref": "#/components/schemas/DateZoom"
-                    },
-                    "dashboardParameters": {
-                        "$ref": "#/components/schemas/ParametersValuesMap"
-                    },
-                    "dashboardFilters": {
-                        "$ref": "#/components/schemas/DashboardFilters"
-                    }
-                },
-                "type": "object",
-                "description": "Runtime state captured at pin time for a chart context. When a user pins a\nchart from a dashboard view, these are the dashboard-level overrides that\nwere applied to the chart on screen at that moment."
-            },
-            "AiDashboardActiveTab": {
-                "properties": {
-                    "name": {
-                        "type": "string"
-                    },
-                    "uuid": {
-                        "type": "string"
-                    }
-                },
-                "required": ["name", "uuid"],
-                "type": "object"
-            },
-            "Pick_DashboardFilterRule.Exclude_keyofDashboardFilterRule.id-or-tileTargets-or-lockedTabUuids-or-requiredGroupId-or-sectionId__": {
-                "properties": {
-                    "target": {
-                        "$ref": "#/components/schemas/DashboardFieldTarget",
-                        "description": "Target field for the filter"
-                    },
-                    "label": {
-                        "type": "string"
-                    },
-                    "settings": {
-                        "description": "Additional settings for date/time filters"
-                    },
-                    "disabled": {
-                        "type": "boolean",
-                        "description": "Whether this filter is disabled"
-                    },
-                    "required": {
-                        "type": "boolean",
-                        "description": "Whether this filter is required"
-                    },
-                    "caseSensitive": {
-                        "type": "boolean",
-                        "description": "Overrides the field/explore case-sensitivity for this rule only.\nUsed by internal features like autocomplete search that must always\nmatch case-insensitively regardless of the field's configured setting."
-                    },
-                    "operator": {
-                        "$ref": "#/components/schemas/FilterOperator",
-                        "description": "Filter operator"
-                    },
-                    "values": {
-                        "items": {},
-                        "type": "array",
-                        "description": "Values to filter by"
-                    },
-                    "includeNull": {
-                        "type": "boolean",
-                        "description": "For the `equals` operator on string fields, also match rows where the\nfield is null (compiles to `field IN (...) OR field IS NULL`). Lets users\ncombine null with selected values in a single \"is\" rule."
-                    },
-                    "singleValue": {
-                        "type": "boolean"
-                    }
-                },
-                "required": ["target", "operator"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "Omit_DashboardFilterRule.id-or-tileTargets-or-lockedTabUuids-or-requiredGroupId-or-sectionId_": {
-                "$ref": "#/components/schemas/Pick_DashboardFilterRule.Exclude_keyofDashboardFilterRule.id-or-tileTargets-or-lockedTabUuids-or-requiredGroupId-or-sectionId__",
-                "description": "Construct a type with the properties of T except for those in type K."
-            },
-            "AiDashboardFilterRule": {
-                "$ref": "#/components/schemas/Omit_DashboardFilterRule.id-or-tileTargets-or-lockedTabUuids-or-requiredGroupId-or-sectionId_"
-            },
-            "AiDashboardFilters": {
-                "properties": {
-                    "tableCalculations": {
-                        "items": {
-                            "$ref": "#/components/schemas/AiDashboardFilterRule"
-                        },
-                        "type": "array"
-                    },
-                    "metrics": {
-                        "items": {
-                            "$ref": "#/components/schemas/AiDashboardFilterRule"
-                        },
-                        "type": "array"
-                    },
-                    "dimensions": {
-                        "items": {
-                            "$ref": "#/components/schemas/AiDashboardFilterRule"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": ["tableCalculations", "metrics", "dimensions"],
-                "type": "object"
-            },
-            "AiDashboardRuntimeOverrides": {
-                "properties": {
-                    "dateZoom": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/DateZoom"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "dashboardParameters": {
-                        "$ref": "#/components/schemas/ParametersValuesMap"
-                    },
-                    "dashboardFilters": {
-                        "$ref": "#/components/schemas/AiDashboardFilters"
-                    },
-                    "activeTab": {
-                        "$ref": "#/components/schemas/AiDashboardActiveTab"
-                    }
-                },
-                "type": "object"
-            },
             "AiPromptExternalSourceTable": {
                 "properties": {
                     "displayName": {
@@ -37030,341 +37434,6 @@
             },
             "ApiAiAgentThreadCreateResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_AiAgentThreadSummary_"
-            },
-            "AiPromptContextItemInput": {
-                "anyOf": [
-                    {
-                        "properties": {
-                            "runtimeOverrides": {
-                                "$ref": "#/components/schemas/AiChartRuntimeOverrides"
-                            },
-                            "chartSlug": {
-                                "type": "string",
-                                "nullable": true
-                            },
-                            "chartUuid": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["chart"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["chartUuid", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "runtimeOverrides": {
-                                "$ref": "#/components/schemas/AiDashboardRuntimeOverrides"
-                            },
-                            "dashboardSlug": {
-                                "type": "string",
-                                "nullable": true
-                            },
-                            "dashboardUuid": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["dashboard"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["dashboardUuid", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "promptUuid": {
-                                "type": "string",
-                                "nullable": true
-                            },
-                            "threadUuid": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["thread"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["threadUuid", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "path": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["file"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["path", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "fullName": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["repository"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["fullName", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "sourceUuid": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["external_source"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["sourceUuid", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "fileUuid": {
-                                "$ref": "#/components/schemas/UUID"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["thread_file"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["fileUuid", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "prUrl": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["pull_request"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["prUrl", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "fingerprint": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["proposed_change"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["fingerprint", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "fingerprint": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["review_finding"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["fingerprint", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "previewProjectUuid": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["preview_environment"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["previewProjectUuid", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "loc": {
-                                "type": "string"
-                            },
-                            "text": {
-                                "type": "string"
-                            },
-                            "tag": {
-                                "type": "string"
-                            },
-                            "version": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "appUuid": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["data_app_element"],
-                                "nullable": false
-                            }
-                        },
-                        "required": [
-                            "loc",
-                            "text",
-                            "tag",
-                            "version",
-                            "appUuid",
-                            "type"
-                        ],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "nodeId": {
-                                "type": "string"
-                            },
-                            "versionUuid": {
-                                "type": "string"
-                            },
-                            "artifactUuid": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["composer_node"],
-                                "nullable": false
-                            }
-                        },
-                        "required": [
-                            "nodeId",
-                            "versionUuid",
-                            "artifactUuid",
-                            "type"
-                        ],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "restoredFromVersion": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "version": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "appUuid": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["data_app_restore"],
-                                "nullable": false
-                            }
-                        },
-                        "required": [
-                            "restoredFromVersion",
-                            "version",
-                            "appUuid",
-                            "type"
-                        ],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "appSlug": {
-                                "type": "string",
-                                "nullable": true
-                            },
-                            "appUuid": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["data_app"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["appUuid", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "documentSlug": {
-                                "type": "string",
-                                "nullable": true
-                            },
-                            "documentUuid": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["document"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["documentUuid", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "designUuid": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["design"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["designUuid", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "arguments": {
-                                "type": "string"
-                            },
-                            "name": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["skill"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["arguments", "name", "type"],
-                        "type": "object"
-                    }
-                ]
-            },
-            "AiPromptContextInput": {
-                "items": {
-                    "$ref": "#/components/schemas/AiPromptContextItemInput"
-                },
-                "type": "array"
             },
             "ApiAiAgentThreadCreateRequest": {
                 "properties": {
@@ -50545,6 +50614,38 @@
             "UpdateAiReviewJiraDestination": {
                 "$ref": "#/components/schemas/Pick_AiReviewJiraDestination.enabled-or-jiraProjectId-or-jiraIssueTypeId_"
             },
+            "McpProjectAccess": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "mode": {
+                                "type": "string",
+                                "enum": ["all"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["mode"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "projectUuids": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "mode": {
+                                "type": "string",
+                                "enum": ["selected"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["projectUuids", "mode"],
+                        "type": "object"
+                    }
+                ]
+            },
             "DataAppAnalysisLimits": {
                 "properties": {
                     "dailyPromptCap": {
@@ -50790,6 +50891,9 @@
                     },
                     "mcpContentWritesEnabled": {
                         "type": "boolean"
+                    },
+                    "mcpProjectAccess": {
+                        "$ref": "#/components/schemas/McpProjectAccess"
                     },
                     "mcpEnabled": {
                         "type": "boolean"
@@ -51060,6 +51164,9 @@
                     },
                     "mcpContentWritesEnabled": {
                         "type": "boolean"
+                    },
+                    "mcpProjectAccess": {
+                        "$ref": "#/components/schemas/McpProjectAccess"
                     },
                     "mcpEnabled": {
                         "type": "boolean"
@@ -62851,190 +62958,6 @@
             "UpdateOrganization": {
                 "$ref": "#/components/schemas/Partial_Omit_Organization.organizationUuid-or-needsProject__"
             },
-            "OrganizationBrandLogo": {
-                "properties": {
-                    "format": {
-                        "type": "string",
-                        "nullable": true,
-                        "description": "File format, e.g. 'svg', 'png', 'jpeg'"
-                    },
-                    "url": {
-                        "type": "string"
-                    },
-                    "theme": {
-                        "type": "string",
-                        "nullable": true,
-                        "description": "Colour of the artwork itself: 'light' is a light/white logo (for dark\nbackgrounds), 'dark' is a dark logo (for light backgrounds)."
-                    },
-                    "type": {
-                        "type": "string",
-                        "description": "Brandfetch logo type, e.g. 'logo', 'symbol', 'icon', 'other'"
-                    }
-                },
-                "required": ["format", "url", "theme", "type"],
-                "type": "object",
-                "description": "Brand profile fetched from the Brandfetch Brand API and stored on the\norganization. https://docs.brandfetch.com/reference/brand-api"
-            },
-            "OrganizationBrandColor": {
-                "properties": {
-                    "brightness": {
-                        "type": "number",
-                        "format": "double",
-                        "nullable": true
-                    },
-                    "type": {
-                        "type": "string",
-                        "description": "Brandfetch color type, e.g. 'accent', 'brand', 'dark', 'light'"
-                    },
-                    "hex": {
-                        "type": "string"
-                    }
-                },
-                "required": ["brightness", "type", "hex"],
-                "type": "object"
-            },
-            "OrganizationBrandFont": {
-                "properties": {
-                    "origin": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "type": {
-                        "type": "string",
-                        "description": "Brandfetch font type, e.g. 'title' or 'body'"
-                    },
-                    "name": {
-                        "type": "string"
-                    }
-                },
-                "required": ["origin", "type", "name"],
-                "type": "object"
-            },
-            "OrganizationBrand": {
-                "properties": {
-                    "updatedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "fonts": {
-                        "items": {
-                            "$ref": "#/components/schemas/OrganizationBrandFont"
-                        },
-                        "type": "array"
-                    },
-                    "colors": {
-                        "items": {
-                            "$ref": "#/components/schemas/OrganizationBrandColor"
-                        },
-                        "type": "array"
-                    },
-                    "logos": {
-                        "items": {
-                            "$ref": "#/components/schemas/OrganizationBrandLogo"
-                        },
-                        "type": "array"
-                    },
-                    "description": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "name": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "domain": {
-                        "type": "string",
-                        "description": "Domain the brand was fetched for, e.g. 'acme.com'"
-                    },
-                    "organizationUuid": {
-                        "type": "string",
-                        "format": "uuid"
-                    }
-                },
-                "required": [
-                    "updatedAt",
-                    "fonts",
-                    "colors",
-                    "logos",
-                    "description",
-                    "name",
-                    "domain",
-                    "organizationUuid"
-                ],
-                "type": "object"
-            },
-            "ApiOrganizationBrandResponse": {
-                "properties": {
-                    "results": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/OrganizationBrand"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "UpdateOrganizationBrandRequest": {
-                "properties": {
-                    "domain": {
-                        "type": "string",
-                        "description": "Company domain or website URL, e.g. 'acme.com'"
-                    }
-                },
-                "required": ["domain"],
-                "type": "object"
-            },
-            "SaveOrganizationBrandRequest": {
-                "properties": {
-                    "fonts": {
-                        "items": {
-                            "$ref": "#/components/schemas/OrganizationBrandFont"
-                        },
-                        "type": "array"
-                    },
-                    "colors": {
-                        "items": {
-                            "$ref": "#/components/schemas/OrganizationBrandColor"
-                        },
-                        "type": "array"
-                    },
-                    "logos": {
-                        "items": {
-                            "$ref": "#/components/schemas/OrganizationBrandLogo"
-                        },
-                        "type": "array"
-                    },
-                    "description": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "name": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "domain": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "fonts",
-                    "colors",
-                    "logos",
-                    "description",
-                    "name",
-                    "domain"
-                ],
-                "type": "object",
-                "description": "The editable brand payload persisted when the user saves their brand\nappearance. Unlike a fetch, this does not call Brandfetch — it stores the\nvalues exactly as edited in the settings form."
-            },
             "OrganizationProject": {
                 "properties": {
                     "provisioningSource": {
@@ -64157,6 +64080,217 @@
                     }
                 },
                 "required": ["impersonationEnabled"],
+                "type": "object"
+            },
+            "OrganizationBrandLogo": {
+                "properties": {
+                    "format": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "File format, e.g. 'svg', 'png', 'jpeg'"
+                    },
+                    "url": {
+                        "type": "string"
+                    },
+                    "theme": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Colour of the artwork itself: 'light' is a light/white logo (for dark\nbackgrounds), 'dark' is a dark logo (for light backgrounds)."
+                    },
+                    "type": {
+                        "type": "string",
+                        "description": "Brandfetch logo type, e.g. 'logo', 'symbol', 'icon', 'other'"
+                    }
+                },
+                "required": ["format", "url", "theme", "type"],
+                "type": "object",
+                "description": "Brand profile fetched from the Brandfetch Brand API and stored on the\norganization. https://docs.brandfetch.com/reference/brand-api"
+            },
+            "OrganizationBrandColor": {
+                "properties": {
+                    "brightness": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "type": {
+                        "type": "string",
+                        "description": "Brandfetch color type, e.g. 'accent', 'brand', 'dark', 'light'"
+                    },
+                    "hex": {
+                        "type": "string"
+                    }
+                },
+                "required": ["brightness", "type", "hex"],
+                "type": "object"
+            },
+            "OrganizationBrandFont": {
+                "properties": {
+                    "origin": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "type": {
+                        "type": "string",
+                        "description": "Brandfetch font type, e.g. 'title' or 'body'"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["origin", "type", "name"],
+                "type": "object"
+            },
+            "OrganizationBrand": {
+                "properties": {
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "fonts": {
+                        "items": {
+                            "$ref": "#/components/schemas/OrganizationBrandFont"
+                        },
+                        "type": "array"
+                    },
+                    "colors": {
+                        "items": {
+                            "$ref": "#/components/schemas/OrganizationBrandColor"
+                        },
+                        "type": "array"
+                    },
+                    "logos": {
+                        "items": {
+                            "$ref": "#/components/schemas/OrganizationBrandLogo"
+                        },
+                        "type": "array"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "domain": {
+                        "type": "string",
+                        "description": "Domain the brand was fetched for, e.g. 'acme.com'"
+                    },
+                    "organizationUuid": {
+                        "type": "string",
+                        "format": "uuid"
+                    }
+                },
+                "required": [
+                    "updatedAt",
+                    "fonts",
+                    "colors",
+                    "logos",
+                    "description",
+                    "name",
+                    "domain",
+                    "organizationUuid"
+                ],
+                "type": "object"
+            },
+            "ApiOrganizationBrandResponse": {
+                "properties": {
+                    "results": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/OrganizationBrand"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "UpdateOrganizationBrandRequest": {
+                "properties": {
+                    "domain": {
+                        "type": "string",
+                        "description": "Company domain or website URL, e.g. 'acme.com'"
+                    }
+                },
+                "required": ["domain"],
+                "type": "object"
+            },
+            "SaveOrganizationBrandRequest": {
+                "properties": {
+                    "fonts": {
+                        "items": {
+                            "$ref": "#/components/schemas/OrganizationBrandFont"
+                        },
+                        "type": "array"
+                    },
+                    "colors": {
+                        "items": {
+                            "$ref": "#/components/schemas/OrganizationBrandColor"
+                        },
+                        "type": "array"
+                    },
+                    "logos": {
+                        "items": {
+                            "$ref": "#/components/schemas/OrganizationBrandLogo"
+                        },
+                        "type": "array"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "domain": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "fonts",
+                    "colors",
+                    "logos",
+                    "description",
+                    "name",
+                    "domain"
+                ],
+                "type": "object",
+                "description": "The editable brand payload persisted when the user saves their brand\nappearance. Unlike a fetch, this does not call Brandfetch — it stores the\nvalues exactly as edited in the settings form."
+            },
+            "OrganizationBrandLogoUpload": {
+                "properties": {
+                    "format": {
+                        "type": "string",
+                        "enum": ["png", "jpeg", "webp", "gif", "svg"]
+                    },
+                    "url": {
+                        "type": "string"
+                    }
+                },
+                "required": ["format", "url"],
+                "type": "object"
+            },
+            "ApiOrganizationBrandLogoUploadResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/OrganizationBrandLogoUpload"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
                 "type": "object"
             },
             "NotificationBase": {
@@ -73891,6 +74025,7 @@
             },
             "AiAccessRefusalReason": {
                 "enum": [
+                    "mcp_project_not_allowed",
                     "agent_access_disabled",
                     "agent_capability_denied",
                     "agent_project_denied",
@@ -74447,7 +74582,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.107.0",
+        "version": "3.114.2",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -75326,6 +75461,57 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/code/snapshots/prune": {
+            "post": {
+                "operationId": "pruneContentAsCodeSnapshots",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiContentAsCodeSnapshotPruneResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Called by the CLI after a full upload of a directory so content whose\nfile was removed from the repo stops being Git-managed.",
+                "summary": "Prune content-as-code snapshots",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ContentAsCodeSnapshotPrune"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/projects/{projectUuid}/code/charts": {
@@ -105453,124 +105639,6 @@
                 }
             }
         },
-        "/api/v1/org/brand": {
-            "get": {
-                "operationId": "GetOrganizationBrand",
-                "responses": {
-                    "200": {
-                        "description": "Ok",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiOrganizationBrandResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Get the organization's brand profile, previously fetched from Brandfetch.\nReturns null if no brand profile has been fetched yet.",
-                "summary": "Get organization brand",
-                "tags": ["Organizations"],
-                "security": [],
-                "parameters": []
-            },
-            "put": {
-                "operationId": "SaveOrganizationBrand",
-                "responses": {
-                    "200": {
-                        "description": "Ok",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiOrganizationBrandResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Save the organization's brand appearance as edited by the user. Stores the\nprovided colors, logos, fonts and domain as-is without calling Brandfetch.",
-                "summary": "Save organization brand",
-                "tags": ["Organizations"],
-                "security": [],
-                "parameters": [],
-                "requestBody": {
-                    "description": "the brand appearance to persist",
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/SaveOrganizationBrandRequest",
-                                "description": "the brand appearance to persist"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/org/brand/fetch": {
-            "post": {
-                "operationId": "FetchOrganizationBrand",
-                "responses": {
-                    "200": {
-                        "description": "Ok",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiOrganizationBrandResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Fetch the brand profile for a domain from Brandfetch without storing it.\nUsed to preview a brand in the appearance settings before saving.\nRequires the Brandfetch API key to be configured on the instance.",
-                "summary": "Fetch organization brand",
-                "tags": ["Organizations"],
-                "security": [],
-                "parameters": [],
-                "requestBody": {
-                    "description": "the domain to fetch the brand for",
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/UpdateOrganizationBrandRequest",
-                                "description": "the domain to fetch the brand for"
-                            }
-                        }
-                    }
-                }
-            }
-        },
         "/api/v1/org/{organizationUuid}": {
             "delete": {
                 "operationId": "DeleteMyOrganization",
@@ -106749,6 +106817,191 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/org/brand": {
+            "get": {
+                "operationId": "GetOrganizationBrand",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiOrganizationBrandResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get the organization's brand profile, previously fetched from Brandfetch.\nReturns null if no brand profile has been fetched yet.",
+                "summary": "Get organization brand",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": []
+            },
+            "put": {
+                "operationId": "SaveOrganizationBrand",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiOrganizationBrandResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Save the organization's brand appearance as edited by the user. Stores the\nprovided colors, logos, fonts and domain as-is without calling Brandfetch.",
+                "summary": "Save organization brand",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "description": "the brand appearance to persist",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SaveOrganizationBrandRequest",
+                                "description": "the brand appearance to persist"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/org/brand/fetch": {
+            "post": {
+                "operationId": "FetchOrganizationBrand",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiOrganizationBrandResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Fetch the brand profile for a domain from Brandfetch without storing it.\nUsed to preview a brand in the appearance settings before saving.\nRequires the Brandfetch API key to be configured on the instance.",
+                "summary": "Fetch organization brand",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "description": "the domain to fetch the brand for",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateOrganizationBrandRequest",
+                                "description": "the domain to fetch the brand for"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/org/brand/logos": {
+            "post": {
+                "operationId": "UploadOrganizationBrandLogo",
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiOrganizationBrandLogoUploadResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Upload a logo image for the organization brand. Send the raw image bytes\nas the body (PNG, JPEG, WebP, GIF or SVG). Returns the URL to store in\nthe brand's logos when saving the brand.",
+                "summary": "Upload organization brand logo",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/org/brand/logos/{logoUuid}": {
+            "get": {
+                "operationId": "GetOrganizationBrandLogo",
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get an uploaded organization brand logo image.",
+                "summary": "Get organization brand logo",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "the uuid of the uploaded logo",
+                        "in": "path",
+                        "name": "logoUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/notifications": {

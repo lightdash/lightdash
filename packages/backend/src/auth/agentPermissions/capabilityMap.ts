@@ -1129,7 +1129,7 @@ export const REST_OPERATION_CAPABILITIES = {
         AgentCapability.DeployUpload,
         AgentCapability.Administration,
     ],
-    'OrganizationController.fetchOrganizationBrand': [
+    'OrganizationBrandController.fetchOrganizationBrand': [
         AgentCapability.Administration,
     ],
     'OrganizationController.getColorPalettes': [AgentCapability.ReadDiscover],
@@ -1138,7 +1138,10 @@ export const REST_OPERATION_CAPABILITIES = {
     ],
     'OrganizationController.getLearnAccess': [AgentCapability.ReadDiscover],
     'OrganizationController.getOrganization': [AgentCapability.ReadDiscover],
-    'OrganizationController.getOrganizationBrand': [
+    'OrganizationBrandController.getOrganizationBrand': [
+        AgentCapability.ReadDiscover,
+    ],
+    'OrganizationBrandController.getOrganizationBrandLogo': [
         AgentCapability.ReadDiscover,
     ],
     'OrganizationController.getOrganizationMemberByEmail': [
@@ -1166,7 +1169,7 @@ export const REST_OPERATION_CAPABILITIES = {
     'OrganizationController.reassignUserSchedulers': [
         AgentCapability.Administration,
     ],
-    'OrganizationController.saveOrganizationBrand': [
+    'OrganizationBrandController.saveOrganizationBrand': [
         AgentCapability.Administration,
     ],
     'OrganizationController.setActiveColorPalette': [
@@ -1179,6 +1182,9 @@ export const REST_OPERATION_CAPABILITIES = {
         AgentCapability.Administration,
     ],
     'OrganizationController.updateOrganizationMember': [
+        AgentCapability.Administration,
+    ],
+    'OrganizationBrandController.uploadOrganizationBrandLogo': [
         AgentCapability.Administration,
     ],
     'OrganizationDesignController.clearDefaultDesign': [
@@ -1451,6 +1457,9 @@ export const REST_OPERATION_CAPABILITIES = {
     'ProjectCoderController.pullContentAsCodeFromGit': [
         AgentCapability.DbtWriteback,
         AgentCapability.ContentWrite,
+    ],
+    'ProjectCoderController.pruneContentAsCodeSnapshots': [
+        AgentCapability.Administration,
     ],
     'ProjectCoderController.rebaseContentDraft': [AgentCapability.ContentWrite],
     'ProjectCoderController.renameContentSlug': [AgentCapability.ContentWrite],

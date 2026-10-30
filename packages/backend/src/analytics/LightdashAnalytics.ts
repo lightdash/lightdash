@@ -1365,7 +1365,6 @@ type OnboardingHomepageProvisionedEvent = BaseTrack & {
         projectId: string;
         homepageUuid: string;
         onboardingFlow: OnboardingFlow;
-        homepageBuilderEnablement: HomepageBuilderEnablement | null;
         codingAgentOnboardingEnablement: CodingAgentOnboardingEnablement | null;
     };
 };
@@ -1396,7 +1395,7 @@ type HomepagePublishedEvent = BaseTrack & {
 
 export type OnboardingHomepageSkippedReason =
     | 'new_onboarding_flag_disabled'
-    | 'homepage_builder_flag_disabled'
+    | 'homepage_disabled'
     | 'not_first_project'
     | 'homepage_already_exists';
 
@@ -1407,7 +1406,6 @@ type OnboardingHomepageSkippedEvent = BaseTrack & {
         organizationId: string;
         projectId: string;
         onboardingFlow: OnboardingFlow;
-        homepageBuilderEnablement: HomepageBuilderEnablement | null;
         codingAgentOnboardingEnablement: CodingAgentOnboardingEnablement | null;
         reason: OnboardingHomepageSkippedReason;
     };
@@ -1420,26 +1418,10 @@ type OnboardingHomepageFailedEvent = BaseTrack & {
         organizationId: string;
         projectId: string;
         onboardingFlow: OnboardingFlow;
-        homepageBuilderEnablement: HomepageBuilderEnablement | null;
         codingAgentOnboardingEnablement: CodingAgentOnboardingEnablement | null;
         errorType: string;
     };
 };
-
-type OnboardingOrgFlagsProvisionedEvent = BaseTrack & {
-    event: 'onboarding_org_flags.provisioned';
-    userId: string;
-    properties: {
-        organizationId: string;
-        onboardingFlow: OnboardingFlow;
-        homepageBuilderEnablement: HomepageBuilderEnablement;
-        codingAgentOnboardingEnablement: CodingAgentOnboardingEnablement | null;
-    };
-};
-
-export type HomepageBuilderEnablement =
-    | EnsureOrganizationOverrideOutcome
-    | 'failed';
 
 export type CodingAgentOnboardingEnablement =
     | EnsureOrganizationOverrideOutcome
@@ -4925,7 +4907,6 @@ type TypedEvent =
     | OnboardingHomepageFailedEvent
     | OrganizationHomepageSettingsUpdatedEvent
     | HomepagePublishedEvent
-    | OnboardingOrgFlagsProvisionedEvent
     | PlaygroundProjectProvisionedEvent
     | PlaygroundProjectSkippedEvent
     | PlaygroundProjectFailedEvent

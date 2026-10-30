@@ -15,6 +15,64 @@ const defaultProps = {
 };
 
 describe('MultiSelectCombobox', () => {
+    it('keeps its list open after a pick unless asked to close it', async () => {
+        const { unmount } = renderWithProviders(
+            <MultiSelectCombobox {...defaultProps} />,
+        );
+        fireEvent.focus(screen.getByRole('textbox'));
+        await userEvent.click(
+            screen.getByRole('option', { name: 'Chart one' }),
+        );
+        expect(screen.getByRole('option', { name: 'Chart one' })).toBeVisible();
+        unmount();
+
+        renderWithProviders(
+            <MultiSelectCombobox {...defaultProps} closeOnOptionSubmit />,
+        );
+        fireEvent.focus(screen.getByRole('textbox'));
+        await userEvent.click(
+            screen.getByRole('option', { name: 'Chart one' }),
+        );
+        expect(
+            screen.queryByRole('option', { name: 'Chart one' }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('opens its list on focus by default', () => {
+        renderWithProviders(<MultiSelectCombobox {...defaultProps} />);
+        fireEvent.focus(screen.getByRole('textbox'));
+        expect(screen.getByRole('listbox')).toBeInTheDocument();
+    });
+
+    it.each([
+        [
+            'ArrowDown',
+            (input: HTMLElement) =>
+                fireEvent.keyDown(input, {
+                    key: 'ArrowDown',
+                    code: 'ArrowDown',
+                }),
+        ],
+        ['a click', (input: HTMLElement) => fireEvent.click(input)],
+        [
+            'typing',
+            (input: HTMLElement) =>
+                fireEvent.change(input, { target: { value: 'c' } }),
+        ],
+    ])(
+        'with openOnFocus off, stays shut on focus and opens on %s',
+        (_, act) => {
+            renderWithProviders(
+                <MultiSelectCombobox {...defaultProps} openOnFocus={false} />,
+            );
+            const input = screen.getByRole('textbox');
+            fireEvent.focus(input);
+            expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+            act(input);
+            expect(screen.getByRole('listbox')).toBeInTheDocument();
+        },
+    );
+
     it('does not force a persistent scrollbar for unrelated consumers', () => {
         const { container } = renderWithProviders(
             <MultiSelectCombobox

@@ -286,6 +286,7 @@ import {
     RESOURCE_MIME_TYPE,
 } from './mcpAppHelpers';
 import { toMetaContentSecurityPolicy } from './mcpCustomChartFrameHtml';
+import { isProjectAllowedForMcp } from './mcpProjectAccess';
 
 export enum McpToolName {
     CONNECT_AGENT = 'connect_agent',
@@ -887,6 +888,38 @@ export class McpService extends BaseService {
         );
     }
 
+    public async assertMcpProjectAllowed(
+        user: Pick<SessionUser, 'organizationUuid'>,
+        projectUuid: string,
+    ): Promise<void> {
+        return this.assertMcpProjectsAllowed(user, [projectUuid]);
+    }
+
+    private async assertMcpProjectsAllowed(
+        user: Pick<SessionUser, 'organizationUuid'>,
+        projectUuids: (string | null | undefined)[],
+    ): Promise<void> {
+        const projects = projectUuids.filter(
+            (uuid): uuid is string => uuid !== null && uuid !== undefined,
+        );
+        if (projects.length === 0) return;
+        if (!user.organizationUuid)
+            throw new ForbiddenError('User must belong to an organization');
+        const policy =
+            await this.aiOrganizationSettingsService.getMcpProjectAccess(
+                user.organizationUuid,
+            );
+        const deniedProjectUuid = projects.find(
+            (projectUuid) => !isProjectAllowedForMcp(policy, projectUuid),
+        );
+        if (deniedProjectUuid !== undefined) {
+            throw new AiAccessRefusedError(
+                AiAccessRefusalReason.MCP_PROJECT_NOT_ALLOWED,
+                { projectUuid: deniedProjectUuid },
+            );
+        }
+    }
+
     private async getAccessibleProjects(context: McpProtocolContext) {
         const { user, organizationUuid } = McpService.getAccount(context);
         const allProjects = await wrapSentryTransaction(
@@ -897,7 +930,14 @@ export class McpService extends BaseService {
         );
         const auditedAbility = this.createAuditedAbility(user);
 
+        const policy =
+            await this.aiOrganizationSettingsService.getMcpProjectAccess(
+                organizationUuid,
+            );
         return allProjects
+            .filter((project) =>
+                isProjectAllowedForMcp(policy, project.projectUuid),
+            )
             .filter((project) =>
                 auditedAbility.can(
                     'view',
@@ -1029,6 +1069,7 @@ export class McpService extends BaseService {
             agentName: string;
         },
     ) {
+        await this.assertMcpProjectAllowed(user, projectUuid);
         const existingContext = await this.mcpContextModel.getContext(
             user.userUuid,
             organizationUuid,
@@ -3053,7 +3094,7 @@ export class McpService extends BaseService {
 
                 try {
                     const { status, prUrl, errorMessage } =
-                        await this.aiWritebackService.getRunStatus(
+                        await this.getAiWritebackTaskSnapshot(
                             user,
                             args.aiWritebackRunUuid,
                         );
@@ -3078,7 +3119,11 @@ export class McpService extends BaseService {
                         projectUuid,
                     );
                 } catch (e) {
-                    if (e instanceof AiAccessRefusedError) throw e;
+                    if (
+                        e instanceof AiAccessRefusedError ||
+                        e instanceof ForbiddenError
+                    )
+                        throw e;
                     const errorMessage =
                         e instanceof Error ? e.message : String(e);
                     this.logger.error(
@@ -3231,6 +3276,7 @@ export class McpService extends BaseService {
         if (!isValidUuid(taskId)) {
             throw McpService.taskNotFoundError(taskId);
         }
+        await this.getAiWritebackTaskSnapshot(user, taskId);
         try {
             outcome = await this.aiWritebackService.cancelRun(user, taskId);
         } catch (error) {
@@ -3297,11 +3343,13 @@ export class McpService extends BaseService {
         if (!isValidUuid(taskId)) {
             throw McpService.taskNotFoundError(taskId);
         }
-        try {
-            return await this.aiWritebackService.getRunSnapshot(user, taskId);
-        } catch (error) {
-            throw McpService.toTaskMcpError(error, taskId);
-        }
+        const snapshot = await this.aiWritebackService
+            .getRunSnapshot(user, taskId)
+            .catch((error) => {
+                throw McpService.toTaskMcpError(error, taskId);
+            });
+        await this.assertMcpProjectAllowed(user, snapshot.projectUuid);
+        return snapshot;
     }
 
     private static taskNotFoundError(taskId: string): McpError {
@@ -4172,8 +4220,23 @@ export class McpService extends BaseService {
                     args.agentUuid,
                 );
 
+                const resolved = await toolsRuntime.resolveUrl(args);
+                if (resolved.isShareLink) {
+                    const destination = new URL(
+                        resolved.url,
+                        this.lightdashConfig.siteUrl,
+                    );
+                    const destinationProject =
+                        destination.pathname.match(/\/projects\/([^/]+)/)?.[1];
+                    if (destinationProject) {
+                        await this.assertMcpProjectAllowed(
+                            McpService.getAccount(ctx).user,
+                            decodeURIComponent(destinationProject),
+                        );
+                    }
+                }
                 const resolveUrlTool = getResolveUrl({
-                    resolveUrl: toolsRuntime.resolveUrl,
+                    resolveUrl: async () => resolved,
                 });
                 const result = await resolveUrlTool.execute!(args, {
                     toolCallId: '',
@@ -5459,6 +5522,10 @@ export class McpService extends BaseService {
             agentUuid,
             projectUuid,
         );
+        await this.assertMcpProjectsAllowed(user, [
+            projectUuid,
+            agent.projectUuid,
+        ]);
         const auditedAbility = this.createAuditedAbility(user);
         if (
             auditedAbility.cannot(
@@ -5499,6 +5566,7 @@ export class McpService extends BaseService {
             return null;
         }
 
+        await this.assertMcpProjectAllowed(user, projectUuid);
         if (pinnedAgentUuid) {
             return { projectUuid, agentUuid: pinnedAgentUuid };
         }
@@ -5548,6 +5616,7 @@ export class McpService extends BaseService {
         agentUuid?: string,
     ): Promise<McpEffectiveScope> {
         const user = context.authInfo?.extra.user;
+        if (user) await this.assertMcpProjectAllowed(user, projectUuid);
         if (!user || !agentUuid) {
             return {
                 tags: null,
@@ -5628,6 +5697,7 @@ export class McpService extends BaseService {
 
         const { projectUuid, projectName, agentUuid, agentName, tags } =
             contextRow.context;
+        if (projectUuid) await this.assertMcpProjectAllowed(user, projectUuid);
 
         return {
             projectUuid,
@@ -5711,6 +5781,10 @@ export class McpService extends BaseService {
                 'No project context set. Provide the projectUuid parameter.',
             );
         }
+        await this.assertMcpProjectAllowed(
+            McpService.getAccount(context).user,
+            projectUuid,
+        );
         // UUIDs from mcp_context were view-checked when the context was written.
         // The X-Lightdash-Project header skips that path, so gate it here —
         // otherwise any tool that doesn't re-check (e.g. list_explores) would
@@ -5745,6 +5819,10 @@ export class McpService extends BaseService {
         context: McpProtocolContext,
         requestedProjectUuid: string,
     ): Promise<string> {
+        await this.assertMcpProjectAllowed(
+            McpService.getAccount(context).user,
+            requestedProjectUuid,
+        );
         const pinnedProjectUuid = context.authInfo?.extra.headerProjectUuid;
         if (pinnedProjectUuid && requestedProjectUuid !== pinnedProjectUuid) {
             throw new ForbiddenError(
@@ -5928,13 +6006,29 @@ export class McpService extends BaseService {
                 user.userUuid,
                 organizationUuid,
             );
+            if (contextRow?.context.projectUuid) {
+                await this.assertMcpProjectAllowed(
+                    user,
+                    contextRow.context.projectUuid,
+                );
+            }
             const skills = await this.aiAgentSkillService.listMcpSkills(
                 account,
                 {
                     agentUuid: contextRow?.context.agentUuid ?? null,
                 },
             );
-            return skills.map((skill) => McpService.toCustomMcpSkill(skill));
+            const policy =
+                await this.aiOrganizationSettingsService.getMcpProjectAccess(
+                    organizationUuid,
+                );
+            return skills
+                .filter(
+                    (skill) =>
+                        skill.projectUuid === null ||
+                        isProjectAllowedForMcp(policy, skill.projectUuid),
+                )
+                .map((skill) => McpService.toCustomMcpSkill(skill));
         } catch (error) {
             this.logger.warn('Failed to list custom skills for MCP', { error });
             return [];
@@ -6493,23 +6587,45 @@ export class McpService extends BaseService {
                 user.userUuid,
                 user.organizationUuid,
             );
+            if (contextRow?.context.projectUuid) {
+                await this.assertMcpProjectAllowed(
+                    user,
+                    contextRow.context.projectUuid,
+                );
+            }
             const skills = await this.aiAgentSkillService.listMcpSkills(
                 account,
                 {
                     agentUuid: contextRow?.context.agentUuid ?? null,
                 },
             );
-            const custom = skills.map((skill) =>
-                McpService.toCustomMcpSkill(skill),
-            );
+            const policy =
+                await this.aiOrganizationSettingsService.getMcpProjectAccess(
+                    user.organizationUuid,
+                );
+            const custom = skills
+                .filter(
+                    (skill) =>
+                        skill.projectUuid === null ||
+                        isProjectAllowedForMcp(policy, skill.projectUuid),
+                )
+                .map((skill) => ({
+                    ...McpService.toCustomMcpSkill(skill),
+                    projectUuid: skill.projectUuid,
+                }));
             const entries = custom.flatMap((skill) => [
-                { resource: skill.reference, body: skill.body },
+                {
+                    resource: skill.reference,
+                    body: skill.body,
+                    projectUuid: skill.projectUuid,
+                },
                 ...skill.resourceBodies.map((item) => ({
                     resource: item.reference,
                     body: item.body,
+                    projectUuid: skill.projectUuid,
                 })),
             ]);
-            entries.forEach(({ resource, body }) => {
+            entries.forEach(({ resource, body, projectUuid }) => {
                 mcpServer.registerResource(
                     resource.name,
                     resource.uri,
@@ -6520,6 +6636,10 @@ export class McpService extends BaseService {
                         size: resource.size,
                     },
                     async (_uri, extra) => {
+                        await this.assertMcpProjectsAllowed(
+                            McpService.getAccount(getMcpContext(extra)).user,
+                            [projectUuid, contextRow?.context.projectUuid],
+                        );
                         await this.assertAgentResourceAllowed(
                             getMcpContext(extra),
                             McpToolName.READ_SKILL_RESOURCE,
@@ -6563,6 +6683,13 @@ export class McpService extends BaseService {
                         size: Buffer.byteLength(index, 'utf8'),
                     },
                     async (_uri, extra) => {
+                        await this.assertMcpProjectsAllowed(
+                            McpService.getAccount(getMcpContext(extra)).user,
+                            [
+                                contextRow?.context.projectUuid,
+                                ...custom.map((skill) => skill.projectUuid),
+                            ],
+                        );
                         await this.assertAgentResourceAllowed(
                             getMcpContext(extra),
                             McpToolName.READ_SKILL_RESOURCE,
@@ -6787,6 +6914,13 @@ export class McpService extends BaseService {
                     toolArgs = { ...scopedArgs, agentUuid: pinnedAgentUuid };
                     cbArgs[0] = toolArgs;
                 }
+                const projectScope = mcpToolScopeArgsSchema.safeParse(toolArgs);
+                if (projectScope.success) {
+                    await this.assertMcpProjectAllowed(
+                        McpService.getAccount(context).user,
+                        projectScope.data.projectUuid,
+                    );
+                }
                 await this.assertAgentToolAllowed(context, toolName, toolArgs);
                 toolAllowed = true;
                 const result = await handler(...cbArgs);
@@ -6831,12 +6965,21 @@ export class McpService extends BaseService {
                 if (error instanceof AiAccessRefusedError) {
                     const context = getMcpContext(extra);
                     const scope = mcpToolScopeArgsSchema.safeParse(toolArgs);
-                    const projectUuid = scope.success
-                        ? scope.data.projectUuid
-                        : (context.authInfo?.extra.headerProjectUuid ?? null);
+                    const projectUuid =
+                        error.refusal.projectUuid ??
+                        (scope.success
+                            ? scope.data.projectUuid
+                            : (context.authInfo?.extra.headerProjectUuid ??
+                              null));
+                    const loggedToolArgs = toolAllowed ? toolArgs : {};
                     this.recordToolCall({
                         toolName,
-                        toolArgs: toolAllowed ? toolArgs : {},
+                        toolArgs:
+                            error.refusal.reason ===
+                                AiAccessRefusalReason.MCP_PROJECT_NOT_ALLOWED &&
+                            projectUuid !== null
+                                ? { ...loggedToolArgs, projectUuid }
+                                : loggedToolArgs,
                         extra,
                         durationMs: Date.now() - startedAt,
                         status: 'error',

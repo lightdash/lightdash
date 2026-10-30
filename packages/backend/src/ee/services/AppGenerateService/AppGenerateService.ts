@@ -13551,6 +13551,12 @@ export class AppGenerateService extends BaseService {
         spaceSlug: string | undefined,
     ): Promise<string | undefined> {
         if (spaceSlug === undefined) return undefined;
+        // A UUID would otherwise become a new private root space named after it.
+        if (isValidUuid(spaceSlug)) {
+            throw new ParameterError(
+                await this.describeUuidSpaceSlug(user, projectUuid, spaceSlug),
+            );
+        }
         const { space } = await this.coderService.getOrCreateSpace(
             projectUuid,
             spaceSlug,
@@ -13561,6 +13567,28 @@ export class AppGenerateService extends BaseService {
             true,
         );
         return space.uuid;
+    }
+
+    private async describeUuidSpaceSlug(
+        user: SessionUser,
+        projectUuid: string,
+        spaceUuid: string,
+    ): Promise<string> {
+        const base = `Manifest spaceSlug "${spaceUuid}" is a space UUID, but spaceSlug expects a space path like "parent/child" (as written by lightdash download).`;
+        try {
+            const space = await this.spaceModel.getSpaceSummary(spaceUuid, {
+                projectUuid,
+            });
+            // Only name the path to someone who can already see the space.
+            if (
+                await this.spacePermissionService.can('view', user, spaceUuid)
+            ) {
+                return `${base} Use spaceSlug: ${getContentAsCodePathFromLtreePath(space.path)}`;
+            }
+        } catch (error) {
+            if (!(error instanceof NotFoundError)) throw error;
+        }
+        return base;
     }
 
     // First half of the as-code download, without downloading the source.

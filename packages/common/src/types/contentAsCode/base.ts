@@ -184,6 +184,27 @@ export type ContentAsCodeSettingsStamp = {
     path?: string;
 };
 
+// What a full upload of a repo directory left on disk, so the instance can
+// release Git-managed content whose file was removed from that directory
+export type ContentAsCodeSnapshotPrune = {
+    // The uploaded directory, relative to the project dir (may use '..')
+    path: string;
+    charts: string[];
+    sqlCharts: string[];
+    dashboards: string[];
+};
+
+export type ContentAsCodeSnapshotPruneResult = {
+    charts: string[];
+    sqlCharts: string[];
+    dashboards: string[];
+};
+
+export type ApiContentAsCodeSnapshotPruneResponse = {
+    status: 'ok';
+    results: ContentAsCodeSnapshotPruneResult;
+};
+
 export type ContentAsCodePullFailure = {
     file: string;
     message: string;

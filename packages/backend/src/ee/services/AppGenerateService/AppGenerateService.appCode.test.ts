@@ -7,6 +7,7 @@ import {
     ForbiddenError,
     getCustomSqlFieldKey,
     LIGHTDASH_APP_PREVIEW_TOKEN_MAX_AGE_SECONDS,
+    NotFoundError,
     ParameterError,
     TooManyRequestsError,
     type DataAppCode,
@@ -208,6 +209,11 @@ function buildService(
 
     const spacePermissionService = {
         resolveAccess: vi.fn().mockResolvedValue({}),
+        can: vi.fn().mockResolvedValue(true),
+    };
+
+    const spaceModel = {
+        getSpaceSummary: vi.fn(),
     };
 
     const lightdashConfig = {
@@ -246,7 +252,7 @@ function buildService(
         pinnedListModel: {} as never,
         projectModel: projectModel as never,
         projectParametersModel: {} as never,
-        spaceModel: {} as never,
+        spaceModel: spaceModel as never,
         savedChartModel: {} as never,
         schedulerClient: schedulerClient as never,
         savedChartService: {} as never,
@@ -314,6 +320,8 @@ function buildService(
         analytics,
         externalConnectionModel,
         coderService,
+        spaceModel,
+        spacePermissionService,
     };
 }
 
@@ -854,6 +862,81 @@ describe('AppGenerateService.importAppCode', () => {
 
         expect(coderService.getOrCreateSpace).not.toHaveBeenCalled();
         expect(appModel.moveToSpace).not.toHaveBeenCalled();
+    });
+
+    describe('UUID-shaped manifest spaceSlug', () => {
+        const SPACE_UUID = '4c2874fc-eda2-457c-828d-a81038748d46';
+
+        it('rejects instead of creating a space, and names the real path to a viewer', async () => {
+            const { service, appModel, coderService, spaceModel } =
+                buildService();
+            appModel.findApp.mockResolvedValue(undefined);
+            spaceModel.getSpaceSummary.mockResolvedValue({
+                uuid: SPACE_UUID,
+                path: 'finance.monthly_reports',
+            });
+
+            const result = service.importAppCode(makeUser(), PROJECT_UUID, {
+                code: makeCode(undefined, { spaceSlug: SPACE_UUID }),
+            } as ImportAppCodeRequestBody);
+
+            await expect(result).rejects.toThrow(ParameterError);
+            await expect(result).rejects.toThrow(
+                'Use spaceSlug: finance/monthly-reports',
+            );
+            expect(spaceModel.getSpaceSummary).toHaveBeenCalledWith(
+                SPACE_UUID,
+                { projectUuid: PROJECT_UUID },
+            );
+            expect(coderService.getOrCreateSpace).not.toHaveBeenCalled();
+            expect(appModel.createWithVersion).not.toHaveBeenCalled();
+        });
+
+        it('does not reveal the path to someone who cannot view the space', async () => {
+            const {
+                service,
+                appModel,
+                coderService,
+                spaceModel,
+                spacePermissionService,
+            } = buildService();
+            appModel.findApp.mockResolvedValue({
+                ...makeExistingApp(),
+                space_uuid: 'old-space-uuid',
+            });
+            spaceModel.getSpaceSummary.mockResolvedValue({
+                uuid: SPACE_UUID,
+                path: 'finance.monthly_reports',
+            });
+            spacePermissionService.can.mockResolvedValue(false);
+
+            const result = service.importAppCode(makeUser(), PROJECT_UUID, {
+                code: makeCode(undefined, { spaceSlug: SPACE_UUID }),
+                targetAppUuid: EXISTING_APP_UUID,
+            } as ImportAppCodeRequestBody);
+
+            await expect(result).rejects.toThrow(
+                'expects a space path like "parent/child"',
+            );
+            await expect(result).rejects.not.toThrow('finance');
+            expect(coderService.getOrCreateSpace).not.toHaveBeenCalled();
+            expect(appModel.moveToSpace).not.toHaveBeenCalled();
+            expect(appModel.createVersion).not.toHaveBeenCalled();
+        });
+
+        it('rejects with the generic message when the UUID is not a space in this project', async () => {
+            const { service, appModel, spaceModel } = buildService();
+            appModel.findApp.mockResolvedValue(undefined);
+            spaceModel.getSpaceSummary.mockRejectedValue(
+                new NotFoundError('missing'),
+            );
+
+            await expect(
+                service.importAppCode(makeUser(), PROJECT_UUID, {
+                    code: makeCode(undefined, { spaceSlug: SPACE_UUID }),
+                } as ImportAppCodeRequestBody),
+            ).rejects.toThrow('expects a space path like "parent/child"');
+        });
     });
 
     it('create mode: a custom chart type is created spaceless and warns when a space was requested', async () => {

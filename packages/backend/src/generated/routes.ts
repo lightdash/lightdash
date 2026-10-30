@@ -65,6 +65,8 @@ import { MetricsExplorerController } from './../controllers/metricsExplorerContr
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { NotificationsController } from './../controllers/notificationsController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+import { OrganizationBrandController } from './../controllers/organizationBrandController';
+// WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { OrganizationController } from './../controllers/organizationController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { OrganizationDesignController } from './../controllers/organizationDesignController';
@@ -1925,6 +1927,72 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 path: { dataType: 'string' },
                 sync: { dataType: 'boolean', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ContentAsCodeSnapshotPruneResult: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                dashboards: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                sqlCharts: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                charts: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiContentAsCodeSnapshotPruneResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    ref: 'ContentAsCodeSnapshotPruneResult',
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ContentAsCodeSnapshotPrune: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                dashboards: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                sqlCharts: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                charts: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                path: { dataType: 'string', required: true },
             },
             validators: {},
         },
@@ -23981,11 +24049,443 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiChartRuntimeOverrides: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                dateZoom: { ref: 'DateZoom' },
+                dashboardParameters: { ref: 'ParametersValuesMap' },
+                dashboardFilters: { ref: 'DashboardFilters' },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiDashboardActiveTab: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                name: { dataType: 'string', required: true },
+                uuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_DashboardFilterRule.Exclude_keyofDashboardFilterRule.id-or-tileTargets-or-lockedTabUuids-or-requiredGroupId-or-sectionId__':
+        {
+            dataType: 'refAlias',
+            type: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    target: { ref: 'DashboardFieldTarget', required: true },
+                    label: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'undefined' },
+                        ],
+                        required: true,
+                    },
+                    settings: { dataType: 'any' },
+                    disabled: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'boolean' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    required: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'boolean' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    caseSensitive: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'boolean' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    operator: { ref: 'FilterOperator', required: true },
+                    values: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'array', array: { dataType: 'any' } },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    includeNull: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'boolean' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    singleValue: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'boolean' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                },
+                validators: {},
+            },
+        },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Omit_DashboardFilterRule.id-or-tileTargets-or-lockedTabUuids-or-requiredGroupId-or-sectionId_':
+        {
+            dataType: 'refAlias',
+            type: {
+                ref: 'Pick_DashboardFilterRule.Exclude_keyofDashboardFilterRule.id-or-tileTargets-or-lockedTabUuids-or-requiredGroupId-or-sectionId__',
+                validators: {},
+            },
+        },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiDashboardFilterRule: {
+        dataType: 'refAlias',
+        type: {
+            ref: 'Omit_DashboardFilterRule.id-or-tileTargets-or-lockedTabUuids-or-requiredGroupId-or-sectionId_',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiDashboardFilters: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                tableCalculations: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'AiDashboardFilterRule',
+                    },
+                    required: true,
+                },
+                metrics: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'AiDashboardFilterRule',
+                    },
+                    required: true,
+                },
+                dimensions: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'AiDashboardFilterRule',
+                    },
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiDashboardRuntimeOverrides: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                dateZoom: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'DateZoom' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
+                dashboardParameters: { ref: 'ParametersValuesMap' },
+                dashboardFilters: { ref: 'AiDashboardFilters' },
+                activeTab: { ref: 'AiDashboardActiveTab' },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiPromptContextItemInput: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        runtimeOverrides: { ref: 'AiChartRuntimeOverrides' },
+                        chartSlug: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                        },
+                        chartUuid: { dataType: 'string', required: true },
+                        type: {
+                            dataType: 'enum',
+                            enums: ['chart'],
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        runtimeOverrides: {
+                            ref: 'AiDashboardRuntimeOverrides',
+                        },
+                        dashboardSlug: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                        },
+                        dashboardUuid: { dataType: 'string', required: true },
+                        type: {
+                            dataType: 'enum',
+                            enums: ['dashboard'],
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        promptUuid: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                        },
+                        threadUuid: { dataType: 'string', required: true },
+                        type: {
+                            dataType: 'enum',
+                            enums: ['thread'],
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        path: { dataType: 'string', required: true },
+                        type: {
+                            dataType: 'enum',
+                            enums: ['file'],
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        fullName: { dataType: 'string', required: true },
+                        type: {
+                            dataType: 'enum',
+                            enums: ['repository'],
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        sourceUuid: { dataType: 'string', required: true },
+                        type: {
+                            dataType: 'enum',
+                            enums: ['external_source'],
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        fileUuid: { ref: 'UUID', required: true },
+                        type: {
+                            dataType: 'enum',
+                            enums: ['thread_file'],
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        prUrl: { dataType: 'string', required: true },
+                        type: {
+                            dataType: 'enum',
+                            enums: ['pull_request'],
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        fingerprint: { dataType: 'string', required: true },
+                        type: {
+                            dataType: 'enum',
+                            enums: ['proposed_change'],
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        fingerprint: { dataType: 'string', required: true },
+                        type: {
+                            dataType: 'enum',
+                            enums: ['review_finding'],
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        previewProjectUuid: {
+                            dataType: 'string',
+                            required: true,
+                        },
+                        type: {
+                            dataType: 'enum',
+                            enums: ['preview_environment'],
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        loc: { dataType: 'string', required: true },
+                        text: { dataType: 'string', required: true },
+                        tag: { dataType: 'string', required: true },
+                        version: { dataType: 'double', required: true },
+                        appUuid: { dataType: 'string', required: true },
+                        type: {
+                            dataType: 'enum',
+                            enums: ['data_app_element'],
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        nodeId: { dataType: 'string', required: true },
+                        versionUuid: { dataType: 'string', required: true },
+                        artifactUuid: { dataType: 'string', required: true },
+                        type: {
+                            dataType: 'enum',
+                            enums: ['composer_node'],
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        restoredFromVersion: {
+                            dataType: 'double',
+                            required: true,
+                        },
+                        version: { dataType: 'double', required: true },
+                        appUuid: { dataType: 'string', required: true },
+                        type: {
+                            dataType: 'enum',
+                            enums: ['data_app_restore'],
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        appSlug: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                        },
+                        appUuid: { dataType: 'string', required: true },
+                        type: {
+                            dataType: 'enum',
+                            enums: ['data_app'],
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        documentSlug: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                        },
+                        documentUuid: { dataType: 'string', required: true },
+                        type: {
+                            dataType: 'enum',
+                            enums: ['document'],
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        designUuid: { dataType: 'string', required: true },
+                        type: {
+                            dataType: 'enum',
+                            enums: ['design'],
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        arguments: { dataType: 'string', required: true },
+                        name: { dataType: 'string', required: true },
+                        type: {
+                            dataType: 'enum',
+                            enums: ['skill'],
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiPromptContextInput: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'array',
+            array: { dataType: 'refAlias', ref: 'AiPromptContextItemInput' },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AiRouterRouteRequest: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                context: { ref: 'AiPromptContextInput' },
                 projectUuid: { dataType: 'string', required: true },
                 prompt: { dataType: 'string', required: true },
             },
@@ -30771,166 +31271,6 @@ const models: TsoaRoute.Models = {
                     required: true,
                 },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    AiChartRuntimeOverrides: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                dateZoom: { ref: 'DateZoom' },
-                dashboardParameters: { ref: 'ParametersValuesMap' },
-                dashboardFilters: { ref: 'DashboardFilters' },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    AiDashboardActiveTab: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                name: { dataType: 'string', required: true },
-                uuid: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_DashboardFilterRule.Exclude_keyofDashboardFilterRule.id-or-tileTargets-or-lockedTabUuids-or-requiredGroupId-or-sectionId__':
-        {
-            dataType: 'refAlias',
-            type: {
-                dataType: 'nestedObjectLiteral',
-                nestedProperties: {
-                    target: { ref: 'DashboardFieldTarget', required: true },
-                    label: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { dataType: 'string' },
-                            { dataType: 'undefined' },
-                        ],
-                        required: true,
-                    },
-                    settings: { dataType: 'any' },
-                    disabled: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { dataType: 'boolean' },
-                            { dataType: 'undefined' },
-                        ],
-                    },
-                    required: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { dataType: 'boolean' },
-                            { dataType: 'undefined' },
-                        ],
-                    },
-                    caseSensitive: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { dataType: 'boolean' },
-                            { dataType: 'undefined' },
-                        ],
-                    },
-                    operator: { ref: 'FilterOperator', required: true },
-                    values: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { dataType: 'array', array: { dataType: 'any' } },
-                            { dataType: 'undefined' },
-                        ],
-                    },
-                    includeNull: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { dataType: 'boolean' },
-                            { dataType: 'undefined' },
-                        ],
-                    },
-                    singleValue: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { dataType: 'boolean' },
-                            { dataType: 'undefined' },
-                        ],
-                    },
-                },
-                validators: {},
-            },
-        },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Omit_DashboardFilterRule.id-or-tileTargets-or-lockedTabUuids-or-requiredGroupId-or-sectionId_':
-        {
-            dataType: 'refAlias',
-            type: {
-                ref: 'Pick_DashboardFilterRule.Exclude_keyofDashboardFilterRule.id-or-tileTargets-or-lockedTabUuids-or-requiredGroupId-or-sectionId__',
-                validators: {},
-            },
-        },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    AiDashboardFilterRule: {
-        dataType: 'refAlias',
-        type: {
-            ref: 'Omit_DashboardFilterRule.id-or-tileTargets-or-lockedTabUuids-or-requiredGroupId-or-sectionId_',
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    AiDashboardFilters: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                tableCalculations: {
-                    dataType: 'array',
-                    array: {
-                        dataType: 'refAlias',
-                        ref: 'AiDashboardFilterRule',
-                    },
-                    required: true,
-                },
-                metrics: {
-                    dataType: 'array',
-                    array: {
-                        dataType: 'refAlias',
-                        ref: 'AiDashboardFilterRule',
-                    },
-                    required: true,
-                },
-                dimensions: {
-                    dataType: 'array',
-                    array: {
-                        dataType: 'refAlias',
-                        ref: 'AiDashboardFilterRule',
-                    },
-                    required: true,
-                },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    AiDashboardRuntimeOverrides: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                dateZoom: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { ref: 'DateZoom' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                },
-                dashboardParameters: { ref: 'ParametersValuesMap' },
-                dashboardFilters: { ref: 'AiDashboardFilters' },
-                activeTab: { ref: 'AiDashboardActiveTab' },
             },
             validators: {},
         },
@@ -41933,277 +42273,6 @@ const models: TsoaRoute.Models = {
     ApiAiAgentThreadCreateResponse: {
         dataType: 'refAlias',
         type: { ref: 'ApiSuccess_AiAgentThreadSummary_', validators: {} },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    AiPromptContextItemInput: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'union',
-            subSchemas: [
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        runtimeOverrides: { ref: 'AiChartRuntimeOverrides' },
-                        chartSlug: {
-                            dataType: 'union',
-                            subSchemas: [
-                                { dataType: 'string' },
-                                { dataType: 'enum', enums: [null] },
-                            ],
-                        },
-                        chartUuid: { dataType: 'string', required: true },
-                        type: {
-                            dataType: 'enum',
-                            enums: ['chart'],
-                            required: true,
-                        },
-                    },
-                },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        runtimeOverrides: {
-                            ref: 'AiDashboardRuntimeOverrides',
-                        },
-                        dashboardSlug: {
-                            dataType: 'union',
-                            subSchemas: [
-                                { dataType: 'string' },
-                                { dataType: 'enum', enums: [null] },
-                            ],
-                        },
-                        dashboardUuid: { dataType: 'string', required: true },
-                        type: {
-                            dataType: 'enum',
-                            enums: ['dashboard'],
-                            required: true,
-                        },
-                    },
-                },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        promptUuid: {
-                            dataType: 'union',
-                            subSchemas: [
-                                { dataType: 'string' },
-                                { dataType: 'enum', enums: [null] },
-                            ],
-                        },
-                        threadUuid: { dataType: 'string', required: true },
-                        type: {
-                            dataType: 'enum',
-                            enums: ['thread'],
-                            required: true,
-                        },
-                    },
-                },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        path: { dataType: 'string', required: true },
-                        type: {
-                            dataType: 'enum',
-                            enums: ['file'],
-                            required: true,
-                        },
-                    },
-                },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        fullName: { dataType: 'string', required: true },
-                        type: {
-                            dataType: 'enum',
-                            enums: ['repository'],
-                            required: true,
-                        },
-                    },
-                },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        sourceUuid: { dataType: 'string', required: true },
-                        type: {
-                            dataType: 'enum',
-                            enums: ['external_source'],
-                            required: true,
-                        },
-                    },
-                },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        fileUuid: { ref: 'UUID', required: true },
-                        type: {
-                            dataType: 'enum',
-                            enums: ['thread_file'],
-                            required: true,
-                        },
-                    },
-                },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        prUrl: { dataType: 'string', required: true },
-                        type: {
-                            dataType: 'enum',
-                            enums: ['pull_request'],
-                            required: true,
-                        },
-                    },
-                },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        fingerprint: { dataType: 'string', required: true },
-                        type: {
-                            dataType: 'enum',
-                            enums: ['proposed_change'],
-                            required: true,
-                        },
-                    },
-                },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        fingerprint: { dataType: 'string', required: true },
-                        type: {
-                            dataType: 'enum',
-                            enums: ['review_finding'],
-                            required: true,
-                        },
-                    },
-                },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        previewProjectUuid: {
-                            dataType: 'string',
-                            required: true,
-                        },
-                        type: {
-                            dataType: 'enum',
-                            enums: ['preview_environment'],
-                            required: true,
-                        },
-                    },
-                },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        loc: { dataType: 'string', required: true },
-                        text: { dataType: 'string', required: true },
-                        tag: { dataType: 'string', required: true },
-                        version: { dataType: 'double', required: true },
-                        appUuid: { dataType: 'string', required: true },
-                        type: {
-                            dataType: 'enum',
-                            enums: ['data_app_element'],
-                            required: true,
-                        },
-                    },
-                },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        nodeId: { dataType: 'string', required: true },
-                        versionUuid: { dataType: 'string', required: true },
-                        artifactUuid: { dataType: 'string', required: true },
-                        type: {
-                            dataType: 'enum',
-                            enums: ['composer_node'],
-                            required: true,
-                        },
-                    },
-                },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        restoredFromVersion: {
-                            dataType: 'double',
-                            required: true,
-                        },
-                        version: { dataType: 'double', required: true },
-                        appUuid: { dataType: 'string', required: true },
-                        type: {
-                            dataType: 'enum',
-                            enums: ['data_app_restore'],
-                            required: true,
-                        },
-                    },
-                },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        appSlug: {
-                            dataType: 'union',
-                            subSchemas: [
-                                { dataType: 'string' },
-                                { dataType: 'enum', enums: [null] },
-                            ],
-                        },
-                        appUuid: { dataType: 'string', required: true },
-                        type: {
-                            dataType: 'enum',
-                            enums: ['data_app'],
-                            required: true,
-                        },
-                    },
-                },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        documentSlug: {
-                            dataType: 'union',
-                            subSchemas: [
-                                { dataType: 'string' },
-                                { dataType: 'enum', enums: [null] },
-                            ],
-                        },
-                        documentUuid: { dataType: 'string', required: true },
-                        type: {
-                            dataType: 'enum',
-                            enums: ['document'],
-                            required: true,
-                        },
-                    },
-                },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        designUuid: { dataType: 'string', required: true },
-                        type: {
-                            dataType: 'enum',
-                            enums: ['design'],
-                            required: true,
-                        },
-                    },
-                },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        arguments: { dataType: 'string', required: true },
-                        name: { dataType: 'string', required: true },
-                        type: {
-                            dataType: 'enum',
-                            enums: ['skill'],
-                            required: true,
-                        },
-                    },
-                },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    AiPromptContextInput: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'array',
-            array: { dataType: 'refAlias', ref: 'AiPromptContextItemInput' },
-            validators: {},
-        },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiAiAgentThreadCreateRequest: {
@@ -55610,6 +55679,41 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    McpProjectAccess: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        mode: {
+                            dataType: 'enum',
+                            enums: ['all'],
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        projectUuids: {
+                            dataType: 'array',
+                            array: { dataType: 'string' },
+                            required: true,
+                        },
+                        mode: {
+                            dataType: 'enum',
+                            enums: ['selected'],
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DataAppAnalysisLimits: {
         dataType: 'refAlias',
         type: {
@@ -55940,6 +56044,7 @@ const models: TsoaRoute.Models = {
                     dataType: 'boolean',
                     required: true,
                 },
+                mcpProjectAccess: { ref: 'McpProjectAccess' },
                 mcpEnabled: { dataType: 'boolean' },
                 deepResearchRawSqlEnabled: {
                     dataType: 'boolean',
@@ -56201,6 +56306,7 @@ const models: TsoaRoute.Models = {
                 dataAppRuntimeAiEnabled: { dataType: 'boolean' },
                 mcpAgentsEnabled: { dataType: 'boolean' },
                 mcpContentWritesEnabled: { dataType: 'boolean' },
+                mcpProjectAccess: { ref: 'McpProjectAccess' },
                 mcpEnabled: { dataType: 'boolean' },
                 deepResearchRawSqlEnabled: { dataType: 'boolean' },
                 deepResearchLimits: { ref: 'AiDeepResearchLimits' },
@@ -68000,208 +68106,6 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    OrganizationBrandLogo: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                format: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-                url: { dataType: 'string', required: true },
-                theme: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-                type: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    OrganizationBrandColor: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                brightness: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'double' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-                type: { dataType: 'string', required: true },
-                hex: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    OrganizationBrandFont: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                origin: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-                type: { dataType: 'string', required: true },
-                name: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    OrganizationBrand: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                updatedAt: { dataType: 'datetime', required: true },
-                fonts: {
-                    dataType: 'array',
-                    array: {
-                        dataType: 'refAlias',
-                        ref: 'OrganizationBrandFont',
-                    },
-                    required: true,
-                },
-                colors: {
-                    dataType: 'array',
-                    array: {
-                        dataType: 'refAlias',
-                        ref: 'OrganizationBrandColor',
-                    },
-                    required: true,
-                },
-                logos: {
-                    dataType: 'array',
-                    array: {
-                        dataType: 'refAlias',
-                        ref: 'OrganizationBrandLogo',
-                    },
-                    required: true,
-                },
-                description: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-                name: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-                domain: { dataType: 'string', required: true },
-                organizationUuid: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiOrganizationBrandResponse: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                results: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { ref: 'OrganizationBrand' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-                status: { dataType: 'enum', enums: ['ok'], required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    UpdateOrganizationBrandRequest: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                domain: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    SaveOrganizationBrandRequest: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                fonts: {
-                    dataType: 'array',
-                    array: {
-                        dataType: 'refAlias',
-                        ref: 'OrganizationBrandFont',
-                    },
-                    required: true,
-                },
-                colors: {
-                    dataType: 'array',
-                    array: {
-                        dataType: 'refAlias',
-                        ref: 'OrganizationBrandColor',
-                    },
-                    required: true,
-                },
-                logos: {
-                    dataType: 'array',
-                    array: {
-                        dataType: 'refAlias',
-                        ref: 'OrganizationBrandLogo',
-                    },
-                    required: true,
-                },
-                description: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-                name: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-                domain: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     OrganizationProject: {
         dataType: 'refAlias',
         type: {
@@ -69276,6 +69180,242 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 impersonationEnabled: { dataType: 'boolean', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    OrganizationBrandLogo: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                format: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                url: { dataType: 'string', required: true },
+                theme: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                type: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    OrganizationBrandColor: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                brightness: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                type: { dataType: 'string', required: true },
+                hex: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    OrganizationBrandFont: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                origin: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                type: { dataType: 'string', required: true },
+                name: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    OrganizationBrand: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                updatedAt: { dataType: 'datetime', required: true },
+                fonts: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'OrganizationBrandFont',
+                    },
+                    required: true,
+                },
+                colors: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'OrganizationBrandColor',
+                    },
+                    required: true,
+                },
+                logos: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'OrganizationBrandLogo',
+                    },
+                    required: true,
+                },
+                description: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                name: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                domain: { dataType: 'string', required: true },
+                organizationUuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiOrganizationBrandResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'OrganizationBrand' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    UpdateOrganizationBrandRequest: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                domain: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SaveOrganizationBrandRequest: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                fonts: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'OrganizationBrandFont',
+                    },
+                    required: true,
+                },
+                colors: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'OrganizationBrandColor',
+                    },
+                    required: true,
+                },
+                logos: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'OrganizationBrandLogo',
+                    },
+                    required: true,
+                },
+                description: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                name: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                domain: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    OrganizationBrandLogoUpload: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                format: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'enum', enums: ['png'] },
+                        { dataType: 'enum', enums: ['jpeg'] },
+                        { dataType: 'enum', enums: ['webp'] },
+                        { dataType: 'enum', enums: ['gif'] },
+                        { dataType: 'enum', enums: ['svg'] },
+                    ],
+                    required: true,
+                },
+                url: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiOrganizationBrandLogoUploadResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: { ref: 'OrganizationBrandLogoUpload', required: true },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
             },
             validators: {},
         },
@@ -78821,6 +78961,7 @@ const models: TsoaRoute.Models = {
     AiAccessRefusalReason: {
         dataType: 'refEnum',
         enums: [
+            'mcp_project_not_allowed',
             'agent_access_disabled',
             'agent_capability_denied',
             'agent_project_denied',
@@ -80460,6 +80601,73 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'stampContentAsCodeSettings',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsProjectCoderController_pruneContentAsCodeSnapshots: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'ContentAsCodeSnapshotPrune',
+        },
+    };
+    app.post(
+        '/api/v1/projects/:projectUuid/code/snapshots/prune',
+        ...fetchMiddlewares<RequestHandler>(ProjectCoderController),
+        ...fetchMiddlewares<RequestHandler>(
+            ProjectCoderController.prototype.pruneContentAsCodeSnapshots,
+        ),
+
+        async function ProjectCoderController_pruneContentAsCodeSnapshots(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsProjectCoderController_pruneContentAsCodeSnapshots,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<ProjectCoderController>(
+                        ProjectCoderController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'pruneContentAsCodeSnapshots',
                     controller,
                     response,
                     next,
@@ -130852,183 +131060,6 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    const argsOrganizationController_getOrganizationBrand: Record<
-        string,
-        TsoaRoute.ParameterSchema
-    > = {
-        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
-    };
-    app.get(
-        '/api/v1/org/brand',
-        ...fetchMiddlewares<RequestHandler>(OrganizationController),
-        ...fetchMiddlewares<RequestHandler>(
-            OrganizationController.prototype.getOrganizationBrand,
-        ),
-
-        async function OrganizationController_getOrganizationBrand(
-            request: ExRequest,
-            response: ExResponse,
-            next: any,
-        ) {
-            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-
-            let validatedArgs: any[] = [];
-            try {
-                validatedArgs = templateService.getValidatedArgs({
-                    args: argsOrganizationController_getOrganizationBrand,
-                    request,
-                    response,
-                });
-
-                const container: IocContainer =
-                    typeof iocContainer === 'function'
-                        ? (iocContainer as IocContainerFactory)(request)
-                        : iocContainer;
-
-                const controller: any =
-                    await container.get<OrganizationController>(
-                        OrganizationController,
-                    );
-                if (typeof controller['setStatus'] === 'function') {
-                    controller.setStatus(undefined);
-                }
-
-                await templateService.apiHandler({
-                    methodName: 'getOrganizationBrand',
-                    controller,
-                    response,
-                    next,
-                    validatedArgs,
-                    successStatus: undefined,
-                });
-            } catch (err) {
-                return next(err);
-            }
-        },
-    );
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    const argsOrganizationController_fetchOrganizationBrand: Record<
-        string,
-        TsoaRoute.ParameterSchema
-    > = {
-        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
-        body: {
-            in: 'body',
-            name: 'body',
-            required: true,
-            ref: 'UpdateOrganizationBrandRequest',
-        },
-    };
-    app.post(
-        '/api/v1/org/brand/fetch',
-        ...fetchMiddlewares<RequestHandler>(OrganizationController),
-        ...fetchMiddlewares<RequestHandler>(
-            OrganizationController.prototype.fetchOrganizationBrand,
-        ),
-
-        async function OrganizationController_fetchOrganizationBrand(
-            request: ExRequest,
-            response: ExResponse,
-            next: any,
-        ) {
-            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-
-            let validatedArgs: any[] = [];
-            try {
-                validatedArgs = templateService.getValidatedArgs({
-                    args: argsOrganizationController_fetchOrganizationBrand,
-                    request,
-                    response,
-                });
-
-                const container: IocContainer =
-                    typeof iocContainer === 'function'
-                        ? (iocContainer as IocContainerFactory)(request)
-                        : iocContainer;
-
-                const controller: any =
-                    await container.get<OrganizationController>(
-                        OrganizationController,
-                    );
-                if (typeof controller['setStatus'] === 'function') {
-                    controller.setStatus(undefined);
-                }
-
-                await templateService.apiHandler({
-                    methodName: 'fetchOrganizationBrand',
-                    controller,
-                    response,
-                    next,
-                    validatedArgs,
-                    successStatus: undefined,
-                });
-            } catch (err) {
-                return next(err);
-            }
-        },
-    );
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    const argsOrganizationController_saveOrganizationBrand: Record<
-        string,
-        TsoaRoute.ParameterSchema
-    > = {
-        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
-        body: {
-            in: 'body',
-            name: 'body',
-            required: true,
-            ref: 'SaveOrganizationBrandRequest',
-        },
-    };
-    app.put(
-        '/api/v1/org/brand',
-        ...fetchMiddlewares<RequestHandler>(OrganizationController),
-        ...fetchMiddlewares<RequestHandler>(
-            OrganizationController.prototype.saveOrganizationBrand,
-        ),
-
-        async function OrganizationController_saveOrganizationBrand(
-            request: ExRequest,
-            response: ExResponse,
-            next: any,
-        ) {
-            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-
-            let validatedArgs: any[] = [];
-            try {
-                validatedArgs = templateService.getValidatedArgs({
-                    args: argsOrganizationController_saveOrganizationBrand,
-                    request,
-                    response,
-                });
-
-                const container: IocContainer =
-                    typeof iocContainer === 'function'
-                        ? (iocContainer as IocContainerFactory)(request)
-                        : iocContainer;
-
-                const controller: any =
-                    await container.get<OrganizationController>(
-                        OrganizationController,
-                    );
-                if (typeof controller['setStatus'] === 'function') {
-                    controller.setStatus(undefined);
-                }
-
-                await templateService.apiHandler({
-                    methodName: 'saveOrganizationBrand',
-                    controller,
-                    response,
-                    next,
-                    validatedArgs,
-                    successStatus: undefined,
-                });
-            } catch (err) {
-                return next(err);
-            }
-        },
-    );
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     const argsOrganizationController_deleteOrganization: Record<
         string,
         TsoaRoute.ParameterSchema
@@ -132616,6 +132647,294 @@ export function RegisterRoutes(app: Router) {
                     next,
                     validatedArgs,
                     successStatus: undefined,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsOrganizationBrandController_getOrganizationBrand: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.get(
+        '/api/v1/org/brand',
+        ...fetchMiddlewares<RequestHandler>(OrganizationBrandController),
+        ...fetchMiddlewares<RequestHandler>(
+            OrganizationBrandController.prototype.getOrganizationBrand,
+        ),
+
+        async function OrganizationBrandController_getOrganizationBrand(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsOrganizationBrandController_getOrganizationBrand,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<OrganizationBrandController>(
+                        OrganizationBrandController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getOrganizationBrand',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: undefined,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsOrganizationBrandController_fetchOrganizationBrand: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'UpdateOrganizationBrandRequest',
+        },
+    };
+    app.post(
+        '/api/v1/org/brand/fetch',
+        ...fetchMiddlewares<RequestHandler>(OrganizationBrandController),
+        ...fetchMiddlewares<RequestHandler>(
+            OrganizationBrandController.prototype.fetchOrganizationBrand,
+        ),
+
+        async function OrganizationBrandController_fetchOrganizationBrand(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsOrganizationBrandController_fetchOrganizationBrand,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<OrganizationBrandController>(
+                        OrganizationBrandController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'fetchOrganizationBrand',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: undefined,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsOrganizationBrandController_saveOrganizationBrand: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'SaveOrganizationBrandRequest',
+        },
+    };
+    app.put(
+        '/api/v1/org/brand',
+        ...fetchMiddlewares<RequestHandler>(OrganizationBrandController),
+        ...fetchMiddlewares<RequestHandler>(
+            OrganizationBrandController.prototype.saveOrganizationBrand,
+        ),
+
+        async function OrganizationBrandController_saveOrganizationBrand(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsOrganizationBrandController_saveOrganizationBrand,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<OrganizationBrandController>(
+                        OrganizationBrandController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'saveOrganizationBrand',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: undefined,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsOrganizationBrandController_uploadOrganizationBrandLogo: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.post(
+        '/api/v1/org/brand/logos',
+        ...fetchMiddlewares<RequestHandler>(OrganizationBrandController),
+        ...fetchMiddlewares<RequestHandler>(
+            OrganizationBrandController.prototype.uploadOrganizationBrandLogo,
+        ),
+
+        async function OrganizationBrandController_uploadOrganizationBrandLogo(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsOrganizationBrandController_uploadOrganizationBrandLogo,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<OrganizationBrandController>(
+                        OrganizationBrandController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'uploadOrganizationBrandLogo',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 201,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsOrganizationBrandController_getOrganizationBrandLogo: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        logoUuid: { in: 'path', name: 'logoUuid', required: true, ref: 'UUID' },
+    };
+    app.get(
+        '/api/v1/org/brand/logos/:logoUuid',
+        ...fetchMiddlewares<RequestHandler>(OrganizationBrandController),
+        ...fetchMiddlewares<RequestHandler>(
+            OrganizationBrandController.prototype.getOrganizationBrandLogo,
+        ),
+
+        async function OrganizationBrandController_getOrganizationBrandLogo(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsOrganizationBrandController_getOrganizationBrandLogo,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<OrganizationBrandController>(
+                        OrganizationBrandController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getOrganizationBrandLogo',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
                 });
             } catch (err) {
                 return next(err);
