@@ -161,14 +161,6 @@ export enum FeatureFlags {
     OrganizationTrialBlock = 'organization-trial-block',
 
     /**
-     * Gates the organization export limits panel and its API. With the flag
-     * on, org admins can lower the query row limit and raise the CSV cell
-     * limit, up to the instance caps. Stored limits apply whether or not the
-     * flag is on. Billing flag: enable it for Pro and Enterprise plans.
-     */
-    ProLimits = 'pro-limits',
-
-    /**
      * Show the coding-agent project onboarding flow. This gates only the UI;
      * the CLI, APIs, and installed skills remain available independently.
      */

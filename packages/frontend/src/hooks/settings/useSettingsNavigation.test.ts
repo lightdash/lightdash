@@ -21,7 +21,6 @@ const settingsContext = (
     project: undefined,
     showImpersonationPanel: false,
     isCustomRolesEnabled: false,
-    isProLimitsEnabled: false,
     canAccessAnalyticsSettings: false,
     isAnalyticsProjectFlagLoading: false,
     isOrganizationRoadmapEnabled: false,

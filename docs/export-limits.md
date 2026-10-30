@@ -104,29 +104,14 @@ default, so behavior is identical to before.
 
 ---
 
-## Access — the `pro-limits` feature flag
+## Access
 
-`pro-limits` (`FeatureFlags.ProLimits`) is a billing flag. Enable it for Pro and Enterprise plans, and leave it off
-for Starter.
+Org admins (`manage` on `Organization`) see the **Limits** panel and can write `queryLimit` and `csvCellsLimit`
+through `PATCH /api/v1/org/settings`. No feature flag gates either one.
 
-The flag gates two things:
-
-- The **Limits** panel in organization settings. Org admins also need `manage` on `Organization`.
-- Writes to `queryLimit` and `csvCellsLimit`. Without the flag, `OrganizationSettingsService.updateOrganizationSettings`
-  throws a `ForbiddenError`, so a direct `PATCH /api/v1/org/settings` can't bypass the panel. The other
-  org-settings fields aren't gated.
-
-With the flag on, org admins can lower the query row limit below `LIGHTDASH_QUERY_MAX_LIMIT` and raise the CSV
-cell limit up to `max(LIGHTDASH_CSV_MAX_LIMIT, LIGHTDASH_CSV_CELLS_LIMIT)`.
-
-Stored limits apply whether or not the flag is on. Query and export services read them through
+Admins can lower the query row limit below `LIGHTDASH_QUERY_MAX_LIMIT` and raise the CSV cell limit up to
+`max(LIGHTDASH_CSV_MAX_LIMIT, LIGHTDASH_CSV_CELLS_LIMIT)`. Query and export services read the stored limits through
 `resolveOrganizationExportLimits` (`resolveExportLimits.ts`).
-
-To enable the flag:
-
-- **Lightdash Cloud:** set it per customer in the Lightdash Console. The Console writes a `feature_flags` row or a
-  per-org `feature_flag_overrides` row.
-- **Self-hosted:** set `LIGHTDASH_ENABLE_FEATURE_FLAGS=pro-limits`.
 
 ---
 
@@ -137,7 +122,6 @@ To enable the flag:
 | Setting types + resolver | `packages/common/src/types/organizationSettings.ts` (`queryLimit`, `csvCellsLimit`) |
 | CSV cap config | `parseConfig.ts` (`query.csvMaxLimit` from `LIGHTDASH_CSV_MAX_LIMIT`) |
 | Org-aware health | `HealthService.ts` (`query.maxLimit` / `defaultLimit` / `csvCellsLimit` effective; `queryMaxLimit` / `csvMaxLimit` ceilings) |
-| Feature flag | `packages/common/src/types/featureFlags.ts` (`ProLimits = 'pro-limits'`) |
 | DB column + entity | migration `..._add_export_limits_to_organization_settings.ts`, `entities/organizationSettings.ts` |
 | Model + service validation | `OrganizationSettingsModel.ts`, `OrganizationSettingsService.ts` |
 | Limit resolution helper | `services/OrganizationSettingsService/resolveExportLimits.ts` |

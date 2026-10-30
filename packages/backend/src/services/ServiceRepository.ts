@@ -876,7 +876,6 @@ export class ServiceRepository
                     lightdashConfig: this.context.lightdashConfig,
                     organizationSettingsModel:
                         this.models.getOrganizationSettingsModel(),
-                    featureFlagModel: this.models.getFeatureFlagModel(),
                 }),
         );
     }
