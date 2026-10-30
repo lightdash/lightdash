@@ -143,6 +143,7 @@ describe('answer evidence', () => {
         await wrapped.runComposerQueries({
             queries: [],
             terminalNodeId: 'terminal',
+            sampleNodeIds: [],
         });
         expect(runAsyncQuery).toHaveBeenCalledExactlyOnceWith(query, [], {
             region: 'EMEA',
@@ -159,6 +160,7 @@ describe('answer evidence', () => {
         expect(runComposerQueries).toHaveBeenCalledExactlyOnceWith({
             queries: [],
             terminalNodeId: 'terminal',
+            sampleNodeIds: [],
         });
         expect(evidence.snapshot()).toHaveLength(4);
         expect(evidence.snapshot()[0].scope).toContain('EMEA');

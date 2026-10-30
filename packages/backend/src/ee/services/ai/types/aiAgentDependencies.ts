@@ -766,6 +766,8 @@ export type ComposerNodeStatus = {
     rowCount: number | null;
     /** Result columns; null until the node's query is ready. */
     columns: ResultColumns | null;
+    /** First rows of a node asked to be sampled; null otherwise or when the read fails. */
+    sample: Record<string, AnyType>[] | null;
 };
 
 /** Every submitted node's status, read once after the terminal node settles. */
@@ -799,6 +801,8 @@ export type ComposerRunOutcome =
 export type RunComposerQueriesFn = (args: {
     queries: SourceQuery[];
     terminalNodeId: string;
+    /** Nodes whose node sample is read through the terminal rows' reader once the terminal settles. */
+    sampleNodeIds: string[];
     onNodeStatus?: (update: ComposerNodeStatusUpdate) => void;
 }) => Promise<ComposerRunOutcome>;
 

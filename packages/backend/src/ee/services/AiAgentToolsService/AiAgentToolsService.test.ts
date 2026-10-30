@@ -3669,6 +3669,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
             .runComposerQueries({
                 queries: composerQueries,
                 terminalNodeId: 'joined',
+                sampleNodeIds: [],
             });
 
         expect(executeSourceQueries).toHaveBeenCalledWith({
@@ -3732,6 +3733,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
             .runComposerQueries({
                 queries: composerQueries,
                 terminalNodeId: 'joined',
+                sampleNodeIds: [],
             });
 
         expect(result.status).toBe('success');
@@ -3742,6 +3744,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
                 error: null,
                 rowCount: 500,
                 columns: ordersColumns,
+                sample: null,
             },
             {
                 nodeId: 'joined',
@@ -3749,6 +3752,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
                 error: null,
                 rowCount: 1,
                 columns: readyResults.columns,
+                sample: null,
             },
         ]);
     });
@@ -3791,6 +3795,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
             .runComposerQueries({
                 queries: composerQueries,
                 terminalNodeId: 'joined',
+                sampleNodeIds: [],
                 onNodeStatus,
             });
 
@@ -3800,6 +3805,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
             error: null,
             rowCount: null,
             columns: null,
+            sample: null,
         });
         expect(onNodeStatus).not.toHaveBeenCalledWith(
             expect.objectContaining({ nodeId: 'orders', status: 'success' }),
@@ -3849,6 +3855,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
                     error: null,
                     rowCount: 1,
                     columns: readyResults.columns,
+                    sample: null,
                 },
                 {
                     nodeId: 'joined',
@@ -3856,6 +3863,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
                     error: null,
                     rowCount: null,
                     columns: null,
+                    sample: null,
                 },
             ],
         });
@@ -3885,6 +3893,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
             .runComposerQueries({
                 queries: composerQueries,
                 terminalNodeId: 'joined',
+                sampleNodeIds: [],
             });
 
         expect(executeSourceQueries).toHaveBeenCalledWith(
@@ -3937,6 +3946,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
                 .runComposerQueries({
                     queries: composerQueries,
                     terminalNodeId: 'joined',
+                    sampleNodeIds: [],
                     onNodeStatus,
                 });
             await vi.advanceTimersByTimeAsync(2_000);
@@ -3993,6 +4003,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
             service.createRuntime(makeRuntimeContext()).runComposerQueries({
                 queries: composerQueries,
                 terminalNodeId: 'joined',
+                sampleNodeIds: [],
                 onNodeStatus,
             }),
         ).rejects.toThrow('column "missing" does not exist');
@@ -4030,6 +4041,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
             service.createRuntime(makeRuntimeContext()).runComposerQueries({
                 queries: composerQueries,
                 terminalNodeId: 'joined',
+                sampleNodeIds: [],
                 onNodeStatus,
             }),
         ).resolves.toMatchObject({
@@ -4091,6 +4103,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
         await service.createRuntime(makeRuntimeContext()).runComposerQueries({
             queries: composerQueries,
             terminalNodeId: 'joined',
+            sampleNodeIds: [],
             onNodeStatus,
         });
 
@@ -4134,6 +4147,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
             service.createRuntime(makeRuntimeContext()).runComposerQueries({
                 queries: composerQueries,
                 terminalNodeId: 'unknown_node',
+                sampleNodeIds: [],
             }),
         ).rejects.toThrow('unknown_node');
     });
@@ -4179,6 +4193,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
             .runComposerQueries({
                 queries: composerQueries,
                 terminalNodeId: 'joined',
+                sampleNodeIds: [],
             });
 
         expect(result).toEqual({
@@ -4191,6 +4206,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
                     error: null,
                     rowCount: 12,
                     columns: ordersColumns,
+                    sample: null,
                 },
                 {
                     nodeId: 'joined',
@@ -4198,6 +4214,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
                     error: 'column "missing" does not exist',
                     rowCount: null,
                     columns: null,
+                    sample: null,
                 },
             ],
         });
@@ -4233,6 +4250,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
             .runComposerQueries({
                 queries: composerQueries,
                 terminalNodeId: 'joined',
+                sampleNodeIds: [],
             });
 
         expect(result).toMatchObject({
@@ -4277,6 +4295,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
                 .runComposerQueries({
                     queries: composerQueries,
                     terminalNodeId: 'joined',
+                    sampleNodeIds: [],
                 });
             await vi.advanceTimersByTimeAsync(6 * 60 * 1000);
 
@@ -4334,6 +4353,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
                         : query,
                 ),
                 terminalNodeId: 'joined',
+                sampleNodeIds: [],
             });
 
         if (result.status !== 'success') throw new Error('expected success');
@@ -4341,6 +4361,93 @@ describe('AiAgentToolsService runComposerQueries', () => {
         expect(result.terminal.rows).toHaveLength(
             COMPOSER_QUERY_PREVIEW_ROW_LIMIT,
         );
+    });
+
+    describe('node samples', () => {
+        const ordersPage = async (pageSize: number) => ({
+            status: QueryHistoryStatus.READY,
+            rows: Array.from({ length: 8 }, (_, index) => ({
+                orders_status: {
+                    value: {
+                        raw: `status-${index}`,
+                        formatted: `status-${index}`,
+                    },
+                },
+            })).slice(0, pageSize),
+            totalResults: 8,
+            columns: ordersColumns,
+        });
+        const runSampled = (
+            readOrders: typeof ordersPage,
+            sampleNodeIds: string[],
+        ) =>
+            makeService({
+                querySourceService: {
+                    executeSourceQueries: vi
+                        .fn()
+                        .mockResolvedValue({ queries: submissions }),
+                    getSourceQueryStatuses: vi
+                        .fn()
+                        .mockResolvedValue(readyStatuses),
+                },
+                asyncQueryService: {
+                    getAsyncQueryResults: vi
+                        .fn()
+                        .mockImplementation(
+                            ({
+                                queryUuid,
+                                pageSize,
+                            }: {
+                                queryUuid: string;
+                                pageSize: number;
+                            }) =>
+                                queryUuid === 'query-1'
+                                    ? readOrders(pageSize)
+                                    : Promise.resolve(readyResults),
+                        ),
+                },
+            })
+                .createRuntime(makeRuntimeContext())
+                .runComposerQueries({
+                    queries: composerQueries,
+                    terminalNodeId: 'joined',
+                    sampleNodeIds,
+                });
+        const samplesOf = (result: Awaited<ReturnType<typeof runSampled>>) =>
+            Object.fromEntries(
+                result.nodeStatuses.map(({ nodeId, sample }) => [
+                    nodeId,
+                    sample,
+                ]),
+            );
+
+        it('reads at most five rows for each node asked to be sampled', async () => {
+            const result = await runSampled(ordersPage, ['orders']);
+
+            expect(result.status).toBe('success');
+            expect(samplesOf(result)).toEqual({
+                orders: [0, 1, 2, 3, 4].map((index) => ({
+                    orders_status: `status-${index}`,
+                })),
+                joined: null,
+            });
+        });
+
+        it('reads no sample for a node not asked to be sampled', async () => {
+            const result = await runSampled(ordersPage, []);
+
+            expect(samplesOf(result)).toEqual({ orders: null, joined: null });
+        });
+
+        it('gives a null sample and still succeeds when a sample read fails', async () => {
+            const result = await runSampled(
+                () => Promise.reject(new Error('Access denied')),
+                ['orders'],
+            );
+
+            expect(result.status).toBe('success');
+            expect(samplesOf(result)).toEqual({ orders: null, joined: null });
+        });
     });
 });
 
@@ -4392,6 +4499,7 @@ describe('AiAgentToolsService runComposerQueries python failures', () => {
                     },
                 ],
                 terminalNodeId: 'forecast',
+                sampleNodeIds: [],
             });
 
         if (result.status !== 'failure') throw new Error('expected failure');

@@ -264,6 +264,7 @@ export const getVisualize = ({
                         ? await runComposerQueries({
                               queries,
                               terminalNodeId: nodeId,
+                              sampleNodeIds: [],
                           })
                               .then((outcome) =>
                                   outcome.status === 'success' ? outcome : null,
