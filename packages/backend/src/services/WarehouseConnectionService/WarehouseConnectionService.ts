@@ -680,6 +680,10 @@ export class WarehouseConnectionService extends BaseService {
     private static toCreateSource(
         request: ApiCreateWarehouseConnectionRequest,
     ): WarehouseConnectionCredentialSource {
+        if (request.organizationWarehouseCredentialsUuid != null)
+            throw new ParameterError(
+                'Organization warehouse credentials are no longer supported.',
+            );
         if (!request.warehouseConnection)
             throw new ParameterError('Provide warehouse credentials.');
         return { kind: 'project', credentials: request.warehouseConnection };
@@ -980,6 +984,10 @@ export class WarehouseConnectionService extends BaseService {
                 featureFlagId: FeatureFlags.MixedWarehouseConnections,
             });
         this.assertCanWrite(account, summary, null, null, mixedTypesEnabled);
+        if (request.organizationWarehouseCredentialsUuid != null)
+            throw new ParameterError(
+                'Organization warehouse credentials are no longer supported.',
+            );
         const existing = await this.warehouseConnectionModel.get(
             project,
             warehouseConnectionUuid,

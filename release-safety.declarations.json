@@ -9,9 +9,7 @@
                 "firstPartyOnly": "No client could ever call run_composer_queries because the MCP server never registered it; it existed only in the generated schema file.",
                 "covers": {
                     "rest": [],
-                    "mcp": [
-                        "run_composer_queries"
-                    ]
+                    "mcp": ["run_composer_queries"]
                 }
             }
         },
@@ -166,15 +164,13 @@
                 "kind": "no-external-callers",
                 "firstPartyOnly": "The AI Credits organization settings page is the only client of this operation. During a rolling update an old tab on that page shows the app error state until refresh, and nothing is written or lost.",
                 "covers": {
-                    "rest": [
-                        "GET /api/v1/org/ai-credits/usage/daily"
-                    ],
+                    "rest": ["GET /api/v1/org/ai-credits/usage/daily"],
                     "mcp": []
                 }
             }
         },
         "organization-warehouse-credentials-api-retired": {
-            "reason": "The deprecated organization warehouse credential REST endpoints and CLI organization-credentials option are removed; callers must configure credentials directly on each project. The commercial flag enum and health availability field are removed, so TypeScript consumers referencing them must update. Old settings tabs and CLI clients using the retired endpoints receive an error and must refresh or upgrade.",
+            "reason": "The deprecated organization warehouse credential REST endpoints and CLI organization-credentials option are removed. Callers of those endpoints receive 404 and older CLI commands using that option must configure warehouse credentials on the project instead. Existing project credentials, personal sign-ins and service accounts retain their current behavior. Legacy storage and shared compatibility types remain unchanged.",
             "requiredStop": false
         }
     }

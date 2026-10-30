@@ -1,9 +1,13 @@
 # Organization warehouse credentials removal
 
-Removes the deprecated organization warehouse credentials settings page, selector,
-API endpoints, CLI option, feature flag, and runtime credential source.
+The backend CRUD endpoints, CLI option and organization credential resolution
+paths are retired, following the earlier UI and feature-flag removal.
 
 Projects and extra warehouse connections use their own credentials. Personal
-credentials, service accounts, and existing preview flows remain unchanged.
-There are no schema changes or data migrations. Legacy storage and compatibility
-types remain untouched.
+sign-ins, service accounts and existing preview credential inheritance keep their
+current behavior. Requests or stored connections with a retired organization
+credential reference fail explicitly instead of using inline credentials.
+
+There are no schema changes or data migrations. Legacy storage, secret rotation
+coverage and shared compatibility types remain. Older callers of the removed
+endpoints receive 404 and must configure credentials directly on each project.

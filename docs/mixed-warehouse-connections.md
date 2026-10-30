@@ -52,7 +52,7 @@ add-connection dialog.
   settings (`extraConnectionSettings.ts`) instead of ignoring them. With the
   flag off, they are stored and ignored, as before.
 - **Secrets.** Connection details pass through
-  `OrganizationWarehouseCredentialsModel.stripSensitiveCredentials`, which also
+  `stripSensitiveWarehouseCredentials`, which also
   removes DuckLake catalog passwords and storage keys. The switch plan, the
   explore connection metadata and the agent project info return explicit
   non-secret fields only.
@@ -67,16 +67,16 @@ with that connection's warehouse client.
 
 Places that used to read the primary's type now read the explore's connection:
 
-| Area | Code |
-| --- | --- |
-| AI table calculation and custom dimension generators | `AiService` resolves by the canonical `exploreName` in the request. Requests without it fall back to the primary's dialect |
-| AI dbt writeback | `AiWritebackService` uses the selected dbt source's bound connection (`ProjectModel.getDbtSourceWarehouseType`) |
-| dbt YAML writeback | `GitIntegrationService` builds the SQL builder from the explore's binding |
-| dbt source location check | `ProjectDbtSourcesService` validates against the source's bound connection |
-| Pre-aggregate week start at deploy | `ProjectService.getDeployStartOfWeekByExplore` uses the week start of an extra connection for its explores when the flag is on; explores on the primary, and every explore with the flag off, keep the project value |
-| AI agent | `getProjectInfo` lists every connection with its type, and the run-SQL prompt states each dialect. Raw SQL still runs on the primary |
-| Explore API | `ApiExploreResults.warehouseConnection` returns `{ warehouseConnectionUuid, warehouseType, startOfWeek }` |
-| Frontend | `useExploreWarehouseConnection` feeds SQL display, the formula editor gate, editor dialect labels, explorer filters, merge-query source filters, reference lines and scheduler chart overrides. The explore's week start applies only with the flag on; with it off, these use the project week start |
+| Area                                                 | Code                                                                                                                                                                                                                                                                                                  |
+| ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| AI table calculation and custom dimension generators | `AiService` resolves by the canonical `exploreName` in the request. Requests without it fall back to the primary's dialect                                                                                                                                                                            |
+| AI dbt writeback                                     | `AiWritebackService` uses the selected dbt source's bound connection (`ProjectModel.getDbtSourceWarehouseType`)                                                                                                                                                                                       |
+| dbt YAML writeback                                   | `GitIntegrationService` builds the SQL builder from the explore's binding                                                                                                                                                                                                                             |
+| dbt source location check                            | `ProjectDbtSourcesService` validates against the source's bound connection                                                                                                                                                                                                                            |
+| Pre-aggregate week start at deploy                   | `ProjectService.getDeployStartOfWeekByExplore` uses the week start of an extra connection for its explores when the flag is on; explores on the primary, and every explore with the flag off, keep the project value                                                                                  |
+| AI agent                                             | `getProjectInfo` lists every connection with its type, and the run-SQL prompt states each dialect. Raw SQL still runs on the primary                                                                                                                                                                  |
+| Explore API                                          | `ApiExploreResults.warehouseConnection` returns `{ warehouseConnectionUuid, warehouseType, startOfWeek }`                                                                                                                                                                                             |
+| Frontend                                             | `useExploreWarehouseConnection` feeds SQL display, the formula editor gate, editor dialect labels, explorer filters, merge-query source filters, reference lines and scheduler chart overrides. The explore's week start applies only with the flag on; with it off, these use the project week start |
 
 ## Joins and dbt refs across connections
 
