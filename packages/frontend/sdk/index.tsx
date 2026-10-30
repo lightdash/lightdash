@@ -1116,11 +1116,18 @@ const IframeAiAgent: FC<Omit<AiAgentProps, 'renderMode'>> = ({
             : undefined;
 
     const resolvedTheme = useResolvedColorScheme(theme ?? 'light');
-    // Frozen at mount: a changing src would reload the iframe, and the
-    // instance follows later OS changes itself via `followSystemTheme`.
-    const [iframeTheme] = useState<ColorScheme | undefined>(() =>
-        theme === undefined ? undefined : resolvedTheme,
-    );
+    // Re-resolved only when the prop changes: a changing src reloads the
+    // iframe, and the instance follows later OS changes itself via
+    // `followSystemTheme`.
+    const [themeSnapshot, setThemeSnapshot] = useState({
+        theme,
+        resolvedTheme,
+    });
+    if (themeSnapshot.theme !== theme) {
+        setThemeSnapshot({ theme, resolvedTheme });
+    }
+    const iframeTheme: ColorScheme | undefined =
+        theme === undefined ? undefined : themeSnapshot.resolvedTheme;
     useEffect(() => {
         if (!tokenContext || !onEvent) {
             return undefined;
