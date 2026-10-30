@@ -10,8 +10,6 @@ export const credentialPurposeOwnerKinds = {
     automation_service_account: ['connection'],
     personal_sign_in: ['person'],
     agent_sign_in: ['person'],
-    agent_oauth_client: ['organization'],
-    ssh_key_pair: ['organization'],
     git_installation: ['organization'],
     git_user: ['person'],
     dbt_cloud: ['connection'],
@@ -44,6 +42,9 @@ export type CredentialMetadata = {
     subjectUserUuid: string | null;
     subjectLabel: string | null;
     issuerCredentialUuid: string | null;
+    sshKeyPairPublicKey: string | null;
+    webIdentityAudience: string | null;
+    issuerAgentClientUuid: string | null;
     oauthGrantUuid: string | null;
     generation: string;
     expiresAt: Date | null;

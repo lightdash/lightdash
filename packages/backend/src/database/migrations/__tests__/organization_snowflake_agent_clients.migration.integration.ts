@@ -9,6 +9,10 @@ import {
     down,
     up,
 } from '../20261009155609_create_organization_snowflake_agent_clients';
+import {
+    down as downCredentialIdentityLinks,
+    up as upCredentialIdentityLinks,
+} from '../20261028120000_link_credential_identities';
 
 let migrated: MigratedDatabase;
 const encryptionUtil = new EncryptionUtil({
@@ -177,9 +181,11 @@ test('keeps the client after user deletion and removes it after organization del
 
 test('down removes the table and up restores it', async () => {
     await migrated.database.transaction(async (trx) => {
+        await downCredentialIdentityLinks(trx);
         await down(trx);
         expect(await trx.schema.hasTable(table)).toBe(false);
         await up(trx);
         expect(await trx.schema.hasTable(table)).toBe(true);
+        await upCredentialIdentityLinks(trx);
     });
 });

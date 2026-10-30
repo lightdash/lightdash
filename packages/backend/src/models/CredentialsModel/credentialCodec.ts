@@ -141,9 +141,7 @@ const registry: Record<
         secrets: z.object({ assumeRoleExternalId: nullableText }).strict(),
     },
     'warehouse:athena:web_identity': {
-        identity: z
-            .object({ assumeRoleArn: text, webIdentityAudience: text })
-            .strict(),
+        identity: z.object({ assumeRoleArn: text }).strict(),
         secrets: empty,
     },
     'warehouse:duckdb:token': {
@@ -175,14 +173,6 @@ const registry: Record<
     },
     'warehouse:duckdb:embedded': { identity: empty, secrets: empty },
     'warehouse:duckdb:analytics': { identity: empty, secrets: empty },
-    'agent_oauth_client:snowflake:oauth': {
-        identity: z.object({ clientId: text }).strict(),
-        secrets: z.object({ clientSecret: text }).strict(),
-    },
-    'ssh_key_pair::key_pair': {
-        identity: z.object({ publicKey: text }).strict(),
-        secrets: z.object({ privateKey: text }).strict(),
-    },
     'git_user::oauth': { identity: gitUserIdentity, secrets: gitToken },
     'git_user::personal_access_token': {
         identity: gitUserIdentity,
