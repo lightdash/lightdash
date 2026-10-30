@@ -246,6 +246,9 @@ describe('DayOneAskInput', () => {
         renderInput();
 
         expect(agentChatInputProps.current?.agentUuid).toBe('agent-1');
+        expect(
+            agentChatInputProps.current?.imageAttachmentsUnavailableReason,
+        ).toBeUndefined();
         expect(deepResearchHookArgs.current).toEqual(['project-1', 'homepage']);
         expect(agentChatInputProps.current?.onStartDeepResearch).toBeDefined();
 
@@ -277,11 +280,35 @@ describe('DayOneAskInput', () => {
         renderInput(true);
 
         expect(agentChatInputProps.current?.selectedAgent).toBe('auto');
+        expect(
+            agentChatInputProps.current?.imageAttachmentsUnavailableReason,
+        ).toBe('Choose an agent to attach images');
         expect(agentChatInputProps.current?.agentUuid).toBeUndefined();
         expect(
             agentChatInputProps.current?.onStartDeepResearch,
         ).toBeUndefined();
         expect(agentChatInputProps.current?.onSqlModeChange).toBeUndefined();
+    });
+
+    it('returns the selected-agent mutation promise and forwards image identity/metadata', () => {
+        renderInput();
+        const props = agentChatInputProps.current;
+        if (!props) throw new Error('Expected the homepage composer');
+        const pending = Promise.resolve({ uuid: 'created-thread' });
+        createAgentThread.mockReturnValueOnce(pending);
+        const context = [
+            { type: 'thread_image', fileUuid: 'image-1' },
+        ] as const;
+        expect(
+            props.onSubmit({
+                message: 'Recreate this chart',
+                toolHints: [],
+                context: [...context],
+            }),
+        ).toBe(pending);
+        expect(createAgentThread).toHaveBeenCalledWith(
+            expect.objectContaining({ context: [...context] }),
+        );
     });
 
     it('hides Deep Research when the user cannot start a run', () => {
@@ -315,7 +342,7 @@ describe('DayOneAskInput', () => {
         expect(agentChatInputProps.current?.onSqlModeChange).toBeDefined();
 
         act(() => {
-            agentChatInputProps.current?.onSubmit({
+            void agentChatInputProps.current?.onSubmit({
                 message: 'Show revenue',
                 toolHints: [],
             });
@@ -338,7 +365,7 @@ describe('DayOneAskInput', () => {
 
         expect(agentChatInputProps.current?.sqlMode).toBe(true);
         act(() => {
-            agentChatInputProps.current?.onSubmit({
+            void agentChatInputProps.current?.onSubmit({
                 message: 'Show revenue',
                 toolHints: [],
             });

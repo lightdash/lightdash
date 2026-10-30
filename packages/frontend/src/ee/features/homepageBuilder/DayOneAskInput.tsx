@@ -403,7 +403,7 @@ const DayOneAskInputInner: FC<Props> = ({
             void navigate(`/projects/${projectUuid}/ai-agents`);
             return;
         }
-        void createAgentThread({
+        return createAgentThread({
             agentUuid: activeSelection.uuid,
             prompt,
             toolHints,
@@ -433,7 +433,7 @@ const DayOneAskInputInner: FC<Props> = ({
                 hasProject: !!projectUuid,
             },
         });
-        submitPrompt(prompt, toolHints, context, optimisticContext);
+        return submitPrompt(prompt, toolHints, context, optimisticContext);
     };
 
     const handleChipPick = (chip: AgentSuggestion, index: number) => {
@@ -458,7 +458,9 @@ const DayOneAskInputInner: FC<Props> = ({
             void navigate(chip.url);
             return;
         }
-        submitPrompt(chip.label, [chip.tool]);
+        void Promise.resolve(submitPrompt(chip.label, [chip.tool])).catch(
+            () => undefined,
+        );
     };
 
     if (hasNoAgents) {
@@ -491,6 +493,11 @@ const DayOneAskInputInner: FC<Props> = ({
                     selectedAgent={composerSelection}
                     placeholder={composerPlaceholder(activeSelection)}
                     onSubmit={handleSubmit}
+                    imageAttachmentsUnavailableReason={
+                        activeSelection === 'auto'
+                            ? 'Choose an agent to attach images'
+                            : undefined
+                    }
                     onStartDeepResearch={onStartDeepResearch}
                     {...composerSqlModeProps}
                     loading={isCreatingThread}

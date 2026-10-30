@@ -427,6 +427,7 @@ const AgentsRouterPage = () => {
                             loading={isLocked}
                             disabled={!isPinnedContextReady}
                             onSubmit={handleSubmit}
+                            imageAttachmentsUnavailableReason="Choose an agent to attach images"
                             onStartDeepResearch={
                                 canStartDeepResearch
                                     ? handleStartDeepResearch
