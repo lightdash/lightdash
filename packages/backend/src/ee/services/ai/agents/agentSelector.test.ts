@@ -1,7 +1,11 @@
 import type { AiAgentWithContext } from '@lightdash/common';
 import { generateText } from 'ai';
 import { AiDecisionClient } from '../decisions/AiDecisionClient';
-import { selectAgent } from './agentSelector';
+import {
+    buildRoutingContext,
+    renderRouterMessages,
+    selectAgent,
+} from './agentSelector';
 
 vi.mock('ai', async (importOriginal) => ({
     ...(await importOriginal<typeof import('ai')>()),
@@ -103,5 +107,70 @@ describe('agent routing abstention', () => {
             selectedAgentUuid: 'finance',
             confidence: 'medium',
         });
+    });
+});
+
+describe('routing context', () => {
+    const richCandidates = [
+        {
+            uuid: 'sales',
+            name: 'Sales',
+            description: 'Sales questions',
+            instruction: 'Answer in GBP',
+            context: {
+                explores: ['orders'],
+                verifiedQuestions: Array.from(
+                    { length: 20 },
+                    (_, i) => `question ${i}`,
+                ),
+            },
+        },
+        {
+            uuid: 'finance',
+            name: 'Finance',
+            description: null,
+            instruction: null,
+            context: { explores: [], verifiedQuestions: [] },
+        },
+    ] as unknown as AiAgentWithContext[];
+
+    it('renders every routing-context field into the model prompt', () => {
+        const context = buildRoutingContext({
+            candidates: richCandidates,
+            prompt: 'Revenue by region',
+            instructions: 'Route GBP questions to @[Sales](sales)',
+        });
+        const [system, user] = renderRouterMessages(context);
+        const systemText = String(system.content);
+
+        expect(String(user.content)).toContain(context.prompt);
+        expect(systemText).toContain(context.instructions);
+        context.candidates.forEach((candidate) => {
+            expect(systemText).toContain(candidate.uuid);
+            expect(systemText).toContain(candidate.name);
+            if (candidate.description)
+                expect(systemText).toContain(candidate.description);
+            if (candidate.instruction)
+                expect(systemText).toContain(candidate.instruction);
+            candidate.explores.forEach((explore) =>
+                expect(systemText).toContain(explore),
+            );
+            candidate.questions.forEach((question) =>
+                expect(systemText).toContain(question),
+            );
+        });
+        expect(context.candidates[0].questions).toHaveLength(5);
+    });
+
+    it('treats blank admin instructions as none', () => {
+        const context = buildRoutingContext({
+            candidates: richCandidates,
+            prompt: 'Revenue',
+            instructions: '   ',
+        });
+        expect(context.instructions).toBeNull();
+        expect(String(renderRouterMessages(context)[0].content)).not.toContain(
+            'Admin Routing Rules',
+        );
     });
 });
