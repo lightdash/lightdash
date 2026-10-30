@@ -3,6 +3,7 @@ import {
     Loader,
     Stack,
     Text,
+    Button,
     useComputedColorScheme,
 } from '@mantine/core';
 import { useDebouncedCallback } from '@mantine/hooks';
@@ -10,6 +11,7 @@ import { type IDisposable, type languages } from 'monaco-editor';
 import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { useDeepCompareEffect } from 'react-use';
+import { useAmbientAiEnabled } from '../../../../ee/features/ambientAi/hooks/useAmbientAiEnabled';
 import { useCanCreateDataApp } from '../../../../features/apps/hooks/useCanCreateDataApp';
 import { useChartStudioAvailable } from '../../../../features/chartTypes/hooks/useChartStudioAvailable';
 import { useChartTypesEnabled } from '../../../../features/chartTypes/hooks/useChartTypesEnabled';
@@ -39,6 +41,7 @@ import {
 } from '../../CustomChartType/useSelectProjectChartType';
 import { ChartStudioInfoCallout } from './components/ChartStudioInfoCallout';
 import { ChartStudioNudgeCard } from './components/ChartStudioNudgeCard';
+import { GenerateVizWithAi } from './components/CustomVisAi';
 import { SelectTemplate } from './components/CustomVisTemplate';
 import classes from './CustomVisConfig.module.css';
 import { useChartStudioVegaNudge } from './hooks/useChartStudioVegaNudge';
@@ -139,7 +142,7 @@ const registerCustomCompletionProvider = (
 
 export const ConfigTabs: React.FC = memo(() => {
     const { itemsMap } = useVisualizationInputs();
-    const { fields } = useVisualizationInputSelector(
+    const { series, fields } = useVisualizationInputSelector(
         selectCustomVisualizationData,
     );
     const store = useVisualizationStore();
@@ -216,6 +219,8 @@ export const ConfigTabs: React.FC = memo(() => {
     const [monacoOptions, setMonacoOptions] = useState<
         EditorProps['options'] | undefined
     >();
+
+    const isAiEnabled = useAmbientAiEnabled(projectUuid);
 
     // Without chart types there is nothing to switch to, so Vega is the only
     // custom chart type there is and a picker would offer a choice of one.
@@ -378,10 +383,21 @@ export const ConfigTabs: React.FC = memo(() => {
                                 />
                             </Group>
 
-                            <SelectTemplate
-                                itemsMap={itemsMap}
-                                setEditorConfig={setEditorConfig}
-                            />
+                            <Button.Group>
+                                <SelectTemplate
+                                    itemsMap={itemsMap}
+                                    setEditorConfig={setEditorConfig}
+                                />
+
+                                {isAiEnabled && (
+                                    <GenerateVizWithAi
+                                        itemsMap={itemsMap}
+                                        sampleResults={series.slice(0, 3)}
+                                        setEditorConfig={setEditorConfig}
+                                        editorConfig={editorConfig}
+                                    />
+                                )}
+                            </Button.Group>
                         </Config.Group>
                     </Config.Section>
                 </Config>

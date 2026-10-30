@@ -27,6 +27,17 @@ export type EmbedQueryViewed = BaseTrack & {
     };
 };
 
+export type CustomVizGenerated = BaseTrack & {
+    event: 'ai.custom_viz.generated';
+    properties: {
+        organizationId: string;
+        projectId: string;
+        // Track the metadata of the request and response
+        prompt: string; // the prompt used to generate the custom viz
+        responseSize: number; // length in chars
+    };
+};
+
 export type GenerateChartMetadataGenerated = BaseTrack & {
     event: 'ai.chart_metadata.generated';
     properties: {

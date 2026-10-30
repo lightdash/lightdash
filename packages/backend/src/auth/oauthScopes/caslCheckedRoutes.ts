@@ -80,6 +80,7 @@ export const OAUTH_CASL_CHECKED_ROUTES: readonly string[] = [
     'AiAgentSkillController.upsertSkillsAsCode',
     'AiController.generateChartMetadata',
     'AiController.generateCustomDimension',
+    'AiController.generateCustomViz',
     'AiController.generateFormulaTableCalculation',
     'AiController.generateGoogleSheetsExtensionReportDraft',
     'AiController.generateTableCalculation',

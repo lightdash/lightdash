@@ -52,6 +52,7 @@ export const AI_CALL_FEATURES = [
     'external-connection-config',
     'delivery-summary',
     'data-app-analysis',
+    'custom-viz',
 ] as const;
 
 export type AiCallFeature = (typeof AI_CALL_FEATURES)[number];

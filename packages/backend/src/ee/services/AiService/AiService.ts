@@ -13,7 +13,10 @@ import {
     GenerateTableCalculationRequest,
     GenerateTooltipRequest,
     getAccountUserTimezone,
+    getItemId,
+    isField,
     isSummaryExploreError,
+    ItemsMap,
     resolveQueryTimezone,
     SessionUser,
     SuggestChartTypeExploreRequest,
@@ -45,6 +48,7 @@ import {
     ChartTypeExploreSuggested,
     ChartTypeFieldsSuggested,
     ConvertSqlToFormulaGenerated,
+    CustomVizGenerated,
     GenerateChartMetadataGenerated,
     GenerateCustomDimensionGenerated,
     GenerateFormulaTableCalculationGenerated,
@@ -67,6 +71,7 @@ import {
     type ChartTypeExploreCandidate,
 } from '../ai/agents/chartTypeSuggestionGenerator';
 import { generateCustomDimension as generateCustomDimensionFromContext } from '../ai/agents/customDimensionGenerator';
+import { generateCustomViz as generateCustomVizFromContext } from '../ai/agents/customVizGenerator';
 import {
     detectDataAppAnomalies,
     type DataAppDetection,
@@ -392,6 +397,69 @@ Use plain text only, with no HTML, markdown, or links. Return fewer entries if t
             }),
             telemetry: attribution,
         };
+    }
+
+    async generateCustomViz({
+        user,
+        projectUuid,
+        prompt,
+        itemsMap,
+        sampleResults,
+        currentVizConfig,
+    }: {
+        user: SessionUser;
+        projectUuid: string;
+        prompt: string;
+        itemsMap: ItemsMap;
+        sampleResults: {
+            [k: string]: unknown;
+        }[];
+        currentVizConfig: string;
+    }) {
+        const project = await this.projectService.getProject(
+            projectUuid,
+            fromSession(user),
+        );
+        if (
+            this.createAuditedAbility(user).cannot(
+                'manage',
+                subject('Explore', {
+                    organizationUuid: project.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const modelOptions = await this.getAmbientAiModel(user, {
+            projectUuid,
+        });
+        const fields = Object.values(itemsMap).map((item) => ({
+            id: getItemId(item),
+            name: item.name,
+            type: item.type,
+            fieldType: isField(item) ? item.fieldType : undefined,
+        }));
+        const spec = await generateCustomVizFromContext(modelOptions, {
+            prompt,
+            fields,
+            sampleResults,
+            currentVizConfig,
+        });
+
+        this.analytics.track<CustomVizGenerated>({
+            userId: user.userUuid,
+            event: 'ai.custom_viz.generated',
+            properties: {
+                organizationId: user.organizationUuid!,
+                projectId: projectUuid,
+                prompt,
+                responseSize: spec.length,
+            },
+        });
+
+        return spec;
     }
 
     async generateGoogleSheetsExtensionReportDraft(
