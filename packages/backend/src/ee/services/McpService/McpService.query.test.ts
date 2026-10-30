@@ -120,23 +120,19 @@ type SessionOwner = {
     projectUuid: string;
 };
 
-// In-memory stand-in for the session and node tables; ownership and expiry
-// rules are covered by the model integration tests.
+// In-memory stand-in for the session and node tables; ownership rules are
+// covered by the model integration tests.
 const makeComposerSessionStore = () => {
-    const sessions = new Map<string, SessionOwner & { expired: boolean }>();
+    const sessions = new Map<string, SessionOwner>();
     const nodesByScope = new Map<string, ThreadComposerQueryNode[]>();
     const scopeKey = ({ scopeType, scopeUuid }: ComposerQueryNodeScope) =>
         `${scopeType}:${scopeUuid}`;
     return {
         sessions,
-        expire: (sessionUuid: string) => {
-            const session = sessions.get(sessionUuid);
-            if (session) session.expired = true;
-        },
         model: {
             createComposerSession: async (owner: SessionOwner) => {
                 const sessionUuid = uuidv4();
-                sessions.set(sessionUuid, { ...owner, expired: false });
+                sessions.set(sessionUuid, owner);
                 return sessionUuid;
             },
             useComposerSession: async ({
@@ -146,7 +142,6 @@ const makeComposerSessionStore = () => {
                 const session = sessions.get(sessionUuid);
                 return (
                     !!session &&
-                    !session.expired &&
                     session.userUuid === owner.userUuid &&
                     session.organizationUuid === owner.organizationUuid &&
                     session.projectUuid === owner.projectUuid
@@ -945,7 +940,6 @@ describe('McpService query tool', () => {
                 'another project',
                 { projectUuid: '33333333-3333-4333-8333-333333333333' },
             ],
-            ['an expired session', { expire: true }],
             ['an unknown session', { sessionId: uuidv4() }],
         ])(
             'rejects the session id of %s without starting a new one',
@@ -959,7 +953,6 @@ describe('McpService query tool', () => {
                 } = makeService();
                 await createServer(service);
                 const sessionId = await startSession(call);
-                if ('expire' in overrides) composerSessions.expire(sessionId);
                 runComposerQueriesUntilDeadline.mockClear();
 
                 const result = await callAs(

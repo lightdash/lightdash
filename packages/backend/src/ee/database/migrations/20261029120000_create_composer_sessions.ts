@@ -43,8 +43,7 @@ export async function up(knex: Knex): Promise<void> {
             table
                 .timestamp('last_used_at', { useTz: false })
                 .notNullable()
-                .defaultTo(knex.fn.now())
-                .index();
+                .defaultTo(knex.fn.now());
         });
     } finally {
         await knex.raw('RESET lock_timeout');

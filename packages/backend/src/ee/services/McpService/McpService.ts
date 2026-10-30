@@ -1543,7 +1543,7 @@ export class McpService extends BaseService {
             }))
         ) {
             return mcpQueryTool.result.error(
-                `sessionId "${args.sessionId}" is unknown, expired or belongs to another user or project. Its nodes cannot be read: omit sessionId to start a new session and resubmit every node this pipeline reads.`,
+                `sessionId "${args.sessionId}" is unknown or belongs to another user or project. Its nodes cannot be read: omit sessionId to start a new session and resubmit every node this pipeline reads.`,
             );
         }
         const reusableNodes =

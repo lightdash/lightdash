@@ -62,8 +62,6 @@ export type ComposerQueryNodesTable = Knex.CompositeTableType<
 
 export const ComposerSessionsTableName = 'composer_sessions';
 
-export const COMPOSER_SESSION_IDLE_EXPIRY_HOURS = 24;
-
 /** The owner of an MCP composer session's nodes. */
 export type DbComposerSession = {
     composer_session_uuid: string;

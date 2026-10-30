@@ -274,22 +274,11 @@ describe('AiAgentModel composer sessions', () => {
         projectUuid: string;
     };
     const sessionUuids: string[] = [];
-    const threadUuids: string[] = [];
 
     const createSession = async () => {
         const sessionUuid = await model.createComposerSession(owner);
         sessionUuids.push(sessionUuid);
         return sessionUuid;
-    };
-
-    const idleFor = async (sessionUuid: string, hours: number) => {
-        await database(ComposerSessionsTableName)
-            .where('composer_session_uuid', sessionUuid)
-            .update({
-                last_used_at: database.raw(
-                    `now() - make_interval(hours => ${hours})`,
-                ),
-            });
     };
 
     beforeAll(() => {
@@ -306,9 +295,6 @@ describe('AiAgentModel composer sessions', () => {
     afterAll(async () => {
         await database(ComposerSessionsTableName)
             .whereIn('composer_session_uuid', sessionUuids)
-            .delete();
-        await database(AiThreadTableName)
-            .whereIn('ai_thread_uuid', threadUuids)
             .delete();
     });
 
@@ -350,69 +336,6 @@ describe('AiAgentModel composer sessions', () => {
         await expect(
             model.useComposerSession({ sessionUuid: 'not-a-uuid', ...owner }),
         ).resolves.toBe(false);
-    });
-
-    it('expires a session after a day idle, and each use restarts the clock', async () => {
-        const used = await createSession();
-        const idle = await createSession();
-        await idleFor(used, 23);
-        await idleFor(idle, 25);
-
-        expect(
-            await model.useComposerSession({ sessionUuid: used, ...owner }),
-        ).toBe(true);
-        await idleFor(used, 0);
-        expect(
-            await model.useComposerSession({ sessionUuid: idle, ...owner }),
-        ).toBe(false);
-        expect(
-            await model.useComposerSession({ sessionUuid: used, ...owner }),
-        ).toBe(true);
-    });
-
-    it('deletes expired sessions with their nodes, leaving live sessions and threads', async () => {
-        const live = await createSession();
-        const expired = await createSession();
-        const [thread] = await database<AiThreadTable>(AiThreadTableName)
-            .insert({
-                organization_uuid: SEED_ORG_1.organization_uuid,
-                project_uuid: SEED_PROJECT.project_uuid,
-                created_from: 'web_app',
-                agent_uuid: null,
-            })
-            .returning('*');
-        threadUuids.push(thread.ai_thread_uuid);
-        await Promise.all(
-            [
-                composerSessionScope(live),
-                composerSessionScope(expired),
-                threadComposerQueryScope(thread.ai_thread_uuid),
-            ].map((scope) =>
-                model.registerComposerQueryNodes({
-                    scope,
-                    nodes: [orders],
-                    nodeColumns: {},
-                }),
-            ),
-        );
-        await idleFor(expired, 25);
-
-        await model.deleteExpiredComposerSessions();
-
-        expect(
-            await model.useComposerSession({ sessionUuid: expired, ...owner }),
-        ).toBe(false);
-        expect(
-            await model.listComposerQueryNodes(composerSessionScope(expired)),
-        ).toEqual([]);
-        expect(
-            await model.listComposerQueryNodes(composerSessionScope(live)),
-        ).toEqual([orders]);
-        expect(
-            await model.listComposerQueryNodes(
-                threadComposerQueryScope(thread.ai_thread_uuid),
-            ),
-        ).toEqual([orders]);
     });
 
     it('names the session in a conflicting definition error', async () => {

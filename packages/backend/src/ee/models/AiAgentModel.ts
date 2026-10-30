@@ -275,7 +275,6 @@ import {
     DbAiEvalRunResultAssessment,
 } from '../database/entities/aiEvals';
 import {
-    COMPOSER_SESSION_IDLE_EXPIRY_HOURS,
     COMPOSER_SESSION_SCOPE_TYPE,
     ComposerQueryNodesTableName,
     ComposerSessionsTableName,
@@ -10143,7 +10142,7 @@ export class AiAgentModel {
         return row.composer_session_uuid;
     }
 
-    /** Bumps last_used_at; false when the session is unknown, expired or not this owner's in this project. */
+    /** Bumps last_used_at; false when the session is unknown or not this owner's in this project. */
     async useComposerSession({
         sessionUuid,
         userUuid,
@@ -10163,44 +10162,8 @@ export class AiAgentModel {
                 organization_uuid: organizationUuid,
                 project_uuid: projectUuid,
             })
-            .where(
-                'last_used_at',
-                '>',
-                this.database.raw(
-                    `now() - interval '${COMPOSER_SESSION_IDLE_EXPIRY_HOURS} hours'`,
-                ),
-            )
             .update({ last_used_at: this.database.fn.now() });
         return updated > 0;
-    }
-
-    /** Also deletes nodes left by sessions removed with their user, organization or project. */
-    async deleteExpiredComposerSessions(): Promise<{
-        sessionsDeleted: number;
-        nodesDeleted: number;
-    }> {
-        return this.database.transaction(async (trx) => {
-            const sessionsDeleted = await trx(ComposerSessionsTableName)
-                .where(
-                    'last_used_at',
-                    '<=',
-                    trx.raw(
-                        `now() - interval '${COMPOSER_SESSION_IDLE_EXPIRY_HOURS} hours'`,
-                    ),
-                )
-                .delete();
-            const nodesDeleted = await trx(ComposerQueryNodesTableName)
-                .where('scope_type', COMPOSER_SESSION_SCOPE_TYPE)
-                .whereNotExists(
-                    trx(ComposerSessionsTableName)
-                        .select(trx.raw('1'))
-                        .whereRaw(
-                            `${ComposerSessionsTableName}.composer_session_uuid = ${ComposerQueryNodesTableName}.scope_uuid`,
-                        ),
-                )
-                .delete();
-            return { sessionsDeleted, nodesDeleted };
-        });
     }
 
     async findArtifactVersionsByPromptUuid(
