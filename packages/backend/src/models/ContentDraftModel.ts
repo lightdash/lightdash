@@ -117,6 +117,24 @@ export class ContentDraftModel {
         this.database = database;
     }
 
+    // Content released from Git management keeps no pending review; the
+    // author gets the dismissed-draft path to reopen or drop it.
+    async dismissOpenBySlugs(
+        projectUuid: string,
+        contentType: 'chart' | 'dashboard',
+        slugs: string[],
+    ): Promise<number> {
+        if (slugs.length === 0) return 0;
+        return this.database(ContentDraftsTableName)
+            .where({
+                project_uuid: projectUuid,
+                content_type: contentType,
+                status: 'open',
+            })
+            .whereIn('slug', slugs)
+            .update({ status: 'dismissed', updated_at: new Date() });
+    }
+
     async upsertOpenDraft(args: {
         projectUuid: string;
         contentType: string;

@@ -1452,6 +1452,9 @@ export const REST_OPERATION_CAPABILITIES = {
         AgentCapability.DbtWriteback,
         AgentCapability.ContentWrite,
     ],
+    'ProjectCoderController.pruneContentAsCodeSnapshots': [
+        AgentCapability.Administration,
+    ],
     'ProjectCoderController.rebaseContentDraft': [AgentCapability.ContentWrite],
     'ProjectCoderController.renameContentSlug': [AgentCapability.ContentWrite],
     'ProjectCoderController.reopenContentDraft': [AgentCapability.ContentWrite],
