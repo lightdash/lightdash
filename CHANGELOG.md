@@ -1,3 +1,10 @@
+## [3.108.2](https://github.com/lightdash/lightdash/compare/3.108.1...3.108.2) (2026-10-30)
+
+
+### Bug Fixes
+
+* retry analytics compaction after GCS token expiry ([#31839](https://github.com/lightdash/lightdash/issues/31839)) ([43f9508](https://github.com/lightdash/lightdash/commit/43f950890d469521f5a1217aeaee49cc73d3e2e4))
+
 ## [3.108.1](https://github.com/lightdash/lightdash/compare/3.108.0...3.108.1) (2026-10-30)
 
 
