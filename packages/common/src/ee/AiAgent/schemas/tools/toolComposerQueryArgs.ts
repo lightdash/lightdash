@@ -105,6 +105,8 @@ ${getComposerNodeKindsDescription({
     sqlNote: 'available only when run_sql is',
 })}
 
+Reuse across calls: the result carries a sessionId. Pass it back as sessionId to read nodes of earlier calls by node id in "references" without resubmitting them; omit it to start a new session. A node id names one node for the whole session, so give a changed node a new node id.
+
 Returns a preview of the terminal node's rows and every node's queryUuid. If running, call get_query_result with the terminal node's queryUuid; never resubmit the pipeline. get_query_result also returns the result of any other node by its queryUuid.`;
 
 export const TOOL_COMPOSER_QUERIES_DESCRIPTION =
@@ -718,6 +720,12 @@ export const toolComposerQueriesStructuredContentSchema = z.object({
 });
 
 export const mcpQueryStructuredOutputSchema = z.object({
+    sessionId: z
+        .string()
+        .nullable()
+        .describe(
+            'Composer session holding the ready nodes; pass it as sessionId to read them by node id in a later call. Null when no node was saved and no sessionId was passed.',
+        ),
     status: z
         .enum(['done', 'running'])
         .describe(

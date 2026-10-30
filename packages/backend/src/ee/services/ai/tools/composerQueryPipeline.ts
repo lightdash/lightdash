@@ -10,6 +10,7 @@ import {
     toolComposerQueryNodeToSourceQuery,
     type AnyType,
     type ComposerApiConnection,
+    type ComposerNodeScopeName,
     type ComposerPipelineNode,
     type DimensionType,
     type Explore,
@@ -89,6 +90,7 @@ export const buildComposerQueryPipeline = ({
     explores,
     projectParameterDefinitions,
     reusableNodes,
+    scopeName = 'thread',
     enablePythonNodes,
     apiConnections,
     canRunSql,
@@ -98,6 +100,7 @@ export const buildComposerQueryPipeline = ({
     explores: Explore[];
     projectParameterDefinitions: ParameterDefinitions;
     reusableNodes: ThreadComposerQueryNode[];
+    scopeName?: ComposerNodeScopeName;
     enablePythonNodes: boolean;
     apiConnections: ComposerApiConnection[];
     canRunSql: boolean;
@@ -140,6 +143,7 @@ export const buildComposerQueryPipeline = ({
     const queries = buildComposerArtifactPipeline({
         queries: submitted,
         threadNodes: reusableNodes,
+        scopeName,
     });
     // Reused nodes run with the values they were defined with.
     const appliedParameters = queries.flatMap((node) => {

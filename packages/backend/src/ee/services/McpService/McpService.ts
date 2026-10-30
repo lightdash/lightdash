@@ -205,7 +205,9 @@ import {
 } from '../../../services/UserAttributesService/UserAttributeUtils';
 import { wrapSentryTransaction } from '../../../utils';
 import { VERSION } from '../../../version';
+import { composerSessionScope } from '../../database/entities/composerQueryNodes';
 import { DbMcpClientInfo } from '../../database/entities/mcpToolCall';
+import type { AiAgentModel } from '../../models/AiAgentModel';
 import { McpToolCallModel } from '../../models/McpToolCallModel';
 import {
     getMcpAnalystPrompt,
@@ -219,7 +221,9 @@ import {
     buildComposerPreview,
     buildComposerQueryPipeline,
     hasReachedLimit,
+    isSaved,
     renderComposerNodeSummary,
+    renderSavedNodes,
     toComposerNodeSummaries,
     toNodeColumns,
 } from '../ai/tools/composerQueryPipeline';
@@ -567,8 +571,17 @@ const mcpListSkillsTool = listSkillsToolDefinition.for('mcp');
 const mcpReadSkillTool = readSkillToolDefinition.for('mcp');
 const mcpReadSkillResourceTool = readSkillResourceToolDefinition.for('mcp');
 
+type McpComposerSessionModel = Pick<
+    AiAgentModel,
+    | 'createComposerSession'
+    | 'useComposerSession'
+    | 'listComposerQueryNodes'
+    | 'registerComposerQueryNodes'
+>;
+
 type McpServiceArguments = {
     agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
+    aiAgentModel: McpComposerSessionModel;
     aiAccessService: AiAccessService;
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
@@ -716,6 +729,8 @@ export type McpServerToolOptions = {
 export class McpService extends BaseService {
     private readonly agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
 
+    private readonly aiAgentModel: McpComposerSessionModel;
+
     private lightdashConfig: LightdashConfig;
 
     private aiAccessService: AiAccessService;
@@ -762,6 +777,7 @@ export class McpService extends BaseService {
 
     constructor({
         agentActionLogModel,
+        aiAgentModel,
         aiAccessService,
         lightdashConfig,
         analytics,
@@ -786,6 +802,7 @@ export class McpService extends BaseService {
     }: McpServiceArguments) {
         super();
         this.agentActionLogModel = agentActionLogModel;
+        this.aiAgentModel = aiAgentModel;
         this.aiAccessService = aiAccessService;
         this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
@@ -1476,10 +1493,15 @@ export class McpService extends BaseService {
         ctx: McpProtocolContext;
         projectUuid: string;
         agentUuid?: string;
-        args: ToolComposerQueriesArgs;
+        args: ToolComposerQueriesArgs & { sessionId?: string };
         deadlineMs: number;
     }): Promise<CallToolResult> {
-        const { user } = McpService.getAccount(ctx);
+        const { user, organizationUuid } = McpService.getAccount(ctx);
+        const sessionOwner = {
+            userUuid: user.userUuid,
+            organizationUuid,
+            projectUuid,
+        };
         const agent = agentUuid
             ? await this.aiAgentService.getAgent(user, agentUuid, projectUuid)
             : null;
@@ -1494,29 +1516,49 @@ export class McpService extends BaseService {
             agentUuid,
             QueryExecutionContext.MCP_QUERY,
         );
-        const exploreNames = [
-            ...new Set(
-                args.queries.flatMap((node) =>
-                    node.sourceType === QuerySourceType.SEMANTIC_LAYER
-                        ? [node.exploreName]
-                        : [],
-                ),
-            ),
-        ];
+        const exploreNamesOf = (
+            nodes: { sourceType: QuerySourceType; exploreName?: string }[],
+        ) =>
+            nodes.flatMap((node) =>
+                node.sourceType === QuerySourceType.SEMANTIC_LAYER &&
+                node.exploreName
+                    ? [node.exploreName]
+                    : [],
+            );
         // Out-of-scope explores fail here, as in run_metric_query.
-        const explores = await Promise.all(
-            exploreNames.map(async (table) =>
-                unwrapMcpRuntimeResult(
-                    await toolsRuntime.getExplore({ table }),
+        const loadExplores = (names: string[]) =>
+            Promise.all(
+                [...new Set(names)].map(async (table) =>
+                    unwrapMcpRuntimeResult(
+                        await toolsRuntime.getExplore({ table }),
+                    ),
                 ),
-            ),
-        );
+            );
+        const explores = await loadExplores(exploreNamesOf(args.queries));
+        if (
+            args.sessionId !== undefined &&
+            !(await this.aiAgentModel.useComposerSession({
+                sessionUuid: args.sessionId,
+                ...sessionOwner,
+            }))
+        ) {
+            return mcpQueryTool.result.error(
+                `sessionId "${args.sessionId}" is unknown or belongs to another user or project. Its nodes cannot be read: omit sessionId to start a new session and resubmit every node this pipeline reads.`,
+            );
+        }
+        const reusableNodes =
+            args.sessionId === undefined
+                ? []
+                : await this.aiAgentModel.listComposerQueryNodes(
+                      composerSessionScope(args.sessionId),
+                  );
         const built = buildComposerQueryPipeline({
             args,
             explores,
             projectParameterDefinitions:
                 await toolsRuntime.getProjectParameterDefinitions(),
-            reusableNodes: [],
+            reusableNodes,
+            scopeName: 'session',
             enablePythonNodes: true,
             apiConnections: [],
             canRunSql: await this.isRunSqlEnabled(user, projectUuid),
@@ -1525,6 +1567,15 @@ export class McpService extends BaseService {
         });
         if ('error' in built) return mcpQueryTool.result.error(built.error);
         const { queries, terminalNodeId, appliedParameters } = built.pipeline;
+        // Reused nodes are held to this call's scope too.
+        explores.push(
+            ...(await loadExplores(
+                exploreNamesOf(queries).filter(
+                    (name) =>
+                        !explores.some((explore) => explore.name === name),
+                ),
+            )),
+        );
         queries.forEach((node) => {
             if (node.sourceType !== QuerySourceType.SEMANTIC_LAYER) return;
             const explore = explores.find(
@@ -1546,6 +1597,41 @@ export class McpService extends BaseService {
             terminalNodeId,
             deadlineMs,
         });
+        // Only ready nodes are saved, as in the agent; other node ids stay free to resubmit.
+        const saved = run.nodeStatuses.filter(isSaved);
+        const sessionId =
+            args.sessionId ??
+            (saved.length > 0
+                ? await this.aiAgentModel.createComposerSession(sessionOwner)
+                : null);
+        if (sessionId !== null && saved.length > 0) {
+            await this.aiAgentModel.registerComposerQueryNodes({
+                scope: composerSessionScope(sessionId),
+                nodes: queries.filter((node) =>
+                    saved.some(({ nodeId }) => nodeId === node.nodeId),
+                ),
+                nodeColumns: {
+                    ...toNodeColumns(saved),
+                    ...(run.status === 'success'
+                        ? {
+                              [terminalNodeId]: toComposerNodeColumns(
+                                  run.terminal.columns,
+                              ),
+                          }
+                        : {}),
+                },
+            });
+        }
+        const sessionNote = [
+            run.status === 'success'
+                ? ''
+                : renderSavedNodes(queries, run.nodeStatuses, reusableNodes),
+            sessionId === null
+                ? 'No sessionId: no node was saved.'
+                : `sessionId: ${sessionId} (pass it back to read saved nodes by node id).`,
+        ]
+            .filter(Boolean)
+            .join('\n');
         const queryUuids = new Map(
             ('submissions' in run ? run.submissions : []).map(
                 ({ nodeId, queryUuid }) => [nodeId, queryUuid],
@@ -1566,7 +1652,7 @@ export class McpService extends BaseService {
         );
         if (run.status === 'failure') {
             return mcpQueryTool.result.error(
-                `${run.error}\nNodes:\n${nodeSummary}`,
+                `${run.error}\nNodes:\n${nodeSummary}\n${sessionNote}`,
             );
         }
         const nodeColumns = {
@@ -1602,19 +1688,21 @@ export class McpService extends BaseService {
 
         if (run.status === 'running') {
             const structuredContent: McpQueryStructuredContent = {
+                sessionId,
                 status: 'running',
                 terminalNodeId,
                 rowCount: null,
                 nodes,
             };
             return mcpQueryTool.result.structured(
-                `Query is still running, not failed. Wait ${MCP_QUERY_POLL_INTERVAL_MS} ms, then call get_query_result with queryUuid: ${terminalQueryUuid}. Do not resubmit the pipeline. ${MCP_QUERY_TIMING_NOTE}\nNodes:\n${nodeSummary}`,
+                `Query is still running, not failed. Wait ${MCP_QUERY_POLL_INTERVAL_MS} ms, then call get_query_result with queryUuid: ${terminalQueryUuid}. Do not resubmit the pipeline. ${MCP_QUERY_TIMING_NOTE}\n${sessionNote}\nNodes:\n${nodeSummary}`,
                 structuredContent,
             );
         }
 
         const preview = buildComposerPreview(run.terminal);
         const structuredContent: McpQueryStructuredContent = {
+            sessionId,
             status: 'done',
             terminalNodeId,
             rowCount: run.terminal.rowCount,
@@ -1622,6 +1710,7 @@ export class McpService extends BaseService {
         };
         const text = [
             `Query complete. Terminal node "${terminalNodeId}" returned ${run.terminal.rowCount} rows.`,
+            sessionNote,
             `Nodes:\n${nodeSummary}`,
             ...appliedParameters.map(
                 ({ nodeId, ...applied }) =>
@@ -4973,6 +5062,12 @@ export class McpService extends BaseService {
             }).extend({
                 projectUuid: projectUuidInput,
                 agentUuid: agentUuidInput,
+                sessionId: z
+                    .string()
+                    .optional()
+                    .describe(
+                        'sessionId from an earlier query result, to read its nodes by node id. Omit it to start a new session.',
+                    ),
             });
             this.registerTrackedTool(
                 mcpQueryTool.name,

@@ -3160,7 +3160,7 @@
                 "readOnlyHint": true,
                 "title": "Run composer queries"
             },
-            "description": "Run a pipeline: one or more nodes submitted together, where duckdb and python nodes join or transform other nodes' results. Use it when an answer joins, transforms or mixes sources, or needs Python; for one semantic-layer query use run_metric_query.\n\nNode kinds:\n- \"semanticLayer\": a metric query against an explore. Result columns are the requested field ids.\n- \"sql\": raw SQL against the project warehouse; available only when run_sql is.\n- \"external\": DuckDB SQL over uploaded or connected tables declared in \"tables\".\n- \"duckdb\": DuckDB SQL over other results declared in \"references\".\n- \"python\": pandas code over other results declared in \"references\".\n\nA node reads only the rows its references returned, so a referenced result that reached its limit is incomplete: before totalling, averaging or ranking over it, give that node a limit that holds its whole population, or aggregate there.\n\nReturns a preview of the terminal node's rows and every node's queryUuid. If running, call get_query_result with the terminal node's queryUuid; never resubmit the pipeline. get_query_result also returns the result of any other node by its queryUuid.",
+            "description": "Run a pipeline: one or more nodes submitted together, where duckdb and python nodes join or transform other nodes' results. Use it when an answer joins, transforms or mixes sources, or needs Python; for one semantic-layer query use run_metric_query.\n\nNode kinds:\n- \"semanticLayer\": a metric query against an explore. Result columns are the requested field ids.\n- \"sql\": raw SQL against the project warehouse; available only when run_sql is.\n- \"external\": DuckDB SQL over uploaded or connected tables declared in \"tables\".\n- \"duckdb\": DuckDB SQL over other results declared in \"references\".\n- \"python\": pandas code over other results declared in \"references\".\n\nA node reads only the rows its references returned, so a referenced result that reached its limit is incomplete: before totalling, averaging or ranking over it, give that node a limit that holds its whole population, or aggregate there.\n\nReuse across calls: the result carries a sessionId. Pass it back as sessionId to read nodes of earlier calls by node id in \"references\" without resubmitting them; omit it to start a new session. A node id names one node for the whole session, so give a changed node a new node id.\n\nReturns a preview of the terminal node's rows and every node's queryUuid. If running, call get_query_result with the terminal node's queryUuid; never resubmit the pipeline. get_query_result also returns the result of any other node by its queryUuid.",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "properties": {
@@ -3611,6 +3611,10 @@
                         ],
                         "description": "Total rows in the terminal result; null while running."
                     },
+                    "sessionId": {
+                        "description": "Composer session holding the ready nodes; pass it as sessionId to read them by node id in a later call. Null when no node was saved and no sessionId was passed.",
+                        "type": ["string", "null"]
+                    },
                     "status": {
                         "description": "running when the terminal node outlived the wait; poll get_query_result with its queryUuid.",
                         "enum": ["done", "running"],
@@ -3622,7 +3626,13 @@
                         "type": "string"
                     }
                 },
-                "required": ["status", "terminalNodeId", "rowCount", "nodes"],
+                "required": [
+                    "sessionId",
+                    "status",
+                    "terminalNodeId",
+                    "rowCount",
+                    "nodes"
+                ],
                 "type": "object"
             },
             "title": "Run composer queries"
