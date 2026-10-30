@@ -89,7 +89,7 @@ import ReactQueryProvider from '../src/providers/ReactQuery/ReactQueryProvider';
 import ThirdPartyServicesProvider from '../src/providers/ThirdPartyServicesProvider';
 import TrackingProvider from '../src/providers/Tracking/TrackingProvider';
 import { useResolvedColorScheme } from '../src/providers/useResolvedColorScheme';
-import { type ColorScheme, type ColorSchemePreference } from '../src/theme';
+import type { ColorScheme, ColorSchemePreference } from '../src/theme/colors';
 import { setToInMemoryStorage } from '../src/utils/inMemoryStorage';
 import {
     createLightdashApiClient,
