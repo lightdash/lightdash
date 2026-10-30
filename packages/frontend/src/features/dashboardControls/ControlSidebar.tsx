@@ -12,6 +12,7 @@ import {
     Stack,
     Text,
     TextInput,
+    Tooltip,
 } from '@mantine/core';
 import { IconFilter } from '@tabler/icons-react';
 import omit from 'lodash/omit';
@@ -24,12 +25,14 @@ import {
     selectDashboardTiles,
     useDashboardSelector,
 } from '../dashboard/store';
+import { hasFilterValueSet } from '../dashboardFilters/FilterConfiguration/utils';
 import classes from './ControlSidebar.module.css';
 import { EditorShell } from './EditorShell';
 import { FieldsAndTiles } from './FieldsAndTiles';
 import { FilterSettings } from './FilterSettings';
 import { getFilterRows } from './peers';
 import { getTilesSummary } from './railSummaries';
+import { isRuleRequired } from './requirements';
 import { withFilterRuleLabel } from './sidebarState';
 import { useAppliedTileCount } from './useAppliedTileCount';
 import { useControlsSidebarSelector } from './useControlsSidebar';
@@ -99,8 +102,10 @@ const SectionSelect: FC<{ rule: DashboardFilterRule }> = ({ rule }) => {
 };
 
 // Cancel and Apply, or, after a click on another pill with changes unapplied,
-// the question that pill asked
-const Footer: FC = () => {
+// the question that pill asked. `applyBlockedReason` disables Apply
+const Footer: FC<{ applyBlockedReason: string | null }> = ({
+    applyBlockedReason,
+}) => {
     const isNew = useControlsSidebarSelector((c) => c.isNew);
     const isPlaceholder = useControlsSidebarSelector((c) => c.isPlaceholder);
     const pendingRule = useControlsSidebarSelector((c) => c.pendingRule);
@@ -114,15 +119,27 @@ const Footer: FC = () => {
     );
     // The same button in both states, so focus stays on it
     const apply = (
-        <Button
-            size="xs"
-            className={classes.apply}
-            data-controls-apply
-            disabled={isPlaceholder}
-            onClick={pendingRule === null ? close : () => resolvePending(true)}
+        <Tooltip
+            fz="xs"
+            label={applyBlockedReason}
+            disabled={applyBlockedReason === null}
         >
-            {applyLabel}
-        </Button>
+            <Box>
+                <Button
+                    size="xs"
+                    className={classes.apply}
+                    data-controls-apply
+                    disabled={isPlaceholder || applyBlockedReason !== null}
+                    onClick={
+                        pendingRule === null
+                            ? close
+                            : () => resolvePending(true)
+                    }
+                >
+                    {applyLabel}
+                </Button>
+            </Box>
+        </Tooltip>
     );
     return (
         <Stack gap="xs" p="sm" className={classes.footer}>
@@ -224,6 +241,15 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule, labelId }) => {
         field?.label ??
         (filterRule.target.isSqlColumn ? filterRule.target.fieldId : null);
     const fieldCount = getFilterRows(filterRule, dashboardTiles).length;
+    // An editor's filter keeps a value when required and reaches a tile
+    const applyBlockedReason =
+        isViewer || isPlaceholder
+            ? null
+            : isRuleRequired(filterRule) && !hasFilterValueSet(filterRule)
+              ? getUiString('filters.config.applyRequiredTooltip')
+              : appliedTileCount === 0
+                ? getUiString('filters.notAppliedToAnyTiles')
+                : null;
     const isStarting = isPlaceholder && isNew;
     const name = isStarting
         ? getUiString('filters.rail.newFilter')
@@ -322,7 +348,7 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule, labelId }) => {
                     )}
                 </Stack>
             </Box>
-            <Footer />
+            <Footer applyBlockedReason={applyBlockedReason} />
         </>
     );
 };

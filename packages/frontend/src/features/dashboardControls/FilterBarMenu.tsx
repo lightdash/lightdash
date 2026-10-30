@@ -48,7 +48,6 @@ export const FilterBarMenu: FC = () => {
                                 role="img"
                                 aria-label={`${requirementCount} filter rule${requirementCount === 1 ? '' : 's'}`}
                                 className={classes.rulesDot}
-                                data-corner
                             />
                         )}
                         <Menu.Dropdown>

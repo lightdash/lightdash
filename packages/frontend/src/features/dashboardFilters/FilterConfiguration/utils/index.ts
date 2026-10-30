@@ -408,6 +408,20 @@ export const getFilterRuleWithRequired = (
         : getFilterRuleWithDefaultValue(filterType, field, newFilter, null);
 };
 
+// The dimension rules Save sends: required ones lose their value unless
+// they keep it as their default
+export const getDimensionFiltersToSave = (
+    filters: DashboardFilterRule[],
+    keepsRequiredDefaults: boolean,
+): DashboardFilterRule[] =>
+    keepsRequiredDefaults
+        ? filters
+        : filters.map((filter) =>
+              filter.required || filter.requiredGroupId
+                  ? { ...filter, disabled: true, values: [] }
+                  : filter,
+          );
+
 // The Apply guard of the settings form: no viewer can satisfy this filter
 export const isLockedRequiredMissingValue = (
     filterRule: DashboardFilterRule | undefined,

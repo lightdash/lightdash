@@ -28,6 +28,8 @@ type Props = {
     field: DashboardFilterableField | undefined;
     truncatedValuesDisplay: TruncatedValuesDisplay;
     isTablesTooltipDisabled: boolean;
+    /** Default false: the value at weight 500. */
+    isValueBold?: boolean;
 };
 
 export const FilterRuleLabel: FC<Props> = ({
@@ -35,6 +37,7 @@ export const FilterRuleLabel: FC<Props> = ({
     field,
     truncatedValuesDisplay,
     isTablesTooltipDisabled,
+    isValueBold = false,
 }) => {
     const getUiString = useUiStrings();
     const allFilterableFields = useDashboardContext(
@@ -107,7 +110,7 @@ export const FilterRuleLabel: FC<Props> = ({
                         <Text span c="dimmed" truncate>
                             {filterRuleLabels?.operator}{' '}
                         </Text>
-                        <Text fw={500} span truncate>
+                        <Text fw={isValueBold ? 600 : 500} span truncate>
                             {truncatedValuesDisplay.displayedValues.length > 0
                                 ? truncatedValuesDisplay.displayedValues.join(
                                       ', ',

@@ -55,8 +55,9 @@ type Props = Omit<
     triggerClassName?: string;
     /** Shown in place of the field icon (default: the field's icon). */
     fieldIconOverride?: ReactNode;
-    /** The first icon, in the grip's place when there is one (default none). */
-    leadingIcon?: ReactNode;
+    /** One default pill: muted when not in effect, a bold value when in
+     * effect, dashed when temporary; no requirement or no-tiles cue (default false). */
+    isPlain?: boolean;
     onClick: (event: MouseEvent<HTMLButtonElement>) => void;
 };
 
@@ -80,7 +81,7 @@ export const FilterPillButton = forwardRef<HTMLButtonElement, Props>(
             isTablesTooltipDisabled,
             triggerClassName,
             fieldIconOverride,
-            leadingIcon,
+            isPlain = false,
             className,
             onClick,
             ...others
@@ -112,11 +113,15 @@ export const FilterPillButton = forwardRef<HTMLButtonElement, Props>(
 
         // Same predicate as requirement checks, so a pill is never both active and unmet
         const isActive = !isValuelessDashboardFilterRule(filterRule);
-        const statusColor = isRequirementUnmet
-            ? 'yellow.7'
-            : isActive && field
-              ? getFieldColor(field)
-              : 'dimmed';
+        // A plain pill that reaches no tile changes no result either
+        const isInEffect = isActive && !isOrphaned;
+        const statusColor =
+            isRequirementUnmet && !isPlain
+                ? 'yellow.7'
+                : (isPlain ? isInEffect : isActive) && field
+                  ? getFieldColor(field)
+                  : 'dimmed';
+        const hasRequirementIcon = showRequirementIcon && !isPlain;
 
         const removeAction = onRemove && (
             <ActionIcon
@@ -135,28 +140,38 @@ export const FilterPillButton = forwardRef<HTMLButtonElement, Props>(
                 ref={ref}
                 {...others}
                 data-dashboard-filter-control
-                data-filter-active={isActive || undefined}
-                data-requirement-unmet={isRequirementUnmet || undefined}
+                {...(isPlain
+                    ? {
+                          'data-in-effect': isInEffect || undefined,
+                          'data-temporary': isTemporary || undefined,
+                      }
+                    : {
+                          'data-filter-active': isActive || undefined,
+                          'data-requirement-unmet':
+                              isRequirementUnmet || undefined,
+                      })}
                 pos="relative"
                 size="xs"
-                variant={isTemporary ? 'outline' : 'default'}
+                variant={isTemporary && !isPlain ? 'outline' : 'default'}
                 classNames={{
                     label: classes.label,
                     root: triggerClassName,
                 }}
                 className={`${classes.button} ${
-                    isOrphaned ? classes.inactiveFilter : ''
+                    isPlain
+                        ? classes.plain
+                        : isOrphaned
+                          ? classes.inactiveFilter
+                          : ''
                 }${className ? ` ${className}` : ''}`}
                 pr={truncatedValuesDisplay.hasMore ? 6 : undefined}
                 leftSection={
                     (isDraggable ||
-                        showRequirementIcon ||
+                        hasRequirementIcon ||
                         field ||
-                        fieldIconOverride ||
-                        leadingIcon) && (
+                        fieldIconOverride) && (
                         <Group gap={4} wrap="nowrap">
-                            {leadingIcon}
-                            {isDraggable && !leadingIcon && (
+                            {isDraggable && (
                                 <MantineIcon
                                     icon={IconGripVertical}
                                     cursor="grab"
@@ -167,7 +182,7 @@ export const FilterPillButton = forwardRef<HTMLButtonElement, Props>(
                                     })}
                                 />
                             )}
-                            {showRequirementIcon && (
+                            {hasRequirementIcon && (
                                 <Tooltip
                                     fz="xs"
                                     label={requirementTooltip}
@@ -266,6 +281,7 @@ export const FilterPillButton = forwardRef<HTMLButtonElement, Props>(
                     field={field}
                     truncatedValuesDisplay={truncatedValuesDisplay}
                     isTablesTooltipDisabled={isTablesTooltipDisabled}
+                    isValueBold={isPlain}
                 />
             </Button>
         );

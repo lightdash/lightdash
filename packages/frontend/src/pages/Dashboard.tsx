@@ -102,6 +102,7 @@ import {
 } from '../features/dashboard/store';
 import { ControlsSidebarPage } from '../features/dashboardControls/ControlsSidebarPage';
 import { DashboardHeaderGuard } from '../features/dashboardControls/DashboardHeaderGuard';
+import { getDimensionFiltersToSave } from '../features/dashboardFilters/FilterConfiguration/utils';
 import { FilterBarPopoversProvider } from '../features/dashboardFilters/FilterRequirements/FilterBarPopoversProvider';
 import DashboardTabs from '../features/dashboardTabs';
 import { isLeavingTrainingCopy } from '../features/scopeTours/trainingCopy';
@@ -1326,22 +1327,16 @@ const Dashboard: FC = () => {
             ...dashboardFilters.dimensions,
             ...dashboardTemporaryFilters.dimensions,
         ];
-        // Reset value for required filter on save dashboard
-        const requiredFiltersWithoutValues = dimensionFilters.map((filter) => {
-            if (filter.required || filter.requiredGroupId) {
-                return {
-                    ...filter,
-                    disabled: true,
-                    values: [],
-                };
-            }
-            return filter;
-        });
+        // Flag on, a required filter keeps its value as its default
+        const dimensionFiltersToSave = getDimensionFiltersToSave(
+            dimensionFilters,
+            isDashboardControlsEnabled,
+        );
 
         const dashboardUpdate: UpdateDashboard = {
             tiles: dashboardTiles,
             filters: {
-                dimensions: requiredFiltersWithoutValues,
+                dimensions: dimensionFiltersToSave,
                 metrics: [
                     ...dashboardFilters.metrics,
                     ...dashboardTemporaryFilters.metrics,

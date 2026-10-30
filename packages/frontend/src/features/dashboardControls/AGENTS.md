@@ -52,6 +52,8 @@ Gated on the flag:
   turns on `isControlsEnabled` for the grid, header and filter bar, and
   renders `TileOverlays`, `TabCounts` and `FieldTilesBar`. A dashboard with
   no tiles has no grid, so its header gets `isControlsEnabled={false}`.
+- `pages/Dashboard.tsx` Save: `getDimensionFiltersToSave` keeps a required
+  filter's value as its default with the flag on; off, it strips it as before.
 - `pages/DashboardVersionComparison.tsx`: a "Filter sections" block after
   "Filters" when either version has a section, rows from
   `getSectionChangeRows` in the shipped filters table.
@@ -68,7 +70,9 @@ Openings (optional props, defaults are today's behaviour):
 - `FilterRequirements/RequiredFilterCard`: `onChangeOtherFilterRule`,
   `disabledReason`, `isListInPortal`, `withCard`.
 - `ActiveFilters/FilterPillButton`: `removeLabel`, `fieldIconOverride`,
-  `isLockSpaceReserved`, `areActionsHidden`, `leadingIcon`.
+  `isLockSpaceReserved`, `areActionsHidden`, `isPlain` (the
+  pill looks below; `Filter` and `TemporaryFilters` pass it through, and
+  `FilterRuleLabel` takes `isValueBold`).
 - `FilterConfiguration/FilterFieldSelect`: `defaultOpened`, `withLabel`,
   `placeholder`, `withinPortal`.
 - `FilterConfiguration/utils`: `getFilterRuleWithRequired` takes
@@ -83,7 +87,7 @@ Pure moves out of shipped files, now shared by both sides:
 `FilterConfiguration/` (`FilterValueSection`, `SqlColumnSelect`, and in
 `utils` the rule helpers such as `getFilterRuleWithDisabledState`,
 `isLockedRequiredMissingValue`, `getFilterRuleFilterType`,
-`getRequiredGroupMemberUpdates`), and the embed's `EmbedResetFiltersButton`.
+`getRequiredGroupMemberUpdates`, `getDimensionFiltersToSave`), and the embed's `EmbedResetFiltersButton`.
 Fix behaviour in the shared piece, once, never in a copy.
 
 ## Map
@@ -95,7 +99,6 @@ Fix behaviour in the shared piece, once, never in a copy.
 | `ControlsBar.tsx` | The shipped bar with its openings; picks flat or `SectionedFilters` |
 | `AddControl.tsx`, `FilterBarMenu.tsx` | "Add filter" and the editor's "..." menu (viewers setting, "Filter rules"); `InertWhileEditing` |
 | `FilterPills.tsx`, `FilterPill.tsx`, `ViewerSavedPills.tsx`, `TemporaryFilterPills.tsx` | Bar pills: editor pills, a viewer's saved pills (shipped `Filter`), temporary pills |
-| `ChangedDot.tsx`, `EditBadge.tsx` | "Changed" dot on pills and capsules; "Editing" badge on the edited pill |
 | `SettledFilterFields.tsx` | Keeps the last fields while tiles reload, so the bar does not flash a first load |
 | `ControlSidebar.tsx`, `EditorShell.tsx`, `useRailTop.ts`, `useRailIntoView.ts` | The rail: placement, sticky offset, scroll into view below `sm` |
 | `FilterSettings.tsx`, `FilterValueSettings.tsx`, `ViewerControls.tsx` | Rail body: value, "Tiles", "Rules" (lock, required) |
@@ -189,8 +192,27 @@ See `src/components/common/Filters/AGENTS.md`.
   `prefers-reduced-motion: reduce`.
 - No new `:has()` selectors.
 - Nothing changes width or reflows when the rail opens, a field row is
-  hovered or a drag starts: pills reserve their lock slot, tab counts reserve
-  their widest fraction. Keep any new piece to that.
+  hovered or a drag starts: a locked pill's lock always shows (an unlocked
+  pill has none), tab counts reserve their widest fraction. Keep any new
+  piece to that.
+
+## Pill looks (`isPlain`)
+
+Every flag-on pill is the default white pill; only these change it, all in
+`ActiveFilters/Filter.module.css` under `.plain`:
+
+- Not in effect (no value, or it reaches no tile): text, icons and border
+  muted, "is any value". In effect (`data-in-effect`): the value bold.
+- Open (`data-open`, the filter in the rail or a viewer's popover): a 1.5px
+  ink border, the extra 0.5px inset so the box keeps its size.
+- Not saved for everyone (`data-temporary`: a viewer's own filter, or an
+  editor's filter not in the saved dashboard): dashed.
+- Picked (edit mode): blue fill and a check, the only blue.
+- Required, locked and "changed since save" have no cue; Save in the band is
+  the one unsaved signal.
+
+Apply in the rail is disabled for an editor's required filter with no value
+and for a filter that reaches no tile.
 
 ## Tests
 

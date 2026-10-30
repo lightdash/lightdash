@@ -64,6 +64,10 @@ viewer's new filter focuses `[data-controls-value]`.
   disabled with a reason; a refused value edit remounts the shipped form
   (`key`) and shows the shipped message as `role="alert"`.
 - Requirement alternatives are dimension and metric filters only.
+- Apply (editors only) is disabled, with the shipped wording as a tooltip,
+  while a required filter has no value or the filter reaches no tile
+  (`useAppliedTileCount`). Save keeps a required filter's value as its
+  default.
 
 ## Escape (`useEditorDismiss`)
 

@@ -139,6 +139,7 @@ export const ViewerSavedPills: FC<Props> = ({
                             filterRule={item}
                             triggerClassName={triggerClassName}
                             dropdownClassName={dropdownClassName}
+                            isPlain
                             openPopoverId={openPopoverId}
                             onPopoverOpen={onPopoverOpen}
                             onPopoverClose={onPopoverClose}
