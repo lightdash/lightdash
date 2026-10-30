@@ -125,6 +125,7 @@ export enum AgentIdentityConnectFailureReason {
 }
 
 export enum AiAccessRefusalReason {
+    MCP_PROJECT_NOT_ALLOWED = 'mcp_project_not_allowed',
     AGENT_ACCESS_DISABLED = 'agent_access_disabled',
     AGENT_CAPABILITY_DENIED = 'agent_capability_denied',
     AGENT_PROJECT_DENIED = 'agent_project_denied',
@@ -184,6 +185,8 @@ export const getAiAccessRefusalMessage = (
     { projectName }: { projectName: string | null },
 ): string => {
     switch (reason) {
+        case AiAccessRefusalReason.MCP_PROJECT_NOT_ALLOWED:
+            return 'MCP access to this project is disabled for your organization';
         case AiAccessRefusalReason.AGENT_ACCESS_DISABLED:
             return 'Agents are disabled. Ask an organization admin to enable agent access.';
         case AiAccessRefusalReason.AGENT_CAPABILITY_DENIED:
@@ -279,6 +282,7 @@ export const getAiAccessRefusalAction = (
         case AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING:
         case AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID:
             return AiAccessRefusalAction.ASK_ADMIN;
+        case AiAccessRefusalReason.MCP_PROJECT_NOT_ALLOWED:
         case AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED:
         case AiAccessRefusalReason.EMBED_NOT_SUPPORTED:
         case AiAccessRefusalReason.WAREHOUSE_NOT_SUPPORTED:
@@ -318,6 +322,7 @@ export const getAiAccessRefusalSettingsUrl = (
                 : getProjectAgentIdentitySettingsPath(projectUuid);
         case AiAccessRefusalReason.AGENT_ACTOR_UNVERIFIED:
         case AiAccessRefusalReason.AGENT_OPERATION_UNMAPPED:
+        case AiAccessRefusalReason.MCP_PROJECT_NOT_ALLOWED:
         case AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED:
         case AiAccessRefusalReason.PRINCIPAL_FAILED:
         case AiAccessRefusalReason.NEEDS_SIGN_IN:
