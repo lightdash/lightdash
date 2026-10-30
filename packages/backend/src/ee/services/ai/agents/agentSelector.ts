@@ -89,7 +89,7 @@ export const buildRoutingContext = ({
     })),
 });
 
-export const ROUTER_SYSTEM_PROMPT = `You are an intelligent agent router for a data analytics platform. Your job is to select the most appropriate AI agent to handle a user's query.
+const ROUTER_SYSTEM_PROMPT = `You are an intelligent agent router for a data analytics platform. Your job is to select the most appropriate AI agent to handle a user's query.
 
 All agents share the same core capabilities:
 - Specialized in data analytics and exploration
