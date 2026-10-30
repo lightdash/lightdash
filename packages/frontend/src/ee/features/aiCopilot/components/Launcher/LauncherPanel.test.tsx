@@ -1,16 +1,18 @@
 import {
     AiAccessRefusalAction,
     AiAccessRefusalReason,
+    FeatureFlags,
     type AiAccessRefusal,
     type AiAgentSummary,
 } from '@lightdash/common';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
-import { type PropsWithChildren } from 'react';
+import { type ComponentProps, type PropsWithChildren } from 'react';
 import { Provider } from 'react-redux';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../../testing/testUtils';
 import { store } from '../../store';
+import { LAUNCHER_AUTO_AGENT } from './launcherAgentSelection';
 import { LauncherPanel } from './LauncherPanel';
 
 const state = vi.hoisted(() => ({
@@ -35,7 +37,9 @@ vi.mock('../../../../../hooks/useSnowflake', () => ({
     }),
 }));
 vi.mock('../../../../../hooks/useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: () => ({ data: { enabled: false } }),
+    useServerFeatureFlag: (flag: FeatureFlags) => ({
+        data: { enabled: flag === FeatureFlags.AiThreadImages },
+    }),
 }));
 vi.mock('../../../../../hooks/health/useHealth', () => ({
     default: () => ({ data: undefined }),
@@ -124,12 +128,15 @@ vi.mock('../ChatElements/AgentChatDisplay', () => ({
 }));
 
 const agent = { uuid: 'agent-1', name: 'Data agent' } as AiAgentSummary;
-const panel = (activeThreadId: string | null) => (
+const panel = (
+    activeThreadId: string | null,
+    selectedAgent: ComponentProps<typeof LauncherPanel>['agent'] = agent,
+) => (
     <Provider store={store}>
         <MemoryRouter>
             <LauncherPanel
                 projectUuid="project-1"
-                agent={agent}
+                agent={selectedAgent}
                 agents={[agent]}
                 activeThreadId={activeThreadId}
             />
@@ -150,6 +157,27 @@ describe('LauncherPanel AI access', () => {
             connectUrl: null,
         };
     });
+
+    it('gates images in the new-conversation Auto composer', () => {
+        state.refusal = null;
+        renderWithProviders(panel(null, LAUNCHER_AUTO_AGENT));
+        expect(
+            screen.queryByLabelText('Image attachments'),
+        ).not.toBeInTheDocument();
+    });
+
+    it.each([null, 'thread-1'])(
+        'allows images for specific-agent first and follow-up prompts (%s)',
+        async (threadId) => {
+            state.refusal = null;
+            renderWithProviders(panel(threadId));
+            await waitFor(() =>
+                expect(
+                    screen.getAllByLabelText('Image attachments').length,
+                ).toBeGreaterThan(0),
+            );
+        },
+    );
 
     it.each([null, 'thread-1'])(
         'shows only a placeholder while loading for %s',

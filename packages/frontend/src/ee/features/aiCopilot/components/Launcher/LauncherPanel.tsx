@@ -410,6 +410,9 @@ const NewThreadPanel: FC<{
                     key={composerSeed ?? 'composer'}
                     defaultValue={composerSeed ?? undefined}
                     onSubmit={handleSubmit}
+                    imageAttachmentsUnavailableReason={
+                        isAuto ? 'Choose an agent to attach images' : undefined
+                    }
                     onStartDeepResearch={
                         concreteAgent && canStartDeepResearch
                             ? handleStartDeepResearch
@@ -585,7 +588,7 @@ const ExistingThreadPanel: FC<{
     }) => {
         const curatedContext = curateContext({ context, optimisticContext });
 
-        void createAgentThreadMessage({
+        return createAgentThreadMessage({
             prompt: message,
             context: curatedContext.context,
             optimisticContext: curatedContext.optimisticContext,

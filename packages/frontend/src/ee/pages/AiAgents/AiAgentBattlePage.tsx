@@ -173,6 +173,7 @@ const AiAgentBattlePage: FC = () => {
             <Box {...ChatElementsUtils.centeredElementProps} h="unset" py="sm">
                 <AgentChatInput
                     onSubmit={handleSubmit}
+                    imageAttachmentsUnavailableReason="Start a single conversation to attach images"
                     placeholder={
                         queuedCount > 0
                             ? `${queuedCount} queued, keep asking...`
