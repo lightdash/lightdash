@@ -736,6 +736,10 @@ import {
     MobilePushInstallationTable,
 } from '../ee/database/entities/mobilePushNotifications';
 import {
+    OrganizationBrandLogoFilesTable,
+    OrganizationBrandLogoFilesTableName,
+} from '../ee/database/entities/organizationBrand';
+import {
     OrganizationHomepageSettingsTable,
     OrganizationHomepageSettingsTableName,
 } from '../ee/database/entities/organizationHomepageSettings';
@@ -998,6 +1002,7 @@ declare module 'knex/types/tables' {
         [OrganizationColorPaletteTableName]: OrganizationColorPaletteTable;
         [OrganizationDesignsTableName]: OrganizationDesignsTable;
         [OrganizationDesignFilesTableName]: OrganizationDesignFilesTable;
+        [OrganizationBrandLogoFilesTableName]: OrganizationBrandLogoFilesTable;
         [OrganizationWarehouseCredentialsTableName]: OrganizationWarehouseCredentialsTable;
         [QueryHistoryTableName]: QueryHistoryTable;
         [PreAggregateDefinitionsTableName]: PreAggregateDefinitionsTable;

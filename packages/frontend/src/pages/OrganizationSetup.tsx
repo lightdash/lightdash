@@ -183,8 +183,12 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
     });
 
     const { track } = useTracking();
+    const canUseBranding = !!health.license?.valid;
     const brandDetectionEnabled =
-        health.hasBrandfetch && canEnterOrganizationName && isCompanyDomain;
+        canUseBranding &&
+        health.hasBrandfetch &&
+        canEnterOrganizationName &&
+        isCompanyDomain;
     const brandDetection = useDetectOrganizationBrand(
         emailDomain,
         brandDetectionEnabled,
@@ -196,7 +200,8 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
 
     useEffect(() => {
         const brand = brandDetection.data;
-        if (!brand || hasAppliedDetectedBrand.current) return;
+        if (!canUseBranding || !brand || hasAppliedDetectedBrand.current)
+            return;
         hasAppliedDetectedBrand.current = true;
         const detected = brandColorsSorted(brand.colors);
         setValues((current) => ({
@@ -212,7 +217,7 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                 ? { selectedColor: detected[0] }
                 : {}),
         }));
-    }, [brandDetection.data, emailDomain, isDirty, setValues]);
+    }, [brandDetection.data, canUseBranding, emailDomain, isDirty, setValues]);
 
     const hasTrackedBrandDetection = useRef(false);
     useEffect(() => {
@@ -238,7 +243,7 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
         track,
     ]);
 
-    const detectedBrand = brandDetection.data ?? null;
+    const detectedBrand = canUseBranding ? (brandDetection.data ?? null) : null;
     const detectedColors = detectedBrand
         ? brandColorsSorted(detectedBrand.colors)
         : [];
@@ -246,7 +251,9 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
     const detectedLogoUrl = detectedBrand
         ? pickTileLogo(detectedBrand.logos)
         : null;
-    const selectedColor = form.values.selectedColor;
+    const selectedColor = canUseBranding
+        ? form.values.selectedColor
+        : DEFAULT_COLOR;
 
     const previewColors = buildBrandColors(
         selectedColor,
@@ -318,7 +325,7 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
 
         const brandDomain =
             detectedBrand?.domain ?? (isCompanyDomain ? emailDomain : null);
-        if (brandDomain) {
+        if (canUseBranding && brandDomain) {
             saveBrand.mutate({
                 domain: brandDomain,
                 name:
@@ -430,78 +437,97 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                                     )}
                                 </Collapse>
 
-                                <Divider />
+                                {canUseBranding && (
+                                    <>
+                                        <Divider />
 
-                                <Stack gap="md">
-                                    <Group gap="sm">
-                                        <Text fw={600}>Brand</Text>
-                                        <Text
-                                            size="xs"
-                                            c="dimmed"
-                                            className={classes.optionalPill}
-                                        >
-                                            Optional · you can change this later
-                                        </Text>
-                                    </Group>
+                                        <Stack gap="md">
+                                            <Group gap="sm">
+                                                <Text fw={600}>Brand</Text>
+                                                <Text
+                                                    size="xs"
+                                                    c="dimmed"
+                                                    className={
+                                                        classes.optionalPill
+                                                    }
+                                                >
+                                                    Optional · you can change
+                                                    this later
+                                                </Text>
+                                            </Group>
 
-                                    <Stack gap="xs">
-                                        <Text size="sm" fw={500}>
-                                            Theme color
-                                        </Text>
-                                        <Group gap="lg" align="center">
-                                            <Box
-                                                className={classes.logoTile}
-                                                bg={
-                                                    detectedLogoUrl
-                                                        ? 'var(--mantine-color-ldGray-0)'
-                                                        : selectedColor
-                                                }
-                                            >
-                                                {detectedLogoUrl ? (
-                                                    <img
-                                                        src={detectedLogoUrl}
-                                                        alt=""
-                                                        className={
-                                                            classes.logoTileImage
-                                                        }
-                                                    />
-                                                ) : (
-                                                    <Text
-                                                        fw={600}
-                                                        fz="xl"
-                                                        c="white"
-                                                    >
-                                                        {logoTileInitial}
-                                                    </Text>
-                                                )}
-                                            </Box>
-
-                                            <Box className={classes.swatchRow}>
-                                                {swatches.map((color) => (
+                                            <Stack gap="xs">
+                                                <Text size="sm" fw={500}>
+                                                    Theme color
+                                                </Text>
+                                                <Group gap="lg" align="center">
                                                     <Box
-                                                        key={color}
-                                                        component="button"
-                                                        type="button"
-                                                        aria-label={`Select theme color ${color}`}
                                                         className={
-                                                            color.toLowerCase() ===
-                                                            selectedColor.toLowerCase()
-                                                                ? `${classes.swatch} ${classes.swatchSelected}`
-                                                                : classes.swatch
+                                                            classes.logoTile
                                                         }
-                                                        bg={color}
-                                                        onClick={() =>
-                                                            form.setFieldValue(
-                                                                'selectedColor',
-                                                                color,
-                                                            )
+                                                        bg={
+                                                            detectedLogoUrl
+                                                                ? 'var(--mantine-color-ldGray-0)'
+                                                                : selectedColor
                                                         }
-                                                    />
-                                                ))}
-                                            </Box>
-                                        </Group>
-                                    </Stack>
-                                </Stack>
+                                                    >
+                                                        {detectedLogoUrl ? (
+                                                            <img
+                                                                src={
+                                                                    detectedLogoUrl
+                                                                }
+                                                                alt=""
+                                                                className={
+                                                                    classes.logoTileImage
+                                                                }
+                                                            />
+                                                        ) : (
+                                                            <Text
+                                                                fw={600}
+                                                                fz="xl"
+                                                                c="white"
+                                                            >
+                                                                {
+                                                                    logoTileInitial
+                                                                }
+                                                            </Text>
+                                                        )}
+                                                    </Box>
+
+                                                    <Box
+                                                        className={
+                                                            classes.swatchRow
+                                                        }
+                                                    >
+                                                        {swatches.map(
+                                                            (color) => (
+                                                                <Box
+                                                                    key={color}
+                                                                    component="button"
+                                                                    type="button"
+                                                                    aria-label={`Select theme color ${color}`}
+                                                                    className={
+                                                                        color.toLowerCase() ===
+                                                                        selectedColor.toLowerCase()
+                                                                            ? `${classes.swatch} ${classes.swatchSelected}`
+                                                                            : classes.swatch
+                                                                    }
+                                                                    bg={color}
+                                                                    onClick={() =>
+                                                                        form.setFieldValue(
+                                                                            'selectedColor',
+                                                                            color,
+                                                                        )
+                                                                    }
+                                                                />
+                                                            ),
+                                                        )}
+                                                    </Box>
+                                                </Group>
+                                            </Stack>
+                                        </Stack>
+                                    </>
+                                )}
 
                                 <Group>
                                     <Button
@@ -613,6 +639,11 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
 
                 <Box className={classes.rightPane}>
                     <OrganizationSetupPreview
+                        caption={
+                            canUseBranding
+                                ? 'A preview of Lightdash, themed to your brand.'
+                                : 'A preview of Lightdash.'
+                        }
                         name={form.values.organizationName || null}
                         logos={detectedBrand?.logos ?? []}
                         colors={previewColors}

@@ -243,6 +243,7 @@ interface ServiceManifest {
     projectContextService: unknown;
     roadmapService: unknown;
     scimService: unknown;
+    organizationBrandService: unknown;
     releaseHighlightsService: unknown;
     supportService: unknown;
     cacheService: unknown;
@@ -2231,6 +2232,10 @@ export class ServiceRepository
 
     public getScimService<ScimServiceImplT>(): ScimServiceImplT {
         return this.getService('scimService');
+    }
+
+    public getOrganizationBrandService<ImplT>(): ImplT {
+        return this.getService('organizationBrandService');
     }
 
     public getReleaseHighlightsService<ServiceImplT>(): ServiceImplT {

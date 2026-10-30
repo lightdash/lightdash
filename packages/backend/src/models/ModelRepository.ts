@@ -229,6 +229,7 @@ export type ModelManifest = {
     preAggregateDailyStatsModel: PreAggregateDailyStatsModel;
     projectParametersModel: ProjectParametersModel;
     /** An implementation signature for these models are not available at this stage */
+    organizationBrandModel: unknown;
     releaseHighlightsModel: unknown;
     externalSourceModel: unknown;
     aiAgentMemoryModel: unknown;
@@ -1259,6 +1260,10 @@ export class ModelRepository
 
     public getExternalSourceModel<ModelImplT>(): ModelImplT {
         return this.getModel('externalSourceModel');
+    }
+
+    public getOrganizationBrandModel<ImplT>(): ImplT {
+        return this.getModel('organizationBrandModel');
     }
 
     public getReleaseHighlightsModel<ModelImplT>(): ModelImplT {

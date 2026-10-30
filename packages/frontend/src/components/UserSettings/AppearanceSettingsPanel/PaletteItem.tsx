@@ -1,6 +1,6 @@
 import { type OrganizationColorPalette } from '@lightdash/common';
 import {
-    Flex,
+    Stack,
     Group,
     Paper,
     Text,
@@ -27,7 +27,6 @@ import useToaster from '../../../hooks/toaster/useToaster';
 import MantineIcon from '../../common/MantineIcon';
 import { DeletePaletteModal } from './DeletePaletteModal';
 import { EditPaletteModal } from './EditPaletteModal';
-import classes from './PaletteItem.module.css';
 
 type PaletteItemProps = {
     palette: Omit<OrganizationColorPalette, 'name'> & { name: string };
@@ -46,7 +45,6 @@ export const PaletteItem: FC<PaletteItemProps> = ({
 }) => {
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-    const [isHovered, setIsHovered] = useState(false);
     const deleteColorPalette = useDeleteColorPalette();
     const clipboard = useClipboard({ timeout: 1000 });
     const { showToastSuccess } = useToaster();
@@ -66,16 +64,13 @@ export const PaletteItem: FC<PaletteItemProps> = ({
 
     return (
         <>
-            <Paper
-                p="sm"
-                radius="sm"
-                pos="relative"
-                onMouseEnter={() => setIsHovered(true)}
-                onMouseLeave={() => setIsHovered(false)}
-            >
-                <Flex justify="space-between" align="center">
-                    <Group gap="sm">
-                        <Group gap="two">
+            <Paper p="md">
+                <Group justify="space-between" align="center" gap="sm">
+                    <Stack gap="xs">
+                        <Text size="sm" fw={500}>
+                            {palette.name}
+                        </Text>
+                        <Group gap="sm">
                             <Tooltip label="Light mode" position="top">
                                 <Group gap="two">
                                     <MantineIcon
@@ -120,11 +115,6 @@ export const PaletteItem: FC<PaletteItemProps> = ({
                                 </>
                             )}
                         </Group>
-                        <Text c="dimmed" mx={4}>
-                            |
-                        </Text>
-
-                        <Text fw={500}>{palette.name}</Text>
 
                         {readOnly && (
                             <Tooltip
@@ -143,34 +133,33 @@ export const PaletteItem: FC<PaletteItemProps> = ({
                                 </Badge>
                             </Tooltip>
                         )}
-                    </Group>
+                    </Stack>
 
                     <Group gap="xs">
-                        {onSetActive && (
+                        {onSetActive && !isActive && (
                             <Button
                                 onClick={() =>
                                     onSetActive(palette.colorPaletteUuid)
                                 }
-                                h={32}
-                                className={classes.useThemeButton}
-                                data-visible={
-                                    (isHovered && !isActive) || undefined
-                                }
+                                variant="default"
+                                size="xs"
                             >
-                                Use This Theme
+                                Use palette
                             </Button>
                         )}
 
-                        {isActive && <Badge color="green">Active</Badge>}
+                        {isActive && <Badge color="green">Default</Badge>}
 
                         <Menu position="bottom-end" disabled={readOnly}>
                             <Menu.Target>
-                                <ActionIcon
-                                    size="xs"
-                                    aria-label="Palette actions"
-                                >
-                                    <MantineIcon icon={IconDotsVertical} />
-                                </ActionIcon>
+                                <Tooltip label="Palette actions">
+                                    <ActionIcon
+                                        size="sm"
+                                        aria-label={`Actions for ${palette.name}`}
+                                    >
+                                        <MantineIcon icon={IconDotsVertical} />
+                                    </ActionIcon>
+                                </Tooltip>
                             </Menu.Target>
 
                             <Menu.Dropdown>
@@ -212,7 +201,7 @@ export const PaletteItem: FC<PaletteItemProps> = ({
                             </Menu.Dropdown>
                         </Menu>
                     </Group>
-                </Flex>
+                </Group>
             </Paper>
 
             <EditPaletteModal
