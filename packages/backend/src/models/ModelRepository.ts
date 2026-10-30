@@ -56,6 +56,7 @@ import { OpenIdIdentityModel } from './OpenIdIdentitiesModel';
 import { OrganizationAgentIdentityRulesModel } from './OrganizationAgentIdentityRulesModel';
 import { OrganizationAgentIdentitySettingsModel } from './OrganizationAgentIdentitySettingsModel';
 import { OrganizationAllowedEmailDomainsModel } from './OrganizationAllowedEmailDomainsModel';
+import { OrganizationBrandModel } from './OrganizationBrandModel';
 import { OrganizationDesignModel } from './OrganizationDesignModel';
 import { OrganizationDomainVerificationModel } from './OrganizationDomainVerificationModel';
 import { OrganizationEmailDomainModel } from './OrganizationEmailDomainModel';
@@ -158,6 +159,7 @@ export type ModelManifest = {
     userAvatarModel: UserAvatarModel;
     userOnboardingModel: UserOnboardingModel;
     userLearnProgressModel: UserLearnProgressModel;
+    organizationBrandModel: OrganizationBrandModel;
     organizationModel: OrganizationModel;
     usageDimensionsModel: UsageDimensionsModel;
     usageHistoryModel: UsageHistoryModel;
@@ -229,7 +231,6 @@ export type ModelManifest = {
     preAggregateDailyStatsModel: PreAggregateDailyStatsModel;
     projectParametersModel: ProjectParametersModel;
     /** An implementation signature for these models are not available at this stage */
-    organizationBrandModel: unknown;
     releaseHighlightsModel: unknown;
     externalSourceModel: unknown;
     aiAgentMemoryModel: unknown;
@@ -1262,8 +1263,11 @@ export class ModelRepository
         return this.getModel('externalSourceModel');
     }
 
-    public getOrganizationBrandModel<ImplT>(): ImplT {
-        return this.getModel('organizationBrandModel');
+    public getOrganizationBrandModel(): OrganizationBrandModel {
+        return this.getModel(
+            'organizationBrandModel',
+            () => new OrganizationBrandModel(this.database),
+        );
     }
 
     public getReleaseHighlightsModel<ModelImplT>(): ModelImplT {

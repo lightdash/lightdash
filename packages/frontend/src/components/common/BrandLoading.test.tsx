@@ -21,6 +21,7 @@ const state = vi.hoisted(() => ({
         | undefined,
     user: undefined as { organizationUuid: string } | undefined,
     brand: undefined as OrganizationBrand | null | undefined,
+    brandError: false,
     embedded: false,
     colorScheme: 'light' as 'light' | 'dark',
 }));
@@ -31,7 +32,10 @@ vi.mock('../../providers/App/useApp', () => ({
     }),
 }));
 vi.mock('../../hooks/organization/useOrganizationBrand', () => ({
-    useOrganizationBrand: () => ({ data: state.brand }),
+    useOrganizationBrand: () => ({
+        data: state.brand,
+        isError: state.brandError,
+    }),
 }));
 vi.mock('../../ee/providers/Embed/useIsEmbedded', () => ({
     default: () => state.embedded,
@@ -63,6 +67,7 @@ beforeEach(() => {
     state.health = undefined;
     state.user = undefined;
     state.brand = undefined;
+    state.brandError = false;
     state.embedded = false;
     state.colorScheme = 'light';
     favicon = document.createElement('link');
@@ -134,6 +139,19 @@ describe('brand loading', () => {
         state.brand = null;
         rerender(<AppBrand />);
         expect(document.title).toContain('Lightdash');
+        expect(container.querySelector('svg')).not.toBeNull();
+        expect(favicon).toHaveAttribute('href', '/favicon.ico');
+    });
+
+    it('falls back to the defaults when the brand request fails', () => {
+        state.health = {
+            license: { valid: true, hasLicenseKey: true },
+            isAuthenticated: true,
+        };
+        state.user = { organizationUuid: 'org' };
+        state.brandError = true;
+        const { container } = render(<AppBrand />);
+        expect(document.title).toContain('Settings - Lightdash');
         expect(container.querySelector('svg')).not.toBeNull();
         expect(favicon).toHaveAttribute('href', '/favicon.ico');
     });

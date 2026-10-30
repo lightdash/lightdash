@@ -1,13 +1,14 @@
 import { Ability } from '@casl/ability';
 import {
     ForbiddenError,
+    NotFoundError,
     ParameterError,
     type PossibleAbilities,
 } from '@lightdash/common';
 import fetch, { Response } from 'node-fetch';
 import { Readable } from 'node:stream';
-import { buildAccount } from '../../../auth/account/account.mock';
-import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
+import { buildAccount } from '../../auth/account/account.mock';
+import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { OrganizationBrandModel } from '../../models/OrganizationBrandModel';
 import { OrganizationBrandService } from './OrganizationBrandService';
 
@@ -211,7 +212,7 @@ describe('brand logos', () => {
 
     it('deletes uploaded logos no longer referenced by the brand', async () => {
         const account = buildAdminAccount();
-        await organizationService.saveBrand(account, {
+        await buildLicensedService().saveBrand(account, {
             domain: 'acme.com',
             name: 'Acme',
             description: null,
@@ -238,5 +239,31 @@ describe('brand logos', () => {
         ).toHaveBeenCalledWith(account.organization.organizationUuid, [
             '6f1d0a52-8b0a-4b6a-9a52-3f0a7c1f2d11',
         ]);
+    });
+
+    it('saves the brand without touching logo files when unlicensed', async () => {
+        const account = buildAdminAccount();
+        await organizationService.saveBrand(account, {
+            domain: 'acme.com',
+            name: 'Acme',
+            description: null,
+            logos: [],
+            colors: [{ hex: '#123456', type: 'brand', brightness: null }],
+            fonts: [],
+        });
+        expect(organizationBrandModel.updateBrand).toHaveBeenCalledOnce();
+        expect(
+            organizationBrandModel.deleteUnusedBrandLogoFiles,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('reports uploaded logos as missing when unlicensed', async () => {
+        await expect(
+            organizationService.getBrandLogo(
+                buildAdminAccount(),
+                '6f1d0a52-8b0a-4b6a-9a52-3f0a7c1f2d11',
+            ),
+        ).rejects.toBeInstanceOf(NotFoundError);
+        expect(organizationBrandModel.findBrandLogoFile).not.toHaveBeenCalled();
     });
 });

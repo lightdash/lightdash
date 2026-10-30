@@ -21,10 +21,10 @@ import {
 import fetch from 'node-fetch';
 import { Readable } from 'node:stream';
 import sharp from 'sharp';
-import { LightdashConfig } from '../../../config/parseConfig';
-import { BaseService } from '../../../services/BaseService';
-import { sanitizeSvg } from '../../../utils/sanitizeSvg';
+import { LightdashConfig } from '../../config/parseConfig';
 import { OrganizationBrandModel } from '../../models/OrganizationBrandModel';
+import { sanitizeSvg } from '../../utils/sanitizeSvg';
+import { BaseService } from '../BaseService';
 
 const BRANDFETCH_API_URL = 'https://api.brandfetch.io/v2/brands';
 
@@ -119,6 +119,11 @@ export class OrganizationBrandService extends BaseService {
         },
     ) {
         super();
+    }
+
+    // Uploaded logos live in a table created by an enterprise-only migration
+    private hasBrandLogoStorage(): boolean {
+        return !!this.dependencies.lightdashConfig.license.licenseKey;
     }
 
     async getBrand(account: Account): Promise<OrganizationBrand | null> {
@@ -340,13 +345,15 @@ export class OrganizationBrandService extends BaseService {
                 },
             );
 
-        await this.dependencies.organizationBrandModel.deleteUnusedBrandLogoFiles(
-            organizationUuid,
-            request.logos.reduce<string[]>((acc, logo) => {
-                const match = logo.url.match(BRAND_LOGO_FILE_URL_PATTERN);
-                return match ? [...acc, match[1].toLowerCase()] : acc;
-            }, []),
-        );
+        if (this.hasBrandLogoStorage()) {
+            await this.dependencies.organizationBrandModel.deleteUnusedBrandLogoFiles(
+                organizationUuid,
+                request.logos.reduce<string[]>((acc, logo) => {
+                    const match = logo.url.match(BRAND_LOGO_FILE_URL_PATTERN);
+                    return match ? [...acc, match[1].toLowerCase()] : acc;
+                }, []),
+            );
+        }
 
         this.logger.info('Saved organization brand', {
             organizationUuid,
@@ -371,7 +378,7 @@ export class OrganizationBrandService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
-        if (!this.dependencies.lightdashConfig.license.licenseKey) {
+        if (!this.hasBrandLogoStorage()) {
             throw new ForbiddenError(
                 'Uploading a brand logo requires an Enterprise license',
             );
@@ -445,6 +452,9 @@ export class OrganizationBrandService extends BaseService {
             )
         ) {
             throw new ForbiddenError();
+        }
+        if (!this.hasBrandLogoStorage()) {
+            throw new NotFoundError('Brand logo not found');
         }
         const logoFile =
             await this.dependencies.organizationBrandModel.findBrandLogoFile(

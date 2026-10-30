@@ -27,9 +27,8 @@ import {
     allowApiKeyAuthentication,
     isAuthenticated,
     unauthorisedInDemo,
-} from '../../controllers/authentication';
-import { BaseController } from '../../controllers/baseController';
-import { OrganizationBrandService } from '../services/OrganizationBrandService/OrganizationBrandService';
+} from './authentication';
+import { BaseController } from './baseController';
 
 @Route('/api/v1/org')
 @Response<ApiErrorPayload>('default', 'Error')
@@ -52,7 +51,7 @@ export class OrganizationBrandController extends BaseController {
         return {
             status: 'ok',
             results: await this.services
-                .getOrganizationBrandService<OrganizationBrandService>()
+                .getOrganizationBrandService()
                 .getBrand(req.account),
         };
     }
@@ -81,7 +80,7 @@ export class OrganizationBrandController extends BaseController {
         return {
             status: 'ok',
             results: await this.services
-                .getOrganizationBrandService<OrganizationBrandService>()
+                .getOrganizationBrandService()
                 .fetchBrandFromDomain(req.account, body.domain),
         };
     }
@@ -109,7 +108,7 @@ export class OrganizationBrandController extends BaseController {
         return {
             status: 'ok',
             results: await this.services
-                .getOrganizationBrandService<OrganizationBrandService>()
+                .getOrganizationBrandService()
                 .saveBrand(req.account, body),
         };
     }
@@ -143,7 +142,7 @@ export class OrganizationBrandController extends BaseController {
         return {
             status: 'ok',
             results: await this.services
-                .getOrganizationBrandService<OrganizationBrandService>()
+                .getOrganizationBrandService()
                 .uploadBrandLogo(req.account, { body: req, contentLength }),
         };
     }
@@ -164,7 +163,7 @@ export class OrganizationBrandController extends BaseController {
     ): Promise<void> {
         assertRegisteredAccount(req.account);
         const { contentType, data } = await this.services
-            .getOrganizationBrandService<OrganizationBrandService>()
+            .getOrganizationBrandService()
             .getBrandLogo(req.account, logoUuid);
         const { res } = req as express.Request & { res: express.Response };
         res.status(200);

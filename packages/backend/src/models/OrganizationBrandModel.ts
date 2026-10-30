@@ -1,13 +1,13 @@
 import { NotFoundError, OrganizationBrand } from '@lightdash/common';
 import { Knex } from 'knex';
-import { OrganizationTableName } from '../../database/entities/organizations';
+import { OrganizationTableName } from '../database/entities/organizations';
 import {
     DbOrganizationBrand,
     DbOrganizationBrandLogoFile,
     DbOrganizationBrandLogoFileIn,
     DbOrganizationBrandRow,
     OrganizationBrandLogoFilesTableName,
-} from '../database/entities/organizationBrand';
+} from '../ee/database/entities/organizationBrand';
 
 export class OrganizationBrandModel {
     constructor(private readonly database: Knex) {}

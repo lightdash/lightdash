@@ -12,10 +12,14 @@ export const useWhiteLabelBrand = (): {
     const canUseBrand =
         !!health.data?.license?.valid && health.data.isAuthenticated;
     const enabled = canUseBrand && !!user.data?.organizationUuid && !isEmbedded;
-    const { data } = useOrganizationBrand({ enabled });
+    const { data, isError } = useOrganizationBrand({ enabled });
     const isResolved =
         !!health.data &&
-        (!canUseBrand || (!!user.data && (!enabled || data !== undefined)));
+        (!canUseBrand ||
+            (!!user.data && (!enabled || isError || data !== undefined)));
 
-    return { brand: enabled ? (data ?? null) : null, isResolved };
+    return {
+        brand: enabled && !isError ? (data ?? null) : null,
+        isResolved,
+    };
 };

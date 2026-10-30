@@ -20,13 +20,16 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconPlus, IconTrash, IconWand, IconWorld } from '@tabler/icons-react';
-import { useState, type FC } from 'react';
+import { useRef, useState, type FC } from 'react';
 import {
     useColorPalettes,
     useCreateColorPalette,
 } from '../../../hooks/appearance/useOrganizationAppearance';
 import useHealth from '../../../hooks/health/useHealth';
-import { pickBrandLogo } from '../../../hooks/organization/brandLogos';
+import {
+    findSquareBrandLogo,
+    pickBrandLogo,
+} from '../../../hooks/organization/brandLogos';
 import {
     useFetchOrganizationBrand,
     useOrganizationBrand,
@@ -73,6 +76,10 @@ const BrandAppearanceForm: FC<{
     );
     const [isPaletteModalOpen, setIsPaletteModalOpen] = useState(false);
     const [logoError, setLogoError] = useState<string | null>(null);
+    const [logoImport, setLogoImport] = useState<
+        'idle' | 'checking' | 'found' | 'missing'
+    >('idle');
+    const importRun = useRef(0);
     const { data: palettes = [] } = useColorPalettes();
     const createColorPalette = useCreateColorPalette();
     const form = useForm<BrandFormValues>({
@@ -91,20 +98,28 @@ const BrandAppearanceForm: FC<{
         form.values.colors.every((color) => /^#[0-9a-f]{6}$/i.test(color.hex));
 
     const handleFetch = () => {
+        importRun.current += 1;
+        const run = importRun.current;
+        setLogoImport('idle');
         fetchMutation.mutate(
             { domain: form.values.domain.trim() },
             {
-                onSuccess: (fetched) =>
+                onSuccess: async (fetched) => {
                     form.setValues({
                         domain: fetched.domain,
                         colors: fetched.colors,
-                        ...(canWhiteLabel && pickBrandLogo(fetched.logos)
-                            ? { logos: fetched.logos }
-                            : {}),
-                    }),
+                    });
+                    if (!canWhiteLabel) return;
+                    setLogoImport('checking');
+                    const logo = await findSquareBrandLogo(fetched.logos);
+                    if (run !== importRun.current) return;
+                    if (logo) form.setFieldValue('logos', [logo]);
+                    setLogoImport(logo ? 'found' : 'missing');
+                },
             },
         );
     };
+    const isImporting = fetchMutation.isLoading || logoImport === 'checking';
 
     const handleSave = form.onSubmit((values) => {
         saveMutation.mutate(values, {
@@ -116,6 +131,55 @@ const BrandAppearanceForm: FC<{
             },
         });
     });
+
+    const websiteField = (
+        <Stack gap="xs">
+            <TextInput
+                label="Website"
+                placeholder="https://acme.com"
+                disabled={saveMutation.isLoading}
+                leftSection={<MantineIcon icon={IconWorld} />}
+                rightSectionWidth={canFetchBrand ? 144 : undefined}
+                rightSectionPointerEvents="all"
+                rightSection={
+                    canFetchBrand ? (
+                        <Tooltip
+                            label={
+                                canWhiteLabel
+                                    ? 'Import your logo and colors from this website. Review them before saving.'
+                                    : 'Import your brand colors from this website. Review them before saving.'
+                            }
+                            events={{ hover: true, focus: true, touch: false }}
+                            multiline
+                            w={260}
+                        >
+                            <Button
+                                variant="default"
+                                size="compact-xs"
+                                loading={isImporting}
+                                disabled={
+                                    !form.values.domain.trim() ||
+                                    saveMutation.isLoading
+                                }
+                                onClick={handleFetch}
+                            >
+                                {canWhiteLabel
+                                    ? 'Import brand identity'
+                                    : 'Import brand colors'}
+                            </Button>
+                        </Tooltip>
+                    ) : null
+                }
+                {...form.getInputProps('domain')}
+            />
+            {logoImport === 'missing' && !pickBrandLogo(form.values.logos) && (
+                <Text size="xs" c="dimmed">
+                    Colors imported. No square logo was found; you can upload
+                    one below.
+                </Text>
+            )}
+        </Stack>
+    );
 
     return (
         <Stack gap="lg">
@@ -132,63 +196,7 @@ const BrandAppearanceForm: FC<{
                             </Box>
                             <Box className={classes.grid}>
                                 <Stack gap="lg">
-                                    <Stack gap="xs">
-                                        <TextInput
-                                            label="Website"
-                                            placeholder="https://acme.com"
-                                            disabled={saveMutation.isLoading}
-                                            leftSection={
-                                                <MantineIcon icon={IconWorld} />
-                                            }
-                                            rightSectionWidth={
-                                                canFetchBrand ? 144 : undefined
-                                            }
-                                            rightSectionPointerEvents="all"
-                                            rightSection={
-                                                canFetchBrand ? (
-                                                    <Tooltip
-                                                        label="Import your logo and colors from this website. Review them before saving."
-                                                        events={{
-                                                            hover: true,
-                                                            focus: true,
-                                                            touch: false,
-                                                        }}
-                                                        multiline
-                                                        w={260}
-                                                    >
-                                                        <Button
-                                                            variant="default"
-                                                            size="compact-xs"
-                                                            loading={
-                                                                fetchMutation.isLoading
-                                                            }
-                                                            disabled={
-                                                                !form.values.domain.trim() ||
-                                                                saveMutation.isLoading
-                                                            }
-                                                            onClick={
-                                                                handleFetch
-                                                            }
-                                                        >
-                                                            Import brand
-                                                            identity
-                                                        </Button>
-                                                    </Tooltip>
-                                                ) : null
-                                            }
-                                            {...form.getInputProps('domain')}
-                                        />
-                                        {fetchMutation.isSuccess &&
-                                            !pickBrandLogo(
-                                                fetchMutation.data.logos,
-                                            ) && (
-                                                <Text size="xs" c="dimmed">
-                                                    Colors imported. No
-                                                    compatible logo was found;
-                                                    you can upload one below.
-                                                </Text>
-                                            )}
-                                    </Stack>
+                                    {websiteField}
                                     <TextInput
                                         label="Name"
                                         placeholder="Acme Analytics"
@@ -231,9 +239,12 @@ const BrandAppearanceForm: FC<{
                     <Stack gap="lg">
                         <Box className={classes.grid}>
                             <Stack gap="md">
+                                {!canWhiteLabel &&
+                                    canFetchBrand &&
+                                    websiteField}
                                 <Box className={classes.colorsList}>
                                     <Text size="sm" fw={500}>
-                                        Colours
+                                        Colors
                                     </Text>
                                     {form.values.colors.map((color, index) => (
                                         <Group
@@ -383,10 +394,7 @@ const BrandAppearanceForm: FC<{
                                 <Button
                                     onClick={() => handleSave()}
                                     loading={saveMutation.isLoading}
-                                    disabled={
-                                        logoError !== null ||
-                                        fetchMutation.isLoading
-                                    }
+                                    disabled={logoError !== null || isImporting}
                                 >
                                     Save changes
                                 </Button>
@@ -430,14 +438,13 @@ export const BrandAppearanceSettings: FC<{
 }> = ({ canManageColorPalette }) => {
     const { data: health } = useHealth();
     const canWhiteLabel = !!health?.license?.valid;
+    const canFetchBrand = !!health?.hasBrandfetch;
     const {
         data: brand,
         isInitialLoading,
         isError,
         refetch,
-    } = useOrganizationBrand({ enabled: canWhiteLabel });
-
-    if (!canWhiteLabel) return null;
+    } = useOrganizationBrand();
 
     if (isInitialLoading) {
         return (
@@ -454,7 +461,9 @@ export const BrandAppearanceSettings: FC<{
             />
         );
     }
-    const canFetchBrand = !!health?.hasBrandfetch;
+    // Without white-labelling only the color import is left, so hide the
+    // section when Brandfetch is off and no brand was saved before
+    if (!canWhiteLabel && !canFetchBrand && !brand) return null;
 
     return (
         <BrandAppearanceForm

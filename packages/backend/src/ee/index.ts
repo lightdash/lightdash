@@ -64,7 +64,6 @@ import { HomepageRecommendedActionSkipsModel } from './models/HomepageRecommende
 import { ManagedAgentModel } from './models/ManagedAgentModel';
 import { McpToolCallModel } from './models/McpToolCallModel';
 import { MobilePushNotificationModel } from './models/MobilePushNotificationModel';
-import { OrganizationBrandModel } from './models/OrganizationBrandModel';
 import { ProjectContextModel } from './models/ProjectContextModel';
 import { ProjectHomepageModel } from './models/ProjectHomepageModel';
 import { ReleaseHighlightsModel } from './models/ReleaseHighlightsModel';
@@ -128,7 +127,6 @@ import { McpService } from './services/McpService/McpService';
 import { MobilePushNotificationReconciler } from './services/MobilePushNotificationService/MobilePushNotificationReconciler';
 import { MobilePushNotificationService } from './services/MobilePushNotificationService/MobilePushNotificationService';
 import { OnboardingAgentService } from './services/OnboardingAgentService/OnboardingAgentService';
-import { OrganizationBrandService } from './services/OrganizationBrandService/OrganizationBrandService';
 import { OrganizationWarehouseCredentialsService } from './services/OrganizationWarehouseCredentialsService';
 import { ProjectContextService } from './services/ProjectContextService/ProjectContextService';
 import { ProjectHomepageService } from './services/ProjectHomepageService';
@@ -192,12 +190,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
             await failInFlightAiAgentStreams(repository);
         },
         serviceProviders: {
-            organizationBrandService: ({ models, context }) =>
-                new OrganizationBrandService({
-                    lightdashConfig: context.lightdashConfig,
-                    organizationBrandModel:
-                        models.getOrganizationBrandModel<OrganizationBrandModel>(),
-                }),
             analyticsProjectService: ({
                 repository,
                 models,
@@ -1723,8 +1715,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 }),
         },
         modelProviders: {
-            organizationBrandModel: ({ database }) =>
-                new OrganizationBrandModel(database),
             releaseHighlightsModel: ({ database }) =>
                 new ReleaseHighlightsModel({ database }),
             externalSourceModel: ({ database, utils }) =>
