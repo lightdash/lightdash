@@ -75,6 +75,7 @@ describe('getGoogleGeminiModel', () => {
         );
 
         expect(createGoogle).toHaveBeenCalledWith({
+            fetch: expect.any(Function),
             apiKey: 'fake-gemini-key',
             baseURL: 'https://gateway.example/google/v1beta',
         });
