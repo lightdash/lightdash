@@ -1,3 +1,19 @@
+# [3.109.0](https://github.com/lightdash/lightdash/compare/3.108.4...3.109.0) (2026-10-30)
+
+
+### Bug Fixes
+
+* **dashboard-controls:** copy and motion pass on the filter flow ([#31836](https://github.com/lightdash/lightdash/issues/31836)) ([c8b61ee](https://github.com/lightdash/lightdash/commit/c8b61ee4e0ebdcfa274ece58437f907f943d0e4c))
+
+
+### Features
+
+* **dashboard-controls:** choose a filter's tiles on the canvas ([#31832](https://github.com/lightdash/lightdash/issues/31832)) ([137a6f7](https://github.com/lightdash/lightdash/commit/137a6f7bd37f7435c3055bb102e00015e3d67196))
+* **dashboard-controls:** edit filters in a popover under the pill ([#31830](https://github.com/lightdash/lightdash/issues/31830)) ([f09c16d](https://github.com/lightdash/lightdash/commit/f09c16db8df08ebf9e49a65590e0cc5f310d4109))
+* **dashboard-controls:** edit mode band in place of the header ([#31828](https://github.com/lightdash/lightdash/issues/31828)) ([b767192](https://github.com/lightdash/lightdash/commit/b767192ea2d3467febdea13c4eea031080093698))
+* **dashboard-controls:** new filter starts from the field picker ([#31831](https://github.com/lightdash/lightdash/issues/31831)) ([011a838](https://github.com/lightdash/lightdash/commit/011a8383236674a26bb6444edc1925ebaa0dc2bd))
+* **dashboard-controls:** one plain pill with five looks ([#31827](https://github.com/lightdash/lightdash/issues/31827)) ([a1d1c11](https://github.com/lightdash/lightdash/commit/a1d1c1188b290eb51a646fb5c40937ce650b8b4f))
+
 ## [3.108.4](https://github.com/lightdash/lightdash/compare/3.108.3...3.108.4) (2026-10-30)
 
 
