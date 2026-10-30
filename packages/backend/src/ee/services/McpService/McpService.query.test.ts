@@ -117,16 +117,38 @@ type Agent = {
     enableComposerQueries: boolean;
 };
 
+const nodeColumns: Record<
+    string,
+    Record<string, { reference: string; type: DimensionType }>
+> = {
+    orders: {
+        orders_status: {
+            reference: 'orders_status',
+            type: DimensionType.STRING,
+        },
+        orders_count: { reference: 'orders_count', type: DimensionType.NUMBER },
+    },
+    totals: {
+        orders_status: {
+            reference: 'orders_status',
+            type: DimensionType.STRING,
+        },
+        total: { reference: 'total', type: DimensionType.NUMBER },
+    },
+};
+// orders returns its full limit of 500 rows; totals aggregates them to 2.
+const nodeRowCounts: Record<string, number> = { orders: 500, totals: 2 };
+
 const makeService = ({
     agent = null,
     composeSqlRunnerEnabled = true,
     canManageSqlRunner = true,
-    terminalRunning = false,
+    terminalOutcome = 'success',
 }: {
     agent?: Agent | null;
     composeSqlRunnerEnabled?: boolean;
     canManageSqlRunner?: boolean;
-    terminalRunning?: boolean;
+    terminalOutcome?: 'success' | 'running' | 'failure';
 } = {}) => {
     const runComposerQueriesUntilDeadline = vi.fn(
         async ({
@@ -141,29 +163,52 @@ const makeService = ({
                 sourceType: query.sourceType,
                 queryUuid: queryUuidFor(query.nodeId!),
             }));
-            if (terminalRunning) return { status: 'running', submissions };
+            // Upstream nodes are ready; the terminal settles per terminalOutcome.
+            const nodeStatuses = queries.map(({ nodeId }) => {
+                const ready = {
+                    nodeId: nodeId!,
+                    state: QueryHistoryStatus.READY,
+                    error: null,
+                    rowCount: nodeRowCounts[nodeId!] ?? 1,
+                    columns: nodeColumns[nodeId!] ?? null,
+                };
+                if (nodeId !== terminalNodeId || terminalOutcome === 'success')
+                    return ready;
+                return {
+                    ...ready,
+                    state:
+                        terminalOutcome === 'running'
+                            ? QueryHistoryStatus.EXECUTING
+                            : QueryHistoryStatus.ERROR,
+                    error:
+                        terminalOutcome === 'failure'
+                            ? 'Binder Error: column "nope" not found'
+                            : null,
+                    rowCount: null,
+                    columns: null,
+                };
+            });
+            if (terminalOutcome === 'running')
+                return { status: 'running', submissions, nodeStatuses };
+            if (terminalOutcome === 'failure')
+                return {
+                    status: 'failure',
+                    error: 'Composer query failed.',
+                    nodeStatuses,
+                };
             return {
                 status: 'success',
                 submissions,
                 terminal: {
                     queryUuid: queryUuidFor(terminalNodeId),
-                    columns: {
-                        orders_status: {
-                            reference: 'orders_status',
-                            type: DimensionType.STRING,
-                        },
-                        total: {
-                            reference: 'total',
-                            type: DimensionType.NUMBER,
-                        },
-                    },
+                    columns: nodeColumns[terminalNodeId],
                     rows: [
                         { orders_status: 'completed', total: 3 },
                         { orders_status: 'placed', total: 1 },
                     ],
                     rowCount: 2,
                 },
-                nodeStatuses: [],
+                nodeStatuses,
             };
         },
     );
@@ -387,15 +432,32 @@ describe('McpService query tool', () => {
                 {
                     nodeId: 'orders',
                     title: 'Orders by status',
+                    sourceType: QuerySourceType.SEMANTIC_LAYER,
                     queryUuid: queryUuidFor('orders'),
                     status: 'done',
-                    columns: null,
+                    rowCount: 500,
+                    limit: 500,
+                    reachedLimit: true,
+                    columns: [
+                        {
+                            reference: 'orders_status',
+                            type: DimensionType.STRING,
+                        },
+                        {
+                            reference: 'orders_count',
+                            type: DimensionType.NUMBER,
+                        },
+                    ],
                 },
                 {
                     nodeId: 'totals',
                     title: 'Totals',
+                    sourceType: QuerySourceType.DUCKDB,
                     queryUuid: queryUuidFor('totals'),
                     status: 'done',
+                    rowCount: 2,
+                    limit: 500,
+                    reachedLimit: false,
                     columns: [
                         {
                             reference: 'orders_status',
@@ -406,6 +468,9 @@ describe('McpService query tool', () => {
                 },
             ],
         });
+        expect(textOf(result)).toContain(
+            'Warning: "totals" reads "orders", which reached its limit',
+        );
         expect(textOf(result)).toContain(
             'orders_status,total\ncompleted,3\nplaced,1',
         );
@@ -499,7 +564,7 @@ describe('McpService query tool', () => {
 
     it('returns running past the deadline, then get_query_result reads a node result', async () => {
         const { service, call, asyncQueryService } = makeService({
-            terminalRunning: true,
+            terminalOutcome: 'running',
         });
         await createServer(service);
 
@@ -513,6 +578,15 @@ describe('McpService query tool', () => {
             status: 'running',
             terminalNodeId: 'totals',
             rowCount: null,
+            nodes: [
+                { nodeId: 'orders', status: 'done', rowCount: 500 },
+                {
+                    nodeId: 'totals',
+                    status: 'running',
+                    rowCount: null,
+                    columns: null,
+                },
+            ],
         });
         expect(textOf(running)).toContain(
             `get_query_result with queryUuid: ${queryUuidFor('totals')}`,
@@ -548,5 +622,21 @@ describe('McpService query tool', () => {
                 rows: [{ total: 4 }],
             },
         });
+    });
+
+    it('reports the failed node and the nodes that ran', async () => {
+        const { service, call } = makeService({ terminalOutcome: 'failure' });
+        await createServer(service);
+
+        const result = await call(
+            McpToolName.QUERY,
+            pipelineArgs([ordersNode, totalsNode]),
+        );
+
+        expect(result.isError).toBe(true);
+        expect(textOf(result)).toContain('- orders: "Orders by status"');
+        expect(textOf(result)).toContain(
+            '- totals: "Totals" (duckdb): error: Binder Error: column "nope" not found',
+        );
     });
 });

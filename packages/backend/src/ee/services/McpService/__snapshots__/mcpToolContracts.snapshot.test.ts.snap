@@ -10919,7 +10919,13 @@ Returns a preview of the terminal node's rows and every node's queryUuid. If run
                       "type": "null",
                     },
                   ],
-                  "description": "Known for the terminal node once done.",
+                  "description": "Result columns; null until the node is done.",
+                },
+                "limit": {
+                  "description": "Row limit this node ran with. A rowCount equal to it means the node reached its limit, so more rows may exist.",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer",
                 },
                 "nodeId": {
                   "description": "Names this node so other nodes can read its result.",
@@ -10930,14 +10936,44 @@ Returns a preview of the terminal node's rows and every node's queryUuid. If run
                   "description": "Pass to get_query_result to read this node.",
                   "type": "string",
                 },
+                "reachedLimit": {
+                  "description": "True when rowCount reached limit, so more rows may exist and nodes reading it may be computed on incomplete rows.",
+                  "type": "boolean",
+                },
+                "rowCount": {
+                  "anyOf": [
+                    {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                  "description": "Rows this node returned; null when its query is not ready.",
+                },
+                "sourceType": {
+                  "enum": [
+                    "semanticLayer",
+                    "sql",
+                    "duckdb",
+                    "external",
+                    "python",
+                    "api",
+                  ],
+                  "type": "string",
+                },
                 "status": {
                   "enum": [
                     "done",
                     "running",
+                    "failed",
                   ],
                   "type": "string",
                 },
                 "title": {
+                  "description": "What users see for this node.",
                   "type": [
                     "string",
                     "null",
@@ -10947,8 +10983,12 @@ Returns a preview of the terminal node's rows and every node's queryUuid. If run
               "required": [
                 "nodeId",
                 "title",
+                "sourceType",
+                "rowCount",
+                "limit",
                 "queryUuid",
                 "status",
+                "reachedLimit",
                 "columns",
               ],
               "type": "object",

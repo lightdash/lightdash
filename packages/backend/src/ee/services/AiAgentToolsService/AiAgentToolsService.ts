@@ -149,6 +149,7 @@ import {
     AnalyzeFieldImpactFn,
     ComposerNodeStatus,
     ComposerNodeStatusUpdate,
+    ComposerRunningOutcome,
     ComposerRunOutcome,
     CreateContentFn,
     CreateScheduledDeliveryFn,
@@ -4934,15 +4935,20 @@ export class AiAgentToolsService extends BaseService {
         pageSize: number;
         deadlineMs: number;
         pollNodeStatuses: () => Promise<void>;
-    }): Promise<
-        | ComposerRunOutcome
-        | { status: 'running'; submissions: SourceQuerySubmission[] }
-    > {
+    }): Promise<ComposerRunOutcome | ComposerRunningOutcome> {
         let delayMs = 500;
         // eslint-disable-next-line no-constant-condition
         while (true) {
             if (Date.now() > deadlineMs) {
-                return { status: 'running', submissions };
+                return {
+                    status: 'running',
+                    submissions,
+                    // eslint-disable-next-line no-await-in-loop
+                    nodeStatuses: await this.readComposerNodeStatuses(
+                        context,
+                        submissions,
+                    ).catch(() => []),
+                };
             }
 
             const queryResults =

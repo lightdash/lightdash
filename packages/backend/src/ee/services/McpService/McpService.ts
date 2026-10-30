@@ -30,6 +30,7 @@ import {
     createToolRunSqlArgsSchema,
     DATA_APP_BUILD_POLL_INTERVAL_MS,
     DATA_APP_VIZ_TEMPLATE,
+    DEFAULT_COMPOSER_QUERY_MAX_LIMIT,
     derivePivotConfigurationFromChart,
     editContentToolDefinition,
     Explore,
@@ -110,6 +111,7 @@ import {
     searchFieldValuesToolDefinition,
     SemanticLayerSourceQuery,
     SessionUser,
+    toComposerNodeColumns,
     toolRenderChartArgsSchemaTransformed,
     ToolRenderChartArgsTransformed,
     toolRunQueryArgsSchemaTransformed,
@@ -216,6 +218,10 @@ import type {
 import {
     buildComposerPreview,
     buildComposerQueryPipeline,
+    hasReachedLimit,
+    renderComposerNodeSummary,
+    toComposerNodeSummaries,
+    toNodeColumns,
 } from '../ai/tools/composerQueryPipeline';
 import { getCreateContent } from '../ai/tools/createContent';
 import { getCreateScheduledDelivery } from '../ai/tools/createScheduledDelivery';
@@ -1540,31 +1546,66 @@ export class McpService extends BaseService {
             terminalNodeId,
             deadlineMs,
         });
-        if (run.status === 'failure')
-            return mcpQueryTool.result.error(run.error);
         const queryUuids = new Map(
-            run.submissions.map(({ nodeId, queryUuid }) => [nodeId, queryUuid]),
+            ('submissions' in run ? run.submissions : []).map(
+                ({ nodeId, queryUuid }) => [nodeId, queryUuid],
+            ),
         );
-        const terminalQueryUuid = queryUuids.get(terminalNodeId) ?? '';
-        const nodeSummary = queries
-            .map(
-                (node) =>
-                    `- ${node.nodeId}${node.title ? `: "${node.title}"` : ''} (${node.sourceType}), queryUuid ${queryUuids.get(node.nodeId)}`,
+        const summaries = toComposerNodeSummaries(
+            queries,
+            run.nodeStatuses,
+        ).map((node) => ({
+            ...node,
+            queryUuid: queryUuids.get(node.nodeId) ?? '',
+        }));
+        const nodeSummary = renderComposerNodeSummary(
+            queries,
+            summaries,
+            run.nodeStatuses,
+            DEFAULT_COMPOSER_QUERY_MAX_LIMIT,
+        );
+        if (run.status === 'failure') {
+            return mcpQueryTool.result.error(
+                `${run.error}\nNodes:\n${nodeSummary}`,
+            );
+        }
+        const nodeColumns = {
+            ...toNodeColumns(run.nodeStatuses),
+            ...(run.status === 'success'
+                ? {
+                      [terminalNodeId]: toComposerNodeColumns(
+                          run.terminal.columns,
+                      ),
+                  }
+                : {}),
+        };
+        const nodes = summaries.map((node) => {
+            const state = run.nodeStatuses.find(
+                (status) => status.nodeId === node.nodeId,
+            )?.state;
+            let status: McpQueryStructuredContent['nodes'][number]['status'] =
+                'running';
+            if (state === QueryHistoryStatus.READY) status = 'done';
+            else if (
+                state === QueryHistoryStatus.ERROR ||
+                state === QueryHistoryStatus.CANCELLED
             )
-            .join('\n');
+                status = 'failed';
+            return {
+                ...node,
+                status,
+                reachedLimit: hasReachedLimit(node),
+                columns: nodeColumns[node.nodeId] ?? null,
+            };
+        });
+        const terminalQueryUuid = queryUuids.get(terminalNodeId) ?? '';
 
         if (run.status === 'running') {
             const structuredContent: McpQueryStructuredContent = {
                 status: 'running',
                 terminalNodeId,
                 rowCount: null,
-                nodes: queries.map((node) => ({
-                    nodeId: node.nodeId,
-                    title: node.title ?? null,
-                    queryUuid: queryUuids.get(node.nodeId) ?? '',
-                    status: 'running',
-                    columns: null,
-                })),
+                nodes,
             };
             return mcpQueryTool.result.structured(
                 `Query is still running, not failed. Wait ${MCP_QUERY_POLL_INTERVAL_MS} ms, then call get_query_result with queryUuid: ${terminalQueryUuid}. Do not resubmit the pipeline. ${MCP_QUERY_TIMING_NOTE}\nNodes:\n${nodeSummary}`,
@@ -1577,14 +1618,7 @@ export class McpService extends BaseService {
             status: 'done',
             terminalNodeId,
             rowCount: run.terminal.rowCount,
-            nodes: queries.map((node) => ({
-                nodeId: node.nodeId,
-                title: node.title ?? null,
-                queryUuid: queryUuids.get(node.nodeId) ?? '',
-                status: 'done',
-                columns:
-                    node.nodeId === terminalNodeId ? preview.columns : null,
-            })),
+            nodes,
         };
         const text = [
             `Query complete. Terminal node "${terminalNodeId}" returned ${run.terminal.rowCount} rows.`,

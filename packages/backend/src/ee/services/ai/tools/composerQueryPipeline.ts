@@ -1,7 +1,9 @@
 import {
     buildComposerArtifactPipeline,
     COMPOSER_QUERY_PREVIEW_ROW_LIMIT,
+    getSourceQueryLimit,
     getSourceQueryResultReferences,
+    hasReachedSourceQueryLimit,
     QueryHistoryStatus,
     QuerySourceType,
     toComposerNodeColumns,
@@ -290,4 +292,70 @@ export const renderSavedNodes = (
     ]
         .filter(Boolean)
         .join(' ');
+};
+
+export type ComposerNodeSummary = {
+    nodeId: string;
+    title: string | null;
+    sourceType: QuerySourceType;
+    rowCount: number | null;
+    limit: number;
+    queryUuid?: string;
+};
+
+export const toComposerNodeSummaries = (
+    queries: ComposerPipelineNode[],
+    nodeStatuses: ComposerNodeStatus[],
+): ComposerNodeSummary[] =>
+    queries.map((node) => ({
+        nodeId: node.nodeId,
+        title: node.title ?? null,
+        sourceType: node.sourceType,
+        rowCount:
+            nodeStatuses.find((status) => status.nodeId === node.nodeId)
+                ?.rowCount ?? null,
+        limit: getSourceQueryLimit(node),
+    }));
+
+export const hasReachedLimit = (node: ComposerNodeSummary) =>
+    node.rowCount !== null && hasReachedSourceQueryLimit(node, node.rowCount);
+
+/** One line per node (status, rows, limit) plus warnings for nodes reading a node that reached its limit. */
+export const renderComposerNodeSummary = (
+    queries: SourceQuery[],
+    nodes: ComposerNodeSummary[],
+    nodeStatuses: ComposerNodeStatus[],
+    maxQueryLimit: number,
+): string => {
+    const reachedLimit = new Set(
+        nodes.filter(hasReachedLimit).map((node) => node.nodeId),
+    );
+    const nodeLines = nodes.map((node) => {
+        const status = nodeStatuses.find(
+            (candidate) => candidate.nodeId === node.nodeId,
+        );
+        const label = [
+            `- ${node.nodeId}`,
+            node.title === null ? '' : `: "${node.title}"`,
+            ` (${node.sourceType})`,
+            node.queryUuid ? `, queryUuid ${node.queryUuid}` : '',
+        ].join('');
+        const outcome =
+            node.rowCount === null
+                ? `${status?.state ?? 'not read'}${status?.error ? `: ${status.error}` : ''}`
+                : `${node.rowCount} rows`;
+        const capped = reachedLimit.has(node.nodeId)
+            ? ` Reached its limit of ${node.limit}, so more rows may exist (max ${maxQueryLimit}).`
+            : '';
+        return `${label}: ${outcome}, limit ${node.limit}.${capped}`;
+    });
+    const warnings = queries.flatMap((query) =>
+        Object.values(getSourceQueryResultReferences(query))
+            .filter((reference) => reachedLimit.has(reference))
+            .map(
+                (reference) =>
+                    `Warning: "${query.nodeId}" reads "${reference}", which reached its limit, so "${query.nodeId}" may be computed on incomplete rows.`,
+            ),
+    );
+    return [...nodeLines, ...warnings].join('\n');
 };

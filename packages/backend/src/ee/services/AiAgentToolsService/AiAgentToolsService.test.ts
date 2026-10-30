@@ -3806,7 +3806,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
         );
     });
 
-    it('returns running with every submission when the terminal outlives the deadline', async () => {
+    it('returns running with every submission and node status when the terminal outlives the deadline', async () => {
         const executeSourceQueries = vi
             .fn()
             .mockResolvedValue({ queries: submissions });
@@ -3814,7 +3814,20 @@ describe('AiAgentToolsService runComposerQueries', () => {
             .fn()
             .mockResolvedValue({ status: QueryHistoryStatus.EXECUTING });
         const service = makeService({
-            querySourceService: { executeSourceQueries },
+            querySourceService: {
+                executeSourceQueries,
+                getSourceQueryStatuses: vi.fn().mockResolvedValue({
+                    statuses: [
+                        readyStatuses.statuses[0],
+                        {
+                            ...readyStatuses.statuses[1],
+                            status: QueryHistoryStatus.EXECUTING,
+                            totalRowCount: null,
+                            columns: null,
+                        },
+                    ],
+                }),
+            },
             asyncQueryService: { getAsyncQueryResults },
         });
 
@@ -3826,7 +3839,26 @@ describe('AiAgentToolsService runComposerQueries', () => {
                     terminalNodeId: 'joined',
                     deadlineMs: Date.now() - 1,
                 }),
-        ).resolves.toEqual({ status: 'running', submissions });
+        ).resolves.toEqual({
+            status: 'running',
+            submissions,
+            nodeStatuses: [
+                {
+                    nodeId: 'orders',
+                    state: QueryHistoryStatus.READY,
+                    error: null,
+                    rowCount: 1,
+                    columns: readyResults.columns,
+                },
+                {
+                    nodeId: 'joined',
+                    state: QueryHistoryStatus.EXECUTING,
+                    error: null,
+                    rowCount: null,
+                    columns: null,
+                },
+            ],
+        });
     });
 
     it('carries the runtime user attribute overrides into the pipeline', async () => {

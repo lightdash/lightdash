@@ -732,17 +732,20 @@ export const mcpQueryStructuredOutputSchema = z.object({
         .describe('Total rows in the terminal result; null while running.'),
     nodes: z
         .array(
-            z.object({
-                nodeId: nodeIdSchema,
-                title: z.string().nullable(),
+            composerQueryNodeSummarySchema.extend({
                 queryUuid: z
                     .string()
                     .describe('Pass to get_query_result to read this node.'),
-                status: z.enum(['done', 'running']),
+                status: z.enum(['done', 'running', 'failed']),
+                reachedLimit: z
+                    .boolean()
+                    .describe(
+                        'True when rowCount reached limit, so more rows may exist and nodes reading it may be computed on incomplete rows.',
+                    ),
                 columns: z
                     .array(composerQueryColumnSchema)
                     .nullable()
-                    .describe('Known for the terminal node once done.'),
+                    .describe('Result columns; null until the node is done.'),
             }),
         )
         .describe('Every node of the pipeline, in dependency order.'),
