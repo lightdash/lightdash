@@ -72,6 +72,7 @@ import {
 import { AddControl, InertWhileEditing } from './AddControl';
 import { BarSelectionContext, type BarSelection } from './barSelection';
 import { formatSectionCount } from './fieldLabels';
+import { EditorPopover } from './FilterEditor';
 import { FilterPills } from './FilterPills';
 import pillClasses from './FilterPills.module.css';
 import { focusAfterNaming, useRefocusAfter, type NameExit } from './nameFocus';
@@ -98,7 +99,7 @@ import {
     underPointerFor,
 } from './sections';
 import { SelectionBar } from './SelectionBar';
-import { removeFilterRule } from './sidebarState';
+import { isEditingIn, isNewFilterIn, removeFilterRule } from './sidebarState';
 import { useControlsSidebarSelector } from './useControlsSidebar';
 import { hasOpenLayer } from './useEditorDismiss';
 
@@ -194,6 +195,11 @@ const SectionCapsule: FC<CapsuleProps> = ({
     // Nothing to show on this tab (an editor's bar only): the member count
     const hasVisible = visibleRules.length > 0;
     const isFolded = !(isOpen && hasVisible);
+    const isEditorOnAdd = useControlsSidebarSelector(
+        (c) =>
+            isNewFilterIn(c, [section.id]) ||
+            (isFolded && isEditingIn(c, section.id)),
+    );
     return (
         // A saved-open capsule takes a line of its own, a saved-folded one
         // stays inline; a fold in view moves neither
@@ -339,17 +345,19 @@ const SectionCapsule: FC<CapsuleProps> = ({
                         className={`${classes.actions} ${pillClasses.inert}`}
                         inert={actions.isLocked || undefined}
                     >
-                        <Tooltip label={`Add filter to ${section.name}`}>
-                            <ActionIcon
-                                size="sm"
-                                radius="xl"
-                                aria-label={`Add filter to ${section.name}`}
-                                data-section-add={section.id}
-                                onClick={actions.onAddFilter}
-                            >
-                                <MantineIcon icon={IconPlus} size={14} />
-                            </ActionIcon>
-                        </Tooltip>
+                        <EditorPopover isOpen={isEditorOnAdd}>
+                            <Tooltip label={`Add filter to ${section.name}`}>
+                                <ActionIcon
+                                    size="sm"
+                                    radius="xl"
+                                    aria-label={`Add filter to ${section.name}`}
+                                    data-section-add={section.id}
+                                    onClick={actions.onAddFilter}
+                                >
+                                    <MantineIcon icon={IconPlus} size={14} />
+                                </ActionIcon>
+                            </Tooltip>
+                        </EditorPopover>
                         <SectionMenu
                             label={`${section.name} menu`}
                             hasMembers={rules.length > 0}

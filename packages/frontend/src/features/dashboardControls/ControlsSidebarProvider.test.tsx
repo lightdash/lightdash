@@ -41,6 +41,7 @@ import {
 } from '../dashboardFilters/FilterConfiguration/utils';
 import { ControlsSidebarProvider } from './ControlsSidebarProvider';
 import { getFieldCount, setTileField, type FieldsByTile } from './peers';
+import { isNewFilterIn } from './sidebarState';
 import {
     useControlsSidebar,
     useControlsSidebarSelector,
@@ -667,6 +668,21 @@ describe('ControlsSidebarProvider', () => {
         expect(latest.filters).toEqual(initialFilters);
         act(() => result.current.close());
         expect(latest.filters.dimensions[2].sectionId).toBe('s');
+    });
+
+    it("asks first over a dirty edit, then opens the editor on the section's +", () => {
+        const { result } = setup();
+        act(() => result.current.open('a'));
+        act(() => result.current.updateFilter(rule('a', ['9'])));
+        act(() => result.current.openNew('s'));
+        expect(result.current.isAsking).toBe(true);
+        expect(isNewFilterIn(result.current, ['s'])).toBe(false);
+
+        act(() => result.current.resolvePending(false));
+        expect(result.current.isPlaceholder).toBe(true);
+        expect(result.current.editingRule?.sectionId).toBe('s');
+        expect(isNewFilterIn(result.current, ['s'])).toBe(true);
+        expect(isNewFilterIn(result.current, ['t'])).toBe(false);
     });
 
     it('drops a section that is gone by the time the first field is picked', () => {
