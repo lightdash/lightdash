@@ -308,7 +308,7 @@ export class WarehouseConnectionModel {
         }
         if (row.organization_warehouse_credentials_uuid !== null) {
             throw new ParameterError(
-                'Organization warehouse credentials are no longer supported. Update this connection with warehouse credentials.',
+                'Organization warehouse credentials are no longer supported.',
             );
         }
         if (row.encrypted_credentials === null) {
@@ -341,6 +341,7 @@ export class WarehouseConnectionModel {
         stored: CreateWarehouseCredentials | null = null,
     ) {
         return {
+            organization_warehouse_credentials_uuid: null,
             encrypted_credentials: this.encryptionUtil.encrypt(
                 JSON.stringify(
                     withNewWarehouseCredentialVersion(
@@ -416,10 +417,12 @@ export class WarehouseConnectionModel {
                     );
                 }
             }
-            const changed = !warehouseCredentialsEqual(
-                current,
-                normalizeWarehouseCredentials(source.credentials),
-            );
+            const changed =
+                existing.organization_warehouse_credentials_uuid != null ||
+                !warehouseCredentialsEqual(
+                    current,
+                    normalizeWarehouseCredentials(source.credentials),
+                );
             await transaction(WAREHOUSE_CONNECTIONS_TABLE)
                 .where('project_uuid', project.projectUuid)
                 .where('warehouse_connection_uuid', warehouseConnectionUuid)

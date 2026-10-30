@@ -547,7 +547,6 @@ describe('SnowflakeOAuthCredentialResolver', () => {
             await start;
             const second = f.resolver.resolve({
                 ...input,
-                projectUuid: input.projectUuid,
                 connection: { ...input.connection, schema: 'other-schema' },
             });
             await vi.waitFor(() => expect(f.run).toHaveBeenCalledTimes(2));
@@ -562,6 +561,14 @@ describe('SnowflakeOAuthCredentialResolver', () => {
             expect(results[1].clientCredentials.schema).toBe('other-schema');
             expect(f.exchange).toHaveBeenCalledTimes(1);
             expect(f.transaction).toHaveBeenCalledTimes(1);
+            expect(
+                f.deps.projectModel.rotateRefreshToken,
+            ).toHaveBeenCalledExactlyOnceWith(
+                'shared-row',
+                'old-refresh',
+                'shared-refresh',
+                { raw: f.raw },
+            );
         },
     );
 });
@@ -569,7 +576,7 @@ describe('SnowflakeOAuthCredentialResolver', () => {
 describe('Snowflake OAuth refresh concurrency', () => {
     test.each(['project'] as const)(
         'shares an exchange and write for concurrent callers on one %s row',
-        async (kind) => {
+        async () => {
             const f = setup();
             const exchanged = deferred<{
                 accessToken: string;
