@@ -6,6 +6,11 @@ import {
     withChatCompletionsDefaults,
 } from './chatCompletions';
 import { ModelPreset } from './presets';
+import {
+    createRequestSizeGuardedFetch,
+    IMAGE_MODEL_GATEWAY_REQUEST_MAX_BYTES,
+    IMAGE_MODEL_REQUEST_MAX_BYTES,
+} from './requestSizeGuard';
 import { AiModel, ProviderOptionsMap } from './types';
 
 const PROVIDER = 'openai';
@@ -18,6 +23,11 @@ export const getOpenaiGptmodel = (
     options?: { enableReasoning?: boolean },
 ): AiModel<typeof PROVIDER> => {
     const openai = createOpenAI({
+        fetch: createRequestSizeGuardedFetch(
+            config.baseUrl && config.baseUrl !== DEFAULT_OPENAI_BASE_URL
+                ? IMAGE_MODEL_GATEWAY_REQUEST_MAX_BYTES
+                : IMAGE_MODEL_REQUEST_MAX_BYTES.openai,
+        ),
         apiKey: config.apiKey,
         baseURL: config.baseUrl || DEFAULT_OPENAI_BASE_URL,
         headers: config.customHeaders,

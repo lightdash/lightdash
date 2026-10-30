@@ -162,6 +162,7 @@ import type {
 } from '../types/aiAgent';
 import { toAbsoluteHref } from '../utils/absoluteHref';
 import { AgentContext } from '../utils/AgentContext';
+import { hasBinaryModelInputs } from '../utils/aiCallTelemetry';
 import {
     AiAgentEmptyResponseError,
     AiAgentStepCapReachedError,
@@ -2686,6 +2687,13 @@ export const getAgentMessages = (
                 case 'assistant':
                 case 'tool':
                 case 'user':
+                    if (hasBinaryModelInputs([msg])) {
+                        logger(
+                            'Agent Messages',
+                            `${msg.role} message - binary content skipped`,
+                        );
+                        break;
+                    }
                     logger(
                         'Agent Messages',
                         `${msg.role} message: ${JSON.stringify(msg.content)}`,
