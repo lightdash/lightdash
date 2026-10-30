@@ -371,6 +371,7 @@ const SaveChartButton: FC<{
                             ? embed.embedWriteContext?.writableSpaces
                             : undefined
                     }
+                    embedDashboard={embed.chartSaveDashboard}
                 />
             )}
 
