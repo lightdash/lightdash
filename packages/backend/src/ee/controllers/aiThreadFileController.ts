@@ -27,6 +27,7 @@ import {
     unauthorisedInDemo,
 } from '../../controllers/authentication';
 import { BaseController } from '../../controllers/baseController';
+import { getRawThreadFileBody } from '../../middlewares/rawThreadFileBody';
 import { type AiThreadFileService } from '../services/AiThreadFileService';
 
 @Route('/api/v1/aiAgents/thread-files')
@@ -65,9 +66,7 @@ export class AiThreadFileController extends BaseController {
                 toSessionUser(req.account),
                 {
                     fileName: filename,
-                    bytes: Buffer.isBuffer(req.body)
-                        ? req.body
-                        : Buffer.alloc(0),
+                    bytes: getRawThreadFileBody(req) ?? Buffer.alloc(0),
                 },
             ),
         };
