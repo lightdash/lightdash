@@ -331,6 +331,7 @@ const makeService = ({
         },
         aiOrganizationSettingsService: {
             isMcpAgentsEnabled: vi.fn().mockResolvedValue(true),
+            getMcpProjectAccess: vi.fn().mockResolvedValue({ mode: 'all' }),
         },
         analytics: { track: vi.fn() },
         asyncQueryService,
