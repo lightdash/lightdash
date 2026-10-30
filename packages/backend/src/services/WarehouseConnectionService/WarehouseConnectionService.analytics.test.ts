@@ -198,6 +198,42 @@ const buildService = (mixedTypesEnabled = false) => {
 };
 
 describe('WarehouseConnectionService lifecycle analytics', () => {
+    it.each(
+        (['create', 'update'] as const).flatMap((operation) =>
+            [false, true].map((includeInlineCredentials) => ({
+                operation,
+                includeInlineCredentials,
+            })),
+        ),
+    )(
+        'rejects retired references on $operation with inline credentials $includeInlineCredentials',
+        async ({ operation, includeInlineCredentials }) => {
+            const { service, model, credentialPolicy } = buildService();
+            const request = {
+                name: 'Extra',
+                warehouseType: WarehouseTypes.POSTGRES,
+                organizationWarehouseCredentialsUuid: 'retired-credential',
+                ...(includeInlineCredentials
+                    ? { warehouseConnection: credentials }
+                    : {}),
+            };
+
+            await expect(
+                operation === 'create'
+                    ? service.create(account, projectUuid, request)
+                    : service.update(account, projectUuid, extraUuid, request),
+            ).rejects.toThrow(
+                'Organization warehouse credentials are no longer supported',
+            );
+            expect(model.createExtra).not.toHaveBeenCalled();
+            expect(model.updateExtraCredentials).not.toHaveBeenCalled();
+            expect(model.updateListingSettings).not.toHaveBeenCalled();
+            expect(
+                credentialPolicy.testWarehouseConnectionCredentialsForSave,
+            ).not.toHaveBeenCalled();
+        },
+    );
+
     it('tracks the saved SQL runner listing settings for the primary connection', async () => {
         const { service, model, analytics } = buildService();
 

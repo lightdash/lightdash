@@ -4001,39 +4001,36 @@ describe('ProjectService', () => {
                 reason: 'the upstream connection is not the shipped sample data',
                 credentials: snowflakeConnection,
             },
-        ])(
-            'refuses a training copy when $reason',
-            async ({ credentials }) => {
-                const learnService = getMockedProjectService(
-                    lightdashConfigWithGoogleOAuthMock,
-                    {},
-                );
-                projectModel.get.mockResolvedValueOnce({
-                    ...trainingProject,
-                });
-                projectModel.getAllByOrganizationUuid.mockResolvedValueOnce([]);
-                projectModel.getWarehouseCredentialsForProject.mockResolvedValueOnce(
-                    credentials,
-                );
-                const deletePreviews = vi
-                    .spyOn(learnService, 'deleteTrainingPreviews')
-                    .mockResolvedValue({ deleted: 0 });
-                try {
-                    await expect(
-                        learnService.createTrainingPreview(
-                            learner,
-                            trainingProject.projectUuid,
-                        ),
-                    ).rejects.toThrow(managedMessage);
-                    expect(deletePreviews).not.toHaveBeenCalled();
-                    expect(
-                        projectModel.createWithOptionalCredentials,
-                    ).not.toHaveBeenCalled();
-                } finally {
-                    deletePreviews.mockRestore();
-                }
-            },
-        );
+        ])('refuses a training copy when $reason', async ({ credentials }) => {
+            const learnService = getMockedProjectService(
+                lightdashConfigWithGoogleOAuthMock,
+                {},
+            );
+            projectModel.get.mockResolvedValueOnce({
+                ...trainingProject,
+            });
+            projectModel.getAllByOrganizationUuid.mockResolvedValueOnce([]);
+            projectModel.getWarehouseCredentialsForProject.mockResolvedValueOnce(
+                credentials,
+            );
+            const deletePreviews = vi
+                .spyOn(learnService, 'deleteTrainingPreviews')
+                .mockResolvedValue({ deleted: 0 });
+            try {
+                await expect(
+                    learnService.createTrainingPreview(
+                        learner,
+                        trainingProject.projectUuid,
+                    ),
+                ).rejects.toThrow(managedMessage);
+                expect(deletePreviews).not.toHaveBeenCalled();
+                expect(
+                    projectModel.createWithOptionalCredentials,
+                ).not.toHaveBeenCalled();
+            } finally {
+                deletePreviews.mockRestore();
+            }
+        });
     });
 
     test.each(['createWithoutCompile', 'scheduleCreate'] as const)(
@@ -21563,13 +21560,9 @@ describe.each([
 ])('Databricks %s rotation sinks', (authenticationType) => {
     test.each(
         [true].flatMap((enabled) =>
-            (
-                [
-                    'project',
-                    'user',
-                    'warehouseConnection',
-                ] as const
-            ).map((kind) => ({ enabled, kind })),
+            (['project', 'user', 'warehouseConnection'] as const).map(
+                (kind) => ({ enabled, kind }),
+            ),
         ),
     )(
         'writes the exact $kind row with lock $enabled',

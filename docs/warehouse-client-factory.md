@@ -10,7 +10,7 @@ Use `resolveWarehouseCredentials` followed by a `resolved` ref only when a path 
 
 A `resolved` ref can have a null `projectUuid` for credentials that belong to no saved project, such as credentials typed in the create form. Set `cachePolicy: 'disabled'` to keep the client out of the query client cache.
 
-Resolution with purpose `compile` selects the credentials that compile uses, which are not always the credentials that a query uses. Compile uses the stored connection, or the organisation credential that the project points to, and does not apply personal credential rules. For a project's own Databricks U2M connection with no stored refresh token, compile uses the acting person's matching credential, and refuses a credential from a different workspace. Organisation credentials and extra connections get no such fallback. The resolution refreshes the token once and saves a rotated refresh token against its owner: the project, the organisation credential, the user credential or the extra connection. Queries use the same refresh and rotation code.
+Resolution with purpose `compile` selects the credentials that compile uses, which are not always the credentials that a query uses. Compile uses the stored connection and does not apply personal credential rules. For a project's own Databricks U2M connection with no stored refresh token, compile uses the acting person's matching credential, and refuses a credential from a different workspace. Extra connections get no such fallback. The resolution refreshes the token once and saves a rotated refresh token against its owner: the project, the user credential or the extra connection. Queries use the same refresh and rotation code.
 
 ## Compile adapters
 
@@ -45,7 +45,7 @@ With the switches on, these paths behave differently from before. Each switch re
 
 Known limitation: when a Snowflake integration requires single-use refresh tokens, a webhook that creates a new preview refreshes the upstream token first. If the project creator's own Snowflake sign-in holds the same token, preview creation then fails. Set `DBT_CLOUD_PREVIEW_CREDENTIAL_RESOLUTION_ENABLED=false` to restore the old order. Previews already store a refresh token that single-use mode has consumed, because of the resolver behaviour below.
 
-Not changed: `_resolveWarehouseClientCredentials`, which resolves typed credentials, keeps the previous refresh token after a Snowflake or Databricks U2M refresh, and does not save rotations for typed organisation credentials.
+Not changed: `_resolveWarehouseClientCredentials`, which resolves typed credentials, keeps the previous refresh token after a Snowflake or Databricks U2M refresh.
 
 ## SQL builders without a connection
 
@@ -59,13 +59,13 @@ Clients that use SSH tunnels never enter the cache. Bypass refs, compile refs, r
 
 ## Configuration
 
-| Environment variable | Default | Behaviour |
-| --- | --- | --- |
-| `SSH_TUNNEL_SCOPED_RELEASE_ENABLED` | `true` | Set to `false` to keep SSH tunnels open after scoped callbacks exit. This kill switch does not disable cleanup after failed acquisition or enable caching of tunneled clients. |
-| `COMPILE_CREDENTIAL_RESOLUTION_ENABLED` | `true` | Set to `false` to make project compile use its old refresh code. That code does not save Databricks rotations and saves an organisation credential's Snowflake rotation against the project. Compile of extra connections is not affected. |
-| `DBT_CLOUD_PREVIEW_CREDENTIAL_RESOLUTION_ENABLED` | `true` | Set to `false` to make the dbt Cloud preview webhook use the stored connection row without refresh. |
-| `TIMEZONE_PREVIEW_CREDENTIAL_RESOLUTION_ENABLED` | `true` | Set to `false` to make the data timezone preview use stored or typed credentials without refresh. |
-| `TEST_AND_COMPILE_CREDENTIAL_RESOLUTION_ENABLED` | `true` | Set to `false` to make the test-and-compile job test the reloaded connection row without refresh. |
+| Environment variable                              | Default | Behaviour                                                                                                                                                                      |
+| ------------------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `SSH_TUNNEL_SCOPED_RELEASE_ENABLED`               | `true`  | Set to `false` to keep SSH tunnels open after scoped callbacks exit. This kill switch does not disable cleanup after failed acquisition or enable caching of tunneled clients. |
+| `COMPILE_CREDENTIAL_RESOLUTION_ENABLED`           | `true`  | Set to `false` to make project compile use its old refresh code. That code does not save Databricks rotations. Compile of extra connections is not affected.                   |
+| `DBT_CLOUD_PREVIEW_CREDENTIAL_RESOLUTION_ENABLED` | `true`  | Set to `false` to make the dbt Cloud preview webhook use the stored connection row without refresh.                                                                            |
+| `TIMEZONE_PREVIEW_CREDENTIAL_RESOLUTION_ENABLED`  | `true`  | Set to `false` to make the data timezone preview use stored or typed credentials without refresh.                                                                              |
+| `TEST_AND_COMPILE_CREDENTIAL_RESOLUTION_ENABLED`  | `true`  | Set to `false` to make the test-and-compile job test the reloaded connection row without refresh.                                                                              |
 
 Only the value `false` turns a switch off. The credential resolution switches are independent rollback settings for defect fixes, not feature flags.
 
