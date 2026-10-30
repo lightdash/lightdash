@@ -413,8 +413,6 @@ export class ContentAsCodeWritebackService extends BaseService {
         return row;
     }
 
-    // Write-back visibility is a dev/admin surface (the sync panel), never
-    // something business users see; gate on the content-as-code ability.
     // A full upload of a directory is the source of truth for what the repo
     // still manages there: snapshots for files that are gone are released so
     // UI edits publish again, and their pending drafts are dismissed.
@@ -464,6 +462,8 @@ export class ContentAsCodeWritebackService extends BaseService {
         return { charts, sqlCharts, dashboards };
     }
 
+    // Write-back visibility is a dev/admin surface (the sync panel), never
+    // something business users see; gate on the content-as-code ability.
     private async assertCanManageContentAsCode(
         user: SessionUser,
         projectUuid: string,
