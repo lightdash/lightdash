@@ -5,6 +5,8 @@ const DARK_QUERY = '(prefers-color-scheme: dark)';
 
 const subscribe = (onChange: () => void) => {
     const media = window.matchMedia(DARK_QUERY);
+    // Older Safari and test stubs expose a MediaQueryList without event methods.
+    if (typeof media.addEventListener !== 'function') return () => {};
     media.addEventListener('change', onChange);
     return () => media.removeEventListener('change', onChange);
 };
