@@ -1,6 +1,8 @@
 import type { Dimension } from '@lightdash/common';
 
 export const analyticsTableDescriptions: Record<string, string> = {
+    embed_reach:
+        'Observed successful embedded dashboard fetches, with explicit external-viewer attribution. Excludes previews and duplicate deliveries. Refetches count; child queries do not. Does not measure browser rendering, tenant attribution, embedding configuration or billable loads. Capture starts after deployment.',
     historical_activity:
         'Retained database history for views, apps, AI conversations and tools, MCP calls, research and exports. These records use different counting rules from captured Analytics events: filter by activity type and do not add their totals to captured events. Status fields reflect the last import.',
     query_events:

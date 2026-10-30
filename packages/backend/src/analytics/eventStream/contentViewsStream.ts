@@ -26,6 +26,7 @@ export type CapturedContentView = BaseTrack & {
             isVerified: boolean | null;
             context: 'backend' | 'preview' | 'embed';
             actorType: 'user' | 'embed';
+            externalUserId?: string | null;
         };
     };
 };
@@ -34,7 +35,16 @@ export type ContentViewMetadata = Omit<
     'eventId' | 'occurredAt'
 >;
 
+type CapturedEmbedDashboardView = Omit<
+    CapturedContentView,
+    'event' | 'userId'
+> & {
+    event: 'embed_dashboard.viewed';
+    userId?: never;
+};
+
 export type ContentViewEvent =
+    | CapturedEmbedDashboardView
     | CapturedContentView
     | DashboardView
     | SavedChartView
@@ -45,6 +55,7 @@ export const contentViewsColumns: CompactedStreamColumn[] = [
         'event_name',
         'org_id',
         'user_id',
+        'external_user_id',
         'project_id',
         'event_id',
         'content_id',
@@ -69,12 +80,15 @@ const projectContentView = (payload: ContentViewEvent): ProjectionResult => {
     const p = payload.properties;
     if (!p.organizationId) return null;
     const view = 'contentView' in p ? p.contentView : undefined;
+    const isEmbed = payload.event === 'embed_dashboard.viewed';
+    if (isEmbed && (!view || view.context !== 'embed')) return null;
     let legacyId: string | null = null;
     if ('dashboardId' in p) legacyId = p.dashboardId;
     else if ('savedChartId' in p) legacyId = p.savedChartId;
     else if ('chartId' in p) legacyId = p.chartId;
     const contentTypes = {
         'dashboard.view': 'dashboard',
+        'embed_dashboard.viewed': 'dashboard',
         'saved_chart.view': 'chart',
         'sql_chart.view': 'sql_chart',
     };
@@ -83,6 +97,8 @@ const projectContentView = (payload: ContentViewEvent): ProjectionResult => {
         stream: 'content_views',
         row: {
             ...envelope,
+            user_id: isEmbed ? null : envelope.user_id,
+            external_user_id: isEmbed ? (view?.externalUserId ?? null) : null,
             event_ts: view?.occurredAt ?? envelope.event_ts,
             ingested_at: envelope.event_ts,
             project_id: p.projectId,
@@ -100,6 +116,7 @@ const projectContentView = (payload: ContentViewEvent): ProjectionResult => {
                 view?.context ??
                 (payload.anonymousId === 'embed' ? 'embed' : 'unknown'),
             is_qualifying:
+                !isEmbed &&
                 !!view &&
                 view.context === 'backend' &&
                 view.actorType === 'user' &&
@@ -110,6 +127,7 @@ const projectContentView = (payload: ContentViewEvent): ProjectionResult => {
 
 export const contentViewsProjections = {
     'dashboard.view': projectContentView,
+    'embed_dashboard.viewed': projectContentView,
     'saved_chart.view': projectContentView,
     'sql_chart.view': projectContentView,
 };
