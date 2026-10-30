@@ -147,6 +147,9 @@ const toAdditionalMetric = (
         table: customMetric.table,
         name: customMetric.name,
         label: customMetric.label,
+        ...(customMetric.description != null
+            ? { description: customMetric.description }
+            : {}),
         type: customMetric.aggregation,
         sql: dimension.sql,
         baseDimensionName: dimension.name,

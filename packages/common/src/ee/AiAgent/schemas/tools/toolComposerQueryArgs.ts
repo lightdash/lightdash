@@ -168,6 +168,12 @@ const composerCustomMetricSchema = z.object({
             'snake_case name. The metric\'s field id is "<table>_<name>": list it in "metrics" to select it, and use it in sorts, metric filters and periodComparisons.',
         ),
     label: z.string().describe('Column label shown to users.'),
+    description: z
+        .string()
+        .nullish()
+        .describe(
+            "Shown to users as the metric's description. Null when the label is enough.",
+        ),
     aggregation: z
         .enum([
             MetricType.SUM,
