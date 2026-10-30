@@ -97,6 +97,7 @@ const start = async (
             getMcpService: () => ({
                 canAccessMcp: () => {},
                 isEnabled: async () => true,
+                assertMcpProjectAllowed: async () => {},
             }),
         } as unknown as Request['services'];
         next();

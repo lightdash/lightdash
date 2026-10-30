@@ -395,6 +395,11 @@ const projectModel = {
     get: vi.fn(async () => projectWithSensitiveFields),
     getSummary: vi.fn(async () => projectSummary),
     getEffectiveResultsCacheTtlSeconds: vi.fn(async () => 86400),
+    getResultsCacheSettings: vi.fn(async () => ({
+        cacheTtlSeconds: null,
+        cacheGeneration: 0,
+        lastInvalidatedAt: null,
+    })),
     getTablesConfiguration: vi.fn(async () => tablesConfiguration),
     updateTablesConfiguration: vi.fn(),
     getQueryTimezone: vi.fn(async () => 'UTC'),
@@ -1546,6 +1551,69 @@ describe('AsyncQueryService', () => {
             const stored = vi.mocked(service.queryHistoryModel.create).mock
                 .calls[0][1].requestParameters;
             expect(stored.resultEntitlementFingerprint).toBeNull();
+        });
+    });
+
+    describe('executeAsyncApiQuery result reuse', () => {
+        test('keeps the original fetch time when reusing a live result', async () => {
+            const now = new Date();
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                featureFlagModel: {
+                    get: vi.fn(async ({ featureFlagId }) => ({
+                        id: featureFlagId,
+                        enabled: featureFlagId === FeatureFlags.ApiQuerySources,
+                    })),
+                } as unknown as FeatureFlagModel,
+                queryHistoryModel: {
+                    create: vi.fn(async () => ({ queryUuid: 'api-uuid' })),
+                    findMostRecentByCacheKey: vi.fn(async () => ({
+                        queryHistory: {
+                            status: QueryHistoryStatus.READY,
+                            warehouseExecutionTimeMs: 254,
+                        },
+                        totalRowCount: 3,
+                        resultsFileName: 'api-results.jsonl',
+                        resultsCreatedAt: now,
+                        resultsUpdatedAt: now,
+                        resultsExpiresAt: null,
+                        columns: null,
+                    })),
+                    recordResultProducer: vi.fn(),
+                    update: vi.fn(),
+                } as unknown as QueryHistoryModel,
+            } as never);
+            vi.spyOn(service, 'getUserAttributes').mockResolvedValue({
+                userAttributes: {},
+                intrinsicUserAttributes: {},
+            });
+
+            await service.executeAsyncApiQuery({
+                account: sessionAccount,
+                projectUuid,
+                context: QueryExecutionContext.AI,
+                connectionUuid: 'connection-uuid',
+                connector: {
+                    describe: () => ({ connector: 'posthog' }),
+                    execute: vi.fn(),
+                    usage: () => ({
+                        apiCalls: 0,
+                        responseBytes: 0,
+                        providerStatus: null,
+                    }),
+                    logCall: vi.fn(async () => undefined),
+                } as never,
+                payload: { kind: 'query', query: 'select 1' },
+            });
+
+            expect(service.queryHistoryModel.update).toHaveBeenCalledWith(
+                'api-uuid',
+                projectUuid,
+                expect.objectContaining({
+                    status: QueryHistoryStatus.READY,
+                    warehouse_execution_time_ms: 254,
+                }),
+                sessionAccount,
+            );
         });
     });
 
@@ -3531,6 +3599,7 @@ describe('AsyncQueryService', () => {
                 vi.spyOn(service, 'findResultsCache').mockResolvedValue({
                     resultProducer: null,
                     cacheHit: true,
+                    cacheGeneration: 0,
                     cacheKey: 'cache',
                     totalRowCount: 10,
                     createdAt: new Date(),
@@ -3603,6 +3672,7 @@ describe('AsyncQueryService', () => {
                     hit
                         ? {
                               cacheHit: true,
+                              cacheGeneration: 0,
                               cacheKey: 'key',
                               totalRowCount: 1,
                               fileName: 'file',
@@ -3743,6 +3813,7 @@ describe('AsyncQueryService', () => {
             const mockCacheResult: CacheHitCacheResult = {
                 resultProducer: null,
                 cacheHit: true,
+                cacheGeneration: 0,
                 cacheKey: 'test-cache-key',
                 totalRowCount: 10,
                 createdAt,
@@ -3817,6 +3888,7 @@ describe('AsyncQueryService', () => {
                     total_row_count: 10,
                     warehouse_execution_time_ms: 0,
                     results_file_name: 'file-name',
+                    cache_generation: 0,
                     columns: expectedColumns,
                     original_columns: expectedColumns,
                     results_created_at: createdAt,
@@ -10433,6 +10505,7 @@ describe('AsyncQueryService', () => {
             const mockCacheResult: CacheHitCacheResult = {
                 resultProducer: null,
                 cacheHit: true,
+                cacheGeneration: 0,
                 cacheKey: 'test-cache-key',
                 totalRowCount: 10,
                 createdAt,
@@ -16142,6 +16215,7 @@ describe('runDuckdbQuery', () => {
     const cachedResults: CacheHitCacheResult = {
         resultProducer: null,
         cacheHit: true,
+        cacheGeneration: 0,
         cacheKey: 'cached-key',
         fileName: 'cached-results.jsonl',
         createdAt: new Date('2026-09-07T10:00:00Z'),
@@ -22993,6 +23067,7 @@ describe('fresh execution producer to result reader', () => {
             const candidate = {
                 ...original,
                 cacheKey: oldKey,
+                cacheGeneration: 0,
                 resultsUpdatedAt: new Date(),
                 resultsCreatedAt: new Date(),
                 resultProducer: oldProducer,

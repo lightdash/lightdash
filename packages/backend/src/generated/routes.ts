@@ -231,6 +231,8 @@ import { ExternalConnectionController } from './../ee/controllers/externalConnec
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { ExternalSourceController } from './../ee/controllers/externalSourceController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+import { GoogleLiveSourceOAuthController } from './../ee/controllers/googleLiveSourceOAuthController';
+// WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { HomepageRecommendedActionSkipsController } from './../ee/controllers/HomepageRecommendedActionSkipsController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { ManagedAgentController } from './../ee/controllers/managedAgentController';
@@ -250,6 +252,8 @@ import { OrganizationSsoController } from './../ee/controllers/OrganizationSsoCo
 import { OrganizationWarehouseCredentialsController } from './../ee/controllers/OrganizationWarehouseCredentialsController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { OrgRoadmapController } from './../ee/controllers/OrgRoadmapController';
+// WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+import { PostHogOAuthController } from './../ee/controllers/postHogOAuthController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { PreAggregateController } from './../ee/controllers/PreAggregateController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
@@ -8739,6 +8743,7 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['bearer_token'] },
                 { dataType: 'enum', enums: ['google_service_account'] },
                 { dataType: 'enum', enums: ['oauth_client_credentials'] },
+                { dataType: 'enum', enums: ['oauth_authorization_code'] },
             ],
             validators: {},
         },
@@ -14559,6 +14564,267 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiConnectorType: {
+        dataType: 'refEnum',
+        enums: ['posthog', 'search_console', 'ga4'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    GoogleLiveSourceChoice: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                description: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                label: { dataType: 'string', required: true },
+                value: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    GoogleLiveSourcePendingChoice: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                choices: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'GoogleLiveSourceChoice',
+                    },
+                    required: true,
+                },
+                name: { dataType: 'string', required: true },
+                connector: { ref: 'ApiConnectorType', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ExternalConnectionKind: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['data_app'] },
+                { dataType: 'enum', enums: ['live_source'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ApiConnectorType.POSTHOG': {
+        dataType: 'refEnum',
+        enums: ['posthog'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    PostHogApiSource: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                projectId: { dataType: 'string', required: true },
+                connector: { ref: 'ApiConnectorType.POSTHOG', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ApiConnectorType.SEARCH_CONSOLE': {
+        dataType: 'refEnum',
+        enums: ['search_console'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SearchConsoleApiSource: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                siteUrl: { dataType: 'string', required: true },
+                connector: {
+                    ref: 'ApiConnectorType.SEARCH_CONSOLE',
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ApiConnectorType.GA4': {
+        dataType: 'refEnum',
+        enums: ['ga4'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    Ga4ApiSource: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                propertyId: { dataType: 'string', required: true },
+                connector: { ref: 'ApiConnectorType.GA4', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ExternalConnectionApiSource: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { ref: 'PostHogApiSource' },
+                { ref: 'SearchConsoleApiSource' },
+                { ref: 'Ga4ApiSource' },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ExternalConnection: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                updatedAt: { dataType: 'datetime', required: true },
+                createdAt: { dataType: 'datetime', required: true },
+                updatedByUserUuid: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                createdByUserUuid: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                hasSecret: { dataType: 'boolean', required: true },
+                apiSource: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'ExternalConnectionApiSource' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
+                kind: { ref: 'ExternalConnectionKind' },
+                customHeaders: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'Record_string.string_' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                oauthClientAuthMethod: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'OAuthClientAuthMethod' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
+                oauthClientId: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
+                oauthTokenUrl: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
+                oauthScopes: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'array', array: { dataType: 'string' } },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                apiKeyLocation: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'ApiKeyLocation' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                apiKeyName: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                rateLimitPerMinute: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                timeoutMs: { dataType: 'double', required: true },
+                requestMaxBytes: { dataType: 'double', required: true },
+                responseMaxBytes: { dataType: 'double', required: true },
+                allowedContentTypes: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                allowedMethods: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'ExternalConnectionMethod',
+                    },
+                    required: true,
+                },
+                allowedPathPrefixes: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                instructions: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                forwardUserIdentity: { dataType: 'boolean' },
+                allowDataAppBuilderLinking: { dataType: 'boolean' },
+                allowBrowserImages: { dataType: 'boolean' },
+                origin: { dataType: 'string', required: true },
+                type: { ref: 'ExternalConnectionAuthType', required: true },
+                slug: { dataType: 'string', required: true },
+                name: { dataType: 'string', required: true },
+                organizationUuid: { dataType: 'string', required: true },
+                projectUuid: { dataType: 'string', required: true },
+                externalConnectionUuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Record_string.ResultColumn_': {
         dataType: 'refAlias',
         type: {
@@ -14876,177 +15142,6 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ExternalConnectionKind: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'union',
-            subSchemas: [
-                { dataType: 'enum', enums: ['data_app'] },
-                { dataType: 'enum', enums: ['live_source'] },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'ApiConnectorType.POSTHOG': {
-        dataType: 'refEnum',
-        enums: ['posthog'],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    PostHogApiSource: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                projectId: { dataType: 'string', required: true },
-                connector: { ref: 'ApiConnectorType.POSTHOG', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ExternalConnectionApiSource: {
-        dataType: 'refAlias',
-        type: { ref: 'PostHogApiSource', validators: {} },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ExternalConnection: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                updatedAt: { dataType: 'datetime', required: true },
-                createdAt: { dataType: 'datetime', required: true },
-                updatedByUserUuid: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-                createdByUserUuid: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-                hasSecret: { dataType: 'boolean', required: true },
-                apiSource: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { ref: 'ExternalConnectionApiSource' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                },
-                kind: { ref: 'ExternalConnectionKind' },
-                customHeaders: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { ref: 'Record_string.string_' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-                oauthClientAuthMethod: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { ref: 'OAuthClientAuthMethod' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                },
-                oauthClientId: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                },
-                oauthTokenUrl: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                },
-                oauthScopes: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'array', array: { dataType: 'string' } },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-                apiKeyLocation: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { ref: 'ApiKeyLocation' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-                apiKeyName: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-                rateLimitPerMinute: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'double' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-                timeoutMs: { dataType: 'double', required: true },
-                requestMaxBytes: { dataType: 'double', required: true },
-                responseMaxBytes: { dataType: 'double', required: true },
-                allowedContentTypes: {
-                    dataType: 'array',
-                    array: { dataType: 'string' },
-                    required: true,
-                },
-                allowedMethods: {
-                    dataType: 'array',
-                    array: {
-                        dataType: 'refAlias',
-                        ref: 'ExternalConnectionMethod',
-                    },
-                    required: true,
-                },
-                allowedPathPrefixes: {
-                    dataType: 'array',
-                    array: { dataType: 'string' },
-                    required: true,
-                },
-                instructions: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-                forwardUserIdentity: { dataType: 'boolean' },
-                allowDataAppBuilderLinking: { dataType: 'boolean' },
-                allowBrowserImages: { dataType: 'boolean' },
-                origin: { dataType: 'string', required: true },
-                type: { ref: 'ExternalConnectionAuthType', required: true },
-                slug: { dataType: 'string', required: true },
-                name: { dataType: 'string', required: true },
-                organizationUuid: { dataType: 'string', required: true },
-                projectUuid: { dataType: 'string', required: true },
-                externalConnectionUuid: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiExternalConnectionResponse: {
         dataType: 'refAlias',
         type: {
@@ -15207,6 +15302,46 @@ const models: TsoaRoute.Models = {
                     array: {
                         dataType: 'refAlias',
                         ref: 'ExternalConnectionListItem',
+                    },
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ExternalConnectionApiUsage: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                medianDurationMs: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                responseBytes: { dataType: 'double', required: true },
+                apiCalls: { dataType: 'double', required: true },
+                externalConnectionUuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiExternalConnectionApiUsageResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'ExternalConnectionApiUsage',
                     },
                     required: true,
                 },
@@ -15468,7 +15603,7 @@ const models: TsoaRoute.Models = {
                 apiSource: {
                     dataType: 'union',
                     subSchemas: [
-                        { ref: 'PostHogApiSource' },
+                        { ref: 'ExternalConnectionApiSource' },
                         { dataType: 'enum', enums: [null] },
                         { dataType: 'undefined' },
                     ],
@@ -25839,6 +25974,7 @@ const models: TsoaRoute.Models = {
             'mcp.run_metric_query',
             'mcp.run_sql',
             'mcp.search_field_values',
+            'mcp.query',
             'api',
             'cli',
             'metricsExplorer',
@@ -55474,6 +55610,41 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    McpProjectAccess: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        mode: {
+                            dataType: 'enum',
+                            enums: ['all'],
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        projectUuids: {
+                            dataType: 'array',
+                            array: { dataType: 'string' },
+                            required: true,
+                        },
+                        mode: {
+                            dataType: 'enum',
+                            enums: ['selected'],
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DataAppAnalysisLimits: {
         dataType: 'refAlias',
         type: {
@@ -55804,6 +55975,7 @@ const models: TsoaRoute.Models = {
                     dataType: 'boolean',
                     required: true,
                 },
+                mcpProjectAccess: { ref: 'McpProjectAccess' },
                 mcpEnabled: { dataType: 'boolean' },
                 deepResearchRawSqlEnabled: {
                     dataType: 'boolean',
@@ -56065,6 +56237,7 @@ const models: TsoaRoute.Models = {
                 dataAppRuntimeAiEnabled: { dataType: 'boolean' },
                 mcpAgentsEnabled: { dataType: 'boolean' },
                 mcpContentWritesEnabled: { dataType: 'boolean' },
+                mcpProjectAccess: { ref: 'McpProjectAccess' },
                 mcpEnabled: { dataType: 'boolean' },
                 deepResearchRawSqlEnabled: { dataType: 'boolean' },
                 deepResearchLimits: { ref: 'AiDeepResearchLimits' },
@@ -65470,6 +65643,14 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                lastInvalidatedAt: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'datetime' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 instanceDefaultTtlSeconds: {
                     dataType: 'double',
                     required: true,
@@ -65524,6 +65705,35 @@ const models: TsoaRoute.Models = {
             },
             validators: {},
         },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ResultsCacheInvalidation: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                invalidatedAt: { dataType: 'datetime', required: true },
+                projectUuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiSuccess_ResultsCacheInvalidation_: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: { ref: 'ResultsCacheInvalidation', required: true },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiResultsCacheInvalidationResponse: {
+        dataType: 'refAlias',
+        type: { ref: 'ApiSuccess_ResultsCacheInvalidation_', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     PreviewExpiresAt: {
@@ -78648,6 +78858,7 @@ const models: TsoaRoute.Models = {
     AiAccessRefusalReason: {
         dataType: 'refEnum',
         enums: [
+            'mcp_project_not_allowed',
             'agent_access_disabled',
             'agent_capability_denied',
             'agent_project_denied',
@@ -86703,6 +86914,190 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsPostHogOAuthController_startPostHogOAuth: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        region: {
+            in: 'query',
+            name: 'region',
+            required: true,
+            dataType: 'string',
+        },
+        name: { in: 'query', name: 'name', required: true, dataType: 'string' },
+        connectionUuid: {
+            in: 'query',
+            name: 'connectionUuid',
+            dataType: 'string',
+        },
+    };
+    app.get(
+        '/api/v1/ee/projects/:projectUuid/live-sources/posthog/oauth/start',
+        ...fetchMiddlewares<RequestHandler>(PostHogOAuthController),
+        ...fetchMiddlewares<RequestHandler>(
+            PostHogOAuthController.prototype.startPostHogOAuth,
+        ),
+
+        async function PostHogOAuthController_startPostHogOAuth(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsPostHogOAuthController_startPostHogOAuth,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<PostHogOAuthController>(
+                        PostHogOAuthController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'startPostHogOAuth',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 302,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsPostHogOAuthController_postHogOAuthCallback: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        code: { in: 'query', name: 'code', dataType: 'string' },
+        state: { in: 'query', name: 'state', dataType: 'string' },
+        error: { in: 'query', name: 'error', dataType: 'string' },
+    };
+    app.get(
+        '/api/v1/ee/posthog/oauth/callback',
+        ...fetchMiddlewares<RequestHandler>(PostHogOAuthController),
+        ...fetchMiddlewares<RequestHandler>(
+            PostHogOAuthController.prototype.postHogOAuthCallback,
+        ),
+
+        async function PostHogOAuthController_postHogOAuthCallback(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsPostHogOAuthController_postHogOAuthCallback,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<PostHogOAuthController>(
+                        PostHogOAuthController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'postHogOAuthCallback',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 302,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsPostHogOAuthController_getPostHogOAuthClientMetadata: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {};
+    app.get(
+        '/api/v1/ee/posthog/oauth/client-metadata.json',
+        ...fetchMiddlewares<RequestHandler>(PostHogOAuthController),
+        ...fetchMiddlewares<RequestHandler>(
+            PostHogOAuthController.prototype.getPostHogOAuthClientMetadata,
+        ),
+
+        async function PostHogOAuthController_getPostHogOAuthClientMetadata(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsPostHogOAuthController_getPostHogOAuthClientMetadata,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<PostHogOAuthController>(
+                        PostHogOAuthController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getPostHogOAuthClientMetadata',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     const argsOrganizationHomepageSettingsController_getSettings: Record<
         string,
         TsoaRoute.ParameterSchema
@@ -87597,6 +87992,213 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsGoogleLiveSourceOAuthController_startGoogleLiveSourceOAuth: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        connector: {
+            in: 'query',
+            name: 'connector',
+            required: true,
+            dataType: 'string',
+        },
+        name: { in: 'query', name: 'name', required: true, dataType: 'string' },
+        connectionUuid: {
+            in: 'query',
+            name: 'connectionUuid',
+            dataType: 'string',
+        },
+    };
+    app.get(
+        '/api/v1/ee/projects/:projectUuid/live-sources/google/oauth/start',
+        ...fetchMiddlewares<RequestHandler>(GoogleLiveSourceOAuthController),
+        ...fetchMiddlewares<RequestHandler>(
+            GoogleLiveSourceOAuthController.prototype
+                .startGoogleLiveSourceOAuth,
+        ),
+
+        async function GoogleLiveSourceOAuthController_startGoogleLiveSourceOAuth(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsGoogleLiveSourceOAuthController_startGoogleLiveSourceOAuth,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<GoogleLiveSourceOAuthController>(
+                        GoogleLiveSourceOAuthController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'startGoogleLiveSourceOAuth',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 302,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsGoogleLiveSourceOAuthController_getPendingGoogleLiveSource: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+    };
+    app.get(
+        '/api/v1/ee/projects/:projectUuid/live-sources/google/oauth/pending',
+        ...fetchMiddlewares<RequestHandler>(GoogleLiveSourceOAuthController),
+        ...fetchMiddlewares<RequestHandler>(
+            GoogleLiveSourceOAuthController.prototype
+                .getPendingGoogleLiveSource,
+        ),
+
+        async function GoogleLiveSourceOAuthController_getPendingGoogleLiveSource(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsGoogleLiveSourceOAuthController_getPendingGoogleLiveSource,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<GoogleLiveSourceOAuthController>(
+                        GoogleLiveSourceOAuthController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getPendingGoogleLiveSource',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsGoogleLiveSourceOAuthController_finishPendingGoogleLiveSource: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                choice: { dataType: 'string', required: true },
+            },
+        },
+    };
+    app.post(
+        '/api/v1/ee/projects/:projectUuid/live-sources/google/oauth/pending',
+        ...fetchMiddlewares<RequestHandler>(GoogleLiveSourceOAuthController),
+        ...fetchMiddlewares<RequestHandler>(
+            GoogleLiveSourceOAuthController.prototype
+                .finishPendingGoogleLiveSource,
+        ),
+
+        async function GoogleLiveSourceOAuthController_finishPendingGoogleLiveSource(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsGoogleLiveSourceOAuthController_finishPendingGoogleLiveSource,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<GoogleLiveSourceOAuthController>(
+                        GoogleLiveSourceOAuthController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'finishPendingGoogleLiveSource',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     const argsExternalSourceController_uploadCsv: Record<
         string,
         TsoaRoute.ParameterSchema
@@ -88469,6 +89071,68 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'listExternalConnections',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsExternalConnectionController_getExternalConnectionApiUsage: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+    };
+    app.get(
+        '/api/v1/ee/projects/:projectUuid/external-connections/api-usage',
+        ...fetchMiddlewares<RequestHandler>(ExternalConnectionController),
+        ...fetchMiddlewares<RequestHandler>(
+            ExternalConnectionController.prototype
+                .getExternalConnectionApiUsage,
+        ),
+
+        async function ExternalConnectionController_getExternalConnectionApiUsage(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsExternalConnectionController_getExternalConnectionApiUsage,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<ExternalConnectionController>(
+                        ExternalConnectionController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getExternalConnectionApiUsage',
                     controller,
                     response,
                     next,
@@ -127829,6 +128493,65 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsProjectController_invalidateProjectResultsCache: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.post(
+        '/api/v1/projects/:projectUuid/results-cache/invalidate',
+        ...fetchMiddlewares<RequestHandler>(ProjectController),
+        ...fetchMiddlewares<RequestHandler>(
+            ProjectController.prototype.invalidateProjectResultsCache,
+        ),
+
+        async function ProjectController_invalidateProjectResultsCache(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsProjectController_invalidateProjectResultsCache,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<ProjectController>(ProjectController);
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'invalidateProjectResultsCache',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     const argsProjectController_updatePreviewExpiresAt: Record<
         string,
         TsoaRoute.ParameterSchema
@@ -143556,6 +144279,67 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSavedChartControllerV2_invalidateResultsCache: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        chartUuid: {
+            in: 'path',
+            name: 'chartUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.post(
+        '/api/v2/saved/:chartUuid/results-cache/invalidate',
+        ...fetchMiddlewares<RequestHandler>(SavedChartControllerV2),
+        ...fetchMiddlewares<RequestHandler>(
+            SavedChartControllerV2.prototype.invalidateResultsCache,
+        ),
+
+        async function SavedChartControllerV2_invalidateResultsCache(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsSavedChartControllerV2_invalidateResultsCache,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<SavedChartControllerV2>(
+                        SavedChartControllerV2,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'invalidateResultsCache',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     const argsRecentContentController_getRecentlyViewed: Record<
         string,
         TsoaRoute.ParameterSchema
@@ -146344,6 +147128,67 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'getDashboardSchedulerRuns',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsDashboardControllerV2_invalidateResultsCache: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        dashboardUuid: {
+            in: 'path',
+            name: 'dashboardUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.post(
+        '/api/v2/dashboards/:dashboardUuid/results-cache/invalidate',
+        ...fetchMiddlewares<RequestHandler>(DashboardControllerV2),
+        ...fetchMiddlewares<RequestHandler>(
+            DashboardControllerV2.prototype.invalidateResultsCache,
+        ),
+
+        async function DashboardControllerV2_invalidateResultsCache(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsDashboardControllerV2_invalidateResultsCache,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<DashboardControllerV2>(
+                        DashboardControllerV2,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'invalidateResultsCache',
                     controller,
                     response,
                     next,

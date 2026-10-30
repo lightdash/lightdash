@@ -40,6 +40,7 @@ import { useCanManageDashboard } from '../../../hooks/dashboard/useCanManageDash
 import { useCopyTileLink } from '../../../hooks/dashboard/useTileLink';
 import { useDelayedHover } from '../../../hooks/useDelayedHover';
 import ConnectionBadge from '../../common/ConnectionBadge';
+import { DASHBOARD_TILE_RADIUS } from '../../common/Dashboard/dashboard.constants';
 import { FloatingActionsPill } from '../../common/FloatingActionsPill';
 import MantineIcon from '../../common/MantineIcon';
 import DeleteChartTileThatBelongsToDashboardModal from '../../common/modal/DeleteChartTileThatBelongsToDashboardModal';
@@ -367,7 +368,11 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                 h="100%"
                 p={transparent ? 0 : 'md'}
                 bg={transparent ? 'transparent' : 'var(--ld-color-tile)'}
-                radius={isEditMode ? rem(4) : rem(12)}
+                radius={rem(
+                    isEditMode
+                        ? DASHBOARD_TILE_RADIUS.edit
+                        : DASHBOARD_TILE_RADIUS.view,
+                )}
             >
                 <LoadingSkeletonOverlay
                     // ! Very important to have this class name on the tile loading overlay, otherwise the unfurl service will not be able to find it

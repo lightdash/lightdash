@@ -15,6 +15,29 @@ const defaultProps = {
 };
 
 describe('MultiSelectCombobox', () => {
+    it('keeps its list open after a pick unless asked to close it', async () => {
+        const { unmount } = renderWithProviders(
+            <MultiSelectCombobox {...defaultProps} />,
+        );
+        fireEvent.focus(screen.getByRole('textbox'));
+        await userEvent.click(
+            screen.getByRole('option', { name: 'Chart one' }),
+        );
+        expect(screen.getByRole('option', { name: 'Chart one' })).toBeVisible();
+        unmount();
+
+        renderWithProviders(
+            <MultiSelectCombobox {...defaultProps} closeOnOptionSubmit />,
+        );
+        fireEvent.focus(screen.getByRole('textbox'));
+        await userEvent.click(
+            screen.getByRole('option', { name: 'Chart one' }),
+        );
+        expect(
+            screen.queryByRole('option', { name: 'Chart one' }),
+        ).not.toBeInTheDocument();
+    });
+
     it('does not force a persistent scrollbar for unrelated consumers', () => {
         const { container } = renderWithProviders(
             <MultiSelectCombobox

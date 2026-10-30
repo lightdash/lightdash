@@ -38,6 +38,8 @@ export const BaseResponse: HealthState = {
     hasGitlab: false,
     hasJira: true,
     hasLinear: true,
+    hasPostHogOAuth: false,
+    hasGoogleLiveSources: false,
     hasHeadlessBrowser: false,
     hasSlack: false,
     auth: {
@@ -133,7 +135,6 @@ export const BaseResponse: HealthState = {
         overrideColorPaletteName: undefined,
     },
     hasBrandfetch: false,
-    isOrganizationWarehouseCredentialsEnabled: false,
     isAthenaWarehouseIamRoleAuthEnabled: false,
     isSaveCredentialsFormEnabled: false,
     isCustomRolesEnabled: false,

@@ -47,6 +47,10 @@ import {
     isOneLoginPassportStrategyAvailableToUse,
 } from '../controllers/authentication/strategies/oneLoginStrategy';
 import { chartRegistryAssetRouter } from '../ee/routers/chartRegistryAssetRouter';
+import {
+    handleGoogleLiveSourceCallback,
+    isGoogleLiveSourceCallback,
+} from '../ee/routers/googleLiveSourceCallback';
 import { AiAgentService } from '../ee/services/AiAgentService/AiAgentService';
 import { createAuditLogEvent } from '../logging/auditLog';
 import { createActorFromUser } from '../logging/caslAuditWrapper';
@@ -830,6 +834,10 @@ apiV1Router.get(
 );
 
 apiV1Router.get(lightdashConfig.auth.google.callbackPath, (req, res, next) => {
+    if (isGoogleLiveSourceCallback(req)) {
+        void handleGoogleLiveSourceCallback(req, res, next);
+        return;
+    }
     if (req.session.oauth?.intent === 'link') {
         passport.authenticate(
             'google',

@@ -11,6 +11,7 @@ describe('withAgentMarkerTag', () => {
         QueryExecutionContext.MCP_RUN_METRIC_QUERY,
         QueryExecutionContext.MCP_RUN_SQL,
         QueryExecutionContext.MCP_SEARCH_FIELD_VALUES,
+        QueryExecutionContext.MCP_QUERY,
         QueryExecutionContext.DATA_APP_SAMPLE,
     ])('marks %s without changing existing tags', (context) => {
         const tags = { query_context: context, user_uuid: 'person' };
@@ -26,6 +27,7 @@ describe('withAgentMarkerTag', () => {
                     QueryExecutionContext.MCP_RUN_METRIC_QUERY,
                     QueryExecutionContext.MCP_RUN_SQL,
                     QueryExecutionContext.MCP_SEARCH_FIELD_VALUES,
+                    QueryExecutionContext.MCP_QUERY,
                     QueryExecutionContext.DATA_APP_SAMPLE,
                 ].includes(context),
         ),

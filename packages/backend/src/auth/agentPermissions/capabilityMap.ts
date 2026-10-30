@@ -40,6 +40,7 @@ export const MCP_TOOL_CAPABILITIES = {
     list_projects: [AgentCapability.ReadDiscover],
     list_skills: [AgentCapability.ReadDiscover],
     list_verified_content: [AgentCapability.ReadDiscover],
+    query: [AgentCapability.Query],
     read_content: [AgentCapability.ReadDiscover],
     read_skill: [AgentCapability.ReadDiscover],
     read_skill_resource: [AgentCapability.ReadDiscover],
@@ -47,7 +48,6 @@ export const MCP_TOOL_CAPABILITIES = {
     resolve_url: [AgentCapability.ReadDiscover],
     route_agent: [AgentCapability.ReadDiscover],
     run_ai_writeback: [AgentCapability.DbtWriteback],
-    run_composer_queries: [AgentCapability.Query],
     run_metric_query: [AgentCapability.Query],
     run_sql: [AgentCapability.RawSql],
     search_field_values: [AgentCapability.Query],
@@ -747,6 +747,9 @@ export const REST_OPERATION_CAPABILITIES = {
     'DashboardControllerV2.getDashboardSchedulers': [
         AgentCapability.ReadDiscover,
     ],
+    'DashboardControllerV2.invalidateResultsCache': [
+        AgentCapability.Administration,
+    ],
     'AppStateController.deleteSharedState': [AgentCapability.Delete],
     'AppStateController.deleteUserState': [AgentCapability.ContentWrite],
     'AppStateController.getAppState': [AgentCapability.ReadDiscover],
@@ -862,6 +865,9 @@ export const REST_OPERATION_CAPABILITIES = {
         AgentCapability.ExternalTools,
     ],
     'ExternalConnectionController.getExternalConnection': [
+        AgentCapability.ReadDiscover,
+    ],
+    'ExternalConnectionController.getExternalConnectionApiUsage': [
         AgentCapability.ReadDiscover,
     ],
     'ExternalConnectionController.linkAppExternalConnection': [
@@ -1603,6 +1609,9 @@ export const REST_OPERATION_CAPABILITIES = {
     'ProjectController.updateProjectResultsCacheSettings': [
         AgentCapability.Administration,
     ],
+    'ProjectController.invalidateProjectResultsCache': [
+        AgentCapability.Administration,
+    ],
     'ProjectController.updateQueryTimezoneSettings': [
         AgentCapability.Administration,
     ],
@@ -1765,6 +1774,9 @@ export const REST_OPERATION_CAPABILITIES = {
     ],
     'SavedChartControllerV2.getSavedChartSchedulers': [
         AgentCapability.ReadDiscover,
+    ],
+    'SavedChartControllerV2.invalidateResultsCache': [
+        AgentCapability.Administration,
     ],
     'SchedulerAiAugmentationController.deleteAugmentation': [
         AgentCapability.Delete,

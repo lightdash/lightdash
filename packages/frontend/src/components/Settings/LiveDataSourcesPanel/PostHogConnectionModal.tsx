@@ -4,6 +4,7 @@ import { useCreateExternalConnection } from '../../../features/externalConnectio
 import { useUpdateExternalConnection } from '../../../features/externalConnections/hooks/useUpdateExternalConnection';
 import MantineModal from '../../common/MantineModal';
 import {
+    getPostHogSignInUrl,
     toPostHogCreatePayload,
     toPostHogUpdatePayload,
     usePostHogConnectionForm,
@@ -15,6 +16,7 @@ type Props = {
     onClose: () => void;
     projectUuid: string;
     connection: ExternalConnection | null;
+    canSignIn: boolean;
 };
 
 export const PostHogConnectionModal: FC<Props> = ({
@@ -22,13 +24,25 @@ export const PostHogConnectionModal: FC<Props> = ({
     onClose,
     projectUuid,
     connection,
+    canSignIn,
 }) => {
-    const form = usePostHogConnectionForm(connection);
+    const form = usePostHogConnectionForm(connection, canSignIn);
     const createMutation = useCreateExternalConnection();
     const updateMutation = useUpdateExternalConnection();
     const isSaving = createMutation.isLoading || updateMutation.isLoading;
 
+    const signIn = (connectionUuid: string | null) => {
+        if (form.validateField('name').hasError) return;
+        window.location.assign(
+            getPostHogSignInUrl(projectUuid, form.values, connectionUuid),
+        );
+    };
+
     const handleSave = form.onSubmit(async (values) => {
+        if (!connection && values.authMethod === 'signIn') {
+            signIn(null);
+            return;
+        }
         if (connection) {
             await updateMutation.mutateAsync({
                 projectUuid,
@@ -49,7 +63,13 @@ export const PostHogConnectionModal: FC<Props> = ({
             opened={opened}
             onClose={onClose}
             title={connection ? 'Edit PostHog source' : 'Add PostHog source'}
-            confirmLabel={connection ? 'Save' : 'Add source'}
+            confirmLabel={
+                connection
+                    ? 'Save'
+                    : form.values.authMethod === 'signIn'
+                      ? 'Continue to PostHog'
+                      : 'Add source'
+            }
             onConfirm={() => handleSave()}
             confirmLoading={isSaving}
             cancelDisabled={isSaving}
@@ -58,6 +78,12 @@ export const PostHogConnectionModal: FC<Props> = ({
                 projectUuid={projectUuid}
                 form={form}
                 isEditing={!!connection}
+                canSignIn={canSignIn}
+                onReconnect={
+                    connection && canSignIn
+                        ? () => signIn(connection.externalConnectionUuid)
+                        : null
+                }
             />
         </MantineModal>
     );

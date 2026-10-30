@@ -229,7 +229,7 @@ export const CLI_GRANT_OPERATION_INVENTORY: readonly CliGrantOperationInventoryE
             '`/api/v2/projects/${projectUuid}/query/${queryUuid}${pageSizeParam}`',
             ['QueryController.getAsyncQueryResults'],
         ),
-        allowed('handlers/compile.ts:521', 'GET', 'manifestEndpoint', [
+        allowed('handlers/compile.ts:522', 'GET', 'manifestEndpoint', [
             'ProjectController.getMergedManifest',
         ]),
         refused(
@@ -574,7 +574,7 @@ export const CLI_GRANT_OPERATION_INVENTORY: readonly CliGrantOperationInventoryE
             'External fetch or API transport delegates authorization to the inventoried Lightdash caller.',
         ),
         allowed(
-            'handlers/generateExposures.ts:77',
+            'handlers/generateExposures.ts:71',
             'GET',
             '`/api/v1/projects/${config.context.project}/dbt-exposures`',
             ['ProjectController.GetDbtExposures'],

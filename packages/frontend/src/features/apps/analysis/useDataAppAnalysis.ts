@@ -25,6 +25,7 @@ export const useDataAppAnalysis = ({
     queries,
     mountedQueryUuids,
     enabled,
+    autoAnalyse = false,
     instructions = null,
     onSourcesExpired,
 }: {
@@ -38,6 +39,8 @@ export const useDataAppAnalysis = ({
     enabled: boolean;
     /** Exact on-screen queries from an SDK that reports them; null otherwise. */
     mountedQueryUuids: string[] | null;
+    /** Run detect on a quiet view that has no stored analysis. */
+    autoAnalyse?: boolean;
     /** App-author guidance forwarded to the model. */
     instructions?: string | null;
     /** Re-run the app's queries (reload the iframe); see `useAnalysisCore`. */
@@ -61,6 +64,7 @@ export const useDataAppAnalysis = ({
         sources,
         inFlight,
         enabled,
+        autoAnalyse,
         instructions,
         onSourcesExpired,
     });

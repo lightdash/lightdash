@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto';
 import knex, { Knex } from 'knex';
+import { usageContentInventoryQuery } from './usageContentInventory';
 import { UsageDimensionsModel } from './UsageDimensionsModel';
 
 // Real Postgres: opt in with the port of an isolated LOCAL instance.
@@ -318,6 +319,56 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                 ).toMatchObject({ dashboard_references: 100 });
             }
         }, 60000);
+
+        it('exports a page from a project with many current dashboards within the page deadline', async () => {
+            await db.raw(`
+                INSERT INTO dashboards
+                    SELECT n, md5('large-dashboard-' || n)::uuid, 1, 'Large dashboard', now(), null, null
+                    FROM generate_series(10000,59999) n;
+                INSERT INTO dashboard_versions
+                    SELECT n, n FROM generate_series(10000,59999) n;
+                INSERT INTO dashboard_tile_charts
+                    SELECT n, ((n - 10000) * 10 + c) % 1000 + 1
+                    FROM generate_series(10000,59999) n
+                    CROSS JOIN generate_series(0,9) c;
+                ANALYZE dashboards;
+                ANALYZE dashboard_versions;
+                ANALYZE dashboard_tile_charts;
+            `);
+            const page = await db.transaction(async (transaction) => {
+                await transaction.raw('SET TRANSACTION READ ONLY');
+                await transaction.raw("SET LOCAL statement_timeout = '10s'");
+                return usageContentInventoryQuery(
+                    transaction,
+                    organization.organization_id,
+                    org,
+                    'saved_chart',
+                    null,
+                    1000,
+                    'https://lightdash.example.com/projects/',
+                );
+            });
+            expect(page).toHaveLength(1000);
+            for (const row of page) {
+                let content: {
+                    content_name: string;
+                    dashboard_references: number;
+                };
+                try {
+                    content = JSON.parse(row.json);
+                } catch (error) {
+                    throw new Error('Expected valid content inventory JSON', {
+                        cause: error,
+                    });
+                }
+                const chartNumber = Number(content.content_name.split(' ')[1]);
+                const addedReferences = chartNumber <= 1000 ? 500 : 0;
+                const existingReferences = chartNumber === 1 ? 2 : 0;
+                expect(content.dashboard_references).toBe(
+                    addedReferences + existingReferences,
+                );
+            }
+        }, 30000);
 
         it('abandons a page waiting for a table lock and can retry afterward', async () => {
             const blocker = await db.transaction();

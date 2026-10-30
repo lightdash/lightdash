@@ -1,13 +1,19 @@
 import {
     APP_SDK_EXPLORE_BASE_TABLE_PATH,
+    APP_SDK_SPACE_CHARTS_PATH,
+    emptyAppSdkSpaceCharts,
     extractAppSdkRouteProjectUuid,
+    extractAppSdkSpaceCharts,
     extractExploreBaseTable,
     isAllowedAppSdkRoute,
     isAppSdkMetricQueryRoute,
     isAppSdkScheduleDownloadRoute,
     LightdashSignedDownloadHeader,
     parseAppSdkExploreBaseTableRequest,
+    parseAppSdkSpaceChartsRequest,
+    resolveAppSdkSpaceUuid,
     type AppSdkExploreBaseTableResult,
+    type AppSdkSpaceChartsResult,
 } from '@lightdash/common';
 import { timingSafeEqual } from 'crypto';
 import * as http from 'http';
@@ -343,6 +349,44 @@ export const startPreviewProxy = (args: {
         res.end(JSON.stringify({ status: 'ok', results }));
     };
 
+    // Host-answered virtual route: resolves a slug-or-uuid space reference
+    // to its trimmed chart list with the developer's credentials. Unknown
+    // space, no access, and upstream failure all answer uniformly empty —
+    // same face as the deployed app's bridge.
+    const answerSpaceCharts = async (
+        req: http.IncomingMessage,
+        res: http.ServerResponse,
+    ): Promise<void> => {
+        const request = parseAppSdkSpaceChartsRequest(
+            parseJson(await readBody(req)),
+        );
+        if (request === null) {
+            sendJsonError(
+                res,
+                400,
+                'Preview proxy: invalid space-charts request',
+            );
+            return;
+        }
+        let results: AppSdkSpaceChartsResult = emptyAppSdkSpaceCharts();
+        try {
+            const spaces = await getUpstreamJson(
+                `/api/v1/projects/${encodeURIComponent(args.projectUuid)}/spaces`,
+            );
+            const spaceUuid = resolveAppSdkSpaceUuid(spaces, request.space);
+            if (spaceUuid !== null) {
+                const space = await getUpstreamJson(
+                    `/api/v1/projects/${encodeURIComponent(args.projectUuid)}/spaces/${encodeURIComponent(spaceUuid)}`,
+                );
+                results = extractAppSdkSpaceCharts(space) ?? results;
+            }
+        } catch {
+            // Keep the uniform empty answer.
+        }
+        res.writeHead(200, { 'content-type': 'application/json' });
+        res.end(JSON.stringify({ status: 'ok', results }));
+    };
+
     const handleRequest = async (
         req: http.IncomingMessage,
         res: http.ServerResponse,
@@ -363,6 +407,19 @@ export const startPreviewProxy = (args: {
             pathname = new URL(req.url ?? '/', 'http://localhost').pathname;
         } catch {
             sendJsonError(res, 400, 'Preview proxy: malformed request URL');
+            return;
+        }
+
+        if (pathname === APP_SDK_SPACE_CHARTS_PATH) {
+            answerSpaceCharts(req, res).catch(() => {
+                if (!res.headersSent) {
+                    sendJsonError(
+                        res,
+                        400,
+                        'Preview proxy: invalid space-charts request',
+                    );
+                }
+            });
             return;
         }
 

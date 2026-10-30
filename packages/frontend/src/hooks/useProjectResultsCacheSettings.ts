@@ -1,5 +1,6 @@
 import {
     type ApiError,
+    type ApiResultsCacheInvalidationResponse,
     type ApiResultsCacheProjectSettingsResponse,
     type UpdateResultsCacheProjectSettings,
 } from '@lightdash/common';
@@ -66,6 +67,87 @@ export const useUpdateResultsCacheSettings = (projectUuid: string) => {
         onError: ({ error }) => {
             showToastApiError({
                 title: 'Failed to update cache duration',
+                apiError: error,
+            });
+        },
+    });
+};
+
+const invalidateResultsCache = async (
+    lightdashApi: LightdashApi,
+    projectUuid: string,
+) =>
+    lightdashApi<ApiResultsCacheInvalidationResponse['results']>({
+        url: `/projects/${projectUuid}/results-cache/invalidate`,
+        method: 'POST',
+        body: undefined,
+    });
+
+export const useInvalidateResultsCache = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
+    const queryClient = useQueryClient();
+    const { showToastApiError, showToastSuccess } = useToaster();
+
+    return useMutation<
+        ApiResultsCacheInvalidationResponse['results'],
+        ApiError
+    >(() => invalidateResultsCache(lightdashApi, projectUuid), {
+        mutationKey: ['results_cache_invalidate', projectUuid],
+        onSuccess: async () => {
+            showToastSuccess({
+                title: 'Cached results cleared',
+            });
+            await queryClient.invalidateQueries(queryKey(projectUuid));
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to clear cached results',
+                apiError: error,
+            });
+        },
+    });
+};
+
+export type ResultsCacheContent = {
+    type: 'chart' | 'dashboard';
+    uuid: string;
+};
+
+const CONTENT_ROUTES: Record<ResultsCacheContent['type'], string> = {
+    chart: 'saved',
+    dashboard: 'dashboards',
+};
+
+const invalidateContentResultsCache = async (
+    lightdashApi: LightdashApi,
+    { type, uuid }: ResultsCacheContent,
+) =>
+    lightdashApi<ApiResultsCacheInvalidationResponse['results']>({
+        url: `/${CONTENT_ROUTES[type]}/${uuid}/results-cache/invalidate`,
+        method: 'POST',
+        version: 'v2',
+        body: undefined,
+    });
+
+export const useInvalidateContentResultsCache = () => {
+    const lightdashApi = useLightdashApi();
+    const { showToastApiError, showToastSuccess } = useToaster();
+
+    return useMutation<
+        ApiResultsCacheInvalidationResponse['results'],
+        ApiError,
+        ResultsCacheContent
+    >((content) => invalidateContentResultsCache(lightdashApi, content), {
+        mutationKey: ['results_cache_invalidate_content'],
+        onSuccess: () => {
+            showToastSuccess({
+                title: 'Cached results cleared',
+                subtitle: 'The next load queries the warehouse.',
+            });
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to clear cached results',
                 apiError: error,
             });
         },

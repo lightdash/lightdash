@@ -37,3 +37,23 @@ export const canReuseQueryResult = (
         now - source.createdAt.getTime() <= 15 * 60_000
     );
 };
+
+// Repeating a live query within this window reuses its rows instead of
+// spending the source API's quota again.
+const API_RESULT_REUSE_MS = 60_000;
+
+export const canReuseApiResult = (
+    source: {
+        status: QueryHistoryStatus;
+        resultsFileName: string | null;
+        resultsCreatedAt: Date | null;
+        resultsExpiresAt: Date | null;
+    },
+    now: number = Date.now(),
+): boolean =>
+    source.status === QueryHistoryStatus.READY &&
+    source.resultsFileName !== null &&
+    source.resultsCreatedAt !== null &&
+    now - source.resultsCreatedAt.getTime() <= API_RESULT_REUSE_MS &&
+    (source.resultsExpiresAt === null ||
+        source.resultsExpiresAt.getTime() > now);

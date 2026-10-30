@@ -5,6 +5,7 @@ import {
 import { describe, expect, it } from 'vitest';
 import {
     countSectionChanges,
+    getMoveNeighbours,
     groupRulesBySection,
     moveRuleToSection,
     moveRulesToSection,
@@ -322,5 +323,31 @@ describe('underPointerFor', () => {
         expect(collide(800)).toEqual(['bar-space-target']);
         // The keyboard has no pointer: the nearest centre, never the bar's
         expect(collide(295, false)[0]).toBe('a');
+    });
+});
+
+describe('getMoveNeighbours', () => {
+    const shown = () => true;
+
+    it('stays in the kind and section, skipping pills not on the tab', () => {
+        const bar = filters(
+            [rule('d1'), rule('s1', 'a'), rule('hidden'), rule('d2')],
+            [rule('m1')],
+        );
+        expect(
+            getMoveNeighbours(bar, 'd1', sections, (r) => r.id !== 'hidden'),
+        ).toEqual({ before: null, after: 'd2' });
+        expect(getMoveNeighbours(bar, 's1', sections, shown)).toEqual({
+            before: null,
+            after: null,
+        });
+        expect(getMoveNeighbours(bar, 'm1', sections, shown)).toEqual({
+            before: null,
+            after: null,
+        });
+        expect(getMoveNeighbours(bar, 'gone', sections, shown)).toEqual({
+            before: null,
+            after: null,
+        });
     });
 });

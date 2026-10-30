@@ -70,6 +70,12 @@ describe('PostHogConnector', () => {
             queryLanguage: 'HogQL',
             maxRows: 49_999,
             timeoutMs: 10_000,
+            limits: {
+                concurrentCalls: 3,
+                callsPerMinute: 240,
+                callsPerHour: 2_400,
+                callsPerQuery: 1,
+            },
         });
     });
 
@@ -118,7 +124,6 @@ describe('PostHogConnector', () => {
                 { week: '2026-10-25', wau: 3, events: 3 },
             ],
             truncated: false,
-            apiCalls: 1,
             bytesRead: 12392719,
         });
     });
