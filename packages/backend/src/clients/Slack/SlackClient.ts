@@ -20,6 +20,7 @@ import {
     SlackInstallationNotFoundError,
     SlackSettings,
     sleep,
+    translateSlackError,
     UnexpectedServerError,
 } from '@lightdash/common';
 import {
@@ -958,22 +959,14 @@ export class SlackClient {
                 )}`,
             );
         } catch (e: AnyType) {
-            Logger.error(
-                `Unable to join channels ${channels.join(
-                    ', ',
-                )} on organization ${organizationUuid}`,
-                e,
-            );
-            // If the channels:join scope is missing, provide a helpful error
+            // Best-effort: callers have already persisted the delivery.
             if (e?.data?.error === 'missing_scope') {
                 Logger.warn(
                     `Unable to join channels ${channels.join(
                         ', ',
                     )} on organization ${organizationUuid}: missing channels:join scope. The app can still be added to channels manually.`,
                 );
-                throw new SlackError(
-                    `Unable to join channel(s): missing channels:join scope. Add the app to the channel(s) manually.`,
-                );
+                return;
             }
             slackErrorHandler(
                 e,
@@ -1133,6 +1126,10 @@ export class SlackClient {
                         e,
                         'Unable to post message on Slack. You might need to add the Slack app to the channel you wish you sent notifications to',
                     );
+                    const translated = translateSlackError(e);
+                    if (translated) {
+                        throw new SlackError(translated.error);
+                    }
                     throw e;
                 });
         }
