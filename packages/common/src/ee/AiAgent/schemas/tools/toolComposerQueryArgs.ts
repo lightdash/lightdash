@@ -105,7 +105,7 @@ ${getComposerNodeKindsDescription({
     sqlNote: 'available only when run_sql is',
 })}
 
-Reuse earlier nodes: every result returns a sessionId. On a follow-up, pass that sessionId and read earlier nodes by node id in "references", submitting only the new nodes. Reused nodes come with everything they read and are served from cache when possible, so results come back faster. A node id names one node for the whole session, so give a changed node a new node id. Omit sessionId to start a new session.
+Reuse earlier nodes: a result returns a sessionId once a node has finished; finished nodes are saved in it. On a follow-up, pass that sessionId and read saved nodes by node id in "references", submitting only the new nodes. Reused nodes come with everything they read and are served from cache when possible, so results come back faster. A saved node id names one node for the whole session, so give a changed node a new node id; a failed or unfinished node is not saved, so resubmit it under the same id. Omit sessionId to start a new session.
 
 Returns a preview of the terminal node's rows and every node's queryUuid. If the result is running, follow up with get_query_result on the terminal node's queryUuid; it also fetches the first page of any node's result by its queryUuid. query computes data only; it saves and charts nothing.`;
 
