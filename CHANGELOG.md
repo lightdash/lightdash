@@ -1,3 +1,16 @@
+# [3.111.0](https://github.com/lightdash/lightdash/compare/3.110.0...3.111.0) (2026-10-30)
+
+
+### Bug Fixes
+
+* **learn:** re-point the SQL Runner walkthrough at its docs sentence ([#31878](https://github.com/lightdash/lightdash/issues/31878)) ([07e9913](https://github.com/lightdash/lightdash/commit/07e9913ecaf610fe683b8077bbcf09072eb54fc3))
+* **sql-runner:** let the results grid scroll through large result sets ([#31845](https://github.com/lightdash/lightdash/issues/31845)) ([78115ce](https://github.com/lightdash/lightdash/commit/78115ce600d8b643ea430e9267d2afc6b172d172))
+
+
+### Features
+
+* add built-in Embed usage dashboard ([#31877](https://github.com/lightdash/lightdash/issues/31877)) ([c406ba1](https://github.com/lightdash/lightdash/commit/c406ba16b603fd5eac29a7ae45a14383f8ec25a6))
+
 # [3.110.0](https://github.com/lightdash/lightdash/compare/3.109.1...3.110.0) (2026-10-30)
 
 

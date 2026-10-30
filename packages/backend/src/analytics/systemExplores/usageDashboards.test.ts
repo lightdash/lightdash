@@ -592,6 +592,31 @@ describe('built-in usage dashboards', () => {
         expect(outcomeTiles).toHaveLength(2);
     });
 
+    it('keeps Embed date filters on every tile and query counts restricted to embeds', () => {
+        const bundle = analyticsContentAsCode.find(
+            ({ dashboard }) => dashboard.slug === 'lightdash-analytics-embed',
+        )!;
+        const [date] = bundle.dashboard.filters!.dimensions!;
+        expect(date).toMatchObject({
+            operator: FilterOperator.IN_THE_PAST,
+            values: [30],
+            settings: { completed: true, unitOfTime: UnitOfTime.days },
+        });
+        for (const chart of bundle.charts) {
+            expect(chart.chartConfig.type).not.toBe(ChartType.TABLE);
+            expect(date.tileTargets?.[chart.slug]).toEqual({
+                fieldId: `${chart.tableName}_event_ts_day`,
+                tableName: chart.tableName,
+            });
+            if (chart.tableName === 'query_events') {
+                expect(compile(chart).query).toContain("'embed'");
+                expect(chart.metricQuery.metrics).not.toContain(
+                    'query_events_unique_users',
+                );
+            }
+        }
+    });
+
     it.each(charts.map((chart) => [chart.slug, chart] as const))(
         'compiles %s without missing fields or join warnings',
         (_slug, chart) => {

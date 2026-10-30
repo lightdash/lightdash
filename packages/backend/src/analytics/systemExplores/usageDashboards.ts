@@ -10,6 +10,7 @@ import {
     type DashboardAsCode,
 } from '@lightdash/common';
 import { adoptionChartSpecs, adoptionDashboardSpec } from './adoptionDashboard';
+import { embedChartSpecs, embedDashboardSpec } from './embedDashboard';
 import { peopleNoActivityChartSpecs } from './peopleNoActivityCharts';
 import { usageActivityOriginSql } from './usageActivityOrigin';
 import { usageChartSpecs } from './usageDashboardCharts';
@@ -344,10 +345,16 @@ const note = (
     properties: { title: '', content, hideFrame: true },
 });
 
+const dashboardSpecs = [
+    ...usageDashboardSpecs,
+    adoptionDashboardSpec,
+    embedDashboardSpec,
+];
+
 export const buildUsageDashboards = (
     existingBundles: AnalyticsContentBundle[],
 ): AnalyticsContentBundle[] =>
-    [...usageDashboardSpecs, adoptionDashboardSpec].map((spec) => {
+    dashboardSpecs.map((spec) => {
         const existing = existingBundles.find(
             ({ dashboard }) => dashboard.slug === spec.key,
         );
@@ -394,6 +401,7 @@ export const buildUsageDashboards = (
                     const definition = [
                         ...usageChartSpecs,
                         ...adoptionChartSpecs,
+                        ...embedChartSpecs,
                         ...peopleNoActivityChartSpecs,
                     ].find((item) => item.key === key);
                     if (!definition)

@@ -97,6 +97,21 @@ a columnar format suitable for analytics. The reader only sees compacted output,
 so capture is not immediately visible in Explore. Event delivery does not have
 an exactly-once guarantee.
 
+Embedded dashboard fetches reuse `content_views`. After a successful authorized
+fetch, `embed_dashboard.viewed` records an interaction ID and the explicit JWT
+`user.externalId`, when supplied. The usage-only metadata is not added to
+RudderStack. Preview traffic is excluded, the registered-user ID remains null,
+and neither the token issuer nor a generated fallback identity counts as an
+external viewer. Arbitrary user attributes are not captured.
+
+The Embed reach model deduplicates interaction IDs and counts external IDs
+within each organization/project. Refetches are separate loads; tile queries
+are not loads. This is observed backend usage, not confirmed browser rendering,
+configured embed dependencies, tenant attribution or invoice reconciliation.
+Existing partitions without the new nullable column remain readable; capture
+starts after deployment and requires no backfill. New loads appear after daily
+compaction, and **Sync content** installs the Explore and Embed dashboard.
+
 ### Current dimension snapshots
 
 After event compaction, the same `compactUsageEvents` job refreshes charts,
