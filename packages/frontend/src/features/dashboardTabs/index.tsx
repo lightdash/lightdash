@@ -77,17 +77,25 @@ import DuplicateTabModal from './DuplicateTabModal';
 import { TabEditModal } from './EditTabModal';
 import GridTile from './GridTile';
 import {
+    canFitGridToScreen,
     convertLayoutToBaseCoordinates,
+    DEFAULT_ROW_HEIGHT,
     getDashboardLayouts,
+    getFitToScreenRowHeight,
+    getGridTotalRows,
     type DashboardLayouts,
     getResponsiveGridLayoutProps,
+    GRID_COLS,
     GRID_CONTAINER_PADDING,
+    GRID_MARGIN,
+    isFitToScreenBreakpoint,
 } from './gridUtils';
 import { ResponsiveGridLayout } from './ResponsiveGridLayout';
 import DraggableTab from './Tab';
 import styles from './tabs.module.css';
 import { getDashboardTabPath, getDashboardUrlIdentifier } from './tabUrl';
 import { useAutoScrollOnDrag } from './useAutoScrollOnDrag';
+import { useAvailableGridHeight } from './useAvailableGridHeight';
 import { useGridStyles } from './useGridStyles';
 
 const EMPTY_LAYOUTS: DashboardLayouts = {
@@ -98,6 +106,7 @@ const EMPTY_LAYOUTS: DashboardLayouts = {
 };
 
 const DASHBOARD_GRID_BOTTOM_PADDING = 60;
+const FIT_TO_SCREEN_GRID_BOTTOM_PADDING = GRID_MARGIN[1];
 
 type TabGridPanelProps = {
     tabUuid: string;
@@ -205,6 +214,8 @@ const TabGridPanel = memo<TabGridPanelProps>(
         // Re-render only when layouts reference changes.
         if (nextProps.isActive && prevProps.layouts !== nextProps.layouts)
             return false;
+        if (nextProps.isActive && prevProps.gridProps !== nextProps.gridProps)
+            return false;
 
         // No meaningful changes — skip re-render
         return true;
@@ -224,6 +235,11 @@ type DashboardTabsProps = {
     setAddingTab: (value: React.SetStateAction<boolean>) => void;
     setGridWidth: (value: React.SetStateAction<number>) => void;
     onNewChart?: () => void;
+
+    // fit to screen (view mode only)
+    isFitToScreen: boolean;
+    onFitToScreenChange: (isFitToScreen: boolean) => void;
+    onFitToScreenAvailableChange: (isAvailable: boolean) => void;
 
     // parameters
     hasTilesThatSupportFilters: boolean;
@@ -252,6 +268,9 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     setGridWidth,
     setAddingTab,
     onNewChart,
+    isFitToScreen,
+    onFitToScreenChange,
+    onFitToScreenAvailableChange,
     // parameters
     hasTilesThatSupportFilters,
     parameterValues,
@@ -265,11 +284,14 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     parameterOrder,
     onParameterReorder,
 }) => {
-    const gridProps = useMemo(
-        () => getResponsiveGridLayoutProps({ isEditMode }),
-        [isEditMode],
+    const gridWrapperRef = useRef<HTMLDivElement>(null);
+    const [currentBreakpoint, setCurrentBreakpoint] = useState('lg');
+    const availableGridHeight = useAvailableGridHeight(
+        gridWrapperRef,
+        !isEditMode,
+        FIT_TO_SCREEN_GRID_BOTTOM_PADDING,
     );
-    const [currentCols, setCurrentCols] = useState(gridProps.cols.lg);
+    const [currentCols, setCurrentCols] = useState<number>(GRID_COLS.lg);
     const { showToastError } = useToaster();
     const { health } = useApp();
     const [, startTabTransition] = useTransition();
@@ -287,7 +309,6 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         ? ControlsBar
         : DashboardFiltersBar;
 
-    const gridWrapperRef = useRef<HTMLDivElement>(null);
     const [isInteracting, setIsInteracting] = useState(false);
 
     const gridLineStyles = useGridStyles({ ref: gridWrapperRef });
@@ -333,7 +354,10 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         [handleUpdateTilesWithScaling, stopAutoScroll],
     );
     const handleBreakpointChange = useCallback(
-        (_: string, cols: number) => setCurrentCols(cols),
+        (breakpoint: string, cols: number) => {
+            setCurrentCols(cols);
+            setCurrentBreakpoint(breakpoint);
+        },
         [],
     );
     const handleWidthChange = useCallback(
@@ -389,10 +413,6 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     const scrollToTopBottom = isLauncherMounted
         ? SCROLL_TO_TOP_BOTTOM_WITH_LAUNCHER
         : SCROLL_TO_TOP_BOTTOM;
-    const dashboardGridBottomPadding =
-        DASHBOARD_GRID_BOTTOM_PADDING +
-        scrollToTopBottom -
-        SCROLL_TO_TOP_BOTTOM;
 
     // tabs state
     const [isEditingTab, setEditingTab] = useState<boolean>(false);
@@ -459,17 +479,6 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         return map;
     }, [dashboardTiles, dashboardTabs, defaultTab?.uuid, tabsEnabled]);
 
-    const layoutsByTab = useMemo(() => {
-        const map = new Map<string, DashboardLayouts>();
-        for (const [tabUuid, tiles] of tilesByTab) {
-            map.set(
-                tabUuid,
-                getDashboardLayouts(tiles, isEditMode, gridProps.cols),
-            );
-        }
-        return map;
-    }, [tilesByTab, isEditMode, gridProps]);
-
     // In view mode, drop tiles whose tab is hidden. Otherwise, when hiding tabs
     // leaves only one visible tab, the non-tabbed grid path below renders every
     // tile and the hidden tab's charts surface on the remaining grid.
@@ -484,6 +493,73 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
             (t) => !t.tabUuid || !hiddenTabUuids.has(t.tabUuid),
         );
     }, [dashboardTiles, dashboardTabs, isEditMode]);
+
+    const activeGridTotalRows = useMemo(
+        () =>
+            getGridTotalRows(
+                tabsEnabled
+                    ? (tilesByTab.get(activeTab?.uuid ?? '') ?? [])
+                    : (visibleTiles ?? []),
+            ),
+        [tabsEnabled, tilesByTab, activeTab?.uuid, visibleTiles],
+    );
+    const fitsToScreen =
+        availableGridHeight !== null &&
+        canFitGridToScreen(availableGridHeight, activeGridTotalRows);
+    const isFitToScreenAvailable =
+        !isEditMode &&
+        fitsToScreen &&
+        isFitToScreenBreakpoint(currentBreakpoint);
+    const isFitToScreenApplied = isFitToScreen && isFitToScreenAvailable;
+    const rowHeight =
+        isFitToScreenApplied && availableGridHeight !== null
+            ? getFitToScreenRowHeight(availableGridHeight, activeGridTotalRows)
+            : DEFAULT_ROW_HEIGHT;
+
+    useEffect(() => {
+        onFitToScreenAvailableChange(isFitToScreenAvailable);
+    }, [isFitToScreenAvailable, onFitToScreenAvailableChange]);
+
+    // Turn fit off once the tab is too long; narrow breakpoints just ignore it
+    useEffect(() => {
+        if (
+            isFitToScreen &&
+            !isEditMode &&
+            availableGridHeight !== null &&
+            activeGridTotalRows > 0 &&
+            !fitsToScreen
+        ) {
+            onFitToScreenChange(false);
+        }
+    }, [
+        isFitToScreen,
+        isEditMode,
+        availableGridHeight,
+        activeGridTotalRows,
+        fitsToScreen,
+        onFitToScreenChange,
+    ]);
+
+    const dashboardGridBottomPadding = isFitToScreenApplied
+        ? FIT_TO_SCREEN_GRID_BOTTOM_PADDING
+        : DASHBOARD_GRID_BOTTOM_PADDING +
+          scrollToTopBottom -
+          SCROLL_TO_TOP_BOTTOM;
+
+    const gridProps = useMemo(
+        () => getResponsiveGridLayoutProps({ isEditMode, rowHeight }),
+        [isEditMode, rowHeight],
+    );
+    const layoutsByTab = useMemo(() => {
+        const map = new Map<string, DashboardLayouts>();
+        for (const [tabUuid, tiles] of tilesByTab) {
+            map.set(
+                tabUuid,
+                getDashboardLayouts(tiles, isEditMode, gridProps.cols),
+            );
+        }
+        return map;
+    }, [tilesByTab, isEditMode, gridProps]);
 
     // Layouts for non-tabbed dashboards (single grid with all tiles)
     const allTilesLayouts = useMemo(

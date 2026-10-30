@@ -137,6 +137,7 @@ import '../styles/react-grid.css';
 
 /** Dashboard URL param naming the chart open in the in-dashboard editor. */
 const EDIT_CHART_SEARCH_PARAM = 'editChart';
+const FIT_TO_SCREEN_SEARCH_PARAM = 'fit';
 
 const Dashboard: FC = () => {
     const authoringEnabled = useContentAuthoringEnabled();
@@ -1054,6 +1055,31 @@ const Dashboard: FC = () => {
     const chartVersionParam = searchParams.get(
         CREATE_SAVED_CHART_VERSION_SEARCH_PARAM,
     );
+
+    // A viewer-side layout option, kept in the url so a fitted link can be shared
+    const isFitToScreen =
+        searchParams.get(FIT_TO_SCREEN_SEARCH_PARAM) === 'true';
+    const [isFitToScreenAvailable, setIsFitToScreenAvailable] = useState(false);
+    const handleFitToScreenChange = useCallback(
+        (nextIsFitToScreen: boolean) => {
+            setSearchParams(
+                (params) => {
+                    if (nextIsFitToScreen) {
+                        params.set(FIT_TO_SCREEN_SEARCH_PARAM, 'true');
+                    } else {
+                        params.delete(FIT_TO_SCREEN_SEARCH_PARAM);
+                    }
+                    return params;
+                },
+                { replace: true },
+            );
+        },
+        [setSearchParams],
+    );
+    const handleToggleFitToScreen = useCallback(
+        () => handleFitToScreenChange(!isFitToScreen),
+        [handleFitToScreenChange, isFitToScreen],
+    );
     const chartFromUrl = useSavedQuery({
         uuidOrSlug:
             isChartEditorEnabled &&
@@ -1411,6 +1437,9 @@ const Dashboard: FC = () => {
         dashboardTiles,
         isFullScreenFeatureEnabled,
         onToggleFullscreen: handleToggleFullscreen,
+        isFitToScreen,
+        isFitToScreenAvailable,
+        onToggleFitToScreen: handleToggleFitToScreen,
         hasDashboardChanged,
         onAddTiles: handleAddTiles,
         onNewChart:
@@ -1650,6 +1679,11 @@ const Dashboard: FC = () => {
                                 handleEditTile={stableEditTile}
                                 setGridWidth={setGridWidth}
                                 setAddingTab={setAddingTab}
+                                isFitToScreen={isFitToScreen}
+                                onFitToScreenChange={handleFitToScreenChange}
+                                onFitToScreenAvailableChange={
+                                    setIsFitToScreenAvailable
+                                }
                                 onNewChart={
                                     isChartEditorEnabled && isEditMode
                                         ? handleOpenNewChart

@@ -26,6 +26,49 @@ export const getBreakpointForWidth = (
 export const GRID_MARGIN: [number, number] = [10, 10];
 export const GRID_CONTAINER_PADDING: [number, number] = [10, 0];
 
+export const FIT_TO_SCREEN_MIN_ROW_HEIGHT = 20;
+/** Grids taller than this many viewports are too long to squash into one */
+const FIT_TO_SCREEN_MAX_VIEWPORTS = 2;
+const FIT_TO_SCREEN_BREAKPOINTS = new Set(['lg', 'md']);
+
+export const isFitToScreenBreakpoint = (breakpoint: string): boolean =>
+    FIT_TO_SCREEN_BREAKPOINTS.has(breakpoint);
+
+export const getGridTotalRows = (
+    tiles: Pick<DashboardTile, 'y' | 'h'>[],
+): number => tiles.reduce((max, tile) => Math.max(max, tile.y + tile.h), 0);
+
+/** Pixel height react-grid-layout gives a grid of `totalRows` rows */
+export const getGridHeight = (totalRows: number, rowHeight: number): number =>
+    totalRows * rowHeight +
+    Math.max(0, totalRows - 1) * GRID_MARGIN[1] +
+    GRID_CONTAINER_PADDING[1] * 2;
+
+export const canFitGridToScreen = (
+    availableHeight: number,
+    totalRows: number,
+): boolean =>
+    totalRows > 0 &&
+    availableHeight > 0 &&
+    getGridHeight(totalRows, DEFAULT_ROW_HEIGHT) <=
+        availableHeight * FIT_TO_SCREEN_MAX_VIEWPORTS;
+
+/** Row height that makes `totalRows` rows fill `availableHeight` exactly */
+export const getFitToScreenRowHeight = (
+    availableHeight: number,
+    totalRows: number,
+): number => {
+    if (totalRows <= 0) return DEFAULT_ROW_HEIGHT;
+    // 1px slack: react-grid-layout rounds each tile's top and height
+    const rowHeight =
+        (availableHeight -
+            1 -
+            GRID_CONTAINER_PADDING[1] * 2 -
+            (totalRows - 1) * GRID_MARGIN[1]) /
+        totalRows;
+    return Math.max(FIT_TO_SCREEN_MIN_ROW_HEIGHT, rowHeight);
+};
+
 /**
  * Converts layout positions from the current breakpoint's coordinate system
  * back to the base coordinate system (DEFAULT_COLS).
@@ -139,9 +182,11 @@ export const getResponsiveGridLayoutProps = ({
     enableAnimation = false,
     stackVerticallyOnSmallestBreakpoint = false,
     isEditMode = false,
+    rowHeight = DEFAULT_ROW_HEIGHT,
 }: {
     enableAnimation?: boolean;
     isEditMode?: boolean;
+    rowHeight?: number;
 
     /**
      * If enabled, we set the grid on the smallest breakpoint to have a single
@@ -159,6 +204,6 @@ export const getResponsiveGridLayoutProps = ({
         sm: stackVerticallyOnSmallestBreakpoint ? 1 : GRID_COLS.sm,
         xs: isEditMode ? GRID_COLS.sm : 1,
     },
-    rowHeight: DEFAULT_ROW_HEIGHT,
+    rowHeight,
     margin: GRID_MARGIN,
 });
