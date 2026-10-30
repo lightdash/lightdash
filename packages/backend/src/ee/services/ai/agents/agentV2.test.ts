@@ -3,6 +3,7 @@ import {
     AiAccessRefusedError,
     type AnyType,
 } from '@lightdash/common';
+import * as Sentry from '@sentry/node';
 import {
     APICallError,
     asSchema,
@@ -33,6 +34,7 @@ import {
     AiAgentEmptyResponseError,
     AiAgentStepCapReachedError,
     EMPTY_RESPONSE_MESSAGE,
+    OUTPUT_LIMIT_REACHED_MESSAGE,
     PROVIDER_BILLING_MESSAGE,
     STEP_CAP_REACHED_MESSAGE,
 } from '../utils/errorMessages';
@@ -68,6 +70,11 @@ import {
     type AgentMcpToolSetup,
 } from './agentV2';
 import { createIntentToolGate } from './referenceToolGating';
+
+vi.mock('@sentry/node', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('@sentry/node')>()),
+    captureException: vi.fn(() => 'test-event'),
+}));
 
 vi.mock('ai', async (importOriginal) => ({
     ...(await importOriginal<typeof import('ai')>()),
@@ -628,6 +635,22 @@ describe('empty finishes and interrupts', () => {
         finishReason: 'tool-calls',
     };
 
+    const lengthFinish: Awaited<ReturnType<MockLanguageModelV4['doGenerate']>> =
+        {
+            content: [],
+            finishReason: { unified: 'length', raw: 'max_tokens' },
+            usage: {
+                inputTokens: {
+                    total: 1,
+                    noCache: 1,
+                    cacheRead: 0,
+                    cacheWrite: 0,
+                },
+                outputTokens: { total: 10, text: 0, reasoning: 10 },
+            },
+            warnings: [],
+        };
+
     const buildInterruptibleDependencies = (interrupted: boolean) => {
         const updatePrompt = vi.fn().mockResolvedValue(undefined);
         const dependencies = buildAgentDependencies(updatePrompt);
@@ -936,6 +959,33 @@ describe('empty finishes and interrupts', () => {
         });
     });
 
+    it('generate: distinguishes output exhaustion from a generic empty response', async () => {
+        const { generateText: generateWithSdk } =
+            await vi.importActual<typeof import('ai')>('ai');
+        vi.mocked(generateText).mockImplementationOnce(generateWithSdk);
+        const { updatePrompt, dependencies } =
+            buildInterruptibleDependencies(false);
+        Object.assign(dependencies, { consumePromptSteers: async () => [] });
+        const args = buildAgentArgs();
+        args.model = new MockLanguageModelV4({ doGenerate: lengthFinish });
+
+        await expect(
+            generateAgentResponse({
+                args,
+                dependencies,
+                mcpToolSetup: mcpToolSetup(),
+            }),
+        ).rejects.toMatchObject({
+            name: 'AiAgentEmptyResponseError',
+            finishReason: 'length',
+        });
+        expect(updatePrompt).toHaveBeenCalledWith(
+            expect.objectContaining({
+                errorMessage: OUTPUT_LIMIT_REACHED_MESSAGE,
+            }),
+        );
+    });
+
     const runStreamOnFinish = async (
         interrupted: boolean,
         execution?: Record<string, unknown>,
@@ -990,6 +1040,54 @@ describe('empty finishes and interrupts', () => {
                 errorMessage: EMPTY_RESPONSE_MESSAGE,
             }),
         );
+    });
+
+    it('stream: distinguishes output exhaustion from a generic empty response', async () => {
+        const { streamText: streamWithSdk } =
+            await vi.importActual<typeof import('ai')>('ai');
+        vi.mocked(streamText).mockImplementationOnce(streamWithSdk);
+        const { updatePrompt, dependencies } =
+            buildInterruptibleDependencies(false);
+        Object.assign(dependencies, { consumePromptSteers: async () => [] });
+        const stream: Awaited<
+            ReturnType<MockLanguageModelV4['doStream']>
+        >['stream'] = new ReadableStream({
+            start(controller) {
+                controller.enqueue({ type: 'stream-start', warnings: [] });
+                controller.enqueue({
+                    type: 'finish',
+                    finishReason: lengthFinish.finishReason,
+                    usage: lengthFinish.usage,
+                });
+                controller.close();
+            },
+        });
+        const args = buildAgentArgs();
+        args.model = new MockLanguageModelV4({ doStream: { stream } });
+        const captureException = vi.mocked(Sentry.captureException);
+        captureException.mockClear();
+        try {
+            const result = await streamAgentResponse({
+                args,
+                dependencies,
+                mcpToolSetup: mcpToolSetup(),
+            });
+            await result.consumeStream();
+            expect(captureException).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    name: 'AiAgentEmptyResponseError',
+                    finishReason: 'length',
+                }),
+                expect.anything(),
+            );
+            expect(updatePrompt).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    errorMessage: OUTPUT_LIMIT_REACHED_MESSAGE,
+                }),
+            );
+        } finally {
+            vi.mocked(streamText).mockReset();
+        }
     });
 
     it('generate: still throws the step-cap error at the cap when not interrupted', async () => {
