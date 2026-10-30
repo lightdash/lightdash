@@ -16,6 +16,7 @@ user's node definitions; storing an owner makes it no simpler than minting.
 An unknown, foreign or other-project `sessionId` fails with an error telling
 the client to omit it, rather than silently starting a new session, because a
 fresh session would break the client's node references with no visible
-cause. Because every call without an id mints a session, sessions expire
-after 24 hours idle and a scheduler deletes them with their nodes; thread
-scopes never expire.
+cause. Sessions never expire, like thread scopes: a client can return to an
+old session and continue, node results expire on their own and reused nodes
+re-run from their definitions, and each id is bound to its user and project.
+Cleanup can be added later.

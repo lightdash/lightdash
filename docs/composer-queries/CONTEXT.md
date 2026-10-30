@@ -80,8 +80,8 @@ _Avoid_: registry (in user-facing copy), node store, artifact nodes
 **Composer session**:
 The scope of nodes an MCP client builds across composer queries, owned by
 one user in one project. Started by a submission without a session id; the
-server returns the id and the client passes it back to reuse nodes. It
-expires after a day idle. An unknown, expired, foreign or other-project id is
+server returns the id and the client passes it back to reuse nodes. Like a
+thread, it never expires. An unknown, foreign or other-project id is
 rejected, never replaced.
 _Avoid_: MCP session (the transport's analytics token, removed from the
 protocol), pipeline scope, thread
