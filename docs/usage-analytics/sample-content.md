@@ -161,7 +161,8 @@ and **Sync content**. Its **Audience** tab shows observed dashboard loads,
 distinct supplied external viewer IDs, active dashboards, daily and weekly trends,
 popular dashboards and viewer-ID coverage. **Query health** shows query volume,
 errors, outcomes, caching and median/P95 successful request-start response time.
-These are native number, line, bar and donut charts. The shared Date filter maps
+Number, line, bar and donut charts summarize usage; a custom ranking chart keeps
+long dashboard IDs in tooltips while leaving room for the bars. The Date filter maps
 to both models and defaults to the last 30 completed UTC days.
 
 Loads represent observed authorized embedded-dashboard fetches, not successful

@@ -1,4 +1,9 @@
-import { FilterOperator, UnitOfTime } from '@lightdash/common';
+import {
+    ChartType,
+    FilterOperator,
+    UnitOfTime,
+    type ChartAsCode,
+} from '@lightdash/common';
 import type { UsageChartSpec, UsageDashboardSpec } from './usageDashboardTypes';
 
 const dashboardKey = 'lightdash-analytics-embed';
@@ -249,7 +254,7 @@ export const embedDashboardSpec: UsageDashboardSpec = {
                     title: 'Who is using your embedded dashboards?',
                     description:
                         'Observed authorized dashboard fetches and supplied external viewer IDs. Reloads count; browser-cached views can be absent. These are not billed loads or proof of successful rendering. New capture only; earlier usage is not backfilled.',
-                    noteHeight: 3,
+                    noteHeight: 2,
                     charts: [
                         'embed-loads',
                         'embed-viewers',
@@ -298,4 +303,66 @@ export const embedDashboardSpec: UsageDashboardSpec = {
             ],
         },
     ],
+};
+
+// Keep the full identity as the category; shorten only the rendered axis label.
+export const withEmbedRankingPresentation = (
+    chart: ChartAsCode,
+): ChartAsCode => {
+    if (chart.slug !== `${dashboardKey}-embed-popular-dashboards`) return chart;
+    return {
+        ...chart,
+        chartConfig: {
+            type: ChartType.CUSTOM,
+            config: {
+                spec: {
+                    $schema: 'https://vega.github.io/schema/vega-lite/v5.json',
+                    autosize: { type: 'fit', contains: 'padding' },
+                    mark: {
+                        type: 'bar',
+                        color: '#4263EB',
+                        cornerRadiusEnd: 3,
+                        tooltip: true,
+                    },
+                    encoding: {
+                        y: {
+                            field: 'embed_reach_dashboard_label',
+                            type: 'nominal',
+                            sort: '-x',
+                            title: null,
+                            axis: { labelLimit: 150, labelFontSize: 11 },
+                        },
+                        x: {
+                            field: 'embed_reach_total_loads',
+                            type: 'quantitative',
+                            title: 'Observed loads',
+                            axis: { tickMinStep: 1 },
+                        },
+                        tooltip: [
+                            {
+                                field: 'embed_reach_dashboard_label',
+                                type: 'nominal',
+                                title: 'Dashboard',
+                            },
+                            {
+                                field: 'embed_reach_total_loads',
+                                type: 'quantitative',
+                                title: 'Observed loads',
+                                format: ',',
+                            },
+                        ],
+                    },
+                    config: {
+                        view: { stroke: null },
+                        axis: {
+                            domain: false,
+                            labelColor: '#868E96',
+                            titleColor: '#868E96',
+                            gridColor: '#E9ECEF',
+                        },
+                    },
+                },
+            },
+        },
+    };
 };
