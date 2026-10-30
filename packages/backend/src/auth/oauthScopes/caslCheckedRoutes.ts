@@ -653,6 +653,7 @@ export const OAUTH_CASL_CHECKED_ROUTES: readonly string[] = [
     'ProjectCoderController.legacyUpsertVirtualViewAsCode',
     'ProjectCoderController.listContentAsCodeWritebacks',
     'ProjectCoderController.listContentDrafts',
+    'ProjectCoderController.pruneContentAsCodeSnapshots',
     'ProjectCoderController.proposeChartToGit',
     'ProjectCoderController.proposeDashboardToGit',
     'ProjectCoderController.pullContentAsCodeFromGit',
