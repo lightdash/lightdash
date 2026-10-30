@@ -1,21 +1,26 @@
 import {
     COMPOSER_QUERY_PREVIEW_ROW_LIMIT,
     createToolComposerQueriesArgsSchema,
+    getSourceQueryLimit,
     getSourceQueryResultReferences,
     getSqlApprovalSql,
     getToolComposerQueriesDescription,
+    hasReachedSourceQueryLimit,
     QuerySourceType,
     queryToolDefinition,
     toComposerNodeColumns,
     WarehouseQueryError,
     type ComposerApiConnection,
+    type ComposerPipelineNode,
     type ParameterDefinitions,
     type SemanticLayerSourceQuery,
     type SourceQuery,
+    type ThreadComposerQueryNode,
     type ToolComposerQueriesStructuredContent,
     type ToolComposerQueriesSuccessMetadata,
 } from '@lightdash/common';
 import { tool } from 'ai';
+import { stringify } from 'csv-stringify/sync';
 import { type AiDecisionClient } from '../decisions/AiDecisionClient';
 import { getEmptyFilterHints } from '../decisions/queryChecks';
 import {
@@ -23,6 +28,7 @@ import {
     type QueryReviewer,
 } from '../decisions/queryReview';
 import type {
+    ComposerNodeStatus,
     GetPromptFn,
     IsThreadSqlAutoApprovedFn,
     ListSqlApprovalDecisionsFn,
@@ -48,9 +54,6 @@ import {
     buildComposerPreview,
     buildComposerQueryPipeline,
     isSaved,
-    renderComposerNodeSummary,
-    renderSavedNodes,
-    toComposerNodeSummaries,
     toNodeColumns,
 } from './composerQueryPipeline';
 import { getSqlApprovalSteps } from './slackSqlAggregate';
@@ -166,6 +169,180 @@ const getComposerEmptyFilterHints = async (
     return hints.filter(Boolean).join(' ');
 };
 
+type ComposerNodeSummary =
+    ToolComposerQueriesStructuredContent['nodes'][number];
+
+const getReads = (node: SourceQuery) =>
+    Object.values(getSourceQueryResultReferences(node));
+
+const toNodeSummary = (
+    node: ComposerPipelineNode,
+    status: ComposerNodeStatus | undefined,
+    showColumns: boolean,
+): ComposerNodeSummary => ({
+    nodeId: node.nodeId,
+    title: node.title ?? null,
+    sourceType: node.sourceType,
+    rowCount: status?.rowCount ?? null,
+    limit: getSourceQueryLimit(node),
+    columns:
+        showColumns && status?.columns
+            ? toComposerNodeColumns(status.columns)
+            : null,
+    sample: status?.sample ?? null,
+});
+
+const renderNodeDetails = ({
+    columns,
+    sample,
+    rowCount,
+}: ComposerNodeSummary): string[] => {
+    const columnLines =
+        columns === null
+            ? []
+            : [
+                  `Columns: ${columns
+                      .map(({ reference, type }) => `${reference} (${type})`)
+                      .join(', ')}`,
+              ];
+    const sampleLines =
+        sample === null || sample.length === 0
+            ? []
+            : [
+                  `Sample, ${sample.length} of ${rowCount ?? sample.length} rows:`,
+                  ...stringify(sample, {
+                      header: true,
+                      ...(columns === null
+                          ? {}
+                          : {
+                                columns: columns.map(
+                                    ({ reference }) => reference,
+                                ),
+                            }),
+                  })
+                      .trimEnd()
+                      .split('\n'),
+              ];
+    return [...columnLines, ...sampleLines].map((line) => `  ${line}`);
+};
+
+/** Every node of the pipeline in the given order, with its node columns and node sample under it when it has them. */
+const renderComposerNodeListing = ({
+    queries,
+    nodes,
+    nodeStatuses,
+    threadNodes,
+    submittedNodeIds,
+    maxQueryLimit,
+}: {
+    queries: ComposerPipelineNode[];
+    nodes: ComposerNodeSummary[];
+    nodeStatuses: ComposerNodeStatus[];
+    threadNodes: ThreadComposerQueryNode[];
+    submittedNodeIds: Set<string>;
+    maxQueryLimit: number;
+}): string => {
+    const saved = new Set(
+        nodeStatuses.filter(isSaved).map(({ nodeId }) => nodeId),
+    );
+    const reachedLimit = new Set(
+        nodes
+            .filter(
+                (node) =>
+                    node.rowCount !== null &&
+                    hasReachedSourceQueryLimit(node, node.rowCount),
+            )
+            .map((node) => node.nodeId),
+    );
+    const getOutcome = (node: ComposerNodeSummary): string => {
+        if (node.rowCount !== null) {
+            const capped = reachedLimit.has(node.nodeId)
+                ? ` Reached its limit of ${node.limit}, so more rows may exist (max ${maxQueryLimit}).`
+                : '';
+            const reused = submittedNodeIds.has(node.nodeId)
+                ? ''
+                : ' Reused from an earlier call.';
+            return `${node.rowCount} rows, limit ${node.limit}.${capped}${reused}`;
+        }
+        const query = queries.find(({ nodeId }) => nodeId === node.nodeId);
+        const status = nodeStatuses.find(
+            ({ nodeId }) => nodeId === node.nodeId,
+        );
+        const unsavedReads = (query ? getReads(query) : []).filter(
+            (reference) => !saved.has(reference),
+        );
+        let reason: string;
+        if (unsavedReads.length > 0) {
+            reason = `not run: reads ${unsavedReads.join(', ')}`;
+        } else if (status?.error) {
+            reason = `failed: ${status.error}`;
+        } else {
+            reason = `not finished${status ? `: ${status.state}` : ''}`;
+        }
+        const earlier = threadNodes.some(({ nodeId }) => nodeId === node.nodeId)
+            ? '; still saved from an earlier call'
+            : '';
+        return `${reason}${earlier}`;
+    };
+    const nodeLines = nodes.map((node) => {
+        const label =
+            node.title === null
+                ? `- ${node.nodeId} (${node.sourceType})`
+                : `- ${node.nodeId}: "${node.title}" (${node.sourceType})`;
+        return [
+            `${label}: ${getOutcome(node)}`,
+            ...renderNodeDetails(node),
+        ].join('\n');
+    });
+    const warnings = queries.flatMap((query) =>
+        getReads(query)
+            .filter((reference) => reachedLimit.has(reference))
+            .map(
+                (reference) =>
+                    `Warning: "${query.nodeId}" reads "${reference}", which reached its limit, so "${query.nodeId}" may be computed on incomplete rows.`,
+            ),
+    );
+    return [...nodeLines, ...warnings].join('\n');
+};
+
+/** A failed run's nodes: each failed node, then the nodes it reads, then the rest. */
+const getFailedRunNodes = (
+    queries: ComposerPipelineNode[],
+    nodeStatuses: ComposerNodeStatus[],
+    submittedNodeIds: Set<string>,
+): ComposerNodeSummary[] => {
+    const saved = new Set(
+        nodeStatuses.filter(isSaved).map(({ nodeId }) => nodeId),
+    );
+    const getStatus = (nodeId: string) =>
+        nodeStatuses.find((status) => status.nodeId === nodeId);
+    const failed = queries.filter(
+        (node) =>
+            !saved.has(node.nodeId) &&
+            !!getStatus(node.nodeId)?.error &&
+            getReads(node).every((reference) => saved.has(reference)),
+    );
+    const readByFailed = new Set(failed.flatMap(getReads));
+    const order = [
+        ...new Set([
+            ...failed.flatMap((node) => [node.nodeId, ...getReads(node)]),
+            ...queries.map(({ nodeId }) => nodeId),
+        ]),
+    ];
+    return order.flatMap((nodeId) => {
+        const node = queries.find((query) => query.nodeId === nodeId);
+        return node
+            ? [
+                  toNodeSummary(
+                      node,
+                      getStatus(nodeId),
+                      submittedNodeIds.has(nodeId) || readByFailed.has(nodeId),
+                  ),
+              ]
+            : [];
+    });
+};
+
 export const getRunComposerQueries = ({
     agentContext,
     reviewQuery,
@@ -278,6 +455,9 @@ export const getRunComposerQueries = ({
                     terminalNodeId: resolvedTerminalNodeId,
                     appliedParameters,
                 } = built.pipeline;
+                const submittedNodeIds = new Set(
+                    queryNodes.map(({ nodeId }) => nodeId),
+                );
 
                 if (approvalSql !== null) {
                     try {
@@ -303,6 +483,11 @@ export const getRunComposerQueries = ({
                     runComposerQueries({
                         queries,
                         terminalNodeId: resolvedTerminalNodeId,
+                        sampleNodeIds: enableDataAccess
+                            ? [...submittedNodeIds].filter(
+                                  (nodeId) => nodeId !== resolvedTerminalNodeId,
+                              )
+                            : [],
                         // Per-node lifecycle → transient step-progress events the
                         // web stream renders as live statuses on the pipeline.
                         // progressId carries `${toolCallId}:${nodeId}` so the
@@ -353,8 +538,20 @@ export const getRunComposerQueries = ({
                         nodes: savedNodes,
                         nodeColumns: toNodeColumns(saved),
                     });
+                    const nodeListing = renderComposerNodeListing({
+                        queries,
+                        nodes: getFailedRunNodes(
+                            queries,
+                            run.nodeStatuses,
+                            submittedNodeIds,
+                        ),
+                        nodeStatuses: run.nodeStatuses,
+                        threadNodes,
+                        submittedNodeIds,
+                        maxQueryLimit,
+                    });
                     throw new WarehouseQueryError(
-                        `${run.error}\n${renderSavedNodes(queries, run.nodeStatuses, threadNodes)}`,
+                        `${run.error}\nNodes in this pipeline, failed nodes first. A later call can read any node with rows by node id:\n${nodeListing}`,
                     );
                 }
                 const { terminal, nodeStatuses } = run;
@@ -378,13 +575,31 @@ export const getRunComposerQueries = ({
                     description: description ?? null,
                 };
 
-                const nodes = toComposerNodeSummaries(queries, nodeStatuses);
-                const nodeSummary = renderComposerNodeSummary(
+                const nodes = queries.map((node) => {
+                    const status = nodeStatuses.find(
+                        ({ nodeId }) => nodeId === node.nodeId,
+                    );
+                    // The terminal node's columns and rows are shown in full below.
+                    return node.nodeId === resolvedTerminalNodeId
+                        ? toNodeSummary(
+                              node,
+                              status && { ...status, sample: null },
+                              false,
+                          )
+                        : toNodeSummary(
+                              node,
+                              status,
+                              submittedNodeIds.has(node.nodeId),
+                          );
+                });
+                const nodeSummary = renderComposerNodeListing({
                     queries,
                     nodes,
                     nodeStatuses,
+                    threadNodes,
+                    submittedNodeIds,
                     maxQueryLimit,
-                );
+                });
                 const preview = buildComposerPreview(terminal);
                 const { columns } = preview;
                 const columnSummary = columns
