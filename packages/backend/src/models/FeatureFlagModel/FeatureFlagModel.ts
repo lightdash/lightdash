@@ -26,11 +26,6 @@ export type FeatureFlagLogicArgs = {
     featureFlagId: string;
 };
 
-export type EnsureOrganizationOverrideOutcome =
-    | 'enabled'
-    | 'already_enabled'
-    | 'kept_disabled';
-
 type FeatureFlagQueryOptions = {
     trx?: Knex;
     /** Set false for admin listings so they don't inflate flag-usage telemetry. */
@@ -194,44 +189,6 @@ export class FeatureFlagModel {
             .insert({ flag_id: featureFlagId, default_enabled: null })
             .onConflict('flag_id')
             .ignore();
-    }
-
-    // Insert-only enablement: an existing override row (including an explicit
-    // enabled=false) is never modified.
-    public async ensureOrganizationOverrideEnabled(
-        featureFlagId: string,
-        organizationUuid: string,
-    ): Promise<EnsureOrganizationOverrideOutcome> {
-        const getOrganizationOverride = () =>
-            FeatureFlagModel.organizationOverrideQuery(
-                this.database,
-                featureFlagId,
-                organizationUuid,
-            ).first();
-
-        const existing = await getOrganizationOverride();
-        if (existing) {
-            return existing.enabled ? 'already_enabled' : 'kept_disabled';
-        }
-
-        await FeatureFlagModel.ensureFlagRow(this.database, featureFlagId);
-
-        const inserted = await this.database(FeatureFlagOverridesTableName)
-            .insert({
-                flag_id: featureFlagId,
-                organization_uuid: organizationUuid,
-                enabled: true,
-            })
-            .onConflict(this.database.raw(ORG_OVERRIDE_CONFLICT_TARGET))
-            .ignore()
-            .returning('feature_flag_override_id');
-        if (inserted.length > 0) {
-            return 'enabled';
-        }
-        const concurrent = await getOrganizationOverride();
-        return concurrent?.enabled === false
-            ? 'kept_disabled'
-            : 'already_enabled';
     }
 
     protected async tryGetFromDatabase(

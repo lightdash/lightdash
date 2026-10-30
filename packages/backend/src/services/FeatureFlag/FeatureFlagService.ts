@@ -2,7 +2,6 @@ import { subject } from '@casl/ability';
 import {
     ALL_FEATURE_FLAG_IDS,
     ForbiddenError,
-    isAccount,
     isJwtUser,
     isKnownFeatureFlagId,
     NotFoundError,
@@ -11,7 +10,6 @@ import {
     type FeatureFlag,
     type LightdashUser,
     type RegisteredAccount,
-    type SessionUser,
 } from '@lightdash/common';
 import pLimit from 'p-limit';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -68,17 +66,13 @@ export class FeatureFlagService extends BaseService {
     }
 
     // Returns the organization the caller is allowed to manage.
-    private assertOrganizationAdmin(
-        accountOrUser: RegisteredAccount | SessionUser,
-    ): string {
-        const organizationUuid = isAccount(accountOrUser)
-            ? accountOrUser.organization.organizationUuid
-            : accountOrUser.organizationUuid;
+    private assertOrganizationAdmin(account: RegisteredAccount): string {
+        const { organizationUuid } = account.organization;
         if (!organizationUuid) {
             throw new ForbiddenError('User is not part of an organization');
         }
         if (
-            this.createAuditedAbility(accountOrUser).cannot(
+            this.createAuditedAbility(account).cannot(
                 'manage',
                 subject('Organization', { organizationUuid }),
             )
@@ -86,20 +80,6 @@ export class FeatureFlagService extends BaseService {
             throw new ForbiddenError();
         }
         return organizationUuid;
-    }
-
-    ensureOrganizationOverrideEnabled({
-        user,
-        featureFlagId,
-    }: {
-        user: SessionUser;
-        featureFlagId: string;
-    }) {
-        const organizationUuid = this.assertOrganizationAdmin(user);
-        return this.featureFlagModel.ensureOrganizationOverrideEnabled(
-            featureFlagId,
-            organizationUuid,
-        );
     }
 
     /**

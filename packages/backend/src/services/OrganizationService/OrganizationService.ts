@@ -46,7 +46,6 @@ import {
     validateOrganizationEmailDomains,
     validateOrganizationNameOrThrow,
 } from '@lightdash/common';
-import * as Sentry from '@sentry/node';
 import { groupBy } from 'lodash';
 import fetch from 'node-fetch';
 import {
@@ -54,7 +53,6 @@ import {
     OnboardingFlow,
 } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
-import Logger from '../../logging/logger';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { GroupsModel } from '../../models/GroupsModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
@@ -115,10 +113,6 @@ export type OrganizationServiceArguments = {
     featureFlagModel: FeatureFlagModel;
     rolesModel: RolesModel;
     organizationSettingsModel: Pick<OrganizationSettingsModel, 'get'>;
-    onOrganizationCreated?: (args: {
-        user: SessionUser;
-        organizationUuid: string;
-    }) => Promise<void>;
 };
 
 export class OrganizationService extends BaseService {
@@ -149,8 +143,6 @@ export class OrganizationService extends BaseService {
         'get'
     >;
 
-    private readonly onOrganizationCreated: OrganizationServiceArguments['onOrganizationCreated'];
-
     constructor({
         lightdashConfig,
         analytics,
@@ -164,7 +156,6 @@ export class OrganizationService extends BaseService {
         featureFlagModel,
         rolesModel,
         organizationSettingsModel,
-        onOrganizationCreated,
     }: OrganizationServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -180,7 +171,6 @@ export class OrganizationService extends BaseService {
         this.featureFlagModel = featureFlagModel;
         this.rolesModel = rolesModel;
         this.organizationSettingsModel = organizationSettingsModel;
-        this.onOrganizationCreated = onOrganizationCreated;
     }
 
     async get(account: Account): Promise<Organization> {
@@ -1008,29 +998,6 @@ export class OrganizationService extends BaseService {
             groupId: org.organizationUuid,
             traits: { name: org.name },
         });
-        if (this.onOrganizationCreated) {
-            try {
-                const organizationUser =
-                    await this.userModel.findSessionUserAndOrgByUuid(
-                        user.userUuid,
-                        org.organizationUuid,
-                    );
-                // Await before returning so the frontend's feature-flag refetch sees the overrides.
-                await this.onOrganizationCreated({
-                    user: organizationUser,
-                    organizationUuid: org.organizationUuid,
-                });
-            } catch (error) {
-                Sentry.captureException(error);
-                Logger.error(
-                    `Failed to run organization creation hook for organization ${
-                        org.organizationUuid
-                    }: ${
-                        error instanceof Error ? error.message : String(error)
-                    }`,
-                );
-            }
-        }
         await this.analytics.track({
             userId: user.userUuid,
             event: 'user.joined_organization',

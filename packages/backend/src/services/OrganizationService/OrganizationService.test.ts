@@ -7,11 +7,9 @@ import {
     type PossibleAbilities,
     type SessionUser,
 } from '@lightdash/common';
-import * as Sentry from '@sentry/node';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { buildAccount } from '../../auth/account/account.mock';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
-import Logger from '../../logging/logger';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { GroupsModel } from '../../models/GroupsModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
@@ -22,19 +20,8 @@ import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { RolesModel } from '../../models/RolesModel';
 import { UserModel } from '../../models/UserModel';
 import { projectSummary } from '../ProjectService/ProjectService.mock';
-import {
-    OrganizationService,
-    type OrganizationServiceArguments,
-} from './OrganizationService';
+import { OrganizationService } from './OrganizationService';
 import { organization, user } from './OrganizationService.mock';
-
-vi.mock('@sentry/node', async (importOriginal) => {
-    const actual = await importOriginal<typeof import('@sentry/node')>();
-    return {
-        ...actual,
-        captureException: vi.fn(),
-    };
-});
 
 const projectModel = {
     hasProjects: vi.fn(async () => true),
@@ -52,9 +39,6 @@ const organizationModel = {
 const userModel = {
     hasUsers: vi.fn<UserModel['hasUsers']>(async () => false),
     joinOrg: vi.fn<UserModel['joinOrg']>(async () => user),
-    findSessionUserAndOrgByUuid: vi.fn<
-        UserModel['findSessionUserAndOrgByUuid']
-    >(async () => user),
 };
 const featureFlagModel = {
     get: vi.fn<FeatureFlagModel['get']>(async ({ featureFlagId }) => ({
@@ -81,29 +65,23 @@ const rolesModel = {
 };
 
 describe('organization service', () => {
-    const buildOrganizationService = (
-        onOrganizationCreated?: OrganizationServiceArguments['onOrganizationCreated'],
-    ) =>
-        new OrganizationService({
-            lightdashConfig: lightdashConfigMock,
-            analytics: analyticsMock,
-            organizationModel:
-                organizationModel as unknown as OrganizationModel,
-            projectModel: projectModel as unknown as ProjectModel,
-            onboardingModel: {} as OnboardingModel,
-            organizationMemberProfileModel:
-                organizationMemberProfileModel as unknown as OrganizationMemberProfileModel,
-            userModel: userModel as unknown as UserModel,
-            organizationAllowedEmailDomainsModel:
-                {} as OrganizationAllowedEmailDomainsModel,
-            groupsModel: {} as GroupsModel,
-            featureFlagModel: featureFlagModel as unknown as FeatureFlagModel,
-            rolesModel: rolesModel as unknown as RolesModel,
-            // Nothing stored: every setting inherits the instance default.
-            organizationSettingsModel: { get: async () => ({}) } as never,
-            onOrganizationCreated,
-        });
-    const organizationService = buildOrganizationService();
+    const organizationService = new OrganizationService({
+        lightdashConfig: lightdashConfigMock,
+        analytics: analyticsMock,
+        organizationModel: organizationModel as unknown as OrganizationModel,
+        projectModel: projectModel as unknown as ProjectModel,
+        onboardingModel: {} as OnboardingModel,
+        organizationMemberProfileModel:
+            organizationMemberProfileModel as unknown as OrganizationMemberProfileModel,
+        userModel: userModel as unknown as UserModel,
+        organizationAllowedEmailDomainsModel:
+            {} as OrganizationAllowedEmailDomainsModel,
+        groupsModel: {} as GroupsModel,
+        featureFlagModel: featureFlagModel as unknown as FeatureFlagModel,
+        rolesModel: rolesModel as unknown as RolesModel,
+        // Nothing stored: every setting inherits the instance default.
+        organizationSettingsModel: { get: async () => ({}) } as never,
+    });
 
     afterEach(() => {
         vi.clearAllMocks();
@@ -294,72 +272,6 @@ describe('organization service', () => {
             userId: user.userUuid,
             groupId: organization.organizationUuid,
             traits: { name: organization.name },
-        });
-    });
-
-    it('awaits the organization-created hook', async () => {
-        let resolveHook = () => {};
-        const hookPending = new Promise<void>((resolve) => {
-            resolveHook = resolve;
-        });
-        const onOrganizationCreated = vi.fn<
-            NonNullable<OrganizationServiceArguments['onOrganizationCreated']>
-        >(async () => hookPending);
-        const service = buildOrganizationService(onOrganizationCreated);
-        let completed = false;
-
-        const creation = service
-            .createAndJoinOrg(
-                { ...user, organizationUuid: undefined },
-                { name: 'Organization' },
-            )
-            .then(() => {
-                completed = true;
-            });
-
-        await vi.waitFor(() => {
-            expect(onOrganizationCreated).toHaveBeenCalledExactlyOnceWith({
-                user,
-                organizationUuid: organization.organizationUuid,
-            });
-        });
-        expect(completed).toBe(false);
-
-        resolveHook();
-        await creation;
-
-        expect(completed).toBe(true);
-    });
-
-    it('survives an organization-created hook failure', async () => {
-        const error = new Error('Hook failed');
-        const errorSpy = vi
-            .spyOn(Logger, 'error')
-            .mockImplementation(() => Logger);
-        const onOrganizationCreated = vi.fn<
-            NonNullable<OrganizationServiceArguments['onOrganizationCreated']>
-        >(async () => {
-            throw error;
-        });
-        const service = buildOrganizationService(onOrganizationCreated);
-
-        await expect(
-            service.createAndJoinOrg(
-                { ...user, organizationUuid: undefined },
-                { name: 'Organization' },
-            ),
-        ).resolves.toBeUndefined();
-
-        expect(Sentry.captureException).toHaveBeenCalledExactlyOnceWith(error);
-        expect(errorSpy).toHaveBeenCalledOnce();
-        expect(analyticsMock.track).toHaveBeenCalledWith({
-            userId: user.userUuid,
-            event: 'user.joined_organization',
-            properties: {
-                organizationId: organization.organizationUuid,
-                role: OrganizationMemberRole.ADMIN,
-                projectIds: [],
-            },
         });
     });
 
