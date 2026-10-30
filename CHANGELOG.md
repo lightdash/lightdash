@@ -1,3 +1,10 @@
+# [3.108.0](https://github.com/lightdash/lightdash/compare/3.107.0...3.108.0) (2026-10-30)
+
+
+### Features
+
+* **mcp:** restrict MCP access to selected projects ([#31783](https://github.com/lightdash/lightdash/issues/31783)) ([5ce56db](https://github.com/lightdash/lightdash/commit/5ce56db1101be361fdad300060bebe3a4dfc7c8a))
+
 # [3.107.0](https://github.com/lightdash/lightdash/compare/3.106.1...3.107.0) (2026-10-30)
 
 
