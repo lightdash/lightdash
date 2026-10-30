@@ -4,9 +4,11 @@ import {
     FilterOperator,
     getComposerNodeConflictMessage,
     isSameComposerNodeDefinition,
+    MetricType,
     ParameterError,
     QueryHistoryStatus,
     QuerySourceType,
+    TimeFrames,
     toolComposerQueriesOutputSchema,
     toolComposerQueryNodeToSourceQuery,
     type AiWebAppPrompt,
@@ -19,6 +21,7 @@ import {
     type SourceQuery,
     type SubmittedSourceQuery,
     type ThreadComposerQueryNode,
+    type ToolComposerCustomMetric,
     type ToolComposerQueriesArgs,
     type ToolComposerQueriesOutput,
     type ToolComposerSemanticLayerNode,
@@ -31,7 +34,7 @@ import { AgentContext } from '../utils/AgentContext';
 import { getSlackTablePreviews } from '../utils/slackTablePreviews';
 import { mockOrdersExplore } from '../utils/validationExplore.mock';
 import { resolveTerminalNodeId } from './composerQueryPipeline';
-import { resolveComposerQueryNode } from './composerSemanticLayerFilters';
+import { resolveComposerQueryNode } from './composerSemanticLayerNode';
 import {
     getRunComposerQueries,
     type FilterValueHintDependencies,
@@ -1990,5 +1993,540 @@ describe('semanticLayer node parameters', () => {
         expect(dependencies.runComposerQueries).not.toHaveBeenCalled();
         expect(output.metadata.status).toBe('error');
         expect(output.result).toContain('unknown parameter "nonsense"');
+    });
+});
+
+describe('semanticLayer node custom metrics', () => {
+    const buyersNode = (
+        overrides: Partial<ToolComposerSemanticLayerNode>,
+    ): ComposerNode => ({
+        sourceType: QuerySourceType.SEMANTIC_LAYER,
+        nodeId: 'buyers',
+        title: 'Buyers',
+        description: null,
+        exploreName: mockOrdersExplore.name,
+        dimensions: ['orders_product_category'],
+        metrics: ['orders_total_revenue', 'orders_buyers'],
+        filters: null,
+        sorts: null,
+        limit: 500,
+        customMetrics: [
+            {
+                table: 'orders',
+                name: 'buyers',
+                label: 'Buyers',
+                aggregation: MetricType.COUNT_DISTINCT,
+                dimensionFieldId: 'orders_customer_name',
+            },
+        ],
+        ...overrides,
+    });
+    const run = async (node: ComposerNode) => {
+        const made = makeTool();
+        const output = await executeTool(
+            made.tool,
+            makeArgs({ queries: [node] }),
+        );
+        const call = made.dependencies.runComposerQueries.mock.calls[0];
+        const submitted = call
+            ? (call[0].queries as SourceQuery[])[0]
+            : undefined;
+        return { output, submitted, made };
+    };
+
+    it('compiles a custom metric into the metric query the node runs', async () => {
+        const { output, submitted } = await run(buyersNode({}));
+
+        expect(output.metadata.status).toBe('success');
+        expect(submitted).toMatchObject({
+            metrics: ['orders_total_revenue', 'orders_buyers'],
+            additionalMetrics: [
+                {
+                    table: 'orders',
+                    name: 'buyers',
+                    label: 'Buyers',
+                    type: MetricType.COUNT_DISTINCT,
+                    baseDimensionName: 'customer_name',
+                    sql: '${orders.customer_name}',
+                },
+            ],
+        });
+    });
+
+    const customMetric = (
+        overrides: Partial<ToolComposerCustomMetric>,
+    ): ToolComposerCustomMetric => ({
+        table: 'orders',
+        name: 'buyers',
+        label: 'Buyers',
+        aggregation: MetricType.COUNT_DISTINCT,
+        dimensionFieldId: 'orders_customer_name',
+        ...overrides,
+    });
+
+    it("keeps a custom metric's description on the metric query", async () => {
+        const { submitted } = await run(
+            buyersNode({
+                customMetrics: [
+                    customMetric({ description: 'Distinct paying customers' }),
+                ],
+            }),
+        );
+
+        expect(submitted).toMatchObject({
+            additionalMetrics: [{ description: 'Distinct paying customers' }],
+        });
+    });
+
+    it.each([
+        {
+            name: 'an unknown base dimension, listing the dimensions of its table',
+            node: buyersNode({
+                customMetrics: [
+                    customMetric({ dimensionFieldId: 'orders_customer' }),
+                ],
+            }),
+            messages: [
+                '"orders_customer" is not a dimension of table "orders"',
+                'orders_customer_name',
+            ],
+        },
+        {
+            name: 'a base dimension of another table',
+            node: buyersNode({
+                customMetrics: [customMetric({ table: 'users' })],
+            }),
+            messages: [
+                '"orders_customer_name" is not a dimension of table "users"',
+            ],
+        },
+        {
+            name: 'an aggregation the dimension type does not support',
+            node: buyersNode({
+                customMetrics: [
+                    customMetric({ aggregation: MetricType.AVERAGE }),
+                ],
+            }),
+            messages: ['average cannot aggregate the string dimension'],
+        },
+        {
+            name: 'a percentile aggregation without a percentile',
+            node: buyersNode({
+                customMetrics: [
+                    customMetric({
+                        aggregation: MetricType.PERCENTILE,
+                        dimensionFieldId: 'orders_amount',
+                    }),
+                ],
+            }),
+            messages: ['set "percentile" (0–100)'],
+        },
+        {
+            name: 'a percentile on another aggregation',
+            node: buyersNode({
+                customMetrics: [customMetric({ percentile: 90 })],
+            }),
+            messages: [
+                '"percentile" applies only to the percentile aggregation',
+            ],
+        },
+        {
+            name: 'a custom metric missing from metrics',
+            node: buyersNode({ metrics: ['orders_total_revenue'] }),
+            messages: ['add "orders_buyers" to metrics to select it'],
+        },
+        {
+            name: 'a custom metric named like an explore metric',
+            node: buyersNode({
+                metrics: ['orders_total_revenue'],
+                customMetrics: [customMetric({ name: 'total_revenue' })],
+            }),
+            messages: ['"orders_total_revenue" already names a field'],
+        },
+        {
+            name: 'a filter combined with OR',
+            node: buyersNode({
+                customMetrics: [
+                    customMetric({
+                        filter: 'orders_product_category equals=a OR orders_product_category equals=b',
+                    }),
+                ],
+            }),
+            messages: [
+                'filter on "orders_buyers" combines rules with AND only',
+            ],
+        },
+    ])('rejects $name before anything runs', async ({ node, messages }) => {
+        const { output, made } = await run(node);
+
+        expect(output.metadata.status).toBe('error');
+        expect(output.result).toContain(
+            'Invalid customMetrics on semanticLayer node "buyers"',
+        );
+        messages.forEach((message) => expect(output.result).toContain(message));
+        expect(made.dependencies.runComposerQueries).not.toHaveBeenCalled();
+    });
+
+    it('compiles a percentile and a filtered custom metric', async () => {
+        const { submitted } = await run(
+            buyersNode({
+                metrics: ['orders_p90_amount', 'orders_completed'],
+                customMetrics: [
+                    customMetric({
+                        name: 'p90_amount',
+                        label: 'P90 amount',
+                        aggregation: MetricType.PERCENTILE,
+                        dimensionFieldId: 'orders_amount',
+                        percentile: 90,
+                    }),
+                    customMetric({
+                        name: 'completed',
+                        label: 'Active orders',
+                        aggregation: MetricType.COUNT,
+                        dimensionFieldId: 'orders_order_id',
+                        filter: 'orders_is_active equals=true AND orders_amount greaterThan=10',
+                    }),
+                ],
+            }),
+        );
+
+        expect(submitted).toMatchObject({
+            additionalMetrics: [
+                { name: 'p90_amount', percentile: 90 },
+                {
+                    name: 'completed',
+                    filters: [
+                        {
+                            target: { fieldRef: 'orders.is_active' },
+                            operator: FilterOperator.EQUALS,
+                            values: [true],
+                        },
+                        {
+                            target: { fieldRef: 'orders.amount' },
+                            operator: FilterOperator.GREATER_THAN,
+                            values: [10],
+                        },
+                    ],
+                },
+            ],
+        });
+    });
+
+    it('filters and sorts the node by a custom metric', async () => {
+        const { output, submitted } = await run(
+            buyersNode({
+                filters: {
+                    dimensions: null,
+                    metrics: 'orders_buyers greaterThan=5',
+                },
+                sorts: [{ fieldId: 'orders_buyers', descending: true }],
+            }),
+        );
+
+        expect(output.metadata.status).toBe('success');
+        expect(submitted).toMatchObject({
+            filters: {
+                metrics: {
+                    and: [
+                        {
+                            target: { fieldId: 'orders_buyers' },
+                            operator: FilterOperator.GREATER_THAN,
+                            values: [5],
+                        },
+                    ],
+                },
+            },
+            sorts: [{ fieldId: 'orders_buyers', descending: true }],
+        });
+    });
+
+    it('accepts an unchanged node with a filtered custom metric resubmitted in a later call', async () => {
+        const node = buyersNode({
+            customMetrics: [
+                customMetric({ filter: 'orders_is_active equals=true' }),
+            ],
+        });
+        const registry = makeNodeRegistry();
+        const first = makeTool({ registry });
+        expect(
+            (await executeTool(first.tool, makeArgs({ queries: [node] })))
+                .metadata.status,
+        ).toBe('success');
+
+        const second = makeTool({ registry });
+        const output = await executeTool(
+            second.tool,
+            makeArgs({ queries: [node] }),
+            'tool-call-2',
+        );
+
+        expect(output.metadata.status).toBe('success');
+        expect(registry.nodes('thread-uuid')).toHaveLength(1);
+    });
+});
+
+describe('semanticLayer node period comparisons', () => {
+    const { orders } = mockOrdersExplore.tables;
+    const exploreWithMonth: Explore = {
+        ...mockOrdersExplore,
+        tables: {
+            ...mockOrdersExplore.tables,
+            orders: {
+                ...orders,
+                dimensions: {
+                    ...orders.dimensions,
+                    order_date_month: {
+                        ...orders.dimensions.order_date,
+                        name: 'order_date_month',
+                        timeInterval: TimeFrames.MONTH,
+                        timeIntervalBaseDimensionName: 'order_date',
+                    },
+                },
+            },
+        },
+    };
+    const monthlyNode = (
+        overrides: Partial<ToolComposerSemanticLayerNode>,
+    ): ComposerNode => ({
+        sourceType: QuerySourceType.SEMANTIC_LAYER,
+        nodeId: 'monthly',
+        title: 'Monthly revenue',
+        description: null,
+        exploreName: mockOrdersExplore.name,
+        dimensions: ['orders_order_date_month'],
+        metrics: ['orders_total_revenue'],
+        filters: null,
+        sorts: null,
+        limit: 500,
+        periodComparisons: [
+            {
+                metricFieldId: 'orders_total_revenue',
+                timeDimensionFieldId: 'orders_order_date_month',
+                periodOffset: 12,
+            },
+        ],
+        ...overrides,
+    });
+    const run = async (node: ComposerNode) => {
+        const made = makeTool({
+            agentContext: new AgentContext([exploreWithMonth]),
+        });
+        const output = await executeTool(
+            made.tool,
+            makeArgs({ queries: [node] }),
+        );
+        const call = made.dependencies.runComposerQueries.mock.calls[0];
+        const submitted = call
+            ? (call[0].queries as SourceQuery[])[0]
+            : undefined;
+        return { output, submitted, made };
+    };
+
+    it('appends the shifted metric next to its base metric, at the time dimension grain', async () => {
+        const { output, submitted } = await run(
+            monthlyNode({
+                metrics: ['orders_total_revenue', 'orders_order_count'],
+            }),
+        );
+
+        expect(output.metadata.status).toBe('success');
+        expect(submitted).toMatchObject({
+            metrics: [
+                'orders_total_revenue',
+                expect.stringMatching(/^orders_total_revenue__pop__month_12__/),
+                'orders_order_count',
+            ],
+            additionalMetrics: [
+                {
+                    generationType: 'periodOverPeriod',
+                    baseMetricId: 'orders_total_revenue',
+                    timeDimensionId: 'orders_order_date_month',
+                    granularity: TimeFrames.MONTH,
+                    periodOffset: 12,
+                },
+            ],
+        });
+    });
+
+    it('compares a custom metric', async () => {
+        const { output, submitted } = await run(
+            monthlyNode({
+                metrics: ['orders_buyers'],
+                customMetrics: [
+                    {
+                        table: 'orders',
+                        name: 'buyers',
+                        label: 'Buyers',
+                        aggregation: MetricType.COUNT_DISTINCT,
+                        dimensionFieldId: 'orders_customer_name',
+                    },
+                ],
+                periodComparisons: [
+                    {
+                        metricFieldId: 'orders_buyers',
+                        timeDimensionFieldId: 'orders_order_date_month',
+                        periodOffset: 1,
+                    },
+                ],
+            }),
+        );
+
+        expect(output.metadata.status).toBe('success');
+        expect(submitted).toMatchObject({
+            metrics: [
+                'orders_buyers',
+                expect.stringMatching(/^orders_buyers__pop__month_1__/),
+            ],
+            additionalMetrics: [
+                { name: 'buyers' },
+                {
+                    generationType: 'periodOverPeriod',
+                    baseMetricId: 'orders_buyers',
+                    sql: '${orders.customer_name}',
+                },
+            ],
+        });
+    });
+
+    it('keeps the percentile of a compared percentile custom metric', async () => {
+        const { submitted } = await run(
+            monthlyNode({
+                metrics: ['orders_p90_amount'],
+                customMetrics: [
+                    {
+                        table: 'orders',
+                        name: 'p90_amount',
+                        label: 'P90 amount',
+                        aggregation: MetricType.PERCENTILE,
+                        dimensionFieldId: 'orders_amount',
+                        percentile: 90,
+                    },
+                ],
+                periodComparisons: [
+                    {
+                        metricFieldId: 'orders_p90_amount',
+                        timeDimensionFieldId: 'orders_order_date_month',
+                        periodOffset: 1,
+                    },
+                ],
+            }),
+        );
+
+        expect(submitted).toMatchObject({
+            additionalMetrics: [
+                { name: 'p90_amount' },
+                {
+                    generationType: 'periodOverPeriod',
+                    type: MetricType.PERCENTILE,
+                    percentile: 90,
+                },
+            ],
+        });
+    });
+
+    it('reports custom metric, period comparison and filter errors together', async () => {
+        const { output, made } = await run(
+            monthlyNode({
+                metrics: ['orders_total_revenue', 'orders_buyers'],
+                filters: {
+                    dimensions: 'orders_customer_nam equals=Alice',
+                    metrics: null,
+                },
+                customMetrics: [
+                    {
+                        table: 'orders',
+                        name: 'buyers',
+                        label: 'Buyers',
+                        aggregation: MetricType.AVERAGE,
+                        dimensionFieldId: 'orders_customer_name',
+                    },
+                ],
+                periodComparisons: [
+                    {
+                        metricFieldId: 'orders_buyers',
+                        timeDimensionFieldId: 'orders_order_date_month',
+                        periodOffset: 1,
+                    },
+                    {
+                        metricFieldId: 'orders_order_count',
+                        timeDimensionFieldId: 'orders_order_date_month',
+                        periodOffset: 1,
+                    },
+                ],
+            }),
+        );
+
+        expect(output.metadata.status).toBe('error');
+        expect(output.result).toContain('average cannot aggregate');
+        expect(output.result).toContain(
+            '"orders_order_count" must be in metrics',
+        );
+        expect(output.result).not.toContain('"orders_buyers" must be');
+        expect(output.result).toContain(
+            'Invalid filters on semanticLayer node "monthly"',
+        );
+        expect(made.dependencies.runComposerQueries).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        {
+            name: 'a time dimension the node does not select',
+            node: monthlyNode({ dimensions: ['orders_customer_name'] }),
+            message: '"orders_order_date_month" must be in dimensions',
+        },
+        {
+            name: 'a dimension without a time grain',
+            node: monthlyNode({
+                dimensions: ['orders_order_date'],
+                periodComparisons: [
+                    {
+                        metricFieldId: 'orders_total_revenue',
+                        timeDimensionFieldId: 'orders_order_date',
+                        periodOffset: 1,
+                    },
+                ],
+            }),
+            message:
+                '"orders_order_date" has no day, week, month, quarter or year grain',
+        },
+        {
+            name: 'a metric the node does not select',
+            node: monthlyNode({ metrics: ['orders_order_count'] }),
+            message: '"orders_total_revenue" must be in metrics',
+        },
+        {
+            name: 'a filtered custom metric',
+            node: monthlyNode({
+                metrics: ['orders_active'],
+                customMetrics: [
+                    {
+                        table: 'orders',
+                        name: 'active',
+                        label: 'Active',
+                        aggregation: MetricType.COUNT,
+                        dimensionFieldId: 'orders_order_id',
+                        filter: 'orders_is_active equals=true',
+                    },
+                ],
+                periodComparisons: [
+                    {
+                        metricFieldId: 'orders_active',
+                        timeDimensionFieldId: 'orders_order_date_month',
+                        periodOffset: 1,
+                    },
+                ],
+            }),
+            message:
+                'cannot compare the filtered custom metric "orders_active"',
+        },
+    ])('rejects $name before anything runs', async ({ node, message }) => {
+        const { output, made } = await run(node);
+
+        expect(output.metadata.status).toBe('error');
+        expect(output.result).toContain(
+            'Invalid periodComparisons on semanticLayer node "monthly"',
+        );
+        expect(output.result).toContain(message);
+        expect(made.dependencies.runComposerQueries).not.toHaveBeenCalled();
     });
 });

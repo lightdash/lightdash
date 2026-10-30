@@ -3160,7 +3160,7 @@
                 "readOnlyHint": true,
                 "title": "Run composer queries"
             },
-            "description": "Run a pipeline: one or more nodes submitted together, where duckdb and python nodes join or transform other nodes' results. A pipeline of one node runs a single semantic-layer or SQL query, and later calls can reuse its node.\n\nNode kinds:\n- \"semanticLayer\": a metric query against an explore. Result columns are the requested field ids.\n- \"sql\": raw SQL against the project warehouse; available only when run_sql is.\n- \"external\": DuckDB SQL over uploaded or connected tables declared in \"tables\".\n- \"duckdb\": DuckDB SQL over other results declared in \"references\".\n- \"python\": pandas code over other results declared in \"references\".\n\nA node reads only the rows its references returned, so a referenced result that reached its limit is incomplete: before totalling, averaging or ranking over it, give that node a limit that holds its whole population, or aggregate there.\n\nA python node's \"code\" defines `def run(inputs, params)`, and semanticLayer \"filters\" are flat expression strings; each field documents its contract.\n\nReuse earlier nodes: a result returns a sessionId once a node has finished; finished nodes are saved in it. On a follow-up, pass that sessionId and read saved nodes by node id in \"references\", submitting only the new nodes. Reused nodes come with everything they read and are served from cache when possible, so results come back faster. A saved node id names one node for the whole session, so give a changed node a new node id; a failed or unfinished node is not saved, so resubmit it under the same id. Omit sessionId to start a new session.\n\nReturns a preview of the terminal node's rows and every node's queryUuid. The terminal node is the unique sink, or the node named in terminalNodeId. If the result is running, follow up with get_query_result on the terminal node's queryUuid; it also fetches the first page of any node's result by its queryUuid. query computes data only; it saves and charts nothing.",
+            "description": "Run a pipeline: one or more nodes submitted together, where duckdb and python nodes join or transform other nodes' results. A pipeline of one node runs a single semantic-layer or SQL query, and later calls can reuse its node.\n\nNode kinds:\n- \"semanticLayer\": a metric query against an explore, with optional custom metrics and period comparisons. Result columns are the requested field ids, plus a generated column per period comparison.\n- \"sql\": raw SQL against the project warehouse; available only when run_sql is.\n- \"external\": DuckDB SQL over uploaded or connected tables declared in \"tables\".\n- \"duckdb\": DuckDB SQL over other results declared in \"references\".\n- \"python\": pandas code over other results declared in \"references\".\n\nA node reads only the rows its references returned, so a referenced result that reached its limit is incomplete: before totalling, averaging or ranking over it, give that node a limit that holds its whole population, or aggregate there.\n\nA python node's \"code\" defines `def run(inputs, params)`, and semanticLayer \"filters\" are flat expression strings; each field documents its contract.\n\nReuse earlier nodes: a result returns a sessionId once a node has finished; finished nodes are saved in it. On a follow-up, pass that sessionId and read saved nodes by node id in \"references\", submitting only the new nodes. Reused nodes come with everything they read and are served from cache when possible, so results come back faster. A saved node id names one node for the whole session, so give a changed node a new node id; a failed or unfinished node is not saved, so resubmit it under the same id. Omit sessionId to start a new session.\n\nReturns a preview of the terminal node's rows and every node's queryUuid. The terminal node is the unique sink, or the node named in terminalNodeId. If the result is running, follow up with get_query_result on the terminal node's queryUuid; it also fetches the first page of any node's result by its queryUuid. query computes data only; it saves and charts nothing.",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "properties": {
@@ -3174,6 +3174,93 @@
                             "anyOf": [
                                 {
                                     "properties": {
+                                        "customMetrics": {
+                                            "anyOf": [
+                                                {
+                                                    "items": {
+                                                        "properties": {
+                                                            "aggregation": {
+                                                                "description": "Aggregation over the base dimension. Number dimensions take any; string, date and timestamp dimensions take count, count_distinct, min or max; boolean dimensions take count or count_distinct.",
+                                                                "enum": [
+                                                                    "sum",
+                                                                    "average",
+                                                                    "count",
+                                                                    "count_distinct",
+                                                                    "min",
+                                                                    "max",
+                                                                    "median",
+                                                                    "percentile"
+                                                                ],
+                                                                "type": "string"
+                                                            },
+                                                            "description": {
+                                                                "description": "Shown to users as the metric's description. Null when the label is enough.",
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "dimensionFieldId": {
+                                                                "description": "Field id of the dimension to aggregate, a dimension of \"table\".",
+                                                                "type": "string"
+                                                            },
+                                                            "filter": {
+                                                                "anyOf": [
+                                                                    {
+                                                                        "maxLength": 16384,
+                                                                        "minLength": 1,
+                                                                        "type": "string"
+                                                                    },
+                                                                    {
+                                                                        "type": "null"
+                                                                    }
+                                                                ],
+                                                                "description": "Aggregates only the rows this flat AND expression over dimensions matches, in the node filter grammar, e.g. \"orders_status equals=completed\". Null aggregates every row."
+                                                            },
+                                                            "label": {
+                                                                "description": "Column label shown to users.",
+                                                                "type": "string"
+                                                            },
+                                                            "name": {
+                                                                "description": "snake_case name. The metric's field id is \"<table>_<name>\": list it in \"metrics\" to select it, and use it in sorts, metric filters and periodComparisons.",
+                                                                "pattern": "^[a-z][a-z0-9_]*$",
+                                                                "type": "string"
+                                                            },
+                                                            "percentile": {
+                                                                "anyOf": [
+                                                                    {
+                                                                        "maximum": 100,
+                                                                        "minimum": 0,
+                                                                        "type": "number"
+                                                                    },
+                                                                    {
+                                                                        "type": "null"
+                                                                    }
+                                                                ],
+                                                                "description": "0–100, set only for the percentile aggregation."
+                                                            },
+                                                            "table": {
+                                                                "description": "Table of the base dimension; the metric belongs to it.",
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "table",
+                                                            "name",
+                                                            "label",
+                                                            "aggregation",
+                                                            "dimensionFieldId"
+                                                        ],
+                                                        "type": "object"
+                                                    },
+                                                    "type": "array"
+                                                },
+                                                {
+                                                    "type": "null"
+                                                }
+                                            ],
+                                            "description": "Metrics the explore lacks, each an aggregation over one of its dimensions, computed in this query."
+                                        },
                                         "description": {
                                             "description": "One sentence for a business user on what this node does to the data, adding to the title rather than repeating it, e.g. \"Sums completed order revenue per month over the last year.\" Shown as the node's heading in the pipeline list.",
                                             "type": "string"
@@ -3261,8 +3348,42 @@
                                                     "type": "null"
                                                 }
                                             ],
-                                            "default": null,
                                             "description": "Parameter values for this node, keyed by parameter name exactly as shown in the explore metadata (e.g. {\"orders.metric\": \"active_users\"}). Set them whenever a selected field is marked \"requires parameters\" and the default does not match what the user asked for: an unset parameter silently resolves to its default, which can return the wrong data. null when the explore has no parameters or the defaults are correct."
+                                        },
+                                        "periodComparisons": {
+                                            "anyOf": [
+                                                {
+                                                    "items": {
+                                                        "properties": {
+                                                            "metricFieldId": {
+                                                                "description": "Metric to compare: a field id in \"metrics\", explore or custom.",
+                                                                "type": "string"
+                                                            },
+                                                            "periodOffset": {
+                                                                "description": "Periods to look back: 1 for the previous period, 12 on a month grain for the same month last year.",
+                                                                "maximum": 9007199254740991,
+                                                                "minimum": 1,
+                                                                "type": "integer"
+                                                            },
+                                                            "timeDimensionFieldId": {
+                                                                "description": "Time dimension in \"dimensions\" with a day, week, month, quarter or year grain; the offset counts in that grain.",
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "metricFieldId",
+                                                            "timeDimensionFieldId",
+                                                            "periodOffset"
+                                                        ],
+                                                        "type": "object"
+                                                    },
+                                                    "type": "array"
+                                                },
+                                                {
+                                                    "type": "null"
+                                                }
+                                            ],
+                                            "description": "Each adds a column holding a metric shifted back in time, next to that metric, e.g. revenue the same month last year. The warehouse reads the earlier period even when the filters exclude it. The column id is generated; read it from the result columns."
                                         },
                                         "sorts": {
                                             "description": "Sorts by fields this node also selects in dimensions or metrics, e.g. [{\"fieldId\": \"orders_order_date\", \"descending\": true}].",
