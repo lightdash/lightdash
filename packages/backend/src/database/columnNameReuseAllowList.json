@@ -42,5 +42,13 @@
     {
         "column": "data_app_analyses.dashboard_uuid",
         "reason": "Previous releases never join data_app_analyses to dashboards or any table carrying dashboard_uuid; every existing query filters data_app_analyses on its own columns (app_id, created_by_user_uuid, content_hash)."
+    },
+    {
+        "column": "ai_thread_file.kind",
+        "reason": "Previous releases read and update ai_thread_file only through single-table queries in AiThreadFileModel, so the defaulted discriminator cannot make an existing joined column ambiguous."
+    },
+    {
+        "column": "ai_thread_file.storage_key",
+        "reason": "Previous releases read and update ai_thread_file only through single-table queries in AiThreadFileModel; no existing join can become ambiguous when the nullable object reference is added."
     }
 ]

@@ -1,5 +1,20 @@
 /** Per-file cap for documents attached to an agent conversation. */
 export const AI_THREAD_FILE_MAX_BYTES = 1024 * 1024;
+export const AI_THREAD_IMAGE_MAX_BYTES = 3 * 1024 * 1024;
+export const AI_THREAD_IMAGE_INPUT_MAX_BYTES = 10 * 1024 * 1024;
+export const AI_THREAD_IMAGE_MAX_DIMENSION = 2560;
+export const AI_THREAD_IMAGE_MAX_PIXELS = 40_000_000;
+export const AI_THREAD_IMAGES_MAX_PER_PROMPT = 5;
+export const AI_THREAD_IMAGES_MAX_PER_THREAD = 10;
+export const AI_THREAD_IMAGES_MAX_THREAD_BYTES = 12 * 1024 * 1024;
+export const AI_THREAD_IMAGE_RETENTION_DAYS = 30;
+export const AI_THREAD_IMAGE_MEDIA_TYPES = [
+    'image/png',
+    'image/jpeg',
+    'image/webp',
+] as const;
+export type AiThreadImageMediaType =
+    (typeof AI_THREAD_IMAGE_MEDIA_TYPES)[number];
 export const AI_THREAD_FILE_MAX_NAME_LENGTH = 255;
 /** Total attached-file bytes a single prompt inlines into the model context. */
 export const AI_THREAD_FILE_INLINE_BUDGET_BYTES = 32 * 1024;
@@ -29,8 +44,8 @@ export const AI_THREAD_FILE_PICKER_EXTENSIONS = [
     '.tsv',
 ] as const;
 
-/** A text document uploaded by a user for an agent conversation. */
-export type AiThreadFile = {
+/** A file uploaded by a user for an agent conversation. */
+type AiThreadFileMetadata = {
     uuid: string;
     fileName: string;
     sizeBytes: number;
@@ -39,6 +54,18 @@ export type AiThreadFile = {
     promptUuid: string | null;
     createdAt: Date;
 };
+
+export type AiThreadFile = AiThreadFileMetadata &
+    (
+        | { kind: 'text' }
+        | {
+              kind: 'image';
+              mediaType: AiThreadImageMediaType;
+              width: number;
+              height: number;
+              expiresAt: Date;
+          }
+    );
 
 export type ApiAiThreadFileResponse = {
     status: 'ok';

@@ -1,4 +1,4 @@
-import { ChartKind } from '@lightdash/common';
+import { ChartKind, assertUnreachable } from '@lightdash/common';
 import { Anchor, Box, Text, type AnchorProps } from '@mantine/core';
 import {
     IconAppWindow,
@@ -16,6 +16,7 @@ import {
     IconLicense,
     IconMessages,
     IconPencil,
+    IconPhoto,
     IconSearch,
     IconSend,
     IconSitemap,
@@ -47,6 +48,7 @@ type ContentReferenceKind =
     | 'repository'
     | 'external_source'
     | 'thread_file'
+    | 'thread_image'
     | 'pull_request'
     | 'proposed_change'
     | 'review_finding'
@@ -154,6 +156,8 @@ const getIconMeta = ({
                 fill: 'teal.4',
                 icon: IconFileSpreadsheet,
             };
+        case 'thread_image':
+            return { color: 'ldGray.7', fill: 'ldGray.4', icon: IconPhoto };
         case 'thread_file':
             return {
                 color: 'ldGray.7',
@@ -198,12 +202,13 @@ const getIconMeta = ({
             };
         case 'chart':
         case 'sql_chart':
-        default:
             return {
                 color: 'blue.7',
                 fill: 'blue.4',
                 icon: getChartIcon(chartKind ?? ChartKind.VERTICAL_BAR),
             };
+        default:
+            return assertUnreachable(kind, 'Unknown content reference kind');
     }
 };
 

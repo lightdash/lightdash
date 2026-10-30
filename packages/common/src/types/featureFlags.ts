@@ -226,6 +226,8 @@ export enum FeatureFlags {
      * experiment, off by default.
      */
     AiAgentBattleMode = 'ai-agent-battle-mode',
+    /** Browser chat images, off by default; requires compatible readers and durable storage before enablement. */
+    AiThreadImages = 'ai-thread-images',
     /**
      * Slack agent answers send eligible bar/line charts as native charts. Off by default; standard
      * resolver for the prompt author: ENV enable/disable lists, then user → org override → default.
