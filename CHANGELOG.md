@@ -1,3 +1,21 @@
+# [3.110.0](https://github.com/lightdash/lightdash/compare/3.109.1...3.110.0) (2026-10-30)
+
+
+### Bug Fixes
+
+* **dashboard-controls:** decided follow-ups on the filter flow ([#31869](https://github.com/lightdash/lightdash/issues/31869)) ([8288cd9](https://github.com/lightdash/lightdash/commit/8288cd964119cbe2e0b6ec1f15f0e3c53e802ae9))
+* **dashboard-controls:** name edit mode with an indigo badge ([#31872](https://github.com/lightdash/lightdash/issues/31872)) ([75654ba](https://github.com/lightdash/lightdash/commit/75654bab518c88df2beac2bb38c242000fdf9431))
+* **dashboard-controls:** open a section's new filter at its "+" ([#31859](https://github.com/lightdash/lightdash/issues/31859)) ([3ae583f](https://github.com/lightdash/lightdash/commit/3ae583f2349e1fc36bb6fd8a901bae1e0764f780))
+* **dashboard-controls:** shrink the bar to one line while mapping ([#31874](https://github.com/lightdash/lightdash/issues/31874)) ([a0b66c4](https://github.com/lightdash/lightdash/commit/a0b66c40734378fbe2cf456929d949380539d3fb))
+* **dashboard-controls:** tell table from field on mapping chips ([#31873](https://github.com/lightdash/lightdash/issues/31873)) ([b387fc6](https://github.com/lightdash/lightdash/commit/b387fc638a4ff02d7fb7f30342a70748054e5829))
+* **previews:** inherit the parent SSH private key on credential refresh ([#31868](https://github.com/lightdash/lightdash/issues/31868)) ([661cd29](https://github.com/lightdash/lightdash/commit/661cd29763e9faab20d79d8a937c3ec3c1b3e3f1))
+
+
+### Features
+
+* **dashboard-controls:** bulk actions follow the tab in view ([#31876](https://github.com/lightdash/lightdash/issues/31876)) ([4c1545b](https://github.com/lightdash/lightdash/commit/4c1545bdfe7498ea7fc7ab39e6cb947e3c5af658))
+* **dashboard-controls:** drag a filter by the whole pill ([#31870](https://github.com/lightdash/lightdash/issues/31870)) ([1f70b98](https://github.com/lightdash/lightdash/commit/1f70b98b80058dae031336e76bf94063d37e72dd))
+
 ## [3.109.1](https://github.com/lightdash/lightdash/compare/3.109.0...3.109.1) (2026-10-30)
 
 
