@@ -151,7 +151,8 @@ const toAdditionalMetric = (
             ? { description: customMetric.description }
             : {}),
         type: customMetric.aggregation,
-        sql: dimension.sql,
+        // A reference, as Explore stores it, so the metric follows the dimension.
+        sql: `\${${dimension.table}.${dimension.name}}`,
         baseDimensionName: dimension.name,
         ...(percentile !== null ? { percentile } : {}),
         ...(filters.length > 0 ? { filters } : {}),

@@ -2047,7 +2047,7 @@ describe('semanticLayer node custom metrics', () => {
                     label: 'Buyers',
                     type: MetricType.COUNT_DISTINCT,
                     baseDimensionName: 'customer_name',
-                    sql: '${TABLE}.customer_name',
+                    sql: '${orders.customer_name}',
                 },
             ],
         });
@@ -2382,7 +2382,7 @@ describe('semanticLayer node period comparisons', () => {
                 {
                     generationType: 'periodOverPeriod',
                     baseMetricId: 'orders_buyers',
-                    sql: '${TABLE}.customer_name',
+                    sql: '${orders.customer_name}',
                 },
             ],
         });
