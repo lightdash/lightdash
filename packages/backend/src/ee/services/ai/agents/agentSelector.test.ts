@@ -1,7 +1,12 @@
 import type { AiAgentWithContext } from '@lightdash/common';
 import { generateText } from 'ai';
 import { AiDecisionClient } from '../decisions/AiDecisionClient';
-import { selectAgent } from './agentSelector';
+import {
+    buildRoutingContext,
+    renderRouterDecisionState,
+    renderRouterMessages,
+    selectAgent,
+} from './agentSelector';
 
 vi.mock('ai', async (importOriginal) => ({
     ...(await importOriginal<typeof import('ai')>()),
@@ -103,5 +108,71 @@ describe('agent routing abstention', () => {
             selectedAgentUuid: 'finance',
             confidence: 'medium',
         });
+    });
+});
+
+describe('routing context', () => {
+    const richCandidates = [
+        {
+            uuid: 'sales',
+            name: 'Sales',
+            description: 'Sales questions',
+            instruction: 'Answer in GBP',
+            context: {
+                explores: ['orders'],
+                verifiedQuestions: Array.from(
+                    { length: 20 },
+                    (_, i) => `question ${i}`,
+                ),
+            },
+        },
+        {
+            uuid: 'finance',
+            name: 'Finance',
+            description: null,
+            instruction: null,
+            context: { explores: [], verifiedQuestions: [] },
+        },
+    ] as unknown as AiAgentWithContext[];
+
+    it('feeds the decisions provider and the model the same inputs', () => {
+        const context = buildRoutingContext({
+            candidates: richCandidates,
+            prompt: 'Revenue by region',
+            instructions: 'Route GBP questions to @[Sales](sales)',
+        });
+        const state = renderRouterDecisionState(context);
+        const [system, user] = renderRouterMessages(context);
+        const systemText = String(system.content);
+
+        expect(state.prompt).toBe('Revenue by region');
+        expect(String(user.content)).toContain('Revenue by region');
+        expect(state.instructions).toBe(
+            'Route GBP questions to @[Sales](sales)',
+        );
+        expect(systemText).toContain('Route GBP questions to @[Sales](sales)');
+        state.candidates.forEach((candidate) => {
+            expect(systemText).toContain(candidate.uuid);
+            expect(systemText).toContain(candidate.name);
+            candidate.explores.forEach((explore) =>
+                expect(systemText).toContain(explore),
+            );
+            candidate.questions.forEach((question) =>
+                expect(systemText).toContain(question),
+            );
+        });
+        expect(state.candidates[0].questions).toHaveLength(15);
+    });
+
+    it('treats blank admin instructions as none on both paths', () => {
+        const context = buildRoutingContext({
+            candidates: richCandidates,
+            prompt: 'Revenue',
+            instructions: '   ',
+        });
+        expect(renderRouterDecisionState(context).instructions).toBeNull();
+        expect(String(renderRouterMessages(context)[0].content)).not.toContain(
+            'Admin Routing Rules',
+        );
     });
 });
