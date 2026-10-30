@@ -87,6 +87,11 @@ objects only after successful conversion. Unknown streams are skipped. Part
 names are deterministic for the input-key set; late-arriving files can produce
 additional parts. There is not necessarily one file per day or one file per org.
 
+With Google OAuth storage, a token can expire during a long partition query.
+Compaction retries an HTTP 401 once in a new query session using the same inputs
+and output key. If that retry fails, raw inputs and the checkpoint remain for
+the next run. This does not extend the token lifetime for a single query.
+
 Compaction reduces the small-file overhead of independent writers and produces
 a columnar format suitable for analytics. The reader only sees compacted output,
 so capture is not immediately visible in Explore. Event delivery does not have
