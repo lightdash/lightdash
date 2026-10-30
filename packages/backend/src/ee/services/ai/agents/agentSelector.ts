@@ -46,6 +46,12 @@ export type RouterDecision = {
     shouldSkipForwardingQuery: boolean;
 };
 
+/** The dashboard or chart the user is looking at while asking. */
+export type RoutingAskedFrom = {
+    type: 'dashboard' | 'chart';
+    name: string;
+};
+
 export type RoutingCandidate = {
     uuid: string;
     name: string;
@@ -58,6 +64,7 @@ export type RoutingCandidate = {
 // The decisions provider receives this object as-is, so its field names are part of that request.
 export type RoutingContext = {
     prompt: string;
+    askedFrom: RoutingAskedFrom | null;
     instructions: string | null;
     candidates: RoutingCandidate[];
 };
@@ -67,13 +74,16 @@ const MAX_VERIFIED_QUESTIONS_PER_CANDIDATE = 5;
 export const buildRoutingContext = ({
     candidates,
     prompt,
+    askedFrom,
     instructions,
 }: {
     candidates: AiAgentWithContext[];
     prompt: string;
+    askedFrom: RoutingAskedFrom | null;
     instructions: string | null;
 }): RoutingContext => ({
     prompt,
+    askedFrom,
     instructions:
         instructions && instructions.trim().length > 0 ? instructions : null,
     candidates: candidates.map((agent) => ({
@@ -111,6 +121,7 @@ Available Agents:
 {{adminInstructions}}
 Selection Guidelines:
 - Choose the agent whose specialization best matches the query topic
+- When the user is asking from a dashboard or chart, treat its name as part of the query topic
 - Prioritize agents with relevant data access (explores)
 - Consider agents that have answered similar questions before
 - If no perfect match, choose the most general-purpose agent
@@ -167,11 +178,14 @@ export function renderRouterMessages(context: RoutingContext): ModelMessage[] {
         '{{adminInstructions}}',
         renderAdminInstructions(context.instructions),
     );
+    const askedFrom = context.askedFrom
+        ? `\nAsked from the ${context.askedFrom.type} "${context.askedFrom.name}".`
+        : '';
     return [
         { role: 'system', content: systemPrompt },
         {
             role: 'user',
-            content: `User Query: "${context.prompt}"\n\nPlease select the best agent to handle this query and explain your reasoning.`,
+            content: `User Query: "${context.prompt}"${askedFrom}\n\nPlease select the best agent to handle this query and explain your reasoning.`,
         },
     ];
 }
@@ -190,7 +204,7 @@ async function decideWithProvider(
             agent: {
                 type: 'choice',
                 instructions:
-                    'Choose the agent whose instructions, accessible explores and examples best fit the request. Follow the admin routing instructions when they identify a listed agent. Choose none when there is no clear match.',
+                    'Choose the agent whose instructions, accessible explores and examples best fit the request. When askedFrom is set, the dashboard or chart the user is looking at is part of the request. Follow the admin routing instructions when they identify a listed agent. Choose none when there is no clear match.',
                 criteria: {
                     ...Object.fromEntries(
                         context.candidates.map((c) => [c.uuid, c.name]),
@@ -274,6 +288,7 @@ export async function selectAgent({
     model,
     candidates,
     prompt,
+    askedFrom = null,
     instructions = null,
     telemetry,
     decisions,
@@ -281,6 +296,7 @@ export async function selectAgent({
     model: LanguageModel;
     candidates: AiAgentWithContext[];
     prompt: string;
+    askedFrom?: RoutingAskedFrom | null;
     instructions?: string | null;
     telemetry?: AiCallAttribution;
     decisions?: AiDecisionClient;
@@ -298,7 +314,12 @@ export async function selectAgent({
         };
     }
 
-    const context = buildRoutingContext({ candidates, prompt, instructions });
+    const context = buildRoutingContext({
+        candidates,
+        prompt,
+        askedFrom,
+        instructions,
+    });
 
     if (decisions && context.candidates.length <= MAX_DECISION_CANDIDATES) {
         const decision = await decideWithProvider(decisions, context);
