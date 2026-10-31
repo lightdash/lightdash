@@ -817,6 +817,8 @@ export type ComposerRunningOutcome = {
 export type RunComposerQueriesUntilDeadlineFn = (args: {
     queries: SourceQuery[];
     terminalNodeId: string;
+    /** Ready nodes to read a node sample of, also when the terminal is still running. */
+    sampleNodeIds: string[];
     deadlineMs: number;
 }) => Promise<ComposerRunOutcome | ComposerRunningOutcome>;
 

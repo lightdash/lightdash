@@ -1013,10 +1013,7 @@ export class AiAgentToolsService extends BaseService {
                 return run;
             },
             runComposerQueriesUntilDeadline: (args) =>
-                this.runComposerQueries(context, {
-                    ...args,
-                    sampleNodeIds: [],
-                }),
+                this.runComposerQueries(context, args),
             listWarehouseTables: (queryContext) =>
                 this.listWarehouseTables(context, queryContext),
             describeWarehouseTable: (args) =>
@@ -4879,6 +4876,20 @@ export class AiAgentToolsService extends BaseService {
                     });
                 };
 
+                const withSamples = async <
+                    T extends { nodeStatuses: ComposerNodeStatus[] },
+                >(
+                    settled: T,
+                ): Promise<T> => ({
+                    ...settled,
+                    nodeStatuses: await this.readComposerNodeSamples(
+                        context,
+                        submissions,
+                        settled.nodeStatuses,
+                        sampleNodeIds,
+                    ),
+                });
+
                 let outcome: ComposerRunOutcome;
                 try {
                     const polled = await this.pollComposerTerminal({
@@ -4890,7 +4901,8 @@ export class AiAgentToolsService extends BaseService {
                         pollNodeStatuses,
                     });
                     if (polled.status === 'running') {
-                        if (timeoutMessage === undefined) return polled;
+                        if (timeoutMessage === undefined)
+                            return await withSamples(polled);
                         outcome = await this.failComposerRun(
                             context,
                             submissions,
@@ -4917,15 +4929,7 @@ export class AiAgentToolsService extends BaseService {
                 if (outcome.status === 'failure') {
                     emitUnfinishedAsError(outcome.error);
                 }
-                return {
-                    ...outcome,
-                    nodeStatuses: await this.readComposerNodeSamples(
-                        context,
-                        submissions,
-                        outcome.nodeStatuses,
-                        sampleNodeIds,
-                    ),
-                };
+                return withSamples(outcome);
             },
         );
     }

@@ -98,7 +98,9 @@ ${getComposerNodeKindsDescription({
 
 Reuse across calls: a node id names one node for the whole thread. To build on a node from an earlier call, read its node id in "references" without resubmitting it; it is copied into this pipeline with everything it reads and served from cache when possible. Resubmitting a node id with a different definition is an error, so give a changed node a new node id.`;
 
-export const MCP_TOOL_QUERY_DESCRIPTION = `Run a pipeline: one or more nodes submitted together, where duckdb and python nodes join or transform other nodes' results. A pipeline of one node runs a single semantic-layer or SQL query, and later calls can reuse its node.
+export const MCP_TOOL_QUERY_DESCRIPTION = `Run a pipeline: one or more nodes submitted together, where duckdb and python nodes join or transform other nodes' results. A pipeline of one node runs a single semantic-layer or SQL query.
+
+One call returns one node's rows, so exactly one submitted node may go unread by the others: combine several results in one duckdb node (UNION ALL or JOIN), or submit them in separate calls reusing earlier nodes.
 
 ${getComposerNodeKindsDescription({
     enablePythonNodes: true,
@@ -108,9 +110,9 @@ ${getComposerNodeKindsDescription({
 
 A python node's "code" defines \`def run(inputs, params)\`, and semanticLayer "filters" are flat expression strings; each field documents its contract.
 
-Reuse earlier nodes: a result returns a sessionId once a node has finished; finished nodes are saved in it. On a follow-up, pass that sessionId and read saved nodes by node id in "references", submitting only the new nodes. Reused nodes come with everything they read and are served from cache when possible, so results come back faster. A saved node id names one node for the whole session, so give a changed node a new node id; a failed or unfinished node is not saved, so resubmit it under the same id. Omit sessionId to start a new session.
+Reuse earlier nodes: a result returns a sessionId once a node has finished; finished nodes are saved in it. On a follow-up, pass that sessionId and read saved nodes by node id in "references", submitting only the new nodes. Reused nodes bring everything they read and are served from cache when possible. A saved node id names one node for the whole session, so give a changed node a new node id; a failed or unfinished node is not saved, so resubmit it under the same id. Omit sessionId to start a new session.
 
-Returns a preview of the terminal node's rows and every node's queryUuid. The terminal node is the unique sink, or the node named in terminalNodeId. If the result is running, follow up with get_query_result on the terminal node's queryUuid; it also fetches the first page of any node's result by its queryUuid. query computes data only; it saves and charts nothing.`;
+Returns the terminal node's first rows, other submitted nodes' columns and first rows, and every node's queryUuid. If the result is running, follow up with get_query_result on the terminal node's queryUuid; it also fetches the first page of any node's result by its queryUuid. query computes data only; it saves and charts nothing.`;
 
 export const TOOL_COMPOSER_QUERIES_DESCRIPTION =
     getToolComposerQueriesDescription({
@@ -755,7 +757,7 @@ export const mcpQueryStructuredOutputSchema = z.object({
         .describe('Total rows in the terminal result; null while running.'),
     nodes: z
         .array(
-            composerQueryNodeSummarySchema.omit({ sample: true }).extend({
+            composerQueryNodeSummarySchema.extend({
                 queryUuid: z
                     .string()
                     .describe('Pass to get_query_result to read this node.'),
@@ -768,7 +770,15 @@ export const mcpQueryStructuredOutputSchema = z.object({
                 columns: z
                     .array(composerQueryColumnSchema)
                     .nullable()
-                    .describe('Result columns; null until the node is done.'),
+                    .describe(
+                        'Result columns of the terminal node and of nodes submitted in this call; null for reused nodes and until the node is done.',
+                    ),
+                sample: z
+                    .array(z.record(z.string(), z.unknown()))
+                    .nullable()
+                    .describe(
+                        `First ${COMPOSER_NODE_SAMPLE_ROW_LIMIT} rows of a done node submitted in this call other than the terminal node; null for the terminal node and for reused, failed or unfinished nodes.`,
+                    ),
             }),
         )
         .describe('Every node of the pipeline, in dependency order.'),
