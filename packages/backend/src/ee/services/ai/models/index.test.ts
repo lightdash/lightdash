@@ -1,5 +1,6 @@
 import {
     readUIMessageStream,
+    simulateStreamingMiddleware,
     stepCountIs,
     streamText,
     tool,
@@ -28,12 +29,14 @@ import {
     type OrgModelOverrides,
 } from './index';
 import type { ModelPreset, ModelPresetProvider } from './presets';
+import { modelErrorRedactionMiddleware } from './redactModelError';
 
 vi.mock('ai', async () => {
     const actual = await vi.importActual<typeof import('ai')>('ai');
     return {
         ...actual,
         wrapLanguageModel: vi.fn(actual.wrapLanguageModel),
+        simulateStreamingMiddleware: vi.fn(actual.simulateStreamingMiddleware),
     };
 });
 
@@ -409,10 +412,14 @@ describe('getModel', () => {
         expect(body.reasoning).toEqual({ effort: 'low', summary: 'auto' });
     });
 
-    it('does not wrap the model when the provider supports streaming', () => {
-        getModel(copilotConfigWithStreaming(true));
-
-        expect(wrapLanguageModel).not.toHaveBeenCalled();
+    it('uses only the privacy middleware when the provider supports streaming', () => {
+        const { model } = getModel(copilotConfigWithStreaming(true));
+        expect(simulateStreamingMiddleware).not.toHaveBeenCalled();
+        expect(wrapLanguageModel).toHaveBeenCalledExactlyOnceWith({
+            model: expect.anything(),
+            middleware: modelErrorRedactionMiddleware,
+        });
+        expect(model).toBe(vi.mocked(wrapLanguageModel).mock.results[0]?.value);
     });
 
     it('stamps lightdash-managed when the resolved provider is declared Lightdash-managed and not BYO', () => {
@@ -642,8 +649,20 @@ describe('getModel', () => {
     it('wraps the model with simulateStreamingMiddleware when the provider does not support streaming', () => {
         const { model } = getModel(copilotConfigWithStreaming(false));
 
-        expect(wrapLanguageModel).toHaveBeenCalledTimes(1);
-        expect(model).toBe(vi.mocked(wrapLanguageModel).mock.results[0].value);
+        expect(simulateStreamingMiddleware).toHaveBeenCalledOnce();
+        expect(wrapLanguageModel).toHaveBeenCalledTimes(2);
+        expect(wrapLanguageModel).toHaveBeenNthCalledWith(1, {
+            model: expect.anything(),
+            middleware: vi.mocked(simulateStreamingMiddleware).mock.results[0]
+                ?.value,
+        });
+        expect(wrapLanguageModel).toHaveBeenNthCalledWith(2, {
+            model: vi.mocked(wrapLanguageModel).mock.results[0]?.value,
+            middleware: modelErrorRedactionMiddleware,
+        });
+        expect(model).toBe(
+            vi.mocked(wrapLanguageModel).mock.results.at(-1)?.value,
+        );
     });
 });
 

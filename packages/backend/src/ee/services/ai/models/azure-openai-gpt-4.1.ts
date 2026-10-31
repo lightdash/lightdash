@@ -4,14 +4,20 @@ import {
     getReasoningProviderOptions,
     withChatCompletionsDefaults,
 } from './chatCompletions';
+import {
+    createRequestSizeGuardedFetch,
+    IMAGE_MODEL_REQUEST_MAX_BYTES,
+} from './requestSizeGuard';
 import { AiModel } from './types';
 
 const PROVIDER = 'azure';
 
 export const getAzureProvider = (
     config: NonNullable<LightdashConfig['ai']['copilot']['providers']['azure']>,
+    fetch?: typeof globalThis.fetch,
 ): AzureOpenAIProvider =>
     createAzure({
+        fetch,
         apiKey: config.apiKey,
         baseURL: config.endpoint,
         apiVersion: config.apiVersion,
@@ -22,7 +28,10 @@ export const getAzureProvider = (
 export const getAzureGpt41Model = (
     config: NonNullable<LightdashConfig['ai']['copilot']['providers']['azure']>,
 ): AiModel<typeof PROVIDER> => {
-    const azure = getAzureProvider(config);
+    const azure = getAzureProvider(
+        config,
+        createRequestSizeGuardedFetch(IMAGE_MODEL_REQUEST_MAX_BYTES.azure),
+    );
 
     const model = config.useChatCompletions
         ? withChatCompletionsDefaults(azure.chat(config.deploymentName))

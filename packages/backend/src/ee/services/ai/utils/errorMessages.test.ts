@@ -1,6 +1,7 @@
 import { APICallError, RetryError } from 'ai';
 import { McpAuthorizationRequiredError } from '../AiAgentMcpRuntimeClient';
 import { AiDecisionClient } from '../decisions/AiDecisionClient';
+import { AiModelRequestTooLargeError } from '../models/requestSizeGuard';
 import {
     AiAgentEmptyResponseError,
     AiAgentStepCapReachedError,
@@ -364,6 +365,16 @@ describe('unknown user-facing errors', () => {
         );
         return { decisions, fetcher };
     };
+
+    it('explains the serialized image-request limit without another model call', async () => {
+        const { decisions, fetcher } = setup();
+        const error = new AiModelRequestTooLargeError(20_000_001, 20_000_000);
+        expect(getUserFacingErrorMessage(error)).toBe(error.message);
+        expect(await createUserFacingErrorResolver({ decisions })(error)).toBe(
+            error.message,
+        );
+        expect(fetcher).not.toHaveBeenCalled();
+    });
 
     it('shares one classification between concurrent handlers within a turn', async () => {
         const { decisions, fetcher } = setup();

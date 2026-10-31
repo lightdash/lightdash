@@ -34,6 +34,7 @@ import {
     SelectableModelProvider,
     vertexPreset,
 } from './presets';
+import { withModelErrorRedaction } from './redactModelError';
 import { AiModel, AiProvider } from './types';
 
 export { MODEL_PRESETS };
@@ -77,6 +78,7 @@ const withKeyManagement = <P extends AiProvider>(
     keyManagement: AiKeyManagement,
 ): AiModel<P> & { keyManagement: AiKeyManagement } => ({
     ...modelProperties,
+    model: withModelErrorRedaction(modelProperties.model),
     keyManagement,
 });
 
