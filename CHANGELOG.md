@@ -1,3 +1,10 @@
+# [3.116.0](https://github.com/lightdash/lightdash/compare/3.115.0...3.116.0) (2026-10-31)
+
+
+### Features
+
+* remove pro-limits feature flag ([#31841](https://github.com/lightdash/lightdash/issues/31841)) ([50d70c1](https://github.com/lightdash/lightdash/commit/50d70c1c0f7d064b24833d15b1760590bef66a4c))
+
 # [3.115.0](https://github.com/lightdash/lightdash/compare/3.114.2...3.115.0) (2026-10-30)
 
 
