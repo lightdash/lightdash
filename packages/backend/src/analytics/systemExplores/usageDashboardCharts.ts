@@ -477,18 +477,18 @@ export const usageChartSpecs: UsageChartSpec[] = [
         description:
             'Creation dates of items in the latest inventory, including soft-deleted items; not complete historical inventory.',
         explore: 'content_inventory',
-        dimensions: ['content_inventory_created_at_month'],
-        metrics: ['content_inventory_total_content'],
+        dimensions: ['content_health_created_at_month'],
+        metrics: ['content_health_total_content'],
         limit: 500,
         sorts: [
             {
                 descending: false,
-                fieldId: 'content_inventory_created_at_month',
+                fieldId: 'content_health_created_at_month',
             },
         ],
         visualization: 'line',
-        xField: 'content_inventory_created_at_month',
-        yFields: ['content_inventory_total_content'],
+        xField: 'content_health_created_at_month',
+        yFields: ['content_health_total_content'],
     },
     {
         key: 'content-ownership-current-snapshot',
@@ -496,18 +496,18 @@ export const usageChartSpecs: UsageChartSpec[] = [
         description:
             'Owner status reflects current application membership, not verified employment status.',
         explore: 'content_inventory',
-        dimensions: ['content_inventory_owner_status'],
-        metrics: ['content_inventory_total_content'],
+        dimensions: ['content_health_owner_status'],
+        metrics: ['content_health_total_content'],
         limit: 30,
         sorts: [
             {
                 descending: true,
-                fieldId: 'content_inventory_total_content',
+                fieldId: 'content_health_total_content',
             },
         ],
         visualization: 'bar',
-        xField: 'content_inventory_owner_status',
-        yFields: ['content_inventory_total_content'],
+        xField: 'content_health_owner_status',
+        yFields: ['content_health_total_content'],
         flipAxes: true,
     },
     {

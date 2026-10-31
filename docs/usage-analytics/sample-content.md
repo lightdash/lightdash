@@ -50,7 +50,7 @@ Content creation by month and Content ownership · current snapshot use the
 unrelated usage history. Their counts still include soft-deleted items and items
 without activity; ownership and creation dates reflect the current snapshot.
 **Sync content** refreshes the models and updates these two managed charts in
-place, retaining their UUIDs and slugs. Existing Content health fields and custom
+place, retaining their UUIDs, slugs, field IDs and existing filter targets. Existing Content health fields and custom
 charts remain available. Sync does not refresh inventory data or alter capture,
 history or compaction.
 

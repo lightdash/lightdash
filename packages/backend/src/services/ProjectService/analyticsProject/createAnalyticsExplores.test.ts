@@ -32,15 +32,15 @@ describe('createAnalyticsExplores', () => {
             'content_health',
             'content_inventory',
         ]) {
-            const table = explores.find((explore) => explore.name === name)!
-                .tables[name];
+            const explore = explores.find((item) => item.name === name)!;
+            const table = explore.tables[explore.baseTable];
             for (const type of name.startsWith('content_')
                 ? ['content']
                 : ['chart', 'dashboard']) {
                 expect(table.dimensions[`${type}_name`].urls).toEqual([
                     {
                         label: `Open ${type}`,
-                        url: `\${row.${name}.${type}_url.raw}`,
+                        url: `\${row.${table.name}.${type}_url.raw}`,
                     },
                 ]);
             }

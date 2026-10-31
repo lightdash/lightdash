@@ -3,6 +3,9 @@ import { DuckDBInstance, type DuckDBConnection } from '@duckdb/node-api';
 import {
     ChartType,
     FilterOperator,
+    getDashboardFilterRulesForTables,
+    getFields,
+    getItemId,
     WarehouseTypes,
     type Filters,
     type MetricQuery,
@@ -117,6 +120,63 @@ describe('Content inventory charts', () => {
         instance.closeSync();
     });
 
+    it('preserves legacy field IDs and existing chart filters', async () => {
+        const chart = charts.find(({ slug }) =>
+            slug.endsWith('-content-creation-by-month'),
+        )!;
+        expect(chart.metricQuery.dimensions).toEqual([
+            'content_health_created_at_month',
+        ]);
+        expect(chart.metricQuery.metrics).toEqual([
+            'content_health_total_content',
+        ]);
+        const explore = createAnalyticsExplores().find(
+            ({ name }) => name === 'content_inventory',
+        )!;
+        const dashboardRule = {
+            id: 'existing-dashboard-filter',
+            label: 'Active content',
+            target: {
+                tableName: 'content_health',
+                fieldId: 'content_health_is_deleted',
+            },
+            operator: FilterOperator.EQUALS,
+            values: [false],
+        };
+        expect(
+            getDashboardFilterRulesForTables(
+                getFields(explore).map(getItemId),
+                [dashboardRule],
+            ),
+        ).toEqual([dashboardRule]);
+        const filtered = compile({
+            ...chart.metricQuery,
+            filters: {
+                dimensions: {
+                    id: 'existing-filter',
+                    and: [
+                        {
+                            id: 'existing-rule',
+                            target: { fieldId: 'content_health_is_deleted' },
+                            operator: FilterOperator.EQUALS,
+                            values: [false],
+                        },
+                    ],
+                },
+            },
+        });
+        expect(filtered.warnings).toEqual([]);
+        const rows = (
+            await db.runAndReadAll(filtered.query)
+        ).getRowObjectsJson();
+        expect(
+            rows.reduce(
+                (sum, row) => sum + Number(row.content_health_total_content),
+                0,
+            ),
+        ).toBe(6);
+    });
+
     it.each(charts)('preserves the results of $slug', async (chart) => {
         expect(chart.tableName).toBe('content_inventory');
         const creation = chart.slug.endsWith('-content-creation-by-month');
@@ -162,7 +222,7 @@ describe('Content inventory charts', () => {
             });
             const current = compile({
                 ...chart.metricQuery,
-                filters: filters('content_inventory'),
+                filters: filters('content_health'),
             });
             expect(current.warnings).toEqual([]);
             const before = (
@@ -176,7 +236,7 @@ describe('Content inventory charts', () => {
                 expect(
                     after.reduce(
                         (sum, row) =>
-                            sum + Number(row.content_inventory_total_content),
+                            sum + Number(row.content_health_total_content),
                         0,
                     ),
                 ).toBe(7);
@@ -214,8 +274,8 @@ describe('Content inventory charts', () => {
         expect(ownership.chartConfig.type).toBe(ChartType.PIE);
         if (ownership.chartConfig.type === ChartType.PIE) {
             expect(ownership.chartConfig.config).toMatchObject({
-                groupFieldIds: ['content_inventory_owner_status'],
-                metricId: 'content_inventory_total_content',
+                groupFieldIds: ['content_health_owner_status'],
+                metricId: 'content_health_total_content',
                 isDonut: true,
             });
         }
