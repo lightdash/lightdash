@@ -45,6 +45,15 @@ keeps its existing content and slugs. Space slugs are explicit and stable so a
 dashboard title change does not create a new space. Sync removes the former
 overview's query tiles without deleting their saved history or custom copies.
 
+Content creation by month and Content ownership · current snapshot use the
+**Content inventory** Explore, reading the latest inventory without preparing
+unrelated usage history. Their counts still include soft-deleted items and items
+without activity; ownership and creation dates reflect the current snapshot.
+**Sync content** refreshes the models and updates these two managed charts in
+place, retaining their UUIDs and slugs. Existing Content health fields and custom
+charts remain available. Sync does not refresh inventory data or alter capture,
+history or compaction.
+
 Project creation and **Sync content** in organization analytics settings both install
 the current definitions: system explores first, then managed charts and dashboards.
 This makes newly shipped explores, dimensions and metrics available in existing

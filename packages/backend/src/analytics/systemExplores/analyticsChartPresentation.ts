@@ -192,8 +192,8 @@ export const withAnalyticsChartPresentation = (
             chartConfig: {
                 type: ChartType.PIE,
                 config: {
-                    groupFieldIds: ['content_health_owner_status'],
-                    metricId: 'content_health_total_content',
+                    groupFieldIds: ['content_inventory_owner_status'],
+                    metricId: 'content_inventory_total_content',
                     isDonut: true,
                     showLegend: true,
                     groupLabelOverrides: {

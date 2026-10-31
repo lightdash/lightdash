@@ -13,6 +13,7 @@ import {
     type UncompiledExplore,
 } from '@lightdash/common';
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
+import { contentInventoryColumns } from '../../../analytics/eventStream/contentInventory';
 import { compactedStreamSchemas } from '../../../analytics/eventStream/registry';
 import type { CompactedColumnType } from '../../../analytics/eventStream/types';
 import {
@@ -35,6 +36,7 @@ import {
     contentHealthMetrics,
     contentHealthSql,
 } from '../../../analytics/systemExplores/contentHealth';
+import { contentInventoryMetrics } from '../../../analytics/systemExplores/contentInventory';
 import {
     contentReachColumns,
     contentReachMetrics,
@@ -104,6 +106,7 @@ export const analyticsExploreNames = [
     'tool_activity',
     'content_reach',
     'content_health',
+    'content_inventory',
     'agent_requests',
     'agent_request_events',
     'semantic_usage',
@@ -169,6 +172,10 @@ export const createAnalyticsExplores = (): Explore[] => {
                 columns: contentHealthColumns,
                 metrics: contentHealthMetrics,
             },
+            content_inventory: {
+                columns: contentInventoryColumns,
+                metrics: contentInventoryMetrics,
+            },
             content_reach: {
                 columns: contentReachColumns,
                 metrics: contentReachMetrics,
@@ -206,6 +213,7 @@ export const createAnalyticsExplores = (): Explore[] => {
             name === 'tool_activity' ||
             name === 'content_reach' ||
             name === 'content_health' ||
+            name === 'content_inventory' ||
             name === 'agent_requests' ||
             name === 'agent_request_events' ||
             name === 'data_app_reach' ||
@@ -329,6 +337,7 @@ export const createAnalyticsExplores = (): Explore[] => {
                         tool_activity: toolActivitySql,
                         content_reach: contentReachSql,
                         content_health: contentHealthSql,
+                        content_inventory: '"lightdash_content"',
                         agent_requests: agentRequestsSql,
                         semantic_usage: semanticUsageSql,
                         data_app_reach: dataAppReachSql,
@@ -421,14 +430,16 @@ export const createAnalyticsExplores = (): Explore[] => {
             table.dimensions.no_observed_activity.description =
                 'No confirmed human activity in retained capture, not proof that the person has never used Lightdash.';
         }
-        if (name === 'content_health') {
+        if (name === 'content_health' || name === 'content_inventory') {
             table.dimensions.org_id.hidden = true;
+            table.dimensions.owner_status.description =
+                'Current ownership evidence. Not an organization member does not imply employment ended. Creators and editors are not inferred to be owners.';
+        }
+        if (name === 'content_health') {
             table.dimensions.observed_viewers.description =
                 'Distinct qualifying registered viewers per item across retained history. Do not sum across items.';
             table.dimensions.first_observed_event_at.description =
                 'Earliest retained event for this organization; this is not proof of complete capture since that date.';
-            table.dimensions.owner_status.description =
-                'Current ownership evidence. Not an organization member does not imply employment ended. Creators and editors are not inferred to be owners.';
         }
         if (name === 'content_reach') {
             for (const column of [
@@ -472,6 +483,7 @@ export const createAnalyticsExplores = (): Explore[] => {
             dimensions.push('charts', 'dashboards', 'users');
         } else if (
             name !== 'content_health' &&
+            name !== 'content_inventory' &&
             name !== 'people_adoption' &&
             name !== 'embed_reach'
         ) {

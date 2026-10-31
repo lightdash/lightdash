@@ -30,6 +30,7 @@ describe('createAnalyticsExplores', () => {
             'semantic_usage',
             'content_reach',
             'content_health',
+            'content_inventory',
         ]) {
             const table = explores.find((explore) => explore.name === name)!
                 .tables[name];
@@ -289,6 +290,7 @@ describe('createAnalyticsExplores', () => {
             'tool_activity',
             'content_reach',
             'content_health',
+            'content_inventory',
             'agent_requests',
             'agent_request_events',
             'semantic_usage',
