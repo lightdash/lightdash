@@ -1,7 +1,8 @@
 import { z } from 'zod';
-import { DimensionType } from '../../../../types/field';
+import { DimensionType, MetricType } from '../../../../types/field';
 import { type Filters } from '../../../../types/filter';
 import {
+    type AdditionalMetric,
     type MetricQueryRequest,
     type SortField,
 } from '../../../../types/metricQuery';
@@ -18,7 +19,10 @@ import {
     type SqlSourceQuery,
 } from '../../../../types/querySources';
 import assertUnreachable from '../../../../utils/assertUnreachable';
-import { filterExpressionsSchema } from '../filterExpressions/expressionSchemas';
+import {
+    filterExpressionInputSchema,
+    filterExpressionsSchema,
+} from '../filterExpressions/expressionSchemas';
 import { structuredToolOutputSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 import {
@@ -60,7 +64,7 @@ const getComposerNodeKindsDescription = ({
     apiConnections,
     sqlNote,
 }: ComposerQueriesDescriptionOptions & { sqlNote: string }) => `Node kinds:
-- "semanticLayer": a metric query against an explore. Result columns are the requested field ids.
+- "semanticLayer": a metric query against an explore, with optional custom metrics and period comparisons. Result columns are the requested field ids, plus a generated column per period comparison.
 - "sql": raw SQL against the project warehouse; ${sqlNote}.
 - "external": DuckDB SQL over uploaded or connected tables declared in "tables".
 - "duckdb": DuckDB SQL over other results declared in "references".${
@@ -150,6 +154,85 @@ export const composerSemanticLayerFiltersSchema = filterExpressionsSchema
         "Filters on this node's explore as flat expression strings, never structured rule objects: one for dimension fields and one for metric fields, each choosing AND or OR independently and combined with AND. Null when unfiltered, or null for an unused kind.",
     );
 
+const composerCustomMetricSchema = z.object({
+    table: z
+        .string()
+        .describe('Table of the base dimension; the metric belongs to it.'),
+    name: z
+        .string()
+        .regex(
+            /^[a-z][a-z0-9_]*$/,
+            'Custom metric names use lowercase snake_case',
+        )
+        .describe(
+            'snake_case name. The metric\'s field id is "<table>_<name>": list it in "metrics" to select it, and use it in sorts, metric filters and periodComparisons.',
+        ),
+    label: z.string().describe('Column label shown to users.'),
+    description: z
+        .string()
+        .nullish()
+        .describe(
+            "Shown to users as the metric's description. Null when the label is enough.",
+        ),
+    aggregation: z
+        .enum([
+            MetricType.SUM,
+            MetricType.AVERAGE,
+            MetricType.COUNT,
+            MetricType.COUNT_DISTINCT,
+            MetricType.MIN,
+            MetricType.MAX,
+            MetricType.MEDIAN,
+            MetricType.PERCENTILE,
+        ])
+        .describe(
+            'Aggregation over the base dimension. Number dimensions take any; string, date and timestamp dimensions take count, count_distinct, min or max; boolean dimensions take count or count_distinct.',
+        ),
+    dimensionFieldId: z
+        .string()
+        .describe(
+            'Field id of the dimension to aggregate, a dimension of "table".',
+        ),
+    percentile: z
+        .number()
+        .min(0)
+        .max(100)
+        .nullish()
+        .describe('0–100, set only for the percentile aggregation.'),
+    filter: filterExpressionInputSchema
+        .nullish()
+        .describe(
+            'Aggregates only the rows this flat AND expression over dimensions matches, in the node filter grammar, e.g. "orders_status equals=completed". Null aggregates every row.',
+        ),
+});
+
+const composerPeriodComparisonSchema = z.object({
+    metricFieldId: z
+        .string()
+        .describe(
+            'Metric to compare: a field id in "metrics", explore or custom.',
+        ),
+    timeDimensionFieldId: z
+        .string()
+        .describe(
+            'Time dimension in "dimensions" with a day, week, month, quarter or year grain; the offset counts in that grain.',
+        ),
+    periodOffset: z.coerce
+        .number()
+        .int()
+        .min(1)
+        .describe(
+            'Periods to look back: 1 for the previous period, 12 on a month grain for the same month last year.',
+        ),
+});
+
+export type ToolComposerCustomMetric = z.infer<
+    typeof composerCustomMetricSchema
+>;
+export type ToolComposerPeriodComparison = z.infer<
+    typeof composerPeriodComparisonSchema
+>;
+
 const sortFieldSchema = z.object({
     fieldId: z.string().describe('Field id to sort by.'),
     descending: z
@@ -227,10 +310,21 @@ export const createToolComposerQueriesArgsSchemaV1 = ({
             .describe(
                 'Sorts by fields this node also selects in dimensions or metrics, e.g. [{"fieldId": "orders_order_date", "descending": true}].',
             ),
+        customMetrics: z
+            .array(composerCustomMetricSchema)
+            .nullish()
+            .describe(
+                'Metrics the explore lacks, each an aggregation over one of its dimensions, computed in this query.',
+            ),
+        periodComparisons: z
+            .array(composerPeriodComparisonSchema)
+            .nullish()
+            .describe(
+                'Each adds a column holding a metric shifted back in time, next to that metric, e.g. revenue the same month last year. The warehouse reads the earlier period even when the filters exclude it. The column id is generated; read it from the result columns.',
+            ),
         parameters: z
             .record(z.string(), parameterValueSchema)
-            .nullable()
-            .default(null)
+            .nullish()
             .describe(
                 'Parameter values for this node, keyed by parameter name exactly as shown in the explore metadata (e.g. {"orders.metric": "active_users"}). Set them whenever a selected field is marked "requires parameters" and the default does not match what the user asked for: an unset parameter silently resolves to its default, which can return the wrong data. null when the explore has no parameters or the defaults are correct.',
             ),
@@ -408,12 +502,16 @@ export type ToolComposerSemanticLayerNode = Extract<
     { sourceType: QuerySourceType.SEMANTIC_LAYER }
 >;
 
-// A submitted node with semanticLayer filters already resolved to domain
-// Filters; only this shape converts to a SourceQuery.
+// A submitted node with semanticLayer filters and custom metrics resolved to
+// the metric query's shape; only this shape converts to a SourceQuery.
 export type ResolvedToolComposerQueryNode =
     | Exclude<ToolComposerQueryNode, ToolComposerSemanticLayerNode>
-    | (Omit<ToolComposerSemanticLayerNode, 'filters'> & {
+    | (Omit<
+          ToolComposerSemanticLayerNode,
+          'filters' | 'customMetrics' | 'periodComparisons'
+      > & {
           filters: Filters | null;
+          additionalMetrics: AdditionalMetric[];
       });
 
 const toSourceQueryNodeMeta = (
@@ -460,6 +558,9 @@ export const toolComposerQueryNodeToSourceQuery = (
                 filters,
                 sorts,
                 parameters,
+                ...(node.additionalMetrics.length > 0
+                    ? { additionalMetrics: node.additionalMetrics }
+                    : {}),
                 limit: node.limit,
             };
         }

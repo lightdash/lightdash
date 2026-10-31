@@ -2222,6 +2222,10 @@ export const getAgentTools = (
         visualize: () =>
             getVisualize({
                 getPrompt: dependencies.getPrompt,
+                getExplore: (exploreName) =>
+                    agentContext
+                        .getAvailableExplores()
+                        .find(({ name }) => name === exploreName) ?? null,
                 listThreadComposerQueryNodes:
                     dependencies.listThreadComposerQueryNodes,
                 getThreadComposerNodeColumns:

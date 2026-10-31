@@ -18,6 +18,7 @@ import {
     type ComposerNodeColumn,
     type ComposerPipelineNode,
     type ComposerStoredChartVizConfig,
+    type Explore,
     type ThreadComposerQueryNode,
 } from '@lightdash/common';
 import { tool } from 'ai';
@@ -45,6 +46,7 @@ import { toolErrorOutput } from '../utils/toolErrorHandler';
 
 type Dependencies = {
     getPrompt: GetPromptFn;
+    getExplore: (exploreName: string) => Explore | null;
     listThreadComposerQueryNodes: ListThreadComposerQueryNodesFn;
     getThreadComposerNodeColumns: GetThreadComposerNodeColumnsFn;
     runComposerQueries: RunComposerQueriesFn;
@@ -141,6 +143,7 @@ const toPresentedArtifactVersion = ({
     terminalNodeId,
     vizConfig,
     maxQueryLimit,
+    getExplore,
 }: {
     title: string;
     description: string | null;
@@ -148,6 +151,7 @@ const toPresentedArtifactVersion = ({
     terminalNodeId: string;
     vizConfig: ComposerStoredChartVizConfig;
     maxQueryLimit: number;
+    getExplore: Dependencies['getExplore'];
 }): AiComposerArtifactVersion | AiComposerSemanticArtifactVersion => {
     const [node, ...rest] = queries;
     const semantic =
@@ -158,6 +162,7 @@ const toPresentedArtifactVersion = ({
                   node,
                   vizConfig,
                   maxQueryLimit,
+                  explore: getExplore(node.exploreName),
               })
             : null;
     return (
@@ -202,6 +207,7 @@ const toSlackRenderInput = (
 
 export const getVisualize = ({
     getPrompt,
+    getExplore,
     listThreadComposerQueryNodes,
     getThreadComposerNodeColumns,
     runComposerQueries,
@@ -296,6 +302,7 @@ export const getVisualize = ({
                     terminalNodeId: nodeId,
                     vizConfig: storedVizConfig,
                     maxQueryLimit,
+                    getExplore,
                 });
                 const artifact = await createOrUpdateArtifact({
                     threadUuid,

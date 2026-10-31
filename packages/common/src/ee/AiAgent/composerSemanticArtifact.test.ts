@@ -1,8 +1,13 @@
+import { MetricType } from '../../types/field';
 import { FilterOperator, FilterType, UnitOfTime } from '../../types/filter';
+import { type AdditionalMetric } from '../../types/metricQuery';
+import { buildPopAdditionalMetric } from '../../types/periodOverPeriodComparison';
 import {
     QuerySourceType,
     type SemanticLayerSourceQuery,
 } from '../../types/querySources';
+import { TimeFrames } from '../../types/timeFrames';
+import { explore } from '../../utils/fields.mock';
 import { toComposerSemanticArtifactVersion } from './composerSemanticArtifact';
 import { type ComposerStoredChartVizConfig } from './schemas';
 import { parseAiArtifactChartConfig, parseVizConfig } from './utils';
@@ -90,6 +95,7 @@ const present = (
         node: { ...node, ...overrides },
         vizConfig,
         maxQueryLimit: 1000,
+        explore,
     });
 
 const withoutIds = (value: unknown): unknown =>
@@ -170,6 +176,165 @@ describe('toComposerSemanticArtifactVersion', () => {
         });
         expect(bar?.vizConfig.config.chartConfig).toMatchObject({
             defaultVizType: 'horizontal',
+        });
+    });
+
+    describe('custom metrics and period comparisons', () => {
+        const buyers: AdditionalMetric = {
+            table: 'table1',
+            name: 'buyers',
+            label: 'Buyers',
+            type: MetricType.COUNT_DISTINCT,
+            sql: '${TABLE}.dim1',
+            baseDimensionName: 'dim1',
+            filters: [
+                {
+                    id: 'buyers_filter_0',
+                    target: { fieldRef: 'table1.dim1' },
+                    operator: FilterOperator.EQUALS,
+                    values: ['a'],
+                },
+            ],
+        };
+        const { additionalMetric: lastYear, metricId: lastYearId } =
+            buildPopAdditionalMetric({
+                metric: {
+                    table: 'orders',
+                    name: 'total_order_amount',
+                    label: 'Total order amount',
+                    type: MetricType.SUM,
+                    sql: '${TABLE}.amount',
+                },
+                timeDimensionId: 'orders_order_date_month',
+                granularity: TimeFrames.MONTH,
+                periodOffset: 12,
+            });
+        const withCustomMetrics = (
+            additionalMetrics: AdditionalMetric[],
+        ): Partial<SemanticLayerSourceQuery> => ({
+            metrics: ['orders_total_order_amount', lastYearId, 'table1_buyers'],
+            additionalMetrics,
+        });
+
+        it('replays them through the classic artifact parser', () => {
+            const version = present(withCustomMetrics([buyers, lastYear]));
+
+            const artifact = parseAiArtifactChartConfig(version?.vizConfig);
+            if (artifact?.source !== 'semantic')
+                throw new Error('not semantic');
+            const replay = parseVizConfig(artifact.config, 1000);
+
+            expect(replay?.metricQuery.metrics).toEqual([
+                'orders_total_order_amount',
+                'table1_buyers',
+            ]);
+            expect(replay?.metricQuery.customMetrics).toMatchObject([
+                {
+                    table: 'table1',
+                    name: 'buyers',
+                    label: 'Buyers',
+                    type: MetricType.COUNT_DISTINCT,
+                    baseDimensionName: 'dim1',
+                    filters: [
+                        {
+                            target: { fieldRef: 'table1.dim1' },
+                            operator: FilterOperator.EQUALS,
+                            values: ['a'],
+                        },
+                    ],
+                },
+                {
+                    kind: 'periodComparison',
+                    baseMetricId: 'orders_total_order_amount',
+                    timeDimensionId: 'orders_order_date_month',
+                    granularity: TimeFrames.MONTH,
+                    periodOffset: 12,
+                },
+            ]);
+        });
+
+        it.each([
+            [
+                'a percentile, which runQuery cannot carry',
+                [
+                    {
+                        ...buyers,
+                        type: MetricType.PERCENTILE,
+                        percentile: 90,
+                        filters: undefined,
+                    },
+                ],
+            ],
+            [
+                'a filter on a field the explore lacks',
+                [
+                    {
+                        ...buyers,
+                        filters: [
+                            {
+                                ...buyers.filters![0],
+                                target: { fieldRef: 'table1.missing' },
+                            },
+                        ],
+                    },
+                ],
+            ],
+            [
+                'a comparison over a distinct-key metric, whose keys runQuery drops',
+                [{ ...lastYear, distinctKeys: ['orders.order_id'] }],
+            ],
+            [
+                'a comparison over a percentile metric, whose percentile runQuery drops',
+                [{ ...lastYear, type: MetricType.PERCENTILE, percentile: 90 }],
+            ],
+        ] as [string, AdditionalMetric[]][])(
+            'is null for %s',
+            (_, additionalMetrics) => {
+                expect(
+                    present(withCustomMetrics(additionalMetrics)),
+                ).toBeNull();
+            },
+        );
+
+        it('carries an unfiltered custom metric without the explore', () => {
+            const version = toComposerSemanticArtifactVersion({
+                title: 'Buyers',
+                description: null,
+                node: {
+                    ...node,
+                    ...withCustomMetrics([{ ...buyers, filters: undefined }]),
+                },
+                vizConfig: line,
+                maxQueryLimit: 1000,
+                explore: null,
+            });
+
+            const artifact = parseAiArtifactChartConfig(version?.vizConfig);
+            if (artifact?.source !== 'semantic')
+                throw new Error('not semantic');
+            expect(
+                parseVizConfig(artifact.config, 1000)?.metricQuery
+                    .customMetrics,
+            ).toMatchObject([
+                {
+                    name: 'buyers',
+                    baseDimensionName: 'dim1',
+                    filters: undefined,
+                },
+            ]);
+        });
+
+        it('is null for a filtered custom metric without the explore', () => {
+            expect(
+                toComposerSemanticArtifactVersion({
+                    title: 'Buyers',
+                    description: null,
+                    node: { ...node, ...withCustomMetrics([buyers]) },
+                    vizConfig: line,
+                    maxQueryLimit: 1000,
+                    explore: null,
+                }),
+            ).toBeNull();
         });
     });
 });

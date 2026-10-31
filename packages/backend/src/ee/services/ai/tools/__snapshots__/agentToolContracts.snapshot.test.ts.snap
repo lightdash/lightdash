@@ -673,7 +673,8 @@ When string dimension metadata has \`caseSensitiveFilters\`, \`true\` means stri
 ## Answering data questions
 
 - Query each explore with one semanticLayer node, and combine explores that are not joined in the semantic layer with a duckdb node that joins their results.
-- Compute what a metric query cannot express in a duckdb node that reads the semanticLayer nodes: arithmetic and ratios across metrics, % of total, aggregates of aggregated metrics, period-over-period change, running totals, moving averages, ranking and top N per group, cohort comparisons, row-level conditionals, reshaping, and a metric the explore lacks, derived from the metrics and dimensions it has.
+- Compute a metric the explore lacks as a custom metric on its semanticLayer node, and a metric in an earlier period as a period comparison there. The warehouse computes them in the same query, so the user gets the answer sooner and over every row; aggregating in a duckdb or python node waits on an extra query and sees only the rows within its source node's limit.
+- Compute what a metric query cannot express in a duckdb node that reads the semanticLayer nodes: arithmetic and ratios across metrics, % of total, aggregates of aggregated metrics, the change between a metric and its period comparison, running totals, moving averages, ranking and top N per group, cohort comparisons, row-level conditionals and reshaping.
 - Build an answer that takes several queries, or a computation over their results, as one pipeline in one query call, whose terminal node is the result that answers the question.
 - For a follow-up that changes an earlier result, change only what the user asked for, and claim a change only after the call succeeds. When the requested field is not among the carried-forward candidates, discover it rather than binding its value to an unrelated existing dimension.
 - After query, call visualize on the node your answer rests on: with the chart type the user asked for; otherwise with a chart that fits the result (a line for a trend over time, a bar to compare categories), or a table when the user wants an interactive or downloadable table or the rows are too many for a Markdown table. Skip visualize when a sentence or a small Markdown table answers the question and the user asked for no chart.
@@ -18423,7 +18424,7 @@ Each result renders as its own artifact with a "Continue exploring in SQL Runner
     "description": "Run a pipeline: one or more nodes submitted together, where duckdb nodes join or transform other nodes' results. The terminal node's rows are returned to you.
 
 Node kinds:
-- "semanticLayer": a metric query against an explore. Result columns are the requested field ids.
+- "semanticLayer": a metric query against an explore, with optional custom metrics and period comparisons. Result columns are the requested field ids, plus a generated column per period comparison.
 - "sql": raw SQL against the project warehouse; may need user approval.
 - "external": DuckDB SQL over uploaded or connected tables declared in "tables".
 - "duckdb": DuckDB SQL over other results declared in "references".
@@ -18449,6 +18450,94 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
               {
                 "additionalProperties": false,
                 "properties": {
+                  "customMetrics": {
+                    "anyOf": [
+                      {
+                        "items": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "aggregation": {
+                              "description": "Aggregation over the base dimension. Number dimensions take any; string, date and timestamp dimensions take count, count_distinct, min or max; boolean dimensions take count or count_distinct.",
+                              "enum": [
+                                "sum",
+                                "average",
+                                "count",
+                                "count_distinct",
+                                "min",
+                                "max",
+                                "median",
+                                "percentile",
+                              ],
+                              "type": "string",
+                            },
+                            "description": {
+                              "description": "Shown to users as the metric's description. Null when the label is enough.",
+                              "type": [
+                                "string",
+                                "null",
+                              ],
+                            },
+                            "dimensionFieldId": {
+                              "description": "Field id of the dimension to aggregate, a dimension of "table".",
+                              "type": "string",
+                            },
+                            "filter": {
+                              "anyOf": [
+                                {
+                                  "maxLength": 16384,
+                                  "minLength": 1,
+                                  "type": "string",
+                                },
+                                {
+                                  "type": "null",
+                                },
+                              ],
+                              "description": "Aggregates only the rows this flat AND expression over dimensions matches, in the node filter grammar, e.g. "orders_status equals=completed". Null aggregates every row.",
+                            },
+                            "label": {
+                              "description": "Column label shown to users.",
+                              "type": "string",
+                            },
+                            "name": {
+                              "description": "snake_case name. The metric's field id is "<table>_<name>": list it in "metrics" to select it, and use it in sorts, metric filters and periodComparisons.",
+                              "pattern": "^[a-z][a-z0-9_]*$",
+                              "type": "string",
+                            },
+                            "percentile": {
+                              "anyOf": [
+                                {
+                                  "maximum": 100,
+                                  "minimum": 0,
+                                  "type": "number",
+                                },
+                                {
+                                  "type": "null",
+                                },
+                              ],
+                              "description": "0–100, set only for the percentile aggregation.",
+                            },
+                            "table": {
+                              "description": "Table of the base dimension; the metric belongs to it.",
+                              "type": "string",
+                            },
+                          },
+                          "required": [
+                            "table",
+                            "name",
+                            "label",
+                            "aggregation",
+                            "dimensionFieldId",
+                          ],
+                          "type": "object",
+                        },
+                        "type": "array",
+                      },
+                      {
+                        "type": "null",
+                      },
+                    ],
+                    "description": "Metrics the explore lacks, each an aggregation over one of its dimensions, computed in this query.",
+                  },
                   "description": {
                     "description": "One sentence for a business user on what this node does to the data, adding to the title rather than repeating it, e.g. "Sums completed order revenue per month over the last year." Shown as the node's heading in the pipeline list.",
                     "type": "string",
@@ -18561,8 +18650,43 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
                         "type": "null",
                       },
                     ],
-                    "default": null,
                     "description": "Parameter values for this node, keyed by parameter name exactly as shown in the explore metadata (e.g. {"orders.metric": "active_users"}). Set them whenever a selected field is marked "requires parameters" and the default does not match what the user asked for: an unset parameter silently resolves to its default, which can return the wrong data. null when the explore has no parameters or the defaults are correct.",
+                  },
+                  "periodComparisons": {
+                    "anyOf": [
+                      {
+                        "items": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "metricFieldId": {
+                              "description": "Metric to compare: a field id in "metrics", explore or custom.",
+                              "type": "string",
+                            },
+                            "periodOffset": {
+                              "description": "Periods to look back: 1 for the previous period, 12 on a month grain for the same month last year.",
+                              "maximum": 9007199254740991,
+                              "minimum": 1,
+                              "type": "integer",
+                            },
+                            "timeDimensionFieldId": {
+                              "description": "Time dimension in "dimensions" with a day, week, month, quarter or year grain; the offset counts in that grain.",
+                              "type": "string",
+                            },
+                          },
+                          "required": [
+                            "metricFieldId",
+                            "timeDimensionFieldId",
+                            "periodOffset",
+                          ],
+                          "type": "object",
+                        },
+                        "type": "array",
+                      },
+                      {
+                        "type": "null",
+                      },
+                    ],
+                    "description": "Each adds a column holding a metric shifted back in time, next to that metric, e.g. revenue the same month last year. The warehouse reads the earlier period even when the filters exclude it. The column id is generated; read it from the result columns.",
                   },
                   "sorts": {
                     "anyOf": [
