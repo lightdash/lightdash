@@ -28,7 +28,7 @@ overrides:
   cpu-features: 0.0.10
   nan: 2.27.0
   express-rate-limit: 8.3.0
-  '@hapi/content': 6.0.2
+  '@hapi/content': 6.0.3
   undici: 6.29.1
   handlebars: 4.7.9
   basic-ftp: 5.3.1
@@ -99,8 +99,8 @@ minimumReleaseAgeExclude:
   - "@opentelemetry/core@2.8.0"
   # Renovate security update: @tiptap/core@3.30.4
   - "@tiptap/core@3.30.4"
-  # Renovate security update: @hapi/content@6.0.2
-  - "@hapi/content@6.0.2"
+  # Renovate security update: @hapi/content@6.0.2 || 6.0.3
+  - "@hapi/content@6.0.2 || 6.0.3"
   # Renovate security update: vitest@4.1.11
   - vitest@4.1.11
   # Renovate security update: sharp@0.35.4
