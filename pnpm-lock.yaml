@@ -127,7 +127,7 @@ overrides:
   cpu-features: 0.0.10
   nan: 2.27.0
   express-rate-limit: 8.3.0
-  '@hapi/content': 6.0.2
+  '@hapi/content': 6.0.3
   undici: 6.29.1
   handlebars: 4.7.9
   basic-ftp: 5.3.1
@@ -3975,8 +3975,8 @@ packages:
   '@hapi/catbox@12.1.1':
     resolution: {integrity: sha512-hDqYB1J+R0HtZg4iPH3LEnldoaBsar6bYp0EonBmNQ9t5CO+1CqgCul2ZtFveW1ReA5SQuze9GPSU7/aecERhw==}
 
-  '@hapi/content@6.0.2':
-    resolution: {integrity: sha512-OKyCOTjNR1hftwSjk9ueyAQTw8AwapvzBrPIWMGn39vhR5PmqLdYFmLc35bsSBye7gSMnlkXfc679bUdMIcRyQ==}
+  '@hapi/content@6.0.3':
+    resolution: {integrity: sha512-ksXemMNZAwPq/mu1a9TZ7LDUSgMR9sexBgpalF3nrP6SM42ARlnBZs58IS5Ay+o4o7y6tFNXL+rMJkQ5ghvCSw==}
 
   '@hapi/cryptiles@6.0.1':
     resolution: {integrity: sha512-9GM9ECEHfR8lk5ASOKG4+4ZsEzFqLfhiryIJ2ISePVB92OHLp/yne4m+zn7z9dgvM98TLpiFebjDFQ0UHcqxXQ==}
@@ -6316,10 +6316,12 @@ packages:
   '@smithy/core@3.29.1':
     resolution: {integrity: sha512-qoiY4nrk5OCu1+eIR1VB8l5DmON/oKiqrd5zZFAhXJXjJlLWQusKEW/SkBDAtGDcPaz86m9kfcE1lngU0GlM6A==}
     engines: {node: '>=18.0.0'}
+    deprecated: Deprecated due to a bug in custom logger data redaction. See https://github.com/aws/aws-sdk-js-v3/issues/8393.
 
   '@smithy/core@3.34.1':
     resolution: {integrity: sha512-dLcOUxz8YCv1RZUMKq6GbyUf95pLbrqh34bPvpCZ1+CByFF31BEAFewZjsGCnVsZTKdThNENfGyAgk2TJqVwSw==}
     engines: {node: '>=18.0.0'}
+    deprecated: Deprecated due to a bug in custom logger data redaction. See https://github.com/aws/aws-sdk-js-v3/issues/8393.
 
   '@smithy/credential-provider-imds@4.4.6':
     resolution: {integrity: sha512-B2WQ/PV/H6Jeg3lrIq6bKUfa6Hy01mtK7CGs6lhjzHA6k4aagldH6T6eEjnzKl4HI0cJnAsxfJ19pgb5PV+CVQ==}
@@ -6444,6 +6446,7 @@ packages:
   '@smithy/smithy-client@4.12.0':
     resolution: {integrity: sha512-R8bQ9K3lCcXyZmBnQqUZJF4ChZmtWT5NLi6x5kgWx5D+/j0KorXcA0YcFg/X5TOgnTCy1tbKc6z2g2y4amFupQ==}
     engines: {node: '>=18.0.0'}
+    deprecated: Deprecated due to a bug in custom logger data redaction. See https://github.com/aws/aws-sdk-js-v3/issues/8393.
 
   '@smithy/types@4.15.1':
     resolution: {integrity: sha512-x3L0XSACF6UYzKpa9biqiRMgvH5+wnFFew9Tm/grFYqgaupPwx/+ojDPpPJM8dZON3S9tjz5U+PQYsCBd1Mw5Q==}
@@ -19069,7 +19072,7 @@ snapshots:
       '@hapi/podium': 5.0.1
       '@hapi/validate': 2.0.1
 
-  '@hapi/content@6.0.2':
+  '@hapi/content@6.0.3':
     dependencies:
       '@hapi/boom': 10.0.1
 
@@ -19130,7 +19133,7 @@ snapshots:
     dependencies:
       '@hapi/b64': 6.0.1
       '@hapi/boom': 10.0.1
-      '@hapi/content': 6.0.2
+      '@hapi/content': 6.0.3
       '@hapi/hoek': 11.0.7
       '@hapi/nigel': 5.0.1
 
@@ -19164,7 +19167,7 @@ snapshots:
     dependencies:
       '@hapi/boom': 10.0.1
       '@hapi/bourne': 3.0.0
-      '@hapi/content': 6.0.2
+      '@hapi/content': 6.0.3
       '@hapi/file': 3.0.0
       '@hapi/hoek': 11.0.7
       '@hapi/pez': 6.1.0
