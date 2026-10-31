@@ -32,7 +32,8 @@ import {
 import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
 import { DbtCompileOptions } from './dbt/compile';
 import { getProject } from './dbt/refresh';
-import { deploy, getDeployTarget } from './deploy';
+import { deploy } from './deploy';
+import { preflightDeployProfile } from './deployMetadata';
 import { resolveProjectSourceUuid } from './sourceSelection';
 import {
     getDisableTimestampConversionFromProject,
@@ -73,7 +74,6 @@ type PreviewHandlerOptions = DbtCompileOptions & {
 const previewDeployDestination = async (
     project: Pick<Project, 'projectUuid' | 'connectionRoute'>,
     options: PreviewHandlerOptions,
-    projectType: CliProjectType,
     upstreamProjectUuid: string | undefined,
 ) => ({
     sourceUuid: await resolveProjectSourceUuid(
@@ -81,11 +81,7 @@ const previewDeployDestination = async (
         options.source,
         upstreamProjectUuid,
     ),
-    deployTarget: await getDeployTarget(
-        options,
-        projectType,
-        project.connectionRoute,
-    ),
+    connectionRoute: project.connectionRoute,
 });
 
 type StopPreviewHandlerOptions = {
@@ -476,6 +472,13 @@ export const previewHandler = async (
         config.context?.project && upstreamProjectValid
             ? config.context.project
             : undefined;
+    if (upstreamProjectUuid) {
+        await preflightDeployProfile({
+            ...options,
+            projectUuid: upstreamProjectUuid,
+            projectType: projectTypeConfig.type,
+        });
+    }
     const upstreamSourceConnection =
         upstreamProject &&
         upstreamProjectUuid &&
@@ -585,17 +588,19 @@ export const previewHandler = async (
             );
         }
 
-        const { explores, isProjectComplete } = await compileProject(options);
+        const { explores, isProjectComplete, dbtProjectName } =
+            await compileProject(options);
         await deploy(explores, {
             ...options,
             projectUuid: project.projectUuid,
             ...(await previewDeployDestination(
                 project,
                 options,
-                projectTypeConfig.type,
                 config.context?.project,
             )),
             complete: isProjectComplete,
+            dbtProjectName,
+            projectType: projectTypeConfig.type,
         });
 
         await setPreviewProject(project.projectUuid, name);
@@ -665,6 +670,11 @@ export const previewHandler = async (
                     watcher!.unwatch(manifestFilePath);
                     // Deploying will change manifest.json too, so we need to stop watching the file until it is deployed
                     if (project) {
+                        await preflightDeployProfile({
+                            ...options,
+                            projectUuid: project.projectUuid,
+                            projectType: projectTypeConfig.type,
+                        });
                         const compileResult = await compileProject(options);
                         await deploy(compileResult.explores, {
                             ...options,
@@ -672,10 +682,11 @@ export const previewHandler = async (
                             ...(await previewDeployDestination(
                                 project,
                                 options,
-                                projectTypeConfig.type,
                                 config.context?.project,
                             )),
                             complete: compileResult.isProjectComplete,
+                            dbtProjectName: compileResult.dbtProjectName,
+                            projectType: projectTypeConfig.type,
                         });
                     }
 
@@ -760,6 +771,11 @@ export const startPreviewHandler = async (
 
     const previewProject = await getPreviewProject(projectName);
     if (previewProject) {
+        await preflightDeployProfile({
+            ...options,
+            projectUuid: previewProject.projectUuid,
+            projectType: projectTypeConfig.type,
+        });
         console.error(
             `\n${styles.success('Updating preview project:')} ${styles.bold(projectName)}\n`,
         );
@@ -805,7 +821,8 @@ export const startPreviewHandler = async (
         );
         options.disableTimestampConversion =
             previewSettings.disableTimestampConversion;
-        const { explores, isProjectComplete } = await compileProject(options);
+        const { explores, isProjectComplete, dbtProjectName } =
+            await compileProject(options);
         await deploy(explores, {
             ...options,
             projectUuid: previewProject.projectUuid,
@@ -815,10 +832,11 @@ export const startPreviewHandler = async (
                     connectionRoute: previewSettings.connectionRoute,
                 },
                 options,
-                projectTypeConfig.type,
                 config.context?.project,
             )),
             complete: isProjectComplete,
+            dbtProjectName,
+            projectType: projectTypeConfig.type,
         });
         const url = await projectUrl(previewProject);
         console.error(`Project updated on ${url}`);
@@ -854,6 +872,13 @@ export const startPreviewHandler = async (
         }
 
         const upstreamProjectUuid = config.context?.project;
+        if (upstreamProjectUuid) {
+            await preflightDeployProfile({
+                ...options,
+                projectUuid: upstreamProjectUuid,
+                projectType: projectTypeConfig.type,
+            });
+        }
         const upstreamSourceConnection =
             upstreamProjectUuid &&
             projectTypeConfig.warehouseCredentials !== false &&
@@ -958,17 +983,19 @@ export const startPreviewHandler = async (
             );
         }
 
-        const { explores, isProjectComplete } = await compileProject(options);
+        const { explores, isProjectComplete, dbtProjectName } =
+            await compileProject(options);
         await deploy(explores, {
             ...options,
             projectUuid: project.projectUuid,
             ...(await previewDeployDestination(
                 project,
                 options,
-                projectTypeConfig.type,
                 config.context?.project,
             )),
             complete: isProjectComplete,
+            dbtProjectName,
+            projectType: projectTypeConfig.type,
         });
         const url = await projectUrl(project);
 

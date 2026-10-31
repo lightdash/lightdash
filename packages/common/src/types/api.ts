@@ -946,7 +946,7 @@ export type ApiStartDeploySessionResponse = {
     };
 };
 
-export type ApiAddDeployBatchRequest = {
+export type ApiAddDeployBatchRequest = CliDeployMetadata & {
     explores: (Explore | ExploreError)[];
     batchNumber: number;
     complete?: boolean;
@@ -963,6 +963,30 @@ export type ApiAddDeployBatchResponse = {
 export type DeployTarget = {
     database: string;
     region?: string;
+};
+
+export type CliDeployCapabilities = {
+    version: 1;
+    dbtProjectIdentity: 1;
+    dbtTargetLocation: 1;
+    peerDbtSources: {
+        active: boolean;
+        requiresDbtProjectName: boolean;
+        requiresDbtTarget: boolean;
+    };
+};
+
+export type CliDeployMetadata = {
+    cliCapabilities?: {
+        dbtProjectIdentity: 1;
+        dbtTargetLocation: 1;
+    };
+    dbtProjectName?: string;
+    dbtTarget?: {
+        type: WarehouseTypes;
+        database: string;
+        region?: string;
+    };
 };
 
 export type ApiDeployExploresResults = {
@@ -1568,6 +1592,7 @@ type ApiResults =
     | ApiSuccessEmpty
     | ApiCreateProjectResults
     | ApiDeployExploresResults
+    | CliDeployCapabilities
     | ApiAiGenerateChartMetadataResponse['results']
     | ApiAiSuggestChartTypeFieldsResponse['results']
     | ApiAiSuggestChartTypeExploreResponse['results']

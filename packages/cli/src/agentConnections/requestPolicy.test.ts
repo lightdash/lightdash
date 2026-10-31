@@ -104,6 +104,8 @@ it('pins exact normalized routes for all admitted inventory entries and lifecycl
         'UserController.getAuthenticatedUser': '/api/v1/user',
         'ExploreController.SetExplores': '/api/v1/projects/:param/explores',
         'DeployController.deployExplores': '/api/v2/projects/:param/deploy',
+        'DeployController.getDeployCapabilities':
+            '/api/v2/projects/:param/deploy/capabilities',
         'ProjectCoderController.getChartsAsCode':
             '/api/v1/projects/:param/code/charts',
         'ProjectCoderController.getDashboardsAsCode':
