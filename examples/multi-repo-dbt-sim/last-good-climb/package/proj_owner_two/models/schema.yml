@@ -1,0 +1,4 @@
+version: 2
+models:
+    - name: owned_other
+      access: public
