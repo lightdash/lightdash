@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     AI_THREAD_FILE_PICKER_EXTENSIONS,
+    assertUnreachable,
     ContentType,
     FeatureFlags,
     getExternalSourceDisplayName,
@@ -31,6 +32,7 @@ import {
     IconFileText,
     IconFolderSearch,
     IconPaperclip,
+    IconPhoto,
     IconPlayerStop,
     IconPlus,
     IconTelescope,
@@ -45,6 +47,7 @@ import {
     useRef,
     useState,
     type ReactNode,
+    type ClipboardEvent,
 } from 'react';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
@@ -59,6 +62,7 @@ import {
 import { useAiAccessGate } from '../../../../../features/aiAccess/useAiAccessGate';
 import { useCanCreateDataApp } from '../../../../../features/apps/hooks/useCanCreateDataApp';
 import { useOrganizationDesigns } from '../../../../../features/organizationDesigns/hooks/useOrganizationDesigns';
+import useToaster from '../../../../../hooks/toaster/useToaster';
 import useUser from '../../../../../hooks/user/useUser';
 import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../../../providers/App/useApp';
@@ -75,6 +79,11 @@ import {
     markDeepResearchNudgeShown,
 } from '../../deepResearch/draftNudge';
 import { type StartDeepResearchArgs } from '../../deepResearch/types';
+import { isThreadImageFile } from '../../hooks/normalizeThreadImage';
+import {
+    threadFileAttachmentInput,
+    threadFileAttachmentSnapshot,
+} from '../../hooks/threadFileAttachmentContext';
 import { useAgentMaxWidth } from '../../hooks/useAgentMaxWidth';
 import { useAgentSuggestions } from '../../hooks/useAgentSuggestions';
 import { useAgentSkills } from '../../hooks/useAiAgentSkills';
@@ -178,10 +187,7 @@ const buildSubmitContext = ({
             type: 'external_source' as const,
             sourceUuid,
         })),
-        ...threadFiles.map(({ fileUuid }) => ({
-            type: 'thread_file' as const,
-            fileUuid,
-        })),
+        ...threadFiles.map(threadFileAttachmentInput),
         ...elementReferences.map(({ appUuid, version, tag, text, loc }) => ({
             type: 'data_app_element' as const,
             appUuid,
@@ -203,7 +209,7 @@ const buildSubmitContext = ({
     const optimisticContext: AiPromptContextItem[] = [
         ...(mentionContext.optimisticContext ?? []),
         ...externalSources,
-        ...threadFiles,
+        ...threadFiles.map(threadFileAttachmentSnapshot),
         ...elementReferences.map(
             ({
                 appUuid,
@@ -275,7 +281,7 @@ type SubmitArgs = SubmitContext & {
 };
 
 interface AgentChatInputProps {
-    onSubmit: (args: SubmitArgs) => void;
+    onSubmit: (args: SubmitArgs) => void | Promise<unknown>;
     onStartDeepResearch?: (args: StartDeepResearchArgs) => Promise<void>;
     loading?: boolean;
     disabled?: boolean;
@@ -313,6 +319,7 @@ interface AgentChatInputProps {
     // Thread model shown in the status row under the inline composer.
     threadModelName?: string | null;
     threadModelWarning?: string | null;
+    imageAttachmentsUnavailableReason?: string;
 }
 
 const extractToolHints = (editor: Editor | null): string[] => {
@@ -382,11 +389,23 @@ export const AgentChatInput = ({
     footerNotice,
     threadModelName,
     threadModelWarning = null,
+    imageAttachmentsUnavailableReason,
 }: AgentChatInputProps) => {
     const lightdashApi = useLightdashApi();
+    const { showToastError, showToastInfo } = useToaster();
+    const [isSubmittingImages, setIsSubmittingImages] = useState(false);
+    const imageSubmissionRef = useRef(false);
+    const [routingFileCount, setRoutingFileCount] = useState(0);
+    const composerMountedRef = useRef(true);
+    useEffect(() => {
+        composerMountedRef.current = true;
+        return () => {
+            composerMountedRef.current = false;
+        };
+    }, []);
     const accessGate = useAiAccessGate(projectUuid);
     const accessRefused = accessGate.disabled;
-    const disabled = disabledProp || accessRefused;
+    const disabled = disabledProp || accessRefused || isSubmittingImages;
     const user = useUser(true);
     const app = useApp();
     const isEmbedded = useIsEmbedded();
@@ -460,6 +479,9 @@ export const AgentChatInput = ({
     const [threadFileAttachments, setThreadFileAttachments] = useState<
         ThreadFileAttachment[]
     >([]);
+    const hasImageAttachments = threadFileAttachments.some(
+        ({ type }) => type === 'thread_image',
+    );
     const handleThreadFileReady = useCallback(
         (attachment: ThreadFileAttachment) => {
             setThreadFileAttachments((attachments) => [
@@ -473,13 +495,36 @@ export const AgentChatInput = ({
     );
     const {
         attachFiles: attachThreadFiles,
+        attachImages: uploadThreadImages,
+        imagesEnabled,
+        cancelPendingFile,
+        clearPreviews,
+        releaseFiles: releaseThreadFiles,
         discardFile: discardThreadFile,
         isUploading: isUploadingThreadFile,
         pendingFiles: pendingThreadFiles,
         retainFiles: retainThreadFiles,
     } = useThreadFileAttachment({ onReady: handleThreadFileReady });
-    const isPreparingAttachments = isPreparingCsv || isUploadingThreadFile;
+    const attachThreadImages = useCallback(
+        (files: File[]) => {
+            if (imagesEnabled && imageAttachmentsUnavailableReason) {
+                showToastError({ title: imageAttachmentsUnavailableReason });
+                return Promise.resolve();
+            }
+            return uploadThreadImages(files);
+        },
+        [
+            imagesEnabled,
+            imageAttachmentsUnavailableReason,
+            showToastError,
+            uploadThreadImages,
+        ],
+    );
+    const isPreparingAttachments =
+        isPreparingCsv || isUploadingThreadFile || routingFileCount > 0;
     const resetDocumentFileInputRef = useRef<() => void>(null);
+    const resetImageMenuFileInputRef = useRef<() => void>(null);
+    const resetImageToolbarFileInputRef = useRef<() => void>(null);
     const [hasClickedInput, setHasClickedInput] = useState(
         !revealControlsOnFocus,
     );
@@ -747,6 +792,105 @@ export const AgentChatInput = ({
         }
     }, [hasRequestedInterrupt, isAgentActive]);
 
+    const guardImageSubmission = useCallback(
+        (mode: 'chat' | 'deep_research' | 'steer') => {
+            if (isPreparingAttachments) return false;
+            if (!hasImageAttachments) return true;
+            switch (mode) {
+                case 'chat':
+                    if (!imageAttachmentsUnavailableReason) return true;
+                    showToastError({
+                        title: imageAttachmentsUnavailableReason,
+                    });
+                    return false;
+                case 'deep_research':
+                    showToastError({
+                        title: 'Remove the images or ask in regular chat',
+                    });
+                    return false;
+                case 'steer':
+                    showToastInfo({
+                        title: 'Images stay attached and go with your next message',
+                    });
+                    return true;
+                default:
+                    return assertUnreachable(
+                        mode,
+                        'Unknown image submission mode',
+                    );
+            }
+        },
+        [
+            isPreparingAttachments,
+            hasImageAttachments,
+            imageAttachmentsUnavailableReason,
+            showToastError,
+            showToastInfo,
+        ],
+    );
+
+    const submitPrompt = useCallback(
+        (args: SubmitArgs) => {
+            if (imageSubmissionRef.current || !guardImageSubmission('chat'))
+                return;
+            const fileUuids = threadFileAttachments.map(
+                ({ fileUuid }) => fileUuid,
+            );
+            retainCsvSources(
+                externalSourceAttachments.map(({ sourceUuid }) => sourceUuid),
+            );
+            retainThreadFiles(fileUuids);
+            const complete = () => {
+                if (!composerMountedRef.current) return;
+                disableElementPicker();
+                if (!clearOnSubmitRef.current) return;
+                const currentEditor = editorRef.current;
+                if (currentEditor && !currentEditor.isDestroyed)
+                    currentEditor.commands.clearContent();
+                clearPreviews(fileUuids);
+                setValueState('');
+                setExternalSourceAttachments([]);
+                setThreadFileAttachments([]);
+                clearElementReferences();
+                setSelectedTheme(null);
+            };
+            if (!hasImageAttachments) {
+                // Preserve text-only synchronous clearing; the mutation owns error UI.
+                void Promise.resolve(onSubmitRef.current(args)).catch(
+                    () => undefined,
+                );
+                complete();
+                return;
+            }
+            imageSubmissionRef.current = true;
+            setIsSubmittingImages(true);
+            void (async () => {
+                try {
+                    await onSubmitRef.current(args);
+                    complete();
+                } catch {
+                    releaseThreadFiles(fileUuids);
+                } finally {
+                    imageSubmissionRef.current = false;
+                    if (composerMountedRef.current)
+                        setIsSubmittingImages(false);
+                }
+            })();
+        },
+        [
+            threadFileAttachments,
+            externalSourceAttachments,
+            retainCsvSources,
+            retainThreadFiles,
+            disableElementPicker,
+            clearPreviews,
+            clearElementReferences,
+            releaseThreadFiles,
+            hasImageAttachments,
+            guardImageSubmission,
+        ],
+    );
+
     const handleChipClick = useCallback(
         (chip: AgentSuggestion, index: number) => {
             const trackClick = () => {
@@ -802,13 +946,7 @@ export const AgentChatInput = ({
                 isPreparingAttachments
             )
                 return;
-            retainCsvSources(
-                externalSourceAttachments.map(({ sourceUuid }) => sourceUuid),
-            );
-            retainThreadFiles(
-                threadFileAttachments.map(({ fileUuid }) => fileUuid),
-            );
-            onSubmitRef.current({
+            submitPrompt({
                 message: chip.label,
                 toolHints: [chip.tool],
                 ...buildSubmitContext({
@@ -820,15 +958,6 @@ export const AgentChatInput = ({
                     theme: selectedTheme,
                 }),
             });
-            disableElementPicker();
-            if (clearOnSubmitRef.current) {
-                editor?.commands.clearContent();
-                setValueState('');
-                setExternalSourceAttachments([]);
-                setThreadFileAttachments([]);
-                clearElementReferences();
-                setSelectedTheme(null);
-            }
             trackClick();
         },
         [
@@ -845,11 +974,8 @@ export const AgentChatInput = ({
             threadFileAttachments,
             elementReferences,
             composerNodes,
-            clearElementReferences,
-            disableElementPicker,
             isPreparingAttachments,
-            retainCsvSources,
-            retainThreadFiles,
+            submitPrompt,
             selectedTheme,
         ],
     );
@@ -931,20 +1057,79 @@ export const AgentChatInput = ({
     );
     const canUseAttachControl = showAttachControl && composerMode === 'ask';
     // Dropped files take the same routes as the menu: CSV/TSV go to the
-    // external-source flow when it is available, everything else (and CSV when
-    // it is not) is attached as a text document.
+    // external-source flow when available. Sniffed images never hit text upload.
     const handleDroppedFiles = useCallback(
-        (files: File[]) => {
-            const csvFiles = canAttachExternalSource
-                ? files.filter((file) => isTabularThreadFileName(file.name))
-                : [];
-            const documentFiles = files.filter(
-                (file) => !csvFiles.includes(file),
-            );
-            if (csvFiles.length > 0) void attachCsvFiles(csvFiles);
-            if (documentFiles.length > 0) void attachThreadFiles(documentFiles);
+        async (files: File[]) => {
+            setRoutingFileCount((count) => count + 1);
+            const images: File[] = [];
+            const csvFiles: File[] = [];
+            const documentFiles: File[] = [];
+            try {
+                for (const file of files) {
+                    if (await isThreadImageFile(file)) images.push(file);
+                    else if (
+                        canAttachExternalSource &&
+                        isTabularThreadFileName(file.name)
+                    )
+                        csvFiles.push(file);
+                    else documentFiles.push(file);
+                }
+                if (!composerMountedRef.current) return;
+                if (images.length > 0) void attachThreadImages(images);
+                if (csvFiles.length > 0) void attachCsvFiles(csvFiles);
+                if (documentFiles.length > 0) {
+                    if (canAttachThreadFile)
+                        void attachThreadFiles(documentFiles);
+                    else
+                        showToastError({
+                            title: 'Document attachments are unavailable here',
+                        });
+                }
+            } catch {
+                if (composerMountedRef.current)
+                    showToastError({
+                        title: 'Could not read the dropped files',
+                        subtitle: 'Please select the files again.',
+                    });
+            } finally {
+                if (composerMountedRef.current)
+                    setRoutingFileCount((count) => count - 1);
+            }
         },
-        [attachCsvFiles, attachThreadFiles, canAttachExternalSource],
+        [
+            canAttachExternalSource,
+            canAttachThreadFile,
+            attachCsvFiles,
+            attachThreadFiles,
+            attachThreadImages,
+            showToastError,
+        ],
+    );
+    const handleImagePaste = useCallback(
+        (event: ClipboardEvent) => {
+            const images = Array.from(event.clipboardData.items).flatMap(
+                (item) => {
+                    if (item.kind !== 'file' || !item.type.startsWith('image/'))
+                        return [];
+                    const file = item.getAsFile();
+                    return file ? [file] : [];
+                },
+            );
+            if (images.length === 0) return;
+            event.preventDefault();
+            if (!imagesEnabled || canUseAttachControl)
+                void attachThreadImages(images);
+            else
+                showToastError({
+                    title: 'Attachments are unavailable in this composer mode',
+                });
+        },
+        [
+            imagesEnabled,
+            canUseAttachControl,
+            attachThreadImages,
+            showToastError,
+        ],
     );
     const { isDraggingFiles, dropTargetProps } = useFileDropTarget({
         enabled: canUseAttachControl,
@@ -983,6 +1168,7 @@ export const AgentChatInput = ({
             return;
         }
 
+        if (!guardImageSubmission('deep_research')) return;
         const started = await startDeepResearch({ question });
         if (started && clearOnSubmitRef.current) {
             ed?.commands.clearContent();
@@ -1004,7 +1190,8 @@ export const AgentChatInput = ({
             return;
         }
         if (canSteer) {
-            if (steerMutation.isLoading) return;
+            if (steerMutation.isLoading || !guardImageSubmission('steer'))
+                return;
             void handleSteer(text);
             return;
         }
@@ -1015,13 +1202,7 @@ export const AgentChatInput = ({
             dismissDeepResearchNudgeForSession();
             setNudgeState('done');
         }
-        retainCsvSources(
-            externalSourceAttachments.map(({ sourceUuid }) => sourceUuid),
-        );
-        retainThreadFiles(
-            threadFileAttachments.map(({ fileUuid }) => fileUuid),
-        );
-        onSubmitRef.current({
+        submitPrompt({
             message: text,
             toolHints: extractToolHints(ed),
             ...buildSubmitContext({
@@ -1036,15 +1217,6 @@ export const AgentChatInput = ({
                 theme: selectedTheme,
             }),
         });
-        disableElementPicker();
-        if (clearOnSubmitRef.current) {
-            ed.commands.clearContent();
-            setValueState('');
-            setExternalSourceAttachments([]);
-            setThreadFileAttachments([]);
-            clearElementReferences();
-            setSelectedTheme(null);
-        }
     };
 
     const handleSteer = async (message: string) => {
@@ -1344,6 +1516,7 @@ export const AgentChatInput = ({
                                     )}
                                 </FileButton>
                             )}
+                            {renderImageAttachControl(true)}
                             {(showSqlModeControl ||
                                 showDeepResearchInComposerMenu ||
                                 showThemeControl) && (
@@ -1397,6 +1570,68 @@ export const AgentChatInput = ({
                     )}
                 </Menu.Dropdown>
             </Menu>
+        );
+    };
+
+    const renderImageAttachControl = (inMenu: boolean) => {
+        if (
+            !canAttachThreadFile ||
+            !imagesEnabled ||
+            !showAttachControl ||
+            imageAttachmentsUnavailableReason
+        )
+            return null;
+        const resetRef = inMenu
+            ? resetImageMenuFileInputRef
+            : resetImageToolbarFileInputRef;
+        const unavailable = isPreparingAttachments || !canUseAttachControl;
+        return (
+            <FileButton
+                accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp"
+                multiple
+                resetRef={resetRef}
+                disabled={unavailable}
+                inputProps={{ 'aria-label': 'Image attachments' }}
+                onChange={(files) => {
+                    resetRef.current?.();
+                    if (files.length > 0) void attachThreadImages(files);
+                }}
+            >
+                {(props) =>
+                    inMenu ? (
+                        <Menu.Item
+                            {...props}
+                            disabled={unavailable}
+                            aria-label="Attach an image"
+                            leftSection={
+                                <MantineIcon icon={IconPhoto} size={14} />
+                            }
+                        >
+                            Attach an image
+                        </Menu.Item>
+                    ) : (
+                        <Tooltip
+                            label="Attach an image"
+                            position="top"
+                            openDelay={300}
+                        >
+                            <ActionIcon
+                                {...props}
+                                size="xs"
+                                variant="transparent"
+                                disabled={unavailable}
+                                aria-label="Attach an image"
+                            >
+                                <MantineIcon
+                                    icon={IconPhoto}
+                                    size={14}
+                                    color="dimmed"
+                                />
+                            </ActionIcon>
+                        </Tooltip>
+                    )
+                }
+            </FileButton>
         );
     };
 
@@ -1457,6 +1692,7 @@ export const AgentChatInput = ({
                             )}
                         </FileButton>
                     )}
+                    {renderImageAttachControl(false)}
                     {sqlMode && (
                         <Group gap={4} wrap="nowrap">
                             <MantineIcon
@@ -1538,6 +1774,8 @@ export const AgentChatInput = ({
                 pendingCsvFiles={pendingCsvFiles}
                 threadFiles={threadFileAttachments}
                 pendingThreadFiles={pendingThreadFiles}
+                onCancelPendingFile={cancelPendingFile}
+                disabled={isSubmittingImages}
                 elementRefs={elementReferences}
                 composerNodes={composerNodes}
                 onRemoveExternalSource={(sourceUuid) => {
@@ -1644,6 +1882,7 @@ export const AgentChatInput = ({
         extensions: composerExtensions,
         onEditorReady: setEditor,
         onValueChange: handleComposerValueChange,
+        onPaste: handleImagePaste,
         shouldBlockSubmit,
         onSubmit: handleSubmit,
     };

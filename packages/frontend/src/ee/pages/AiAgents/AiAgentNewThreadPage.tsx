@@ -348,7 +348,7 @@ const AiAgentNewThreadPage: FC = () => {
                 );
                 return;
             }
-            void createAgentThread({
+            return createAgentThread({
                 agentUuid,
                 prompt: message,
                 context: mergedContext,
@@ -577,6 +577,11 @@ const AiAgentNewThreadPage: FC = () => {
                         <AgentChatInput
                             key={composerSeedKey}
                             onSubmit={onSubmit}
+                            imageAttachmentsUnavailableReason={
+                                isBattle
+                                    ? 'Start a single conversation to attach images'
+                                    : undefined
+                            }
                             onStartDeepResearch={
                                 canStartDeepResearch && !isBattle
                                     ? onStartDeepResearch

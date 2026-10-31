@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { act, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type ComponentProps } from 'react';
 import { Provider } from 'react-redux';
@@ -10,8 +10,10 @@ import { PendingPromptProvider } from '../../features/aiCopilot/components/Pendi
 import { store } from '../../features/aiCopilot/store';
 import AiAgentNewThreadPage from './AiAgentNewThreadPage';
 
-const { composerProps, access, embed } = vi.hoisted(() => ({
-    composerProps: vi.fn(),
+const { composerProps, createThread, access, embed } = vi.hoisted(() => ({
+    composerProps:
+        vi.fn<(props: ComponentProps<typeof AgentChatInput>) => void>(),
+    createThread: vi.fn(),
     access: { isLoading: false, isError: false, disabled: false },
     embed: { isEmbedded: false },
 }));
@@ -49,7 +51,7 @@ vi.mock(
 
 vi.mock('../../features/aiCopilot/hooks/useProjectAiAgents', () => ({
     useCreateAgentThreadMutation: () => ({
-        mutateAsync: vi.fn(),
+        mutateAsync: createThread,
         isLoading: false,
     }),
     useVerifiedQuestions: () => ({ data: undefined }),
@@ -181,6 +183,42 @@ describe('AiAgentNewThreadPage embed controls', () => {
             }
         },
     );
+
+    it('returns the single-thread mutation promise and preserves image context', () => {
+        renderPage(false, 1);
+        const props = composerProps.mock.calls.at(-1)?.[0];
+        if (!props) throw new Error('Expected the new-thread composer');
+        expect(props.imageAttachmentsUnavailableReason).toBeUndefined();
+        const pending = Promise.resolve({ uuid: 'created-thread' });
+        createThread.mockReturnValueOnce(pending);
+        act(() => {
+            expect(
+                props.onSubmit({
+                    message: 'Recreate this chart',
+                    toolHints: [],
+                    context: [{ type: 'thread_image', fileUuid: 'image-1' }],
+                }),
+            ).toBe(pending);
+        });
+        expect(createThread).toHaveBeenCalledWith(
+            expect.objectContaining({
+                context: [{ type: 'thread_image', fileUuid: 'image-1' }],
+            }),
+        );
+    });
+
+    it('gates image attachments after changing to Battle mode', async () => {
+        renderPage(false, 1);
+        await userEvent.click(
+            screen.getByRole('switch', { name: 'Battle mode' }),
+        );
+        expect(composerProps).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                imageAttachmentsUnavailableReason:
+                    'Start a single conversation to attach images',
+            }),
+        );
+    });
 
     it('restores Battle mode when the connection completes without a reload', () => {
         access.disabled = true;

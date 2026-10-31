@@ -3,7 +3,7 @@ import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Provider } from 'react-redux';
 import { MemoryRouter } from 'react-router';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../../testing/testUtils';
 import { store } from '../../store';
 import { AgentChatInput } from './AgentChatInput';
@@ -63,7 +63,11 @@ const renderInput = ({
     };
     if (enableCsvAttachment) {
         useServerFeatureFlagMock.mockImplementation((flag?: FeatureFlags) => ({
-            data: { enabled: flag !== FeatureFlags.AgentIdentity },
+            data: {
+                enabled:
+                    flag !== FeatureFlags.AgentIdentity &&
+                    flag !== FeatureFlags.AiThreadImages,
+            },
         }));
         useHealthMock.mockReturnValue({
             data: { ai: { fastDecisionsEnabled: true } },
@@ -118,6 +122,11 @@ const renderInput = ({
     );
     return { onStartDeepResearch, onSubmit };
 };
+
+beforeAll(() => {
+    Range.prototype.getClientRects = () => document.body.getClientRects();
+    Range.prototype.getBoundingClientRect = () => new DOMRect();
+});
 
 describe('AgentChatInput Deep Research mode', () => {
     beforeEach(() => {
