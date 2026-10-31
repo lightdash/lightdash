@@ -1,3 +1,10 @@
+# [3.115.0](https://github.com/lightdash/lightdash/compare/3.114.2...3.115.0) (2026-10-30)
+
+
+### Features
+
+* **mcp:** project access settings card ([#31784](https://github.com/lightdash/lightdash/issues/31784)) ([6a9a023](https://github.com/lightdash/lightdash/commit/6a9a02365a1e13b553925fd92e12c5bb59963f16))
+
 ## [3.114.2](https://github.com/lightdash/lightdash/compare/3.114.1...3.114.2) (2026-10-30)
 
 
