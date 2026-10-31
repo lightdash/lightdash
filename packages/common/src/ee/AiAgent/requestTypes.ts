@@ -17,6 +17,7 @@ import {
     type AiAgentReviewRemediationStatus,
     type AiAgentRootCause,
 } from './aiAgentReviewClassifierTypes';
+import { type AiThreadImageMediaType } from './threadFileTypes';
 
 export type AiAgentModelConfig = {
     modelName: string;
@@ -322,6 +323,10 @@ export type AiPromptContextItemInput =
           fileUuid: UUID;
       }
     | {
+          type: 'thread_image';
+          fileUuid: UUID;
+      }
+    | {
           // The review-remediation pull request applying the proposed change.
           type: 'pull_request';
           prUrl: string;
@@ -435,6 +440,14 @@ export type AiPromptThreadFileSnapshot = {
     sizeBytes: number;
 };
 
+export type AiPromptThreadImageSnapshot = {
+    sizeBytes: number;
+    mediaType: AiThreadImageMediaType;
+    width: number;
+    height: number;
+    expiresAt: string;
+};
+
 export type AiPromptContextItem =
     | {
           type: 'chart';
@@ -483,6 +496,11 @@ export type AiPromptContextItem =
           fileName: string;
           sizeBytes: number;
       }
+    | ({
+          type: 'thread_image';
+          fileUuid: string;
+          fileName: string;
+      } & AiPromptThreadImageSnapshot)
     | {
           type: 'pull_request';
           prUrl: string;

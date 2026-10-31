@@ -1,6 +1,7 @@
 import './tracing/bootstrap'; // Must run before modules that can load Knex
 import {
     AI_THREAD_FILE_MAX_BYTES,
+    AI_THREAD_IMAGE_MAX_BYTES,
     AnyType,
     ApiError,
     getErrorMessage,
@@ -568,8 +569,12 @@ export default class App {
         // type. Parsing them here keeps the global JSON parser from consuming
         // (or rejecting) `application/json` uploads, and body-parser aborts
         // the request at the size limit instead of draining it. Keep private-body
-        // custody directly after this parser, ahead of JSON/error middleware:
+        // custody directly after these parsers, ahead of JSON/error middleware:
         // Sentry's Express integration otherwise re-captures the parsed req.body.
+        expressApp.use(
+            '/api/v1/aiAgents/thread-files/images',
+            express.raw({ type: () => true, limit: AI_THREAD_IMAGE_MAX_BYTES }),
+        );
         expressApp.use(
             '/api/v1/aiAgents/thread-files',
             express.raw({ type: () => true, limit: AI_THREAD_FILE_MAX_BYTES }),

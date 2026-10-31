@@ -286,6 +286,8 @@ export enum FeatureFlags {
      * experiment, off by default.
      */
     AiAgentBattleMode = 'ai-agent-battle-mode',
+    /** Browser chat images, off by default; requires compatible readers and durable storage before enablement. */
+    AiThreadImages = 'ai-thread-images',
     /**
      * Organization-scoped: keep dbt's partial_parse.msgpack from a compile on
      * the worker and seed the next compile of the same project and dbt source

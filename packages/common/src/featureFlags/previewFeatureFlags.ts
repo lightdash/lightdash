@@ -19,6 +19,8 @@ const PREVIEW_EXCLUDED_FEATURE_FLAGS: ReadonlySet<string> = new Set<string>([
     FeatureFlags.SsoOrganizationSettings,
     // Security hardening: previews must not accept long-lived GitHub PATs.
     FeatureFlags.AiMcpGithubPat,
+    // Requires durable uploads and a completed compatible-reader rollout.
+    FeatureFlags.AiThreadImages,
     // Same reason: the dashboard E2E specs drive the navigate-away "New chart"
     // flow, which the in-dashboard modal replaces. Opt-in POC — keep previews
     // on the shipped path until it has its own coverage. The metrics layer
