@@ -17,7 +17,7 @@ overrides:
   'form-data@4.0.2': 4.0.6
   validator: 13.15.23
   node-forge: 1.4.0
-  'glob@>=10.2.0 <10.5.0': 10.5.0
+  'glob@>=10.2.0 <10.5.0': 14.0.2
   jws: 4.0.1
   qs: 6.16.1
   hono: 4.13.7
@@ -116,6 +116,8 @@ minimumReleaseAgeExclude:
   - "@yao-pkg/pkg-fetch@3.6.7"
   # Renovate security update: zod@4.6.6
   - zod@4.6.6
+  # Renovate security update: glob@14.0.2
+  - glob@14.0.2
 
 # pnpm 11 defaults verifyDepsBeforeRun to `install`, which re-verifies (and
 # reinstalls) node_modules before running any package script. The production
