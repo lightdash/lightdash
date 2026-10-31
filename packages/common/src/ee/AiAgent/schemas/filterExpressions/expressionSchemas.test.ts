@@ -425,6 +425,25 @@ describe('expression custom metric schemas', () => {
 });
 
 describe('expression run query schemas', () => {
+    it('parses omitted customMetrics, tableCalculations and filters as null', () => {
+        const parsed = toolRunQueryExpressionArgsSchema.parse({
+            ...baseArgs,
+            queryConfig: {
+                exploreName: baseQueryConfig.exploreName,
+                dimensions: baseQueryConfig.dimensions,
+                metrics: baseQueryConfig.metrics,
+                sorts: baseQueryConfig.sorts,
+                limit: baseQueryConfig.limit,
+            },
+        });
+
+        expect(parsed.queryConfig).toMatchObject({
+            customMetrics: null,
+            tableCalculations: null,
+            filters: null,
+        });
+    });
+
     it('defaults omitted sort null ordering to null', () => {
         const parsed = toolRunQueryExpressionArgsSchema.parse({
             ...baseArgs,
@@ -469,9 +488,9 @@ describe('expression run query schemas', () => {
                 mergeConfig: null,
             }).success,
         ).toBe(false);
-        expect(queryConfigExpressionSchemaV4.shape.tableCalculations).toBe(
-            formulaTableCalcsSchema,
-        );
+        expect(
+            queryConfigExpressionSchemaV4.shape.tableCalculations.unwrap(),
+        ).toBe(formulaTableCalcsSchema);
     });
 
     it('keeps persisted V2 wide while advertised merge-less contracts are formula-only', () => {
@@ -519,11 +538,11 @@ describe('expression run query schemas', () => {
                 formulaArgs,
             ).success,
         ).toBe(true);
-        expect(queryConfigExpressionSchemaV2.shape.tableCalculations).toBe(
-            tableCalcsSchema,
-        );
         expect(
-            queryConfigExpressionSchemaV2FormulaOnly.shape.tableCalculations,
+            queryConfigExpressionSchemaV2.shape.tableCalculations.unwrap(),
+        ).toBe(tableCalcsSchema);
+        expect(
+            queryConfigExpressionSchemaV2FormulaOnly.shape.tableCalculations.unwrap(),
         ).toBe(formulaTableCalcsSchema);
     });
 

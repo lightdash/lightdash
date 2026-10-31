@@ -5,6 +5,7 @@ import {
     type Filters,
 } from '../../../../types/filter';
 import { getTotalFilterRules } from '../../../../utils/filters';
+import { toLlmJsonSchema } from '../../../../utils/zodJsonSchema';
 import {
     isCustomChartTypeSlugChartConfig,
     isRunQueryArgsV1,
@@ -135,18 +136,6 @@ describe('toolRunQueryArgsSchemaTransformed (V3)', () => {
         expect(
             toolRunQueryArgsSchemaV3.safeParse(buildV3MergeArgs()).success,
         ).toBe(true);
-    });
-
-    it('rejects V1-shaped args (the tool only accepts V2)', () => {
-        expect(
-            toolRunQueryArgsSchemaTransformed.safeParse(buildV1Args()).success,
-        ).toBe(false);
-        expect(toolRunQueryArgsSchemaV2.safeParse(buildV1Args()).success).toBe(
-            false,
-        );
-        expect(toolRunQueryArgsSchemaV1.safeParse(buildV1Args()).success).toBe(
-            true,
-        );
     });
 });
 
@@ -571,4 +560,57 @@ it('persists gradient values through the custom chart tool schema', () => {
     });
     expect(result.success).toBe(true);
     if (result.success) expect(result.data.chartConfig).toEqual(config);
+});
+
+// Tool calls are not strict, so a model can leave out collections it considers
+// empty; every advertised contract must read that as "none".
+describe('omitted query collections', () => {
+    const omittedArgs = { ...baseArgs, queryConfig: baseQueryConfig };
+    const noCollections = {
+        customMetrics: null,
+        tableCalculations: null,
+        filters: null,
+    };
+
+    it('advertised agent contract parses them as null', () => {
+        expect(
+            toolRunQueryArgsSchema.parse(omittedArgs).queryConfig,
+        ).toMatchObject(noCollections);
+    });
+
+    it('MCP contract parses them as null', () => {
+        expect(
+            toolRunQueryArgsSchemaV2Mcp.parse(omittedArgs).queryConfig,
+        ).toMatchObject(noCollections);
+    });
+
+    it('merge-rejecting agent view parses them as null', () => {
+        expect(
+            toolRunQueryArgsSchemaV2RejectingMerge.parse(omittedArgs)
+                .queryConfig,
+        ).toMatchObject(noCollections);
+    });
+
+    it('persisted parse treats them as none', () => {
+        const parsed = parsePersistedRunQueryArgs(omittedArgs);
+        expect(parsed?.queryConfig.customMetrics).toBeNull();
+        expect(parsed?.queryConfig.tableCalculations).toBeNull();
+        expect(
+            parsed && getTotalFilterRules(parsed.queryConfig.filters),
+        ).toEqual([]);
+    });
+
+    it('advertised JSON schema does not require them', () => {
+        const queryConfig = toLlmJsonSchema(toolRunQueryArgsSchema).properties
+            ?.queryConfig;
+        if (typeof queryConfig !== 'object')
+            throw new Error('queryConfig schema missing');
+        expect(queryConfig.required).toEqual([
+            'exploreName',
+            'dimensions',
+            'metrics',
+            'sorts',
+            'limit',
+        ]);
+    });
 });

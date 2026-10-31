@@ -82,11 +82,14 @@ const queryConfigSchemaV1 = queryConfigBaseSchema.extend({
     filters: filtersSchemaV2.nullable().default(null),
 });
 
+// Tool calls are not strict, so models omit collections they consider empty;
+// an omitted key parses as null instead of failing the call.
 const queryConfigSchemaV2 = queryConfigBaseSchema.extend({
-    customMetrics: customMetricsSchema,
-    tableCalculations: tableCalcsSchema,
+    customMetrics: customMetricsSchema.default(null),
+    tableCalculations: tableCalcsSchema.default(null),
     filters: filtersSchemaV2
         .nullable()
+        .default(null)
         .describe(
             '`type` sets how rules combine within each category; dimensions, metrics and tableCalculations always combine with each other by AND. `or` makes every rule in a category optional, so a non-date filter beside alternative date ranges is silently dropped. For several periods at one granularity (e.g. "Mar or May 2025"), keep `and` with one `equals` rule on the date field at that grain and a value per period (`2025-03-01`, `2025-05-01`). Use `or`, with one `inBetween` per range, only when arbitrary date ranges (e.g. "Mar 1–6 vs Apr 1–6") are the sole dimension filters.',
         ),
@@ -95,7 +98,7 @@ const queryConfigSchemaV2 = queryConfigBaseSchema.extend({
 // V4 narrows the advertised tableCalculations contract to formula-only.
 // V1–V3 keep the wide union (templates + formula) for parsing persisted args.
 const queryConfigSchemaV4 = queryConfigSchemaV2.extend({
-    tableCalculations: formulaTableCalcsSchema,
+    tableCalculations: formulaTableCalcsSchema.default(null),
 });
 
 export const mergeSourceQueryConfigSchema = queryConfigSchemaV2
@@ -517,10 +520,12 @@ export type ToolRunQueryArgsTransformedBuiltinChart = Omit<
 // customMetrics and tableCalculations at the top level; V2 forbids them and
 // nests them inside queryConfig.
 
+const hasTopLevelCollections = (args: object): boolean =>
+    'customMetrics' in args || 'tableCalculations' in args || 'filters' in args;
+
 export const isRunQueryArgsV1 = (
     args: ToolRunQueryArgsV1 | ToolRunQueryArgsV2 | ToolRunQueryArgsV3,
-): args is ToolRunQueryArgsV1 =>
-    'customMetrics' in args || 'tableCalculations' in args || 'filters' in args;
+): args is ToolRunQueryArgsV1 => hasTopLevelCollections(args);
 
 export const migrateRunQueryArgsV1ToV2 = (
     v1: ToolRunQueryArgsV1,
@@ -557,16 +562,23 @@ export const parsePersistedRunQueryArgs = (
         return v3.success ? v3.data : null;
     }
 
-    const v2 = toolRunQueryArgsSchemaV2Transformed.safeParse(raw);
-    if (v2.success) return { ...v2.data, mergeConfig: null };
+    // V2 defaults omitted nested collections to null, so a V1 artifact must
+    // be recognised by its top-level keys first or its collections are lost.
+    if (
+        raw !== null &&
+        typeof raw === 'object' &&
+        hasTopLevelCollections(raw)
+    ) {
+        const v1 = toolRunQueryArgsSchemaV1.safeParse(raw);
+        if (v1.success)
+            return toolRunQueryArgsSchemaTransformed.parse({
+                ...migrateRunQueryArgsV1ToV2(v1.data),
+                mergeConfig: null,
+            });
+    }
 
-    const v1 = toolRunQueryArgsSchemaV1.safeParse(raw);
-    return v1.success
-        ? toolRunQueryArgsSchemaTransformed.parse({
-              ...migrateRunQueryArgsV1ToV2(v1.data),
-              mergeConfig: null,
-          })
-        : null;
+    const v2 = toolRunQueryArgsSchemaV2Transformed.safeParse(raw);
+    return v2.success ? { ...v2.data, mergeConfig: null } : null;
 };
 
 export const TOOL_RENDER_CHART_DESCRIPTION = `Render a completed run_metric_query result in Lightdash's built-in chart app in MCP App-capable clients.
