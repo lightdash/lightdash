@@ -620,16 +620,19 @@ describe('built-in usage dashboards', () => {
     it.each(charts.map((chart) => [chart.slug, chart] as const))(
         'compiles %s without missing fields or join warnings',
         (_slug, chart) => {
+            const explore = explores.find(
+                ({ name }) => name === chart.tableName,
+            )!;
             expect(compile(chart).warnings).toEqual([]);
             expect(chart.metricQuery.limit).toBeLessThanOrEqual(5000);
             expect(
                 chart.metricQuery.dimensions.every(
                     (field) =>
-                        field.startsWith(`${chart.tableName}_`) ||
+                        field.startsWith(`${explore.baseTable}_`) ||
                         chart.metricQuery.customDimensions?.some(
                             (dimension) =>
                                 dimension.id === field &&
-                                dimension.table === chart.tableName,
+                                dimension.table === explore.baseTable,
                         ),
                 ),
             ).toBe(true);
