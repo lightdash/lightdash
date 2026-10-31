@@ -134,7 +134,7 @@ module.exports = {
             name: `${instanceId}-api`,
             script: 'src/index.ts',
             interpreter: 'node',
-            node_args: `--import tsx --inspect=0.0.0.0:${debugPort}`,
+            node_args: `--import tsx --inspect=127.0.0.1:${debugPort}`,
             cwd: path.join(__dirname, 'packages/backend'),
             env: {
                 ...envWithPath,
