@@ -3843,6 +3843,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
                 .runComposerQueriesUntilDeadline({
                     queries: composerQueries,
                     terminalNodeId: 'joined',
+                    sampleNodeIds: [],
                     deadlineMs: Date.now() - 1,
                 }),
         ).resolves.toEqual({
@@ -4413,7 +4414,9 @@ describe('AiAgentToolsService runComposerQueries', () => {
                     terminalNodeId: 'joined',
                     sampleNodeIds,
                 });
-        const samplesOf = (result: Awaited<ReturnType<typeof runSampled>>) =>
+        const samplesOf = (result: {
+            nodeStatuses: { nodeId: string; sample: unknown }[];
+        }) =>
             Object.fromEntries(
                 result.nodeStatuses.map(({ nodeId, sample }) => [
                     nodeId,
@@ -4437,6 +4440,60 @@ describe('AiAgentToolsService runComposerQueries', () => {
             const result = await runSampled(ordersPage, []);
 
             expect(samplesOf(result)).toEqual({ orders: null, joined: null });
+        });
+
+        it('samples the ready nodes of a run still running at the deadline', async () => {
+            const result = await makeService({
+                querySourceService: {
+                    executeSourceQueries: vi
+                        .fn()
+                        .mockResolvedValue({ queries: submissions }),
+                    getSourceQueryStatuses: vi.fn().mockResolvedValue({
+                        statuses: [
+                            readyStatuses.statuses[0],
+                            {
+                                ...readyStatuses.statuses[1],
+                                status: QueryHistoryStatus.EXECUTING,
+                                totalRowCount: null,
+                                columns: null,
+                            },
+                        ],
+                    }),
+                },
+                asyncQueryService: {
+                    getAsyncQueryResults: vi
+                        .fn()
+                        .mockImplementation(
+                            ({
+                                queryUuid,
+                                pageSize,
+                            }: {
+                                queryUuid: string;
+                                pageSize: number;
+                            }) =>
+                                queryUuid === 'query-1'
+                                    ? ordersPage(pageSize)
+                                    : Promise.resolve({
+                                          status: QueryHistoryStatus.EXECUTING,
+                                      }),
+                        ),
+                },
+            })
+                .createRuntime(makeRuntimeContext())
+                .runComposerQueriesUntilDeadline({
+                    queries: composerQueries,
+                    terminalNodeId: 'joined',
+                    sampleNodeIds: ['orders', 'joined'],
+                    deadlineMs: Date.now() - 1,
+                });
+
+            expect(result.status).toBe('running');
+            expect(samplesOf(result)).toEqual({
+                orders: [0, 1, 2, 3, 4].map((index) => ({
+                    orders_status: `status-${index}`,
+                })),
+                joined: null,
+            });
         });
 
         it('gives a null sample and still succeeds when a sample read fails', async () => {

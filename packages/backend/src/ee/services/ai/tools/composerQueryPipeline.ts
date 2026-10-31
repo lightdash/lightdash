@@ -21,6 +21,7 @@ import {
     type SubmittedSourceQuery,
     type ThreadComposerQueryNode,
     type ToolComposerQueriesArgs,
+    type ToolComposerQueriesStructuredContent,
     type ToolRunQueryAppliedParameters,
 } from '@lightdash/common';
 import { stringify } from 'csv-stringify/sync';
@@ -258,108 +259,138 @@ export const toNodeColumns = (nodeStatuses: ComposerNodeStatus[]) =>
 export const isSaved = ({ state }: ComposerNodeStatus) =>
     state === QueryHistoryStatus.READY;
 
-export const renderSavedNodes = (
-    queries: ComposerPipelineNode[],
-    nodeStatuses: ComposerNodeStatus[],
-    reusableNodes: ThreadComposerQueryNode[],
-): string => {
-    const saved = new Set(
-        nodeStatuses.filter(isSaved).map(({ nodeId }) => nodeId),
-    );
-    const savedNodeIds = queries
-        .filter((node) => saved.has(node.nodeId))
-        .map((node) => node.nodeId);
-    const notSaved = queries
-        .filter((node) => !saved.has(node.nodeId))
-        .map((node) => {
-            const unsavedReads = Object.values(
-                getSourceQueryResultReferences(node),
-            ).filter((reference) => !saved.has(reference));
-            const status = nodeStatuses.find(
-                ({ nodeId }) => nodeId === node.nodeId,
-            );
-            let reason: string;
-            if (unsavedReads.length > 0) {
-                reason = `not run: reads ${unsavedReads.join(', ')}`;
-            } else if (status?.error) {
-                reason = `failed: ${status.error}`;
-            } else {
-                reason = `not finished${status ? `: ${status.state}` : ''}`;
-            }
-            const earlier = reusableNodes.some(
-                ({ nodeId }) => nodeId === node.nodeId,
-            )
-                ? '; still saved from an earlier call'
-                : '';
-            return `${node.nodeId} (${reason}${earlier})`;
-        });
-    return [
-        savedNodeIds.length > 0
-            ? `Saved from this call: ${savedNodeIds.join(', ')}.`
+type ComposerNodeSummary =
+    ToolComposerQueriesStructuredContent['nodes'][number];
+
+const getReads = (node: SourceQuery) =>
+    Object.values(getSourceQueryResultReferences(node));
+
+export const toNodeSummary = (
+    node: ComposerPipelineNode,
+    status: ComposerNodeStatus | undefined,
+    showColumns: boolean,
+): ComposerNodeSummary => ({
+    nodeId: node.nodeId,
+    title: node.title ?? null,
+    sourceType: node.sourceType,
+    rowCount: status?.rowCount ?? null,
+    limit: getSourceQueryLimit(node),
+    columns:
+        showColumns && status?.columns
+            ? toComposerNodeColumns(status.columns)
             : null,
-        notSaved.length > 0 ? `Not saved: ${notSaved.join(', ')}.` : null,
-    ]
-        .filter(Boolean)
-        .join(' ');
-};
-
-export type ComposerNodeSummary = {
-    nodeId: string;
-    title: string | null;
-    sourceType: QuerySourceType;
-    rowCount: number | null;
-    limit: number;
-    queryUuid?: string;
-};
-
-export const toComposerNodeSummaries = (
-    queries: ComposerPipelineNode[],
-    nodeStatuses: ComposerNodeStatus[],
-): ComposerNodeSummary[] =>
-    queries.map((node) => ({
-        nodeId: node.nodeId,
-        title: node.title ?? null,
-        sourceType: node.sourceType,
-        rowCount:
-            nodeStatuses.find((status) => status.nodeId === node.nodeId)
-                ?.rowCount ?? null,
-        limit: getSourceQueryLimit(node),
-    }));
+    sample: status?.sample ?? null,
+});
 
 export const hasReachedLimit = (node: ComposerNodeSummary) =>
     node.rowCount !== null && hasReachedSourceQueryLimit(node, node.rowCount);
 
-/** One line per node (status, rows, limit) plus warnings for nodes reading a node that reached its limit. */
-export const renderComposerNodeSummary = (
-    queries: SourceQuery[],
-    nodes: ComposerNodeSummary[],
-    nodeStatuses: ComposerNodeStatus[],
-    maxQueryLimit: number,
-): string => {
+const renderNodeDetails = ({
+    columns,
+    sample,
+    rowCount,
+}: ComposerNodeSummary): string[] => {
+    const columnLines =
+        columns === null
+            ? []
+            : [
+                  `Columns: ${columns
+                      .map(({ reference, type }) => `${reference} (${type})`)
+                      .join(', ')}`,
+              ];
+    const sampleLines =
+        sample === null || sample.length === 0
+            ? []
+            : [
+                  `Sample, ${sample.length} of ${rowCount ?? sample.length} rows:`,
+                  ...stringify(sample, {
+                      header: true,
+                      ...(columns === null
+                          ? {}
+                          : {
+                                columns: columns.map(
+                                    ({ reference }) => reference,
+                                ),
+                            }),
+                  })
+                      .trimEnd()
+                      .split('\n'),
+              ];
+    return [...columnLines, ...sampleLines].map((line) => `  ${line}`);
+};
+
+/** Every node of the pipeline in the given order, with its node columns and node sample under it when it has them. */
+export const renderComposerNodeListing = ({
+    queries,
+    nodes,
+    nodeStatuses,
+    reusableNodes,
+    submittedNodeIds,
+    maxQueryLimit,
+    queryUuids = new Map(),
+}: {
+    queries: ComposerPipelineNode[];
+    nodes: ComposerNodeSummary[];
+    nodeStatuses: ComposerNodeStatus[];
+    reusableNodes: ThreadComposerQueryNode[];
+    submittedNodeIds: Set<string>;
+    maxQueryLimit: number;
+    /** Shown in each node's label so the node can be read by its query uuid. */
+    queryUuids?: ReadonlyMap<string, string>;
+}): string => {
+    const saved = new Set(
+        nodeStatuses.filter(isSaved).map(({ nodeId }) => nodeId),
+    );
     const reachedLimit = new Set(
         nodes.filter(hasReachedLimit).map((node) => node.nodeId),
     );
-    const nodeLines = nodes.map((node) => {
+    const getOutcome = (node: ComposerNodeSummary): string => {
+        if (node.rowCount !== null) {
+            const capped = reachedLimit.has(node.nodeId)
+                ? ` Reached its limit of ${node.limit}, so more rows may exist (max ${maxQueryLimit}).`
+                : '';
+            const reused = submittedNodeIds.has(node.nodeId)
+                ? ''
+                : ' Reused from an earlier call.';
+            return `${node.rowCount} rows, limit ${node.limit}.${capped}${reused}`;
+        }
+        const query = queries.find(({ nodeId }) => nodeId === node.nodeId);
         const status = nodeStatuses.find(
-            (candidate) => candidate.nodeId === node.nodeId,
+            ({ nodeId }) => nodeId === node.nodeId,
         );
+        const unsavedReads = (query ? getReads(query) : []).filter(
+            (reference) => !saved.has(reference),
+        );
+        let reason: string;
+        if (unsavedReads.length > 0) {
+            reason = `not run: reads ${unsavedReads.join(', ')}`;
+        } else if (status?.error) {
+            reason = `failed: ${status.error}`;
+        } else {
+            reason = `not finished${status ? `: ${status.state}` : ''}`;
+        }
+        const earlier = reusableNodes.some(
+            ({ nodeId }) => nodeId === node.nodeId,
+        )
+            ? '; still saved from an earlier call'
+            : '';
+        return `${reason}${earlier}`;
+    };
+    const nodeLines = nodes.map((node) => {
+        const queryUuid = queryUuids.get(node.nodeId);
         const label = [
             `- ${node.nodeId}`,
             node.title === null ? '' : `: "${node.title}"`,
             ` (${node.sourceType})`,
-            node.queryUuid ? `, queryUuid ${node.queryUuid}` : '',
+            queryUuid ? `, queryUuid ${queryUuid}` : '',
         ].join('');
-        const outcome =
-            node.rowCount === null
-                ? `${status?.state ?? 'not read'}${status?.error ? `: ${status.error}` : ''}`
-                : `${node.rowCount} rows`;
-        const capped = reachedLimit.has(node.nodeId)
-            ? ` Reached its limit of ${node.limit}, so more rows may exist (max ${maxQueryLimit}).`
-            : '';
-        return `${label}: ${outcome}, limit ${node.limit}.${capped}`;
+        return [
+            `${label}: ${getOutcome(node)}`,
+            ...renderNodeDetails(node),
+        ].join('\n');
     });
     const warnings = queries.flatMap((query) =>
-        Object.values(getSourceQueryResultReferences(query))
+        getReads(query)
             .filter((reference) => reachedLimit.has(reference))
             .map(
                 (reference) =>
@@ -367,4 +398,42 @@ export const renderComposerNodeSummary = (
             ),
     );
     return [...nodeLines, ...warnings].join('\n');
+};
+
+/** A failed run's nodes: each failed node, then the nodes it reads, then the rest. */
+export const getFailedRunNodes = (
+    queries: ComposerPipelineNode[],
+    nodeStatuses: ComposerNodeStatus[],
+    submittedNodeIds: Set<string>,
+): ComposerNodeSummary[] => {
+    const saved = new Set(
+        nodeStatuses.filter(isSaved).map(({ nodeId }) => nodeId),
+    );
+    const getStatus = (nodeId: string) =>
+        nodeStatuses.find((status) => status.nodeId === nodeId);
+    const failed = queries.filter(
+        (node) =>
+            !saved.has(node.nodeId) &&
+            !!getStatus(node.nodeId)?.error &&
+            getReads(node).every((reference) => saved.has(reference)),
+    );
+    const readByFailed = new Set(failed.flatMap(getReads));
+    const order = [
+        ...new Set([
+            ...failed.flatMap((node) => [node.nodeId, ...getReads(node)]),
+            ...queries.map(({ nodeId }) => nodeId),
+        ]),
+    ];
+    return order.flatMap((nodeId) => {
+        const node = queries.find((query) => query.nodeId === nodeId);
+        return node
+            ? [
+                  toNodeSummary(
+                      node,
+                      getStatus(nodeId),
+                      submittedNodeIds.has(nodeId) || readByFailed.has(nodeId),
+                  ),
+              ]
+            : [];
+    });
 };
