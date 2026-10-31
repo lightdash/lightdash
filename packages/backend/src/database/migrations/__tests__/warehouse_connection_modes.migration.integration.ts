@@ -23,6 +23,7 @@ const LATER_MIGRATIONS_REFERENCING_CONNECTIONS = [
     '20261011000001_add_agent_policy_allowed_users',
     '20261011000004_add_agent_policy_allowed_groups',
     '20261011000005_add_agent_policy_allowed_capabilities',
+    '20261028120000_link_credential_identities',
 ] as const;
 
 const LATER_TABLES = [

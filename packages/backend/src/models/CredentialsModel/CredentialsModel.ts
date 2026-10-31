@@ -24,6 +24,9 @@ const metadataColumns = [
     'subject_user_uuid',
     'subject_label',
     'issuer_credential_uuid',
+    'ssh_key_pair_public_key',
+    'web_identity_audience',
+    'issuer_agent_client_uuid',
     'oauth_grant_uuid',
     'generation',
     'expires_at',
@@ -52,6 +55,9 @@ const toMetadata = (row: DbCredentialMetadata): CredentialMetadata => ({
     subjectUserUuid: row.subject_user_uuid,
     subjectLabel: row.subject_label,
     issuerCredentialUuid: row.issuer_credential_uuid,
+    sshKeyPairPublicKey: row.ssh_key_pair_public_key,
+    webIdentityAudience: row.web_identity_audience,
+    issuerAgentClientUuid: row.issuer_agent_client_uuid,
     oauthGrantUuid: row.oauth_grant_uuid,
     generation: row.generation,
     expiresAt: row.expires_at,
@@ -152,23 +158,6 @@ export class CredentialsModel {
                     );
                 }
             }
-            if (input.issuerCredentialUuid !== null) {
-                const issuer = await trx('credentials')
-                    .select('purpose', 'organization_uuid', 'warehouse_type')
-                    .where('credential_uuid', input.issuerCredentialUuid)
-                    .forShare()
-                    .first();
-                if (
-                    !issuer ||
-                    issuer.purpose !== 'agent_oauth_client' ||
-                    issuer.organization_uuid !== input.organizationUuid ||
-                    issuer.warehouse_type !== input.warehouseType
-                ) {
-                    throw new ParameterError(
-                        'Issuer must be an agent OAuth client in the same organization and warehouse type.',
-                    );
-                }
-            }
             const [row] = await trx('credentials')
                 .insert({
                     organization_uuid: input.organizationUuid,
@@ -183,6 +172,9 @@ export class CredentialsModel {
                     subject_user_uuid: input.subjectUserUuid,
                     subject_label: input.subjectLabel,
                     issuer_credential_uuid: input.issuerCredentialUuid,
+                    ssh_key_pair_public_key: input.sshKeyPairPublicKey,
+                    web_identity_audience: input.webIdentityAudience,
+                    issuer_agent_client_uuid: input.issuerAgentClientUuid,
                     oauth_grant_uuid: input.oauthGrantUuid,
                     expires_at: input.expiresAt,
                     created_by_user_uuid: input.createdByUserUuid,

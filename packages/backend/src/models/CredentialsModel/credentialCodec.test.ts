@@ -1,6 +1,7 @@
 import {
     sensitiveCredentialsFieldNames,
     WarehouseTypes,
+    type CredentialPurpose,
 } from '@lightdash/common';
 import { CredentialCodec, CredentialCodecError } from './credentialCodec';
 import { codecCases, createEncryptionUtil } from './credentialCodec.mock';
@@ -116,13 +117,55 @@ describe('CredentialCodec', () => {
             { ...codecCases[0], warehouseType: null },
             {
                 ...codecCases[0],
-                purpose: 'ssh_key_pair' as const,
+                purpose: 'ssh_key_pair' as CredentialPurpose,
                 warehouseType: WarehouseTypes.SNOWFLAKE,
             },
         ])
             expect(() => codec.encodeCredential(input)).toThrow(
                 expect.objectContaining({ code: 'unknown_mode' }),
             );
+    });
+    test.each([
+        { purpose: 'ssh_key_pair', warehouseType: null, authMode: 'key_pair' },
+        {
+            purpose: 'agent_oauth_client',
+            warehouseType: WarehouseTypes.SNOWFLAKE,
+            authMode: 'oauth',
+        },
+    ])('rejects the removed $purpose purpose', (key) => {
+        expect(() =>
+            codec.encodeCredential({
+                ...key,
+                purpose: key.purpose as CredentialPurpose,
+                identity:
+                    key.purpose === 'ssh_key_pair'
+                        ? { publicKey: 'key' }
+                        : { clientId: 'client' },
+                secrets:
+                    key.purpose === 'ssh_key_pair'
+                        ? { privateKey: 'secret' }
+                        : { clientSecret: 'secret' },
+            }),
+        ).toThrow(expect.objectContaining({ code: 'unknown_mode' }));
+    });
+    test('keeps the web identity audience outside the identity payload', () => {
+        const input = {
+            purpose: 'shared_login' as const,
+            warehouseType: WarehouseTypes.ATHENA,
+            authMode: 'web_identity',
+            identity: { assumeRoleArn: 'arn:aws:iam::test:role/test' },
+            secrets: {},
+        };
+        expect(codec.encodeCredential(input).identity).toEqual(input.identity);
+        expect(() =>
+            codec.encodeCredential({
+                ...input,
+                identity: {
+                    ...input.identity,
+                    webIdentityAudience: 'audience',
+                },
+            }),
+        ).toThrow(expect.objectContaining({ code: 'invalid_identity' }));
     });
     test('reports fallback decryption for secrets and token state', () => {
         const reader = new CredentialCodec(
