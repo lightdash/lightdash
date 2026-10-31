@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import {
-    AgentIdentityConnectEntryPoint,
     generateOAuthAuthorizePage,
     generateOAuthRedirectPage,
     getErrorMessage,
@@ -235,27 +234,6 @@ oauthRouter.get('/authorize', async (req, res, next) => {
         const clientName = await getOAuthService(req).getClientDisplayName(
             client_id as string,
         );
-        const prompt = await req.services
-            .getAiAccessService()
-            .getAgentConnectPrompt(req.user);
-        const authorizeUrl = new URL(
-            req.originalUrl || req.url,
-            getOAuthService(req).getSiteUrl(),
-        );
-        authorizeUrl.searchParams.delete('error');
-        const connectParams = new URLSearchParams({
-            redirect: authorizeUrl.href,
-            entryPoint: scopeString
-                .split(/\s+/)
-                .some(
-                    (value) =>
-                        value === OAuthScope.MCP_READ ||
-                        value === OAuthScope.MCP_WRITE,
-                )
-                ? AgentIdentityConnectEntryPoint.MCP_CONSENT
-                : AgentIdentityConnectEntryPoint.OAUTH_CONSENT,
-        });
-        if (prompt.required) connectParams.set('project', prompt.projectUuid);
         res.set('Content-Type', 'text/html');
         return res.send(
             generateOAuthAuthorizePage({
@@ -271,16 +249,6 @@ oauthRouter.get('/authorize', async (req, res, next) => {
                     organizationName: req.user.organizationName ?? '',
                 },
                 loginUrl,
-                agentConnect: prompt.required
-                    ? {
-                          url: `/api/v1/login/snowflake-ai?${connectParams}`,
-                          reason: prompt.reason,
-                          error:
-                              typeof req.query.error === 'string'
-                                  ? req.query.error
-                                  : null,
-                      }
-                    : null,
                 hiddenInputs: [
                     ...(resource === null
                         ? []

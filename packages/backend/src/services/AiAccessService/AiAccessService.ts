@@ -54,7 +54,6 @@ import {
     type QueryHistory,
     type QueryResultProducer,
     type QueryResultReader,
-    type SessionUser,
     type UpdateOrganizationAgentIdentityRule,
     type UpdateOrganizationSnowflakeAgentClient,
 } from '@lightdash/common';
@@ -590,62 +589,6 @@ export class AiAccessService extends BaseService {
         if (!(await this.isEnabled(user))) {
             throw new FeatureNotEnabledError(FeatureFlags.AgentIdentity);
         }
-    }
-
-    async getAgentConnectPrompt(user: SessionUser): Promise<
-        | {
-              required: true;
-              reason: 'needs_sign_in' | 'sign_in_expired';
-              projectUuid: string;
-          }
-        | { required: false }
-    > {
-        const { organizationUuid, userUuid } = user;
-        if (
-            !organizationUuid ||
-            !(await this.isEnabled({ organizationUuid, userUuid }))
-        )
-            return { required: false };
-        const rule = await this.organizationAgentIdentityRulesModel.get(
-            organizationUuid,
-            WarehouseTypes.SNOWFLAKE,
-            'person',
-        );
-        if (rule.source !== 'agent_sign_in') return { required: false };
-        const projects =
-            await this.projectModel.getAllByOrganizationUuid(organizationUuid);
-        const ability = this.createAuditedAbility(user);
-        const project = projects.find(
-            ({ projectUuid, warehouseType }) =>
-                warehouseType === WarehouseTypes.SNOWFLAKE &&
-                ability.can(
-                    'view',
-                    subject('Project', { organizationUuid, projectUuid }),
-                ),
-        );
-        if (!project) return { required: false };
-        await this.projectModel.getWarehouseCredentialsForBinding(
-            project.projectUuid,
-            { kind: 'connection', warehouseConnectionUuid: null },
-        );
-        const inspection = await this.agentSignInCredentialResolver.inspect({
-            organizationUuid,
-            userUuid,
-            email: user.email ?? '',
-        });
-        const reason = inspection
-            ? mapAgentCredentialResolutionError(this.logger, inspection, {
-                  userUuid,
-                  organizationUuid,
-                  evaluationKind: 'diagnostic',
-              }).refusal.reason
-            : null;
-        if (
-            reason === AiAccessRefusalReason.NEEDS_SIGN_IN ||
-            reason === AiAccessRefusalReason.SIGN_IN_EXPIRED
-        )
-            return { required: true, reason, projectUuid: project.projectUuid };
-        return { required: false };
     }
 
     async getOrganizationSettings(
