@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -euo pipefail
+fixture_root=$(cd -- "$(dirname -- "$0")" && pwd)
+mkdir -p "$fixture_root/.work"
+exec 9>"$fixture_root/.work/run.lock"
+flock -n 9 || { echo "A fixture runner is already active in this worktree." >&2; exit 1; }
+exec "$fixture_root/.work/venvs/dbt12/bin/python" -u "$fixture_root/run.py" \
+    --dbt19 "$fixture_root/.work/venvs/dbt19/bin/dbt" "$@"

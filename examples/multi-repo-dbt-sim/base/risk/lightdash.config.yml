@@ -1,0 +1,5 @@
+spotlight:
+    default_visibility: show
+table_groups:
+    operations:
+        label: Operations

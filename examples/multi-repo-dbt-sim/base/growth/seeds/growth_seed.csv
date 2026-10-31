@@ -1,0 +1,4 @@
+id,label,amount,active,event_date
+1,growth_sample_1,21,true,2026-01-01
+2,growth_sample_2,22,true,2026-01-02
+3,growth_sample_3,23,true,2026-01-03

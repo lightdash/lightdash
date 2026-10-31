@@ -1,0 +1,2260 @@
+{
+    "code_sha": "d564fed7d4daf093277b3b80102c4485c203689e",
+    "target_sha": "4629b2f651098b48e90f0cd340253980af03bcf1",
+    "scale": "small",
+    "seed": 42,
+    "fixture_stats": {
+        "distinctModelNames": 18,
+        "duplicatedDistinctNames": 1,
+        "largestSource": {
+            "models": 6,
+            "name": "payments"
+        },
+        "modelCounts": {
+            "finance": 4,
+            "growth": 2,
+            "marketing": 2,
+            "merchants": 3,
+            "payments": 6,
+            "risk": 2
+        },
+        "paymentsMerchantsOverlaps": 1,
+        "sourceCount": 6,
+        "totalModelNodes": 20,
+        "totalModels": 19,
+        "totalSeeds": 6
+    },
+    "results": [
+        {
+            "scenario": "cli-deploy",
+            "mode": "cli",
+            "expected": "Sequential full deploys can erase sibling explores before reworked #31326",
+            "operations": [
+                {
+                    "operation": "deploy",
+                    "source": "payments",
+                    "explicit_source": false,
+                    "success": false,
+                    "compile_success": true,
+                    "exit_code": 1,
+                    "elapsed_ms": 13094,
+                    "git_discovery_requests": 0,
+                    "http_409": true,
+                    "mentions_source_flag": false,
+                    "guidance_recommends_source": false,
+                    "http_errors": [
+                        {
+                            "http_status": 409,
+                            "method": "POST",
+                            "path": "/api/v2/projects/<id>/deploy/<id>/finalize",
+                            "message": "{\"status\":\"error\",\"error\":{\"statusCode\":409,\"name\":\"ConflictError\",\"message\":\"This deploy was not saved and nothing in the project changed.\\nThe project has several dbt sources and Lightdash could not tell which one these explores belong to: no source in this project provides the dbt project payments.\\n\\nTo fix it, make sure each dbt project has a distinct name in its dbt_project.yml, and that the repository you are deploying from is added as a dbt source in the project settings. If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.\\n\\nSources in this project: dbt_project, payments, merchants, finance, risk, growth, marketing.\",\"data\":{}}}"
+                        }
+                    ],
+                    "messages": [
+                        "HTTP 409: {\"status\":\"error\",\"error\":{\"statusCode\":409,\"name\":\"ConflictError\",\"message\":\"This deploy was not saved and nothing in the project changed.\\nThe project has several dbt sources and Lightdash could not tell which one these explores belong to: no source in this project provides the dbt project payments.\\n\\nTo fix it, make sure each dbt project has a distinct name in its dbt_project.yml, and that the repository you are deploying from is added as a dbt source in the project settings. If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.\\n\\nSources in this project: dbt_project, payments, merchants, finance, risk, growth, marketing.\",\"data\":{}}}",
+                        "\nDeploying to project: <id>\n\n\n\n- SUCCESS> rate_v2_usage \n- SUCCESS> rate_v1_usage \n- SUCCESS> rate_latest_usage \n- PARTIAL_SUCCESS> payments \n    \u26a0 Join \"merchant\" to table \"merchant\" was skipped because the model is not available in this project. Check that the model exists, is included by the project's tags/selector, and compiles successfully, then refresh the project.\n- SUCCESS> settlement \n- PARTIAL_SUCCESS> ledger \n    \u26a0 Join \"merchant\" to table \"merchant\" was skipped because the model is not available in this project. Check that the model exists, is included by the project's tags/selector, and compiles successfully, then refresh the project.\n\nCompiled 6 explores, SUCCESS=4 PARTIAL_SUCCESS=2 ERRORS=0\nDeploying 6 explores using batched deploy (batch size: 50, parallel: 1)\nStarting deploy session...\nDeploy session created: <id>\nUploading 1 batches...\n  Uploading batch 1/1 (6 explores)...\n  \u2713 Batch 1 uploaded (6 explores)\nFinalizing deploy...\nThis deploy was not saved and nothing in the project changed.\nThe project has several dbt sources and Lightdash could not tell which one these explores belong to: no source in this project provides the dbt project payments.\n\nTo fix it, make sure each dbt project has a distinct name in its dbt_project.yml, and that the repository you are deploying from is added as a dbt source in the project settings. If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.\n\nSources in this project: dbt_project, payments, merchants, finance, risk, growth, marketing.\n\n\ud83d\udca1 Run lightdash diagnostics for more info.\n\n"
+                    ],
+                    "resolver_metrics": []
+                },
+                {
+                    "operation": "deploy",
+                    "source": "merchants",
+                    "explicit_source": false,
+                    "success": false,
+                    "compile_success": true,
+                    "exit_code": 1,
+                    "elapsed_ms": 12588,
+                    "git_discovery_requests": 0,
+                    "http_409": true,
+                    "mentions_source_flag": false,
+                    "guidance_recommends_source": false,
+                    "http_errors": [
+                        {
+                            "http_status": 409,
+                            "method": "POST",
+                            "path": "/api/v2/projects/<id>/deploy/<id>/finalize",
+                            "message": "{\"status\":\"error\",\"error\":{\"statusCode\":409,\"name\":\"ConflictError\",\"message\":\"This deploy was not saved and nothing in the project changed.\\nThe project has several dbt sources and Lightdash could not tell which one these explores belong to: no source in this project provides the dbt project merchants.\\n\\nTo fix it, make sure each dbt project has a distinct name in its dbt_project.yml, and that the repository you are deploying from is added as a dbt source in the project settings. If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.\\n\\nSources in this project: dbt_project, payments, merchants, finance, risk, growth, marketing.\",\"data\":{}}}"
+                        }
+                    ],
+                    "before": {
+                        "explores_per_source": {
+                            "dbt_project": 0,
+                            "payments": 0,
+                            "merchants": 0,
+                            "finance": 0,
+                            "risk": 0,
+                            "growth": 0,
+                            "marketing": 0
+                        },
+                        "total_explores": 0,
+                        "connection_mode": "single",
+                        "connection_route": "single",
+                        "parameters": {
+                            "minimum_amount": {
+                                "type": "number",
+                                "label": "Minimum amount",
+                                "default": 0,
+                                "allow_custom_values": true
+                            }
+                        },
+                        "spotlight_tags": [
+                            {
+                                "name": "Payments",
+                                "color": "blue",
+                                "yamlReference": "payments",
+                                "createdBy": {
+                                    "firstName": "David",
+                                    "lastName": "Attenborough"
+                                }
+                            }
+                        ],
+                        "table_groups": {
+                            "commerce": {
+                                "label": "Commerce"
+                            },
+                            "operations": {
+                                "label": "Operations"
+                            }
+                        },
+                        "defaults": {
+                            "column_totals": true,
+                            "case_sensitive": false
+                        }
+                    },
+                    "after": {
+                        "explores_per_source": {
+                            "dbt_project": 0,
+                            "payments": 0,
+                            "merchants": 0,
+                            "finance": 0,
+                            "risk": 0,
+                            "growth": 0,
+                            "marketing": 0
+                        },
+                        "total_explores": 0,
+                        "connection_mode": "single",
+                        "connection_route": "single",
+                        "parameters": {},
+                        "spotlight_tags": [
+                            {
+                                "name": "Merchants",
+                                "color": "green",
+                                "yamlReference": "merchants",
+                                "createdBy": {
+                                    "firstName": "David",
+                                    "lastName": "Attenborough"
+                                }
+                            }
+                        ],
+                        "table_groups": {
+                            "commerce": {
+                                "label": "Commerce"
+                            }
+                        },
+                        "defaults": {
+                            "column_totals": true,
+                            "case_sensitive": false
+                        }
+                    },
+                    "messages": [
+                        "HTTP 409: {\"status\":\"error\",\"error\":{\"statusCode\":409,\"name\":\"ConflictError\",\"message\":\"This deploy was not saved and nothing in the project changed.\\nThe project has several dbt sources and Lightdash could not tell which one these explores belong to: no source in this project provides the dbt project merchants.\\n\\nTo fix it, make sure each dbt project has a distinct name in its dbt_project.yml, and that the repository you are deploying from is added as a dbt source in the project settings. If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.\\n\\nSources in this project: dbt_project, payments, merchants, finance, risk, growth, marketing.\",\"data\":{}}}",
+                        "\nDeploying to project: <id>\n\n\n\n- SUCCESS> merchant \n- SUCCESS> settlement \n- SUCCESS> rate \n- SUCCESS> rate \n\nCompiled 4 explores, SUCCESS=4 ERRORS=0\nDeploying 4 explores using batched deploy (batch size: 50, parallel: 1)\nStarting deploy session...\nDeploy session created: <id>\nUploading 1 batches...\n  Uploading batch 1/1 (4 explores)...\n  \u2713 Batch 1 uploaded (4 explores)\nFinalizing deploy...\nThis deploy was not saved and nothing in the project changed.\nThe project has several dbt sources and Lightdash could not tell which one these explores belong to: no source in this project provides the dbt project merchants.\n\nTo fix it, make sure each dbt project has a distinct name in its dbt_project.yml, and that the repository you are deploying from is added as a dbt source in the project settings. If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.\n\nSources in this project: dbt_project, payments, merchants, finance, risk, growth, marketing.\n\n\ud83d\udca1 Run lightdash diagnostics for more info.\n\n"
+                    ],
+                    "resolver_metrics": []
+                },
+                {
+                    "operation": "deploy",
+                    "source": "finance",
+                    "explicit_source": false,
+                    "success": false,
+                    "compile_success": true,
+                    "exit_code": 1,
+                    "elapsed_ms": 12539,
+                    "git_discovery_requests": 0,
+                    "http_409": true,
+                    "mentions_source_flag": false,
+                    "guidance_recommends_source": false,
+                    "http_errors": [
+                        {
+                            "http_status": 409,
+                            "method": "POST",
+                            "path": "/api/v2/projects/<id>/deploy/<id>/finalize",
+                            "message": "{\"status\":\"error\",\"error\":{\"statusCode\":409,\"name\":\"ConflictError\",\"message\":\"This deploy was not saved and nothing in the project changed.\\nThe project has several dbt sources and Lightdash could not tell which one these explores belong to: no source in this project provides the dbt project finance.\\n\\nTo fix it, make sure each dbt project has a distinct name in its dbt_project.yml, and that the repository you are deploying from is added as a dbt source in the project settings. If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.\\n\\nSources in this project: dbt_project, payments, merchants, finance, risk, growth, marketing.\",\"data\":{}}}"
+                        }
+                    ],
+                    "before": {
+                        "explores_per_source": {
+                            "dbt_project": 0,
+                            "payments": 0,
+                            "merchants": 0,
+                            "finance": 0,
+                            "risk": 0,
+                            "growth": 0,
+                            "marketing": 0
+                        },
+                        "total_explores": 0,
+                        "connection_mode": "single",
+                        "connection_route": "single",
+                        "parameters": {},
+                        "spotlight_tags": [
+                            {
+                                "name": "Merchants",
+                                "color": "green",
+                                "yamlReference": "merchants",
+                                "createdBy": {
+                                    "firstName": "David",
+                                    "lastName": "Attenborough"
+                                }
+                            }
+                        ],
+                        "table_groups": {
+                            "commerce": {
+                                "label": "Commerce"
+                            }
+                        },
+                        "defaults": {
+                            "column_totals": true,
+                            "case_sensitive": false
+                        }
+                    },
+                    "after": {
+                        "explores_per_source": {
+                            "dbt_project": 0,
+                            "payments": 0,
+                            "merchants": 0,
+                            "finance": 0,
+                            "risk": 0,
+                            "growth": 0,
+                            "marketing": 0
+                        },
+                        "total_explores": 0,
+                        "connection_mode": "single",
+                        "connection_route": "single",
+                        "parameters": {},
+                        "spotlight_tags": [],
+                        "table_groups": {
+                            "operations": {
+                                "label": "Operations"
+                            }
+                        },
+                        "defaults": {
+                            "column_totals": true,
+                            "case_sensitive": false
+                        }
+                    },
+                    "messages": [
+                        "HTTP 409: {\"status\":\"error\",\"error\":{\"statusCode\":409,\"name\":\"ConflictError\",\"message\":\"This deploy was not saved and nothing in the project changed.\\nThe project has several dbt sources and Lightdash could not tell which one these explores belong to: no source in this project provides the dbt project finance.\\n\\nTo fix it, make sure each dbt project has a distinct name in its dbt_project.yml, and that the repository you are deploying from is added as a dbt source in the project settings. If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.\\n\\nSources in this project: dbt_project, payments, merchants, finance, risk, growth, marketing.\",\"data\":{}}}",
+                        "\nDeploying to project: <id>\n\n\n\n- SUCCESS> finance_report \n- SUCCESS> settlement_report \n- SUCCESS> finance_base \n- SUCCESS> merchant_settlement_report \n\nCompiled 4 explores, SUCCESS=4 ERRORS=0\nDeploying 4 explores using batched deploy (batch size: 50, parallel: 1)\nStarting deploy session...\nDeploy session created: <id>\nUploading 1 batches...\n  Uploading batch 1/1 (4 explores)...\n  \u2713 Batch 1 uploaded (4 explores)\nFinalizing deploy...\nThis deploy was not saved and nothing in the project changed.\nThe project has several dbt sources and Lightdash could not tell which one these explores belong to: no source in this project provides the dbt project finance.\n\nTo fix it, make sure each dbt project has a distinct name in its dbt_project.yml, and that the repository you are deploying from is added as a dbt source in the project settings. If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.\n\nSources in this project: dbt_project, payments, merchants, finance, risk, growth, marketing.\n\n\ud83d\udca1 Run lightdash diagnostics for more info.\n\n"
+                    ],
+                    "resolver_metrics": []
+                },
+                {
+                    "operation": "deploy",
+                    "source": "risk",
+                    "explicit_source": false,
+                    "success": false,
+                    "compile_success": true,
+                    "exit_code": 1,
+                    "elapsed_ms": 12204,
+                    "git_discovery_requests": 0,
+                    "http_409": true,
+                    "mentions_source_flag": false,
+                    "guidance_recommends_source": false,
+                    "http_errors": [
+                        {
+                            "http_status": 409,
+                            "method": "POST",
+                            "path": "/api/v2/projects/<id>/deploy/<id>/finalize",
+                            "message": "{\"status\":\"error\",\"error\":{\"statusCode\":409,\"name\":\"ConflictError\",\"message\":\"This deploy was not saved and nothing in the project changed.\\nThe project has several dbt sources and Lightdash could not tell which one these explores belong to: no source in this project provides the dbt project risk.\\n\\nTo fix it, make sure each dbt project has a distinct name in its dbt_project.yml, and that the repository you are deploying from is added as a dbt source in the project settings. If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.\\n\\nSources in this project: dbt_project, payments, merchants, finance, risk, growth, marketing.\",\"data\":{}}}"
+                        }
+                    ],
+                    "before": {
+                        "explores_per_source": {
+                            "dbt_project": 0,
+                            "payments": 0,
+                            "merchants": 0,
+                            "finance": 0,
+                            "risk": 0,
+                            "growth": 0,
+                            "marketing": 0
+                        },
+                        "total_explores": 0,
+                        "connection_mode": "single",
+                        "connection_route": "single",
+                        "parameters": {},
+                        "spotlight_tags": [],
+                        "table_groups": {
+                            "operations": {
+                                "label": "Operations"
+                            }
+                        },
+                        "defaults": {
+                            "column_totals": true,
+                            "case_sensitive": false
+                        }
+                    },
+                    "after": {
+                        "explores_per_source": {
+                            "dbt_project": 0,
+                            "payments": 0,
+                            "merchants": 0,
+                            "finance": 0,
+                            "risk": 0,
+                            "growth": 0,
+                            "marketing": 0
+                        },
+                        "total_explores": 0,
+                        "connection_mode": "single",
+                        "connection_route": "single",
+                        "parameters": {},
+                        "spotlight_tags": [],
+                        "table_groups": {
+                            "operations": {
+                                "label": "Operations"
+                            }
+                        },
+                        "defaults": {
+                            "column_totals": true,
+                            "case_sensitive": false
+                        }
+                    },
+                    "messages": [
+                        "HTTP 409: {\"status\":\"error\",\"error\":{\"statusCode\":409,\"name\":\"ConflictError\",\"message\":\"This deploy was not saved and nothing in the project changed.\\nThe project has several dbt sources and Lightdash could not tell which one these explores belong to: no source in this project provides the dbt project risk.\\n\\nTo fix it, make sure each dbt project has a distinct name in its dbt_project.yml, and that the repository you are deploying from is added as a dbt source in the project settings. If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.\\n\\nSources in this project: dbt_project, payments, merchants, finance, risk, growth, marketing.\",\"data\":{}}}",
+                        "\nDeploying to project: <id>\n\n\n\n- SUCCESS> risk_base \n- SUCCESS> risk_report \n\nCompiled 2 explores, SUCCESS=2 ERRORS=0\nDeploying 2 explores using batched deploy (batch size: 50, parallel: 1)\nStarting deploy session...\nDeploy session created: <id>\nUploading 1 batches...\n  Uploading batch 1/1 (2 explores)...\n  \u2713 Batch 1 uploaded (2 explores)\nFinalizing deploy...\nThis deploy was not saved and nothing in the project changed.\nThe project has several dbt sources and Lightdash could not tell which one these explores belong to: no source in this project provides the dbt project risk.\n\nTo fix it, make sure each dbt project has a distinct name in its dbt_project.yml, and that the repository you are deploying from is added as a dbt source in the project settings. If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.\n\nSources in this project: dbt_project, payments, merchants, finance, risk, growth, marketing.\n\n\ud83d\udca1 Run lightdash diagnostics for more info.\n\n"
+                    ],
+                    "resolver_metrics": []
+                },
+                {
+                    "operation": "deploy",
+                    "source": "growth",
+                    "explicit_source": false,
+                    "success": false,
+                    "compile_success": true,
+                    "exit_code": 1,
+                    "elapsed_ms": 10873,
+                    "git_discovery_requests": 0,
+                    "http_409": true,
+                    "mentions_source_flag": false,
+                    "guidance_recommends_source": false,
+                    "http_errors": [
+                        {
+                            "http_status": 409,
+                            "method": "POST",
+                            "path": "/api/v2/projects/<id>/deploy/<id>/finalize",
+                            "message": "{\"status\":\"error\",\"error\":{\"statusCode\":409,\"name\":\"ConflictError\",\"message\":\"This deploy was not saved and nothing in the project changed.\\nThe project has several dbt sources and Lightdash could not tell which one these explores belong to: no source in this project provides the dbt project growth.\\n\\nTo fix it, make sure each dbt project has a distinct name in its dbt_project.yml, and that the repository you are deploying from is added as a dbt source in the project settings. If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.\\n\\nSources in this project: dbt_project, payments, merchants, finance, risk, growth, marketing.\",\"data\":{}}}"
+                        }
+                    ],
+                    "before": {
+                        "explores_per_source": {
+                            "dbt_project": 0,
+                            "payments": 0,
+                            "merchants": 0,
+                            "finance": 0,
+                            "risk": 0,
+                            "growth": 0,
+                            "marketing": 0
+                        },
+                        "total_explores": 0,
+                        "connection_mode": "single",
+                        "connection_route": "single",
+                        "parameters": {},
+                        "spotlight_tags": [],
+                        "table_groups": {
+                            "operations": {
+                                "label": "Operations"
+                            }
+                        },
+                        "defaults": {
+                            "column_totals": true,
+                            "case_sensitive": false
+                        }
+                    },
+                    "after": {
+                        "explores_per_source": {
+                            "dbt_project": 0,
+                            "payments": 0,
+                            "merchants": 0,
+                            "finance": 0,
+                            "risk": 0,
+                            "growth": 0,
+                            "marketing": 0
+                        },
+                        "total_explores": 0,
+                        "connection_mode": "single",
+                        "connection_route": "single",
+                        "parameters": {},
+                        "spotlight_tags": [],
+                        "table_groups": {
+                            "operations": {
+                                "label": "Operations"
+                            }
+                        },
+                        "defaults": {
+                            "column_totals": true,
+                            "case_sensitive": false
+                        }
+                    },
+                    "messages": [
+                        "HTTP 409: {\"status\":\"error\",\"error\":{\"statusCode\":409,\"name\":\"ConflictError\",\"message\":\"This deploy was not saved and nothing in the project changed.\\nThe project has several dbt sources and Lightdash could not tell which one these explores belong to: no source in this project provides the dbt project growth.\\n\\nTo fix it, make sure each dbt project has a distinct name in its dbt_project.yml, and that the repository you are deploying from is added as a dbt source in the project settings. If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.\\n\\nSources in this project: dbt_project, payments, merchants, finance, risk, growth, marketing.\",\"data\":{}}}",
+                        "\nDeploying to project: <id>\n\n\n\n- SUCCESS> growth_report \n- SUCCESS> growth_base \n\nCompiled 2 explores, SUCCESS=2 ERRORS=0\nDeploying 2 explores using batched deploy (batch size: 50, parallel: 1)\nStarting deploy session...\nDeploy session created: <id>\nUploading 1 batches...\n  Uploading batch 1/1 (2 explores)...\n  \u2713 Batch 1 uploaded (2 explores)\nFinalizing deploy...\nThis deploy was not saved and nothing in the project changed.\nThe project has several dbt sources and Lightdash could not tell which one these explores belong to: no source in this project provides the dbt project growth.\n\nTo fix it, make sure each dbt project has a distinct name in its dbt_project.yml, and that the repository you are deploying from is added as a dbt source in the project settings. If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.\n\nSources in this project: dbt_project, payments, merchants, finance, risk, growth, marketing.\n\n\ud83d\udca1 Run lightdash diagnostics for more info.\n\n"
+                    ],
+                    "resolver_metrics": []
+                },
+                {
+                    "operation": "deploy",
+                    "source": "marketing",
+                    "explicit_source": false,
+                    "success": false,
+                    "compile_success": true,
+                    "exit_code": 1,
+                    "elapsed_ms": 12336,
+                    "git_discovery_requests": 0,
+                    "http_409": true,
+                    "mentions_source_flag": false,
+                    "guidance_recommends_source": false,
+                    "http_errors": [
+                        {
+                            "http_status": 409,
+                            "method": "POST",
+                            "path": "/api/v2/projects/<id>/deploy/<id>/finalize",
+                            "message": "{\"status\":\"error\",\"error\":{\"statusCode\":409,\"name\":\"ConflictError\",\"message\":\"This deploy was not saved and nothing in the project changed.\\nThe project has several dbt sources and Lightdash could not tell which one these explores belong to: no source in this project provides the dbt project marketing.\\n\\nTo fix it, make sure each dbt project has a distinct name in its dbt_project.yml, and that the repository you are deploying from is added as a dbt source in the project settings. If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.\\n\\nSources in this project: dbt_project, payments, merchants, finance, risk, growth, marketing.\",\"data\":{}}}"
+                        }
+                    ],
+                    "before": {
+                        "explores_per_source": {
+                            "dbt_project": 0,
+                            "payments": 0,
+                            "merchants": 0,
+                            "finance": 0,
+                            "risk": 0,
+                            "growth": 0,
+                            "marketing": 0
+                        },
+                        "total_explores": 0,
+                        "connection_mode": "single",
+                        "connection_route": "single",
+                        "parameters": {},
+                        "spotlight_tags": [],
+                        "table_groups": {
+                            "operations": {
+                                "label": "Operations"
+                            }
+                        },
+                        "defaults": {
+                            "column_totals": true,
+                            "case_sensitive": false
+                        }
+                    },
+                    "after": {
+                        "explores_per_source": {
+                            "dbt_project": 0,
+                            "payments": 0,
+                            "merchants": 0,
+                            "finance": 0,
+                            "risk": 0,
+                            "growth": 0,
+                            "marketing": 0
+                        },
+                        "total_explores": 0,
+                        "connection_mode": "single",
+                        "connection_route": "single",
+                        "parameters": {},
+                        "spotlight_tags": [],
+                        "table_groups": {
+                            "operations": {
+                                "label": "Operations"
+                            }
+                        },
+                        "defaults": {
+                            "column_totals": true,
+                            "case_sensitive": false
+                        }
+                    },
+                    "messages": [
+                        "HTTP 409: {\"status\":\"error\",\"error\":{\"statusCode\":409,\"name\":\"ConflictError\",\"message\":\"This deploy was not saved and nothing in the project changed.\\nThe project has several dbt sources and Lightdash could not tell which one these explores belong to: no source in this project provides the dbt project marketing.\\n\\nTo fix it, make sure each dbt project has a distinct name in its dbt_project.yml, and that the repository you are deploying from is added as a dbt source in the project settings. If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.\\n\\nSources in this project: dbt_project, payments, merchants, finance, risk, growth, marketing.\",\"data\":{}}}",
+                        "\nDeploying to project: <id>\n\n\n\n- SUCCESS> marketing_base \n- SUCCESS> campaign \n\nCompiled 2 explores, SUCCESS=2 ERRORS=0\nDeploying 2 explores using batched deploy (batch size: 50, parallel: 1)\nStarting deploy session...\nDeploy session created: <id>\nUploading 1 batches...\n  Uploading batch 1/1 (2 explores)...\n  \u2713 Batch 1 uploaded (2 explores)\nFinalizing deploy...\nThis deploy was not saved and nothing in the project changed.\nThe project has several dbt sources and Lightdash could not tell which one these explores belong to: no source in this project provides the dbt project marketing.\n\nTo fix it, make sure each dbt project has a distinct name in its dbt_project.yml, and that the repository you are deploying from is added as a dbt source in the project settings. If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.\n\nSources in this project: dbt_project, payments, merchants, finance, risk, growth, marketing.\n\n\ud83d\udca1 Run lightdash diagnostics for more info.\n\n"
+                    ],
+                    "resolver_metrics": []
+                }
+            ],
+            "before": {
+                "explores_per_source": {
+                    "dbt_project": 0,
+                    "payments": 0,
+                    "merchants": 0,
+                    "finance": 0,
+                    "risk": 0,
+                    "growth": 0,
+                    "marketing": 0
+                },
+                "total_explores": 0,
+                "connection_mode": "single",
+                "connection_route": "single"
+            },
+            "baseline": {
+                "explores_per_source": {
+                    "dbt_project": 0,
+                    "payments": 0,
+                    "merchants": 0,
+                    "finance": 0,
+                    "risk": 0,
+                    "growth": 0,
+                    "marketing": 0
+                },
+                "total_explores": 0,
+                "connection_mode": "single",
+                "connection_route": "single",
+                "parameters": {
+                    "minimum_amount": {
+                        "type": "number",
+                        "label": "Minimum amount",
+                        "default": 0,
+                        "allow_custom_values": true
+                    }
+                },
+                "spotlight_tags": [
+                    {
+                        "name": "Payments",
+                        "color": "blue",
+                        "yamlReference": "payments",
+                        "createdBy": {
+                            "firstName": "David",
+                            "lastName": "Attenborough"
+                        }
+                    }
+                ],
+                "table_groups": {
+                    "commerce": {
+                        "label": "Commerce"
+                    },
+                    "operations": {
+                        "label": "Operations"
+                    }
+                },
+                "defaults": {
+                    "column_totals": true,
+                    "case_sensitive": false
+                }
+            },
+            "after": {
+                "explores_per_source": {
+                    "dbt_project": 0,
+                    "payments": 0,
+                    "merchants": 0,
+                    "finance": 0,
+                    "risk": 0,
+                    "growth": 0,
+                    "marketing": 0
+                },
+                "total_explores": 0,
+                "connection_mode": "single",
+                "connection_route": "single",
+                "parameters": {},
+                "spotlight_tags": [],
+                "table_groups": {
+                    "operations": {
+                        "label": "Operations"
+                    }
+                },
+                "defaults": {
+                    "column_totals": true,
+                    "case_sensitive": false
+                }
+            }
+        },
+        {
+            "scenario": "cli-source",
+            "mode": "cli",
+            "expected": "Explicit-source diagnostic control; not the normal CLI workflow",
+            "operations": [
+                {
+                    "operation": "deploy",
+                    "source": "payments",
+                    "explicit_source": false,
+                    "success": false,
+                    "compile_success": true,
+                    "exit_code": 1,
+                    "elapsed_ms": 12676,
+                    "git_discovery_requests": 0,
+                    "http_409": true,
+                    "mentions_source_flag": false,
+                    "guidance_recommends_source": false,
+                    "http_errors": [
+                        {
+                            "http_status": 409,
+                            "method": "POST",
+                            "path": "/api/v2/projects/<id>/deploy/<id>/finalize",
+                            "message": "{\"status\":\"error\",\"error\":{\"statusCode\":409,\"name\":\"ConflictError\",\"message\":\"This deploy was not saved and nothing in the project changed.\\nThe project has several dbt sources and Lightdash could not tell which one these explores belong to: no source in this project provides the dbt project payments.\\n\\nTo fix it, make sure each dbt project has a distinct name in its dbt_project.yml, and that the repository you are deploying from is added as a dbt source in the project settings. If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.\\n\\nSources in this project: dbt_project, payments, merchants, finance, risk, growth, marketing.\",\"data\":{}}}"
+                        }
+                    ],
+                    "messages": [
+                        "HTTP 409: {\"status\":\"error\",\"error\":{\"statusCode\":409,\"name\":\"ConflictError\",\"message\":\"This deploy was not saved and nothing in the project changed.\\nThe project has several dbt sources and Lightdash could not tell which one these explores belong to: no source in this project provides the dbt project payments.\\n\\nTo fix it, make sure each dbt project has a distinct name in its dbt_project.yml, and that the repository you are deploying from is added as a dbt source in the project settings. If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.\\n\\nSources in this project: dbt_project, payments, merchants, finance, risk, growth, marketing.\",\"data\":{}}}",
+                        "\nDeploying to project: <id>\n\n\n\n- SUCCESS> rate_v2_usage \n- SUCCESS> rate_v1_usage \n- SUCCESS> rate_latest_usage \n- PARTIAL_SUCCESS> payments \n    \u26a0 Join \"merchant\" to table \"merchant\" was skipped because the model is not available in this project. Check that the model exists, is included by the project's tags/selector, and compiles successfully, then refresh the project.\n- SUCCESS> settlement \n- PARTIAL_SUCCESS> ledger \n    \u26a0 Join \"merchant\" to table \"merchant\" was skipped because the model is not available in this project. Check that the model exists, is included by the project's tags/selector, and compiles successfully, then refresh the project.\n\nCompiled 6 explores, SUCCESS=4 PARTIAL_SUCCESS=2 ERRORS=0\nDeploying 6 explores using batched deploy (batch size: 50, parallel: 1)\nStarting deploy session...\nDeploy session created: <id>\nUploading 1 batches...\n  Uploading batch 1/1 (6 explores)...\n  \u2713 Batch 1 uploaded (6 explores)\nFinalizing deploy...\nThis deploy was not saved and nothing in the project changed.\nThe project has several dbt sources and Lightdash could not tell which one these explores belong to: no source in this project provides the dbt project payments.\n\nTo fix it, make sure each dbt project has a distinct name in its dbt_project.yml, and that the repository you are deploying from is added as a dbt source in the project settings. If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.\n\nSources in this project: dbt_project, payments, merchants, finance, risk, growth, marketing.\n\n\ud83d\udca1 Run lightdash diagnostics for more info.\n\n"
+                    ],
+                    "resolver_metrics": []
+                },
+                {
+                    "operation": "deploy",
+                    "source": "merchants",
+                    "explicit_source": true,
+                    "success": true,
+                    "compile_success": true,
+                    "exit_code": 0,
+                    "elapsed_ms": 12542,
+                    "git_discovery_requests": 0,
+                    "http_409": false,
+                    "mentions_source_flag": true,
+                    "guidance_recommends_source": true,
+                    "http_errors": [],
+                    "before": {
+                        "explores_per_source": {
+                            "dbt_project": 0,
+                            "payments": 0,
+                            "merchants": 0,
+                            "finance": 0,
+                            "risk": 0,
+                            "growth": 0,
+                            "marketing": 0
+                        },
+                        "total_explores": 0,
+                        "connection_mode": "single",
+                        "connection_route": "single",
+                        "parameters": {
+                            "minimum_amount": {
+                                "type": "number",
+                                "label": "Minimum amount",
+                                "default": 0,
+                                "allow_custom_values": true
+                            }
+                        },
+                        "spotlight_tags": [
+                            {
+                                "name": "Payments",
+                                "color": "blue",
+                                "yamlReference": "payments",
+                                "createdBy": {
+                                    "firstName": "David",
+                                    "lastName": "Attenborough"
+                                }
+                            }
+                        ],
+                        "table_groups": {
+                            "commerce": {
+                                "label": "Commerce"
+                            },
+                            "operations": {
+                                "label": "Operations"
+                            }
+                        },
+                        "defaults": {
+                            "column_totals": true,
+                            "case_sensitive": false
+                        }
+                    },
+                    "after": {
+                        "explores_per_source": {
+                            "dbt_project": 0,
+                            "payments": 0,
+                            "merchants": 3,
+                            "finance": 0,
+                            "risk": 0,
+                            "growth": 0,
+                            "marketing": 0
+                        },
+                        "total_explores": 3,
+                        "connection_mode": "single",
+                        "connection_route": "single",
+                        "parameters": {},
+                        "spotlight_tags": [
+                            {
+                                "name": "Merchants",
+                                "color": "green",
+                                "yamlReference": "merchants",
+                                "createdBy": {
+                                    "firstName": "David",
+                                    "lastName": "Attenborough"
+                                }
+                            }
+                        ],
+                        "table_groups": {
+                            "commerce": {
+                                "label": "Commerce"
+                            }
+                        },
+                        "defaults": {
+                            "column_totals": true,
+                            "case_sensitive": false
+                        }
+                    },
+                    "messages": [
+                        "--source is deprecated and will be ignored in a future release. Lightdash now works out which dbt source a deploy belongs to from your dbt project. You only need it if the deploy is rejected because the source can't be inferred."
+                    ],
+                    "resolver_metrics": []
+                },
+                {
+                    "operation": "deploy",
+                    "source": "finance",
+                    "explicit_source": true,
+                    "success": true,
+                    "compile_success": true,
+                    "exit_code": 0,
+                    "elapsed_ms": 13076,
+                    "git_discovery_requests": 0,
+                    "http_409": false,
+                    "mentions_source_flag": true,
+                    "guidance_recommends_source": true,
+                    "http_errors": [],
+                    "before": {
+                        "explores_per_source": {
+                            "dbt_project": 0,
+                            "payments": 0,
+                            "merchants": 3,
+                            "finance": 0,
+                            "risk": 0,
+                            "growth": 0,
+                            "marketing": 0
+                        },
+                        "total_explores": 3,
+                        "connection_mode": "single",
+                        "connection_route": "single",
+                        "parameters": {},
+                        "spotlight_tags": [
+                            {
+                                "name": "Merchants",
+                                "color": "green",
+                                "yamlReference": "merchants",
+                                "createdBy": {
+                                    "firstName": "David",
+                                    "lastName": "Attenborough"
+                                }
+                            }
+                        ],
+                        "table_groups": {
+                            "commerce": {
+                                "label": "Commerce"
+                            }
+                        },
+                        "defaults": {
+                            "column_totals": true,
+                            "case_sensitive": false
+                        }
+                    },
+                    "after": {
+                        "explores_per_source": {
+                            "dbt_project": 0,
+                            "payments": 0,
+                            "merchants": 3,
+                            "finance": 4,
+                            "risk": 0,
+                            "growth": 0,
+                            "marketing": 0
+                        },
+                        "total_explores": 7,
+                        "connection_mode": "single",
+                        "connection_route": "single",
+                        "parameters": {},
+                        "spotlight_tags": [],
+                        "table_groups": {
+                            "operations": {
+                                "label": "Operations"
+                            }
+                        },
+                        "defaults": {
+                            "column_totals": true,
+                            "case_sensitive": false
+                        }
+                    },
+                    "messages": [
+                        "--source is deprecated and will be ignored in a future release. Lightdash now works out which dbt source a deploy belongs to from your dbt project. You only need it if the deploy is rejected because the source can't be inferred."
+                    ],
+                    "resolver_metrics": []
+                },
+                {
+                    "operation": "deploy",
+                    "source": "risk",
+                    "explicit_source": true,
+                    "success": true,
+                    "compile_success": true,
+                    "exit_code": 0,
+                    "elapsed_ms": 12909,
+                    "git_discovery_requests": 0,
+                    "http_409": false,
+                    "mentions_source_flag": true,
+                    "guidance_recommends_source": true,
+                    "http_errors": [],
+                    "before": {
+                        "explores_per_source": {
+                            "dbt_project": 0,
+                            "payments": 0,
+                            "merchants": 3,
+                            "finance": 4,
+                            "risk": 0,
+                            "growth": 0,
+                            "marketing": 0
+                        },
+                        "total_explores": 7,
+                        "connection_mode": "single",
+                        "connection_route": "single",
+                        "parameters": {},
+                        "spotlight_tags": [],
+                        "table_groups": {
+                            "operations": {
+                                "label": "Operations"
+                            }
+                        },
+                        "defaults": {
+                            "column_totals": true,
+                            "case_sensitive": false
+                        }
+                    },
+                    "after": {
+                        "explores_per_source": {
+                            "dbt_project": 0,
+                            "payments": 0,
+                            "merchants": 3,
+                            "finance": 4,
+                            "risk": 2,
+                            "growth": 0,
+                            "marketing": 0
+                        },
+                        "total_explores": 9,
+                        "connection_mode": "single",
+                        "connection_route": "single",
+                        "parameters": {},
+                        "spotlight_tags": [],
+                        "table_groups": {
+                            "operations": {
+                                "label": "Operations"
+                            }
+                        },
+                        "defaults": {
+                            "column_totals": true,
+                            "case_sensitive": false
+                        }
+                    },
+                    "messages": [
+                        "--source is deprecated and will be ignored in a future release. Lightdash now works out which dbt source a deploy belongs to from your dbt project. You only need it if the deploy is rejected because the source can't be inferred."
+                    ],
+                    "resolver_metrics": []
+                },
+                {
+                    "operation": "deploy",
+                    "source": "growth",
+                    "explicit_source": true,
+                    "success": true,
+                    "compile_success": true,
+                    "exit_code": 0,
+                    "elapsed_ms": 12164,
+                    "git_discovery_requests": 0,
+                    "http_409": false,
+                    "mentions_source_flag": true,
+                    "guidance_recommends_source": true,
+                    "http_errors": [],
+                    "before": {
+                        "explores_per_source": {
+                            "dbt_project": 0,
+                            "payments": 0,
+                            "merchants": 3,
+                            "finance": 4,
+                            "risk": 2,
+                            "growth": 0,
+                            "marketing": 0
+                        },
+                        "total_explores": 9,
+                        "connection_mode": "single",
+                        "connection_route": "single",
+                        "parameters": {},
+                        "spotlight_tags": [],
+                        "table_groups": {
+                            "operations": {
+                                "label": "Operations"
+                            }
+                        },
+                        "defaults": {
+                            "column_totals": true,
+                            "case_sensitive": false
+                        }
+                    },
+                    "after": {
+                        "explores_per_source": {
+                            "dbt_project": 0,
+                            "payments": 0,
+                            "merchants": 3,
+                            "finance": 4,
+                            "risk": 2,
+                            "growth": 2,
+                            "marketing": 0
+                        },
+                        "total_explores": 11,
+                        "connection_mode": "single",
+                        "connection_route": "single",
+                        "parameters": {},
+                        "spotlight_tags": [],
+                        "table_groups": {
+                            "operations": {
+                                "label": "Operations"
+                            }
+                        },
+                        "defaults": {
+                            "column_totals": true,
+                            "case_sensitive": false
+                        }
+                    },
+                    "messages": [
+                        "--source is deprecated and will be ignored in a future release. Lightdash now works out which dbt source a deploy belongs to from your dbt project. You only need it if the deploy is rejected because the source can't be inferred."
+                    ],
+                    "resolver_metrics": []
+                },
+                {
+                    "operation": "deploy",
+                    "source": "marketing",
+                    "explicit_source": true,
+                    "success": true,
+                    "compile_success": true,
+                    "exit_code": 0,
+                    "elapsed_ms": 12874,
+                    "git_discovery_requests": 0,
+                    "http_409": false,
+                    "mentions_source_flag": true,
+                    "guidance_recommends_source": true,
+                    "http_errors": [],
+                    "before": {
+                        "explores_per_source": {
+                            "dbt_project": 0,
+                            "payments": 0,
+                            "merchants": 3,
+                            "finance": 4,
+                            "risk": 2,
+                            "growth": 2,
+                            "marketing": 0
+                        },
+                        "total_explores": 11,
+                        "connection_mode": "single",
+                        "connection_route": "single",
+                        "parameters": {},
+                        "spotlight_tags": [],
+                        "table_groups": {
+                            "operations": {
+                                "label": "Operations"
+                            }
+                        },
+                        "defaults": {
+                            "column_totals": true,
+                            "case_sensitive": false
+                        }
+                    },
+                    "after": {
+                        "explores_per_source": {
+                            "dbt_project": 0,
+                            "payments": 0,
+                            "merchants": 3,
+                            "finance": 4,
+                            "risk": 2,
+                            "growth": 2,
+                            "marketing": 2
+                        },
+                        "total_explores": 13,
+                        "connection_mode": "single",
+                        "connection_route": "single",
+                        "parameters": {},
+                        "spotlight_tags": [],
+                        "table_groups": {
+                            "operations": {
+                                "label": "Operations"
+                            }
+                        },
+                        "defaults": {
+                            "column_totals": true,
+                            "case_sensitive": false
+                        }
+                    },
+                    "messages": [
+                        "--source is deprecated and will be ignored in a future release. Lightdash now works out which dbt source a deploy belongs to from your dbt project. You only need it if the deploy is rejected because the source can't be inferred."
+                    ],
+                    "resolver_metrics": []
+                }
+            ],
+            "before": {
+                "explores_per_source": {
+                    "dbt_project": 0,
+                    "payments": 0,
+                    "merchants": 0,
+                    "finance": 0,
+                    "risk": 0,
+                    "growth": 0,
+                    "marketing": 0
+                },
+                "total_explores": 0,
+                "connection_mode": "single",
+                "connection_route": "single"
+            },
+            "baseline": {
+                "explores_per_source": {
+                    "dbt_project": 0,
+                    "payments": 0,
+                    "merchants": 0,
+                    "finance": 0,
+                    "risk": 0,
+                    "growth": 0,
+                    "marketing": 0
+                },
+                "total_explores": 0,
+                "connection_mode": "single",
+                "connection_route": "single",
+                "parameters": {
+                    "minimum_amount": {
+                        "type": "number",
+                        "label": "Minimum amount",
+                        "default": 0,
+                        "allow_custom_values": true
+                    }
+                },
+                "spotlight_tags": [
+                    {
+                        "name": "Payments",
+                        "color": "blue",
+                        "yamlReference": "payments",
+                        "createdBy": {
+                            "firstName": "David",
+                            "lastName": "Attenborough"
+                        }
+                    }
+                ],
+                "table_groups": {
+                    "commerce": {
+                        "label": "Commerce"
+                    },
+                    "operations": {
+                        "label": "Operations"
+                    }
+                },
+                "defaults": {
+                    "column_totals": true,
+                    "case_sensitive": false
+                }
+            },
+            "after": {
+                "explores_per_source": {
+                    "dbt_project": 0,
+                    "payments": 0,
+                    "merchants": 3,
+                    "finance": 4,
+                    "risk": 2,
+                    "growth": 2,
+                    "marketing": 2
+                },
+                "total_explores": 13,
+                "connection_mode": "single",
+                "connection_route": "single",
+                "parameters": {},
+                "spotlight_tags": [],
+                "table_groups": {
+                    "operations": {
+                        "label": "Operations"
+                    }
+                },
+                "defaults": {
+                    "column_totals": true,
+                    "case_sensitive": false
+                }
+            }
+        },
+        {
+            "scenario": "config-none",
+            "mode": "cli",
+            "expected": "Missing parameters/categories still erase project configuration",
+            "operations": [
+                {
+                    "operation": "deploy",
+                    "source": "payments",
+                    "explicit_source": false,
+                    "success": false,
+                    "compile_success": true,
+                    "exit_code": 1,
+                    "elapsed_ms": 12123,
+                    "git_discovery_requests": 0,
+                    "http_409": true,
+                    "mentions_source_flag": false,
+                    "guidance_recommends_source": false,
+                    "http_errors": [
+                        {
+                            "http_status": 409,
+                            "method": "POST",
+                            "path": "/api/v2/projects/<id>/deploy/<id>/finalize",
+                            "message": "{\"status\":\"error\",\"error\":{\"statusCode\":409,\"name\":\"ConflictError\",\"message\":\"This deploy was not saved and nothing in the project changed.\\nThe project has several dbt sources and Lightdash could not tell which one these explores belong to: no source in this project provides the dbt project payments.\\n\\nTo fix it, make sure each dbt project has a distinct name in its dbt_project.yml, and that the repository you are deploying from is added as a dbt source in the project settings. If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.\\n\\nSources in this project: dbt_project, payments, merchants, finance, risk, growth, marketing.\",\"data\":{}}}"
+                        }
+                    ],
+                    "messages": [
+                        "HTTP 409: {\"status\":\"error\",\"error\":{\"statusCode\":409,\"name\":\"ConflictError\",\"message\":\"This deploy was not saved and nothing in the project changed.\\nThe project has several dbt sources and Lightdash could not tell which one these explores belong to: no source in this project provides the dbt project payments.\\n\\nTo fix it, make sure each dbt project has a distinct name in its dbt_project.yml, and that the repository you are deploying from is added as a dbt source in the project settings. If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.\\n\\nSources in this project: dbt_project, payments, merchants, finance, risk, growth, marketing.\",\"data\":{}}}",
+                        "\nDeploying to project: <id>\n\n\n\n- SUCCESS> rate_v2_usage \n- SUCCESS> rate_v1_usage \n- SUCCESS> rate_latest_usage \n- PARTIAL_SUCCESS> payments \n    \u26a0 Join \"merchant\" to table \"merchant\" was skipped because the model is not available in this project. Check that the model exists, is included by the project's tags/selector, and compiles successfully, then refresh the project.\n- SUCCESS> settlement \n- PARTIAL_SUCCESS> ledger \n    \u26a0 Join \"merchant\" to table \"merchant\" was skipped because the model is not available in this project. Check that the model exists, is included by the project's tags/selector, and compiles successfully, then refresh the project.\n\nCompiled 6 explores, SUCCESS=4 PARTIAL_SUCCESS=2 ERRORS=0\nDeploying 6 explores using batched deploy (batch size: 50, parallel: 1)\nStarting deploy session...\nDeploy session created: <id>\nUploading 1 batches...\n  Uploading batch 1/1 (6 explores)...\n  \u2713 Batch 1 uploaded (6 explores)\nFinalizing deploy...\nThis deploy was not saved and nothing in the project changed.\nThe project has several dbt sources and Lightdash could not tell which one these explores belong to: no source in this project provides the dbt project payments.\n\nTo fix it, make sure each dbt project has a distinct name in its dbt_project.yml, and that the repository you are deploying from is added as a dbt source in the project settings. If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.\n\nSources in this project: dbt_project, payments, merchants, finance, risk, growth, marketing.\n\n\ud83d\udca1 Run lightdash diagnostics for more info.\n\n"
+                    ],
+                    "resolver_metrics": []
+                },
+                {
+                    "operation": "deploy",
+                    "source": "growth",
+                    "explicit_source": false,
+                    "success": false,
+                    "compile_success": true,
+                    "exit_code": 1,
+                    "elapsed_ms": 11471,
+                    "git_discovery_requests": 0,
+                    "http_409": true,
+                    "mentions_source_flag": false,
+                    "guidance_recommends_source": false,
+                    "http_errors": [
+                        {
+                            "http_status": 409,
+                            "method": "POST",
+                            "path": "/api/v2/projects/<id>/deploy/<id>/finalize",
+                            "message": "{\"status\":\"error\",\"error\":{\"statusCode\":409,\"name\":\"ConflictError\",\"message\":\"This deploy was not saved and nothing in the project changed.\\nThe project has several dbt sources and Lightdash could not tell which one these explores belong to: no source in this project provides the dbt project growth.\\n\\nTo fix it, make sure each dbt project has a distinct name in its dbt_project.yml, and that the repository you are deploying from is added as a dbt source in the project settings. If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.\\n\\nSources in this project: dbt_project, payments, merchants, finance, risk, growth, marketing.\",\"data\":{}}}"
+                        }
+                    ],
+                    "messages": [
+                        "HTTP 409: {\"status\":\"error\",\"error\":{\"statusCode\":409,\"name\":\"ConflictError\",\"message\":\"This deploy was not saved and nothing in the project changed.\\nThe project has several dbt sources and Lightdash could not tell which one these explores belong to: no source in this project provides the dbt project growth.\\n\\nTo fix it, make sure each dbt project has a distinct name in its dbt_project.yml, and that the repository you are deploying from is added as a dbt source in the project settings. If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.\\n\\nSources in this project: dbt_project, payments, merchants, finance, risk, growth, marketing.\",\"data\":{}}}",
+                        "\nDeploying to project: <id>\n\n\n\n- SUCCESS> growth_report \n- SUCCESS> growth_base \n\nCompiled 2 explores, SUCCESS=2 ERRORS=0\nDeploying 2 explores using batched deploy (batch size: 50, parallel: 1)\nStarting deploy session...\nDeploy session created: <id>\nUploading 1 batches...\n  Uploading batch 1/1 (2 explores)...\n  \u2713 Batch 1 uploaded (2 explores)\nFinalizing deploy...\nThis deploy was not saved and nothing in the project changed.\nThe project has several dbt sources and Lightdash could not tell which one these explores belong to: no source in this project provides the dbt project growth.\n\nTo fix it, make sure each dbt project has a distinct name in its dbt_project.yml, and that the repository you are deploying from is added as a dbt source in the project settings. If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.\n\nSources in this project: dbt_project, payments, merchants, finance, risk, growth, marketing.\n\n\ud83d\udca1 Run lightdash diagnostics for more info.\n\n"
+                    ],
+                    "resolver_metrics": []
+                }
+            ],
+            "before": {
+                "explores_per_source": {
+                    "dbt_project": 0,
+                    "payments": 0,
+                    "merchants": 0,
+                    "finance": 0,
+                    "risk": 0,
+                    "growth": 0,
+                    "marketing": 0
+                },
+                "total_explores": 0,
+                "connection_mode": "single",
+                "connection_route": "single"
+            },
+            "baseline": {
+                "explores_per_source": {
+                    "dbt_project": 0,
+                    "payments": 0,
+                    "merchants": 0,
+                    "finance": 0,
+                    "risk": 0,
+                    "growth": 0,
+                    "marketing": 0
+                },
+                "total_explores": 0,
+                "connection_mode": "single",
+                "connection_route": "single",
+                "parameters": {
+                    "minimum_amount": {
+                        "type": "number",
+                        "label": "Minimum amount",
+                        "default": 0,
+                        "allow_custom_values": true
+                    }
+                },
+                "spotlight_tags": [
+                    {
+                        "name": "Payments",
+                        "color": "blue",
+                        "yamlReference": "payments",
+                        "createdBy": {
+                            "firstName": "David",
+                            "lastName": "Attenborough"
+                        }
+                    }
+                ],
+                "table_groups": {
+                    "commerce": {
+                        "label": "Commerce"
+                    },
+                    "operations": {
+                        "label": "Operations"
+                    }
+                },
+                "defaults": {
+                    "column_totals": true,
+                    "case_sensitive": false
+                }
+            },
+            "after": {
+                "explores_per_source": {
+                    "dbt_project": 0,
+                    "payments": 0,
+                    "merchants": 0,
+                    "finance": 0,
+                    "risk": 0,
+                    "growth": 0,
+                    "marketing": 0
+                },
+                "total_explores": 0,
+                "connection_mode": "single",
+                "connection_route": "single",
+                "parameters": {},
+                "spotlight_tags": [],
+                "table_groups": {
+                    "commerce": {
+                        "label": "Commerce"
+                    },
+                    "operations": {
+                        "label": "Operations"
+                    }
+                },
+                "defaults": {
+                    "column_totals": true,
+                    "case_sensitive": false
+                }
+            }
+        },
+        {
+            "scenario": "config-partial",
+            "mode": "cli",
+            "expected": "Partial configuration still replaces project configuration",
+            "operations": [
+                {
+                    "operation": "deploy",
+                    "source": "payments",
+                    "explicit_source": false,
+                    "success": false,
+                    "compile_success": true,
+                    "exit_code": 1,
+                    "elapsed_ms": 12358,
+                    "git_discovery_requests": 0,
+                    "http_409": true,
+                    "mentions_source_flag": false,
+                    "guidance_recommends_source": false,
+                    "http_errors": [
+                        {
+                            "http_status": 409,
+                            "method": "POST",
+                            "path": "/api/v2/projects/<id>/deploy/<id>/finalize",
+                            "message": "{\"status\":\"error\",\"error\":{\"statusCode\":409,\"name\":\"ConflictError\",\"message\":\"This deploy was not saved and nothing in the project changed.\\nThe project has several dbt sources and Lightdash could not tell which one these explores belong to: no source in this project provides the dbt project payments.\\n\\nTo fix it, make sure each dbt project has a distinct name in its dbt_project.yml, and that the repository you are deploying from is added as a dbt source in the project settings. If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.\\n\\nSources in this project: dbt_project, payments, merchants, finance, risk, growth, marketing.\",\"data\":{}}}"
+                        }
+                    ],
+                    "messages": [
+                        "HTTP 409: {\"status\":\"error\",\"error\":{\"statusCode\":409,\"name\":\"ConflictError\",\"message\":\"This deploy was not saved and nothing in the project changed.\\nThe project has several dbt sources and Lightdash could not tell which one these explores belong to: no source in this project provides the dbt project payments.\\n\\nTo fix it, make sure each dbt project has a distinct name in its dbt_project.yml, and that the repository you are deploying from is added as a dbt source in the project settings. If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.\\n\\nSources in this project: dbt_project, payments, merchants, finance, risk, growth, marketing.\",\"data\":{}}}",
+                        "\nDeploying to project: <id>\n\n\n\n- SUCCESS> rate_v2_usage \n- SUCCESS> rate_v1_usage \n- SUCCESS> rate_latest_usage \n- PARTIAL_SUCCESS> payments \n    \u26a0 Join \"merchant\" to table \"merchant\" was skipped because the model is not available in this project. Check that the model exists, is included by the project's tags/selector, and compiles successfully, then refresh the project.\n- SUCCESS> settlement \n- PARTIAL_SUCCESS> ledger \n    \u26a0 Join \"merchant\" to table \"merchant\" was skipped because the model is not available in this project. Check that the model exists, is included by the project's tags/selector, and compiles successfully, then refresh the project.\n\nCompiled 6 explores, SUCCESS=4 PARTIAL_SUCCESS=2 ERRORS=0\nDeploying 6 explores using batched deploy (batch size: 50, parallel: 1)\nStarting deploy session...\nDeploy session created: <id>\nUploading 1 batches...\n  Uploading batch 1/1 (6 explores)...\n  \u2713 Batch 1 uploaded (6 explores)\nFinalizing deploy...\nThis deploy was not saved and nothing in the project changed.\nThe project has several dbt sources and Lightdash could not tell which one these explores belong to: no source in this project provides the dbt project payments.\n\nTo fix it, make sure each dbt project has a distinct name in its dbt_project.yml, and that the repository you are deploying from is added as a dbt source in the project settings. If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.\n\nSources in this project: dbt_project, payments, merchants, finance, risk, growth, marketing.\n\n\ud83d\udca1 Run lightdash diagnostics for more info.\n\n"
+                    ],
+                    "resolver_metrics": []
+                },
+                {
+                    "operation": "deploy",
+                    "source": "marketing",
+                    "explicit_source": false,
+                    "success": false,
+                    "compile_success": true,
+                    "exit_code": 1,
+                    "elapsed_ms": 12396,
+                    "git_discovery_requests": 0,
+                    "http_409": true,
+                    "mentions_source_flag": false,
+                    "guidance_recommends_source": false,
+                    "http_errors": [
+                        {
+                            "http_status": 409,
+                            "method": "POST",
+                            "path": "/api/v2/projects/<id>/deploy/<id>/finalize",
+                            "message": "{\"status\":\"error\",\"error\":{\"statusCode\":409,\"name\":\"ConflictError\",\"message\":\"This deploy was not saved and nothing in the project changed.\\nThe project has several dbt sources and Lightdash could not tell which one these explores belong to: no source in this project provides the dbt project marketing.\\n\\nTo fix it, make sure each dbt project has a distinct name in its dbt_project.yml, and that the repository you are deploying from is added as a dbt source in the project settings. If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.\\n\\nSources in this project: dbt_project, payments, merchants, finance, risk, growth, marketing.\",\"data\":{}}}"
+                        }
+                    ],
+                    "messages": [
+                        "HTTP 409: {\"status\":\"error\",\"error\":{\"statusCode\":409,\"name\":\"ConflictError\",\"message\":\"This deploy was not saved and nothing in the project changed.\\nThe project has several dbt sources and Lightdash could not tell which one these explores belong to: no source in this project provides the dbt project marketing.\\n\\nTo fix it, make sure each dbt project has a distinct name in its dbt_project.yml, and that the repository you are deploying from is added as a dbt source in the project settings. If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.\\n\\nSources in this project: dbt_project, payments, merchants, finance, risk, growth, marketing.\",\"data\":{}}}",
+                        "\nDeploying to project: <id>\n\n\n\n- SUCCESS> marketing_base \n- SUCCESS> campaign \n\nCompiled 2 explores, SUCCESS=2 ERRORS=0\nDeploying 2 explores using batched deploy (batch size: 50, parallel: 1)\nStarting deploy session...\nDeploy session created: <id>\nUploading 1 batches...\n  Uploading batch 1/1 (2 explores)...\n  \u2713 Batch 1 uploaded (2 explores)\nFinalizing deploy...\nThis deploy was not saved and nothing in the project changed.\nThe project has several dbt sources and Lightdash could not tell which one these explores belong to: no source in this project provides the dbt project marketing.\n\nTo fix it, make sure each dbt project has a distinct name in its dbt_project.yml, and that the repository you are deploying from is added as a dbt source in the project settings. If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.\n\nSources in this project: dbt_project, payments, merchants, finance, risk, growth, marketing.\n\n\ud83d\udca1 Run lightdash diagnostics for more info.\n\n"
+                    ],
+                    "resolver_metrics": []
+                }
+            ],
+            "before": {
+                "explores_per_source": {
+                    "dbt_project": 0,
+                    "payments": 0,
+                    "merchants": 0,
+                    "finance": 0,
+                    "risk": 0,
+                    "growth": 0,
+                    "marketing": 0
+                },
+                "total_explores": 0,
+                "connection_mode": "single",
+                "connection_route": "single"
+            },
+            "baseline": {
+                "explores_per_source": {
+                    "dbt_project": 0,
+                    "payments": 0,
+                    "merchants": 0,
+                    "finance": 0,
+                    "risk": 0,
+                    "growth": 0,
+                    "marketing": 0
+                },
+                "total_explores": 0,
+                "connection_mode": "single",
+                "connection_route": "single",
+                "parameters": {
+                    "minimum_amount": {
+                        "type": "number",
+                        "label": "Minimum amount",
+                        "default": 0,
+                        "allow_custom_values": true
+                    }
+                },
+                "spotlight_tags": [
+                    {
+                        "name": "Payments",
+                        "color": "blue",
+                        "yamlReference": "payments",
+                        "createdBy": {
+                            "firstName": "David",
+                            "lastName": "Attenborough"
+                        }
+                    }
+                ],
+                "table_groups": {
+                    "commerce": {
+                        "label": "Commerce"
+                    },
+                    "operations": {
+                        "label": "Operations"
+                    }
+                },
+                "defaults": {
+                    "column_totals": true,
+                    "case_sensitive": false
+                }
+            },
+            "after": {
+                "explores_per_source": {
+                    "dbt_project": 0,
+                    "payments": 0,
+                    "merchants": 0,
+                    "finance": 0,
+                    "risk": 0,
+                    "growth": 0,
+                    "marketing": 0
+                },
+                "total_explores": 0,
+                "connection_mode": "single",
+                "connection_route": "single",
+                "parameters": {},
+                "spotlight_tags": [],
+                "table_groups": {
+                    "commerce": {
+                        "label": "Commerce"
+                    },
+                    "operations": {
+                        "label": "Operations"
+                    }
+                },
+                "defaults": {
+                    "column_totals": true,
+                    "case_sensitive": false
+                }
+            }
+        },
+        {
+            "scenario": "cli-collision",
+            "mode": "cli",
+            "expected": "Capture collision status and guidance; #31326 adds HTTP 409",
+            "operations": [
+                {
+                    "operation": "deploy",
+                    "source": "payments",
+                    "explicit_source": false,
+                    "success": false,
+                    "compile_success": true,
+                    "exit_code": 1,
+                    "elapsed_ms": 12603,
+                    "git_discovery_requests": 0,
+                    "http_409": true,
+                    "mentions_source_flag": false,
+                    "guidance_recommends_source": false,
+                    "http_errors": [
+                        {
+                            "http_status": 409,
+                            "method": "POST",
+                            "path": "/api/v2/projects/<id>/deploy/<id>/finalize",
+                            "message": "{\"status\":\"error\",\"error\":{\"statusCode\":409,\"name\":\"ConflictError\",\"message\":\"This deploy was not saved and nothing in the project changed.\\nThe project has several dbt sources and Lightdash could not tell which one these explores belong to: no source in this project provides the dbt project payments.\\n\\nTo fix it, make sure each dbt project has a distinct name in its dbt_project.yml, and that the repository you are deploying from is added as a dbt source in the project settings. If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.\\n\\nSources in this project: dbt_project, payments, merchants, finance, risk, growth, marketing.\",\"data\":{}}}"
+                        }
+                    ],
+                    "messages": [
+                        "HTTP 409: {\"status\":\"error\",\"error\":{\"statusCode\":409,\"name\":\"ConflictError\",\"message\":\"This deploy was not saved and nothing in the project changed.\\nThe project has several dbt sources and Lightdash could not tell which one these explores belong to: no source in this project provides the dbt project payments.\\n\\nTo fix it, make sure each dbt project has a distinct name in its dbt_project.yml, and that the repository you are deploying from is added as a dbt source in the project settings. If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.\\n\\nSources in this project: dbt_project, payments, merchants, finance, risk, growth, marketing.\",\"data\":{}}}",
+                        "\nDeploying to project: <id>\n\n\n\n- SUCCESS> rate_v2_usage \n- SUCCESS> rate_v1_usage \n- SUCCESS> rate_latest_usage \n- PARTIAL_SUCCESS> payments \n    \u26a0 Join \"merchant\" to table \"merchant\" was skipped because the model is not available in this project. Check that the model exists, is included by the project's tags/selector, and compiles successfully, then refresh the project.\n- SUCCESS> settlement \n- PARTIAL_SUCCESS> ledger \n    \u26a0 Join \"merchant\" to table \"merchant\" was skipped because the model is not available in this project. Check that the model exists, is included by the project's tags/selector, and compiles successfully, then refresh the project.\n\nCompiled 6 explores, SUCCESS=4 PARTIAL_SUCCESS=2 ERRORS=0\nDeploying 6 explores using batched deploy (batch size: 50, parallel: 1)\nStarting deploy session...\nDeploy session created: <id>\nUploading 1 batches...\n  Uploading batch 1/1 (6 explores)...\n  \u2713 Batch 1 uploaded (6 explores)\nFinalizing deploy...\nThis deploy was not saved and nothing in the project changed.\nThe project has several dbt sources and Lightdash could not tell which one these explores belong to: no source in this project provides the dbt project payments.\n\nTo fix it, make sure each dbt project has a distinct name in its dbt_project.yml, and that the repository you are deploying from is added as a dbt source in the project settings. If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.\n\nSources in this project: dbt_project, payments, merchants, finance, risk, growth, marketing.\n\n\ud83d\udca1 Run lightdash diagnostics for more info.\n\n"
+                    ],
+                    "resolver_metrics": []
+                },
+                {
+                    "operation": "deploy",
+                    "source": "marketing",
+                    "explicit_source": false,
+                    "success": false,
+                    "compile_success": true,
+                    "exit_code": 1,
+                    "elapsed_ms": 12665,
+                    "git_discovery_requests": 0,
+                    "http_409": true,
+                    "mentions_source_flag": false,
+                    "guidance_recommends_source": false,
+                    "http_errors": [
+                        {
+                            "http_status": 409,
+                            "method": "POST",
+                            "path": "/api/v2/projects/<id>/deploy/<id>/finalize",
+                            "message": "{\"status\":\"error\",\"error\":{\"statusCode\":409,\"name\":\"ConflictError\",\"message\":\"This deploy was not saved and nothing in the project changed.\\nThe project has several dbt sources and Lightdash could not tell which one these explores belong to: no source in this project provides the dbt project marketing.\\n\\nTo fix it, make sure each dbt project has a distinct name in its dbt_project.yml, and that the repository you are deploying from is added as a dbt source in the project settings. If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.\\n\\nSources in this project: dbt_project, payments, merchants, finance, risk, growth, marketing.\",\"data\":{}}}"
+                        }
+                    ],
+                    "messages": [
+                        "HTTP 409: {\"status\":\"error\",\"error\":{\"statusCode\":409,\"name\":\"ConflictError\",\"message\":\"This deploy was not saved and nothing in the project changed.\\nThe project has several dbt sources and Lightdash could not tell which one these explores belong to: no source in this project provides the dbt project marketing.\\n\\nTo fix it, make sure each dbt project has a distinct name in its dbt_project.yml, and that the repository you are deploying from is added as a dbt source in the project settings. If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.\\n\\nSources in this project: dbt_project, payments, merchants, finance, risk, growth, marketing.\",\"data\":{}}}",
+                        "\nDeploying to project: <id>\n\n\n\n- SUCCESS> marketing_base \n- SUCCESS> campaign \n- SUCCESS> ledger \n\nCompiled 3 explores, SUCCESS=3 ERRORS=0\nDeploying 3 explores using batched deploy (batch size: 50, parallel: 1)\nStarting deploy session...\nDeploy session created: <id>\nUploading 1 batches...\n  Uploading batch 1/1 (3 explores)...\n  \u2713 Batch 1 uploaded (3 explores)\nFinalizing deploy...\nThis deploy was not saved and nothing in the project changed.\nThe project has several dbt sources and Lightdash could not tell which one these explores belong to: no source in this project provides the dbt project marketing.\n\nTo fix it, make sure each dbt project has a distinct name in its dbt_project.yml, and that the repository you are deploying from is added as a dbt source in the project settings. If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.\n\nSources in this project: dbt_project, payments, merchants, finance, risk, growth, marketing.\n\n\ud83d\udca1 Run lightdash diagnostics for more info.\n\n"
+                    ],
+                    "resolver_metrics": []
+                }
+            ],
+            "before": {
+                "explores_per_source": {
+                    "dbt_project": 0,
+                    "payments": 0,
+                    "merchants": 0,
+                    "finance": 0,
+                    "risk": 0,
+                    "growth": 0,
+                    "marketing": 0
+                },
+                "total_explores": 0,
+                "connection_mode": "single",
+                "connection_route": "single"
+            },
+            "baseline": {
+                "explores_per_source": {
+                    "dbt_project": 0,
+                    "payments": 0,
+                    "merchants": 0,
+                    "finance": 0,
+                    "risk": 0,
+                    "growth": 0,
+                    "marketing": 0
+                },
+                "total_explores": 0,
+                "connection_mode": "single",
+                "connection_route": "single",
+                "parameters": {
+                    "minimum_amount": {
+                        "type": "number",
+                        "label": "Minimum amount",
+                        "default": 0,
+                        "allow_custom_values": true
+                    }
+                },
+                "spotlight_tags": [
+                    {
+                        "name": "Payments",
+                        "color": "blue",
+                        "yamlReference": "payments",
+                        "createdBy": {
+                            "firstName": "David",
+                            "lastName": "Attenborough"
+                        }
+                    }
+                ],
+                "table_groups": {
+                    "commerce": {
+                        "label": "Commerce"
+                    },
+                    "operations": {
+                        "label": "Operations"
+                    }
+                },
+                "defaults": {
+                    "column_totals": true,
+                    "case_sensitive": false
+                }
+            },
+            "original_chart": {
+                "created": false
+            },
+            "original_query_before": {
+                "resolves": false,
+                "error": "The original chart was not created"
+            },
+            "original_query_after": {
+                "resolves": false,
+                "error": "The original chart was not created"
+            },
+            "original_source_preserved": false,
+            "after": {
+                "explores_per_source": {
+                    "dbt_project": 0,
+                    "payments": 0,
+                    "merchants": 0,
+                    "finance": 0,
+                    "risk": 0,
+                    "growth": 0,
+                    "marketing": 0
+                },
+                "total_explores": 0,
+                "connection_mode": "single",
+                "connection_route": "single",
+                "parameters": {},
+                "spotlight_tags": [],
+                "table_groups": {
+                    "commerce": {
+                        "label": "Commerce"
+                    },
+                    "operations": {
+                        "label": "Operations"
+                    }
+                },
+                "defaults": {
+                    "column_totals": true,
+                    "case_sensitive": false
+                }
+            }
+        },
+        {
+            "scenario": "cli-duplicate-project",
+            "mode": "cli",
+            "expected": "Record source inference for duplicate dbt project names",
+            "operations": [
+                {
+                    "operation": "deploy",
+                    "source": "payments",
+                    "explicit_source": false,
+                    "success": false,
+                    "compile_success": true,
+                    "exit_code": 1,
+                    "elapsed_ms": 12748,
+                    "git_discovery_requests": 0,
+                    "http_409": true,
+                    "mentions_source_flag": false,
+                    "guidance_recommends_source": false,
+                    "http_errors": [
+                        {
+                            "http_status": 409,
+                            "method": "POST",
+                            "path": "/api/v2/projects/<id>/deploy/<id>/finalize",
+                            "message": "{\"status\":\"error\",\"error\":{\"statusCode\":409,\"name\":\"ConflictError\",\"message\":\"This deploy was not saved and nothing in the project changed.\\nThe project has several dbt sources and Lightdash could not tell which one these explores belong to: no source in this project provides the dbt project payments.\\n\\nTo fix it, make sure each dbt project has a distinct name in its dbt_project.yml, and that the repository you are deploying from is added as a dbt source in the project settings. If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.\\n\\nSources in this project: dbt_project, payments, merchants, finance, risk, growth, marketing.\",\"data\":{}}}"
+                        }
+                    ],
+                    "messages": [
+                        "HTTP 409: {\"status\":\"error\",\"error\":{\"statusCode\":409,\"name\":\"ConflictError\",\"message\":\"This deploy was not saved and nothing in the project changed.\\nThe project has several dbt sources and Lightdash could not tell which one these explores belong to: no source in this project provides the dbt project payments.\\n\\nTo fix it, make sure each dbt project has a distinct name in its dbt_project.yml, and that the repository you are deploying from is added as a dbt source in the project settings. If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.\\n\\nSources in this project: dbt_project, payments, merchants, finance, risk, growth, marketing.\",\"data\":{}}}",
+                        "\nDeploying to project: <id>\n\n\n\n- SUCCESS> rate_v2_usage \n- SUCCESS> rate_v1_usage \n- SUCCESS> rate_latest_usage \n- PARTIAL_SUCCESS> payments \n    \u26a0 Join \"merchant\" to table \"merchant\" was skipped because the model is not available in this project. Check that the model exists, is included by the project's tags/selector, and compiles successfully, then refresh the project.\n- SUCCESS> settlement \n- PARTIAL_SUCCESS> ledger \n    \u26a0 Join \"merchant\" to table \"merchant\" was skipped because the model is not available in this project. Check that the model exists, is included by the project's tags/selector, and compiles successfully, then refresh the project.\n\nCompiled 6 explores, SUCCESS=4 PARTIAL_SUCCESS=2 ERRORS=0\nDeploying 6 explores using batched deploy (batch size: 50, parallel: 1)\nStarting deploy session...\nDeploy session created: <id>\nUploading 1 batches...\n  Uploading batch 1/1 (6 explores)...\n  \u2713 Batch 1 uploaded (6 explores)\nFinalizing deploy...\nThis deploy was not saved and nothing in the project changed.\nThe project has several dbt sources and Lightdash could not tell which one these explores belong to: no source in this project provides the dbt project payments.\n\nTo fix it, make sure each dbt project has a distinct name in its dbt_project.yml, and that the repository you are deploying from is added as a dbt source in the project settings. If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.\n\nSources in this project: dbt_project, payments, merchants, finance, risk, growth, marketing.\n\n\ud83d\udca1 Run lightdash diagnostics for more info.\n\n"
+                    ],
+                    "resolver_metrics": []
+                },
+                {
+                    "operation": "deploy",
+                    "source": "marketing",
+                    "explicit_source": false,
+                    "success": false,
+                    "compile_success": true,
+                    "exit_code": 1,
+                    "elapsed_ms": 12965,
+                    "git_discovery_requests": 0,
+                    "http_409": true,
+                    "mentions_source_flag": false,
+                    "guidance_recommends_source": false,
+                    "http_errors": [
+                        {
+                            "http_status": 409,
+                            "method": "POST",
+                            "path": "/api/v2/projects/<id>/deploy/<id>/finalize",
+                            "message": "{\"status\":\"error\",\"error\":{\"statusCode\":409,\"name\":\"ConflictError\",\"message\":\"This deploy was not saved and nothing in the project changed.\\nThe project has several dbt sources and Lightdash could not tell which one these explores belong to: no source in this project provides the dbt project growth.\\n\\nTo fix it, make sure each dbt project has a distinct name in its dbt_project.yml, and that the repository you are deploying from is added as a dbt source in the project settings. If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.\\n\\nSources in this project: dbt_project, payments, merchants, finance, risk, growth, marketing.\",\"data\":{}}}"
+                        }
+                    ],
+                    "messages": [
+                        "HTTP 409: {\"status\":\"error\",\"error\":{\"statusCode\":409,\"name\":\"ConflictError\",\"message\":\"This deploy was not saved and nothing in the project changed.\\nThe project has several dbt sources and Lightdash could not tell which one these explores belong to: no source in this project provides the dbt project growth.\\n\\nTo fix it, make sure each dbt project has a distinct name in its dbt_project.yml, and that the repository you are deploying from is added as a dbt source in the project settings. If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.\\n\\nSources in this project: dbt_project, payments, merchants, finance, risk, growth, marketing.\",\"data\":{}}}",
+                        "\nDeploying to project: <id>\n\n\n\n- SUCCESS> marketing_base \n- SUCCESS> campaign \n\nCompiled 2 explores, SUCCESS=2 ERRORS=0\nDeploying 2 explores using batched deploy (batch size: 50, parallel: 1)\nStarting deploy session...\nDeploy session created: <id>\nUploading 1 batches...\n  Uploading batch 1/1 (2 explores)...\n  \u2713 Batch 1 uploaded (2 explores)\nFinalizing deploy...\nThis deploy was not saved and nothing in the project changed.\nThe project has several dbt sources and Lightdash could not tell which one these explores belong to: no source in this project provides the dbt project growth.\n\nTo fix it, make sure each dbt project has a distinct name in its dbt_project.yml, and that the repository you are deploying from is added as a dbt source in the project settings. If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.\n\nSources in this project: dbt_project, payments, merchants, finance, risk, growth, marketing.\n\n\ud83d\udca1 Run lightdash diagnostics for more info.\n\n"
+                    ],
+                    "resolver_metrics": []
+                }
+            ],
+            "before": {
+                "explores_per_source": {
+                    "dbt_project": 0,
+                    "payments": 0,
+                    "merchants": 0,
+                    "finance": 0,
+                    "risk": 0,
+                    "growth": 0,
+                    "marketing": 0
+                },
+                "total_explores": 0,
+                "connection_mode": "single",
+                "connection_route": "single"
+            },
+            "baseline": {
+                "explores_per_source": {
+                    "dbt_project": 0,
+                    "payments": 0,
+                    "merchants": 0,
+                    "finance": 0,
+                    "risk": 0,
+                    "growth": 0,
+                    "marketing": 0
+                },
+                "total_explores": 0,
+                "connection_mode": "single",
+                "connection_route": "single",
+                "parameters": {
+                    "minimum_amount": {
+                        "type": "number",
+                        "label": "Minimum amount",
+                        "default": 0,
+                        "allow_custom_values": true
+                    }
+                },
+                "spotlight_tags": [
+                    {
+                        "name": "Payments",
+                        "color": "blue",
+                        "yamlReference": "payments",
+                        "createdBy": {
+                            "firstName": "David",
+                            "lastName": "Attenborough"
+                        }
+                    }
+                ],
+                "table_groups": {
+                    "commerce": {
+                        "label": "Commerce"
+                    },
+                    "operations": {
+                        "label": "Operations"
+                    }
+                },
+                "defaults": {
+                    "column_totals": true,
+                    "case_sensitive": false
+                }
+            },
+            "after": {
+                "explores_per_source": {
+                    "dbt_project": 0,
+                    "payments": 0,
+                    "merchants": 0,
+                    "finance": 0,
+                    "risk": 0,
+                    "growth": 0,
+                    "marketing": 0
+                },
+                "total_explores": 0,
+                "connection_mode": "single",
+                "connection_route": "single",
+                "parameters": {},
+                "spotlight_tags": [],
+                "table_groups": {
+                    "commerce": {
+                        "label": "Commerce"
+                    },
+                    "operations": {
+                        "label": "Operations"
+                    }
+                },
+                "defaults": {
+                    "column_totals": true,
+                    "case_sensitive": false
+                }
+            }
+        },
+        {
+            "scenario": "cli-join-connected",
+            "mode": "cli",
+            "expected": "Loom resolves upstream refs; record whether an already deployed upstream preserves the join",
+            "operations": [
+                {
+                    "operation": "deploy",
+                    "source": "merchants",
+                    "explicit_source": false,
+                    "success": false,
+                    "compile_success": true,
+                    "exit_code": 1,
+                    "elapsed_ms": 12796,
+                    "git_discovery_requests": 0,
+                    "http_409": true,
+                    "mentions_source_flag": false,
+                    "guidance_recommends_source": false,
+                    "http_errors": [
+                        {
+                            "http_status": 409,
+                            "method": "POST",
+                            "path": "/api/v2/projects/<id>/deploy/<id>/finalize",
+                            "message": "{\"status\":\"error\",\"error\":{\"statusCode\":409,\"name\":\"ConflictError\",\"message\":\"This deploy was not saved and nothing in the project changed.\\nThe project has several dbt sources and Lightdash could not tell which one these explores belong to: no source in this project provides the dbt project merchants.\\n\\nTo fix it, make sure each dbt project has a distinct name in its dbt_project.yml, and that the repository you are deploying from is added as a dbt source in the project settings. If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.\\n\\nSources in this project: dbt_project, payments, merchants.\",\"data\":{}}}"
+                        }
+                    ],
+                    "messages": [
+                        "HTTP 409: {\"status\":\"error\",\"error\":{\"statusCode\":409,\"name\":\"ConflictError\",\"message\":\"This deploy was not saved and nothing in the project changed.\\nThe project has several dbt sources and Lightdash could not tell which one these explores belong to: no source in this project provides the dbt project merchants.\\n\\nTo fix it, make sure each dbt project has a distinct name in its dbt_project.yml, and that the repository you are deploying from is added as a dbt source in the project settings. If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.\\n\\nSources in this project: dbt_project, payments, merchants.\",\"data\":{}}}",
+                        "\nDeploying to project: <id>\n\n\n\n- SUCCESS> merchant \n- SUCCESS> settlement \n- SUCCESS> rate \n- SUCCESS> rate \n\nCompiled 4 explores, SUCCESS=4 ERRORS=0\nDeploying 4 explores using batched deploy (batch size: 50, parallel: 1)\nStarting deploy session...\nDeploy session created: <id>\nUploading 1 batches...\n  Uploading batch 1/1 (4 explores)...\n  \u2713 Batch 1 uploaded (4 explores)\nFinalizing deploy...\nThis deploy was not saved and nothing in the project changed.\nThe project has several dbt sources and Lightdash could not tell which one these explores belong to: no source in this project provides the dbt project merchants.\n\nTo fix it, make sure each dbt project has a distinct name in its dbt_project.yml, and that the repository you are deploying from is added as a dbt source in the project settings. If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.\n\nSources in this project: dbt_project, payments, merchants.\n\n\ud83d\udca1 Run lightdash diagnostics for more info.\n\n"
+                    ],
+                    "resolver_metrics": []
+                },
+                {
+                    "operation": "deploy",
+                    "source": "payments",
+                    "explicit_source": false,
+                    "success": false,
+                    "compile_success": true,
+                    "exit_code": 1,
+                    "elapsed_ms": 12576,
+                    "git_discovery_requests": 0,
+                    "http_409": true,
+                    "mentions_source_flag": false,
+                    "guidance_recommends_source": false,
+                    "http_errors": [
+                        {
+                            "http_status": 409,
+                            "method": "POST",
+                            "path": "/api/v2/projects/<id>/deploy/<id>/finalize",
+                            "message": "{\"status\":\"error\",\"error\":{\"statusCode\":409,\"name\":\"ConflictError\",\"message\":\"This deploy was not saved and nothing in the project changed.\\nThe project has several dbt sources and Lightdash could not tell which one these explores belong to: no source in this project provides the dbt project payments.\\n\\nTo fix it, make sure each dbt project has a distinct name in its dbt_project.yml, and that the repository you are deploying from is added as a dbt source in the project settings. If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.\\n\\nSources in this project: dbt_project, payments, merchants.\",\"data\":{}}}"
+                        }
+                    ],
+                    "messages": [
+                        "HTTP 409: {\"status\":\"error\",\"error\":{\"statusCode\":409,\"name\":\"ConflictError\",\"message\":\"This deploy was not saved and nothing in the project changed.\\nThe project has several dbt sources and Lightdash could not tell which one these explores belong to: no source in this project provides the dbt project payments.\\n\\nTo fix it, make sure each dbt project has a distinct name in its dbt_project.yml, and that the repository you are deploying from is added as a dbt source in the project settings. If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.\\n\\nSources in this project: dbt_project, payments, merchants.\",\"data\":{}}}",
+                        "\nDeploying to project: <id>\n\n\n\n- SUCCESS> rate_v2_usage \n- SUCCESS> rate_v1_usage \n- SUCCESS> rate_latest_usage \n- PARTIAL_SUCCESS> payments \n    \u26a0 Join \"merchant\" to table \"merchant\" was skipped because the model is not available in this project. Check that the model exists, is included by the project's tags/selector, and compiles successfully, then refresh the project.\n- SUCCESS> settlement \n- PARTIAL_SUCCESS> ledger \n    \u26a0 Join \"merchant\" to table \"merchant\" was skipped because the model is not available in this project. Check that the model exists, is included by the project's tags/selector, and compiles successfully, then refresh the project.\n\nCompiled 6 explores, SUCCESS=4 PARTIAL_SUCCESS=2 ERRORS=0\nDeploying 6 explores using batched deploy (batch size: 50, parallel: 1)\nStarting deploy session...\nDeploy session created: <id>\nUploading 1 batches...\n  Uploading batch 1/1 (6 explores)...\n  \u2713 Batch 1 uploaded (6 explores)\nFinalizing deploy...\nThis deploy was not saved and nothing in the project changed.\nThe project has several dbt sources and Lightdash could not tell which one these explores belong to: no source in this project provides the dbt project payments.\n\nTo fix it, make sure each dbt project has a distinct name in its dbt_project.yml, and that the repository you are deploying from is added as a dbt source in the project settings. If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.\n\nSources in this project: dbt_project, payments, merchants.\n\n\ud83d\udca1 Run lightdash diagnostics for more info.\n\n"
+                    ],
+                    "resolver_metrics": []
+                }
+            ],
+            "before": {
+                "explores_per_source": {
+                    "dbt_project": 0,
+                    "payments": 0,
+                    "merchants": 0
+                },
+                "total_explores": 0,
+                "connection_mode": "single",
+                "connection_route": "single"
+            },
+            "upstream_deployed": {
+                "explores_per_source": {
+                    "dbt_project": 0,
+                    "payments": 0,
+                    "merchants": 0
+                },
+                "total_explores": 0,
+                "connection_mode": "single",
+                "connection_route": "single"
+            },
+            "baseline": {
+                "explores_per_source": {
+                    "dbt_project": 0,
+                    "payments": 0,
+                    "merchants": 0
+                },
+                "total_explores": 0,
+                "connection_mode": "single",
+                "connection_route": "single",
+                "parameters": {
+                    "minimum_amount": {
+                        "type": "number",
+                        "label": "Minimum amount",
+                        "default": 0,
+                        "allow_custom_values": true
+                    }
+                },
+                "spotlight_tags": [
+                    {
+                        "name": "Payments",
+                        "color": "blue",
+                        "yamlReference": "payments",
+                        "createdBy": {
+                            "firstName": "David",
+                            "lastName": "Attenborough"
+                        }
+                    }
+                ],
+                "table_groups": {
+                    "commerce": {
+                        "label": "Commerce"
+                    },
+                    "operations": {
+                        "label": "Operations"
+                    }
+                },
+                "defaults": {
+                    "column_totals": true,
+                    "case_sensitive": false
+                }
+            },
+            "join_error": {
+                "status": "error",
+                "error": {
+                    "statusCode": 404,
+                    "name": "NotFoundError",
+                    "message": "Explore \"payments\" does not exist.",
+                    "data": {}
+                }
+            },
+            "join_observation": {
+                "upstream_registered": true,
+                "compile_success": true,
+                "deploy_success": false,
+                "join_present": false,
+                "join_lookup_status": 404,
+                "upstream_explore_after": false,
+                "messages": [
+                    "HTTP 409: {\"status\":\"error\",\"error\":{\"statusCode\":409,\"name\":\"ConflictError\",\"message\":\"This deploy was not saved and nothing in the project changed.\\nThe project has several dbt sources and Lightdash could not tell which one these explores belong to: no source in this project provides the dbt project payments.\\n\\nTo fix it, make sure each dbt project has a distinct name in its dbt_project.yml, and that the repository you are deploying from is added as a dbt source in the project settings. If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.\\n\\nSources in this project: dbt_project, payments, merchants.\",\"data\":{}}}",
+                    "\nDeploying to project: <id>\n\n\n\n- SUCCESS> rate_v2_usage \n- SUCCESS> rate_v1_usage \n- SUCCESS> rate_latest_usage \n- PARTIAL_SUCCESS> payments \n    \u26a0 Join \"merchant\" to table \"merchant\" was skipped because the model is not available in this project. Check that the model exists, is included by the project's tags/selector, and compiles successfully, then refresh the project.\n- SUCCESS> settlement \n- PARTIAL_SUCCESS> ledger \n    \u26a0 Join \"merchant\" to table \"merchant\" was skipped because the model is not available in this project. Check that the model exists, is included by the project's tags/selector, and compiles successfully, then refresh the project.\n\nCompiled 6 explores, SUCCESS=4 PARTIAL_SUCCESS=2 ERRORS=0\nDeploying 6 explores using batched deploy (batch size: 50, parallel: 1)\nStarting deploy session...\nDeploy session created: <id>\nUploading 1 batches...\n  Uploading batch 1/1 (6 explores)...\n  \u2713 Batch 1 uploaded (6 explores)\nFinalizing deploy...\nThis deploy was not saved and nothing in the project changed.\nThe project has several dbt sources and Lightdash could not tell which one these explores belong to: no source in this project provides the dbt project payments.\n\nTo fix it, make sure each dbt project has a distinct name in its dbt_project.yml, and that the repository you are deploying from is added as a dbt source in the project settings. If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.\n\nSources in this project: dbt_project, payments, merchants.\n\n\ud83d\udca1 Run lightdash diagnostics for more info.\n\n"
+                ]
+            },
+            "after": {
+                "explores_per_source": {
+                    "dbt_project": 0,
+                    "payments": 0,
+                    "merchants": 0
+                },
+                "total_explores": 0,
+                "connection_mode": "single",
+                "connection_route": "single",
+                "parameters": {
+                    "minimum_amount": {
+                        "type": "number",
+                        "label": "Minimum amount",
+                        "default": 0,
+                        "allow_custom_values": true
+                    }
+                },
+                "spotlight_tags": [
+                    {
+                        "name": "Payments",
+                        "color": "blue",
+                        "yamlReference": "payments",
+                        "createdBy": {
+                            "firstName": "David",
+                            "lastName": "Attenborough"
+                        }
+                    }
+                ],
+                "table_groups": {
+                    "commerce": {
+                        "label": "Commerce"
+                    },
+                    "operations": {
+                        "label": "Operations"
+                    }
+                },
+                "defaults": {
+                    "column_totals": true,
+                    "case_sensitive": false
+                }
+            }
+        },
+        {
+            "scenario": "cli-join-unconnected",
+            "mode": "cli",
+            "expected": "Loom resolves upstream refs without registering the upstream; record join and explore availability",
+            "operations": [
+                {
+                    "operation": "deploy",
+                    "source": "payments",
+                    "explicit_source": false,
+                    "success": false,
+                    "compile_success": true,
+                    "exit_code": 1,
+                    "elapsed_ms": 13238,
+                    "git_discovery_requests": 0,
+                    "http_409": true,
+                    "mentions_source_flag": false,
+                    "guidance_recommends_source": false,
+                    "http_errors": [
+                        {
+                            "http_status": 409,
+                            "method": "POST",
+                            "path": "/api/v2/projects/<id>/deploy/<id>/finalize",
+                            "message": "{\"status\":\"error\",\"error\":{\"statusCode\":409,\"name\":\"ConflictError\",\"message\":\"This deploy was not saved and nothing in the project changed.\\nThe project has several dbt sources and Lightdash could not tell which one these explores belong to: no source in this project provides the dbt project payments.\\n\\nTo fix it, make sure each dbt project has a distinct name in its dbt_project.yml, and that the repository you are deploying from is added as a dbt source in the project settings. If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.\\n\\nSources in this project: dbt_project, payments.\",\"data\":{}}}"
+                        }
+                    ],
+                    "messages": [
+                        "HTTP 409: {\"status\":\"error\",\"error\":{\"statusCode\":409,\"name\":\"ConflictError\",\"message\":\"This deploy was not saved and nothing in the project changed.\\nThe project has several dbt sources and Lightdash could not tell which one these explores belong to: no source in this project provides the dbt project payments.\\n\\nTo fix it, make sure each dbt project has a distinct name in its dbt_project.yml, and that the repository you are deploying from is added as a dbt source in the project settings. If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.\\n\\nSources in this project: dbt_project, payments.\",\"data\":{}}}",
+                        "\nDeploying to project: <id>\n\n\n\n- SUCCESS> rate_v2_usage \n- SUCCESS> rate_v1_usage \n- SUCCESS> rate_latest_usage \n- PARTIAL_SUCCESS> payments \n    \u26a0 Join \"merchant\" to table \"merchant\" was skipped because the model is not available in this project. Check that the model exists, is included by the project's tags/selector, and compiles successfully, then refresh the project.\n- SUCCESS> settlement \n- PARTIAL_SUCCESS> ledger \n    \u26a0 Join \"merchant\" to table \"merchant\" was skipped because the model is not available in this project. Check that the model exists, is included by the project's tags/selector, and compiles successfully, then refresh the project.\n\nCompiled 6 explores, SUCCESS=4 PARTIAL_SUCCESS=2 ERRORS=0\nDeploying 6 explores using batched deploy (batch size: 50, parallel: 1)\nStarting deploy session...\nDeploy session created: <id>\nUploading 1 batches...\n  Uploading batch 1/1 (6 explores)...\n  \u2713 Batch 1 uploaded (6 explores)\nFinalizing deploy...\nThis deploy was not saved and nothing in the project changed.\nThe project has several dbt sources and Lightdash could not tell which one these explores belong to: no source in this project provides the dbt project payments.\n\nTo fix it, make sure each dbt project has a distinct name in its dbt_project.yml, and that the repository you are deploying from is added as a dbt source in the project settings. If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.\n\nSources in this project: dbt_project, payments.\n\n\ud83d\udca1 Run lightdash diagnostics for more info.\n\n"
+                    ],
+                    "resolver_metrics": []
+                }
+            ],
+            "before": {
+                "explores_per_source": {
+                    "dbt_project": 0,
+                    "payments": 0
+                },
+                "total_explores": 0,
+                "connection_mode": "single",
+                "connection_route": "single"
+            },
+            "baseline": {
+                "explores_per_source": {
+                    "dbt_project": 0,
+                    "payments": 0
+                },
+                "total_explores": 0,
+                "connection_mode": "single",
+                "connection_route": "single",
+                "parameters": {
+                    "minimum_amount": {
+                        "type": "number",
+                        "label": "Minimum amount",
+                        "default": 0,
+                        "allow_custom_values": true
+                    }
+                },
+                "spotlight_tags": [
+                    {
+                        "name": "Payments",
+                        "color": "blue",
+                        "yamlReference": "payments",
+                        "createdBy": {
+                            "firstName": "David",
+                            "lastName": "Attenborough"
+                        }
+                    }
+                ],
+                "table_groups": {
+                    "commerce": {
+                        "label": "Commerce"
+                    },
+                    "operations": {
+                        "label": "Operations"
+                    }
+                },
+                "defaults": {
+                    "column_totals": true,
+                    "case_sensitive": false
+                }
+            },
+            "join_error": {
+                "status": "error",
+                "error": {
+                    "statusCode": 404,
+                    "name": "NotFoundError",
+                    "message": "Explore \"payments\" does not exist.",
+                    "data": {}
+                }
+            },
+            "join_observation": {
+                "upstream_registered": false,
+                "compile_success": true,
+                "deploy_success": false,
+                "join_present": false,
+                "join_lookup_status": 404,
+                "upstream_explore_after": false,
+                "messages": [
+                    "HTTP 409: {\"status\":\"error\",\"error\":{\"statusCode\":409,\"name\":\"ConflictError\",\"message\":\"This deploy was not saved and nothing in the project changed.\\nThe project has several dbt sources and Lightdash could not tell which one these explores belong to: no source in this project provides the dbt project payments.\\n\\nTo fix it, make sure each dbt project has a distinct name in its dbt_project.yml, and that the repository you are deploying from is added as a dbt source in the project settings. If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.\\n\\nSources in this project: dbt_project, payments.\",\"data\":{}}}",
+                    "\nDeploying to project: <id>\n\n\n\n- SUCCESS> rate_v2_usage \n- SUCCESS> rate_v1_usage \n- SUCCESS> rate_latest_usage \n- PARTIAL_SUCCESS> payments \n    \u26a0 Join \"merchant\" to table \"merchant\" was skipped because the model is not available in this project. Check that the model exists, is included by the project's tags/selector, and compiles successfully, then refresh the project.\n- SUCCESS> settlement \n- PARTIAL_SUCCESS> ledger \n    \u26a0 Join \"merchant\" to table \"merchant\" was skipped because the model is not available in this project. Check that the model exists, is included by the project's tags/selector, and compiles successfully, then refresh the project.\n\nCompiled 6 explores, SUCCESS=4 PARTIAL_SUCCESS=2 ERRORS=0\nDeploying 6 explores using batched deploy (batch size: 50, parallel: 1)\nStarting deploy session...\nDeploy session created: <id>\nUploading 1 batches...\n  Uploading batch 1/1 (6 explores)...\n  \u2713 Batch 1 uploaded (6 explores)\nFinalizing deploy...\nThis deploy was not saved and nothing in the project changed.\nThe project has several dbt sources and Lightdash could not tell which one these explores belong to: no source in this project provides the dbt project payments.\n\nTo fix it, make sure each dbt project has a distinct name in its dbt_project.yml, and that the repository you are deploying from is added as a dbt source in the project settings. If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.\n\nSources in this project: dbt_project, payments.\n\n\ud83d\udca1 Run lightdash diagnostics for more info.\n\n"
+                ]
+            },
+            "after": {
+                "explores_per_source": {
+                    "dbt_project": 0,
+                    "payments": 0
+                },
+                "total_explores": 0,
+                "connection_mode": "single",
+                "connection_route": "single",
+                "parameters": {
+                    "minimum_amount": {
+                        "type": "number",
+                        "label": "Minimum amount",
+                        "default": 0,
+                        "allow_custom_values": true
+                    }
+                },
+                "spotlight_tags": [
+                    {
+                        "name": "Payments",
+                        "color": "blue",
+                        "yamlReference": "payments",
+                        "createdBy": {
+                            "firstName": "David",
+                            "lastName": "Attenborough"
+                        }
+                    }
+                ],
+                "table_groups": {
+                    "commerce": {
+                        "label": "Commerce"
+                    },
+                    "operations": {
+                        "label": "Operations"
+                    }
+                },
+                "defaults": {
+                    "column_totals": true,
+                    "case_sensitive": false
+                }
+            }
+        },
+        {
+            "scenario": "dbt19-cli",
+            "mode": "cli",
+            "expected": "Repo compiled with dbt 1.9 deploys",
+            "operations": [
+                {
+                    "operation": "deploy",
+                    "source": "growth",
+                    "explicit_source": false,
+                    "success": false,
+                    "compile_success": true,
+                    "exit_code": 1,
+                    "elapsed_ms": 11184,
+                    "git_discovery_requests": 0,
+                    "http_409": true,
+                    "mentions_source_flag": false,
+                    "guidance_recommends_source": false,
+                    "http_errors": [
+                        {
+                            "http_status": 409,
+                            "method": "POST",
+                            "path": "/api/v2/projects/<id>/deploy/<id>/finalize",
+                            "message": "{\"status\":\"error\",\"error\":{\"statusCode\":409,\"name\":\"ConflictError\",\"message\":\"This deploy was not saved and nothing in the project changed.\\nThe project has several dbt sources and Lightdash could not tell which one these explores belong to: no source in this project provides the dbt project growth.\\n\\nTo fix it, make sure each dbt project has a distinct name in its dbt_project.yml, and that the repository you are deploying from is added as a dbt source in the project settings. If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.\\n\\nSources in this project: dbt_project, growth.\",\"data\":{}}}"
+                        }
+                    ],
+                    "messages": [
+                        "HTTP 409: {\"status\":\"error\",\"error\":{\"statusCode\":409,\"name\":\"ConflictError\",\"message\":\"This deploy was not saved and nothing in the project changed.\\nThe project has several dbt sources and Lightdash could not tell which one these explores belong to: no source in this project provides the dbt project growth.\\n\\nTo fix it, make sure each dbt project has a distinct name in its dbt_project.yml, and that the repository you are deploying from is added as a dbt source in the project settings. If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.\\n\\nSources in this project: dbt_project, growth.\",\"data\":{}}}",
+                        "\nDeploying to project: <id>\n\n\n\n- SUCCESS> growth_report \n- SUCCESS> growth_base \n\nCompiled 2 explores, SUCCESS=2 ERRORS=0\nDeploying 2 explores using batched deploy (batch size: 50, parallel: 1)\nStarting deploy session...\nDeploy session created: <id>\nUploading 1 batches...\n  Uploading batch 1/1 (2 explores)...\n  \u2713 Batch 1 uploaded (2 explores)\nFinalizing deploy...\nThis deploy was not saved and nothing in the project changed.\nThe project has several dbt sources and Lightdash could not tell which one these explores belong to: no source in this project provides the dbt project growth.\n\nTo fix it, make sure each dbt project has a distinct name in its dbt_project.yml, and that the repository you are deploying from is added as a dbt source in the project settings. If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.\n\nSources in this project: dbt_project, growth.\n\n\ud83d\udca1 Run lightdash diagnostics for more info.\n\n"
+                    ],
+                    "resolver_metrics": []
+                }
+            ],
+            "before": {
+                "explores_per_source": {
+                    "dbt_project": 0,
+                    "growth": 0
+                },
+                "total_explores": 0,
+                "connection_mode": "single",
+                "connection_route": "single"
+            },
+            "baseline": {
+                "explores_per_source": {
+                    "dbt_project": 0,
+                    "growth": 0
+                },
+                "total_explores": 0,
+                "connection_mode": "single",
+                "connection_route": "single",
+                "parameters": {},
+                "spotlight_tags": [],
+                "table_groups": {},
+                "defaults": null
+            },
+            "after": {
+                "explores_per_source": {
+                    "dbt_project": 0,
+                    "growth": 0
+                },
+                "total_explores": 0,
+                "connection_mode": "single",
+                "connection_route": "single",
+                "parameters": {},
+                "spotlight_tags": [],
+                "table_groups": {},
+                "defaults": null
+            }
+        }
+    ],
+    "comparison": {
+        "fixture_base": "5cb32ce9ad9d5c8774451d6a09ed36a6135a7f4e",
+        "pr_head": "4629b2f651098b48e90f0cd340253980af03bcf1",
+        "integration": "d564fed7d4daf093277b3b80102c4485c203689e",
+        "scale": "small",
+        "seed": 42,
+        "warehouse_build": {
+            "success": true,
+            "stages": 24,
+            "elapsed_ms": 85271,
+            "wall_seconds_including_load_wait": 115.8
+        },
+        "scenario_wall_seconds": 311.5,
+        "compile_successes": 24,
+        "deploy_successes": 5,
+        "http_409s": 19,
+        "harness_errors": 0,
+        "rows": [
+            {
+                "scenario": "cli-deploy",
+                "compile_successes": 6,
+                "deploy_successes": 0,
+                "operations": 6,
+                "http_409s": 6,
+                "elapsed_ms": 73634,
+                "explores_per_source": {
+                    "dbt_project": 0,
+                    "payments": 0,
+                    "merchants": 0,
+                    "finance": 0,
+                    "risk": 0,
+                    "growth": 0,
+                    "marketing": 0
+                },
+                "total_explores": 0,
+                "connection_mode": "single",
+                "interpretation": "All six automatic source-inference deployments rejected; catalogue remains empty."
+            },
+            {
+                "scenario": "cli-source",
+                "compile_successes": 6,
+                "deploy_successes": 5,
+                "operations": 6,
+                "http_409s": 1,
+                "elapsed_ms": 76241,
+                "explores_per_source": {
+                    "dbt_project": 0,
+                    "payments": 0,
+                    "merchants": 3,
+                    "finance": 4,
+                    "risk": 2,
+                    "growth": 2,
+                    "marketing": 2
+                },
+                "total_explores": 13,
+                "connection_mode": "single",
+                "interpretation": "Initial payments deployment rejected; all five explicit-source deployments succeeded and retained sibling explores."
+            },
+            {
+                "scenario": "config-none",
+                "compile_successes": 2,
+                "deploy_successes": 0,
+                "operations": 2,
+                "http_409s": 2,
+                "elapsed_ms": 23594,
+                "explores_per_source": {
+                    "dbt_project": 0,
+                    "payments": 0,
+                    "merchants": 0,
+                    "finance": 0,
+                    "risk": 0,
+                    "growth": 0,
+                    "marketing": 0
+                },
+                "total_explores": 0,
+                "connection_mode": "single",
+                "interpretation": "Successful-deploy replacement is inconclusive. Rejected deployments still change project config: payments adds one parameter and one tag; the follow-up clears both. Two table groups and defaults remain."
+            },
+            {
+                "scenario": "config-partial",
+                "compile_successes": 2,
+                "deploy_successes": 0,
+                "operations": 2,
+                "http_409s": 2,
+                "elapsed_ms": 24754,
+                "explores_per_source": {
+                    "dbt_project": 0,
+                    "payments": 0,
+                    "merchants": 0,
+                    "finance": 0,
+                    "risk": 0,
+                    "growth": 0,
+                    "marketing": 0
+                },
+                "total_explores": 0,
+                "connection_mode": "single",
+                "interpretation": "Successful-deploy replacement is inconclusive. Rejected deployments still change project config: payments adds one parameter and one tag; the follow-up clears both. Two table groups and defaults remain."
+            },
+            {
+                "scenario": "cli-collision",
+                "compile_successes": 2,
+                "deploy_successes": 0,
+                "operations": 2,
+                "http_409s": 2,
+                "elapsed_ms": 25268,
+                "explores_per_source": {
+                    "dbt_project": 0,
+                    "payments": 0,
+                    "merchants": 0,
+                    "finance": 0,
+                    "risk": 0,
+                    "growth": 0,
+                    "marketing": 0
+                },
+                "total_explores": 0,
+                "connection_mode": "single",
+                "interpretation": "Collision protection and saved-chart/data survival are inconclusive: initial deploy rejected; chart creation fails with Explore \"ledger\" does not exist."
+            },
+            {
+                "scenario": "cli-duplicate-project",
+                "compile_successes": 2,
+                "deploy_successes": 0,
+                "operations": 2,
+                "http_409s": 2,
+                "elapsed_ms": 25713,
+                "explores_per_source": {
+                    "dbt_project": 0,
+                    "payments": 0,
+                    "merchants": 0,
+                    "finance": 0,
+                    "risk": 0,
+                    "growth": 0,
+                    "marketing": 0
+                },
+                "total_explores": 0,
+                "connection_mode": "single",
+                "interpretation": "Initial deployment rejected; dependent behaviour is inconclusive."
+            },
+            {
+                "scenario": "cli-join-connected",
+                "compile_successes": 2,
+                "deploy_successes": 0,
+                "operations": 2,
+                "http_409s": 2,
+                "elapsed_ms": 25372,
+                "explores_per_source": {
+                    "dbt_project": 0,
+                    "payments": 0,
+                    "merchants": 0
+                },
+                "total_explores": 0,
+                "connection_mode": "single",
+                "interpretation": "Local compile succeeds with skipped-merchant warnings. Deploy rejected; payments lookup is 404. Deployed join and upstream preservation are inconclusive."
+            },
+            {
+                "scenario": "cli-join-unconnected",
+                "compile_successes": 1,
+                "deploy_successes": 0,
+                "operations": 1,
+                "http_409s": 1,
+                "elapsed_ms": 13238,
+                "explores_per_source": {
+                    "dbt_project": 0,
+                    "payments": 0
+                },
+                "total_explores": 0,
+                "connection_mode": "single",
+                "interpretation": "Local compile succeeds with skipped-merchant warnings. Deploy rejected; payments lookup is 404. Deployed join and upstream preservation are inconclusive."
+            },
+            {
+                "scenario": "dbt19-cli",
+                "compile_successes": 1,
+                "deploy_successes": 0,
+                "operations": 1,
+                "http_409s": 1,
+                "elapsed_ms": 11184,
+                "explores_per_source": {
+                    "dbt_project": 0,
+                    "growth": 0
+                },
+                "total_explores": 0,
+                "connection_mode": "single",
+                "interpretation": "Private dbt 1.9 compilation succeeds; deploy rejected with HTTP 409."
+            }
+        ],
+        "exact_first_http_409_message": "This deploy was not saved and nothing in the project changed.\nThe project has several dbt sources and Lightdash could not tell which one these explores belong to: no source in this project provides the dbt project payments.\n\nTo fix it, make sure each dbt project has a distinct name in its dbt_project.yml, and that the repository you are deploying from is added as a dbt source in the project settings. If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.\n\nSources in this project: dbt_project, payments, merchants, finance, risk, growth, marketing.",
+        "exact_join_warning": "Join \"merchant\" to table \"merchant\" was skipped because the model is not available in this project. Check that the model exists, is included by the project's tags/selector, and compiles successfully, then refresh the project.",
+        "exact_source_flag_guidance": "--source is deprecated and will be ignored in a future release. Lightdash now works out which dbt source a deploy belongs to from your dbt project. You only need it if the deploy is rejected because the source can't be inferred.",
+        "guidance_classification_note": "The capture originally missed the conditional recommendation in the deprecation warning. The corrected classifier flags it in these exported operations; exact messages are unchanged.",
+        "limitations": [
+            "No server refresh or product workaround was used after source-inference rejection.",
+            "The connected join case registers the upstream but its initial upstream deployment also fails.",
+            "Initial deploy rejection prevents a populated baseline for collision, duplicate-name inference, config replacement, and deployed-join checks.",
+            "Raw original_source_preserved=false does not demonstrate chart data loss; no original chart could be created."
+        ],
+        "versions": {
+            "dbt12": {
+                "dbt-core": "1.12.3",
+                "dbt-postgres": "1.10.0",
+                "dbt-loom": "0.9.6"
+            },
+            "dbt19": {
+                "dbt-core": "1.9.10",
+                "dbt-postgres": "1.9.1",
+                "dbt-loom": "0.9.6"
+            }
+        }
+    }
+}

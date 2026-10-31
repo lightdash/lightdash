@@ -1,0 +1,13 @@
+name: marketing
+version: '1.0.0'
+config-version: 2
+profile: multi_repo_sim
+model-paths: [models]
+seed-paths: [seeds]
+models:
+    marketing:
+        +materialized: table
+        +schema: marketing
+seeds:
+    marketing:
+        +schema: marketing

@@ -1,0 +1,2 @@
+packages:
+    - local: ../shared_pkg

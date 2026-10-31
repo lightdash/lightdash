@@ -1,0 +1,30 @@
+version: 2
+models:
+    - name: beta_base
+      access: public
+      columns:
+          - name: id
+            data_type: integer
+            meta:
+                dimension:
+                    type: number
+    - name: beta_report
+      access: public
+      columns:
+          - name: id
+            data_type: integer
+            meta:
+                dimension:
+                    type: number
+    - name: measure
+      access: public
+      latest_version: 2
+      versions:
+          - v: 2
+          - v: 3
+      columns:
+          - name: id
+            data_type: integer
+            meta:
+                dimension:
+                    type: number

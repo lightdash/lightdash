@@ -1,0 +1,71 @@
+version: 2
+models:
+    - name: merchant
+      access: public
+      config:
+          meta:
+              primary_key: id
+              metrics:
+                  total_amount:
+                      type: sum
+                      sql: ${TABLE}.amount
+      columns: &typed_columns
+          - name: id
+            data_type: integer
+            meta:
+                dimension:
+                    type: number
+          - name: label
+            data_type: text
+            meta:
+                dimension:
+                    type: string
+          - name: amount
+            data_type: numeric
+            meta:
+                dimension:
+                    type: number
+          - name: active
+            data_type: boolean
+            meta:
+                dimension:
+                    type: boolean
+          - name: event_date
+            data_type: date
+            meta:
+                dimension:
+                    type: date
+    - name: settlement
+      access: public
+      config:
+          meta:
+              primary_key: id
+              metrics:
+                  total_amount:
+                      type: sum
+                      sql: ${TABLE}.amount
+      columns: *typed_columns
+    - name: rate
+      access: public
+      latest_version: 2
+      versions:
+          - v: 1
+          - v: 2
+      config:
+          meta:
+              primary_key: id
+              metrics:
+                  total_amount:
+                      type: sum
+                      sql: ${TABLE}.amount
+      columns: *typed_columns
+seeds:
+    - name: merchants_seed
+      config:
+          meta:
+              primary_key: id
+              metrics:
+                  total_amount:
+                      type: sum
+                      sql: ${TABLE}.amount
+      columns: *typed_columns
