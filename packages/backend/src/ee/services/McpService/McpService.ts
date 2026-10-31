@@ -220,12 +220,12 @@ import type {
 import {
     buildComposerPreview,
     buildComposerQueryPipeline,
+    getFailedRunNodes,
     hasReachedLimit,
     isSaved,
-    renderComposerNodeSummary,
-    renderSavedNodes,
-    toComposerNodeSummaries,
+    renderComposerNodeListing,
     toNodeColumns,
+    toNodeSummary,
 } from '../ai/tools/composerQueryPipeline';
 import { getCreateContent } from '../ai/tools/createContent';
 import { getCreateScheduledDelivery } from '../ai/tools/createScheduledDelivery';
@@ -1633,9 +1633,15 @@ export class McpService extends BaseService {
             );
         });
 
+        const submittedNodeIds = new Set(
+            args.queries.map(({ nodeId }) => nodeId),
+        );
         const run = await toolsRuntime.runComposerQueriesUntilDeadline({
             queries,
             terminalNodeId,
+            sampleNodeIds: [...submittedNodeIds].filter(
+                (nodeId) => nodeId !== terminalNodeId,
+            ),
             deadlineMs,
         });
         // Only ready nodes are saved, as in the agent; other node ids stay free to resubmit.
@@ -1663,67 +1669,66 @@ export class McpService extends BaseService {
                 },
             });
         }
-        const sessionNote = [
-            run.status === 'success'
-                ? ''
-                : renderSavedNodes(queries, run.nodeStatuses, reusableNodes),
+        const sessionNote =
             sessionId === null
                 ? 'No sessionId: no node was saved.'
-                : `sessionId: ${sessionId} (pass it back to read saved nodes by node id).`,
-        ]
-            .filter(Boolean)
-            .join('\n');
-        const queryUuids = new Map(
-            ('submissions' in run ? run.submissions : []).map(
-                ({ nodeId, queryUuid }) => [nodeId, queryUuid],
-            ),
-        );
-        const summaries = toComposerNodeSummaries(
-            queries,
-            run.nodeStatuses,
-        ).map((node) => ({
-            ...node,
-            queryUuid: queryUuids.get(node.nodeId) ?? '',
-        }));
-        const nodeSummary = renderComposerNodeSummary(
-            queries,
-            summaries,
-            run.nodeStatuses,
-            DEFAULT_COMPOSER_QUERY_MAX_LIMIT,
-        );
+                : `sessionId: ${sessionId} (pass it back to read saved nodes by node id).`;
         if (run.status === 'failure') {
+            const nodeListing = renderComposerNodeListing({
+                queries,
+                nodes: getFailedRunNodes(
+                    queries,
+                    run.nodeStatuses,
+                    submittedNodeIds,
+                ),
+                nodeStatuses: run.nodeStatuses,
+                reusableNodes,
+                submittedNodeIds,
+                maxQueryLimit: DEFAULT_COMPOSER_QUERY_MAX_LIMIT,
+            });
             return mcpQueryTool.result.error(
-                `${run.error}\nNodes:\n${nodeSummary}\n${sessionNote}`,
+                `${run.error}\nNodes in this pipeline, failed nodes first:\n${nodeListing}\n${sessionNote}`,
             );
         }
-        const nodeColumns = {
-            ...toNodeColumns(run.nodeStatuses),
-            ...(run.status === 'success'
-                ? {
-                      [terminalNodeId]: toComposerNodeColumns(
-                          run.terminal.columns,
-                      ),
-                  }
-                : {}),
-        };
-        const nodes = summaries.map((node) => {
-            const state = run.nodeStatuses.find(
-                (status) => status.nodeId === node.nodeId,
-            )?.state;
+        const queryUuids = new Map(
+            run.submissions.map(({ nodeId, queryUuid }) => [nodeId, queryUuid]),
+        );
+        const nodes = queries.map((node) => {
+            const nodeStatus = run.nodeStatuses.find(
+                ({ nodeId }) => nodeId === node.nodeId,
+            );
+            const summary = toNodeSummary(
+                node,
+                nodeStatus,
+                submittedNodeIds.has(node.nodeId),
+            );
             let status: McpQueryStructuredContent['nodes'][number]['status'] =
                 'running';
-            if (state === QueryHistoryStatus.READY) status = 'done';
+            if (nodeStatus?.state === QueryHistoryStatus.READY) status = 'done';
             else if (
-                state === QueryHistoryStatus.ERROR ||
-                state === QueryHistoryStatus.CANCELLED
+                nodeStatus?.state === QueryHistoryStatus.ERROR ||
+                nodeStatus?.state === QueryHistoryStatus.CANCELLED
             )
                 status = 'failed';
             return {
-                ...node,
+                ...summary,
+                queryUuid: queryUuids.get(node.nodeId) ?? '',
                 status,
-                reachedLimit: hasReachedLimit(node),
-                columns: nodeColumns[node.nodeId] ?? null,
+                reachedLimit: hasReachedLimit(summary),
+                columns:
+                    run.status === 'success' && node.nodeId === terminalNodeId
+                        ? toComposerNodeColumns(run.terminal.columns)
+                        : summary.columns,
             };
+        });
+        const nodeSummary = renderComposerNodeListing({
+            queries,
+            nodes,
+            nodeStatuses: run.nodeStatuses,
+            reusableNodes,
+            submittedNodeIds,
+            maxQueryLimit: DEFAULT_COMPOSER_QUERY_MAX_LIMIT,
+            queryUuids,
         });
         const terminalQueryUuid = queryUuids.get(terminalNodeId) ?? '';
 
@@ -1736,7 +1741,7 @@ export class McpService extends BaseService {
                 nodes,
             };
             return mcpQueryTool.result.structured(
-                `Query is still running, not failed. Wait ${MCP_QUERY_POLL_INTERVAL_MS} ms, then call get_query_result with queryUuid: ${terminalQueryUuid}. Do not resubmit the pipeline. ${MCP_QUERY_TIMING_NOTE}\n${sessionNote}\nNodes:\n${nodeSummary}`,
+                `Query is still running, not failed. Wait ${MCP_QUERY_POLL_INTERVAL_MS} ms, then call get_query_result with queryUuid: ${terminalQueryUuid}. Do not resubmit the pipeline. ${MCP_QUERY_TIMING_NOTE}\n${sessionNote}\nNodes in this pipeline:\n${nodeSummary}`,
                 structuredContent,
             );
         }
@@ -1752,7 +1757,7 @@ export class McpService extends BaseService {
         const text = [
             `Query complete. Terminal node "${terminalNodeId}" returned ${run.terminal.rowCount} rows.`,
             sessionNote,
-            `Nodes:\n${nodeSummary}`,
+            `Nodes in this pipeline:\n${nodeSummary}`,
             ...appliedParameters.map(
                 ({ nodeId, ...applied }) =>
                     `Node "${nodeId}":${renderAppliedParameters(applied)}`,
