@@ -171,6 +171,134 @@ describe('compileProject completeness', () => {
         await fs.rm(tempDir, { recursive: true, force: true });
     });
 
+    test.each([
+        ['manifest_project', 'project_a', 'manifest_project'],
+        [undefined, 'project_a', 'project_a'],
+        ['', 'project_a', 'project_a'],
+        [undefined, '', undefined],
+    ])(
+        'extracts project identity from manifest %s and project config %s',
+        async (manifestName, projectName, expected) => {
+            const localManifest = manifest({
+                'model.project_a.model_x': dbtNode(
+                    'model.project_a.model_x',
+                    'model',
+                    true,
+                ),
+            });
+            localManifest.metadata.project_name = manifestName;
+            vi.mocked(getDbtContext).mockResolvedValue({
+                projectName: projectName!,
+                profileName: 'profile_a',
+                targetDir: path.join(tempDir, 'supplied_target'),
+                modelsDir: 'models',
+            });
+            vi.mocked(loadManifest).mockResolvedValue(localManifest);
+            vi.mocked(maybeCompileModelsAndJoins).mockResolvedValue({
+                compiledModelIds: ['model.project_a.model_x'],
+                originallySelectedModelIds: undefined,
+            });
+
+            const result = await compileProject({
+                ...compileOptions(tempDir),
+                skipDbtCompile: true,
+                targetPath: 'supplied_target',
+            });
+
+            expect(result.dbtProjectName).toBe(expected);
+            expect(loadManifest).toHaveBeenCalledWith({
+                targetDir: path.join(tempDir, 'supplied_target'),
+            });
+            expect(maybeCompileModelsAndJoins).toHaveBeenCalledWith(
+                { targetDir: path.join(tempDir, 'supplied_target') },
+                expect.objectContaining({
+                    skipDbtCompile: true,
+                    targetPath: 'supplied_target',
+                }),
+            );
+        },
+    );
+
+    test('keeps the local project identity before combining manifests', async () => {
+        const localManifest = manifest({
+            'model.project_a.model_x': dbtNode(
+                'model.project_a.model_x',
+                'model',
+                true,
+            ),
+        });
+        localManifest.metadata.project_name = 'project_a';
+        const additionalManifest = manifest({
+            'model.project_b.model_y': dbtNode(
+                'model.project_b.model_y',
+                'model',
+                true,
+            ),
+        });
+        additionalManifest.metadata.project_name = 'project_b';
+        vi.mocked(loadManifest).mockResolvedValue(localManifest);
+        vi.mocked(loadCombineManifest).mockResolvedValue(additionalManifest);
+        vi.mocked(maybeCompileModelsAndJoins).mockResolvedValue({
+            compiledModelIds: ['model.project_a.model_x'],
+            originallySelectedModelIds: undefined,
+        });
+
+        const result = await compileProject({
+            ...compileOptions(tempDir),
+            combineManifest: 'additional_manifest.json',
+        });
+
+        expect(result.dbtProjectName).toBe('project_a');
+        expect(result.explores).toHaveLength(2);
+    });
+
+    test.each(['project_a', undefined])(
+        'compiles a supplied manifest with project name %s without local YAML',
+        async (projectName) => {
+            const targetDir = path.join(tempDir, 'supplied_target');
+            await fs.mkdir(targetDir);
+            const localManifest = manifest({
+                'model.project_a.model_x': dbtNode(
+                    'model.project_a.model_x',
+                    'model',
+                    true,
+                ),
+            });
+            localManifest.metadata.project_name = projectName;
+            await fs.writeFile(
+                path.join(targetDir, 'manifest.json'),
+                JSON.stringify(localManifest),
+            );
+            const context =
+                await vi.importActual<typeof import('../dbt/context')>(
+                    '../dbt/context',
+                );
+            const manifests =
+                await vi.importActual<typeof import('../dbt/manifest')>(
+                    '../dbt/manifest',
+                );
+            vi.mocked(getDbtContext).mockImplementationOnce(
+                context.getDbtContext,
+            );
+            vi.mocked(loadManifest).mockImplementationOnce(
+                manifests.loadManifest,
+            );
+            vi.mocked(maybeCompileModelsAndJoins).mockResolvedValue({
+                compiledModelIds: undefined,
+                originallySelectedModelIds: undefined,
+            });
+
+            const result = await compileProject({
+                ...compileOptions(tempDir),
+                targetPath: targetDir,
+            });
+
+            expect(result.dbtProjectName).toBe(projectName);
+            expect(result.explores).toHaveLength(1);
+            expect(loadManifest).toHaveBeenCalledWith({ targetDir });
+        },
+    );
+
     test.each([false, true])(
         'compiles dbt when ignored YAML is malformed, symlinked models: %s',
         async (symlinkedModels) => {
@@ -300,6 +428,7 @@ describe('compileProject completeness', () => {
         const result = await compileProject(compileOptions(tempDir));
 
         expect(result.dbtModelNames).toBeUndefined();
+        expect(result.dbtProjectName).toBeUndefined();
         expect(loadManifest).not.toHaveBeenCalled();
     });
 

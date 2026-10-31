@@ -18,6 +18,9 @@ import { runChartHandler } from './runChart';
 import { getProjectDeploySettings } from './timestampConversion';
 import { warehouseCatalogHandler } from './warehouseCatalog';
 
+vi.mock('./deployMetadata', () => ({
+    getDeployMetadata: vi.fn().mockResolvedValue(undefined),
+}));
 vi.mock('./dbt/apiClient', async (original) => ({
     ...(await original<typeof import('./dbt/apiClient')>()),
     lightdashApi: vi.fn(),

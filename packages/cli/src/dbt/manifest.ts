@@ -17,6 +17,12 @@ export type LoadManifestArgs = {
     targetDir: string;
 };
 
+export const getDbtProjectName = (
+    manifest: Pick<DbtManifest, 'metadata'>,
+    projectName?: string,
+): string | undefined =>
+    manifest.metadata.project_name?.trim() || projectName?.trim() || undefined;
+
 const getManifestPath = async (targetDir: string): Promise<string> =>
     path.join(targetDir, 'manifest.json');
 

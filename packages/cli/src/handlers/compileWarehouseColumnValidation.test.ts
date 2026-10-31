@@ -34,6 +34,9 @@ import { tryGetDbtVersion } from './dbt/getDbtVersion';
 import getWarehouseClient from './dbt/getWarehouseClient';
 import { deploy } from './deploy';
 
+vi.mock('./deployMetadata', () => ({
+    getDeployMetadata: vi.fn().mockResolvedValue(undefined),
+}));
 vi.mock('../analytics/analytics');
 vi.mock('../config', () => ({
     getConfig: vi.fn().mockResolvedValue({ user: null, context: null }),
