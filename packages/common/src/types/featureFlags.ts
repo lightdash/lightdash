@@ -161,13 +161,6 @@ export enum FeatureFlags {
     OrganizationTrialBlock = 'organization-trial-block',
 
     /**
-     * Gate the org-level export Limits settings panel (per-org query max rows
-     * and CSV cells limit). Backend enforcement of any stored overrides is
-     * always on; this flag only controls who can see/configure the panel.
-     */
-    ProLimits = 'pro-limits',
-
-    /**
      * Show the coding-agent project onboarding flow. This gates only the UI;
      * the CLI, APIs, and installed skills remain available independently.
      */
