@@ -190,6 +190,7 @@ const setup = (
                     .runComposerQueries({
                         queries,
                         terminalNodeId: queries.at(-1)!.nodeId!,
+                        sampleNodeIds: [],
                     }),
         );
     };

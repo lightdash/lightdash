@@ -4,6 +4,7 @@ import {
     getSourceQueryLimit,
     getSourceQueryResultReferences,
     hasReachedSourceQueryLimit,
+    ParameterError,
     QueryHistoryStatus,
     QuerySourceType,
     toComposerNodeColumns,
@@ -31,8 +32,8 @@ import { validateSelectOnly } from './runSql';
 
 /**
  * Resolves which node the artifact should show: the explicit terminalNodeId
- * when given, otherwise the unique sink (the one node no other node
- * references in-submission). Throws a model-actionable error otherwise.
+ * when given, otherwise the submission's unread node (the one node no other
+ * submitted node reads). A submission with several unread nodes is rejected.
  */
 export const resolveTerminalNodeId = (
     submitted: SubmittedSourceQuery[],
@@ -40,33 +41,37 @@ export const resolveTerminalNodeId = (
     pipeline: SourceQuery[],
 ): string => {
     const nodeIds = new Set(submitted.map((query) => query.nodeId));
-    if (terminalNodeId !== null) {
-        if (!pipeline.some((node) => node.nodeId === terminalNodeId)) {
-            throw new Error(
-                `terminalNodeId "${terminalNodeId}" does not name a node in this pipeline`,
-            );
-        }
-        return terminalNodeId;
-    }
-
-    const referenced = new Set<string>();
-    submitted.forEach((query) => {
-        Object.values(getSourceQueryResultReferences(query))
-            .filter((reference) => nodeIds.has(reference))
-            .forEach((reference) => referenced.add(reference));
-    });
-
-    const sinks = submitted
+    const read = new Set(
+        submitted.flatMap((query) =>
+            Object.values(getSourceQueryResultReferences(query)).filter(
+                (reference) => nodeIds.has(reference),
+            ),
+        ),
+    );
+    const unread = submitted
         .map((query) => query.nodeId)
-        .filter((nodeId) => !referenced.has(nodeId));
-    if (sinks.length !== 1) {
-        throw new Error(
-            `The pipeline has ${sinks.length} sinks (${sinks.join(
+        .filter((nodeId) => !read.has(nodeId));
+    if (unread.length > 1) {
+        throw new ParameterError(
+            `A pipeline returns one node's rows, and no node reads ${unread.join(
                 ', ',
-            )}); pass terminalNodeId to pick which node's result this tool returns`,
+            )}. Combine them in one duckdb node (UNION ALL or JOIN), or submit them in separate calls; a later call can read any node from an earlier call by node id.`,
         );
     }
-    return sinks[0];
+    if (terminalNodeId === null) {
+        if (unread.length === 0) {
+            throw new ParameterError(
+                'Every node is read by another node, so the pipeline has a cycle. Remove the cycle.',
+            );
+        }
+        return unread[0];
+    }
+    if (!pipeline.some((node) => node.nodeId === terminalNodeId)) {
+        throw new ParameterError(
+            `terminalNodeId "${terminalNodeId}" does not name a node in this pipeline`,
+        );
+    }
+    return terminalNodeId;
 };
 
 export type ComposerAppliedParameters = ToolRunQueryAppliedParameters & {

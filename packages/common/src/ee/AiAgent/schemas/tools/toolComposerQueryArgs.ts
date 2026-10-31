@@ -42,6 +42,7 @@ export const isComposerQueryToolName = (
 export const DEFAULT_COMPOSER_QUERY_LIMIT = 500;
 export const DEFAULT_COMPOSER_QUERY_MAX_LIMIT = 5000;
 export const COMPOSER_QUERY_PREVIEW_ROW_LIMIT = 50;
+export const COMPOSER_NODE_SAMPLE_ROW_LIMIT = 5;
 
 /** A project connection an api node can query. */
 export type ComposerApiConnection = {
@@ -87,7 +88,7 @@ export const getToolComposerQueriesDescription = ({
     apiConnections,
 }: ComposerQueriesDescriptionOptions) => `Run a pipeline: one or more nodes submitted together, where ${
     enablePythonNodes ? 'duckdb and python' : 'duckdb'
-} nodes join or transform other nodes' results. The terminal node's rows are returned to you.
+} nodes join or transform other nodes' results. One call returns one node's rows, the terminal node's, so exactly one submitted node may go unread by the others: to get several results, combine them in one duckdb node (UNION ALL or JOIN) or submit them in separate calls. Every other submitted node is listed with its columns and first rows.
 
 ${getComposerNodeKindsDescription({
     enablePythonNodes,
@@ -350,7 +351,7 @@ export const createToolComposerQueriesArgsSchemaV1 = ({
                 .string()
                 .nullable()
                 .describe(
-                    'The terminal node. Null picks the unique sink, the one submitted node no other submitted node reads; name a node when there are several sinks.',
+                    'The terminal node. Null picks the one submitted node no other submitted node reads; a node id returns that node of the pipeline instead, including a node from an earlier call.',
                 ),
         })
         .build();
@@ -657,6 +658,11 @@ export const parsePartialToolComposerQueriesArgs = (
     };
 };
 
+const composerQueryColumnSchema = z.object({
+    reference: z.string().describe('Column name as it appears in the rows.'),
+    type: z.nativeEnum(DimensionType),
+});
+
 const composerQueryNodeSummarySchema = z.object({
     nodeId: nodeIdSchema,
     title: z.string().nullable().describe('What users see for this node.'),
@@ -674,11 +680,18 @@ const composerQueryNodeSummarySchema = z.object({
         .describe(
             'Row limit this node ran with. A rowCount equal to it means the node reached its limit, so more rows may exist.',
         ),
-});
-
-const composerQueryColumnSchema = z.object({
-    reference: z.string().describe('Column name as it appears in the rows.'),
-    type: z.nativeEnum(DimensionType),
+    columns: z
+        .array(composerQueryColumnSchema)
+        .nullable()
+        .describe(
+            'Columns of a node submitted in this call; null for reused nodes and for the terminal node, whose columns are in columns.',
+        ),
+    sample: z
+        .array(z.record(z.string(), z.unknown()))
+        .nullable()
+        .describe(
+            `First ${COMPOSER_NODE_SAMPLE_ROW_LIMIT} rows of a node submitted in this call other than the terminal node; null otherwise or when data access is disabled.`,
+        ),
 });
 
 export const toolComposerQueriesStructuredContentSchema = z.object({
@@ -742,7 +755,7 @@ export const mcpQueryStructuredOutputSchema = z.object({
         .describe('Total rows in the terminal result; null while running.'),
     nodes: z
         .array(
-            composerQueryNodeSummarySchema.extend({
+            composerQueryNodeSummarySchema.omit({ sample: true }).extend({
                 queryUuid: z
                     .string()
                     .describe('Pass to get_query_result to read this node.'),
