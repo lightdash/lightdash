@@ -6,6 +6,7 @@ import SuboptimalState from '../../components/common/SuboptimalState/SuboptimalS
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import DashboardProvider from '../../providers/Dashboard/DashboardProvider';
 import EmbedDashboard from '../features/embed/EmbedDashboard/components/EmbedDashboard';
+import { type ChartSaveDestination } from '../features/embed/EmbedDashboard/types';
 import useEmbed from '../providers/Embed/useEmbed';
 
 const EmbedDashboardPage: FC<{
@@ -13,7 +14,14 @@ const EmbedDashboardPage: FC<{
     initialDashboard?: EmbedDashboardType;
     isEditMode?: boolean;
     onEditModeChange?: (isEditMode: boolean) => void;
-}> = ({ containerStyles, initialDashboard, isEditMode, onEditModeChange }) => {
+    chartSaveDestinations?: ChartSaveDestination[];
+}> = ({
+    containerStyles,
+    initialDashboard,
+    isEditMode,
+    onEditModeChange,
+    chartSaveDestinations,
+}) => {
     const projectUuidFromParams = useProjectUuid();
 
     const {
@@ -46,6 +54,7 @@ const EmbedDashboardPage: FC<{
                 initialDashboard={initialDashboard}
                 isEditMode={isEditMode}
                 onEditModeChange={onEditModeChange}
+                chartSaveDestinations={chartSaveDestinations}
             />
         </DashboardProvider>
     );
