@@ -514,15 +514,11 @@ const requestAuthorizePage = async ({
     query,
     oauthService,
     user = authenticatedUser,
-    prompt = { required: false },
-    rawQuery,
     aiAccessService,
 }: {
     query: Record<string, string>;
     oauthService: ReturnType<typeof createOAuthService>;
     user?: Express.User;
-    prompt?: Awaited<ReturnType<AiAccessService['getAgentConnectPrompt']>>;
-    rawQuery?: string;
     aiAccessService?: AiAccessService;
 }): Promise<{ body: string; headers: IncomingHttpHeaders; status: number }> => {
     const app = express();
@@ -531,11 +527,7 @@ const requestAuthorizePage = async ({
         request.user = user;
         request.services = {
             getOauthService: () => oauthService as unknown as OAuthService,
-            getAiAccessService: () =>
-                aiAccessService ??
-                ({
-                    getAgentConnectPrompt: vi.fn().mockResolvedValue(prompt),
-                } as unknown as AiAccessService),
+            getAiAccessService: () => aiAccessService,
         } as Express.Request['services'];
         next();
     });
@@ -550,7 +542,7 @@ const requestAuthorizePage = async ({
                 {
                     hostname: '127.0.0.1',
                     method: 'GET',
-                    path: `/api/v1/oauth/authorize?${rawQuery ?? new URLSearchParams(query).toString()}`,
+                    path: `/api/v1/oauth/authorize?${new URLSearchParams(query).toString()}`,
                     port: (server.address() as AddressInfo).port,
                 },
                 (response) => {
@@ -812,198 +804,73 @@ describe('OAuth authorize redirects', () => {
         );
     });
 
-    it.each([
-        [
-            'needs_sign_in',
-            'Your organisation requires an agent sign-in. Connect once now, or authorise and connect later from the link your agent shows you.',
-        ],
-        [
-            'sign_in_expired',
-            'Your agent sign-in expired. Connect your agent again now, or authorise and connect later from the link your agent shows you.',
-        ],
-    ] as const)(
-        'offers an optional agent connection for %s',
-        async (reason, copy) => {
-            const query = {
-                client_id: 'client-id',
-                redirect_uri: 'https://registered.example/callback',
-                response_type: 'code',
-                scope: 'read',
-                state: 'request-state',
-                code_challenge: 'challenge',
-                code_challenge_method: 'S256',
-            };
+    it.each(['read write', 'mcp:read', 'mcp:write'])(
+        'omits the agent prompt with agent sign-in required for scope %s',
+        async (scope) => {
+            const { Ability } = await import('@casl/ability');
+            const { WarehouseTypes } = await import('@lightdash/common');
+            const analytics = { track: vi.fn() };
+            const aiAccessService = new AiAccessService({
+                agentActionLogModel: {
+                    insert: vi.fn().mockResolvedValue(undefined),
+                },
+                analytics,
+                featureFlagModel: {
+                    get: vi.fn().mockResolvedValue({ enabled: true }),
+                },
+                organizationAgentIdentityRulesModel: {
+                    get: vi.fn().mockResolvedValue({ source: 'agent_sign_in' }),
+                },
+                organizationAgentIdentitySettingsModel: {
+                    get: vi.fn().mockResolvedValue({
+                        requireVerifiedAgentSessions: true,
+                    }),
+                },
+                projectModel: {
+                    getAllByOrganizationUuid: vi.fn().mockResolvedValue([
+                        {
+                            projectUuid: 'project-uuid',
+                            warehouseType: WarehouseTypes.SNOWFLAKE,
+                        },
+                    ]),
+                    getWarehouseCredentialsForBinding: vi
+                        .fn()
+                        .mockResolvedValue({ type: WarehouseTypes.SNOWFLAKE }),
+                },
+                agentSignInCredentialResolver: {
+                    inspect: vi.fn().mockResolvedValue(
+                        new AgentCredentialResolutionError({
+                            kind: 'credential',
+                            classification: 'missing',
+                        }),
+                    ),
+                },
+            } as unknown as ConstructorParameters<typeof AiAccessService>[0]);
             const response = await requestAuthorizePage({
-                query,
+                query: {
+                    client_id: 'client-id',
+                    redirect_uri: 'https://registered.example/callback',
+                    scope,
+                    error: 'not_agent_session',
+                },
                 oauthService: createOAuthService(),
-                prompt: { required: true, reason, projectUuid: 'project-uuid' },
+                user: {
+                    ...authenticatedUser,
+                    ability: new Ability([
+                        { action: 'view', subject: 'Project' },
+                    ]),
+                },
+                aiAccessService,
             });
             expect(response.status).toBe(200);
-            expect(response.body).toContain('Connect your warehouse agent');
-            expect(response.body).toContain(copy);
-            expect(response.body).toContain(
-                'class="oauth-btn deny" href="/api/v1/login/snowflake-ai?redirect&#x3D;',
-            );
-            const link =
-                /href="([^"]+)">Connect your warehouse agent<\/a>/.exec(
-                    response.body,
-                )?.[1];
-            expect(link).toBeDefined();
-            const connectUrl = new URL(
-                link!.replaceAll('&#x3D;', '=').replaceAll('&amp;', '&'),
-                'https://eu1.lightdash.cloud',
-            );
-            expect(connectUrl.searchParams.get('redirect')).toBe(
-                `https://eu1.lightdash.cloud/api/v1/oauth/authorize?${new URLSearchParams(query)}`,
-            );
+            expect(response.body).not.toContain('Connect your warehouse agent');
+            expect(response.body).not.toContain('oauth-agent-connect');
+            expect(response.body).not.toContain('/api/v1/login/snowflake-ai');
             expect(response.body).toContain('name="approve" value="true"');
             expect(response.body).toContain('name="approve" value="false"');
+            expect(analytics.track).not.toHaveBeenCalled();
         },
     );
-
-    it.each([
-        ['mcp:read', 'mcp_consent'],
-        ['mcp:write', 'mcp_consent'],
-        ['read mcp:read mcp:write', 'mcp_consent'],
-        ['read write', 'oauth_consent'],
-        ['mcp:read-extra', 'oauth_consent'],
-        ['', 'oauth_consent'],
-    ])(
-        'attributes consent for scope %s to %s without changing the authorize request',
-        async (scope, entryPoint) => {
-            const rawQuery = `client_id=client-id&redirect_uri=https%3a%2f%2fregistered.example%2fcallback%3fx%3d1&scope=${encodeURIComponent(scope)}&state=a%20b%2bc%26d%3d~&code_challenge=abc-_%7e&code_challenge_method=S256`;
-            const response = await requestAuthorizePage({
-                query: {},
-                rawQuery,
-                oauthService: createOAuthService(),
-                prompt: {
-                    required: true,
-                    reason: 'needs_sign_in',
-                    projectUuid: 'project-uuid',
-                },
-            });
-            expect(response.status).toBe(200);
-            const link =
-                /href="([^"]+)">Connect your warehouse agent<\/a>/.exec(
-                    response.body,
-                )?.[1];
-            expect(link).toBeDefined();
-            const connectUrl = new URL(
-                link!.replaceAll('&#x3D;', '=').replaceAll('&amp;', '&'),
-                'https://eu1.lightdash.cloud',
-            );
-            expect(connectUrl.searchParams.get('entryPoint')).toBe(entryPoint);
-            expect(connectUrl.searchParams.get('project')).toBe('project-uuid');
-            const redirect = new URL(connectUrl.searchParams.get('redirect')!);
-            expect(redirect.pathname).toBe('/api/v1/oauth/authorize');
-            expect([...redirect.searchParams]).toEqual([
-                ...new URLSearchParams(rawQuery),
-            ]);
-        },
-    );
-
-    it('renders consent with the real prompt service without starting a connection', async () => {
-        const { Ability } = await import('@casl/ability');
-        const { WarehouseTypes, AiAccessRefusalReason } =
-            await import('@lightdash/common');
-        const analytics = { track: vi.fn() };
-        const aiAccessService = new AiAccessService({
-            agentActionLogModel: {
-                insert: vi.fn().mockResolvedValue(undefined),
-            },
-            analytics,
-            featureFlagModel: {
-                get: vi.fn().mockResolvedValue({ enabled: true }),
-            },
-            organizationAgentIdentityRulesModel: {
-                get: vi.fn().mockResolvedValue({ source: 'agent_sign_in' }),
-            },
-            organizationAgentIdentitySettingsModel: {
-                get: vi
-                    .fn()
-                    .mockResolvedValue({ requireVerifiedAgentSessions: true }),
-            },
-            projectModel: {
-                getAllByOrganizationUuid: vi.fn().mockResolvedValue([
-                    {
-                        projectUuid: 'project-uuid',
-                        warehouseType: WarehouseTypes.SNOWFLAKE,
-                    },
-                ]),
-                getWarehouseCredentialsForBinding: vi
-                    .fn()
-                    .mockResolvedValue({ type: WarehouseTypes.SNOWFLAKE }),
-            },
-            agentSignInCredentialResolver: {
-                inspect: vi.fn().mockResolvedValue(
-                    new AgentCredentialResolutionError({
-                        kind: 'credential',
-                        classification: 'missing',
-                    }),
-                ),
-            },
-        } as unknown as ConstructorParameters<typeof AiAccessService>[0]);
-        const response = await requestAuthorizePage({
-            query: {
-                client_id: 'client-id',
-                redirect_uri: 'https://registered.example/callback',
-                scope: 'mcp:read',
-            },
-            oauthService: createOAuthService(),
-            user: {
-                ...authenticatedUser,
-                ability: new Ability([{ action: 'view', subject: 'Project' }]),
-            },
-            aiAccessService,
-        });
-        expect(response.status).toBe(200);
-        expect(response.body).toContain('Connect your warehouse agent');
-        expect(analytics.track).not.toHaveBeenCalled();
-    });
-
-    it('shows a sign-in error and removes it from the connection return URL', async () => {
-        const query = {
-            client_id: 'client-id',
-            error: 'not_agent_session',
-            redirect_uri: 'https://registered.example/callback',
-            state: 'request-state',
-        };
-        const response = await requestAuthorizePage({
-            query,
-            oauthService: createOAuthService(),
-            prompt: {
-                required: true,
-                reason: 'needs_sign_in',
-                projectUuid: 'project-uuid',
-            },
-        });
-        expect(response.status).toBe(200);
-        expect(response.body).toContain(
-            'class="oauth-agent-connect-error" role="alert"',
-        );
-        expect(response.body).toContain(
-            'Your Snowflake sign-in is not an agent session. Ask your Snowflake admin to set IS_AGENTIC &#x3D; TRUE on the security integration used for agents.',
-        );
-        const link = /href="([^"]+)">Connect your warehouse agent<\/a>/.exec(
-            response.body,
-        )?.[1];
-        expect(link).toBeDefined();
-        const connectUrl = new URL(
-            link!.replaceAll('&#x3D;', '=').replaceAll('&amp;', '&'),
-            'https://eu1.lightdash.cloud',
-        );
-        const authorizeUrl = new URL(
-            `/api/v1/oauth/authorize?${new URLSearchParams(query)}`,
-            'https://eu1.lightdash.cloud',
-        );
-        authorizeUrl.searchParams.delete('error');
-        expect(connectUrl.searchParams.get('redirect')).toBe(authorizeUrl.href);
-        expect(
-            new URL(connectUrl.searchParams.get('redirect')!).searchParams.has(
-                'error',
-            ),
-        ).toBe(false);
-    });
 
     it('sends an OAuth error when an approval comes from a user with no organization', async () => {
         const oauthService = createOAuthService();

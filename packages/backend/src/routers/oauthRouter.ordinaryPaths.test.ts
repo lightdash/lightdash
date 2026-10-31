@@ -110,9 +110,6 @@ it.each(clients)(
                 req.user = defaultSessionUser;
             req.services = {
                 getOauthService: () => oauth,
-                getAiAccessService: () => ({
-                    getAgentConnectPrompt: async () => ({ required: false }),
-                }),
                 getAgentConnectionApprovalService: approvalService,
                 getFeatureFlagService: () => ({ get: flag }),
             } as never;

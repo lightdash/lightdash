@@ -2,7 +2,6 @@ import {
     generateOAuthAuthorizePage,
     generateOAuthRedirectPage,
     generateOAuthSuccessResponse,
-    getAgentConnectErrorMessage,
     isSafeRedirectScheme,
     parseScopeString,
 } from './oauth';
@@ -29,7 +28,6 @@ const authorizePage = () =>
         },
         loginUrl: '/login',
         hiddenInputs: [],
-        agentConnect: null,
     });
 
 describe('isSafeRedirectScheme', () => {
@@ -55,24 +53,16 @@ describe('isSafeRedirectScheme', () => {
     });
 });
 
-describe('agent connection error messages', () => {
-    it.each([
-        [
-            'not_agent_session',
-            'Your Snowflake sign-in is not an agent session. Ask your Snowflake admin to set IS_AGENTIC = TRUE on the security integration used for agents.',
-        ],
-        [
-            'no_refresh_token',
-            'Snowflake did not return a refresh token. Try again.',
-        ],
-        ['license_required', 'An enterprise licence is required.'],
-        ['unknown_error', 'The sign-in did not complete. Try again.'],
-    ])('maps %s to the consent error copy', (code, message) => {
-        expect(getAgentConnectErrorMessage(code)).toBe(message);
-    });
-});
-
 describe('OAuth page templates', () => {
+    it('renders consent without a warehouse agent connection prompt', () => {
+        const page = authorizePage();
+        expect(page).not.toContain('Connect your warehouse agent');
+        expect(page).not.toContain('oauth-agent-connect');
+        expect(page).not.toContain('/api/v1/login/snowflake-ai');
+        expect(page).toContain('name="approve" value="true"');
+        expect(page).toContain('name="approve" value="false"');
+    });
+
     it('declares the viewport on the authorize page so it renders at 1:1 on mobile and exposes safe-area insets', () => {
         expect(authorizePage()).toContain(AUTHORIZE_VIEWPORT_META);
     });
