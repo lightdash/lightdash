@@ -75,12 +75,6 @@ describe('development PM2 harness', () => {
         expectApiReloadContract(loadConfig('ecosystem.config.js'));
     });
 
-    it('watches generated routes and reloads agent APIs', () => {
-        expectApiReloadContract(
-            loadConfig('agent-harness/ecosystem.agent.template.cjs'),
-        );
-    });
-
     it('generates routes immediately and cleans up the watcher process', () => {
         const backendPackage = requireFromTest(
             path.join(repoRoot, 'packages/backend/package.json'),

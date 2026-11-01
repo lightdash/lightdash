@@ -130,6 +130,44 @@ A field's position in the YAML determines whether it goes in `.dimensions()` or 
 
 Use the **metric key name**, not the label. YAML `label: "Order Count"` → SDK field name is `order_count`.
 
+### Field links — `urls`
+
+A dimension or metric may declare `urls:` — link patterns for its values:
+
+```yaml
+columns:
+    - name: account_number
+      meta:
+          dimension:
+              type: string
+              urls:
+                  - label: Open account
+                    url: "https://portal.example.com/accounts/${value.raw | url_encode }"
+                  - label: Open owner
+                    url: "https://portal.example.com/users/${row.accounts.owner_id.raw }"
+```
+
+**When a field you display declares `urls`, render its values as links built from those patterns** — in tables, underlying-data views, and anywhere the raw value is shown. Dashboards already do this; the app must match.
+
+Every query result's `columns` carry the patterns too (`column.urls`), and the SDK resolves them per cell — prefer this over hand-rolling, especially in generic column loops:
+
+```tsx
+import { resolveColumnUrls } from '@lightdash/query-sdk';
+
+const links = resolveColumnUrls({ column, row, columns, format });
+// → [{ label, href }] with unresolvable patterns already skipped
+```
+
+When you hand-roll instead (e.g. a hard-coded table where you know the field), resolve placeholders with simple substitution:
+
+- `${value.raw}` / `${value.formatted}` — the cell's own raw/formatted value.
+- `${row.<model>.<field>.raw}` (or `.formatted`) — another field in the same result row. **Add that field to the query** so it's present in the row.
+- A `| url_encode` filter means URL-encode the substituted value (`encodeURIComponent`).
+
+One pattern → the cell is a plain link (open in a new tab). Several → a primary link plus a menu, or a small dropdown. Skip the link for null/empty values. Never invent patterns for fields without `urls`.
+
+**Links must look like links at rest, not only on hover**: underline them (e.g. `underline underline-offset-4`) and/or use a distinct link color that fits the app's theme, plus a hover state. A viewer should spot the clickable cells without mousing over the table.
+
 ### Joined table fields — dot notation
 
 When a model has `joins`, the joined table's dimensions and metrics are available in your query. **Use dot notation** (`table.field`) to reference fields from joined tables:
@@ -181,6 +219,8 @@ These metrics are **not additive over time**. A balance on Monday plus the balan
 ## Referenced metric queries
 
 If the prompt lists referenced charts (files under `/tmp/metric-queries/*.json`), read `/app/references/chart-references.md` before writing any query code — it defines the JSON shape, linked-vs-copied chart semantics (`savedChart`), and the field-id mapping rules.
+
+If the user asks for a page that lists or renders **whatever charts a Lightdash space contains** (a gallery, "my charts", "charts from the Sales space") — i.e. the set should grow as charts are saved, without rebuilding the app — use `useSpaceCharts('<space slug or uuid>')` and read "Discovering charts at runtime" in `/app/references/chart-references.md`. Never hardcode a UUID list for that ask.
 
 ## Attached dashboard blueprint
 
@@ -499,6 +539,27 @@ Rules:
 - Whenever you show an underlying-data table/dialog, include a Download button in that table/dialog header. It should call `downloadUnderlyingData({ row, metric, fileType, values, limit, filename })`, track export state, and show a spinner or "Exporting..." label until the promise settles.
 - For underlying-data downloads, `limit: 'table'` uses the backend default underlying-data row limit, `limit: 'all'` exports all matching rows allowed by backend export caps, and a number requests that many rows.
 - This works for grouped SDK query rows. If you have heavily transformed or pivoted data client-side, keep the original source row around and pass that original row.
+- **Render field links in the dialog's generic column loop.** Underlying-data columns carry `urls` (the field's link patterns), and `resolveColumnUrls` resolves them per cell — a cell with resolved links renders as a link (see [Field links — `urls`](#field-links--urls)):
+
+```tsx
+import { resolveColumnUrls } from '@lightdash/query-sdk';
+
+{result.columns.map((c) => {
+    const links = resolveColumnUrls({ column: c, row: r, columns: result.columns, format: result.format });
+    return (
+        <TableCell key={c.name}>
+            {links.length > 0 ? (
+                <a href={links[0].href} target="_blank" rel="noreferrer"
+                   className="text-primary underline underline-offset-4">
+                    {result.format(r, c.name)}
+                </a>
+            ) : (
+                result.format(r, c.name)
+            )}
+        </TableCell>
+    );
+})}
+```
 
 ```tsx
 const revenueQuery = query('orders')
@@ -638,6 +699,8 @@ Use `formatField` for cells so dates render `Jun 16, 2025` instead of `2025-06-1
 
 For the action-menu label and clipboard copy on a cell, the same helper applies — pass `format` so the per-field server format wins for currency/percent.
 
+**Before writing any table or value display, check each displayed field's model YAML for a `urls:` block.** A field with `urls` MUST render its values as links, not plain text — see [Field links — `urls`](#field-links--urls). This applies to joined-table fields too: `customers.first_name` queried through `orders` is defined in `customers.yml`, so check the joined model's file (the index marks models whose fields carry links with `urls=…`). This is not optional polish: dashboards render these links, and an app that drops them loses functionality the user already relies on.
+
 ### Filters
 
 Use `.filters([...])` for dimension/WHERE filters and `.metricFilters([...])`
@@ -718,7 +781,7 @@ For any external HTTP API call, read `/app/references/external-apis.md` and use 
 
 ### AI analysis — executive summary and anomalies
 
-When the user asks for AI analysis, an executive summary, "what changed and why", anomaly callouts, or any AI-generated insight about the data on the page, read `/app/references/ai-analysis.md` and build its **Default build** with the shipped components in `src/components/insights/` (`InsightsSummary`, `InsightMarker` / `insightCellProps`, `InvestigateMenuItem`, `InvestigationCard`): summary block at the top, markers on every query-bound chart, Investigate in every point menu, the investigation card under the chart. A short ask gets the whole set; only a narrower ask ("just a summary") gets a subset. Never rewrite those components. Lightdash runs the analysis over the queries the app already loaded and pushes the result in; the app renders it and never sends rows or keys. The components render nothing when the host has no analysis to offer. For an author-written question over loaded results (a takeaway under a chart, "explain this row"), use `useAiPrompt` from the same reference. When the user wants the summaries written a certain way (language, currency, domain vocabulary), pass it via the `instructions` prop on `InsightsSummary` — see "Author instructions" in the same reference.
+When the user asks for AI analysis, an executive summary, "what changed and why", anomaly callouts, or any AI-generated insight about the data on the page, read `/app/references/ai-analysis.md` and build its **Default build** with the shipped components in `src/components/insights/` (`InsightsSummary`, `InsightMarker` / `insightCellProps`, `InvestigateMenuItem`, `InvestigationCard`): summary block at the top, markers on every query-bound chart, Investigate in every point menu, the investigation card under the chart. A short ask gets the whole set; only a narrower ask ("just a summary") gets a subset. Never rewrite those components. Lightdash runs the analysis over the queries the app already loaded and pushes the result in; the app renders it and never sends rows or keys. The components render nothing when the host has no analysis to offer. For an author-written question over loaded results (a takeaway under a chart, "explain this row"), use `useAiPrompt` from the same reference. When the user wants the summaries written a certain way (language, currency, domain vocabulary), pass it via the `instructions` prop on `InsightsSummary` — see "Author instructions" in the same reference. When the user wants the analysis to run as soon as the app loads, set the `analyseOnLoad` prop on `InsightsSummary` — see "Analyse on load" in the same reference; never set it unasked.
 
 ## Visual Design
 
@@ -1283,6 +1346,7 @@ The action-menu example above shows typical `drillDown()` usage. For the full AP
 | Mistake | Why it breaks | Fix |
 |---|---|---|
 | Guessing field names | API returns opaque errors | Read the dbt YAML first — always |
+| Rendering a `urls` field's values as plain text | Dashboards render those values as links; the app silently drops functionality the user relies on | Check every displayed field's model YAML — including joined models (`customers.first_name` lives in `customers.yml`) — for `urls:` and render links per [Field links — `urls`](#field-links--urls) |
 | `.metrics()` on a pre-aggregated model | Re-aggregates already-aggregated values → wrong numbers | If `wins` is a dimension in the YAML, use `.dimensions(['wins'])` |
 | `.metrics(['max_cumulative_points'])` instead of `.dimensions(['cumulative_points'])` | Aggregates per-row data into a single value — collapses line charts | Check YAML: is it under `columns[].name` (dimension) or `meta.metrics` (metric)? |
 | Unused dimensions in `.dimensions()` | Changes GROUP BY → wrong numbers | Only include dimensions you render or require for sorting; hidden sort fields stay selected but can be omitted from the UI |

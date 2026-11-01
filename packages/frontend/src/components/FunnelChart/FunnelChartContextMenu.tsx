@@ -77,7 +77,6 @@ const FunnelChartContextMenu: FC<FunnelChartContextMenuProps> = ({
             onClose={onClose}
             closeOnItemClick
             closeOnEscape
-            radius={0}
             position="right-start"
             offset={{
                 mainAxis: 0,
@@ -87,10 +86,9 @@ const FunnelChartContextMenu: FC<FunnelChartContextMenuProps> = ({
             <Portal>
                 <Menu.Target>
                     <Box
-                        style={{
-                            position: 'absolute',
-                            ...(menuPosition ?? {}),
-                        }}
+                        pos="absolute"
+                        left={menuPosition?.left}
+                        top={menuPosition?.top}
                     />
                 </Menu.Target>
             </Portal>

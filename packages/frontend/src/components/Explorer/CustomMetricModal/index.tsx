@@ -804,12 +804,7 @@ export const CustomMetricModal = memo(() => {
                                                 ? `(${customMetricFiltersWithIds.length}) `
                                                 : ' '}
                                         </Text>
-                                        <Text
-                                            span
-                                            fz="xs"
-                                            c="ldGray.5"
-                                            fw={400}
-                                        >
+                                        <Text span fz="xs" c="dimmed" fw={400}>
                                             (optional)
                                         </Text>
                                     </Text>

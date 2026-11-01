@@ -45,6 +45,7 @@ import {
 import { lintHandler } from './handlers/lint';
 import { listProjectsHandler } from './handlers/listProjects';
 import { login } from './handlers/login';
+import { logout } from './handlers/logout';
 import { preAggregateAuditHandler } from './handlers/preAggregateAudit';
 import { preAggregateCheckExternalHandler } from './handlers/preAggregateCheckExternal';
 import {
@@ -300,6 +301,17 @@ ${styles.bold('Examples:')}
     )
     .option('--verbose', undefined, false)
     .action(login);
+
+program
+    .command('logout')
+    .description(
+        'Logs out of the configured instance and revokes a browser login session',
+    )
+    .addHelpText(
+        'after',
+        '\nBrowser login sessions are revoked on the server. Saved API keys are removed locally; personal access tokens must be revoked in your account settings.\n',
+    )
+    .action(logout);
 
 const agentProgram = program
     .command('agent')
@@ -1466,6 +1478,11 @@ appsProgram
         '--port <port>',
         'port for the app dev server (default: Vite picks one, usually 5173)',
     )
+    .option(
+        '--show-sql',
+        'print the compiled SQL for each metric query the app runs',
+        false,
+    )
     .option('--verbose', undefined, false)
     .action(appsPreviewHandler);
 appsProgram
@@ -1894,9 +1911,7 @@ program
 
 program
     .command('generate-exposures')
-    .description(
-        '[Experimental command] Generates a .yml file for Lightdash exposures',
-    )
+    .description('Generates a YAML file for Lightdash exposures')
     .addHelpText(
         'after',
         `

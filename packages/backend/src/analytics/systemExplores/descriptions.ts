@@ -1,6 +1,8 @@
 import type { Dimension } from '@lightdash/common';
 
 export const analyticsTableDescriptions: Record<string, string> = {
+    embed_reach:
+        'Observed successful embedded dashboard fetches, with explicit external-viewer attribution. Excludes previews and duplicate deliveries. Refetches count; child queries do not. Does not measure browser rendering, tenant attribution, embedding configuration or billable loads. Capture starts after deployment.',
     historical_activity:
         'Retained database history for views, apps, AI conversations and tools, MCP calls, research and exports. These records use different counting rules from captured Analytics events: filter by activity type and do not add their totals to captured events. Status fields reflect the last import.',
     query_events:
@@ -322,6 +324,7 @@ const sharedDimensions: Record<string, string> = {
 const modelDimensions: Record<string, Record<string, string>> = {
     query_events: {
         status: 'Recorded query outcome, such as success or error. Queries failing before the captured execution path are absent.',
+        error: 'Recorded query error message, limited to 1,000 characters including a truncation marker. Empty for successful queries and historical events that did not capture the message.',
         event_name:
             'The captured query.completed event, emitted when a query reaches a recorded outcome. Includes cache hits and execution errors.',
     },

@@ -14,6 +14,7 @@ import BigNumberView from '../components/DataViz/visualizations/BigNumberView';
 import ChartView from '../components/DataViz/visualizations/ChartView';
 import { Table } from '../components/DataViz/visualizations/Table';
 import { useSavedSqlChartResults } from '../features/sqlRunner/hooks/useSavedSqlChartResults';
+import classes from './MinimalSqlChart.module.css';
 
 const MinimalSqlChartContent = memo(
     ({
@@ -80,7 +81,7 @@ const MinimalSqlChartContent = memo(
         let visualization: JSX.Element;
         if (isVizTableConfig(chartData.config)) {
             visualization = (
-                <Box w="100%" h="100%" style={{ overflow: 'auto' }}>
+                <Box w="100%" h="100%" className={classes.tableContainer}>
                     <Table
                         resultsRunner={chartResultsData.resultsRunner}
                         columnsConfig={chartData.config.columns}
@@ -108,11 +109,7 @@ const MinimalSqlChartContent = memo(
                     spec={chartResultsData.chartSpec}
                     isLoading={isChartResultsFetching}
                     error={undefined}
-                    style={{
-                        minHeight: 'inherit',
-                        height: '100%',
-                        width: '100%',
-                    }}
+                    className={classes.chart}
                 />
             );
         } else {

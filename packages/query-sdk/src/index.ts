@@ -18,9 +18,12 @@ export { LightdashProvider, useLightdashClient } from './LightdashProvider';
 export {
     createApiTransport,
     LightdashApiError,
+    SpaceChartsUnsupportedError,
     type FetchAdapter,
 } from './apiTransport';
 export { createPostMessageTransport } from './postMessageTransport';
+
+export { resolveColumnUrls, type ResolvedColumnUrl } from './columnUrls';
 
 // Feature manifest (also exported via the "./features" subpath for hosts)
 export {
@@ -43,6 +46,7 @@ export type {
     AiPromptResult,
     Column,
     ColumnType,
+    ColumnUrl,
     CustomDimension,
     DownloadResultsFileType,
     DownloadResultsLimit,
@@ -178,6 +182,11 @@ export type {
 // Free-form AI prompts over loaded results (data apps)
 export { useAiPrompt } from './aiPrompt';
 export type { AiPrompt, AiPromptOptions, AiPromptSource } from './aiPrompt';
+
+// List the saved charts the viewer can see in a space (data apps)
+export { useSpaceCharts } from './spaceCharts';
+export type { SpaceCharts } from './spaceCharts';
+export type { SpaceChartsResult, SpaceChartSummary } from './types';
 
 // AI analysis pushed by the host (data apps)
 export { useInsights } from './insights';

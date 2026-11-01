@@ -277,7 +277,7 @@ export const SyncModalView: FC<Props> = ({
                 </Box>
             ) : (
                 <Group justify="center" ta="center" gap="xs" my="sm" pt="md">
-                    <Text fz="sm" fw={500} c="ldGray.7">
+                    <Text fz="sm" fw={500} c="dimmed">
                         This {resourceLabel} has no Syncs set up yet
                     </Text>
                     <Text fz="xs" fw={400} c="dimmed">

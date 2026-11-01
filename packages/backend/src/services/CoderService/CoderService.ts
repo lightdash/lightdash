@@ -72,6 +72,7 @@ import {
     isSlackTarget,
     MAX_CONTENT_SLUG_LENGTH,
     normalizeContentAsCodePath,
+    normalizeContentAsCodeSourcePath,
     normalizeSavedMergeDefinition,
     NotFoundError,
     NotificationFrequency,
@@ -266,9 +267,9 @@ type UpsertContentAsCodeOptions = {
     force?: boolean;
     spaceNames?: Record<string, string>;
     mode?: 'upsert' | 'create';
-    // Mirrors content_as_code.sync from the caller's lightdash.config.yml.
-    // Gates snapshot recording: a project that never opts into sync has no
-    // use for a last-applied baseline.
+    // Gates snapshot recording. true: a repo upload opted into
+    // content_as_code.sync. false: not a repo upload (agent tools, internal
+    // seeding), never record. Absent: fall back to the stamped project setting.
     syncEnabled?: boolean;
     // Repo file the document came from, relative to the project dir, so
     // write-back returns to the same place
@@ -3472,7 +3473,7 @@ export class CoderService extends BaseService {
     private static sourceFilePath(filePath: string | undefined): string | null {
         if (filePath === undefined) return null;
         try {
-            const normalized = normalizeContentAsCodePath(filePath);
+            const normalized = normalizeContentAsCodeSourcePath(filePath);
             return normalized === '' ? null : normalized;
         } catch {
             return null;
@@ -3696,7 +3697,7 @@ export class CoderService extends BaseService {
         projectUuid: string,
         options: UpsertContentAsCodeOptions,
     ): Promise<boolean> {
-        if (options.syncEnabled === true) return true;
+        if (options.syncEnabled !== undefined) return options.syncEnabled;
         try {
             const settings =
                 await this.contentAsCodeProjectSettingsModel.get(projectUuid);

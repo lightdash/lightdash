@@ -1,0 +1,14 @@
+.scrollable {
+    overflow-y: auto;
+}
+
+.header {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.indicator {
+    font-size: 10px;
+    padding: 0;
+}

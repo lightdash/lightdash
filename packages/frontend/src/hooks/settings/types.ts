@@ -67,7 +67,6 @@ export type SettingsContext = {
     project: Project | undefined;
     showImpersonationPanel: boolean | undefined;
     isCustomRolesEnabled: boolean | undefined;
-    isProLimitsEnabled: boolean;
     canAccessAnalyticsSettings: boolean;
     isAnalyticsProjectFlagLoading: boolean;
     isOrganizationRoadmapEnabled: boolean;
@@ -90,6 +89,7 @@ export type SettingsContext = {
     dataAppAnalysisFlag: FeatureFlag | undefined;
     dashboardAnalysisFlag: FeatureFlag | undefined;
     isDataAppsFlagLoading: boolean;
+    isApiQuerySourcesEnabled: boolean;
     // Chart Studio uses org themes, so it opens Themes without data apps.
     isChartStudioAvailable: boolean;
     externalSourcesFlag: FeatureFlag | undefined;

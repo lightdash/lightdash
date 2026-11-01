@@ -46,13 +46,15 @@ snapshot of the whole database. Retention and deletion determine how far back
 each source can go; the import does not guarantee any particular historical
 window. A whole-day cutoff would miss gaps within partially captured days.
 
-- **Query Events:** `READY` queries and `ERROR` queries with a recorded warehouse
-  execution time from `query_history`, excluding preview projects and unfinished
-  work. Errors without an execution time are not imported. Identity is
+- **Query Events:** `READY` and `ERROR` queries from `query_history`, excluding
+  preview projects and unfinished work. Failed queries include their retained
+  error message, even when execution time is missing. Analytics error messages
+  are limited to 1,000 characters, including `… [truncated]` when shortened;
+  the original database error is unchanged. Identity is
   `(org_id, project_id, query_id)`. Dates use submission time. Missing timing or
   event metadata stays null. Retained fields include the actor, context,
-  Explore/chart/dashboard references, status, warehouse execution time and row
-  count. The importer does not recreate completion time, cache behavior or
+  Explore/chart/dashboard references, status, error message, warehouse execution
+  time and row count. The importer does not recreate completion time, cache behavior or
   metric/dimension lineage that the source row cannot supply.
 - **AI Usage:** model-call outcomes and token counts from `ai_usage_ledger`, using
   the same `(org_id, event_id)` as captured events. PostgreSQL timestamp and bigint
@@ -111,11 +113,14 @@ dashboards.
 
 ## Not included
 
-No SQL, conversation/reasoning text, error-message text, tool arguments/results, file
-contents, export destinations, arbitrary JSON or external identities are
-exported. An error outcome can be included without its error message; a file or
-artifact record can be included without its contents. Ownership joins scope
-every source to the authorized organization.
+No SQL, AI prompts, replies or reasoning text, tool arguments/results, file contents,
+export destinations, arbitrary JSON or external identities are exported. Query
+error messages are included; error text from other activity sources is not.
+A file or artifact record can be included without its contents. Ownership joins
+scope every source to the authorized organization.
+
+Conversation activity means metadata such as IDs, timestamps and outcomes, not
+message contents. Captured analytics events also exclude AI prompts and replies.
 
 The import also excludes:
 

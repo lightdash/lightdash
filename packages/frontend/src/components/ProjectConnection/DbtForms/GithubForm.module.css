@@ -19,3 +19,10 @@
 .githubButtonLogo {
     filter: invert(1);
 }
+
+/* Make it look disabled */
+.disabledInput {
+    background-color: var(--mantine-color-ldGray-1);
+    cursor: not-allowed;
+    pointer-events: none;
+}

@@ -52,7 +52,7 @@
     position: absolute;
     bottom: 24px;
     right: 10px;
-    z-index: 1000;
+    z-index: var(--ld-z-floating);
     padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
     border-radius: var(--mantine-radius-sm);
     min-width: 120px;
@@ -186,4 +186,40 @@
     &:hover {
         background-color: var(--mantine-color-gray-1);
     }
+}
+
+.mapContainer {
+    height: 100%;
+    width: 100%;
+}
+
+.legendBubble {
+    border-radius: 50%;
+    border: 1.5px solid var(--mantine-color-ldGray-5);
+}
+
+.tooltipContent {
+    padding: 4px 6px;
+}
+
+.tooltipRows {
+    display: flex;
+    flex-direction: column;
+    gap: var(--mantine-spacing-xxs);
+}
+
+.tooltipRow {
+    font-size: var(--mantine-font-size-sm);
+}
+
+.tooltipNoData {
+    font-size: var(--mantine-font-size-sm);
+    color: var(--mantine-color-gray-6);
+    font-style: italic;
+}
+
+.tooltipCoords {
+    font-size: var(--mantine-font-size-xs);
+    color: var(--mantine-color-gray-6);
+    margin-top: var(--mantine-spacing-xs);
 }

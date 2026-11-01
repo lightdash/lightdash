@@ -6,11 +6,8 @@ import {
     Stack,
     Text,
     Button,
-    type ButtonProps,
     ActionIcon,
     Popover,
-    useComputedColorScheme,
-    useMantineTheme,
 } from '@mantine/core';
 import { useClickOutside, useDisclosure } from '@mantine/hooks';
 import { IconRefresh, IconSparkles, IconX } from '@tabler/icons-react';
@@ -50,9 +47,7 @@ import { MetricsTable } from './MetricsTable';
 
 const LOCAL_STORAGE_KEY = 'metrics-catalog-learn-more-popover-closed';
 
-const LearnMorePopover: FC<{ buttonStyles?: ButtonProps['style'] }> = ({
-    buttonStyles,
-}) => {
+const LearnMorePopover: FC = () => {
     const [opened, { close, open }] = useDisclosure(false);
     const buttonRef = useRef<HTMLButtonElement>(null);
     const ref = useClickOutside(close, null, [buttonRef.current]);
@@ -93,7 +88,7 @@ const LearnMorePopover: FC<{ buttonStyles?: ButtonProps['style'] }> = ({
                     size="xs"
                     variant="default"
                     leftSection={<MantineIcon icon={IconSparkles} />}
-                    style={buttonStyles}
+                    className={classes.headerButton}
                     onClick={opened ? handleClose : open}
                 >
                     Learn more
@@ -101,7 +96,7 @@ const LearnMorePopover: FC<{ buttonStyles?: ButtonProps['style'] }> = ({
             </Popover.Target>
             <Popover.Dropdown
                 bg="ldDark.9"
-                c="ldGray.0"
+                c="var(--mantine-color-body)"
                 p={16}
                 className={classes.spotlightDropdown}
             >
@@ -119,7 +114,7 @@ const LearnMorePopover: FC<{ buttonStyles?: ButtonProps['style'] }> = ({
                         </ActionIcon>
                     </Group>
                     <LearnMoreContent width="100%" height="100%" />
-                    <Text fz="sm" c="ldGray.3">
+                    <Text fz="sm" c="var(--mantine-color-ldGray-3)">
                         Explore and curate your key Metrics in the{' '}
                         <Text span fw={600} inherit>
                             Catalog
@@ -134,14 +129,12 @@ const LearnMorePopover: FC<{ buttonStyles?: ButtonProps['style'] }> = ({
                         <Button
                             variant="outline"
                             bg="ldDark.4"
-                            c="ldGray.0"
+                            c="var(--mantine-color-body)"
                             hidden={true}
                             disabled={true}
-                            style={{
-                                display: 'none', // ! Disabled for now
-                                border: 'none',
-                                flexGrow: 1,
-                            }}
+                            // ! Disabled for now
+                            display="none"
+                            className={classes.dropdownButton}
                         >
                             View Demo
                         </Button>
@@ -150,7 +143,7 @@ const LearnMorePopover: FC<{ buttonStyles?: ButtonProps['style'] }> = ({
                             variant="default"
                             href="https://docs.lightdash.com/guides/metrics-catalog/"
                             target="_blank"
-                            style={{ border: 'none', flexGrow: 1 }}
+                            className={classes.dropdownButton}
                         >
                             Learn more
                         </Button>
@@ -171,8 +164,6 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
     hiddenFilters,
 }) => {
     const dispatch = useAppDispatch();
-    const theme = useMantineTheme();
-    const colorScheme = useComputedColorScheme();
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
     );
@@ -454,18 +445,6 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
         [tableName, metricName, dispatch],
     );
 
-    const headerButtonStyles: ButtonProps['style'] = {
-        borderRadius: theme.radius.md,
-        border: `1px solid ${theme.colors.ldGray[2]}`,
-        padding: `0.25rem 10px 0.25rem ${theme.spacing.xs}`,
-        fontSize: theme.fontSizes.sm,
-        fontWeight: 500,
-        color:
-            colorScheme === 'dark'
-                ? theme.colors.ldDark[9]
-                : theme.colors.ldGray[7],
-    };
-
     return (
         <Stack
             w="100%"
@@ -475,10 +454,10 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
         >
             <Group
                 justify="space-between"
-                style={{ display: isEmbed ? 'none' : undefined }}
+                display={isEmbed ? 'none' : undefined}
             >
                 <Box>
-                    <Text c="ldGray.8" fw={600} size="xl">
+                    <Text fw={600} size="xl">
                         Metrics Catalog
                     </Text>
                     <Text c="dimmed" size="sm" fw={400}>
@@ -498,7 +477,7 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
                                 />
                             }
                             loading={true}
-                            style={headerButtonStyles}
+                            className={classes.headerButton}
                         >
                             Refreshing catalog
                         </Button>
@@ -512,7 +491,7 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
                                     icon={IconRefresh}
                                 />
                             }
-                            buttonStyles={headerButtonStyles}
+                            className={classes.headerButton}
                             defaultTextOverride={
                                 lastDbtRefreshAt
                                     ? `Last refreshed ${timeAgo}`
@@ -521,7 +500,7 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
                             refreshingTextOverride="Refreshing catalog"
                         />
                     )}
-                    <LearnMorePopover buttonStyles={headerButtonStyles} />
+                    <LearnMorePopover />
                 </Group>
             </Group>
             <MetricsTable

@@ -230,11 +230,7 @@ const ThemeChip: FC<{
                 size="md"
                 leftSection={<MantineIcon icon={IconBrush} size={12} />}
                 disabled={disabled}
-                styles={{
-                    root: {
-                        cursor: disabled ? 'not-allowed' : 'pointer',
-                    },
-                }}
+                className={classes.themeBadge}
             >
                 {themeName}
             </Badge>
@@ -1186,11 +1182,15 @@ const AppGenerate: FC = () => {
     const [insightInstructions, setInsightInstructions] = useState<
         string | null
     >(null);
+    const [insightAnalyseOnLoad, setInsightAnalyseOnLoad] = useState<
+        boolean | null
+    >(null);
     const analysisController = useDataAppAnalysisController({
         projectUuid,
         appUuid: previewApp?.appUuid,
         queries: trackedQueries,
         availability: analysisAvailability,
+        analyseOnLoad: insightAnalyseOnLoad ?? false,
         instructions: insightInstructions,
         // No agent picker in the builder yet; the viewer's default agent
         // (falling back to the first accessible one) is used.
@@ -3598,6 +3598,9 @@ const AppGenerate: FC = () => {
                                         onInsightsInUse={handleInsightsInUse}
                                         onInsightInstructionsChange={
                                             setInsightInstructions
+                                        }
+                                        onInsightAnalyseOnLoadChange={
+                                            setInsightAnalyseOnLoad
                                         }
                                         onMountedQueriesChange={
                                             analysisController.setMountedQueryUuids

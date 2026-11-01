@@ -1,6 +1,7 @@
 import { type ExternalFetchResponse } from '@lightdash/common';
 import { Badge, Code, Group, ScrollArea, Stack, Text } from '@mantine/core';
 import { type FC } from 'react';
+import classes from './ConnectionTestResult.module.css';
 
 const MAX_BODY_RENDER_CHARS = 4000;
 
@@ -30,11 +31,7 @@ export const ConnectionTestResult: FC<Props> = ({ response }) => (
         </Group>
 
         <ScrollArea.Autosize mah={260} w="100%" offsetScrollbars>
-            <Code
-                block
-                fz="xs"
-                style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
-            >
+            <Code block fz="xs" className={classes.body}>
                 {(typeof response.body === 'string'
                     ? response.body
                     : JSON.stringify(response.body, null, 2)

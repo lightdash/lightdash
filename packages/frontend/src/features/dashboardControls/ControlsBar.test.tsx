@@ -2,6 +2,8 @@ import { FilterOperator } from '@lightdash/common';
 import { screen } from '@testing-library/react';
 import { type ComponentProps, type ReactElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import DashboardContext from '../../providers/Dashboard/context';
+import { type DashboardContextType } from '../../providers/Dashboard/types';
 import {
     createDashboardTestStore,
     seedDashboardEditState,
@@ -23,7 +25,9 @@ const renderWithProviders = (ui: ReactElement) =>
         </DashboardStoreTestProvider>,
     );
 const mockCompact = vi.hoisted(() => ({ current: false }));
-const mockSidebar = vi.hoisted(() => ({ current: { isSidebarOpen: false } }));
+const mockSidebar = vi.hoisted(() => ({
+    current: { isSidebarOpen: false, isMapping: false },
+}));
 
 vi.mock('../../providers/Dashboard/useDashboardContext', () => ({
     default: vi.fn((selector) => selector(mockDashboardContext.current)),
@@ -61,12 +65,31 @@ vi.mock('./AddControl', async (importOriginal) => ({
     ...(await importOriginal<typeof AddControlModule>()),
     AddControl: () => <button>Add</button>,
 }));
+vi.mock('./MappingRow', () => ({
+    MappingRow: () => <div data-testid="mapping-row" />,
+}));
 vi.mock('./FilterPills', () => ({
     FilterPills: () => <div data-testid="filter-pills" />,
 }));
-vi.mock('./SectionedFilters', () => ({
-    SectionedFilters: () => <div data-testid="sectioned-filters" />,
-}));
+// Reads the context the bar provides, as the real one does: no capsules on a first load
+vi.mock('./SectionedFilters', async () => {
+    const { useContextSelector } = await import('use-context-selector');
+    const { default: DashboardContext } =
+        await import('../../providers/Dashboard/context');
+    return {
+        SectionedFilters: () => {
+            const isFirstLoad = useContextSelector(
+                DashboardContext,
+                (c) => c?.isLoadingDashboardFilters,
+            );
+            return (
+                <div data-testid="sectioned-filters">
+                    {!isFirstLoad && <div data-testid="capsules" />}
+                </div>
+            );
+        },
+    };
+});
 
 vi.mock('../dateZoom', () => ({
     DateZoom: () => <div data-testid="date-zoom" />,
@@ -93,9 +116,49 @@ const baseProps: ComponentProps<typeof ControlsBar> = {
 };
 
 describe('ControlsBar', () => {
+    describe('while tiles are chosen', () => {
+        beforeEach(() => {
+            mockCompact.current = false;
+            mockDashboardContext.current = {
+                isAddFilterDisabled: false,
+                setIsDateZoomDisabled: vi.fn(),
+            };
+        });
+
+        it('shows the mapping row over the filter row, which is faded and inert', () => {
+            mockSidebar.current = { isSidebarOpen: true, isMapping: true };
+            renderWithProviders(<ControlsBar {...baseProps} isEditMode />);
+
+            expect(screen.getByTestId('mapping-row')).toBeInTheDocument();
+            // Kept mounted so it comes back at once, but out of reach
+            const filterRow = screen
+                .getByTestId('sectioned-filters')
+                .closest('[data-hidden]');
+            expect(filterRow).toHaveAttribute('inert');
+        });
+
+        it('brings the filter row back as it was once mapping ends', () => {
+            mockSidebar.current = { isSidebarOpen: true, isMapping: true };
+            const { rerender } = renderWithProviders(
+                <ControlsBar {...baseProps} isEditMode />,
+            );
+
+            mockSidebar.current = { isSidebarOpen: true, isMapping: false };
+            rerender(
+                <DashboardStoreTestProvider store={createDashboardTestStore()}>
+                    <ControlsBar {...baseProps} isEditMode />
+                </DashboardStoreTestProvider>,
+            );
+            expect(screen.queryByTestId('mapping-row')).not.toBeInTheDocument();
+            expect(
+                screen.getByTestId('sectioned-filters').closest('[inert]'),
+            ).toBeNull();
+        });
+    });
+
     beforeEach(() => {
         mockCompact.current = false;
-        mockSidebar.current = { isSidebarOpen: false };
+        mockSidebar.current = { isSidebarOpen: false, isMapping: false };
         mockDashboardContext.current = {
             isAddFilterDisabled: false,
             setIsDateZoomDisabled: vi.fn(),
@@ -121,6 +184,19 @@ describe('ControlsBar', () => {
         expect(
             screen.queryByTestId('sectioned-filters'),
         ).not.toBeInTheDocument();
+    });
+
+    it("centres the flat view bar's items on each line, the funnel's centre; the sectioned flow centres its own", () => {
+        const { unmount } = renderWithProviders(<ControlsBar {...baseProps} />);
+        expect(screen.getByTestId('filter-pills').parentElement).toHaveStyle(
+            '--group-align: center',
+        );
+        unmount();
+
+        renderWithProviders(<ControlsBar {...baseProps} isEditMode />);
+        expect(
+            screen.getByTestId('sectioned-filters').parentElement,
+        ).toHaveStyle('--group-align: flex-start');
     });
 
     it('renders the sectioned filters in view mode once the dashboard has sections', () => {
@@ -190,7 +266,7 @@ describe('ControlsBar', () => {
     });
 
     it.each([true, false])(
-        'shows the sections tip above the bar in edit mode only (%s)',
+        'shows no tip line above the bar (%s)',
         (isEditMode) => {
             const rule = (id: string) => ({
                 id,
@@ -211,20 +287,13 @@ describe('ControlsBar', () => {
                     <ControlsBar {...baseProps} isEditMode={isEditMode} />
                 </DashboardStoreTestProvider>,
             );
-            const tip = screen.queryByRole('note');
-            if (!isEditMode) {
-                expect(tip).toBeNull();
-                return;
-            }
-            expect(tip).toHaveTextContent('Move to new section');
-            expect(
-                tip?.compareDocumentPosition(screen.getByTestId('date-zoom')),
-            ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+            expect(screen.getByTestId('date-zoom')).toBeInTheDocument();
+            expect(screen.queryByRole('note')).toBeNull();
         },
     );
 
     it('keeps the bar while a filter is edited', () => {
-        mockSidebar.current = { isSidebarOpen: true };
+        mockSidebar.current = { isSidebarOpen: true, isMapping: false };
         renderWithProviders(<ControlsBar {...baseProps} isEditMode />);
 
         expect(screen.getByTestId('sectioned-filters')).toBeInTheDocument();
@@ -284,12 +353,49 @@ describe('ControlsBar', () => {
 
     it('shows the bar in place on compact viewports while a filter is edited', () => {
         mockCompact.current = true;
-        mockSidebar.current = { isSidebarOpen: true };
+        mockSidebar.current = { isSidebarOpen: true, isMapping: false };
         renderWithProviders(<ControlsBar {...baseProps} />);
 
         expect(screen.getByTestId('filter-pills')).toBeInTheDocument();
         expect(
             screen.queryByRole('button', { name: 'Filters and parameters' }),
         ).not.toBeInTheDocument();
+    });
+
+    it('keeps the capsules while a tile change reloads the filter fields', () => {
+        const loaded = {
+            ...mockDashboardContext.current,
+            isLoadingDashboardFilters: false,
+            isFetchingDashboardFilters: false,
+            filterableFieldsByTileUuid: { 'tile-1': [] },
+            allFilterableFields: [],
+        };
+        mockDashboardContext.current = loaded;
+        const store = createDashboardTestStore();
+        // The page's provider, which the bar's filter area reads below it
+        const bar = () => (
+            <DashboardContext.Provider
+                value={
+                    mockDashboardContext.current as unknown as DashboardContextType
+                }
+            >
+                <DashboardStoreTestProvider store={store}>
+                    <ControlsBar {...baseProps} isEditMode />
+                </DashboardStoreTestProvider>
+            </DashboardContext.Provider>
+        );
+        const { rerender } = renderWithAppProviders(bar());
+        expect(screen.getByTestId('capsules')).toBeInTheDocument();
+
+        // A tile added or removed is a new query key: a first load again
+        mockDashboardContext.current = {
+            ...loaded,
+            isLoadingDashboardFilters: true,
+            isFetchingDashboardFilters: true,
+            filterableFieldsByTileUuid: undefined,
+            allFilterableFields: undefined,
+        };
+        rerender(bar());
+        expect(screen.getByTestId('capsules')).toBeInTheDocument();
     });
 });

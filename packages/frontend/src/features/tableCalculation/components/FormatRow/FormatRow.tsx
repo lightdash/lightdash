@@ -641,7 +641,7 @@ export const FormatRow: FC<Props> = ({
                                     w="100%"
                                     gap={6}
                                 >
-                                    <Text size="xs" fw={500} c="ldGray.7">
+                                    <Text size="xs" fw={500} c="dimmed">
                                         Format expression
                                     </Text>
                                     <Anchor
@@ -715,7 +715,7 @@ const DateFormatBody: FC<{
                     w="100%"
                     gap={6}
                 >
-                    <Text size="xs" fw={500} c="ldGray.7">
+                    <Text size="xs" fw={500} c="dimmed">
                         {isTimestamp ? 'Timestamp format' : 'Date format'}
                     </Text>
                     <Anchor
@@ -759,7 +759,7 @@ const DateFormatBody: FC<{
                                     <Text size="xs" fw={600} c="ldDark.8">
                                         {example}
                                     </Text>
-                                    <Text size="xs" c="ldGray.5">
+                                    <Text size="xs" c="dimmed">
                                         {fmt}
                                     </Text>
                                 </Stack>

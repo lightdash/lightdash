@@ -9,7 +9,6 @@ import {
     type AiCreditDailyUsage,
     type AiCreditPeriod,
     type AiCreditsPausedAudience,
-    type AiCreditUsageBreakdown,
     type AiCreditUsageSummary,
     type SessionUser,
 } from '@lightdash/common';
@@ -154,16 +153,11 @@ export class AiCreditService extends BaseService {
 
     async getOrganizationDailyUsage(
         user: SessionUser,
-        breakdown: AiCreditUsageBreakdown,
         now: Date = new Date(),
     ): Promise<AiCreditDailyUsage> {
         const organizationUuid = this.assertCanViewOrganizationUsage(user);
         const { period } = await this.findCurrentPeriod(organizationUuid, now);
-        return this.aiCreditUsageModel.summarizeByDay(
-            organizationUuid,
-            period,
-            breakdown,
-        );
+        return this.aiCreditUsageModel.summarizeByDay(organizationUuid, period);
     }
 
     async getOrganizationUsage(

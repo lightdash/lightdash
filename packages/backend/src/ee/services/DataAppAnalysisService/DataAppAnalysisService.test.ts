@@ -1074,6 +1074,8 @@ describe('DataAppAnalysisService reuse', () => {
             request,
         );
         expect(analysis.analysisId).toBe('stored-1');
+        // A cached detect carries the viewer's own investigations, like lookup.
+        expect(analysis.investigations[0]?.investigationId).toBe('inv-1');
         expect(aiService.detectDataAppAnomalies).not.toHaveBeenCalled();
         expect(dataAppAnalysisModel.create).not.toHaveBeenCalled();
     });
@@ -1444,7 +1446,10 @@ describe('DataAppAnalysisService rate limits', () => {
                 { kind: 'app', appUuid: 'app-1' },
                 request,
             ),
-        ).resolves.toMatchObject({ analysisId: 'analysis-1' });
+        ).resolves.toMatchObject({
+            analysisId: 'analysis-1',
+            investigations: [],
+        });
         await expect(
             service.detect(
                 buildAccount(),

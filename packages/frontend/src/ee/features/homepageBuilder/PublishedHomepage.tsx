@@ -48,8 +48,7 @@ const BlockRenderer: FC<{
                     {definition.label}
                 </Text>
                 <Text size="xs" c="dimmed">
-                    Personal to each viewer — the target user sees their own
-                    content here.
+                    Each viewer sees their own content here.
                 </Text>
             </Paper>
         );

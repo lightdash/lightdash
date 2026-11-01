@@ -83,6 +83,7 @@ import {
     buildAgentIdentityClaim,
     CatalogType,
     CommercialFeatureFlags,
+    composerNodeContextKey,
     ConflictError,
     ContentType,
     DATA_APP_VIZ_TEMPLATE,
@@ -213,6 +214,7 @@ import {
     type ApiAiAgentComposerArtifactVizQuery,
     type ApiGetAsyncQueryResults,
     type AppGeneratePipelineJobPayload,
+    type ComposerApiConnection,
     type ComposerStoredChartVizConfig,
     type DataAppVizChart,
     type DuckdbSourceQuery,
@@ -669,6 +671,7 @@ import { createWritebackAgentDeliveryGuard } from '../AiWritebackService/writeba
 import { type WritebackPreviewService } from '../AiWritebackService/WritebackPreviewService';
 import type { AppGenerateService } from '../AppGenerateService/AppGenerateService';
 import { resolveRenderableDataAppVizVersion } from '../AppGenerateService/dataAppVizRender';
+import { type ExternalConnectionService } from '../ExternalConnectionService/ExternalConnectionService';
 import { type MobilePushNotificationService } from '../MobilePushNotificationService/MobilePushNotificationService';
 import { ProjectContextService } from '../ProjectContextService/ProjectContextService';
 import { createReviewRemediationAgentWorkGuard } from '../reviewRemediationAgentWork';
@@ -967,6 +970,10 @@ type AiAgentServiceDependencies = {
     analytics: LightdashAnalytics;
     asyncQueryService: AsyncQueryService;
     querySourceService: Pick<QuerySourceService, 'submitQueries'>;
+    externalConnectionService: Pick<
+        ExternalConnectionService,
+        'listApiSourceConnections'
+    >;
     queryHistoryModel: Pick<QueryHistoryModel, 'pollForQueryCompletion'>;
     catalogService: CatalogService;
     catalogModel: CatalogModel;
@@ -1307,6 +1314,8 @@ export class AiAgentService extends BaseService {
         'submitQueries'
     >;
 
+    private readonly externalConnectionService: AiAgentServiceDependencies['externalConnectionService'];
+
     private readonly queryHistoryModel: Pick<
         QueryHistoryModel,
         'pollForQueryCompletion'
@@ -1575,6 +1584,9 @@ export class AiAgentService extends BaseService {
                 case 'data_app_element':
                     key = dataAppElementContextKey(item);
                     break;
+                case 'composer_node':
+                    key = composerNodeContextKey(item);
+                    break;
                 case 'data_app_restore':
                     key = dataAppRestoreContextKey(item);
                     break;
@@ -1794,6 +1806,33 @@ export class AiAgentService extends BaseService {
                     return;
                 }
 
+                if (item.type === 'composer_node') {
+                    if (allowedSpaces) {
+                        throw new ForbiddenError(
+                            'Pipeline nodes are not available in embedded AI',
+                        );
+                    }
+                    const artifact = await this.aiAgentModel.getArtifact(
+                        item.artifactUuid,
+                        item.versionUuid,
+                    );
+                    if (
+                        artifact.artifactUuid !== item.artifactUuid ||
+                        !isAiComposerChartArtifactConfig(
+                            artifact.chartConfig,
+                        ) ||
+                        !artifact.chartConfig.queries.some(
+                            (node) => node.nodeId === item.nodeId,
+                        )
+                    ) {
+                        throw new NotFoundError('Pipeline node not found');
+                    }
+                    await this.validateThreadContextAccess(user, {
+                        threadUuid: artifact.threadUuid,
+                    });
+                    return;
+                }
+
                 // data_app_restore is written by the thread restore endpoint only.
                 if (item.type === 'data_app_restore') {
                     throw new ForbiddenError(
@@ -1977,6 +2016,7 @@ export class AiAgentService extends BaseService {
         this.analytics = dependencies.analytics;
         this.asyncQueryService = dependencies.asyncQueryService;
         this.querySourceService = dependencies.querySourceService;
+        this.externalConnectionService = dependencies.externalConnectionService;
         this.queryHistoryModel = dependencies.queryHistoryModel;
         this.catalogService = dependencies.catalogService;
         this.catalogModel = dependencies.catalogModel;
@@ -2750,17 +2790,11 @@ export class AiAgentService extends BaseService {
                 return;
             case 'classic':
             case 'composer': {
-                const [multiSourceQuery, composeSqlRunner] = await Promise.all([
-                    this.featureFlagService.get({
-                        user,
-                        featureFlagId: FeatureFlags.MultiSourceQuery,
-                    }),
-                    this.featureFlagService.get({
-                        user,
-                        featureFlagId: FeatureFlags.ComposeSqlRunner,
-                    }),
-                ]);
-                if (!multiSourceQuery.enabled || !composeSqlRunner.enabled) {
+                const composeSqlRunner = await this.featureFlagService.get({
+                    user,
+                    featureFlagId: FeatureFlags.ComposeSqlRunner,
+                });
+                if (!composeSqlRunner.enabled) {
                     throw new ForbiddenError(
                         'Composer queries must be enabled to compare query paths',
                     );
@@ -11651,6 +11685,35 @@ export class AiAgentService extends BaseService {
         });
     }
 
+    /** The project's API connections the user may query, offered as composer api nodes. */
+    private async getComposerApiConnections(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<ComposerApiConnection[]> {
+        const { enabled } = await this.featureFlagService.get({
+            user,
+            featureFlagId: FeatureFlags.ApiQuerySources,
+        });
+        if (!enabled) return [];
+        const connections =
+            await this.externalConnectionService.listApiSourceConnections(
+                fromSession(user),
+                projectUuid,
+            );
+        return connections.flatMap(
+            ({ externalConnectionUuid, name, apiSource }) =>
+                apiSource
+                    ? [
+                          {
+                              connectionUuid: externalConnectionUuid,
+                              name,
+                              connector: apiSource.connector,
+                          },
+                      ]
+                    : [],
+        );
+    }
+
     private async getAgentSettings(
         user: SessionUser,
         prompt: SlackPrompt | AiWebAppPrompt,
@@ -12445,6 +12508,8 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
                     const slugText = item.appSlug ?? '(slug unavailable)';
                     return `- Element reference ${elementReferenceToWireString(item)} in data app "${name}" (appSlug: ${slugText}, version ${item.version}) — the app's source is not readable in this thread; copy the bracketed reference verbatim into the iterateDataApp brief so the coding agent can locate the element.`;
                 }
+                case 'composer_node':
+                    return `- Pipeline node "${item.title}" (nodeId: ${item.nodeId}) — the step of this thread's pipeline the user is pointing at.`;
                 case 'data_app_restore': {
                     const name = item.displayName ?? '(name unavailable)';
                     const slugText = item.appSlug ?? '(slug unavailable)';
@@ -12478,13 +12543,32 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
                       )
                       .join('\n')}`;
 
+        // Each closing sentence renders only when an item it covers is attached.
+        const guidance = [
+            context.some(
+                (item) =>
+                    item.type === 'chart' ||
+                    item.type === 'dashboard' ||
+                    item.type === 'data_app',
+            )
+                ? "Use your existing tools to inspect them when relevant to the user's question (readContent for charts, dashboards, and data apps)."
+                : null,
+            context.some(
+                (item) =>
+                    (item.type === 'chart' || item.type === 'dashboard') &&
+                    item.runtimeOverrides !== null,
+            )
+                ? "When runtime overrides are listed, apply them on top of the chart's saved state when querying."
+                : null,
+        ].filter((sentence): sentence is string => sentence !== null);
+        const guidanceSection =
+            guidance.length === 0 ? '' : `\n\n${guidance.join(' ')}`;
+
         return {
             role: 'user',
             content: `\
 The user attached the following to this message as context:
-${lines.join('\n')}
-
-Use your existing tools to inspect them when relevant to the user's question (readContent for charts, dashboards, and data apps). When runtime overrides are listed, apply them on top of the chart's saved state when querying.${inlinedSection}`,
+${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         } satisfies UserModelMessage;
     }
 
@@ -16685,20 +16769,11 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         deepResearchContextRuns,
                         latestDeepResearchProgress,
                     );
-                // Web-chat composer requires both orchestration and execution flags.
-                const [
-                    { enabled: multiSourceQueryEnabled },
-                    { enabled: composeSqlRunnerEnabled },
-                ] = await Promise.all([
-                    this.featureFlagService.get({
-                        user,
-                        featureFlagId: FeatureFlags.MultiSourceQuery,
-                    }),
-                    this.featureFlagService.get({
+                const { enabled: composeSqlRunnerEnabled } =
+                    await this.featureFlagService.get({
                         user,
                         featureFlagId: FeatureFlags.ComposeSqlRunner,
-                    }),
-                ]);
+                    });
                 const standardToolAllowlist =
                     responseExecution.mode === 'standard'
                         ? resolveStandardToolAllowlist(
@@ -16707,7 +16782,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
                           )
                         : undefined;
                 const enableComposerQueries = isComposerQueriesEnabled({
-                    multiSourceQueryEnabled,
                     composeSqlRunnerEnabled,
                     agent: agentSettings,
                     isDeepResearch: responseExecution.mode === 'deep_research',
@@ -16715,6 +16789,12 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         standardToolAllowlist !== undefined,
                     battleProfile,
                 });
+                const composerApiConnections = enableComposerQueries
+                    ? await this.getComposerApiConnections(
+                          user,
+                          prompt.projectUuid,
+                      )
+                    : [];
                 const { enabled: filterExpressionsEnabled } =
                     await this.featureFlagService.get({
                         user,
@@ -17196,6 +17276,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     repoFsSupportsCodeSearch,
                     canRunSql,
                     enableComposerQueries,
+                    composerApiConnections,
                     canCreateDashboards,
                     autoApproveSql:
                         (options.autoApproveSql ?? false) ||

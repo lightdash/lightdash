@@ -12,8 +12,6 @@ export type DataAppAnalysisAvailability =
     | {
           status: 'available';
           canContinueInAskAi: boolean;
-          /** Org default for analysing on load; an app may override it. */
-          autoAnalyseDefault: boolean;
       }
     | {
           status: 'unavailable';
@@ -71,7 +69,6 @@ export const useAnalysisAvailability = (
     return {
         status: 'available',
         canContinueInAskAi: aiSettings.dataAppContinueInAskAiEnabled ?? true,
-        autoAnalyseDefault: aiSettings.dataAppAutoAnalysisEnabled ?? false,
     };
 };
 

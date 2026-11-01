@@ -966,6 +966,7 @@ export const ConnectionPickerView: FC<{
         );
 
         for (const connection of connections ?? []) {
+            if (connection.kind === 'live_source') continue;
             byUuid.set(connection.externalConnectionUuid, connection);
         }
 

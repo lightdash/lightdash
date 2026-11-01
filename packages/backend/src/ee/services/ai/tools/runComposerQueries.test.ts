@@ -1,14 +1,20 @@
 import {
+    ApiConnectorType,
+    DimensionType,
     FilterOperator,
     getComposerNodeConflictMessage,
     isSameComposerNodeDefinition,
     ParameterError,
+    QueryHistoryStatus,
     QuerySourceType,
+    toolComposerQueriesOutputSchema,
     toolComposerQueryNodeToSourceQuery,
     type AiWebAppPrompt,
+    type ComposerApiConnection,
     type ComposerNodeColumn,
     type Explore,
     type ParameterDefinitions,
+    type ResultColumns,
     type SlackPrompt,
     type SourceQuery,
     type SubmittedSourceQuery,
@@ -24,10 +30,10 @@ import type { SearchFieldValuesFn } from '../types/aiAgentDependencies';
 import { AgentContext } from '../utils/AgentContext';
 import { getSlackTablePreviews } from '../utils/slackTablePreviews';
 import { mockOrdersExplore } from '../utils/validationExplore.mock';
+import { resolveTerminalNodeId } from './composerQueryPipeline';
 import { resolveComposerQueryNode } from './composerSemanticLayerFilters';
 import {
     getRunComposerQueries,
-    resolveTerminalNodeId,
     type FilterValueHintDependencies,
 } from './runComposerQueries';
 
@@ -177,6 +183,25 @@ const pythonNode: ComposerNode = {
     limit: 500,
 };
 
+const postHogConnection: ComposerApiConnection = {
+    connectionUuid: '22222222-2222-4222-8222-222222222222',
+    name: 'Product analytics',
+    connector: ApiConnectorType.POSTHOG,
+};
+
+const apiNode: ComposerNode = {
+    sourceType: QuerySourceType.API,
+    nodeId: 'weekly_active_users',
+    title: 'Weekly active users',
+    description: 'Counts distinct people per week in PostHog.',
+    connectionUuid: postHogConnection.connectionUuid,
+    payload: {
+        kind: 'query',
+        query: 'SELECT toStartOfWeek(timestamp) AS week, count(DISTINCT person_id) AS wau FROM events GROUP BY week',
+    },
+    limit: 500,
+};
+
 const makeArgs = (
     overrides: Partial<ToolComposerQueriesArgs> = {},
 ): ToolComposerQueriesArgs => ({
@@ -205,12 +230,74 @@ const successMetadata = (output: ComposerOutput) => {
     return output.metadata;
 };
 
+const readyNode = (
+    nodeId: string,
+    rowCount: number,
+    columns: ResultColumns | null = null,
+) => ({
+    nodeId,
+    state: QueryHistoryStatus.READY,
+    error: null,
+    rowCount,
+    columns,
+});
+
+const unsettledNode = (
+    nodeId: string,
+    state: QueryHistoryStatus,
+    error: string | null = null,
+) => ({ nodeId, state, error, rowCount: null, columns: null });
+
+const revenueColumns: ResultColumns = {
+    payments_month: { reference: 'payments_month', type: DimensionType.DATE },
+    payments_total_revenue: {
+        reference: 'payments_total_revenue',
+        type: DimensionType.NUMBER,
+    },
+};
+
+const defaultRunResult = {
+    status: 'success' as const,
+    submissions: [
+        {
+            nodeId: 'revenue',
+            sourceType: QuerySourceType.SEMANTIC_LAYER,
+            queryUuid: 'query-1',
+        },
+        {
+            nodeId: 'signups',
+            sourceType: QuerySourceType.SQL,
+            queryUuid: 'query-2',
+        },
+        {
+            nodeId: 'joined',
+            sourceType: QuerySourceType.DUCKDB,
+            queryUuid: 'query-3',
+        },
+    ],
+    terminal: {
+        queryUuid: 'query-3',
+        columns: {
+            month: { reference: 'month', type: DimensionType.STRING },
+            signups: { reference: 'signups', type: DimensionType.NUMBER },
+        },
+        rows: [{ month: '2026-01', signups: 12 }],
+        rowCount: 1,
+    },
+    nodeStatuses: [
+        readyNode('revenue', 12, revenueColumns),
+        readyNode('signups', 12),
+        readyNode('joined', 1),
+    ],
+};
+
 const makeTool = ({
     reviewQuery,
     autoApproveSql = false,
     autoApproveSqlUserUuid = null,
     canRunSql = true,
     enablePythonNodes = false,
+    apiConnections = [],
     enableDataAccess = true,
     waitForSqlApproval = vi.fn().mockResolvedValue('approved'),
     prompt = makePrompt(),
@@ -225,6 +312,7 @@ const makeTool = ({
     autoApproveSqlUserUuid?: string | null;
     canRunSql?: boolean;
     enablePythonNodes?: boolean;
+    apiConnections?: ComposerApiConnection[];
     enableDataAccess?: boolean;
     waitForSqlApproval?: import('vitest').Mock;
     prompt?: AiWebAppPrompt | SlackPrompt;
@@ -239,34 +327,20 @@ const makeTool = ({
         reviewQuery,
         filterValueHints,
         updateProgress: vi.fn().mockResolvedValue(undefined),
-        runComposerQueries: vi.fn().mockResolvedValue({
-            submissions: [
-                {
-                    nodeId: 'revenue',
-                    sourceType: QuerySourceType.SEMANTIC_LAYER,
-                    queryUuid: 'query-1',
-                },
-                {
-                    nodeId: 'signups',
-                    sourceType: QuerySourceType.SQL,
-                    queryUuid: 'query-2',
-                },
-                {
-                    nodeId: 'joined',
-                    sourceType: QuerySourceType.DUCKDB,
-                    queryUuid: 'query-3',
-                },
-            ],
-            terminal: {
-                queryUuid: 'query-3',
-                columns: {
-                    month: { reference: 'month', type: 'string' },
-                    signups: { reference: 'signups', type: 'number' },
-                },
-                rows: [{ month: '2026-01', signups: 12 }],
-                rowCount: 1,
-            },
-        }),
+        // Every node the fake runs is ready.
+        runComposerQueries: vi
+            .fn()
+            .mockImplementation(
+                async ({ queries }: { queries: SourceQuery[] }) => ({
+                    ...defaultRunResult,
+                    nodeStatuses: queries.map(
+                        ({ nodeId = '' }) =>
+                            defaultRunResult.nodeStatuses.find(
+                                (status) => status.nodeId === nodeId,
+                            ) ?? readyNode(nodeId, 1),
+                    ),
+                }),
+            ),
         getPrompt: vi.fn().mockResolvedValue(prompt),
         updateSlackMessage: vi.fn().mockResolvedValue(undefined),
         siteUrl: 'https://lightdash.example',
@@ -283,6 +357,7 @@ const makeTool = ({
         enableDataAccess,
         canRunSql,
         enablePythonNodes,
+        apiConnections,
         autoApproveSql,
         autoApproveSqlUserUuid,
         useSlackStreamCard,
@@ -341,14 +416,17 @@ describe('getRunComposerQueries', () => {
             [
                 'Composer query complete. Terminal node "joined" returned 1 rows.',
                 'Nodes in this pipeline:',
-                '- revenue: "Revenue by month" (semanticLayer)',
-                '- signups: "Signups by month" (sql)',
-                '- joined: "Revenue vs signups" (duckdb)',
+                '- revenue: "Revenue by month" (semanticLayer): 12 rows, limit 500.',
+                '- signups: "Signups by month" (sql): 12 rows, limit 500.',
+                '- joined: "Revenue vs signups" (duckdb): 1 rows, limit 500.',
                 'Terminal columns: month (string), signups (number).',
             ].join('\n'),
         );
         expect(output.result).toContain('```csv');
         expect(output.result).not.toContain('query-');
+        expect(toolComposerQueriesOutputSchema.safeParse(output).success).toBe(
+            true,
+        );
         expect(output.structuredContent).toEqual({
             terminalNodeId: 'joined',
             rowCount: 1,
@@ -357,16 +435,22 @@ describe('getRunComposerQueries', () => {
                     nodeId: 'revenue',
                     title: 'Revenue by month',
                     sourceType: QuerySourceType.SEMANTIC_LAYER,
+                    rowCount: 12,
+                    limit: 500,
                 },
                 {
                     nodeId: 'signups',
                     title: 'Signups by month',
                     sourceType: QuerySourceType.SQL,
+                    rowCount: 12,
+                    limit: 500,
                 },
                 {
                     nodeId: 'joined',
                     title: 'Revenue vs signups',
                     sourceType: QuerySourceType.DUCKDB,
+                    rowCount: 1,
+                    limit: 500,
                 },
             ],
             columns: [
@@ -380,6 +464,29 @@ describe('getRunComposerQueries', () => {
                 truncated: false,
             },
         });
+    });
+
+    it('flags a node that reached its limit and warns on the nodes that read it', async () => {
+        const { tool, dependencies } = makeTool({ autoApproveSql: true });
+        dependencies.runComposerQueries.mockResolvedValueOnce({
+            ...defaultRunResult,
+            nodeStatuses: [
+                readyNode('revenue', 500),
+                readyNode('signups', 12),
+                readyNode('joined', 1),
+            ],
+        });
+
+        const output = await executeTool(tool, makeArgs());
+
+        expect(output.result).toContain(
+            [
+                '- revenue: "Revenue by month" (semanticLayer): 500 rows, limit 500. Reached its limit of 500, so more rows may exist (max 5000).',
+                '- signups: "Signups by month" (sql): 12 rows, limit 500.',
+                '- joined: "Revenue vs signups" (duckdb): 1 rows, limit 500.',
+                'Warning: "joined" reads "revenue", which reached its limit, so "joined" may be computed on incomplete rows.',
+            ].join('\n'),
+        );
     });
 
     it('defaults the terminal node to the unique sink', async () => {
@@ -550,16 +657,30 @@ describe('getRunComposerQueries', () => {
         ]);
     });
 
-    it("stores the terminal node's columns with its registration", async () => {
-        const { tool, registry } = makeTool({ autoApproveSql: true });
+    it("stores every node's columns from its node status with its registration", async () => {
+        const { tool, dependencies, registry } = makeTool({
+            autoApproveSql: true,
+        });
+        dependencies.runComposerQueries.mockResolvedValueOnce({
+            ...defaultRunResult,
+            nodeStatuses: [
+                readyNode('revenue', 12, revenueColumns),
+                readyNode('signups', 12),
+                readyNode('joined', 1, defaultRunResult.terminal.columns),
+            ],
+        });
 
         await executeTool(tool, makeArgs());
 
+        expect(registry.nodeColumns('revenue')).toEqual([
+            { reference: 'payments_month', type: DimensionType.DATE },
+            { reference: 'payments_total_revenue', type: DimensionType.NUMBER },
+        ]);
         expect(registry.nodeColumns('joined')).toEqual([
             { reference: 'month', type: 'string' },
             { reference: 'signups', type: 'number' },
         ]);
-        expect(registry.nodeColumns('revenue')).toBeNull();
+        expect(registry.nodeColumns('signups')).toBeNull();
     });
 
     it.each([
@@ -579,34 +700,111 @@ describe('getRunComposerQueries', () => {
         },
     );
 
-    it('registers nothing when the run fails, so the node id can be resubmitted corrected', async () => {
+    it('keeps the successful nodes of a failed run, so the next call reads them and resubmits the failed node corrected', async () => {
         const { tool, dependencies, registry } = makeTool({
             autoApproveSql: true,
         });
-        dependencies.runComposerQueries.mockRejectedValueOnce(
-            new Error('Composer query failed on node(s): "joined"'),
-        );
+        dependencies.runComposerQueries.mockResolvedValueOnce({
+            status: 'failure',
+            error: 'Composer query failed.',
+            nodeStatuses: [
+                readyNode('revenue', 12, revenueColumns),
+                unsettledNode(
+                    'signups',
+                    QueryHistoryStatus.ERROR,
+                    'relation "raw.users" does not exist',
+                ),
+                unsettledNode(
+                    'joined',
+                    QueryHistoryStatus.ERROR,
+                    'referenced query failed',
+                ),
+            ],
+        });
 
         const failed = await executeTool(tool, makeArgs(), 'tool-call-1');
+
+        expect(failed.metadata?.status).toBe('error');
+        expect(toolComposerQueriesOutputSchema.safeParse(failed).success).toBe(
+            true,
+        );
+        expect(failed.result).toContain(
+            'Composer query failed.\nSaved from this call: revenue. Not saved: signups (failed: relation "raw.users" does not exist), joined (not run: reads signups).',
+        );
+        expect(registry.nodes('thread-uuid').map((n) => n.nodeId)).toEqual([
+            'revenue',
+        ]);
+        expect(registry.nodeColumns('revenue')).toEqual([
+            { reference: 'payments_month', type: DimensionType.DATE },
+            { reference: 'payments_total_revenue', type: DimensionType.NUMBER },
+        ]);
+
         const corrected = await executeTool(
             tool,
             makeArgs({
                 queries: [
-                    semanticNode,
-                    sqlNode,
-                    { ...duckdbNode, sql: 'SELECT 1 AS fixed' },
+                    { ...sqlNode, sql: 'SELECT month, 1 AS signups FROM t' },
+                    duckdbNode,
                 ],
             }),
             'tool-call-2',
         );
 
-        expect(failed.metadata?.status).toBe('error');
         expect(corrected.metadata?.status).toBe('success');
         expect(
             registry
                 .nodes('thread-uuid')
-                .find((node) => node.nodeId === 'joined'),
-        ).toEqual(expect.objectContaining({ sql: 'SELECT 1 AS fixed' }));
+                .find((node) => node.nodeId === 'signups'),
+        ).toEqual(
+            expect.objectContaining({
+                sql: 'SELECT month, 1 AS signups FROM t',
+            }),
+        );
+    });
+
+    it('does not register a side sink that has not finished when the terminal is ready', async () => {
+        const { tool, dependencies, registry } = makeTool({
+            autoApproveSql: true,
+        });
+        dependencies.runComposerQueries.mockResolvedValueOnce({
+            ...defaultRunResult,
+            nodeStatuses: [
+                readyNode('revenue', 12, revenueColumns),
+                unsettledNode('signups', QueryHistoryStatus.EXECUTING),
+            ],
+        });
+
+        const output = await executeTool(
+            tool,
+            makeArgs({
+                queries: [semanticNode, sqlNode],
+                terminalNodeId: 'revenue',
+            }),
+        );
+
+        expect(output.metadata?.status).toBe('success');
+        expect(registry.nodes('thread-uuid').map((n) => n.nodeId)).toEqual([
+            'revenue',
+        ]);
+    });
+
+    it('names nodes still running when the run timed out as not finished', async () => {
+        const { tool, dependencies } = makeTool({ autoApproveSql: true });
+        dependencies.runComposerQueries.mockResolvedValueOnce({
+            status: 'failure',
+            error: 'Composer query timed out after 5 minutes.',
+            nodeStatuses: [
+                readyNode('revenue', 12),
+                unsettledNode('signups', QueryHistoryStatus.EXECUTING),
+                unsettledNode('joined', QueryHistoryStatus.PENDING),
+            ],
+        });
+
+        const output = await executeTool(tool, makeArgs());
+
+        expect(output.result).toContain(
+            'Composer query timed out after 5 minutes.\nSaved from this call: revenue. Not saved: signups (not finished: executing), joined (not run: reads signups).',
+        );
     });
 
     it('does not open another approval wait after approval times out', async () => {
@@ -742,6 +940,7 @@ describe('getRunComposerQueries', () => {
                     errorMessage: 'column not found',
                 });
                 return {
+                    status: 'success',
                     submissions: [
                         {
                             nodeId: 'revenue',
@@ -755,6 +954,7 @@ describe('getRunComposerQueries', () => {
                         rows: [],
                         rowCount: 0,
                     },
+                    nodeStatuses: [],
                 };
             },
         );
@@ -877,6 +1077,7 @@ const runReuse = async ({
     // Warehouse boundary: every node gets a query id, the terminal returns one row
     dependencies.runComposerQueries.mockImplementation(
         async (args: { queries: SourceQuery[]; terminalNodeId: string }) => ({
+            status: 'success',
             submissions: args.queries.map((node, index) => ({
                 nodeId: node.nodeId,
                 sourceType: node.sourceType,
@@ -890,6 +1091,9 @@ const runReuse = async ({
                 rows: [{ total: 3 }],
                 rowCount: 1,
             },
+            nodeStatuses: args.queries.map((node) =>
+                readyNode(node.nodeId ?? '', 1),
+            ),
         }),
     );
 
@@ -910,6 +1114,34 @@ const nodeIdsOf = (queries: SourceQuery[] | undefined) =>
     queries?.map((node) => node.nodeId);
 
 describe('composer artifact with reused nodes', () => {
+    it('notes that a reused node that fails is still saved from an earlier call', async () => {
+        const { tool, dependencies } = makeTool({
+            autoApproveSql: true,
+            registry: makeNodeRegistry(enrichedPipeline),
+        });
+        dependencies.runComposerQueries.mockResolvedValueOnce({
+            status: 'failure',
+            error: 'Composer query failed.',
+            nodeStatuses: [
+                unsettledNode('orders', QueryHistoryStatus.ERROR, 'boom'),
+                unsettledNode(
+                    'summary',
+                    QueryHistoryStatus.ERROR,
+                    'referenced query failed',
+                ),
+            ],
+        });
+
+        const output = await executeTool(
+            tool,
+            makeArgs({ queries: [readerNode({ o: 'orders' })] }),
+        );
+
+        expect(output.result).toContain(
+            'Not saved: orders (failed: boom; still saved from an earlier call), summary (not run: reads orders).',
+        );
+    });
+
     it('reads a node an earlier call in the thread registered', async () => {
         const { tool, dependencies } = makeTool({ autoApproveSql: true });
         await executeTool(tool, makeArgs(), 'tool-call-1');
@@ -967,10 +1199,10 @@ describe('composer artifact with reused nodes', () => {
             [
                 'Composer query complete. Terminal node "summary" returned 1 rows.',
                 'Nodes in this pipeline:',
-                '- orders: "Orders by customer" (semanticLayer)',
-                '- customers: "Customers" (semanticLayer)',
-                '- enriched: "Orders with customer names" (duckdb)',
-                '- summary: "Spend summary" (duckdb)',
+                '- orders: "Orders by customer" (semanticLayer): 1 rows, limit 500.',
+                '- customers: "Customers" (semanticLayer): 1 rows, limit 500.',
+                '- enriched: "Orders with customer names" (duckdb): 1 rows, limit 500.',
+                '- summary: "Spend summary" (duckdb): 1 rows, limit 500.',
                 'Terminal columns: total (number).',
             ].join('\n'),
         );
@@ -1123,6 +1355,7 @@ describe('composer query review', () => {
             );
         const { tool, dependencies } = makeTool({ reviewQuery });
         dependencies.runComposerQueries.mockResolvedValue({
+            status: 'success',
             submissions: [],
             terminal: {
                 queryUuid: 'empty',
@@ -1130,6 +1363,7 @@ describe('composer query review', () => {
                 rows: [],
                 rowCount: 0,
             },
+            nodeStatuses: [],
         });
         const output = await executeTool(tool, makeArgs());
         expect(output.result).toContain('Preserve the user’s scope');
@@ -1223,11 +1457,20 @@ describe('python composer nodes', () => {
 
     it('returns the python traceback to the model when the node fails', async () => {
         const { tool, dependencies } = makeTool({ enablePythonNodes: true });
-        dependencies.runComposerQueries.mockRejectedValue(
-            new Error(
-                'Composer query failed on node(s): "forecast" (run() raised:\nTraceback (most recent call last):\nKeyError: \'amount\')',
-            ),
-        );
+        dependencies.runComposerQueries.mockResolvedValue({
+            status: 'failure',
+            error: 'Composer query failed.',
+            nodeStatuses: [
+                readyNode('revenue', 12),
+                {
+                    nodeId: 'forecast',
+                    state: QueryHistoryStatus.ERROR,
+                    error: "run() raised:\nTraceback (most recent call last):\nKeyError: 'amount'",
+                    rowCount: null,
+                    columns: null,
+                },
+            ],
+        });
 
         const output = await executeTool(
             tool,
@@ -1235,8 +1478,94 @@ describe('python composer nodes', () => {
         );
 
         expect(output.metadata?.status).toBe('error');
-        expect(output.result).toContain('"forecast"');
+        expect(output.result).toContain('forecast (failed: run() raised:');
         expect(output.result).toContain("KeyError: 'amount'");
+    });
+});
+
+describe('api composer nodes', () => {
+    const joinNode: ComposerNode = {
+        sourceType: QuerySourceType.DUCKDB,
+        nodeId: 'usage_vs_orders',
+        title: 'Usage vs orders',
+        description: 'Passes the weekly active users through.',
+        sql: 'SELECT * FROM weekly_active_users',
+        references: ['weekly_active_users'],
+        limit: 500,
+    };
+
+    it('offers the api node in the input schema only when enabled', () => {
+        const args = makeArgs({ queries: [apiNode, joinNode] });
+        const accepts = (apiConnections: ComposerApiConnection[]) =>
+            (
+                makeTool({ apiConnections }).tool.inputSchema as ZodType
+            ).safeParse(args).success;
+        expect(accepts([])).toBe(false);
+        expect(accepts([postHogConnection])).toBe(true);
+        expect(makeTool().tool.description).not.toContain('"api"');
+        expect(
+            makeTool({ apiConnections: [postHogConnection] }).tool.description,
+        ).toContain('"api"');
+    });
+
+    it('runs an api pipeline without SQL approval', async () => {
+        const { tool, dependencies } = makeTool({
+            apiConnections: [postHogConnection],
+        });
+
+        await executeTool(tool, makeArgs({ queries: [apiNode, joinNode] }));
+
+        expect(dependencies.waitForSqlApproval).not.toHaveBeenCalled();
+        expect(dependencies.runComposerQueries).toHaveBeenCalledWith(
+            expect.objectContaining({
+                terminalNodeId: 'usage_vs_orders',
+                queries: [
+                    expect.objectContaining({
+                        sourceType: QuerySourceType.API,
+                        nodeId: 'weekly_active_users',
+                        connectionUuid: postHogConnection.connectionUuid,
+                        payload: apiNode.payload,
+                    }),
+                    expect.objectContaining({ nodeId: 'usage_vs_orders' }),
+                ],
+            }),
+        );
+    });
+
+    it('refuses an api node naming a connection that is not offered', async () => {
+        const { tool, dependencies } = makeTool({
+            apiConnections: [postHogConnection],
+        });
+
+        const output = await executeTool(
+            tool,
+            makeArgs({
+                queries: [
+                    {
+                        ...apiNode,
+                        connectionUuid: '33333333-3333-4333-8333-333333333333',
+                    },
+                    joinNode,
+                ],
+            }),
+        );
+
+        expect(output.metadata?.status).toBe('error');
+        expect(output.result).toContain('weekly_active_users');
+        expect(dependencies.runComposerQueries).not.toHaveBeenCalled();
+    });
+
+    it('refuses api nodes when api queries are disabled', async () => {
+        const { tool, dependencies } = makeTool();
+
+        const output = await executeTool(
+            tool,
+            makeArgs({ queries: [apiNode, joinNode] }),
+        );
+
+        expect(output.metadata?.status).toBe('error');
+        expect(output.result).toContain('"api"');
+        expect(dependencies.runComposerQueries).not.toHaveBeenCalled();
     });
 });
 
@@ -1394,6 +1723,7 @@ describe('semanticLayer node filters', () => {
                 },
             });
             made.dependencies.runComposerQueries.mockResolvedValue({
+                status: 'success',
                 submissions: [],
                 terminal: {
                     queryUuid: 'empty',
@@ -1401,6 +1731,7 @@ describe('semanticLayer node filters', () => {
                     rows: [],
                     rowCount: 0,
                 },
+                nodeStatuses: [],
             });
             return {
                 ...made,

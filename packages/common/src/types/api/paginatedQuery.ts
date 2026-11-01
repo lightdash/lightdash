@@ -8,6 +8,7 @@ import { type MergeQuery, type MetricSourcedMergeQuery } from '../mergeQuery';
 import type { MetricQueryRequest, SortField } from '../metricQuery';
 import type { PivotConfig } from '../pivot';
 import type {
+    ApiSourcePayload,
     ExternalSourceTableReference,
     QuerySourceTableName,
 } from '../querySources';
@@ -29,6 +30,13 @@ export type DateZoom = {
 export type ExecuteAsyncMetricQueryRequestParams =
     CommonExecuteQueryRequestParams & {
         query: Omit<MetricQueryRequest, 'csvLimit'>;
+        /**
+         * Export row limit, same contract as the saved-chart endpoints:
+         * - undefined: run with `query.limit`
+         * - null: all results, capped by the org's CSV cells limit
+         * - number: that many rows, capped by the org's CSV cells limit
+         */
+        limit?: number | null | undefined;
         dateZoom?: DateZoom;
         pivotConfiguration?: PivotConfiguration;
         // Filters whose target field is absent from the query's explore are
@@ -128,6 +136,14 @@ export type ExecuteAsyncComposeSqlQueryRequestParams =
          * additionalProperties intact (and validates the uuid format).
          */
         references?: Record<string, UUID>;
+    };
+
+/** A query sent live to an external API; stored so query history shows what ran. */
+export type ExecuteAsyncApiQueryRequestParams =
+    CommonExecuteQueryRequestParams & {
+        connectionUuid: string;
+        payload: ApiSourcePayload;
+        limit?: number;
     };
 
 /** Python `run(inputs, params)` over other async queries' results, executed in a sandbox. */
@@ -247,6 +263,7 @@ export type ExecuteAsyncQueryRequestParams = (
     | ExecuteAsyncSqlQueryRequestParams
     | ExecuteAsyncComposeSqlQueryRequestParams
     | ExecuteAsyncPythonQueryRequestParams
+    | ExecuteAsyncApiQueryRequestParams
     | ExecuteAsyncSavedChartRequestParams
     | ExecuteAsyncDashboardChartRequestParams
     | ExecuteAsyncUnderlyingDataRequestParams

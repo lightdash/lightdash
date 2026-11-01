@@ -86,7 +86,7 @@ const ReassignSchedulerOwnerModal: FC<ReassignSchedulerOwnerModalProps> = ({
             }
         >
             <Stack gap="lg">
-                <Text fz="sm" c="ldGray.7">
+                <Text fz="sm" c="dimmed">
                     Select a new owner for the selected scheduled{' '}
                     {schedulerCount === 1 ? 'delivery' : 'deliveries'}. The new
                     owner will be responsible for managing{' '}

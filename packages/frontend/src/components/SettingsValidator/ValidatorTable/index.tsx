@@ -384,11 +384,7 @@ export const ValidatorTable: FC<ValidatorTableProps> = ({
             />
         ),
         mantinePaperProps: {
-            shadow: undefined,
-            className: flush ? classes.paperFlush : classes.paper,
-        },
-        mantineTableHeadRowProps: {
-            className: classes.headerRow,
+            className: flush ? classes.paperFlush : undefined,
         },
         mantineTableContainerProps: {
             ref: tableContainerRef,
@@ -407,14 +403,7 @@ export const ValidatorTable: FC<ValidatorTableProps> = ({
                 className: isPinned ? classes.pinnedRow : classes.row,
             };
         },
-        mantineTableHeadCellProps: {
-            h: '3xl',
-            pos: 'relative',
-            className: classes.headerCell,
-        },
-        mantineTableBodyCellProps: {
-            className: classes.bodyCell,
-        },
+        mantineTableBodyCellProps: { fz: 'xs' },
         rowVirtualizerInstanceRef,
         rowVirtualizerProps: { estimateSize: () => 44, overscan: 10 },
     });

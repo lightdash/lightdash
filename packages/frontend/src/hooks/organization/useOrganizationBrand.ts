@@ -1,6 +1,7 @@
 import {
     type ApiError,
     type OrganizationBrand,
+    type OrganizationBrandLogoUpload,
     type SaveOrganizationBrandRequest,
     type UpdateOrganizationBrandRequest,
 } from '@lightdash/common';
@@ -16,11 +17,14 @@ const getOrganizationBrand = async (lightdashApi: LightdashApi) =>
         body: undefined,
     });
 
-export const useOrganizationBrand = () => {
+export const useOrganizationBrand = (
+    options: { enabled: boolean } = { enabled: true },
+) => {
     const lightdashApi = useLightdashApi();
     return useQuery<OrganizationBrand | null, ApiError>({
         queryKey: ['organization_brand'],
         queryFn: () => getOrganizationBrand(lightdashApi),
+        enabled: options.enabled,
     });
 };
 
@@ -53,7 +57,7 @@ export const useFetchOrganizationBrand = () => {
             mutationKey: ['organization_brand_fetch'],
             onError: ({ error }) => {
                 showToastApiError({
-                    title: 'Failed to fetch brand',
+                    title: 'Failed to fetch brand appearance',
                     apiError: error,
                 });
             },
@@ -115,12 +119,44 @@ export const useSaveOrganizationBrand = (
             onSuccess: (brand) => {
                 queryClient.setQueryData(['organization_brand'], brand);
                 if (options.showSuccessToast) {
-                    showToastSuccess({ title: 'Brand appearance saved' });
+                    showToastSuccess({
+                        title: 'Brand appearance saved',
+                    });
                 }
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: 'Failed to save brand',
+                    title: 'Failed to save brand appearance',
+                    apiError: error,
+                });
+            },
+        },
+    );
+};
+
+const uploadOrganizationBrandLogo = async (
+    lightdashApi: LightdashApi,
+    file: File,
+) =>
+    lightdashApi<OrganizationBrandLogoUpload>({
+        url: `/org/brand/logos`,
+        method: 'POST',
+        body: file,
+        headers: {
+            'Content-Type': file.type || 'application/octet-stream',
+        },
+    });
+
+export const useUploadOrganizationBrandLogo = () => {
+    const lightdashApi = useLightdashApi();
+    const { showToastApiError } = useToaster();
+    return useMutation<OrganizationBrandLogoUpload, ApiError, File>(
+        (file: File) => uploadOrganizationBrandLogo(lightdashApi, file),
+        {
+            mutationKey: ['organization_brand_logo_upload'],
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: 'Failed to upload logo',
                     apiError: error,
                 });
             },

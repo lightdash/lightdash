@@ -125,6 +125,9 @@ const createServer = async (
     listCustomChartTypesPage: ReturnType<typeof vi.fn> = vi.fn(),
 ) => {
     const mcpService = new McpService({
+        aiOrganizationSettingsService: {
+            getMcpProjectAccess: vi.fn().mockResolvedValue({ mode: 'all' }),
+        },
         agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         aiAgentToolsService: {
             createRuntime: () => ({

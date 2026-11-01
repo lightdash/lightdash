@@ -89,7 +89,7 @@ export const MetricCatalogColumnHeaderCell = ({
             wrap="nowrap"
         >
             <Icon />
-            <Text fz="xs" fw={600} c="ldGray.7" className={styles.noSelect}>
+            <Text fz="xs" fw={600} c="dimmed" className={styles.noSelect}>
                 {children}
             </Text>
         </Group>

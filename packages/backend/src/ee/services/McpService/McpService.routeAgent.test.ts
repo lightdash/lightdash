@@ -1,14 +1,22 @@
 import { subject } from '@casl/ability';
 import {
+    assertRegisteredAccount,
     ForbiddenError,
     QueryExecutionContext,
     QueryHistoryStatus,
+    type AiAgentWithContext,
+    type McpProjectAccess,
 } from '@lightdash/common';
-import type { AiAgentWithContext } from '@lightdash/common';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { ZodRawShape } from 'zod';
+import {
+    fromApiKey,
+    fromOauth,
+    fromServiceAccount,
+    fromSession,
+} from '../../../auth/account/account';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
-import { McpService, McpToolName } from './McpService';
+import { isProjectScopedMcpTool, McpService, McpToolName } from './McpService';
 import { makeMcpServerOptions } from './McpService.mock';
 
 type RegisteredToolCallback = (
@@ -177,6 +185,10 @@ const makeMcpService = () => {
 
     const aiAgentToolsService = {
         createRuntime: vi.fn(({ spaceAccess, agentUuid }) => ({
+            resolveUrl: vi.fn().mockResolvedValue({
+                isShareLink: true,
+                url: 'https://lightdash.example/projects/excluded-project/dashboards/excluded-dashboard',
+            }),
             listContent: vi.fn(async ({ spaceSlug }: { spaceSlug: null }) => {
                 const visibleSpaceUuids =
                     spaceAccess?.length === 0 || !spaceAccess
@@ -229,6 +241,9 @@ const makeMcpService = () => {
     };
 
     const aiOrganizationSettingsService = {
+        getMcpProjectAccess: vi
+            .fn<() => Promise<McpProjectAccess>>()
+            .mockResolvedValue({ mode: 'all' }),
         isMcpAgentsEnabled: vi.fn().mockResolvedValue(true),
     };
     const mcpToolCallModel = {
@@ -469,12 +484,17 @@ describe('McpService pinned agent', () => {
             projectUuid,
             name: selectedAgent.name,
             instruction: selectedAgent.instruction,
+            enableDataAccess: selectedAgent.enableDataAccess,
+            enableComposerQueries: selectedAgent.enableComposerQueries,
         });
         expect(aiAgentService.getAgent).toHaveBeenCalledWith(
             expect.objectContaining({ userUuid, organizationUuid }),
             selectedAgent.uuid,
             projectUuid,
         );
+        expect(
+            aiOrganizationSettingsService.getMcpProjectAccess,
+        ).toHaveBeenCalledOnce();
         aiAgentService.getAgent.mockClear();
         aiOrganizationSettingsService.isMcpAgentsEnabled.mockResolvedValue(
             false,
@@ -819,5 +839,262 @@ describe('every agent-scoped tool re-authorizes the agent it runs as', () => {
                     resultsCalls: [],
                 });
         }, Promise.resolve());
+    });
+});
+
+const expectedProjectRefusal = (deniedProjectUuid = projectUuid) => ({
+    isError: true,
+    content: [
+        {
+            type: 'text',
+            text: 'MCP access to this project is disabled for your organization',
+        },
+    ],
+    structuredContent: {
+        refusal: {
+            code: 'ai_access_refused',
+            reason: 'mcp_project_not_allowed',
+            message:
+                'MCP access to this project is disabled for your organization',
+            action: null,
+            settingsUrl: null,
+            connectUrl: null,
+            projectUuid: deniedProjectUuid,
+        },
+    },
+});
+
+describe('organization MCP project allow-list', () => {
+    beforeEach(() => mockRegisteredMcpTools.clear());
+
+    it.each(['oauth', 'pat', 'service-account', 'session'] as const)(
+        'denies explicit project and content arguments in the tool wrapper for %s',
+        async (authentication) => {
+            const { service, aiOrganizationSettingsService } = makeMcpService();
+            await service.createServer(
+                makeMcpServerOptions({ runSqlEnabled: true }),
+            );
+            aiOrganizationSettingsService.getMcpProjectAccess.mockResolvedValue(
+                { mode: 'selected', projectUuids: [] },
+            );
+            const sessionUser = {
+                ...defaultSessionUser,
+                organizationUuid,
+                userUuid,
+            };
+            const accounts = {
+                oauth: () =>
+                    fromOauth(sessionUser, {
+                        accessToken: 'test',
+                        scope: ['mcp:read'],
+                        client: { id: 'test' },
+                    }),
+                pat: () => fromApiKey(sessionUser, 'test'),
+                'service-account': () =>
+                    fromServiceAccount(
+                        {
+                            ...sessionUser,
+                            serviceAccount: {
+                                uuid: userUuid,
+                                description: 'test',
+                            },
+                        },
+                        'test',
+                    ),
+                session: () => fromSession(sessionUser),
+            };
+            const context = {
+                ...extra,
+                authInfo: {
+                    extra: {
+                        user: sessionUser,
+                        account: accounts[authentication](),
+                    },
+                },
+            };
+            await Promise.all(
+                ['read_content', 'run_sql'].map(async (name) => {
+                    const callback = mockRegisteredMcpTools.get(name);
+                    if (!callback) throw new Error('Tool was not registered');
+                    await expect(
+                        callback(
+                            {
+                                projectUuid,
+                                type: 'chart',
+                                slug: 'excluded-chart',
+                                sql: 'select 1',
+                            },
+                            context,
+                        ),
+                    ).resolves.toEqual(expectedProjectRefusal());
+                }),
+            );
+        },
+    );
+
+    it('blocks every registered project tool before its handler can access excluded data', async () => {
+        const { service, aiOrganizationSettingsService, aiAgentToolsService } =
+            makeMcpService();
+        await service.createServer(
+            makeMcpServerOptions({
+                runMetricQueryEnabled: true,
+                runSqlEnabled: true,
+                dataAppBuildsEnabled: true,
+                chartTypeBuildsEnabled: true,
+                customChartTypesEnabled: true,
+                documentsEnabled: true,
+                agentIdentityEnabled: true,
+            }),
+        );
+        aiOrganizationSettingsService.getMcpProjectAccess.mockResolvedValue({
+            mode: 'selected',
+            projectUuids: [],
+        });
+        const tools = [...mockRegisteredMcpTools].filter(([name]) =>
+            isProjectScopedMcpTool(name),
+        );
+        expect(tools.length).toBeGreaterThan(20);
+        await Promise.all(
+            tools.map(async ([name, callback]) => {
+                await expect(
+                    callback(
+                        {
+                            projectUuid,
+                            slug: 'excluded-content',
+                            queryUuid: 'excluded-query',
+                            agentUuid: 'agent-uuid',
+                        },
+                        extra,
+                    ),
+                    `Excluded project through ${name}`,
+                ).resolves.toEqual(expectedProjectRefusal());
+            }),
+        );
+        expect(aiAgentToolsService.createRuntime).not.toHaveBeenCalled();
+    });
+
+    it('runs an allowed project tool in selected mode and denies its next call after revocation', async () => {
+        const { aiOrganizationSettingsService } = makeMcpService();
+        aiOrganizationSettingsService.getMcpProjectAccess.mockResolvedValue({
+            mode: 'selected',
+            projectUuids: [projectUuid],
+        });
+        const callback = mockRegisteredMcpTools.get('list_content');
+        if (!callback) throw new Error('list_content was not registered');
+        await expect(
+            callback({ projectUuid, spaceSlug: null }, extra),
+        ).resolves.toHaveProperty('content');
+        aiOrganizationSettingsService.getMcpProjectAccess.mockResolvedValue({
+            mode: 'selected',
+            projectUuids: [],
+        });
+        await expect(
+            callback({ projectUuid, spaceSlug: null }, extra),
+        ).resolves.toEqual(expectedProjectRefusal());
+    });
+
+    it('logs the refused explicit project instead of saved context without rejected arguments', async () => {
+        const {
+            aiOrganizationSettingsService,
+            mcpToolCallModel,
+            storedContext,
+        } = makeMcpService();
+        storedContext.projectUuid = 'previous-project';
+        aiOrganizationSettingsService.getMcpProjectAccess.mockResolvedValue({
+            mode: 'selected',
+            projectUuids: ['previous-project'],
+        });
+        const callback = mockRegisteredMcpTools.get('read_content');
+        if (!callback) throw new Error('read_content was not registered');
+        await expect(
+            callback(
+                { projectUuid, slug: 'private-chart', sql: 'private SQL' },
+                extra,
+            ),
+        ).resolves.toEqual(expectedProjectRefusal());
+        await vi.waitFor(() =>
+            expect(mcpToolCallModel.createToolCall).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    project_uuid: projectUuid,
+                    tool_args: { projectUuid },
+                    status: 'error',
+                    error_message:
+                        'MCP access to this project is disabled for your organization',
+                }),
+            ),
+        );
+    });
+
+    it('hides excluded projects and their agents from discovery', async () => {
+        const { aiOrganizationSettingsService } = makeMcpService();
+        aiOrganizationSettingsService.getMcpProjectAccess.mockResolvedValue({
+            mode: 'selected',
+            projectUuids: [],
+        });
+        const callback = mockRegisteredMcpTools.get('list_projects');
+        if (!callback) throw new Error('list_projects was not registered');
+        expect(await callback({}, extra)).toEqual({
+            content: [{ type: 'text', text: '[]' }],
+        });
+    });
+
+    it('rejects a share link resolving into an excluded project even with an allowed tool project', async () => {
+        const { aiOrganizationSettingsService, mcpToolCallModel } =
+            makeMcpService();
+        aiOrganizationSettingsService.getMcpProjectAccess.mockResolvedValue({
+            mode: 'selected',
+            projectUuids: [projectUuid],
+        });
+        const callback = mockRegisteredMcpTools.get('resolve_url');
+        if (!callback) throw new Error('resolve_url was not registered');
+        await expect(
+            callback({ projectUuid, url: '/share/example' }, extra),
+        ).resolves.toEqual(expectedProjectRefusal('excluded-project'));
+        await vi.waitFor(() =>
+            expect(mcpToolCallModel.createToolCall).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    project_uuid: 'excluded-project',
+                    status: 'error',
+                }),
+            ),
+        );
+    });
+
+    it('rechecks saved context and agent pins after policy changes', async () => {
+        const { service, aiOrganizationSettingsService } = makeMcpService();
+        aiOrganizationSettingsService.getMcpProjectAccess.mockResolvedValue({
+            mode: 'selected',
+            projectUuids: [],
+        });
+        const sessionUser = {
+            ...defaultSessionUser,
+            organizationUuid,
+            userUuid,
+        };
+        const sessionAccount = fromSession(sessionUser);
+        assertRegisteredAccount(sessionAccount);
+        const context = {
+            authInfo: {
+                token: 'test',
+                clientId: 'test',
+                scopes: [],
+                extra: { user: sessionUser, account: sessionAccount },
+            },
+        };
+        await expect(service.getLegacyToolScope(sessionUser)).rejects.toThrow(
+            ForbiddenError,
+        );
+        await expect(service.resolveProjectUuid(context)).rejects.toThrow(
+            ForbiddenError,
+        );
+        await expect(service.getActiveContextMetadata(context)).rejects.toThrow(
+            ForbiddenError,
+        );
+        await expect(
+            service.getPinnedAgent(sessionUser, {
+                agentUuid: selectedAgent.uuid,
+                projectUuid: undefined,
+            }),
+        ).rejects.toThrow(ForbiddenError);
     });
 });

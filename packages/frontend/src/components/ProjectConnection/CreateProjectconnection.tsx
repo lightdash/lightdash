@@ -278,7 +278,7 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
 
                                 <Button
                                     ref={submitButtonRef}
-                                    style={{ alignSelf: 'end' }}
+                                    className={classes.submitButton}
                                     type="submit"
                                     loading={isSavingProject}
                                     disabled={!form.isValid()}

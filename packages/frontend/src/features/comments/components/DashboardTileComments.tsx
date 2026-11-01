@@ -34,6 +34,7 @@ import { useCreateComment, useGetResolvedComments } from '../hooks/useComments';
 import { useScrollToDashboardCommentViaSearchParam } from '../hooks/useScrollToDashboardCommentViaSearchParam';
 import { CommentForm } from './CommentForm';
 import { DashboardCommentAndReplies } from './DashboardCommentAndReplies';
+import classes from './DashboardTileComments.module.css';
 
 type Props = {
     dashboardTileUuid: string;
@@ -218,7 +219,7 @@ export const DashboardTileComments: FC<
                 p={0}
                 w="min(400px, calc(100vw - 24px))"
                 mah="calc(100dvh - 24px)"
-                style={{ overflowY: 'auto' }}
+                className={classes.scrollable}
                 // Walkthrough result marker for create:DashboardComments:
                 // the thread, with the learner's own comment in it.
                 data-tour-scope="create:DashboardComments"
@@ -236,10 +237,8 @@ export const DashboardTileComments: FC<
                     justify="space-between"
                     px="sm"
                     wrap="nowrap"
-                    pos="sticky"
-                    top={0}
                     bg="background"
-                    style={{ zIndex: 1 }}
+                    className={classes.header}
                 >
                     <Text fw={600} size="sm">
                         {getUiString('comments.title')}
@@ -264,10 +263,8 @@ export const DashboardTileComments: FC<
                     ref={scrollableRef}
                     p="sm"
                     gap="xs"
-                    style={{
-                        maxHeight: COMMENTS_LIST_MAX_HEIGHT,
-                        overflowY: 'auto',
-                    }}
+                    mah={COMMENTS_LIST_MAX_HEIGHT}
+                    className={classes.scrollable}
                 >
                     {comments?.map((comment, index) => (
                         <DashboardCommentAndReplies
@@ -373,12 +370,7 @@ export const DashboardTileComments: FC<
                         disabled={!showIndicator}
                         offset={3}
                         color={indicatorColor}
-                        styles={{
-                            indicator: {
-                                fontSize: 10,
-                                padding: 0,
-                            },
-                        }}
+                        classNames={{ indicator: classes.indicator }}
                     >
                         <Tooltip
                             label={getUiString('comments.title')}

@@ -3,6 +3,7 @@ import {
     type CreateSavedChartVersion,
     type SavedChart,
 } from '@lightdash/common';
+import { Box } from '@mantine/core';
 import { IconUnlink } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import { useLocation, useSearchParams } from 'react-router';
@@ -69,12 +70,12 @@ const EmbedExplorePage: FC<{
 
     if (!embedToken) {
         return (
-            <div style={{ marginTop: '20px' }}>
+            <Box mt="lg">
                 <SuboptimalState
                     icon={IconUnlink}
                     title="This embed link is not valid"
                 />
-            </div>
+            </Box>
         );
     }
 
@@ -84,12 +85,12 @@ const EmbedExplorePage: FC<{
 
     if (!savedChart) {
         return (
-            <div style={{ marginTop: '20px' }}>
+            <Box mt="lg">
                 <SuboptimalState
                     title="Missing saved chart to explore"
                     icon={IconUnlink}
                 />
-            </div>
+            </Box>
         );
     }
 

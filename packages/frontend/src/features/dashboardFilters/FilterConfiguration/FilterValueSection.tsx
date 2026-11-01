@@ -27,6 +27,7 @@ import { getPlaceholderByFilterTypeAndOperator } from '../../../components/commo
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import useApp from '../../../providers/App/useApp';
+import classes from './FilterValueSection.module.css';
 import {
     getFilterRuleWithDefaultValueEnabled,
     getFilterRuleWithOperator,
@@ -39,6 +40,12 @@ type Props = {
     field?: DashboardFilterableField;
     filterRule: DashboardFilterRule;
     popoverProps?: Omit<PopoverProps, 'children'>;
+    /** Edit mode's "Provide default value" switch (default shown). */
+    withDefaultValueSwitch?: boolean;
+    /** The note that a required filter's value is dropped on save (default shown). */
+    withRequiredSaveNote?: boolean;
+    /** Keeps a string value list shut on focus, and closes it once an option is picked (default: neither). */
+    isListClosedOnPick?: boolean;
     onChangeFilterRule: (value: DashboardFilterRule) => void;
 };
 
@@ -50,6 +57,9 @@ export const FilterValueSection: FC<Props> = ({
     field,
     filterRule,
     popoverProps,
+    withDefaultValueSwitch = true,
+    withRequiredSaveNote = true,
+    isListClosedOnPick = false,
     onChangeFilterRule,
 }) => {
     const { user } = useApp();
@@ -121,12 +131,7 @@ export const FilterValueSection: FC<Props> = ({
                 )}
                 rightSectionWidth={140}
                 rightSectionPointerEvents="all"
-                rightSectionProps={{
-                    style: {
-                        justifyContent: 'flex-end',
-                        marginRight: '8px',
-                    },
-                }}
+                rightSectionProps={{ className: classes.operatorRightSection }}
                 rightSection={
                     supportsSingleValue(filterType, filterRule.operator) &&
                     isEditMode && (
@@ -178,7 +183,18 @@ export const FilterValueSection: FC<Props> = ({
                 <Group gap="xs" wrap="nowrap" align="flex-start">
                     <Box flex={1}>
                         <FilterInputComponent
-                            popoverProps={popoverProps}
+                            popoverProps={
+                                // Only the string inputs read it; date pickers
+                                // would hand it to their popover's DOM
+                                isListClosedOnPick &&
+                                filterType === FilterType.STRING
+                                    ? {
+                                          ...popoverProps,
+                                          closeListOnPick: true,
+                                          openListOnFocus: false,
+                                      }
+                                    : popoverProps
+                            }
                             filterType={filterType}
                             field={field}
                             rule={filterRule}
@@ -231,14 +247,15 @@ export const FilterValueSection: FC<Props> = ({
 
             {isEditMode && (
                 <>
-                    {hasRequirement &&
+                    {withRequiredSaveNote &&
+                        hasRequirement &&
                         (filterRule?.values || []).length > 0 && (
                             <Text size="xs" c={'ldGray.7'}>
                                 Temporary filter values for required filters
                                 will be removed on dashboard save
                             </Text>
                         )}
-                    {!hasRequirement && (
+                    {!hasRequirement && withDefaultValueSwitch && (
                         <Tooltip
                             position="right"
                             label={

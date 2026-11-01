@@ -251,6 +251,45 @@
                 "required": ["config", "type", "id"],
                 "type": "object"
             },
+            "HomepageLearnShow": {
+                "type": "string",
+                "enum": ["up-next", "newest"],
+                "description": "The viewer's next Learn module, with their progress. Per viewer: it reads\nthe same recommendation the Learn library shows, and hides when the viewer\ncannot use Learn."
+            },
+            "HomepageLearnBlock": {
+                "properties": {
+                    "config": {
+                        "properties": {
+                            "show": {
+                                "$ref": "#/components/schemas/HomepageLearnShow",
+                                "description": "What the card leads with: each viewer's next module (the\ndefault, also for older configs) or the most recently released\nmodules the viewer can do."
+                            },
+                            "pinnedScopes": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array",
+                                "description": "Walkthroughs the data team features under the recommendation, by\nLearn module scope, in order. Optional so older configs load; a\nscope the instance cannot run is skipped at render."
+                            },
+                            "title": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["title"],
+                        "type": "object"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["learn"],
+                        "nullable": false
+                    },
+                    "id": {
+                        "type": "string"
+                    }
+                },
+                "required": ["config", "type", "id"],
+                "type": "object"
+            },
             "Exclude_HomepageBlock.HomepageCollectionBlock-or-HomepageResourcesBlock-or-HomepageQuickActionsBlock-or-HomepageCtaBlock_": {
                 "anyOf": [
                     {
@@ -273,6 +312,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/HomepageRecentBlock"
+                    },
+                    {
+                        "$ref": "#/components/schemas/HomepageLearnBlock"
                     }
                 ],
                 "description": "Exclude from T those types that are assignable to U"
@@ -1477,6 +1519,71 @@
                     }
                 },
                 "required": ["sync"],
+                "type": "object"
+            },
+            "ContentAsCodeSnapshotPruneResult": {
+                "properties": {
+                    "dashboards": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "sqlCharts": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "charts": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["dashboards", "sqlCharts", "charts"],
+                "type": "object"
+            },
+            "ApiContentAsCodeSnapshotPruneResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ContentAsCodeSnapshotPruneResult"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ContentAsCodeSnapshotPrune": {
+                "properties": {
+                    "dashboards": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "sqlCharts": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "charts": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "path": {
+                        "type": "string"
+                    }
+                },
+                "required": ["dashboards", "sqlCharts", "charts", "path"],
                 "type": "object"
             },
             "ParameterValue": {
@@ -8784,6 +8891,33 @@
                 "required": ["prompts", "title"],
                 "type": "object"
             },
+            "AiAgentDocumentMimeType": {
+                "type": "string",
+                "enum": ["text/markdown", "text/plain"]
+            },
+            "AgentAsCodeKnowledgeDocument": {
+                "properties": {
+                    "content": {
+                        "type": "string"
+                    },
+                    "mimeType": {
+                        "$ref": "#/components/schemas/AiAgentDocumentMimeType"
+                    },
+                    "alwaysIncludeInContext": {
+                        "type": "boolean"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "content",
+                    "mimeType",
+                    "alwaysIncludeInContext",
+                    "name"
+                ],
+                "type": "object"
+            },
             "AgentAsCode": {
                 "properties": {
                     "downloadedAt": {
@@ -8793,6 +8927,12 @@
                     "updatedAt": {
                         "type": "string",
                         "format": "date-time"
+                    },
+                    "knowledgeDocuments": {
+                        "items": {
+                            "$ref": "#/components/schemas/AgentAsCodeKnowledgeDocument"
+                        },
+                        "type": "array"
                     },
                     "evaluations": {
                         "items": {
@@ -8943,7 +9083,8 @@
                     "api_key",
                     "bearer_token",
                     "google_service_account",
-                    "oauth_client_credentials"
+                    "oauth_client_credentials",
+                    "oauth_authorization_code"
                 ]
             },
             "ExternalConnectionMethod": {
@@ -13513,6 +13654,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/HomepageRecentBlock"
+                    },
+                    {
+                        "$ref": "#/components/schemas/HomepageLearnBlock"
                     }
                 ]
             },
@@ -14914,6 +15058,300 @@
                 ],
                 "type": "object"
             },
+            "ApiConnectorType": {
+                "description": "The external APIs an api query source can call live.",
+                "enum": ["posthog", "search_console", "ga4"],
+                "type": "string"
+            },
+            "GoogleLiveSourceChoice": {
+                "properties": {
+                    "description": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Shown under the label, e.g. the account or permission level."
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "value": {
+                        "type": "string"
+                    }
+                },
+                "required": ["description", "label", "value"],
+                "type": "object",
+                "description": "A Google property the signed-in account can query, offered after sign-in."
+            },
+            "GoogleLiveSourcePendingChoice": {
+                "properties": {
+                    "choices": {
+                        "items": {
+                            "$ref": "#/components/schemas/GoogleLiveSourceChoice"
+                        },
+                        "type": "array"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "connector": {
+                        "$ref": "#/components/schemas/ApiConnectorType"
+                    }
+                },
+                "required": ["choices", "name", "connector"],
+                "type": "object",
+                "description": "A Google sign-in waiting for the admin to pick what the source reads."
+            },
+            "ExternalConnectionKind": {
+                "type": "string",
+                "enum": ["data_app", "live_source"],
+                "description": "Who a connection serves: data apps through the proxy, or live API queries."
+            },
+            "ApiConnectorType.POSTHOG": {
+                "enum": ["posthog"],
+                "type": "string"
+            },
+            "PostHogApiSource": {
+                "properties": {
+                    "projectId": {
+                        "type": "string",
+                        "description": "The PostHog project id, the number after /project/ in its URL."
+                    },
+                    "connector": {
+                        "$ref": "#/components/schemas/ApiConnectorType.POSTHOG"
+                    }
+                },
+                "required": ["projectId", "connector"],
+                "type": "object"
+            },
+            "ApiConnectorType.SEARCH_CONSOLE": {
+                "enum": ["search_console"],
+                "type": "string"
+            },
+            "SearchConsoleApiSource": {
+                "properties": {
+                    "siteUrl": {
+                        "type": "string",
+                        "description": "The Search Console property, such as https://example.com/ or sc-domain:example.com."
+                    },
+                    "connector": {
+                        "$ref": "#/components/schemas/ApiConnectorType.SEARCH_CONSOLE"
+                    }
+                },
+                "required": ["siteUrl", "connector"],
+                "type": "object"
+            },
+            "ApiConnectorType.GA4": {
+                "enum": ["ga4"],
+                "type": "string"
+            },
+            "Ga4ApiSource": {
+                "properties": {
+                    "propertyId": {
+                        "type": "string",
+                        "description": "The numeric GA4 property id, without the properties/ prefix."
+                    },
+                    "connector": {
+                        "$ref": "#/components/schemas/ApiConnectorType.GA4"
+                    }
+                },
+                "required": ["propertyId", "connector"],
+                "type": "object"
+            },
+            "ExternalConnectionApiSource": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/PostHogApiSource"
+                    },
+                    {
+                        "$ref": "#/components/schemas/SearchConsoleApiSource"
+                    },
+                    {
+                        "$ref": "#/components/schemas/Ga4ApiSource"
+                    }
+                ],
+                "description": "Connector settings of a live source; the server fixes its access rules."
+            },
+            "ExternalConnection": {
+                "properties": {
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updatedByUserUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "createdByUserUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "hasSecret": {
+                        "type": "boolean"
+                    },
+                    "apiSource": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ExternalConnectionApiSource"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Optional for compatibility with older servers during rolling upgrades."
+                    },
+                    "kind": {
+                        "$ref": "#/components/schemas/ExternalConnectionKind",
+                        "description": "Optional for compatibility with older servers during rolling upgrades."
+                    },
+                    "customHeaders": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Record_string.string_"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "oauthClientAuthMethod": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/OAuthClientAuthMethod"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Optional for compatibility with older servers during rolling upgrades."
+                    },
+                    "oauthClientId": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Optional for compatibility with older servers during rolling upgrades."
+                    },
+                    "oauthTokenUrl": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Optional for compatibility with older servers during rolling upgrades."
+                    },
+                    "oauthScopes": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "nullable": true
+                    },
+                    "apiKeyLocation": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ApiKeyLocation"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "apiKeyName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "rateLimitPerMinute": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "timeoutMs": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "requestMaxBytes": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "responseMaxBytes": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "allowedContentTypes": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "allowedMethods": {
+                        "items": {
+                            "$ref": "#/components/schemas/ExternalConnectionMethod"
+                        },
+                        "type": "array"
+                    },
+                    "allowedPathPrefixes": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "instructions": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "forwardUserIdentity": {
+                        "type": "boolean",
+                        "description": "Send available viewer identity as backend-set headers. Defaults to false.\nOptional for compatibility with older servers during rolling upgrades."
+                    },
+                    "allowDataAppBuilderLinking": {
+                        "type": "boolean",
+                        "description": "Optional for compatibility with older servers during rolling upgrades."
+                    },
+                    "allowBrowserImages": {
+                        "type": "boolean",
+                        "description": "Optional for compatibility with older servers during rolling upgrades."
+                    },
+                    "origin": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/ExternalConnectionAuthType"
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "externalConnectionUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "updatedAt",
+                    "createdAt",
+                    "updatedByUserUuid",
+                    "createdByUserUuid",
+                    "hasSecret",
+                    "customHeaders",
+                    "oauthScopes",
+                    "apiKeyLocation",
+                    "apiKeyName",
+                    "rateLimitPerMinute",
+                    "timeoutMs",
+                    "requestMaxBytes",
+                    "responseMaxBytes",
+                    "allowedContentTypes",
+                    "allowedMethods",
+                    "allowedPathPrefixes",
+                    "instructions",
+                    "origin",
+                    "type",
+                    "slug",
+                    "name",
+                    "organizationUuid",
+                    "projectUuid",
+                    "externalConnectionUuid"
+                ],
+                "type": "object",
+                "description": "READ shape returned by the API — NEVER includes the secret value."
+            },
             "Record_string.ResultColumn_": {
                 "properties": {},
                 "additionalProperties": {
@@ -15245,175 +15683,6 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "ExternalConnection": {
-                "properties": {
-                    "updatedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "createdAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "updatedByUserUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "createdByUserUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "hasSecret": {
-                        "type": "boolean"
-                    },
-                    "customHeaders": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/Record_string.string_"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "oauthClientAuthMethod": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/OAuthClientAuthMethod"
-                            }
-                        ],
-                        "nullable": true,
-                        "description": "Optional for compatibility with older servers during rolling upgrades."
-                    },
-                    "oauthClientId": {
-                        "type": "string",
-                        "nullable": true,
-                        "description": "Optional for compatibility with older servers during rolling upgrades."
-                    },
-                    "oauthTokenUrl": {
-                        "type": "string",
-                        "nullable": true,
-                        "description": "Optional for compatibility with older servers during rolling upgrades."
-                    },
-                    "oauthScopes": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "nullable": true
-                    },
-                    "apiKeyLocation": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/ApiKeyLocation"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "apiKeyName": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "rateLimitPerMinute": {
-                        "type": "number",
-                        "format": "double",
-                        "nullable": true
-                    },
-                    "timeoutMs": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "requestMaxBytes": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "responseMaxBytes": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "allowedContentTypes": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "allowedMethods": {
-                        "items": {
-                            "$ref": "#/components/schemas/ExternalConnectionMethod"
-                        },
-                        "type": "array"
-                    },
-                    "allowedPathPrefixes": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "instructions": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "forwardUserIdentity": {
-                        "type": "boolean",
-                        "description": "Send available viewer identity as backend-set headers. Defaults to false.\nOptional for compatibility with older servers during rolling upgrades."
-                    },
-                    "allowDataAppBuilderLinking": {
-                        "type": "boolean",
-                        "description": "Optional for compatibility with older servers during rolling upgrades."
-                    },
-                    "allowBrowserImages": {
-                        "type": "boolean",
-                        "description": "Optional for compatibility with older servers during rolling upgrades."
-                    },
-                    "origin": {
-                        "type": "string"
-                    },
-                    "type": {
-                        "$ref": "#/components/schemas/ExternalConnectionAuthType"
-                    },
-                    "slug": {
-                        "type": "string"
-                    },
-                    "name": {
-                        "type": "string"
-                    },
-                    "organizationUuid": {
-                        "type": "string"
-                    },
-                    "projectUuid": {
-                        "type": "string"
-                    },
-                    "externalConnectionUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "updatedAt",
-                    "createdAt",
-                    "updatedByUserUuid",
-                    "createdByUserUuid",
-                    "hasSecret",
-                    "customHeaders",
-                    "oauthScopes",
-                    "apiKeyLocation",
-                    "apiKeyName",
-                    "rateLimitPerMinute",
-                    "timeoutMs",
-                    "requestMaxBytes",
-                    "responseMaxBytes",
-                    "allowedContentTypes",
-                    "allowedMethods",
-                    "allowedPathPrefixes",
-                    "instructions",
-                    "origin",
-                    "type",
-                    "slug",
-                    "name",
-                    "organizationUuid",
-                    "projectUuid",
-                    "externalConnectionUuid"
-                ],
-                "type": "object",
-                "description": "READ shape returned by the API — NEVER includes the secret value."
-            },
             "ApiExternalConnectionResponse": {
                 "properties": {
                     "results": {
@@ -15432,6 +15701,14 @@
                 "properties": {
                     "secret": {
                         "type": "string",
+                        "nullable": true
+                    },
+                    "apiSource": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ExternalConnectionApiSource"
+                            }
+                        ],
                         "nullable": true
                     },
                     "customHeaders": {
@@ -15576,6 +15853,52 @@
                     "results": {
                         "items": {
                             "$ref": "#/components/schemas/ExternalConnectionListItem"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ExternalConnectionApiUsage": {
+                "properties": {
+                    "medianDurationMs": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true,
+                        "description": "Median time to fetch from the integration; null until it has been called."
+                    },
+                    "responseBytes": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "apiCalls": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "externalConnectionUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "medianDurationMs",
+                    "responseBytes",
+                    "apiCalls",
+                    "externalConnectionUuid"
+                ],
+                "type": "object",
+                "description": "What a live source has sent its integration across every logged query."
+            },
+            "ApiExternalConnectionApiUsageResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/ExternalConnectionApiUsage"
                         },
                         "type": "array"
                     },
@@ -15760,6 +16083,14 @@
                         "allOf": [
                             {
                                 "$ref": "#/components/schemas/Record_string.string_"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "apiSource": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ExternalConnectionApiSource"
                             }
                         ],
                         "nullable": true
@@ -21434,42 +21765,6 @@
                     }
                 ]
             },
-            "ApiSuccess_DataAppAnalysis_": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/DataAppAnalysis"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiDataAppDetectResponse": {
-                "$ref": "#/components/schemas/ApiSuccess_DataAppAnalysis_"
-            },
-            "DataAppDetectRequest": {
-                "properties": {
-                    "force": {
-                        "type": "boolean",
-                        "description": "Run the model even when an analysis of identical rows exists."
-                    },
-                    "instructions": {
-                        "type": "string"
-                    },
-                    "sources": {
-                        "items": {
-                            "$ref": "#/components/schemas/DataAppAnalysisSource"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": ["sources"],
-                "type": "object"
-            },
             "DataAppInvestigateResult": {
                 "properties": {
                     "partial": {
@@ -21533,6 +21828,62 @@
                         "type": "object"
                     }
                 ]
+            },
+            "DataAppDetection": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/DataAppAnalysis"
+                    },
+                    {
+                        "properties": {
+                            "investigations": {
+                                "items": {
+                                    "$ref": "#/components/schemas/DataAppInvestigation"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["investigations"],
+                        "type": "object"
+                    }
+                ],
+                "description": "What detect returns: the analysis plus the viewer's own stored\ninvestigations of it — populated on a cache hit, empty on a fresh run."
+            },
+            "ApiSuccess_DataAppDetection_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/DataAppDetection"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiDataAppDetectResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_DataAppDetection_"
+            },
+            "DataAppDetectRequest": {
+                "properties": {
+                    "force": {
+                        "type": "boolean",
+                        "description": "Run the model even when an analysis of identical rows exists."
+                    },
+                    "instructions": {
+                        "type": "string"
+                    },
+                    "sources": {
+                        "items": {
+                            "$ref": "#/components/schemas/DataAppAnalysisSource"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["sources"],
+                "type": "object"
             },
             "DataAppAnalysisLookup": {
                 "properties": {
@@ -23074,18 +23425,10 @@
                 ],
                 "type": "object"
             },
-            "DataAppAutoAnalysis": {
-                "type": "string",
-                "enum": ["inherit", "on", "off"],
-                "description": "Whether an app analyses on load: its own choice, or the org default."
-            },
-            "ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--slug-string--views-number--currentThread-AppThread--versions-ApiAppVersionSummary-Array--hasMore-boolean--latestReadyVersion-number-or-null--latestReadyVersionUsesAiAnalysis-boolean-or-null--latestReadyVersionHasAnalyzableData-boolean-or-null--addAnalysisDismissed-boolean--registrySlug-string-or-null--icon-ChartTypeIcon-or-null--verification-ContentVerificationInfo-or-null--autoAnalysis-DataAppAutoAnalysis__": {
+            "ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--slug-string--views-number--currentThread-AppThread--versions-ApiAppVersionSummary-Array--hasMore-boolean--latestReadyVersion-number-or-null--latestReadyVersionUsesAiAnalysis-boolean-or-null--latestReadyVersionHasAnalyzableData-boolean-or-null--addAnalysisDismissed-boolean--registrySlug-string-or-null--icon-ChartTypeIcon-or-null--verification-ContentVerificationInfo-or-null__": {
                 "properties": {
                     "results": {
                         "properties": {
-                            "autoAnalysis": {
-                                "$ref": "#/components/schemas/DataAppAutoAnalysis"
-                            },
                             "verification": {
                                 "allOf": [
                                     {
@@ -23180,7 +23523,6 @@
                             }
                         },
                         "required": [
-                            "autoAnalysis",
                             "verification",
                             "icon",
                             "registrySlug",
@@ -23215,7 +23557,7 @@
                 "type": "object"
             },
             "ApiGetAppResponse": {
-                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--slug-string--views-number--currentThread-AppThread--versions-ApiAppVersionSummary-Array--hasMore-boolean--latestReadyVersion-number-or-null--latestReadyVersionUsesAiAnalysis-boolean-or-null--latestReadyVersionHasAnalyzableData-boolean-or-null--addAnalysisDismissed-boolean--registrySlug-string-or-null--icon-ChartTypeIcon-or-null--verification-ContentVerificationInfo-or-null--autoAnalysis-DataAppAutoAnalysis__"
+                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--slug-string--views-number--currentThread-AppThread--versions-ApiAppVersionSummary-Array--hasMore-boolean--latestReadyVersion-number-or-null--latestReadyVersionUsesAiAnalysis-boolean-or-null--latestReadyVersionHasAnalyzableData-boolean-or-null--addAnalysisDismissed-boolean--registrySlug-string-or-null--icon-ChartTypeIcon-or-null--verification-ContentVerificationInfo-or-null__"
             },
             "UuidOrSlug": {
                 "type": "string",
@@ -23433,13 +23775,10 @@
                 "required": ["status"],
                 "type": "object"
             },
-            "ApiSuccess__appUuid-string--name-string--description-string--icon-ChartTypeIcon-or-null--autoAnalysis-DataAppAutoAnalysis__": {
+            "ApiSuccess__appUuid-string--name-string--description-string--icon-ChartTypeIcon-or-null__": {
                 "properties": {
                     "results": {
                         "properties": {
-                            "autoAnalysis": {
-                                "$ref": "#/components/schemas/DataAppAutoAnalysis"
-                            },
                             "icon": {
                                 "allOf": [
                                     {
@@ -23458,13 +23797,7 @@
                                 "type": "string"
                             }
                         },
-                        "required": [
-                            "autoAnalysis",
-                            "icon",
-                            "description",
-                            "name",
-                            "appUuid"
-                        ],
+                        "required": ["icon", "description", "name", "appUuid"],
                         "type": "object"
                     },
                     "status": {
@@ -23477,13 +23810,10 @@
                 "type": "object"
             },
             "ApiUpdateAppResponse": {
-                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--name-string--description-string--icon-ChartTypeIcon-or-null--autoAnalysis-DataAppAutoAnalysis__"
+                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--name-string--description-string--icon-ChartTypeIcon-or-null__"
             },
             "ApiUpdateAppRequest": {
                 "properties": {
-                    "autoAnalysis": {
-                        "$ref": "#/components/schemas/DataAppAutoAnalysis"
-                    },
                     "icon": {
                         "allOf": [
                             {
@@ -24876,6 +25206,118 @@
             "ApiDataAppActivityResponse": {
                 "$ref": "#/components/schemas/ApiSuccess__data-DataAppActivityEvent-Array--pagination_63_-KnexPaginateArgs-and-_totalPageCount-number--totalResults-number___"
             },
+            "AnalyticsHistoryBackfillStatus": {
+                "properties": {
+                    "error": {
+                        "type": "string"
+                    },
+                    "completed": {
+                        "type": "boolean"
+                    },
+                    "running": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["completed", "running"],
+                "type": "object"
+            },
+            "ApiSuccess_AnalyticsHistoryBackfillStatus_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AnalyticsHistoryBackfillStatus"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "AnalyticsProjectStatus": {
+                "properties": {
+                    "project": {
+                        "properties": {
+                            "hasContentUpdates": {
+                                "type": "boolean",
+                                "description": "Checks counts and dashboard verification, not edits to existing definitions."
+                            },
+                            "createdAt": {
+                                "type": "string"
+                            },
+                            "url": {
+                                "type": "string"
+                            },
+                            "slug": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "name": {
+                                "type": "string"
+                            },
+                            "projectUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "hasContentUpdates",
+                            "createdAt",
+                            "url",
+                            "slug",
+                            "name",
+                            "projectUuid"
+                        ],
+                        "type": "object",
+                        "nullable": true
+                    }
+                },
+                "required": ["project"],
+                "type": "object"
+            },
+            "ApiSuccess_AnalyticsProjectStatus_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AnalyticsProjectStatus"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "EnsureAnalyticsProjectResult": {
+                "properties": {
+                    "created": {
+                        "type": "boolean"
+                    },
+                    "url": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["created", "url", "projectUuid"],
+                "type": "object"
+            },
+            "ApiSuccess_EnsureAnalyticsProjectResult_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/EnsureAnalyticsProjectResult"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "AiThreadFile": {
                 "properties": {
                     "createdAt": {
@@ -25150,8 +25592,472 @@
             "ApiAiRouterRouteResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_AiRouterRouteResponseResult_"
             },
+            "AiChartRuntimeOverrides": {
+                "properties": {
+                    "dateZoom": {
+                        "$ref": "#/components/schemas/DateZoom"
+                    },
+                    "dashboardParameters": {
+                        "$ref": "#/components/schemas/ParametersValuesMap"
+                    },
+                    "dashboardFilters": {
+                        "$ref": "#/components/schemas/DashboardFilters"
+                    }
+                },
+                "type": "object",
+                "description": "Runtime state captured at pin time for a chart context. When a user pins a\nchart from a dashboard view, these are the dashboard-level overrides that\nwere applied to the chart on screen at that moment."
+            },
+            "AiDashboardActiveTab": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name", "uuid"],
+                "type": "object"
+            },
+            "Pick_DashboardFilterRule.Exclude_keyofDashboardFilterRule.id-or-tileTargets-or-lockedTabUuids-or-requiredGroupId-or-sectionId__": {
+                "properties": {
+                    "target": {
+                        "$ref": "#/components/schemas/DashboardFieldTarget",
+                        "description": "Target field for the filter"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "settings": {
+                        "description": "Additional settings for date/time filters"
+                    },
+                    "disabled": {
+                        "type": "boolean",
+                        "description": "Whether this filter is disabled"
+                    },
+                    "required": {
+                        "type": "boolean",
+                        "description": "Whether this filter is required"
+                    },
+                    "caseSensitive": {
+                        "type": "boolean",
+                        "description": "Overrides the field/explore case-sensitivity for this rule only.\nUsed by internal features like autocomplete search that must always\nmatch case-insensitively regardless of the field's configured setting."
+                    },
+                    "operator": {
+                        "$ref": "#/components/schemas/FilterOperator",
+                        "description": "Filter operator"
+                    },
+                    "values": {
+                        "items": {},
+                        "type": "array",
+                        "description": "Values to filter by"
+                    },
+                    "includeNull": {
+                        "type": "boolean",
+                        "description": "For the `equals` operator on string fields, also match rows where the\nfield is null (compiles to `field IN (...) OR field IS NULL`). Lets users\ncombine null with selected values in a single \"is\" rule."
+                    },
+                    "singleValue": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["target", "operator"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_DashboardFilterRule.id-or-tileTargets-or-lockedTabUuids-or-requiredGroupId-or-sectionId_": {
+                "$ref": "#/components/schemas/Pick_DashboardFilterRule.Exclude_keyofDashboardFilterRule.id-or-tileTargets-or-lockedTabUuids-or-requiredGroupId-or-sectionId__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "AiDashboardFilterRule": {
+                "$ref": "#/components/schemas/Omit_DashboardFilterRule.id-or-tileTargets-or-lockedTabUuids-or-requiredGroupId-or-sectionId_"
+            },
+            "AiDashboardFilters": {
+                "properties": {
+                    "tableCalculations": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiDashboardFilterRule"
+                        },
+                        "type": "array"
+                    },
+                    "metrics": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiDashboardFilterRule"
+                        },
+                        "type": "array"
+                    },
+                    "dimensions": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiDashboardFilterRule"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["tableCalculations", "metrics", "dimensions"],
+                "type": "object"
+            },
+            "AiDashboardRuntimeOverrides": {
+                "properties": {
+                    "dateZoom": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DateZoom"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "dashboardParameters": {
+                        "$ref": "#/components/schemas/ParametersValuesMap"
+                    },
+                    "dashboardFilters": {
+                        "$ref": "#/components/schemas/AiDashboardFilters"
+                    },
+                    "activeTab": {
+                        "$ref": "#/components/schemas/AiDashboardActiveTab"
+                    }
+                },
+                "type": "object"
+            },
+            "AiPromptContextItemInput": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "runtimeOverrides": {
+                                "$ref": "#/components/schemas/AiChartRuntimeOverrides"
+                            },
+                            "chartSlug": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "chartUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["chart"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["chartUuid", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "runtimeOverrides": {
+                                "$ref": "#/components/schemas/AiDashboardRuntimeOverrides"
+                            },
+                            "dashboardSlug": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "dashboardUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["dashboard"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["dashboardUuid", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "promptUuid": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "threadUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["thread"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["threadUuid", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "path": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["file"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["path", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "fullName": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["repository"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["fullName", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "sourceUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["external_source"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["sourceUuid", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "fileUuid": {
+                                "$ref": "#/components/schemas/UUID"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["thread_file"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["fileUuid", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "prUrl": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["pull_request"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["prUrl", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "fingerprint": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["proposed_change"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["fingerprint", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "fingerprint": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["review_finding"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["fingerprint", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "previewProjectUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["preview_environment"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["previewProjectUuid", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "loc": {
+                                "type": "string"
+                            },
+                            "text": {
+                                "type": "string"
+                            },
+                            "tag": {
+                                "type": "string"
+                            },
+                            "version": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "appUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["data_app_element"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "loc",
+                            "text",
+                            "tag",
+                            "version",
+                            "appUuid",
+                            "type"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "nodeId": {
+                                "type": "string"
+                            },
+                            "versionUuid": {
+                                "type": "string"
+                            },
+                            "artifactUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["composer_node"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "nodeId",
+                            "versionUuid",
+                            "artifactUuid",
+                            "type"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "restoredFromVersion": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "version": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "appUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["data_app_restore"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "restoredFromVersion",
+                            "version",
+                            "appUuid",
+                            "type"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "appSlug": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "appUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["data_app"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["appUuid", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "documentSlug": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "documentUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["document"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["documentUuid", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "designUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["design"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["designUuid", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "arguments": {
+                                "type": "string"
+                            },
+                            "name": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["skill"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["arguments", "name", "type"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "AiPromptContextInput": {
+                "items": {
+                    "$ref": "#/components/schemas/AiPromptContextItemInput"
+                },
+                "type": "array"
+            },
             "AiRouterRouteRequest": {
                 "properties": {
+                    "context": {
+                        "$ref": "#/components/schemas/AiPromptContextInput",
+                        "description": "Content pinned to the prompt, so the router knows where the question is asked from."
+                    },
                     "projectUuid": {
                         "type": "string"
                     },
@@ -26892,14 +27798,88 @@
                 "$ref": "#/components/schemas/Pick_AiAgentDocument.Exclude_keyofAiAgentDocument.storageKey__",
                 "description": "Construct a type with the properties of T except for those in type K."
             },
-            "AiAgentDocumentSummary": {
-                "$ref": "#/components/schemas/Omit_AiAgentDocument.storageKey_"
+            "AiAgentDocumentListItem": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "originalFilename": {
+                        "type": "string"
+                    },
+                    "mimeType": {
+                        "type": "string"
+                    },
+                    "contentSizeBytes": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "alwaysIncludeInContext": {
+                        "type": "boolean"
+                    },
+                    "summary": {
+                        "$ref": "#/components/schemas/AiAgentDocumentStructuredSummary"
+                    },
+                    "agentAccess": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "createdByUserUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "updatedByUserUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "managedByContentAsCode": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "name",
+                    "updatedAt",
+                    "uuid",
+                    "organizationUuid",
+                    "projectUuid",
+                    "createdAt",
+                    "originalFilename",
+                    "mimeType",
+                    "contentSizeBytes",
+                    "alwaysIncludeInContext",
+                    "summary",
+                    "agentAccess",
+                    "createdByUserUuid",
+                    "updatedByUserUuid",
+                    "managedByContentAsCode"
+                ],
+                "type": "object",
+                "additionalProperties": true
             },
             "ApiAiAgentDocumentSummaryListResponse": {
                 "properties": {
                     "results": {
                         "items": {
-                            "$ref": "#/components/schemas/AiAgentDocumentSummary"
+                            "$ref": "#/components/schemas/AiAgentDocumentListItem"
                         },
                         "type": "array"
                     },
@@ -27069,6 +28049,9 @@
             },
             "ApiUpdateAgentDocumentContent": {
                 "properties": {
+                    "mimeType": {
+                        "$ref": "#/components/schemas/AiAgentDocumentMimeType"
+                    },
                     "content": {
                         "type": "string"
                     },
@@ -27165,6 +28148,7 @@
                     "mcp.run_metric_query",
                     "mcp.run_sql",
                     "mcp.search_field_values",
+                    "mcp.query",
                     "api",
                     "cli",
                     "metricsExplorer",
@@ -27432,6 +28416,12 @@
                             },
                             "dateZoom": {
                                 "$ref": "#/components/schemas/DateZoom"
+                            },
+                            "limit": {
+                                "type": "number",
+                                "format": "double",
+                                "nullable": true,
+                                "description": "Export row limit, same contract as the saved-chart endpoints:\n- undefined: run with `query.limit`\n- null: all results, capped by the org's CSV cells limit\n- number: that many rows, capped by the org's CSV cells limit"
                             },
                             "query": {
                                 "$ref": "#/components/schemas/Omit_MetricQueryRequest.csvLimit_"
@@ -27703,6 +28693,46 @@
                     }
                 ],
                 "description": "Python `run(inputs, params)` over other async queries' results, executed in a sandbox."
+            },
+            "ApiSourcePayload": {
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "A query in the connector's language, e.g. HogQL for PostHog."
+                    },
+                    "kind": {
+                        "type": "string",
+                        "enum": ["query"],
+                        "nullable": false
+                    }
+                },
+                "required": ["query", "kind"],
+                "type": "object",
+                "description": "What an api query asks its connector to run. Only `query` exists: a query\nin the connector's own language, such as HogQL for PostHog. APIs without a\nquery language will add another kind rather than change this one."
+            },
+            "ExecuteAsyncApiQueryRequestParams": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/CommonExecuteQueryRequestParams"
+                    },
+                    {
+                        "properties": {
+                            "limit": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "payload": {
+                                "$ref": "#/components/schemas/ApiSourcePayload"
+                            },
+                            "connectionUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["payload", "connectionUuid"],
+                        "type": "object"
+                    }
+                ],
+                "description": "A query sent live to an external API; stored so query history shows what ran."
             },
             "ExecuteAsyncSavedChartRequestParams": {
                 "allOf": [
@@ -27978,6 +29008,9 @@
                             },
                             {
                                 "$ref": "#/components/schemas/ExecuteAsyncPythonQueryRequestParams"
+                            },
+                            {
+                                "$ref": "#/components/schemas/ExecuteAsyncApiQueryRequestParams"
                             },
                             {
                                 "$ref": "#/components/schemas/ExecuteAsyncSavedChartRequestParams"
@@ -31816,131 +32849,6 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "AiChartRuntimeOverrides": {
-                "properties": {
-                    "dateZoom": {
-                        "$ref": "#/components/schemas/DateZoom"
-                    },
-                    "dashboardParameters": {
-                        "$ref": "#/components/schemas/ParametersValuesMap"
-                    },
-                    "dashboardFilters": {
-                        "$ref": "#/components/schemas/DashboardFilters"
-                    }
-                },
-                "type": "object",
-                "description": "Runtime state captured at pin time for a chart context. When a user pins a\nchart from a dashboard view, these are the dashboard-level overrides that\nwere applied to the chart on screen at that moment."
-            },
-            "AiDashboardActiveTab": {
-                "properties": {
-                    "name": {
-                        "type": "string"
-                    },
-                    "uuid": {
-                        "type": "string"
-                    }
-                },
-                "required": ["name", "uuid"],
-                "type": "object"
-            },
-            "Pick_DashboardFilterRule.Exclude_keyofDashboardFilterRule.id-or-tileTargets-or-lockedTabUuids-or-requiredGroupId-or-sectionId__": {
-                "properties": {
-                    "target": {
-                        "$ref": "#/components/schemas/DashboardFieldTarget",
-                        "description": "Target field for the filter"
-                    },
-                    "label": {
-                        "type": "string"
-                    },
-                    "settings": {
-                        "description": "Additional settings for date/time filters"
-                    },
-                    "disabled": {
-                        "type": "boolean",
-                        "description": "Whether this filter is disabled"
-                    },
-                    "required": {
-                        "type": "boolean",
-                        "description": "Whether this filter is required"
-                    },
-                    "caseSensitive": {
-                        "type": "boolean",
-                        "description": "Overrides the field/explore case-sensitivity for this rule only.\nUsed by internal features like autocomplete search that must always\nmatch case-insensitively regardless of the field's configured setting."
-                    },
-                    "operator": {
-                        "$ref": "#/components/schemas/FilterOperator",
-                        "description": "Filter operator"
-                    },
-                    "values": {
-                        "items": {},
-                        "type": "array",
-                        "description": "Values to filter by"
-                    },
-                    "includeNull": {
-                        "type": "boolean",
-                        "description": "For the `equals` operator on string fields, also match rows where the\nfield is null (compiles to `field IN (...) OR field IS NULL`). Lets users\ncombine null with selected values in a single \"is\" rule."
-                    },
-                    "singleValue": {
-                        "type": "boolean"
-                    }
-                },
-                "required": ["target", "operator"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "Omit_DashboardFilterRule.id-or-tileTargets-or-lockedTabUuids-or-requiredGroupId-or-sectionId_": {
-                "$ref": "#/components/schemas/Pick_DashboardFilterRule.Exclude_keyofDashboardFilterRule.id-or-tileTargets-or-lockedTabUuids-or-requiredGroupId-or-sectionId__",
-                "description": "Construct a type with the properties of T except for those in type K."
-            },
-            "AiDashboardFilterRule": {
-                "$ref": "#/components/schemas/Omit_DashboardFilterRule.id-or-tileTargets-or-lockedTabUuids-or-requiredGroupId-or-sectionId_"
-            },
-            "AiDashboardFilters": {
-                "properties": {
-                    "tableCalculations": {
-                        "items": {
-                            "$ref": "#/components/schemas/AiDashboardFilterRule"
-                        },
-                        "type": "array"
-                    },
-                    "metrics": {
-                        "items": {
-                            "$ref": "#/components/schemas/AiDashboardFilterRule"
-                        },
-                        "type": "array"
-                    },
-                    "dimensions": {
-                        "items": {
-                            "$ref": "#/components/schemas/AiDashboardFilterRule"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": ["tableCalculations", "metrics", "dimensions"],
-                "type": "object"
-            },
-            "AiDashboardRuntimeOverrides": {
-                "properties": {
-                    "dateZoom": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/DateZoom"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "dashboardParameters": {
-                        "$ref": "#/components/schemas/ParametersValuesMap"
-                    },
-                    "dashboardFilters": {
-                        "$ref": "#/components/schemas/AiDashboardFilters"
-                    },
-                    "activeTab": {
-                        "$ref": "#/components/schemas/AiDashboardActiveTab"
-                    }
-                },
-                "type": "object"
-            },
             "AiPromptExternalSourceTable": {
                 "properties": {
                     "displayName": {
@@ -32788,6 +33696,35 @@
                             "tag",
                             "version",
                             "appUuid",
+                            "type"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "title": {
+                                "type": "string"
+                            },
+                            "nodeId": {
+                                "type": "string"
+                            },
+                            "versionUuid": {
+                                "type": "string"
+                            },
+                            "artifactUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["composer_node"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "title",
+                            "nodeId",
+                            "versionUuid",
+                            "artifactUuid",
                             "type"
                         ],
                         "type": "object"
@@ -36498,316 +37435,6 @@
             "ApiAiAgentThreadCreateResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_AiAgentThreadSummary_"
             },
-            "AiPromptContextItemInput": {
-                "anyOf": [
-                    {
-                        "properties": {
-                            "runtimeOverrides": {
-                                "$ref": "#/components/schemas/AiChartRuntimeOverrides"
-                            },
-                            "chartSlug": {
-                                "type": "string",
-                                "nullable": true
-                            },
-                            "chartUuid": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["chart"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["chartUuid", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "runtimeOverrides": {
-                                "$ref": "#/components/schemas/AiDashboardRuntimeOverrides"
-                            },
-                            "dashboardSlug": {
-                                "type": "string",
-                                "nullable": true
-                            },
-                            "dashboardUuid": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["dashboard"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["dashboardUuid", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "promptUuid": {
-                                "type": "string",
-                                "nullable": true
-                            },
-                            "threadUuid": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["thread"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["threadUuid", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "path": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["file"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["path", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "fullName": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["repository"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["fullName", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "sourceUuid": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["external_source"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["sourceUuid", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "fileUuid": {
-                                "$ref": "#/components/schemas/UUID"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["thread_file"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["fileUuid", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "prUrl": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["pull_request"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["prUrl", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "fingerprint": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["proposed_change"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["fingerprint", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "fingerprint": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["review_finding"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["fingerprint", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "previewProjectUuid": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["preview_environment"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["previewProjectUuid", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "loc": {
-                                "type": "string"
-                            },
-                            "text": {
-                                "type": "string"
-                            },
-                            "tag": {
-                                "type": "string"
-                            },
-                            "version": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "appUuid": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["data_app_element"],
-                                "nullable": false
-                            }
-                        },
-                        "required": [
-                            "loc",
-                            "text",
-                            "tag",
-                            "version",
-                            "appUuid",
-                            "type"
-                        ],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "restoredFromVersion": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "version": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "appUuid": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["data_app_restore"],
-                                "nullable": false
-                            }
-                        },
-                        "required": [
-                            "restoredFromVersion",
-                            "version",
-                            "appUuid",
-                            "type"
-                        ],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "appSlug": {
-                                "type": "string",
-                                "nullable": true
-                            },
-                            "appUuid": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["data_app"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["appUuid", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "documentSlug": {
-                                "type": "string",
-                                "nullable": true
-                            },
-                            "documentUuid": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["document"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["documentUuid", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "designUuid": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["design"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["designUuid", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "arguments": {
-                                "type": "string"
-                            },
-                            "name": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["skill"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["arguments", "name", "type"],
-                        "type": "object"
-                    }
-                ]
-            },
-            "AiPromptContextInput": {
-                "items": {
-                    "$ref": "#/components/schemas/AiPromptContextItemInput"
-                },
-                "type": "array"
-            },
             "ApiAiAgentThreadCreateRequest": {
                 "properties": {
                     "threadContext": {
@@ -37423,6 +38050,48 @@
                 "type": "object",
                 "description": "A python query as a source query: code defining\n`run(inputs: dict[str, pandas.DataFrame], params: dict) -> pandas.DataFrame`.\nReferences expose other queries' results as DataFrames in `inputs`, keyed\nlike DuckDB references expose tables. Referenced queries still running are\nwaited on; the query fails if any referenced query fails."
             },
+            "QuerySourceType.API": {
+                "enum": ["api"],
+                "type": "string"
+            },
+            "ApiSourceQuery": {
+                "properties": {
+                    "pivotConfiguration": {
+                        "$ref": "#/components/schemas/PivotConfiguration",
+                        "description": "Api queries refuse a pivot; pivot in a referencing duckdb query."
+                    },
+                    "limit": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Max rows to keep. Defaults to the standard query row limit."
+                    },
+                    "payload": {
+                        "$ref": "#/components/schemas/ApiSourcePayload"
+                    },
+                    "connectionUuid": {
+                        "type": "string",
+                        "description": "The project connection that runs the payload, such as a PostHog connection."
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "One-line note on what this query does, shown under the title."
+                    },
+                    "title": {
+                        "type": "string",
+                        "description": "Plain-language label shown to users instead of the node id. Optional: the public query-sources API accepts and ignores it."
+                    },
+                    "nodeId": {
+                        "$ref": "#/components/schemas/QueryNodeId",
+                        "description": "Names this query so other queries in the same submission can reference its results."
+                    },
+                    "sourceType": {
+                        "$ref": "#/components/schemas/QuerySourceType.API"
+                    }
+                },
+                "required": ["payload", "connectionUuid", "sourceType"],
+                "type": "object",
+                "description": "A query sent live to an external API at question time. Nothing is ingested:\nthe connector runs the payload and its rows become this node's result."
+            },
             "SourceQuery": {
                 "anyOf": [
                     {
@@ -37439,6 +38108,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/PythonSourceQuery"
+                    },
+                    {
+                        "$ref": "#/components/schemas/ApiSourceQuery"
                     }
                 ],
                 "description": "The tagged union every submit endpoint takes: one shape per source,\ndiscriminated by sourceType. New sources add a member here — this union is\nthe extension point, not new WarehouseTypes values."
@@ -44764,9 +45436,6 @@
                         "format": "double",
                         "nullable": true
                     },
-                    "dataAppAutoAnalysisEnabled": {
-                        "type": "boolean"
-                    },
                     "dataAppContinueInAskAiEnabled": {
                         "type": "boolean"
                     },
@@ -46123,95 +46792,28 @@
             "ApiAiCreditUsageResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_AiCreditUsageSummary_"
             },
-            "AiCreditUsageBreakdown": {
+            "AiBillableFeature": {
                 "type": "string",
-                "enum": ["user", "agent", "project", "feature", "channel"]
+                "enum": [
+                    "data-app",
+                    "agent",
+                    "deep-research",
+                    "agent-subtask",
+                    "compaction"
+                ]
             },
             "AiCreditDailyUsageSeries": {
-                "anyOf": [
-                    {
-                        "properties": {
-                            "credits": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "name": {
-                                "type": "string",
-                                "nullable": true
-                            },
-                            "key": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["value"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["credits", "name", "key", "type"],
-                        "type": "object"
+                "properties": {
+                    "credits": {
+                        "type": "number",
+                        "format": "double"
                     },
-                    {
-                        "properties": {
-                            "credits": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["other"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["credits", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "credits": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["deleted"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["credits", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "credits": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["embeddedViewers"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["credits", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "credits": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["unattributed"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["credits", "type"],
-                        "type": "object"
+                    "feature": {
+                        "$ref": "#/components/schemas/AiBillableFeature"
                     }
-                ]
+                },
+                "required": ["credits", "feature"],
+                "type": "object"
             },
             "AiCreditDailyUsageDay": {
                 "properties": {
@@ -46243,14 +46845,11 @@
                         },
                         "type": "array"
                     },
-                    "breakdown": {
-                        "$ref": "#/components/schemas/AiCreditUsageBreakdown"
-                    },
                     "period": {
                         "$ref": "#/components/schemas/AiCreditPeriod"
                     }
                 },
-                "required": ["days", "series", "breakdown", "period"],
+                "required": ["days", "series", "period"],
                 "type": "object"
             },
             "ApiSuccess_AiCreditDailyUsage_": {
@@ -50015,6 +50614,38 @@
             "UpdateAiReviewJiraDestination": {
                 "$ref": "#/components/schemas/Pick_AiReviewJiraDestination.enabled-or-jiraProjectId-or-jiraIssueTypeId_"
             },
+            "McpProjectAccess": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "mode": {
+                                "type": "string",
+                                "enum": ["all"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["mode"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "projectUuids": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "mode": {
+                                "type": "string",
+                                "enum": ["selected"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["projectUuids", "mode"],
+                        "type": "object"
+                    }
+                ]
+            },
             "DataAppAnalysisLimits": {
                 "properties": {
                     "dailyPromptCap": {
@@ -50249,9 +50880,6 @@
                     "dataAppAnalysisLimits": {
                         "$ref": "#/components/schemas/DataAppAnalysisLimits"
                     },
-                    "dataAppAutoAnalysisEnabled": {
-                        "type": "boolean"
-                    },
                     "dataAppContinueInAskAiEnabled": {
                         "type": "boolean"
                     },
@@ -50263,6 +50891,9 @@
                     },
                     "mcpContentWritesEnabled": {
                         "type": "boolean"
+                    },
+                    "mcpProjectAccess": {
+                        "$ref": "#/components/schemas/McpProjectAccess"
                     },
                     "mcpEnabled": {
                         "type": "boolean"
@@ -50522,9 +51153,6 @@
                     "dataAppAnalysisLimits": {
                         "$ref": "#/components/schemas/DataAppAnalysisLimits"
                     },
-                    "dataAppAutoAnalysisEnabled": {
-                        "type": "boolean"
-                    },
                     "dataAppContinueInAskAiEnabled": {
                         "type": "boolean"
                     },
@@ -50536,6 +51164,9 @@
                     },
                     "mcpContentWritesEnabled": {
                         "type": "boolean"
+                    },
+                    "mcpProjectAccess": {
+                        "$ref": "#/components/schemas/McpProjectAccess"
                     },
                     "mcpEnabled": {
                         "type": "boolean"
@@ -60097,6 +60728,11 @@
             },
             "ResultsCacheProjectSettings": {
                 "properties": {
+                    "lastInvalidatedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
                     "instanceDefaultTtlSeconds": {
                         "type": "number",
                         "format": "double"
@@ -60111,6 +60747,7 @@
                     }
                 },
                 "required": [
+                    "lastInvalidatedAt",
                     "instanceDefaultTtlSeconds",
                     "cacheTtlSeconds",
                     "projectUuid"
@@ -60144,6 +60781,36 @@
                 },
                 "required": ["cacheTtlSeconds"],
                 "type": "object"
+            },
+            "ResultsCacheInvalidation": {
+                "properties": {
+                    "invalidatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["invalidatedAt", "projectUuid"],
+                "type": "object"
+            },
+            "ApiSuccess_ResultsCacheInvalidation_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ResultsCacheInvalidation"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiResultsCacheInvalidationResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_ResultsCacheInvalidation_"
             },
             "PreviewExpiresAt": {
                 "properties": {
@@ -62291,190 +62958,6 @@
             "UpdateOrganization": {
                 "$ref": "#/components/schemas/Partial_Omit_Organization.organizationUuid-or-needsProject__"
             },
-            "OrganizationBrandLogo": {
-                "properties": {
-                    "format": {
-                        "type": "string",
-                        "nullable": true,
-                        "description": "File format, e.g. 'svg', 'png', 'jpeg'"
-                    },
-                    "url": {
-                        "type": "string"
-                    },
-                    "theme": {
-                        "type": "string",
-                        "nullable": true,
-                        "description": "Colour of the artwork itself: 'light' is a light/white logo (for dark\nbackgrounds), 'dark' is a dark logo (for light backgrounds)."
-                    },
-                    "type": {
-                        "type": "string",
-                        "description": "Brandfetch logo type, e.g. 'logo', 'symbol', 'icon', 'other'"
-                    }
-                },
-                "required": ["format", "url", "theme", "type"],
-                "type": "object",
-                "description": "Brand profile fetched from the Brandfetch Brand API and stored on the\norganization. https://docs.brandfetch.com/reference/brand-api"
-            },
-            "OrganizationBrandColor": {
-                "properties": {
-                    "brightness": {
-                        "type": "number",
-                        "format": "double",
-                        "nullable": true
-                    },
-                    "type": {
-                        "type": "string",
-                        "description": "Brandfetch color type, e.g. 'accent', 'brand', 'dark', 'light'"
-                    },
-                    "hex": {
-                        "type": "string"
-                    }
-                },
-                "required": ["brightness", "type", "hex"],
-                "type": "object"
-            },
-            "OrganizationBrandFont": {
-                "properties": {
-                    "origin": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "type": {
-                        "type": "string",
-                        "description": "Brandfetch font type, e.g. 'title' or 'body'"
-                    },
-                    "name": {
-                        "type": "string"
-                    }
-                },
-                "required": ["origin", "type", "name"],
-                "type": "object"
-            },
-            "OrganizationBrand": {
-                "properties": {
-                    "updatedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "fonts": {
-                        "items": {
-                            "$ref": "#/components/schemas/OrganizationBrandFont"
-                        },
-                        "type": "array"
-                    },
-                    "colors": {
-                        "items": {
-                            "$ref": "#/components/schemas/OrganizationBrandColor"
-                        },
-                        "type": "array"
-                    },
-                    "logos": {
-                        "items": {
-                            "$ref": "#/components/schemas/OrganizationBrandLogo"
-                        },
-                        "type": "array"
-                    },
-                    "description": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "name": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "domain": {
-                        "type": "string",
-                        "description": "Domain the brand was fetched for, e.g. 'acme.com'"
-                    },
-                    "organizationUuid": {
-                        "type": "string",
-                        "format": "uuid"
-                    }
-                },
-                "required": [
-                    "updatedAt",
-                    "fonts",
-                    "colors",
-                    "logos",
-                    "description",
-                    "name",
-                    "domain",
-                    "organizationUuid"
-                ],
-                "type": "object"
-            },
-            "ApiOrganizationBrandResponse": {
-                "properties": {
-                    "results": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/OrganizationBrand"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "UpdateOrganizationBrandRequest": {
-                "properties": {
-                    "domain": {
-                        "type": "string",
-                        "description": "Company domain or website URL, e.g. 'acme.com'"
-                    }
-                },
-                "required": ["domain"],
-                "type": "object"
-            },
-            "SaveOrganizationBrandRequest": {
-                "properties": {
-                    "fonts": {
-                        "items": {
-                            "$ref": "#/components/schemas/OrganizationBrandFont"
-                        },
-                        "type": "array"
-                    },
-                    "colors": {
-                        "items": {
-                            "$ref": "#/components/schemas/OrganizationBrandColor"
-                        },
-                        "type": "array"
-                    },
-                    "logos": {
-                        "items": {
-                            "$ref": "#/components/schemas/OrganizationBrandLogo"
-                        },
-                        "type": "array"
-                    },
-                    "description": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "name": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "domain": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "fonts",
-                    "colors",
-                    "logos",
-                    "description",
-                    "name",
-                    "domain"
-                ],
-                "type": "object",
-                "description": "The editable brand payload persisted when the user saves their brand\nappearance. Unlike a fetch, this does not call Brandfetch — it stores the\nvalues exactly as edited in the settings form."
-            },
             "OrganizationProject": {
                 "properties": {
                     "provisioningSource": {
@@ -63597,6 +64080,217 @@
                     }
                 },
                 "required": ["impersonationEnabled"],
+                "type": "object"
+            },
+            "OrganizationBrandLogo": {
+                "properties": {
+                    "format": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "File format, e.g. 'svg', 'png', 'jpeg'"
+                    },
+                    "url": {
+                        "type": "string"
+                    },
+                    "theme": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Colour of the artwork itself: 'light' is a light/white logo (for dark\nbackgrounds), 'dark' is a dark logo (for light backgrounds)."
+                    },
+                    "type": {
+                        "type": "string",
+                        "description": "Brandfetch logo type, e.g. 'logo', 'symbol', 'icon', 'other'"
+                    }
+                },
+                "required": ["format", "url", "theme", "type"],
+                "type": "object",
+                "description": "Brand profile fetched from the Brandfetch Brand API and stored on the\norganization. https://docs.brandfetch.com/reference/brand-api"
+            },
+            "OrganizationBrandColor": {
+                "properties": {
+                    "brightness": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "type": {
+                        "type": "string",
+                        "description": "Brandfetch color type, e.g. 'accent', 'brand', 'dark', 'light'"
+                    },
+                    "hex": {
+                        "type": "string"
+                    }
+                },
+                "required": ["brightness", "type", "hex"],
+                "type": "object"
+            },
+            "OrganizationBrandFont": {
+                "properties": {
+                    "origin": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "type": {
+                        "type": "string",
+                        "description": "Brandfetch font type, e.g. 'title' or 'body'"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["origin", "type", "name"],
+                "type": "object"
+            },
+            "OrganizationBrand": {
+                "properties": {
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "fonts": {
+                        "items": {
+                            "$ref": "#/components/schemas/OrganizationBrandFont"
+                        },
+                        "type": "array"
+                    },
+                    "colors": {
+                        "items": {
+                            "$ref": "#/components/schemas/OrganizationBrandColor"
+                        },
+                        "type": "array"
+                    },
+                    "logos": {
+                        "items": {
+                            "$ref": "#/components/schemas/OrganizationBrandLogo"
+                        },
+                        "type": "array"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "domain": {
+                        "type": "string",
+                        "description": "Domain the brand was fetched for, e.g. 'acme.com'"
+                    },
+                    "organizationUuid": {
+                        "type": "string",
+                        "format": "uuid"
+                    }
+                },
+                "required": [
+                    "updatedAt",
+                    "fonts",
+                    "colors",
+                    "logos",
+                    "description",
+                    "name",
+                    "domain",
+                    "organizationUuid"
+                ],
+                "type": "object"
+            },
+            "ApiOrganizationBrandResponse": {
+                "properties": {
+                    "results": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/OrganizationBrand"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "UpdateOrganizationBrandRequest": {
+                "properties": {
+                    "domain": {
+                        "type": "string",
+                        "description": "Company domain or website URL, e.g. 'acme.com'"
+                    }
+                },
+                "required": ["domain"],
+                "type": "object"
+            },
+            "SaveOrganizationBrandRequest": {
+                "properties": {
+                    "fonts": {
+                        "items": {
+                            "$ref": "#/components/schemas/OrganizationBrandFont"
+                        },
+                        "type": "array"
+                    },
+                    "colors": {
+                        "items": {
+                            "$ref": "#/components/schemas/OrganizationBrandColor"
+                        },
+                        "type": "array"
+                    },
+                    "logos": {
+                        "items": {
+                            "$ref": "#/components/schemas/OrganizationBrandLogo"
+                        },
+                        "type": "array"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "domain": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "fonts",
+                    "colors",
+                    "logos",
+                    "description",
+                    "name",
+                    "domain"
+                ],
+                "type": "object",
+                "description": "The editable brand payload persisted when the user saves their brand\nappearance. Unlike a fetch, this does not call Brandfetch — it stores the\nvalues exactly as edited in the settings form."
+            },
+            "OrganizationBrandLogoUpload": {
+                "properties": {
+                    "format": {
+                        "type": "string",
+                        "enum": ["png", "jpeg", "webp", "gif", "svg"]
+                    },
+                    "url": {
+                        "type": "string"
+                    }
+                },
+                "required": ["format", "url"],
+                "type": "object"
+            },
+            "ApiOrganizationBrandLogoUploadResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/OrganizationBrandLogoUpload"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
                 "type": "object"
             },
             "NotificationBase": {
@@ -67794,118 +68488,6 @@
                 "required": ["projectUuid"],
                 "type": "object"
             },
-            "AnalyticsHistoryBackfillStatus": {
-                "properties": {
-                    "error": {
-                        "type": "string"
-                    },
-                    "completed": {
-                        "type": "boolean"
-                    },
-                    "running": {
-                        "type": "boolean"
-                    }
-                },
-                "required": ["completed", "running"],
-                "type": "object"
-            },
-            "ApiSuccess_AnalyticsHistoryBackfillStatus_": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/AnalyticsHistoryBackfillStatus"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "AnalyticsProjectStatus": {
-                "properties": {
-                    "project": {
-                        "properties": {
-                            "hasContentUpdates": {
-                                "type": "boolean",
-                                "description": "Checks counts and dashboard verification, not edits to existing definitions."
-                            },
-                            "createdAt": {
-                                "type": "string"
-                            },
-                            "url": {
-                                "type": "string"
-                            },
-                            "slug": {
-                                "type": "string",
-                                "nullable": true
-                            },
-                            "name": {
-                                "type": "string"
-                            },
-                            "projectUuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "hasContentUpdates",
-                            "createdAt",
-                            "url",
-                            "slug",
-                            "name",
-                            "projectUuid"
-                        ],
-                        "type": "object",
-                        "nullable": true
-                    }
-                },
-                "required": ["project"],
-                "type": "object"
-            },
-            "ApiSuccess_AnalyticsProjectStatus_": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/AnalyticsProjectStatus"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "EnsureAnalyticsProjectResult": {
-                "properties": {
-                    "created": {
-                        "type": "boolean"
-                    },
-                    "url": {
-                        "type": "string"
-                    },
-                    "projectUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": ["created", "url", "projectUuid"],
-                "type": "object"
-            },
-            "ApiSuccess_EnsureAnalyticsProjectResult_": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/EnsureAnalyticsProjectResult"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
             "RoleAssignment": {
                 "properties": {
                     "hasMultipleRoles": {
@@ -70263,7 +70845,8 @@
                     "sql",
                     "duckdb",
                     "external",
-                    "python"
+                    "python",
+                    "api"
                 ],
                 "type": "string"
             },
@@ -70455,6 +71038,21 @@
             },
             "SourceQueryStatus": {
                 "properties": {
+                    "columns": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ResultColumns"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Result columns; null until the query is ready."
+                    },
+                    "warehouseExecutionTimeMs": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true,
+                        "description": "Warehouse run time; null while unknown or not recorded."
+                    },
                     "totalRowCount": {
                         "type": "number",
                         "format": "double",
@@ -70472,7 +71070,14 @@
                         "$ref": "#/components/schemas/UUID"
                     }
                 },
-                "required": ["totalRowCount", "error", "status", "queryUuid"],
+                "required": [
+                    "columns",
+                    "warehouseExecutionTimeMs",
+                    "totalRowCount",
+                    "error",
+                    "status",
+                    "queryUuid"
+                ],
                 "type": "object",
                 "description": "Status of one submitted query, from the standard async query lifecycle."
             },
@@ -72908,6 +73513,14 @@
                 "type": "object",
                 "additionalProperties": true
             },
+            "AiServiceAccountParentUnavailableReason": {
+                "type": "string",
+                "enum": [
+                    "destination_mismatch",
+                    "transport_mismatch",
+                    "parent_connection_unreadable"
+                ]
+            },
             "WarehouseServiceAuthMethod": {
                 "type": "string",
                 "enum": [
@@ -73013,6 +73626,14 @@
                         ],
                         "nullable": true
                     },
+                    "parentUnavailableReason": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiServiceAccountParentUnavailableReason"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "credentialsReadable": {
                         "type": "boolean"
                     },
@@ -73029,6 +73650,7 @@
                     "results",
                     "status",
                     "parent",
+                    "parentUnavailableReason",
                     "credentialsReadable"
                 ],
                 "type": "object",
@@ -73403,6 +74025,7 @@
             },
             "AiAccessRefusalReason": {
                 "enum": [
+                    "mcp_project_not_allowed",
                     "agent_access_disabled",
                     "agent_capability_denied",
                     "agent_project_denied",
@@ -73959,7 +74582,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.68.2",
+        "version": "3.116.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -74838,6 +75461,57 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/code/snapshots/prune": {
+            "post": {
+                "operationId": "pruneContentAsCodeSnapshots",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiContentAsCodeSnapshotPruneResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Called by the CLI after a full upload of a directory so content whose\nfile was removed from the repo stops being Git-managed.",
+                "summary": "Prune content-as-code snapshots",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ContentAsCodeSnapshotPrune"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/projects/{projectUuid}/code/charts": {
@@ -80399,6 +81073,197 @@
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": []
+            }
+        },
+        "/api/v1/org/analytics-project/backfill": {
+            "get": {
+                "operationId": "GetAnalyticsHistoryBackfillStatus",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccess_AnalyticsHistoryBackfillStatus_"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "summary": "Check Analytics history backfill completion",
+                "tags": ["Analytics project"],
+                "security": [],
+                "parameters": []
+            },
+            "post": {
+                "operationId": "BackfillAnalyticsHistory",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "summary": "Backfill retained Analytics history",
+                "tags": ["Analytics project"],
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/org/analytics-project": {
+            "get": {
+                "operationId": "GetAnalyticsProjectStatus",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccess_AnalyticsProjectStatus_"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "summary": "Get internal analytics project status",
+                "tags": ["Analytics project"],
+                "security": [],
+                "parameters": []
+            },
+            "post": {
+                "operationId": "EnsureAnalyticsProject",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccess_EnsureAnalyticsProjectResult_"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "summary": "Ensure internal analytics project",
+                "tags": ["Analytics project"],
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/org/analytics-project/sample-content": {
+            "post": {
+                "operationId": "InstallAnalyticsSampleContent",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "summary": "Install sample charts and dashboard in the internal analytics project",
+                "tags": ["Analytics project"],
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/org/analytics-project/{projectUuid}": {
+            "delete": {
+                "operationId": "DeleteAnalyticsProject",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "summary": "Delete the organization's internal analytics project",
+                "tags": ["Analytics project"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/org/aiRouter": {
@@ -91547,20 +92412,10 @@
                         }
                     }
                 },
-                "description": "Billable AI credits per day of the current period, split by feature,\nchannel, user, project or agent. Organization admins only.",
+                "description": "Billable AI credits per day of the current period, by feature.\nOrganization admins only.",
                 "summary": "Get daily AI credit usage",
                 "security": [],
-                "parameters": [
-                    {
-                        "description": "what to split each day's credits by",
-                        "in": "query",
-                        "name": "breakdown",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/AiCreditUsageBreakdown"
-                        }
-                    }
-                ]
+                "parameters": []
             }
         },
         "/api/v1/projects/{projectUuid}/aiAgentMemories": {
@@ -103012,6 +103867,47 @@
                 }
             }
         },
+        "/api/v1/projects/{projectUuid}/results-cache/invalidate": {
+            "post": {
+                "operationId": "invalidateProjectResultsCache",
+                "responses": {
+                    "200": {
+                        "description": "Invalidated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiResultsCacheInvalidationResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Invalidate every cached query result in the project. The next run of\neach chart, dashboard tile or API query executes against the warehouse\nand repopulates the cache. Query history and existing result files are\nkept. Requires project admin access.\n\nCall this from a data pipeline once a dbt run or load finishes, e.g.\n`curl -X POST -H \"Authorization: ApiKey $LIGHTDASH_API_KEY\"\n\"$LIGHTDASH_URL/api/v1/projects/$PROJECT_UUID/results-cache/invalidate\"`",
+                "summary": "Invalidate results cache",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v1/projects/{projectUuid}/preview-expiration": {
             "patch": {
                 "operationId": "updatePreviewExpiresAt",
@@ -104743,124 +105639,6 @@
                 }
             }
         },
-        "/api/v1/org/brand": {
-            "get": {
-                "operationId": "GetOrganizationBrand",
-                "responses": {
-                    "200": {
-                        "description": "Ok",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiOrganizationBrandResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Get the organization's brand profile, previously fetched from Brandfetch.\nReturns null if no brand profile has been fetched yet.",
-                "summary": "Get organization brand",
-                "tags": ["Organizations"],
-                "security": [],
-                "parameters": []
-            },
-            "put": {
-                "operationId": "SaveOrganizationBrand",
-                "responses": {
-                    "200": {
-                        "description": "Ok",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiOrganizationBrandResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Save the organization's brand appearance as edited by the user. Stores the\nprovided colors, logos, fonts and domain as-is without calling Brandfetch.",
-                "summary": "Save organization brand",
-                "tags": ["Organizations"],
-                "security": [],
-                "parameters": [],
-                "requestBody": {
-                    "description": "the brand appearance to persist",
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/SaveOrganizationBrandRequest",
-                                "description": "the brand appearance to persist"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/org/brand/fetch": {
-            "post": {
-                "operationId": "FetchOrganizationBrand",
-                "responses": {
-                    "200": {
-                        "description": "Ok",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiOrganizationBrandResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Fetch the brand profile for a domain from Brandfetch without storing it.\nUsed to preview a brand in the appearance settings before saving.\nRequires the Brandfetch API key to be configured on the instance.",
-                "summary": "Fetch organization brand",
-                "tags": ["Organizations"],
-                "security": [],
-                "parameters": [],
-                "requestBody": {
-                    "description": "the domain to fetch the brand for",
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/UpdateOrganizationBrandRequest",
-                                "description": "the domain to fetch the brand for"
-                            }
-                        }
-                    }
-                }
-            }
-        },
         "/api/v1/org/{organizationUuid}": {
             "delete": {
                 "operationId": "DeleteMyOrganization",
@@ -106039,6 +106817,191 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/org/brand": {
+            "get": {
+                "operationId": "GetOrganizationBrand",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiOrganizationBrandResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get the organization's brand profile, previously fetched from Brandfetch.\nReturns null if no brand profile has been fetched yet.",
+                "summary": "Get organization brand",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": []
+            },
+            "put": {
+                "operationId": "SaveOrganizationBrand",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiOrganizationBrandResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Save the organization's brand appearance as edited by the user. Stores the\nprovided colors, logos, fonts and domain as-is without calling Brandfetch.",
+                "summary": "Save organization brand",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "description": "the brand appearance to persist",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SaveOrganizationBrandRequest",
+                                "description": "the brand appearance to persist"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/org/brand/fetch": {
+            "post": {
+                "operationId": "FetchOrganizationBrand",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiOrganizationBrandResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Fetch the brand profile for a domain from Brandfetch without storing it.\nUsed to preview a brand in the appearance settings before saving.\nRequires the Brandfetch API key to be configured on the instance.",
+                "summary": "Fetch organization brand",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "description": "the domain to fetch the brand for",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateOrganizationBrandRequest",
+                                "description": "the domain to fetch the brand for"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/org/brand/logos": {
+            "post": {
+                "operationId": "UploadOrganizationBrandLogo",
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiOrganizationBrandLogoUploadResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Upload a logo image for the organization brand. Send the raw image bytes\nas the body (PNG, JPEG, WebP, GIF or SVG). Returns the URL to store in\nthe brand's logos when saving the brand.",
+                "summary": "Upload organization brand logo",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/org/brand/logos/{logoUuid}": {
+            "get": {
+                "operationId": "GetOrganizationBrandLogo",
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get an uploaded organization brand logo image.",
+                "summary": "Get organization brand logo",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "the uuid of the uploaded logo",
+                        "in": "path",
+                        "name": "logoUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/notifications": {
@@ -112362,197 +113325,6 @@
                 }
             }
         },
-        "/api/v1/org/analytics-project/backfill": {
-            "get": {
-                "operationId": "GetAnalyticsHistoryBackfillStatus",
-                "responses": {
-                    "200": {
-                        "description": "Ok",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiSuccess_AnalyticsHistoryBackfillStatus_"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "summary": "Check Analytics history backfill completion",
-                "tags": ["Analytics project"],
-                "security": [],
-                "parameters": []
-            },
-            "post": {
-                "operationId": "BackfillAnalyticsHistory",
-                "responses": {
-                    "200": {
-                        "description": "Ok",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "summary": "Backfill retained Analytics history",
-                "tags": ["Analytics project"],
-                "security": [],
-                "parameters": []
-            }
-        },
-        "/api/v1/org/analytics-project": {
-            "get": {
-                "operationId": "GetAnalyticsProjectStatus",
-                "responses": {
-                    "200": {
-                        "description": "Ok",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiSuccess_AnalyticsProjectStatus_"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "summary": "Get internal analytics project status",
-                "tags": ["Analytics project"],
-                "security": [],
-                "parameters": []
-            },
-            "post": {
-                "operationId": "EnsureAnalyticsProject",
-                "responses": {
-                    "200": {
-                        "description": "Ok",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiSuccess_EnsureAnalyticsProjectResult_"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "summary": "Ensure internal analytics project",
-                "tags": ["Analytics project"],
-                "security": [],
-                "parameters": []
-            }
-        },
-        "/api/v1/org/analytics-project/sample-content": {
-            "post": {
-                "operationId": "InstallAnalyticsSampleContent",
-                "responses": {
-                    "200": {
-                        "description": "Ok",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "summary": "Install sample charts and dashboard in the internal analytics project",
-                "tags": ["Analytics project"],
-                "security": [],
-                "parameters": []
-            }
-        },
-        "/api/v1/org/analytics-project/{projectUuid}": {
-            "delete": {
-                "operationId": "DeleteAnalyticsProject",
-                "responses": {
-                    "200": {
-                        "description": "Ok",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "summary": "Delete the organization's internal analytics project",
-                "tags": ["Analytics project"],
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/UUID"
-                        }
-                    }
-                ]
-            }
-        },
         "/api/v2/projects/{projectId}/roles/assignments": {
             "get": {
                 "operationId": "GetProjectRoleAssignments",
@@ -115295,6 +116067,48 @@
                 ]
             }
         },
+        "/api/v2/saved/{chartUuid}/results-cache/invalidate": {
+            "post": {
+                "operationId": "invalidateChartResultsCache",
+                "responses": {
+                    "200": {
+                        "description": "Invalidated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiResultsCacheInvalidationResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Invalidate the cached results of this chart for every user. Covers the chart wherever it is viewed, including dashboards and embeds.\nQueries that share a cache key are invalidated too, and the next run\nqueries the warehouse. Requires project admin access.",
+                "summary": "Invalidate chart results cache",
+                "tags": ["v2", "Charts"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "The uuid of the chart",
+                        "in": "path",
+                        "name": "chartUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v2/content/recently-viewed": {
             "get": {
                 "operationId": "GetRecentlyViewed",
@@ -115397,7 +116211,7 @@
                         }
                     }
                 },
-                "description": "Lists the query sources registered for this deployment. Every source\nsupports the same operations: scan its schema, and submit queries that\nreturn a queryUuid whose results are fetched with the standard async\nquery results endpoint. Requires the multi-source-query feature flag.",
+                "description": "Lists the query sources registered for this deployment. Every source\nsupports the same operations: scan its schema, and submit queries that\nreturn a queryUuid whose results are fetched with the standard async\nquery results endpoint. Requires the compose-sql-runner feature flag.",
                 "summary": "List query sources",
                 "tags": ["v2", "Query Sources"],
                 "security": [],
@@ -117290,7 +118104,7 @@
                         }
                     }
                 },
-                "description": "Export dashboard content",
+                "description": "Export dashboard content as an image, PDF, CSV or XLSX. Schedules a job;\npoll `GET /api/v1/schedulers/job/{jobId}/status` until it is `completed`,\nthen download the file from `details.url`.\n\nEmbed tokens can call this with the `Lightdash-Embed-Token` header and a\n`projectUuid` query param. The export uses the viewer's access, filters,\nparameters, date zoom and tabs. Each format needs an embed permission:\n- `image`: `canExportImages` or `view:EmbedImageExport`\n- `pdf`: `canExportPagePdf` or `view:EmbedPagePdfExport`\n- `csv` / `xlsx`: `canExportDashboardCsv` or `view:EmbedDashboardCsvExport`\n\nPoll the job status with the same token. The file URL is a signed link\nthat expires.",
                 "summary": "Export dashboard content",
                 "tags": ["v2", "Dashboards"],
                 "security": [],
@@ -117510,6 +118324,48 @@
                         "required": false,
                         "schema": {
                             "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v2/dashboards/{dashboardUuid}/results-cache/invalidate": {
+            "post": {
+                "operationId": "invalidateDashboardResultsCache",
+                "responses": {
+                    "200": {
+                        "description": "Invalidated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiResultsCacheInvalidationResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Invalidate the cached results of this dashboard for every user. Covers every tile, including for embedded viewers.\nQueries that share a cache key are invalidated too, and the next run\nqueries the warehouse. Requires project admin access.",
+                "summary": "Invalidate dashboard results cache",
+                "tags": ["v2", "Dashboards"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "The uuid of the dashboard",
+                        "in": "path",
+                        "name": "dashboardUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
                         }
                     }
                 ]

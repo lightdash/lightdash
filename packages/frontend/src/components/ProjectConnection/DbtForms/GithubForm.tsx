@@ -173,14 +173,7 @@ const GithubLoginForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                 readOnly
                 description="Login first in order to be able to select a repository"
                 required
-                styles={(theme) => ({
-                    // Make it look disabled
-                    input: {
-                        backgroundColor: theme.colors.ldGray[1],
-                        cursor: 'not-allowed',
-                        pointerEvents: 'none',
-                    },
-                })}
+                classNames={{ input: styles.disabledInput }}
                 autoComplete="off"
                 value="" // Don't allow writting in this field
             />

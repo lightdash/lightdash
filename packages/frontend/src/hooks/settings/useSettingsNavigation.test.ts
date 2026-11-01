@@ -21,7 +21,6 @@ const settingsContext = (
     project: undefined,
     showImpersonationPanel: false,
     isCustomRolesEnabled: false,
-    isProLimitsEnabled: false,
     canAccessAnalyticsSettings: false,
     isAnalyticsProjectFlagLoading: false,
     isOrganizationRoadmapEnabled: false,
@@ -40,6 +39,7 @@ const settingsContext = (
     dataAppAnalysisFlag: undefined,
     dashboardAnalysisFlag: undefined,
     isDataAppsFlagLoading: false,
+    isApiQuerySourcesEnabled: false,
     isChartStudioAvailable: false,
     externalSourcesFlag: undefined,
     isResultsCacheEnabled: false,
@@ -450,6 +450,60 @@ describe('Agent identity settings navigation', () => {
             );
             expect(items[index - 1].label).toBe('Tables configuration');
         } else expect(index).toBe(-1);
+    });
+});
+
+describe('Project connections settings navigation', () => {
+    const projectLabels = (overrides: Partial<SettingsContext>) => {
+        const { result } = renderHook(() =>
+            useSettingsNavigation(
+                settingsContext({
+                    organization: {
+                        organizationUuid: 'org',
+                        name: 'Organization',
+                    },
+                    project: {
+                        projectUuid: 'project',
+                        organizationUuid: 'org',
+                        name: 'Project',
+                    } as Project,
+                    user: {
+                        ability: new Ability([
+                            {
+                                action: 'manage',
+                                subject: 'ExternalConnection',
+                                conditions: {
+                                    organizationUuid: 'org',
+                                    projectUuid: 'project',
+                                },
+                            },
+                        ]),
+                    } as SettingsContext['user'],
+                    projectSettingsAccess: {
+                        type: 'full',
+                        defaultPage: 'settings',
+                    },
+                    ...overrides,
+                }),
+            ),
+        );
+        return result.current
+            .find(({ id }) => id === 'current-project')!
+            .items.map(({ label }) => label);
+    };
+
+    it('shows Live data sources without Data app connections when only live sources are enabled', () => {
+        const labels = projectLabels({ isApiQuerySourcesEnabled: true });
+        expect(labels).toContain('Live data sources');
+        expect(labels).not.toContain('Data app connections');
+    });
+
+    it('shows Data app connections without Live data sources when only data apps are enabled', () => {
+        const labels = projectLabels({
+            dataAppsFlag: { id: 'enable-data-apps', enabled: true },
+        });
+        expect(labels).toContain('Data app connections');
+        expect(labels).not.toContain('Live data sources');
     });
 });
 

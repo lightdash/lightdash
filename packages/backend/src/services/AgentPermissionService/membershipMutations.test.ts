@@ -209,7 +209,13 @@ describe.each([
                 'org role':
                     organizationMemberProfileModel.updateOrganizationMember,
             };
-            if (mode === 'managed') {
+            if (
+                mode === 'managed' ||
+                (mode === 'legacy' &&
+                    ['group join', 'group update', 'groups as code'].includes(
+                        operation,
+                    ))
+            ) {
                 await expect(operations[operation]()).rejects.toMatchObject({
                     refusal: {
                         reason: 'agent_capability_denied',

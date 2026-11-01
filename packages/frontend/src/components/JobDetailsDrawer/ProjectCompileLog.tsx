@@ -46,6 +46,7 @@ const ProjectCompileLog: FC<ProjectCompileLogProps> = ({
             <Box>
                 <ReactJson
                     theme={theme}
+                    // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
                     style={{ fontSize: '12px' }}
                     src={compileLog}
                     enableClipboard={true}

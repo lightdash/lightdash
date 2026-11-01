@@ -13,6 +13,7 @@ import { useExplore } from '../../../hooks/useExplore';
 import { useMerge } from '../context/useMerge';
 import { useMergeSourceFilter } from '../hooks/useMergeSourceFilter';
 import { useMergeSourceNames } from '../hooks/useMergeSourceNames';
+import classes from './MergeSourceTree.module.css';
 
 /** Field picker for a source owned by the merge editor. */
 export const MergeSourceTree: FC<{
@@ -76,7 +77,7 @@ export const MergeSourceTree: FC<{
                         Back to fields
                     </Button>
                 )}
-                <Box style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+                <Box className={classes.treeBody}>
                     <BasePanel
                         onExploreClick={(selectedExplore) => {
                             if (selectedExplore.name !== source.exploreName) {
@@ -117,7 +118,7 @@ export const MergeSourceTree: FC<{
             {source.exploreName && isInitialLoading && <LoadingSkeleton />}
 
             {explore && (
-                <Box style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+                <Box className={classes.treeBody}>
                     <ItemDetailProvider>
                         <ExploreTree
                             explore={explore}

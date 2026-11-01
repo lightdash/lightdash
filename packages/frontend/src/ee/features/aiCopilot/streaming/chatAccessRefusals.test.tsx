@@ -71,9 +71,6 @@ vi.mock('../components/ChatElements/AgentChatDebugDrawer', () => ({
 vi.mock('../components/ChatElements/AiDocumentCards', () => ({
     default: () => null,
 }));
-vi.mock('../components/ChatElements/MessageModelIndicator', () => ({
-    MessageModelIndicator: () => null,
-}));
 vi.mock('../components/ChatElements/MessageTimingIndicator', () => ({
     MessageTimingIndicator: () => null,
 }));

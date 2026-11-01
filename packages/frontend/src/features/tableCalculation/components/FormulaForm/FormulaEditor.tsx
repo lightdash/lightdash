@@ -471,9 +471,7 @@ export const FormulaEditor: FC<Props> = ({
                         <Box className={styles.editorContentWrapper}>
                             <RichTextEditor.Content
                                 className={styles.editorContentInner}
-                                style={{
-                                    minHeight: isFullScreen ? '300px' : '60px',
-                                }}
+                                mih={isFullScreen ? 300 : 60}
                             />
                         </Box>
                     </RichTextEditor>

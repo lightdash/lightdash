@@ -2,6 +2,8 @@ import {
     type HomepageBlock,
     type HomepageCollectionItemRef,
     type HomepageConfig,
+    type PinnedItems,
+    ResourceViewItemType,
 } from '@lightdash/common';
 import {
     addBlock,
@@ -17,6 +19,7 @@ import {
     moveBlockUp,
     removeBlock,
     reorderCollectionItems,
+    reorderPinnedItems,
     replaceBlock,
 } from './configOps';
 
@@ -341,4 +344,25 @@ it('reorders Documents among other collection references without dropping hidden
     expect(
         reorderCollectionItems(items, 'second-document', 'first-document'),
     ).toEqual([items[3], items[0], items[1], items[2]]);
+});
+
+it('reorderPinnedItems mixes types and renumbers every pin', () => {
+    const pin = (type: ResourceViewItemType, uuid: string) =>
+        ({ type, data: { uuid, pinnedListOrder: 100 } }) as PinnedItems[number];
+    const items: PinnedItems = [
+        pin(ResourceViewItemType.DASHBOARD, 'dash-1'),
+        pin(ResourceViewItemType.DASHBOARD, 'dash-2'),
+        pin(ResourceViewItemType.DATA_APP, 'app-1'),
+    ];
+    expect(
+        reorderPinnedItems(items, 'app-1', 'dash-1').map(({ type, data }) => [
+            type,
+            data.uuid,
+            data.pinnedListOrder,
+        ]),
+    ).toEqual([
+        [ResourceViewItemType.DATA_APP, 'app-1', 0],
+        [ResourceViewItemType.DASHBOARD, 'dash-1', 1],
+        [ResourceViewItemType.DASHBOARD, 'dash-2', 2],
+    ]);
 });

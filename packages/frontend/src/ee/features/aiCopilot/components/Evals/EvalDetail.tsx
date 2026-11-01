@@ -113,11 +113,7 @@ export const EvalDetail: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
                                             />
                                         </Paper>
                                         <Group gap="two">
-                                            <Title
-                                                order={6}
-                                                c="ldGray.8"
-                                                fw={500}
-                                            >
+                                            <Title order={6} fw={500}>
                                                 Test Prompts
                                             </Title>
                                             <Tooltip
@@ -165,12 +161,7 @@ export const EvalDetail: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
                                     type="scroll"
                                     scrollbarSize={4}
                                 >
-                                    <Stack
-                                        gap="sm"
-                                        style={{
-                                            boxSizing: 'border-box',
-                                        }}
-                                    >
+                                    <Stack gap="sm">
                                         {evaluation.prompts.map((prompt) => (
                                             <Group
                                                 gap="sm"

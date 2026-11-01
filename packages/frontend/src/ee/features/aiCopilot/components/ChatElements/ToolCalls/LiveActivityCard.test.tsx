@@ -56,7 +56,7 @@ describe.each(['query', 'runComposerQueries'] as const)(
             },
         ];
 
-        it('shows the running node SQL by default while the query is running', async () => {
+        it('keeps the running node SQL collapsed while the query is running', async () => {
             renderWithProviders(
                 <LiveActivityCard
                     isLive
@@ -68,7 +68,9 @@ describe.each(['query', 'runComposerQueries'] as const)(
             await waitFor(() =>
                 expect(screen.getByText('External data')).toBeVisible(),
             );
-            expect(screen.getByRole('button', { name: 'Copy' })).toBeVisible();
+            expect(
+                screen.getByRole('button', { name: /Revenue targets/ }),
+            ).toHaveAttribute('aria-expanded', 'false');
         });
 
         it('collapses the steps once the run finishes', async () => {
@@ -114,7 +116,7 @@ describe.each(['query', 'runComposerQueries'] as const)(
 );
 
 describe('LiveActivityCard composer failure', () => {
-    it('marks a node failed when the call errors while it was running', () => {
+    it('shows no status on a node when the call errors while it was running', () => {
         const failedGroups: LiveActivityToolGroup[] = [
             {
                 ...composerToolGroups[0],
@@ -145,7 +147,7 @@ describe('LiveActivityCard composer failure', () => {
             />,
         );
 
-        expect(screen.getByLabelText('Failed')).toBeInTheDocument();
+        expect(screen.queryByLabelText('Failed')).not.toBeInTheDocument();
         const failedRow = screen
             .getAllByRole('button', { expanded: false })
             .find((row) => row.textContent?.includes('Revenue targets'));
@@ -154,7 +156,7 @@ describe('LiveActivityCard composer failure', () => {
 });
 
 describe('LiveActivityCard composer submission failure', () => {
-    it('marks every node failed when the call errors before any node starts', () => {
+    it('shows no failed status when the call errors before any node starts', () => {
         const failedGroups: LiveActivityToolGroup[] = [
             {
                 ...composerToolGroups[0],
@@ -174,7 +176,8 @@ describe('LiveActivityCard composer submission failure', () => {
             <LiveActivityCard isLive toolGroups={failedGroups} />,
         );
 
-        expect(screen.getByLabelText('Failed')).toBeInTheDocument();
+        expect(screen.getByText('Revenue targets')).toBeInTheDocument();
+        expect(screen.queryByLabelText('Failed')).not.toBeInTheDocument();
     });
 });
 
@@ -371,5 +374,49 @@ describe('LiveActivityCard runSql', () => {
             <LiveActivityCard isLive={false} toolGroups={sqlToolGroups} />,
         );
         expect(screen.getByRole('button', { expanded: false })).toBeVisible();
+    });
+});
+
+describe('LiveActivityCard reasoning', () => {
+    const reasoning = { texts: ['Checking the orders model'], isLive: false };
+
+    it('renders reasoning alone when there are no tool groups', () => {
+        renderWithProviders(
+            <LiveActivityCard
+                isLive={false}
+                toolGroups={[]}
+                reasoning={reasoning}
+            />,
+        );
+        expect(screen.getByText('Reasoning')).toBeVisible();
+    });
+
+    it('renders nothing without tool groups or reasoning', () => {
+        renderWithProviders(
+            <LiveActivityCard
+                isLive={false}
+                toolGroups={[]}
+                reasoning={{ texts: [], isLive: false }}
+            />,
+        );
+        expect(screen.queryByText('Reasoning')).toBeNull();
+    });
+
+    it('renders reasoning as the first item of the card body', async () => {
+        renderWithProviders(
+            <LiveActivityCard
+                isLive={false}
+                toolGroups={composerToolGroups}
+                reasoning={reasoning}
+            />,
+        );
+        expect(screen.getByText('Reasoning')).not.toBeVisible();
+
+        await userEvent.click(screen.getAllByRole('button')[0]);
+
+        const reasoningRow = screen.getByText('Reasoning');
+        await waitFor(() => expect(reasoningRow).toBeVisible());
+        // First control after the card header is the reasoning row.
+        expect(screen.getAllByRole('button')[1]).toContainElement(reasoningRow);
     });
 });

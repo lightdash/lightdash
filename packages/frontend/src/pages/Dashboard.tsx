@@ -40,6 +40,7 @@ import {
 import { v4 as uuid4 } from 'uuid';
 import styles from '../components/common/Dashboard/Dashboard.module.css';
 import DashboardHeader from '../components/common/Dashboard/DashboardHeader';
+import { useDashboardManageAccess } from '../components/common/Dashboard/useDashboardManageAccess';
 import ErrorState from '../components/common/ErrorState';
 import MantineIcon from '../components/common/MantineIcon';
 import MantineModal from '../components/common/MantineModal';
@@ -102,6 +103,9 @@ import {
 } from '../features/dashboard/store';
 import { ControlsSidebarPage } from '../features/dashboardControls/ControlsSidebarPage';
 import { DashboardHeaderGuard } from '../features/dashboardControls/DashboardHeaderGuard';
+import guardClasses from '../features/dashboardControls/DashboardHeaderGuard.module.css';
+import { isEditBandShown } from '../features/dashboardControls/editBand';
+import { getDimensionFiltersToSave } from '../features/dashboardFilters/FilterConfiguration/utils';
 import { FilterBarPopoversProvider } from '../features/dashboardFilters/FilterRequirements/FilterBarPopoversProvider';
 import DashboardTabs from '../features/dashboardTabs';
 import { isLeavingTrainingCopy } from '../features/scopeTours/trainingCopy';
@@ -994,6 +998,7 @@ const Dashboard: FC = () => {
     );
     const isDashboardControlsEnabled =
         dashboardControlsFlag.data?.enabled === true;
+    const { userCanManageDashboard } = useDashboardManageAccess(dashboard);
     const DashboardPage = isDashboardControlsEnabled
         ? ControlsSidebarPage
         : Page;
@@ -1273,7 +1278,10 @@ const Dashboard: FC = () => {
         dashboardTabs,
     ]);
 
-    if (isDashboardLoading) {
+    // Until the controls flag answers the page could not pick its bar and
+    // would swap it, remounting the grid; the request runs alongside the
+    // dashboard's, so it only waits when the flag is slower
+    if (isDashboardLoading || dashboardControlsFlag.isInitialLoading) {
         return <PageSpinner />;
     }
 
@@ -1323,22 +1331,16 @@ const Dashboard: FC = () => {
             ...dashboardFilters.dimensions,
             ...dashboardTemporaryFilters.dimensions,
         ];
-        // Reset value for required filter on save dashboard
-        const requiredFiltersWithoutValues = dimensionFilters.map((filter) => {
-            if (filter.required || filter.requiredGroupId) {
-                return {
-                    ...filter,
-                    disabled: true,
-                    values: [],
-                };
-            }
-            return filter;
-        });
+        // Flag on, a required filter keeps its value as its default
+        const dimensionFiltersToSave = getDimensionFiltersToSave(
+            dimensionFilters,
+            isDashboardControlsEnabled,
+        );
 
         const dashboardUpdate: UpdateDashboard = {
             tiles: dashboardTiles,
             filters: {
-                dimensions: requiredFiltersWithoutValues,
+                dimensions: dimensionFiltersToSave,
                 metrics: [
                     ...dashboardFilters.metrics,
                     ...dashboardTemporaryFilters.metrics,
@@ -1548,7 +1550,17 @@ const Dashboard: FC = () => {
                 withFullHeight
                 fullPageScroll
             >
-                <div>
+                <div
+                    className={
+                        isEditBandShown(
+                            isEditMode,
+                            isDashboardControlsEnabled,
+                            userCanManageDashboard,
+                        )
+                            ? guardClasses.bandScope
+                            : undefined
+                    }
+                >
                     {isDashboardControlsEnabled ? (
                         <DashboardHeaderGuard {...dashboardHeaderProps} />
                     ) : (

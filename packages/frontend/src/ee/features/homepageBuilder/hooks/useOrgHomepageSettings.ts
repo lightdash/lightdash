@@ -6,6 +6,7 @@ import {
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { type LightdashApi } from '../../../../api';
+import useHealth from '../../../../hooks/health/useHealth';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 import { useHomepageAiState } from './useHomepageAiState';
@@ -19,11 +20,15 @@ const getOrgHomepageSettingsApi = async (lightdashApi: LightdashApi) =>
         body: undefined,
     });
 
+// The homepage service only exists on a licensed instance, so without a
+// valid license this never asks and the homepage stays classic.
 export const useOrgHomepageSettings = () => {
     const lightdashApi = useLightdashApi();
+    const health = useHealth();
     return useQuery<OrganizationHomepageSettings, ApiError>({
         queryKey: [ORG_HOMEPAGE_SETTINGS_QUERY_KEY],
         queryFn: () => getOrgHomepageSettingsApi(lightdashApi),
+        enabled: !!health.data?.license?.valid,
     });
 };
 

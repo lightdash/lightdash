@@ -28,7 +28,7 @@ tar cf - -C "$REPO_ROOT" \
   --exclude='./node_modules' --exclude='*/node_modules' --exclude='./.git' \
   --exclude='*.tsbuildinfo' . | tar xf - -C "$CTX"
 ( cd "$CTX" && rm -rf scripts venv .venv data examples sandboxes thoughts \
-    agent-harness logs static .turbo packages/*/dist packages/*/build \
+    logs static .turbo packages/*/dist packages/*/build \
     packages/frontend/sdk/dist packages/sdk/dist 2>/dev/null || true )
 # The full monorepo build (pnpm + 7 dbt venvs + frontend) exceeds ACR's default
 # 600s step timeout — bump both the per-step and the overall run timeout to 1h.

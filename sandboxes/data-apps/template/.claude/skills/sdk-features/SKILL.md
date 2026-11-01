@@ -34,6 +34,7 @@ Users describe features by what they see in the Lightdash editor. Translate:
 | Lightdash-owned "View underlying data" dialog (viz only) | `viz-host-underlying-data` | app code opt-in |
 | light/dark mode, "matches my Lightdash theme" | `follow-host-theme` | CSS tokens — see below |
 | "executive summary", "what changed", anomaly callouts, "AI insight", "Analyse this view" | `ai-insights` | app code opt-in |
+| chart gallery, "my charts", "show the charts in this space", list that updates as charts are saved | `space-charts` | app code opt-in |
 | "Adapts to small tiles", responsive, works on a phone, readable in a narrow or short tile (viz only) | `viz-responsive-layout` | layout — see below |
 
 ## Automatic (zero wiring — active on any current-SDK bundle)
@@ -165,6 +166,13 @@ order, `sortBy` describes result ordering, `totalColumnCount` exposes truncation
   `drillDown.open({ row, metric })` on selection. Either way Lightdash opens
   its drill dialog. Distinct from `drill-down`, which is the full-app query
   helper.
+- `field-links`: result columns carry the semantic layer's `urls` link
+  patterns (`column.urls`), and `resolveColumnUrls({ column, row, columns,
+  format })` resolves them per cell. In every cell renderer — hand-written
+  tables and generic column loops such as underlying-data dialogs — render
+  the value as a link when it returns entries, styled visibly as a link
+  (underline and/or link color). Full rules in the data-app skill's
+  "Field links — `urls`" section.
 - `url-state`: `useUrlState(...)` syncs a piece of app state into the page URL
   so views can be shared and restored.
 - `app-state`: `useAppState(key, default)` remembers a value per person;
@@ -190,12 +198,26 @@ order, `sortBy` describes result ordering, `totalColumnCount` exposes truncation
   `instructions` prop on `InsightsSummary` (or `useInsights({ instructions })`
   in a custom block). One string per app, max 2000 characters. See "Author
   instructions" in `/app/references/ai-analysis.md`.
+- `analysis-on-load`: only when the user asks for the analysis to run on its
+  own ("analyse as soon as it loads"): set the `analyseOnLoad` prop on
+  `InsightsSummary` (or `useInsights({ analyseOnLoad: true })` in a custom
+  block). See "Analyse on load" in `/app/references/ai-analysis.md`.
 - `ai-prompt`: `useAiPrompt()` returns `{ available, ask, loading, text, error }`;
   `ask({ prompt, sources: [{ result, label }], focus?: { row } })` sends an
   author-written question over loaded `useLightdash` results and resolves to
   plain text. `result` is the object `useLightdash` returns (keep a reference
   to it even when destructuring), never a rebuilt `{ data, columns }`. Hide the control when `available` is false; trigger from a user
   action. Full contract in `/app/references/ai-analysis.md`.
+- `space-charts`: `useSpaceCharts('<space slug or uuid>')` returns
+  `{ available, space, charts, loading, error, refresh }` — the saved charts
+  the viewer can see in that space, resolved at runtime with the viewer's own
+  permissions (an inaccessible space answers like a missing one: `space: null`,
+  no charts). Each entry carries `{ uuid, name, description, chartKind, slug,
+  updatedAt }`; pass `chart.uuid` to `savedChart(...)` to render one. Use it
+  for galleries that must pick up newly saved charts without a rebuild; keep
+  explicit `savedChart('<uuid>')` references for charts the app lays out by
+  hand. Render a friendly empty state for `charts.length === 0` and hide the
+  section when `available` is false (older host).
 - `delivery-render`: `useDeliveryRender()` is `true` during scheduled-delivery
   and delivery-preview capture renders. Gate tab/slide DATA mounting on it so
   every tab's queries execute during capture while only the active tab stays

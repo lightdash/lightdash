@@ -6,6 +6,7 @@ import { getChartIcon } from '../../common/ResourceIcon/utils';
 import EChartsReactComponent, {
     type EChartsReact,
 } from '../../EChartsReactWrapper';
+import classes from './ChartPreviewComponent.module.css';
 
 interface SingleChartPreviewProps {
     chartType: ChartKind;
@@ -22,16 +23,13 @@ const SingleChartPreview: FC<SingleChartPreviewProps> = ({
 }) => {
     return (
         <Box
-            style={{
-                height: '100%',
-                width: '100%',
-                position: 'absolute',
-                display: currentChartType === chartType ? 'block' : 'none',
-            }}
+            className={classes.chartLayer}
+            data-active={currentChartType === chartType || undefined}
         >
             <EChartsReactComponent
                 ref={chartRef}
                 option={options}
+                // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
                 style={{ height: '100%', width: '100%' }}
                 opts={{ renderer: 'canvas' }}
                 notMerge={true}
@@ -235,7 +233,12 @@ export const ChartPreviewComponent: FC<ChartPreviewComponentProps> = ({
     );
 
     return (
-        <Stack gap="sm" h="100%" style={{ flex: 1, backgroundColor }} pt="xs">
+        <Stack
+            gap="sm"
+            className={classes.preview}
+            bg={backgroundColor}
+            pt="xs"
+        >
             <Group justify="center">
                 <SegmentedControl
                     value={chartType}

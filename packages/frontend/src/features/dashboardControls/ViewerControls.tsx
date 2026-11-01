@@ -67,6 +67,10 @@ export const ViewerControls: FC<Props> = ({
     const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
     // Only "Some tabs" can be picked without changing the locked tabs
     const [isSomeTabsPicked, setIsSomeTabsPicked] = useState(false);
+    // The rule as the dashboard was last saved, as the shipped popover reads it
+    const savedRule = savedFilters
+        ? (findFilterRule(savedFilters, rule.id) ?? undefined)
+        : undefined;
 
     // Lock
     const hasTabs = dashboardTabs.length > 0;
@@ -147,10 +151,6 @@ export const ViewerControls: FC<Props> = ({
 
     // Required, as the shipped form switches it
     const isRequired = isRuleRequired(rule);
-    // The rule as the dashboard was last saved, as the shipped popover reads it
-    const savedRule = savedFilters
-        ? (findFilterRule(savedFilters, rule.id) ?? undefined)
-        : undefined;
     const getRequiredRule = (checked: boolean) =>
         getFilterRuleWithDisabledState(
             getFilterRuleWithRequired(
@@ -159,6 +159,7 @@ export const ViewerControls: FC<Props> = ({
                 rule,
                 savedRule,
                 checked,
+                savedRule,
             ),
             true,
         );
@@ -167,6 +168,27 @@ export const ViewerControls: FC<Props> = ({
 
     return (
         <Stack gap="md">
+            <RequiredFilterCard
+                withCard={false}
+                filterRule={rule}
+                onToggleRequired={(checked) =>
+                    onChange(getRequiredRule(checked))
+                }
+                onChangeFilterRule={(next) =>
+                    onChange(getFilterRuleWithDisabledState(next, true))
+                }
+                onChangeOtherFilterRule={(other) => onChangeOthers([other])}
+                onEditRules={onEditRules ?? undefined}
+                isListInPortal
+                disabledReason={
+                    isRequiredBlocked
+                        ? 'A locked filter needs a default value to be required.'
+                        : undefined
+                }
+            />
+
+            <Divider />
+
             <Stack gap={6}>
                 <Group justify="space-between" wrap="nowrap">
                     <Group gap={6} wrap="nowrap">
@@ -189,15 +211,20 @@ export const ViewerControls: FC<Props> = ({
                         onChange={(e) => {
                             if (!e.currentTarget.checked) unlockEverywhere();
                             else if (switchLockKey !== undefined) {
+                                // Back on, the tabs the filter was saved locked on
+                                const restoredKeys = (
+                                    savedRule?.lockedTabUuids ?? []
+                                ).filter((key) => lockKeys.includes(key));
                                 setIsSomeTabsPicked(false);
-                                setLockedKeys([switchLockKey]);
+                                setLockedKeys(
+                                    restoredKeys.length > 0
+                                        ? restoredKeys
+                                        : [switchLockKey],
+                                );
                             }
                         }}
                     />
                 </Group>
-                <Text size="xs" c="ldGray.7">
-                    Viewers see the value but can&apos;t change it.
-                </Text>
                 {hasTabs && isLockedSomewhere && (
                     <>
                         <SegmentedControl
@@ -245,27 +272,6 @@ export const ViewerControls: FC<Props> = ({
                     </Group>
                 )}
             </Stack>
-
-            <Divider />
-
-            <RequiredFilterCard
-                withCard={false}
-                filterRule={rule}
-                onToggleRequired={(checked) =>
-                    onChange(getRequiredRule(checked))
-                }
-                onChangeFilterRule={(next) =>
-                    onChange(getFilterRuleWithDisabledState(next, true))
-                }
-                onChangeOtherFilterRule={(other) => onChangeOthers([other])}
-                onEditRules={onEditRules ?? undefined}
-                isListInPortal
-                disabledReason={
-                    isRequiredBlocked
-                        ? 'A locked filter needs a default value to be required.'
-                        : undefined
-                }
-            />
         </Stack>
     );
 };

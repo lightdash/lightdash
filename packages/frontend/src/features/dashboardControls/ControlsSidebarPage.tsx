@@ -8,13 +8,14 @@ import { TileOverlays } from './TileOverlay';
 
 type Props = ComponentProps<typeof Page>;
 
-// The page as it is; the editor rail sits next to the grid (`ControlsRail`)
+// The page as it is; the filter editor is a popover under its pill, and
+// mapping adds the tile cards, tab counts and the field bar
 export const ControlsSidebarPage: FC<Props> = (props) => (
     <ControlsSidebarProvider>
         <Page {...props} />
-        <TileOverlays />
         <LinkPrompts />
-        <TabCounts />
+        <TileOverlays />
+        <TabCounts hasTabSlots />
         <FieldTilesBar />
     </ControlsSidebarProvider>
 );

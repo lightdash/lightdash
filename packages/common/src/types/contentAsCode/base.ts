@@ -9,21 +9,53 @@ import { joinContentAsCodePath } from './fileDiscovery';
 
 export const DEFAULT_CONTENT_AS_CODE_PATH = 'lightdash';
 
-// Repo directory for charts/ and dashboards/, relative to the project dir; '' is the project dir itself
-export const normalizeContentAsCodePath = (raw: string): string => {
+// A file path recorded by an upload, relative to the project dir. It may
+// climb into sibling folders: local dbt packages live beside the project and
+// are symlinked into dbt_packages.
+export const normalizeContentAsCodeSourcePath = (raw: string): string => {
     const value = raw.trim().replace(/\\/g, '/');
     if (value.startsWith('/')) {
         throw new ParameterError(
-            'content_as_code.path must be relative to the project directory',
+            'Content paths must be relative to the project directory',
         );
     }
-    const segments = value
+    return value
         .split('/')
-        .filter((segment) => segment !== '' && segment !== '.');
-    if (segments.includes('..')) {
+        .filter((segment) => segment !== '' && segment !== '.')
+        .join('/');
+};
+
+// Repo directory for charts/ and dashboards/, relative to the project dir; '' is the project dir itself
+export const normalizeContentAsCodePath = (raw: string): string => {
+    const normalized = normalizeContentAsCodeSourcePath(raw);
+    if (normalized.split('/').includes('..')) {
         throw new ParameterError(
             'content_as_code.path cannot point outside the project directory',
         );
+    }
+    return normalized;
+};
+
+// Where a source path lands in the repo: '..' may reach sibling folders of
+// the project dir but never leave the repo
+export const resolveContentAsCodeRepoPath = (
+    projectDir: string,
+    sourcePath: string,
+): string => {
+    const segments: string[] = [];
+    for (const segment of joinContentAsCodePath(projectDir, sourcePath).split(
+        '/',
+    )) {
+        if (segment === '..') {
+            if (segments.length === 0) {
+                throw new ParameterError(
+                    'Content file path points outside the repository',
+                );
+            }
+            segments.pop();
+        } else if (segment !== '' && segment !== '.') {
+            segments.push(segment);
+        }
     }
     return segments.join('/');
 };
@@ -150,6 +182,27 @@ export type ContentAsCodeProjectSettings = {
 export type ContentAsCodeSettingsStamp = {
     sync: boolean;
     path?: string;
+};
+
+// What a full upload of a repo directory left on disk, so the instance can
+// release Git-managed content whose file was removed from that directory
+export type ContentAsCodeSnapshotPrune = {
+    // The uploaded directory, relative to the project dir (may use '..')
+    path: string;
+    charts: string[];
+    sqlCharts: string[];
+    dashboards: string[];
+};
+
+export type ContentAsCodeSnapshotPruneResult = {
+    charts: string[];
+    sqlCharts: string[];
+    dashboards: string[];
+};
+
+export type ApiContentAsCodeSnapshotPruneResponse = {
+    status: 'ok';
+    results: ContentAsCodeSnapshotPruneResult;
 };
 
 export type ContentAsCodePullFailure = {

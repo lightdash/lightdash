@@ -227,6 +227,14 @@ export const SDK_FEATURES: SdkFeature[] = [
         wiring: "Pass the guidance where the app renders its view-level analysis: useInsights({ instructions: '<guidance>' }), or the instructions prop on the shipped InsightsSummary component. One string per app; keep it to a few short sentences.",
     },
     {
+        key: 'analysis-on-load',
+        appliesTo: ['data_app'],
+        label: 'AI analysis on load',
+        description:
+            'Run the AI analysis as soon as the app loads, without the viewer clicking Analyse. A stored analysis of the same rows is reused.',
+        wiring: 'Only when the user asks for it: set the analyseOnLoad prop on the shipped InsightsSummary component, or useInsights({ analyseOnLoad: true }) in a custom block. One value per app.',
+    },
+    {
         key: 'ai-prompt',
         appliesTo: ['data_app'],
         label: 'AI prompts',
@@ -273,6 +281,22 @@ export const SDK_FEATURES: SdkFeature[] = [
         description:
             'Reflows the layout for narrow and short tiles, such as a dashboard on a phone, so values stay readable and nothing scrolls sideways.',
         wiring: 'Rework the layout to the "Fitting the frame" section of the reusable-visualization skill. A chart type built on an older template first needs the frame runtime added to its own files, as described under viz-responsive-layout in the sdk-features skill: the VizFrame marker in src/main.jsx and the html[data-viz-frame] rules in src/index.css. Then size type, padding and gaps in rem or Tailwind classes instead of px, make rows of items wrap with a minimum item width that keeps values on one line (capped just under half the frame), remove any scroll regions of the chart\'s own so only the frame scrolls, and make a title or table header row sticky.',
+    },
+    {
+        key: 'field-links',
+        appliesTo: ['data_app'],
+        label: 'Field links',
+        description:
+            "Result columns carry the semantic layer's url link patterns, so values with configured links render as links, matching dashboards.",
+        wiring: 'In cell renderers (tables, underlying-data dialogs), call resolveColumnUrls({ column, row, columns, format }) and render the value as a link when it returns entries, styled visibly as a link.',
+    },
+    {
+        key: 'space-charts',
+        appliesTo: ['data_app'],
+        label: 'List charts in a space',
+        description:
+            'List the saved charts in a Lightdash space at runtime, so chart galleries update as charts are saved — limited to spaces the viewer can already access.',
+        wiring: "Call useSpaceCharts('<space slug or uuid>') where the app needs the list, render from its charts array (uuid, name, description, chartKind), and pass chart.uuid to savedChart(...) to show one. Check available first — it stays false on hosts without the capability.",
     },
 ];
 

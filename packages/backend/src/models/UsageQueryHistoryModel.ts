@@ -1,5 +1,9 @@
 import { ProjectType, QueryHistoryStatus } from '@lightdash/common';
 import type { Knex } from 'knex';
+import {
+    MAX_ERROR_CHARACTERS,
+    truncateQueryError,
+} from '../analytics/eventStream/queryError';
 import { queryEventsCompactedColumns } from '../analytics/eventStream/queryEventsStream';
 import { QUERY_HISTORY_BACKFILL_EVENT } from '../analytics/eventStream/queryHistoryBackfill';
 
@@ -11,7 +15,7 @@ export class UsageQueryHistoryModel {
         organizationUuid: string,
         before: string,
     ): AsyncGenerator<string> {
-        let cursor: string | undefined;
+        let cursor: { createdAt: string; queryUuid: string } | undefined;
         while (true) {
             const query = this.database('query_history as q')
                 .join('projects as p', 'p.project_uuid', 'q.project_uuid')
@@ -24,15 +28,10 @@ export class UsageQueryHistoryModel {
                 .where('o.organization_uuid', organizationUuid)
                 .whereNot('p.project_type', ProjectType.PREVIEW)
                 .where('q.created_at', '<', before)
-                .where((qb) =>
-                    qb
-                        .where('q.status', QueryHistoryStatus.READY)
-                        .orWhere((errors) =>
-                            errors
-                                .where('q.status', QueryHistoryStatus.ERROR)
-                                .whereNotNull('q.warehouse_execution_time_ms'),
-                        ),
-                )
+                .whereIn('q.status', [
+                    QueryHistoryStatus.READY,
+                    QueryHistoryStatus.ERROR,
+                ])
                 .select(
                     'q.query_uuid',
                     'q.project_uuid',
@@ -41,6 +40,13 @@ export class UsageQueryHistoryModel {
                     'q.status',
                     'q.warehouse_execution_time_ms',
                     'q.total_row_count',
+                )
+                .select(
+                    this.database.raw('LEFT(??, ?) AS ??', [
+                        'q.error',
+                        MAX_ERROR_CHARACTERS + 1,
+                        'error',
+                    ]),
                 )
                 .select(
                     this.database.raw(
@@ -62,9 +68,16 @@ export class UsageQueryHistoryModel {
                         "q.request_parameters->>'dashboardUuid' as dashboard_id",
                     ),
                 )
+                .orderBy('q.created_at')
                 .orderBy('q.query_uuid')
                 .limit(1000);
-            if (cursor) query.where('q.query_uuid', '>', cursor);
+            if (cursor)
+                query.whereRaw('(??, ??) > (?, ?)', [
+                    'q.created_at',
+                    'q.query_uuid',
+                    cursor.createdAt,
+                    cursor.queryUuid,
+                ]);
             // Release the DB connection between pages and storage work.
             // eslint-disable-next-line no-await-in-loop
             const rows = await this.database.transaction(async (trx) => {
@@ -94,6 +107,10 @@ export class UsageQueryHistoryModel {
                         row.status === QueryHistoryStatus.READY
                             ? 'success'
                             : 'error',
+                    error:
+                        row.status === QueryHistoryStatus.ERROR
+                            ? truncateQueryError(row.error)
+                            : null,
                     context: row.context,
                     explore_name: row.explore_name,
                     chart_id: row.chart_id,
@@ -103,7 +120,9 @@ export class UsageQueryHistoryModel {
                     total_row_count: row.total_row_count,
                 })}\n`;
             }
-            cursor = rows[rows.length - 1].query_uuid;
+            const last = rows[rows.length - 1];
+            // Preserve Postgres microseconds; a JavaScript Date loses precision.
+            cursor = { createdAt: last.event_ts, queryUuid: last.query_uuid };
         }
     }
 }

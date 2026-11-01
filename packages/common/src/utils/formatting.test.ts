@@ -28,6 +28,7 @@ import {
     formatTemporalCellForSpreadsheet,
     formatTimestamp,
     formatValueWithExpression,
+    getCustomFormat,
     getCustomFormatFromLegacy,
     getEffectiveSeparator,
     getFieldFormatOverrideProps,
@@ -213,6 +214,54 @@ describe('Formatting', () => {
                 type: TableCalculationType.TIMESTAMP,
             } as TableCalculation;
             expect(getFormatterTimezone(tsTableCalc, tsString, tz)).toEqual(tz);
+        });
+    });
+
+    describe('getCustomFormat for fields with a YAML format', () => {
+        test('a date dimension with a date pattern opens as a custom date format', () => {
+            expect(
+                getCustomFormat({
+                    ...dimension,
+                    type: DimensionType.DATE,
+                    format: 'dd-mm-yyyy',
+                }),
+            ).toEqual({
+                type: CustomFormatType.CUSTOM,
+                custom: 'dd-mm-yyyy',
+            });
+        });
+
+        test('a timestamp metric with a date pattern opens as a custom date format', () => {
+            expect(
+                getCustomFormat({
+                    ...metric,
+                    type: MetricType.TIMESTAMP,
+                    format: 'yyyy-mm-dd hh:mm',
+                }),
+            ).toEqual({
+                type: CustomFormatType.CUSTOM,
+                custom: 'yyyy-mm-dd hh:mm',
+            });
+        });
+
+        test('a numeric dimension with a non-enum format still maps to a number format', () => {
+            expect(
+                getCustomFormat({
+                    ...dimension,
+                    type: DimensionType.NUMBER,
+                    format: '#,##0.00',
+                }),
+            ).toEqual({ type: CustomFormatType.NUMBER });
+        });
+
+        test('a date dimension with a legacy enum format keeps the legacy mapping', () => {
+            expect(
+                getCustomFormat({
+                    ...dimension,
+                    type: DimensionType.DATE,
+                    format: Format.ID,
+                }),
+            ).toEqual({ type: CustomFormatType.ID });
         });
     });
 
@@ -3761,7 +3810,7 @@ describe('isUnambiguousTemporalString', () => {
     );
 });
 
-// Converter gap fixes (docs/composer-viz-plan/01-design.md §2): the format
+// Converter gap fixes: the format
 // expression produced for a CustomFormat must render identically to the
 // structured applyCustomFormat path, or return null when no ECMA-376 form
 // exists (the formatOptions escape hatch).
@@ -4081,7 +4130,7 @@ describe('getFormatExpression year-number guard', () => {
     });
 });
 
-// Blast-radius pins (docs/composer-viz-plan/01-design.md §2): existing
+// Blast-radius pins: existing
 // consumers of the converter whose output changes with the gap fixes.
 describe('converter gap fixes blast radius', () => {
     describe('getFieldFormatOverrideProps', () => {

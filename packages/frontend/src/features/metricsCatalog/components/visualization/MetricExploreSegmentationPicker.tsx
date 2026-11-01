@@ -18,6 +18,7 @@ import {
 } from '@mantine/core';
 import { IconInfoCircle, IconX } from '@tabler/icons-react';
 import { type UseQueryResult } from '@tanstack/react-query';
+import { clsx } from 'clsx';
 import { useMemo, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { groupComboboxItems } from '../../../../components/common/Select/utils';
@@ -56,7 +57,7 @@ export const MetricExploreSegmentationPicker: FC<Props> = ({
     return (
         <Stack gap="xs">
             <Group justify="space-between">
-                <Text fw={500} c="ldGray.7">
+                <Text fw={500} c="dimmed">
                     Segment
                 </Text>
 
@@ -66,19 +67,13 @@ export const MetricExploreSegmentationPicker: FC<Props> = ({
                     rightSection={
                         <MantineIcon icon={IconX} color="ldGray.5" size={12} />
                     }
-                    className={styles.clearButton}
-                    style={{
-                        visibility:
-                            !('segmentDimension' in query) ||
-                            !query.segmentDimension
-                                ? 'hidden'
-                                : 'visible',
-                    }}
-                    styles={{
-                        section: {
-                            marginLeft: 4,
-                        },
-                    }}
+                    className={clsx(
+                        styles.clearButton,
+                        (!('segmentDimension' in query) ||
+                            !query.segmentDimension) &&
+                            styles.hidden,
+                    )}
+                    classNames={{ section: styles.clearButtonSection }}
                     onClick={() => onSegmentDimensionChange(null)}
                 >
                     Clear

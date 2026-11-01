@@ -20,7 +20,7 @@ interface HumanManagedMutationContext {
     featureFlagModel: Pick<FeatureFlagModel, 'get'>;
 }
 
-export const getManagedAgentPolicy = async ({
+const getAgentPolicyForMutation = async ({
     organizationUuid,
     ability,
     oauth,
@@ -39,16 +39,19 @@ export const getManagedAgentPolicy = async ({
         user: { organizationUuid },
     });
     if (!flag.enabled) return null;
-    const policy = await new AgentCapabilityPolicyModel({ database }).get(
-        organizationUuid,
-    );
-    return policy.mode === 'managed' ? policy : null;
+    return new AgentCapabilityPolicyModel({ database }).get(organizationUuid);
 };
 
-export const assertHumanManagedMutation = async (
+export const getManagedAgentPolicy = async (
     context: HumanManagedMutationContext,
-): Promise<void> => {
-    const policy = await getManagedAgentPolicy(context);
+): Promise<AgentCapabilityPolicy | null> => {
+    const policy = await getAgentPolicyForMutation(context);
+    return policy?.mode === 'managed' ? policy : null;
+};
+
+const assertHumanPolicyMutation = (
+    policy: AgentCapabilityPolicy | null,
+): void => {
     if (!policy) return;
     throw new AiAccessRefusedError(
         AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
@@ -61,4 +64,18 @@ export const assertHumanManagedMutation = async (
             policyVersion: policy.version,
         },
     );
+};
+
+export const assertHumanManagedMutation = async (
+    context: HumanManagedMutationContext,
+): Promise<void> => {
+    const policy = await getManagedAgentPolicy(context);
+    assertHumanPolicyMutation(policy);
+};
+
+export const assertHumanAgentPolicyMutation = async (
+    context: HumanManagedMutationContext,
+): Promise<void> => {
+    const policy = await getAgentPolicyForMutation(context);
+    assertHumanPolicyMutation(policy);
 };

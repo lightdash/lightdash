@@ -16,8 +16,9 @@ import {
     type Header,
     type Table,
 } from '@tanstack/react-table';
-import { type CSSProperties, type FC } from 'react';
+import { type FC } from 'react';
 import { type JsonCellValue } from '../JsonViewer/utils';
+import { type CellStyleProps } from './Table.styles';
 
 export type HeaderProps = { header: Header<ResultRow, any> };
 export type CellContextMenuProps = {
@@ -46,7 +47,7 @@ export type TableColumn = ColumnDef<ResultRow, ResultRow[0]> & {
         bgColor?: string;
         sort?: Sort;
         className?: string;
-        style?: CSSProperties;
+        styleProps?: CellStyleProps;
         frozen?: boolean;
         frozenLayout?: { left: number; isLast: boolean };
         isVisible?: boolean;

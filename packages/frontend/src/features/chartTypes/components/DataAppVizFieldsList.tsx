@@ -8,7 +8,7 @@ const DataAppVizFieldsList: FC<{ fields: DataAppVizField[] }> = ({
     fields,
 }) => (
     <Box>
-        <Text fz={12} fw={600} c="ldGray.6" mb={4}>
+        <Text fz={12} fw={600} c="dimmed" mb={4}>
             Fields
         </Text>
         <Group gap="sm">

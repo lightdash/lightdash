@@ -17,6 +17,7 @@ type CopyActionIconProps = Omit<ActionIconProps, 'children'> &
         copiedLabel?: string;
         icon?: Icon;
         tooltipPosition?: TooltipProps['position'];
+        onCopy?: () => void;
     };
 
 export const CopyActionIcon: FC<CopyActionIconProps> = ({
@@ -26,6 +27,7 @@ export const CopyActionIcon: FC<CopyActionIconProps> = ({
     icon = IconCopy,
     tooltipPosition,
     color,
+    onCopy,
     ...rest
 }) => (
     <CopyButton value={value}>
@@ -36,7 +38,10 @@ export const CopyActionIcon: FC<CopyActionIconProps> = ({
             >
                 <ActionIcon
                     color={copied ? 'teal' : color}
-                    onClick={copy}
+                    onClick={() => {
+                        copy();
+                        onCopy?.();
+                    }}
                     aria-label={copyLabel}
                     {...rest}
                 >

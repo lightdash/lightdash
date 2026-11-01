@@ -4,9 +4,14 @@ import { useMergeSafe } from '../context/useMerge';
 import { useMergeChangeSinceRun } from '../hooks/useMergeChangeSinceRun';
 import { useMergeSetup } from '../hooks/useMergeSetup';
 
+// The pivot anchor is part of the sort: the run derives its pivot from it.
 const sortsKey = (sorts: SortField[]) =>
     JSON.stringify(
-        sorts.map(({ fieldId, descending }) => [fieldId, descending]),
+        sorts.map(({ fieldId, descending, pivotValues }) => [
+            fieldId,
+            descending,
+            pivotValues ?? null,
+        ]),
     );
 
 /**

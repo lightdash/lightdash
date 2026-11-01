@@ -134,11 +134,7 @@ const FilterQuarterPicker: FC<Props> = ({
                     }
                     error={invalidValue ? 'Invalid date' : undefined}
                     readOnly
-                    styles={{
-                        input: {
-                            cursor: 'pointer',
-                        },
-                    }}
+                    classNames={{ input: styles.input }}
                 />
             </Popover.Target>
             <Popover.Dropdown>

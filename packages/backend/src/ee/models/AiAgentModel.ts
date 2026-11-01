@@ -88,6 +88,7 @@ import {
     isAiAgentMcpToolName,
     isAiAgentToolName,
     isAiAppThreadCreatedFrom,
+    isAiComposerChartArtifactConfig,
     isAiWritebackRunInProgress,
     isSameComposerNodeDefinition,
     isThreadPrompt,
@@ -127,6 +128,7 @@ import {
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import moment from 'moment';
+import { validate as isValidUuid } from 'uuid';
 import { z } from 'zod';
 import type { AiThreadOrigin } from '../../analytics/aiUsage';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -137,6 +139,7 @@ import {
     type DbApp,
     type DbAppVersion,
 } from '../../database/entities/apps';
+import { ContentAsCodeSnapshotsTableName } from '../../database/entities/contentAsCodeSnapshots';
 import {
     DashboardsTableName,
     DashboardVersionsTableName,
@@ -166,6 +169,7 @@ import { DbUser, UserTableName } from '../../database/entities/users';
 import { isUniqueConstraintViolation } from '../../database/errors';
 import KnexPaginate from '../../database/pagination';
 import Logger from '../../logging/logger';
+import { AI_AGENT_KNOWLEDGE_DOCUMENT_SNAPSHOT_TYPE } from '../../models/ContentAsCodeSnapshotModel';
 import { wrapSentryTransaction } from '../../utils';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import {
@@ -174,6 +178,7 @@ import {
     AiAgentToolCallTableName,
     AiAgentToolResultTableName,
     AiOrganizationSettingsTableName,
+    AiPromptComposerNodeSnapshot,
     AiPromptContextEntityType,
     AiPromptContextTableName,
     AiPromptDataAppElementSnapshot,
@@ -270,7 +275,9 @@ import {
     DbAiEvalRunResultAssessment,
 } from '../database/entities/aiEvals';
 import {
+    COMPOSER_SESSION_SCOPE_TYPE,
     ComposerQueryNodesTableName,
+    ComposerSessionsTableName,
     THREAD_COMPOSER_QUERY_SCOPE_TYPE,
     threadComposerQueryScope,
     type ComposerQueryNodeScope,
@@ -3308,10 +3315,23 @@ export class AiAgentModel {
         organizationUuid: string;
         agentUuid: string;
     }): Promise<void> {
-        await this.database(AiAgentTableName)
-            .where('ai_agent_uuid', agentUuid)
-            .where('organization_uuid', organizationUuid)
-            .delete();
+        await this.database.transaction(async (trx) => {
+            const [deleted] = await trx(AiAgentTableName)
+                .where('ai_agent_uuid', agentUuid)
+                .where('organization_uuid', organizationUuid)
+                .delete()
+                .returning(['slug', 'project_uuid']);
+            if (!deleted) return;
+            // Knowledge document stamps key on the slug; a later agent with the
+            // same slug must not inherit them.
+            await trx(ContentAsCodeSnapshotsTableName)
+                .where({
+                    project_uuid: deleted.project_uuid,
+                    content_type: AI_AGENT_KNOWLEDGE_DOCUMENT_SNAPSHOT_TYPE,
+                })
+                .whereLike('slug', `${deleted.slug}/%`)
+                .delete();
+        });
     }
 
     // Threads without a prompt are only listed when created bound or with context.
@@ -7417,6 +7437,36 @@ export class AiAgentModel {
             ).map((r) => [r.app_id, r.name] as const),
         );
 
+        const composerVersionUuids = context.flatMap((c) =>
+            c.type === 'composer_node' ? [c.versionUuid] : [],
+        );
+        const composerNodeTitleByKey = new Map(
+            (composerVersionUuids.length === 0
+                ? []
+                : await trx(AiArtifactVersionsTableName)
+                      .whereIn('ai_artifact_version_uuid', composerVersionUuids)
+                      .select<
+                          {
+                              ai_artifact_version_uuid: string;
+                              chart_config: Record<string, unknown> | null;
+                          }[]
+                      >('ai_artifact_version_uuid', 'chart_config')
+            ).flatMap((version) =>
+                isAiComposerChartArtifactConfig(version.chart_config)
+                    ? version.chart_config.queries.flatMap((query) =>
+                          query.nodeId
+                              ? [
+                                    [
+                                        `${version.ai_artifact_version_uuid}:${query.nodeId}`,
+                                        query.title ?? null,
+                                    ] as const,
+                                ]
+                              : [],
+                      )
+                    : [],
+            ),
+        );
+
         const designUuids = context.flatMap((c) =>
             c.type === 'design' ? [c.designUuid] : [],
         );
@@ -7852,6 +7902,23 @@ export class AiAgentModel {
                         } satisfies AiPromptDataAppElementSnapshot,
                     };
                 }
+                case 'composer_node':
+                    return {
+                        ai_prompt_uuid: promptUuid,
+                        entity_type:
+                            'composer_node' as AiPromptContextEntityType,
+                        entity_uuid: null,
+                        entity_ref: `${ctx.artifactUuid}:${ctx.versionUuid}:${ctx.nodeId}`,
+                        display_name:
+                            composerNodeTitleByKey.get(
+                                `${ctx.versionUuid}:${ctx.nodeId}`,
+                            ) ?? null,
+                        runtime_overrides: {
+                            artifactUuid: ctx.artifactUuid,
+                            versionUuid: ctx.versionUuid,
+                            nodeId: ctx.nodeId,
+                        } satisfies AiPromptComposerNodeSnapshot,
+                    };
                 case 'data_app_restore': {
                     const appName = appNameByUuid.get(ctx.appUuid);
                     return {
@@ -8386,6 +8453,22 @@ export class AiAgentModel {
                     displayName: app
                         ? getAppDisplayName(app.name, snapshot.appUuid)
                         : row.display_name,
+                };
+            }
+            case 'composer_node': {
+                if (row.runtime_overrides === null) {
+                    throw new Error(
+                        `ai_prompt_context row ${row.ai_prompt_context_uuid} of type 'composer_node' is missing runtime_overrides`,
+                    );
+                }
+                const snapshot =
+                    row.runtime_overrides as AiPromptComposerNodeSnapshot;
+                return {
+                    type: 'composer_node',
+                    artifactUuid: snapshot.artifactUuid,
+                    versionUuid: snapshot.versionUuid,
+                    nodeId: snapshot.nodeId,
+                    title: row.display_name ?? snapshot.nodeId,
                 };
             }
             case 'data_app_restore': {
@@ -10032,11 +10115,55 @@ export class AiAgentModel {
                     !isSameComposerNodeDefinition(row.definition, node)
                 ) {
                     throw new ParameterError(
-                        getComposerNodeConflictMessage(row.definition),
+                        getComposerNodeConflictMessage(
+                            row.definition,
+                            scope.scopeType === COMPOSER_SESSION_SCOPE_TYPE
+                                ? 'session'
+                                : 'thread',
+                        ),
                     );
                 }
             });
         });
+    }
+
+    async createComposerSession(owner: {
+        userUuid: string;
+        organizationUuid: string;
+        projectUuid: string;
+    }): Promise<string> {
+        const [row] = await this.database(ComposerSessionsTableName)
+            .insert({
+                user_uuid: owner.userUuid,
+                organization_uuid: owner.organizationUuid,
+                project_uuid: owner.projectUuid,
+            })
+            .returning('composer_session_uuid');
+        return row.composer_session_uuid;
+    }
+
+    /** Bumps last_used_at; false when the session is unknown or not this owner's in this project. */
+    async useComposerSession({
+        sessionUuid,
+        userUuid,
+        organizationUuid,
+        projectUuid,
+    }: {
+        sessionUuid: string;
+        userUuid: string;
+        organizationUuid: string;
+        projectUuid: string;
+    }): Promise<boolean> {
+        if (!isValidUuid(sessionUuid)) return false;
+        const updated = await this.database(ComposerSessionsTableName)
+            .where({
+                composer_session_uuid: sessionUuid,
+                user_uuid: userUuid,
+                organization_uuid: organizationUuid,
+                project_uuid: projectUuid,
+            })
+            .update({ last_used_at: this.database.fn.now() });
+        return updated > 0;
     }
 
     async findArtifactVersionsByPromptUuid(

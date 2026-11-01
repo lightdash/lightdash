@@ -1627,12 +1627,18 @@ export class ProjectModel {
             });
     }
 
-    async getResultsCacheSettings(
-        projectUuid: string,
-    ): Promise<{ cacheTtlSeconds: number | null }> {
+    async getResultsCacheSettings(projectUuid: string): Promise<{
+        cacheTtlSeconds: number | null;
+        cacheGeneration: number;
+        lastInvalidatedAt: Date | null;
+    }> {
         const row = await this.database(ProjectTableName)
             .where('project_uuid', projectUuid)
-            .select('results_cache_ttl_seconds')
+            .select(
+                'results_cache_ttl_seconds',
+                'results_cache_generation',
+                'results_cache_invalidated_at',
+            )
             .first();
 
         if (!row) {
@@ -1641,7 +1647,38 @@ export class ProjectModel {
             );
         }
 
-        return { cacheTtlSeconds: row.results_cache_ttl_seconds };
+        return {
+            cacheTtlSeconds: row.results_cache_ttl_seconds,
+            cacheGeneration: row.results_cache_generation,
+            lastInvalidatedAt: row.results_cache_invalidated_at,
+        };
+    }
+
+    async invalidateResultsCache(
+        projectUuid: string,
+    ): Promise<{ cacheGeneration: number; invalidatedAt: Date }> {
+        const [row] = await this.database(ProjectTableName)
+            .where('project_uuid', projectUuid)
+            .update({
+                results_cache_generation: this.database.raw(
+                    'results_cache_generation + 1',
+                ) as unknown as number,
+                results_cache_invalidated_at:
+                    this.database.fn.now() as unknown as Date,
+            })
+            .returning([
+                'results_cache_generation',
+                'results_cache_invalidated_at',
+            ]);
+        if (!row?.results_cache_invalidated_at) {
+            throw new NotFoundError(
+                `Cannot find project with id: ${projectUuid}`,
+            );
+        }
+        return {
+            cacheGeneration: row.results_cache_generation,
+            invalidatedAt: row.results_cache_invalidated_at,
+        };
     }
 
     async updateResultsCacheSettings(

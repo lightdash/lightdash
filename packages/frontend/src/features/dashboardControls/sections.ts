@@ -71,6 +71,39 @@ export const isRuleInSection = (
     return rule.sectionId === sectionId;
 };
 
+export type MoveNeighbours = { before: string | null; after: string | null };
+
+/**
+ * The pills a pill moves past with Alt+arrow or Move left / right: its kind,
+ * in its section (or the unsectioned run), shown on the tab in view
+ */
+export const getMoveNeighbours = (
+    filters: DashboardFilters,
+    filterId: string,
+    sections: DashboardControlSection[],
+    isShown: (rule: DashboardFilterRule) => boolean,
+): MoveNeighbours => {
+    const group = FILTER_GROUPS.find((candidate) =>
+        filters[candidate].some((rule) => rule.id === filterId),
+    );
+    const rule = group && filters[group].find(({ id }) => id === filterId);
+    if (group === undefined || rule === undefined)
+        return { before: null, after: null };
+    const sectionId = isRuleInSection(rule, null, sections)
+        ? null
+        : (rule.sectionId ?? null);
+    const peers = filters[group].filter(
+        (other) =>
+            other === rule ||
+            (isRuleInSection(other, sectionId, sections) && isShown(other)),
+    );
+    const index = peers.indexOf(rule);
+    return {
+        before: peers[index - 1]?.id ?? null,
+        after: peers[index + 1]?.id ?? null,
+    };
+};
+
 // Dimensions and metrics, as the tracking events count filters
 export const countFilters = (filters: DashboardFilters): number =>
     filters.dimensions.length + filters.metrics.length;
@@ -249,6 +282,9 @@ export const UNSECTIONED_TARGET_ID = 'unsectioned-target';
 
 /** The droppable id of the bar's space outside every capsule and pill */
 export const BAR_SPACE_TARGET_ID = 'bar-space-target';
+
+/** The droppable id of the bar's New section capsule */
+export const NEW_SECTION_TARGET_ID = 'new-section-target';
 
 /** Screen reader wording for a drag; dnd-kit only knows the ids */
 export const getDragAnnouncements = (

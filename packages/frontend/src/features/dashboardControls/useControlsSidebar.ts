@@ -1,34 +1,29 @@
 import {
-    type DashboardControlSection,
     type DashboardFilterableField,
     type DashboardFilterRule,
+    type DashboardFilters,
     type ResultColumn,
 } from '@lightdash/common';
-import {
-    type Dispatch,
-    type MutableRefObject,
-    type SetStateAction,
-} from 'react';
+import { type MutableRefObject } from 'react';
 import {
     createContext,
     useContext,
     useContextSelector,
 } from 'use-context-selector';
-import { type RuleDropTarget } from './sections';
 
-/** The disclosure open under the edited filter's default value. */
-export type ControlsSidebarSection = 'tiles' | 'rules';
-
-// An "Apply to all" or a "Clear" that Undo can take back: its field, the
-// tiles it applied the field to or cleared it from, how many an apply took
-// off other fields, and whether it was over every tab of a dashboard with tabs
+// A fill, a "Clear", an added field or a tile card's pick that Undo can take back:
+// its field, the tiles it applied the field to or cleared it from, how many
+// an apply took off other fields, and whether it was over every tab of a
+// dashboard with tabs
 export type FieldApply = {
-    kind: 'apply' | 'clear';
+    kind: 'apply' | 'clear' | 'add' | 'pick';
     fieldId: string;
     tileCount: number;
     replaced: number;
     acrossTabs: boolean;
 };
+
+export type MoveDirection = 'left' | 'right';
 
 export type ControlsSidebarContextValue = {
     /** The filter control being edited, or null when the sidebar is closed. */
@@ -45,28 +40,39 @@ export type ControlsSidebarContextValue = {
     /** The edited control has no mapping yet, so it cannot be kept. */
     isPlaceholder: boolean;
     editingRule: DashboardFilterRule | null;
+    /** The edited filter's set: its draft while a filter is open. */
+    editorFilters: DashboardFilters;
     /**
      * A filter is being edited, so the rail is on screen: false as soon as
      * the edited filter is no longer in the dashboard.
      */
     isSidebarOpen: boolean;
+    /** Choosing tiles: the mapping row stands in for the filter row and the popover. */
+    isMapping: boolean;
+    /** "Choose tiles" is offered: an editor's filter or a viewer's own, not a viewer's saved one. */
+    canChooseTiles: boolean;
+    /** "Choose tiles": enters mapping on the edited filter's draft. */
+    startMapping: () => void;
+    /** The mapping row's Cancel: tile targets back to where mapping started, and the popover again. */
+    cancelMapping: () => void;
+    /** The mapping row's back arrow: the popover again, the tile choices kept in the draft. */
+    endMapping: () => void;
     /**
-     * A pill clicked while the edit had unapplied changes: the footer asks to
-     * Apply or Discard before opening it. Null otherwise.
+     * A pill or Add met unapplied changes: the editor asks to
+     * Apply or Discard first.
      */
-    pendingRule: DashboardFilterRule | null;
-    /** Applies (true) or discards (false) the edit, then opens the pending filter. */
+    isAsking: boolean;
+    /** Applies (true) or discards (false) the edit, then opens the pill clicked or the new filter, if any. */
     resolvePending: (isApply: boolean) => void;
-    /** Null when both are closed, as they are each time a filter opens. */
-    activeSection: ControlsSidebarSection | null;
-    setActiveSection: (section: ControlsSidebarSection | null) => void;
+    /** Edit mode: moves a pill one place among its kind in its section, on the dashboard at once; nothing at an end. */
+    moveFilter: (filterId: string, direction: MoveDirection) => void;
     /**
      * A pill's click. Opens the filter; on the edited one it closes a clean
      * edit and focuses Apply otherwise; another filter switches a clean edit
-     * and sets `pendingRule` otherwise.
+     * and asks (`isAsking`) otherwise.
      */
     open: (filterId: string) => void;
-    /** A new filter (a placeholder until its first field), in a section when one is given. */
+    /** A new filter (a placeholder until its first field), in a section when one is given; asks first on unapplied changes. */
     openNew: (sectionId?: string) => void;
     /** Turns the placeholder into a filter control on the given field. */
     addFirstField: (field: DashboardFilterableField) => void;
@@ -77,14 +83,6 @@ export type ControlsSidebarContextValue = {
     addFirstSqlColumn: (
         column: ResultColumn,
         availableTileColumns: Record<string, ResultColumn[]>,
-    ) => void;
-    /**
-     * Like `addFirstField`, started from a tile: the filter is on that tile
-     * only, and every other tile it would reach is left out.
-     */
-    addFirstFieldOnTile: (
-        field: DashboardFilterableField,
-        tileUuid: string,
     ) => void;
     /**
      * Takes the edited control's fields away and leaves it open as a
@@ -100,9 +98,6 @@ export type ControlsSidebarContextValue = {
     clearHighlightedField: () => void;
     hoveredFieldId: string | null;
     setHoveredFieldId: (fieldId: string | null) => void;
-    /** The pill hovered or focused on an editor's bar while no filter is edited. */
-    hoveredFilterId: string | null;
-    setHoveredFilterId: Dispatch<SetStateAction<string | null>>;
     /** Which pill's filter marked the tiles on hover; stable for the provider's life. */
     tileHoverOwner: MutableRefObject<string | null>;
     /** The hovered field wins over the clicked one. */
@@ -114,6 +109,7 @@ export type ControlsSidebarContextValue = {
     waitingFieldIds: string[];
     addWaitingField: (fieldId: string) => void;
     removeWaitingField: (fieldId: string) => void;
+    /** Writes the edited filter to the draft; a section change reaches the dashboard at once. */
     updateFilter: (next: DashboardFilterRule) => void;
     /**
      * `updateFilter` for an "Apply to all", which `undoApply` can take back
@@ -125,30 +121,16 @@ export type ControlsSidebarContextValue = {
     undoApply: () => void;
     /** The last apply, while Undo can still take it back; else null. */
     fieldUndo: FieldApply | null;
-    /**
-     * Writes filters other than the edited one on the editor's behalf.
-     * Discard and Remove put them back as they were when the control opened.
-     */
+    /** Writes filters other than the edited one to the draft, for Apply to take along. */
     updateOtherFilters: (rules: DashboardFilterRule[]) => void;
-    /**
-     * The bar's drag of the edited filter onto a pill or a section. An edit:
-     * Discard puts back its section and its place.
-     */
-    moveEditedFilter: (
-        over: RuleDropTarget,
-        sections: DashboardControlSection[],
-    ) => void;
     /** The pill's X: on the edited filter it ends the edit too. */
     removeFilterById: (filterId: string) => void;
-    /**
-     * Cancel: puts the edited filter back as it was when it was opened, or
-     * removes it when it was new, undoes the editor's own writes to other
-     * filters and closes the rail.
-     */
+    /** Cancel: drops the draft and closes the editor; nothing reached the dashboard. */
     discard: () => void;
     /**
-     * Apply: closes the rail and keeps the edits; saving stays with the
-     * dashboard's own Save. A control with no field is discarded.
+     * Apply: writes the draft to the dashboard once and closes the editor;
+     * saving stays with the dashboard's own Save. A control with no field is
+     * discarded.
      */
     close: () => void;
     /** Apply or Cancel would change something; a new filter with no field yet would not. */

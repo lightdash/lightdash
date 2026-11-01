@@ -299,19 +299,19 @@ describe('tile selectors', () => {
             ).toBe(sections);
         });
 
-        it('prepends a section before the others, marking the change', () => {
+        it('appends a section after the others, marking the change', () => {
             const seeded = reducer(
                 initialDashboardEditState,
                 actions.syncControlSections(sections),
             );
             const state = reducer(
                 seeded,
-                actions.prependControlSection({ id: 'c', name: 'New' }),
+                actions.addControlSection({ id: 'c', name: 'New' }),
             );
             expect(state.controlSections.map((s) => s.id)).toEqual([
-                'c',
                 'a',
                 'b',
+                'c',
             ]);
             expect(state.haveControlSectionsChanged).toBe(true);
         });

@@ -264,7 +264,11 @@ export const getVisualize = ({
                         ? await runComposerQueries({
                               queries,
                               terminalNodeId: nodeId,
-                          }).catch(() => null)
+                          })
+                              .then((outcome) =>
+                                  outcome.status === 'success' ? outcome : null,
+                              )
+                              .catch(() => null)
                         : null;
                 const columns = run
                     ? toComposerNodeColumns(run.terminal.columns)

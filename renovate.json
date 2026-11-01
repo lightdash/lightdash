@@ -214,8 +214,8 @@
       "description": "Group testing packages",
       "groupName": "testing packages",
       "matchPackageNames": [
-        "cypress",
-        "cypress-split",
+        "@playwright/test",
+        "playwright",
         "jsdom",
         "nock"
       ]

@@ -1,5 +1,5 @@
 import { type NotificationContentReview } from '@lightdash/common';
-import { Group, Menu, Text, Tooltip, useMantineTheme } from '@mantine/core';
+import { Group, Menu, Text, Tooltip } from '@mantine/core';
 import { IconCircleFilled } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useCallback, type FC } from 'react';
@@ -42,7 +42,6 @@ const NotificationTime: FC<{ createdAt: Date }> = ({ createdAt }) => {
 
 export const ContentReviewNotifications: FC<Props> = ({ notifications }) => {
     const { track } = useTracking();
-    const theme = useMantineTheme();
     const navigate = useNavigate();
     const { mutateAsync: updateNotification } = useUpdateNotification();
 
@@ -85,11 +84,9 @@ export const ContentReviewNotifications: FC<Props> = ({ notifications }) => {
                         <MantineIcon
                             size={8}
                             icon={IconCircleFilled}
-                            style={{
-                                color: notification.viewed
-                                    ? 'transparent'
-                                    : theme.colors.teal[5],
-                            }}
+                            color={
+                                notification.viewed ? 'transparent' : 'teal.5'
+                            }
                         />
                         <Text fz="sm" className={classes.notificationMessage}>
                             {notification.message}

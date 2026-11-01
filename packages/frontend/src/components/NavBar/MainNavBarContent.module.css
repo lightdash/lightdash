@@ -17,6 +17,12 @@
         height: rem(28px);
         width: auto;
     }
+
+    & img {
+        width: rem(28px);
+        height: rem(28px);
+        object-fit: contain;
+    }
 }
 
 .spacer {
@@ -29,9 +35,11 @@
     height: 44px;
     padding: 6px;
 
-    & svg {
+    & svg,
+    & img {
         width: 32px;
         height: 32px;
+        object-fit: contain;
     }
 }
 

@@ -9,13 +9,13 @@ import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import { FilterValueSection } from '../dashboardFilters/FilterConfiguration/FilterValueSection';
 import {
     getFilterRuleWithDisabledState,
+    hasFilterValueSet,
     isLockedRequiredMissingValue,
 } from '../dashboardFilters/FilterConfiguration/utils';
-import classes from './ControlSidebar.module.css';
-import { isDefaultValueIncomplete } from './sidebarState';
+import classes from './FilterEditor.module.css';
 
 type Props = {
-    /** A viewer's form: no default switch, and no value reads "any value". */
+    /** An editor's form edits the default; either way no value reads "any value". */
     isEditMode: boolean;
     /** A viewer's new filter: the shipped "Value" label above the form. */
     isCreatingNew: boolean;
@@ -29,8 +29,9 @@ const getInputs = (root: HTMLElement | null): HTMLInputElement[] => [
     ...(root?.querySelectorAll('input') ?? []),
 ];
 
-// The value section of the shipped settings form. No Apply:
-// each edit is written at once, except the one the shipped Apply refuses
+// The value section of the shipped settings form, with no default switch:
+// the value is always editable. No Apply: each edit goes to the draft,
+// except the one the shipped Apply refuses
 export const FilterValueSettings: FC<Props> = ({
     isEditMode,
     isCreatingNew,
@@ -49,7 +50,10 @@ export const FilterValueSettings: FC<Props> = ({
     const [wasRefused, setWasRefused] = useState(false);
     const refocusIndex = useRef(-1);
     const handleChange = (next: DashboardFilterRule) => {
-        const written = getFilterRuleWithDisabledState(next, isEditMode);
+        // An editor's default with a value is on, with none it is any value
+        const written = isEditMode
+            ? { ...next, disabled: !hasFilterValueSet(next) }
+            : getFilterRuleWithDisabledState(next, false);
         // A rule already in that state can still be edited out of it
         if (
             isLockedRequiredMissingValue(written) &&
@@ -84,7 +88,18 @@ export const FilterValueSettings: FC<Props> = ({
                     isCreatingNew={isCreatingNew}
                     filterType={filterType}
                     field={field ?? undefined}
-                    filterRule={filterRule}
+                    // Shown enabled: no value is any value, so nothing waits on a switch
+                    filterRule={
+                        isEditMode && filterRule.disabled
+                            ? { ...filterRule, disabled: false }
+                            : filterRule
+                    }
+                    withDefaultValueSwitch={false}
+                    // Save keeps a required filter's value as its default
+                    withRequiredSaveNote={false}
+                    // An open list would cover the popover's own Apply: shut on
+                    // focus and closed on pick
+                    isListClosedOnPick
                     onChangeFilterRule={handleChange}
                 />
             </Stack>
@@ -98,11 +113,6 @@ export const FilterValueSettings: FC<Props> = ({
                     role={wasRefused ? 'alert' : undefined}
                 >
                     {getUiString('filters.config.applyLockedRequiredTooltip')}
-                </Text>
-            )}
-            {isEditMode && isDefaultValueIncomplete(filterRule) && (
-                <Text size="xs" c="dimmed">
-                    Set a value, or the default stays off.
                 </Text>
             )}
         </Stack>

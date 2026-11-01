@@ -164,3 +164,23 @@ test.each(
         ),
     ).toBe(getAiAccessRefusalMessage(reason, { projectName: null }));
 });
+
+test('MCP project policy refusal stays terse and has no remedy or URL', () => {
+    const error = new AiAccessRefusedError(
+        AiAccessRefusalReason.MCP_PROJECT_NOT_ALLOWED,
+        { projectUuid: 'excluded-project' },
+    );
+    expect(error.message).toBe(
+        'MCP access to this project is disabled for your organization',
+    );
+    expect(error.statusCode).toBe(403);
+    expect(error.refusal).toEqual({
+        code: 'ai_access_refused',
+        reason: 'mcp_project_not_allowed',
+        message: 'MCP access to this project is disabled for your organization',
+        action: null,
+        settingsUrl: null,
+        connectUrl: null,
+        projectUuid: 'excluded-project',
+    });
+});

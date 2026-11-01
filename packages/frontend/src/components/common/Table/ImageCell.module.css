@@ -1,0 +1,16 @@
+.brokenImage {
+    display: inline-block;
+    line-height: 0;
+}
+
+.tooltipImage {
+    max-width: 400px;
+    max-height: 400px;
+}
+
+.thumbnail {
+    display: block;
+    object-fit: var(--image-fit);
+    width: var(--image-width);
+    height: var(--image-height);
+}

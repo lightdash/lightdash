@@ -44,6 +44,7 @@ import {
     type WarehouseConnectionModel,
     type WarehouseConnectionProject,
 } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
+import { inheritUpstreamSshTunnelPrivateKey } from '../../utils/inheritUpstreamSshTunnelPrivateKey';
 import { BaseService } from '../BaseService';
 import { type FeatureFlagService } from '../FeatureFlag/FeatureFlagService';
 import { type LicenseService } from '../LicenseService/LicenseService';
@@ -954,6 +955,7 @@ export class WarehouseConnectionService extends BaseService {
                       )
                     : null;
             let credentials = request.warehouseConnection;
+            let upstreamCredentials: CreateWarehouseCredentials | null = null;
             if (
                 summary.type === ProjectType.PREVIEW &&
                 summary.upstreamProjectUuid &&
@@ -967,12 +969,11 @@ export class WarehouseConnectionService extends BaseService {
                             credentials,
                         );
                 }
-                const upstreamCredentials =
-                    await this.getUpstreamExtraCredentials(
-                        summary.upstreamProjectUuid,
-                        project.organizationUuid,
-                        existing.name,
-                    );
+                upstreamCredentials = await this.getUpstreamExtraCredentials(
+                    summary.upstreamProjectUuid,
+                    project.organizationUuid,
+                    existing.name,
+                );
                 if (upstreamCredentials !== null) {
                     credentials =
                         mergeWarehouseCredentials<CreateWarehouseCredentialsWithOptionalSecrets>(
@@ -981,14 +982,21 @@ export class WarehouseConnectionService extends BaseService {
                         );
                 }
             }
+            const restored =
+                saved === null
+                    ? credentials
+                    : ProjectModel.mergeMissingWarehouseSecrets(
+                          credentials,
+                          saved,
+                      );
             return {
                 kind: 'project',
                 credentials: fillOmittedSecrets(
-                    saved === null
-                        ? credentials
-                        : ProjectModel.mergeMissingWarehouseSecrets(
-                              credentials,
-                              saved,
+                    upstreamCredentials === null
+                        ? restored
+                        : inheritUpstreamSshTunnelPrivateKey(
+                              restored,
+                              upstreamCredentials,
                           ),
                 ),
             };

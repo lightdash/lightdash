@@ -1,12 +1,5 @@
 import { FeatureFlags } from '@lightdash/common';
-import {
-    Anchor,
-    Button,
-    Card,
-    Stack,
-    Text,
-    useMantineTheme,
-} from '@mantine/core';
+import { Anchor, Button, Card, Stack, Text } from '@mantine/core';
 import {
     IconCircleCheckFilled,
     IconConfetti,
@@ -33,7 +26,6 @@ const VerificationSuccess: FC<{
     onClose: () => void;
     onContinue: () => void;
 }> = ({ isOpen, onClose, onContinue }) => {
-    const theme = useMantineTheme();
     return (
         <MantineModal
             size="sm"
@@ -49,9 +41,7 @@ const VerificationSuccess: FC<{
                     className={classes.successIcon}
                     icon={IconCircleCheckFilled}
                     size={42}
-                    style={{
-                        color: theme.colors.green[6],
-                    }}
+                    color="green.6"
                 />
                 <Stack gap="two">
                     <Text ta="center" fz="md" fw={500}>

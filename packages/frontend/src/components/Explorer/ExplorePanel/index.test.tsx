@@ -34,6 +34,9 @@ vi.mock('../../../hooks/useProjectUuid', () => ({
 vi.mock('../../../features/mergeQuery/context/useMerge', () => ({
     useMergeSafe: () => testState.merge,
 }));
+vi.mock('../../../features/mergeQuery/components/MergeQuerySidebar', () => ({
+    MergeQuerySidebar: () => null,
+}));
 vi.mock('../../../features/virtualView', () => ({
     EditVirtualViewModal: () => null,
     DeleteVirtualViewModal: () => null,
@@ -134,6 +137,83 @@ describe('ExplorePanel virtual view actions', () => {
     beforeEach(() => {
         mockUseExplore.mockReset();
         testState.merge = undefined;
+    });
+
+    it('starts a merge from a virtual view without edit permissions', async () => {
+        const user = userEvent.setup();
+        const addSource = vi.fn();
+        mockUseExplore.mockReturnValue(
+            exploreQuery({
+                data: { ...mockExplore, type: ExploreType.VIRTUAL },
+            }),
+        );
+        testState.merge = {
+            isMerging: false,
+            readOnly: false,
+            additionalSources: [],
+            addSource,
+        };
+
+        renderPanel({ user: { abilityRules: [] } });
+        expect(
+            screen.queryByRole('button', { name: 'Query options' }),
+        ).not.toBeInTheDocument();
+        await user.click(
+            screen.getByRole('button', { name: 'Virtual view actions' }),
+        );
+        expect(
+            screen.queryByRole('menuitem', { name: 'Edit virtual view' }),
+        ).not.toBeInTheDocument();
+        await user.click(
+            screen.getByRole('menuitem', { name: /Merge another query/ }),
+        );
+        expect(addSource).toHaveBeenCalledOnce();
+    });
+
+    it('shows only merge on a dbt explore even with virtual view permissions', async () => {
+        const user = userEvent.setup();
+        mockUseExplore.mockReturnValue(exploreQuery({ data: mockExplore }));
+        testState.merge = {
+            isMerging: false,
+            readOnly: false,
+            additionalSources: [],
+            addSource: vi.fn(),
+        };
+
+        renderPanel({
+            user: {
+                abilityRules: [
+                    { action: 'manage', subject: 'VirtualView' },
+                    { action: 'view', subject: 'ContentAsCode' },
+                ],
+            },
+        });
+        await user.click(screen.getByRole('button', { name: 'Query options' }));
+        expect(
+            screen.getByRole('menuitem', { name: /Merge another query/ }),
+        ).toBeInTheDocument();
+        expect(screen.getAllByRole('menuitem')).toHaveLength(1);
+    });
+
+    it.each([
+        { isMerging: true, readOnly: false },
+        { isMerging: false, readOnly: true },
+    ])('hides merge when unavailable: %o', (state) => {
+        mockUseExplore.mockReturnValue(
+            exploreQuery({
+                data: { ...mockExplore, type: ExploreType.VIRTUAL },
+            }),
+        );
+        testState.merge = {
+            ...state,
+            additionalSources: [],
+            addSource: vi.fn(),
+        };
+
+        renderPanel({ user: { abilityRules: [] } });
+        expect(
+            screen.queryByRole('button', { name: 'Virtual view actions' }),
+        ).not.toBeInTheDocument();
     });
 
     it('opens content as code from the virtual view menu', async () => {

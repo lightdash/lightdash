@@ -1,0 +1,8 @@
+.promptList {
+    overflow-y: auto;
+    min-height: 0;
+}
+
+.promptRow:not(:last-child) {
+    border-bottom: 1px solid var(--mantine-color-ldGray-2);
+}

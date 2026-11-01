@@ -10,7 +10,7 @@ export class PersonalRecoveryError extends Error {
     constructor(mode: 'recovery' | 'bootstrap' = 'recovery') {
         super(
             mode === 'bootstrap'
-                ? 'Agent connection approval requires a personal CLI login. Service account credentials cannot start approval.'
+                ? 'Agent connection approval needs a personal access token login. Run `lightdash login <url> --token <personal access token>` and retry. Browser logins and service account credentials cannot start approval.'
                 : 'The personal CLI login does not match this connection person and organisation.',
         );
     }

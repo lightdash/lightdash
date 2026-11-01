@@ -134,13 +134,13 @@
 .sectionSticky[data-section-type='head'] {
     top: 0;
     position: sticky;
-    z-index: 110;
+    z-index: var(--ld-z-sticky-header);
 }
 
 .sectionSticky[data-section-type='footer'] {
     bottom: 0;
     position: sticky;
-    z-index: 110;
+    z-index: var(--ld-z-sticky-header);
 }
 
 /* -------------------------------------------------------------------- rows */
@@ -290,4 +290,16 @@
 
 .section[data-section-type='footer'] .cellSticky {
     bottom: var(--lt-sticky-offset);
+}
+
+.scrollContainer {
+    overflow: auto;
+    border: 1px solid var(--mantine-color-ldGray-3);
+    border-radius: 4px;
+}
+
+.scrollContainer[data-no-borders] {
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
 }

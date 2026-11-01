@@ -13,7 +13,10 @@ type SettingsQuery = {
     data:
         | Pick<
               ApiAiOrganizationSettingsResponse['results'],
-              'mcpEnabled' | 'mcpAgentsEnabled' | 'mcpContentWritesEnabled'
+              | 'mcpEnabled'
+              | 'mcpAgentsEnabled'
+              | 'mcpContentWritesEnabled'
+              | 'mcpProjectAccess'
           >
         | undefined;
     isInitialLoading: boolean;
@@ -27,6 +30,7 @@ const { mutationState, refetchSettings, settingsQuery, updateSettings } =
             current: {
                 data: {
                     mcpEnabled: true,
+                    mcpProjectAccess: { mode: 'all' },
                     mcpAgentsEnabled: true,
                     mcpContentWritesEnabled: false,
                 },
@@ -67,6 +71,7 @@ describe('McpGeneralSettingsPage', () => {
         settingsQuery.current = {
             data: {
                 mcpEnabled: true,
+                mcpProjectAccess: { mode: 'all' },
                 mcpAgentsEnabled: true,
                 mcpContentWritesEnabled: false,
             },
@@ -77,6 +82,13 @@ describe('McpGeneralSettingsPage', () => {
         mutationState.isLoading = false;
         refetchSettings.mockReset();
         updateSettings.mockReset();
+    });
+
+    it('shows project access alongside the master switch on a supporting server', () => {
+        renderPage();
+        expect(
+            screen.getByRole('heading', { name: 'Project access' }),
+        ).toBeInTheDocument();
     });
 
     it('updates agent access without changing content write access', async () => {

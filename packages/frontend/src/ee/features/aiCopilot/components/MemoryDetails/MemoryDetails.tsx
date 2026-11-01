@@ -145,7 +145,6 @@ export const MemoryDetails: FC<MemoryDetailsProps> = ({
                             <Anchor
                                 component={Link}
                                 to={promotionReviewPath}
-                                c="ldGray.8"
                                 fz="xs"
                                 fw={600}
                             >
@@ -155,7 +154,6 @@ export const MemoryDetails: FC<MemoryDetailsProps> = ({
                             <Anchor
                                 component={Link}
                                 to={replacementPath}
-                                c="ldGray.8"
                                 fz="xs"
                                 fw={600}
                             >

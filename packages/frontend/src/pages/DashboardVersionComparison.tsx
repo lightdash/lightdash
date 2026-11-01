@@ -1,5 +1,6 @@
 import {
     DimensionType,
+    FeatureFlags,
     friendlyName,
     getFilterTypeFromItemType,
     isDashboardChartTileType,
@@ -14,6 +15,7 @@ import {
 } from '@lightdash/common';
 import {
     Badge,
+    Box,
     Collapse,
     Flex,
     Group,
@@ -32,6 +34,7 @@ import {
     IconChevronDown,
     IconChevronRight,
     IconFilter,
+    IconFolders,
     IconLayoutDashboard,
     IconSearch,
 } from '@tabler/icons-react';
@@ -44,7 +47,12 @@ import {
 import { EmptyState } from '../components/common/EmptyState';
 import { getConditionalRuleLabel } from '../components/common/Filters/FilterInputs/utils';
 import MantineIcon from '../components/common/MantineIcon';
+import {
+    getSectionChangeRows,
+    hasControlSections,
+} from '../features/dashboardControls/sectionVersionChanges';
 import { useDashboardVersion } from '../hooks/dashboard/useDashboard';
+import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import NoTableIcon from '../svgs/emptystate-no-table.svg?react';
 import classes from './DashboardVersionComparison.module.css';
 
@@ -258,7 +266,6 @@ const compareFilters = (
 
 // Tiles Table Component
 const TilesTable = ({ data }: { data: any[] }) => {
-    const theme = useMantineTheme();
     const [search, setSearch] = useState('');
     const tableContainerRef = useRef<HTMLDivElement>(null);
 
@@ -325,15 +332,15 @@ const TilesTable = ({ data }: { data: any[] }) => {
                 header: 'Difference',
                 size: 120,
                 Cell: ({ cell }) => (
-                    <div style={{ textAlign: 'right' }}>
+                    <Box ta="right">
                         <DifferenceBadge diff={cell.getValue<number>()} />
-                    </div>
+                    </Box>
                 ),
                 Footer: () =>
                     totals ? (
-                        <div style={{ textAlign: 'right' }}>
+                        <Box ta="right">
                             <DifferenceBadge diff={totals.difference} />
-                        </div>
+                        </Box>
                     ) : null,
             },
         ],
@@ -360,52 +367,12 @@ const TilesTable = ({ data }: { data: any[] }) => {
         initialState: {
             density: 'xs',
         },
-        mantinePaperProps: {
-            shadow: 'none',
-            withBorder: false,
-            style: {
-                backgroundColor: 'transparent',
-                padding: 0,
-            },
-        },
-        mantineTableContainerProps: {
-            ref: tableContainerRef,
-            style: {
-                maxHeight: '400px',
-                border: `1px solid ${theme.colors.ldGray[2]}`,
-                borderRadius: theme.spacing.sm,
-            },
-        },
+        mantineTableContainerProps: { ref: tableContainerRef, mah: 400 },
         mantineTableProps: {
             highlightOnHover: true,
             withColumnBorders: false,
         },
-        mantineTableHeadCellProps: {
-            style: {
-                backgroundColor: theme.colors.ldGray[0],
-                borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                fontSize: theme.fontSizes.xs,
-                fontWeight: 600,
-                color: theme.colors.ldGray[7],
-                padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-            },
-        },
-        mantineTableBodyCellProps: {
-            style: {
-                fontSize: theme.fontSizes.xs,
-                color: theme.colors.ldGray[7],
-                padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-            },
-        },
-        mantineTableFooterCellProps: {
-            style: {
-                backgroundColor: theme.colors.ldGray[0],
-                borderTop: `1px solid ${theme.colors.ldGray[2]}`,
-                fontSize: theme.fontSizes.xs,
-                color: theme.colors.ldGray[7],
-                padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-            },
-        },
+        mantineTableBodyCellProps: { fz: 'xs' },
         renderTopToolbar: () => (
             <TableToolbar
                 search={search}
@@ -426,7 +393,6 @@ const ChartsTable = ({
     data: any[];
     projectUuid: string | undefined;
 }) => {
-    const theme = useMantineTheme();
     const [search, setSearch] = useState('');
     const tableContainerRef = useRef<HTMLDivElement>(null);
 
@@ -532,7 +498,7 @@ const ChartsTable = ({
                 header: 'Rollback Action',
                 size: 150,
                 Cell: ({ row }) => (
-                    <div style={{ textAlign: 'center' }}>
+                    <Box ta="center">
                         {!row.original.inCurrent && row.original.inVersion && (
                             <Badge color="green" size="sm">
                                 Add
@@ -555,7 +521,7 @@ const ChartsTable = ({
                             !row.original.hasDifferentVersion && (
                                 <Badge size="sm">No change</Badge>
                             )}
-                    </div>
+                    </Box>
                 ),
                 enableSorting: true,
             },
@@ -583,43 +549,12 @@ const ChartsTable = ({
             density: 'xs',
             sorting: [{ id: 'chartName', desc: false }],
         },
-        mantinePaperProps: {
-            shadow: 'none',
-            withBorder: false,
-            style: {
-                backgroundColor: 'transparent',
-                padding: 0,
-            },
-        },
-        mantineTableContainerProps: {
-            ref: tableContainerRef,
-            style: {
-                maxHeight: '400px',
-                border: `1px solid ${theme.colors.ldGray[2]}`,
-                borderRadius: theme.spacing.sm,
-            },
-        },
+        mantineTableContainerProps: { ref: tableContainerRef, mah: 400 },
         mantineTableProps: {
             highlightOnHover: true,
             withColumnBorders: false,
         },
-        mantineTableHeadCellProps: {
-            style: {
-                backgroundColor: theme.colors.ldGray[0],
-                borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                fontSize: theme.fontSizes.xs,
-                fontWeight: 600,
-                color: theme.colors.ldGray[7],
-                padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-            },
-        },
-        mantineTableBodyCellProps: {
-            style: {
-                fontSize: theme.fontSizes.xs,
-                color: theme.colors.ldGray[7],
-                padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-            },
-        },
+        mantineTableBodyCellProps: { fz: 'xs' },
         renderTopToolbar: () => (
             <TableToolbar
                 search={search}
@@ -633,12 +568,17 @@ const ChartsTable = ({
 };
 
 // Filters Table Component
-const FiltersTable = ({ data }: { data: any[] }) => {
-    const theme = useMantineTheme();
+const FiltersTable = ({
+    data,
+    searchPlaceholder = 'Search filters...',
+}: {
+    data: AlignedFilter[];
+    searchPlaceholder?: string;
+}) => {
     const [search, setSearch] = useState('');
     const tableContainerRef = useRef<HTMLDivElement>(null);
 
-    const columns = useMemo<ContentTableColumnDef<any>[]>(
+    const columns = useMemo<ContentTableColumnDef<AlignedFilter>[]>(
         () => [
             {
                 accessorFn: (row) => row.currentFilter?.label || '-',
@@ -686,7 +626,7 @@ const FiltersTable = ({ data }: { data: any[] }) => {
                 header: 'Rollback Action',
                 size: 150,
                 Cell: ({ row }) => (
-                    <div style={{ textAlign: 'center' }}>
+                    <Box ta="center">
                         {!row.original.currentFilter &&
                             row.original.versionFilter && (
                                 <Badge color="green" size="sm">
@@ -711,7 +651,7 @@ const FiltersTable = ({ data }: { data: any[] }) => {
                             !row.original.hasChanged && (
                                 <Badge size="sm">No change</Badge>
                             )}
-                    </div>
+                    </Box>
                 ),
                 enableSorting: true,
             },
@@ -745,48 +685,17 @@ const FiltersTable = ({ data }: { data: any[] }) => {
         initialState: {
             density: 'xs',
         },
-        mantinePaperProps: {
-            shadow: 'none',
-            withBorder: false,
-            style: {
-                backgroundColor: 'transparent',
-                padding: 0,
-            },
-        },
-        mantineTableContainerProps: {
-            ref: tableContainerRef,
-            style: {
-                maxHeight: '400px',
-                border: `1px solid ${theme.colors.ldGray[2]}`,
-                borderRadius: theme.spacing.sm,
-            },
-        },
+        mantineTableContainerProps: { ref: tableContainerRef, mah: 400 },
         mantineTableProps: {
             highlightOnHover: true,
             withColumnBorders: false,
         },
-        mantineTableHeadCellProps: {
-            style: {
-                backgroundColor: theme.colors.ldGray[0],
-                borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                fontSize: theme.fontSizes.xs,
-                fontWeight: 600,
-                color: theme.colors.ldGray[7],
-                padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-            },
-        },
-        mantineTableBodyCellProps: {
-            style: {
-                fontSize: theme.fontSizes.xs,
-                color: theme.colors.ldGray[7],
-                padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-            },
-        },
+        mantineTableBodyCellProps: { fz: 'xs' },
         renderTopToolbar: () => (
             <TableToolbar
                 search={search}
                 setSearch={setSearch}
-                placeholder="Search filters..."
+                placeholder={searchPlaceholder}
             />
         ),
     });
@@ -801,6 +710,9 @@ const DashboardVersionComparison = ({
     versionUuid,
 }: DashboardVersionComparisonProps) => {
     const versionQuery = useDashboardVersion(dashboardUuid, versionUuid);
+    const { data: dashboardControlsFlag } = useServerFeatureFlag(
+        FeatureFlags.DashboardControls,
+    );
 
     const comparison = useMemo(() => {
         if (!dashboard || !versionQuery.data?.dashboard) {
@@ -1072,6 +984,28 @@ const DashboardVersionComparison = ({
             changedFilterCount,
             alignedCharts,
             tilesData,
+            sectionRows: hasControlSections(current, version)
+                ? getSectionChangeRows(current, version, getFilterLabel).map(
+                      (row): AlignedFilter => ({
+                          fieldId: row.key,
+                          currentFilter: row.current
+                              ? {
+                                    id: row.key,
+                                    fieldId: row.key,
+                                    label: row.current,
+                                }
+                              : undefined,
+                          versionFilter: row.selected
+                              ? {
+                                    id: row.key,
+                                    fieldId: row.key,
+                                    label: row.selected,
+                                }
+                              : undefined,
+                          hasChanged: true,
+                      }),
+                  )
+                : null,
         };
     }, [dashboard, versionQuery.data]);
 
@@ -1201,6 +1135,38 @@ const DashboardVersionComparison = ({
                         </Text>
                     )}
                 </ExpandableSection>
+
+                {dashboardControlsFlag?.enabled &&
+                    comparison.sectionRows !== null && (
+                        <ExpandableSection
+                            title="Filter sections"
+                            icon={IconFolders}
+                            color="teal"
+                            badge={
+                                comparison.sectionRows.length > 0 ? (
+                                    <Badge color="yellow" size="lg">
+                                        {comparison.sectionRows.length}{' '}
+                                        {comparison.sectionRows.length === 1
+                                            ? 'change'
+                                            : 'changes'}
+                                    </Badge>
+                                ) : (
+                                    <Badge size="lg">No change</Badge>
+                                )
+                            }
+                        >
+                            {comparison.sectionRows.length > 0 ? (
+                                <FiltersTable
+                                    data={comparison.sectionRows}
+                                    searchPlaceholder="Search sections..."
+                                />
+                            ) : (
+                                <Text size="sm" c="dimmed" ta="center">
+                                    No section changes
+                                </Text>
+                            )}
+                        </ExpandableSection>
+                    )}
 
                 {versionQuery.data?.dashboard.description && (
                     <Paper p="md">

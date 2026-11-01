@@ -20,6 +20,7 @@ import { ProjectService } from '../services/ProjectService/ProjectService';
 import { provisionTrainingProject } from '../services/ProjectService/provisionTrainingProject';
 import { QuerySourceRegistry } from '../services/QuerySourceService/QuerySourceRegistry';
 import { QuerySourceService } from '../services/QuerySourceService/QuerySourceService';
+import { ApiQuerySource } from '../services/QuerySourceService/sources/ApiQuerySource';
 import { RolesService } from '../services/RolesService/RolesService';
 import { EncryptionUtil } from '../utils/EncryptionUtil/EncryptionUtil';
 import { failInFlightAiAgentStreams } from './aiAgentShutdown';
@@ -100,6 +101,7 @@ import { AiService } from './services/AiService/AiService';
 import { AiThreadFileService } from './services/AiThreadFileService';
 import { AiWritebackService } from './services/AiWritebackService/AiWritebackService';
 import { WritebackPreviewService } from './services/AiWritebackService/WritebackPreviewService';
+import { AnalyticsProjectService } from './services/AnalyticsProjectService/AnalyticsProjectService';
 import { AppGenerateService } from './services/AppGenerateService/AppGenerateService';
 import { AppStateService } from './services/AppStateService/AppStateService';
 import { PreAggregateStrategy } from './services/AsyncQueryService/PreAggregateStrategy';
@@ -114,6 +116,7 @@ import { EmbedService } from './services/EmbedService/EmbedService';
 import { ExternalConnectionCoderService } from './services/ExternalConnectionCoderService/ExternalConnectionCoderService';
 import { ExternalConnectionService } from './services/ExternalConnectionService/ExternalConnectionService';
 import { GoogleServiceAccountTokenProvider } from './services/ExternalConnectionService/GoogleServiceAccountTokenProvider';
+import { OAuthAuthorizationCodeTokenClient } from './services/ExternalConnectionService/OAuthAuthorizationCodeTokenClient';
 import { OAuthClientCredentialsTokenProvider } from './services/ExternalConnectionService/OAuthClientCredentialsTokenProvider';
 import { ExternalQuerySource } from './services/ExternalSourceService/ExternalQuerySource';
 import { ExternalSourceService } from './services/ExternalSourceService/ExternalSourceService';
@@ -124,7 +127,6 @@ import { McpService } from './services/McpService/McpService';
 import { MobilePushNotificationReconciler } from './services/MobilePushNotificationService/MobilePushNotificationReconciler';
 import { MobilePushNotificationService } from './services/MobilePushNotificationService/MobilePushNotificationService';
 import { OnboardingAgentService } from './services/OnboardingAgentService/OnboardingAgentService';
-import { provisionOnboardingOrgFlags } from './services/OrganizationService/provisionOnboardingOrgFlags';
 import { OrganizationWarehouseCredentialsService } from './services/OrganizationWarehouseCredentialsService';
 import { ProjectContextService } from './services/ProjectContextService/ProjectContextService';
 import { ProjectHomepageService } from './services/ProjectHomepageService';
@@ -188,6 +190,25 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
             await failInFlightAiAgentStreams(repository);
         },
         serviceProviders: {
+            analyticsProjectService: ({
+                repository,
+                models,
+                clients,
+                context,
+            }) =>
+                new AnalyticsProjectService({
+                    lightdashConfig: context.lightdashConfig,
+                    schedulerClient: clients.getSchedulerClient(),
+                    coderService: repository.getCoderService(),
+                    contentVerificationModel:
+                        models.getContentVerificationModel(),
+                    spaceModel: models.getSpaceModel(),
+                    dashboardModel: models.getDashboardModel(),
+                    savedChartModel: models.getSavedChartModel(),
+                    projectModel: models.getProjectModel(),
+                    projectService: repository.getProjectService(),
+                    userModel: models.getUserModel(),
+                }),
             licenseService: () =>
                 new EnterpriseLicenseService({
                     licenseKey: lightdashConfig.license.licenseKey,
@@ -326,7 +347,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     projectHomepageModel:
                         models.getProjectHomepageModel<ProjectHomepageModel>(),
                     analytics: context.lightdashAnalytics,
-                    featureFlagService: repository.getFeatureFlagService(),
                     groupsModel: models.getGroupsModel(),
                     projectModel: models.getProjectModel(),
                     userModel: models.getUserModel(),
@@ -530,11 +550,28 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     googleDriveClient: clients.getGoogleDriveClient(),
                     userOAuthGrantsModel: models.getUserOAuthGrantsModel(),
                 }),
-            querySourceService: ({ models, repository }) => {
+            querySourceService: ({ models, repository, context }) => {
                 const registry = QuerySourceRegistry.withBuiltInSources({
                     asyncQueryService: repository.getAsyncQueryService(),
                     projectService: repository.getProjectService(),
                 });
+                registry.register(
+                    new ApiQuerySource({
+                        asyncQueryService: repository.getAsyncQueryService(),
+                        getApiConnector: (
+                            account,
+                            projectUuid,
+                            connectionUuid,
+                        ) =>
+                            repository
+                                .getExternalConnectionService<ExternalConnectionService>()
+                                .getApiConnector(
+                                    account,
+                                    projectUuid,
+                                    connectionUuid,
+                                ),
+                    }),
+                );
                 registry.register(
                     new ExternalQuerySource({
                         asyncQueryService: repository.getAsyncQueryService(),
@@ -544,6 +581,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     }),
                 );
                 return new QuerySourceService({
+                    analytics: context.lightdashAnalytics,
                     getAsyncQueryService: () =>
                         repository.getAsyncQueryService(),
                     getAgentPermissionService: () =>
@@ -675,6 +713,14 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getAiAgentSkillService<AiAgentSkillService>(),
                     aiAgentSkillModel:
                         models.getAiAgentSkillModel<AiAgentSkillModel>(),
+                    aiAgentDocumentModel:
+                        models.getAiAgentDocumentModel<AiAgentDocumentModel>(),
+                    aiAgentDocumentService:
+                        repository.getAiAgentDocumentService<AiAgentDocumentService>(),
+                    contentAsCodeProjectSettingsModel:
+                        models.getContentAsCodeProjectSettingsModel(),
+                    contentAsCodeSnapshotModel:
+                        models.getContentAsCodeSnapshotModel(),
                     projectModel: models.getProjectModel(),
                     aiOrganizationSettingsService:
                         repository.getAiOrganizationSettingsService(),
@@ -777,6 +823,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     catalogService: repository.getCatalogService(),
                     asyncQueryService: repository.getAsyncQueryService(),
                     querySourceService: repository.getQuerySourceService(),
+                    externalConnectionService:
+                        repository.getExternalConnectionService<ExternalConnectionService>(),
                     queryHistoryModel: models.getQueryHistoryModel(),
                     userAttributesModel: models.getUserAttributesModel(),
                     searchModel: models.getSearchModel(),
@@ -889,6 +937,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     aiRouterModel: models.getAiRouterModel<AiRouterModel>(),
                     aiAgentService:
                         repository.getAiAgentService<AiAgentService>(),
+                    dashboardService: repository.getDashboardService(),
+                    savedChartService: repository.getSavedChartService(),
                     orgAiCopilotConfigResolver: new OrgAiCopilotConfigResolver({
                         lightdashConfig: context.lightdashConfig,
                         featureFlagModel: models.getFeatureFlagModel(),
@@ -907,6 +957,11 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     aiAgentService:
                         repository.getAiAgentService<AiAgentService>(),
                     lightdashConfig: context.lightdashConfig,
+                    contentAsCodeProjectSettingsModel:
+                        models.getContentAsCodeProjectSettingsModel(),
+                    contentAsCodeSnapshotModel:
+                        models.getContentAsCodeSnapshotModel(),
+                    aiAgentModel: models.getAiAgentModel(),
                     orgAiCopilotConfigResolver: new OrgAiCopilotConfigResolver({
                         lightdashConfig: context.lightdashConfig,
                         featureFlagModel: models.getFeatureFlagModel(),
@@ -1085,7 +1140,12 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     projectModel: models.getProjectModel(),
                     rolesModel: models.getRolesModel(),
                 }),
-            externalConnectionService: ({ models, context, repository }) =>
+            externalConnectionService: ({
+                models,
+                context,
+                repository,
+                utils,
+            }) =>
                 new ExternalConnectionService({
                     allowedPrivateHostCidrs:
                         context.lightdashConfig.appRuntime
@@ -1094,6 +1154,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     externalConnectionModel:
                         models.getExternalConnectionModel(),
                     appModel: models.getAppModel(),
+                    featureFlagModel: models.getFeatureFlagModel(),
+                    encryptionUtil: utils.getEncryptionUtil(),
                     appGenerateService:
                         repository.getAppGenerateService<AppGenerateService>(),
                     embedService: repository.getEmbedService<EmbedService>(),
@@ -1107,6 +1169,13 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                                 context.lightdashConfig.appRuntime
                                     .externalConnectionAllowedPrivateHostCidrs,
                         }),
+                    oauthAuthorizationCodeTokenClient:
+                        new OAuthAuthorizationCodeTokenClient({
+                            allowedPrivateHostCidrs:
+                                context.lightdashConfig.appRuntime
+                                    .externalConnectionAllowedPrivateHostCidrs,
+                        }),
+                    lightdashConfig: context.lightdashConfig,
                     orgAiCopilotConfigResolver: new OrgAiCopilotConfigResolver({
                         lightdashConfig: context.lightdashConfig,
                         featureFlagModel: models.getFeatureFlagModel(),
@@ -1173,14 +1242,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     rolesModel: models.getRolesModel(),
                     organizationSettingsModel:
                         models.getOrganizationSettingsModel(),
-                    onOrganizationCreated: ({ user, organizationUuid }) =>
-                        provisionOnboardingOrgFlags({
-                            user,
-                            organizationUuid,
-                            featureFlagService:
-                                repository.getFeatureFlagService(),
-                            analytics: context.lightdashAnalytics,
-                        }),
                 }),
             organizationWarehouseCredentialsService: ({ models, context }) =>
                 new OrganizationWarehouseCredentialsService({
@@ -1565,6 +1626,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
             mcpService: ({ context, repository, models }) =>
                 new McpService({
                     agentActionLogModel: models.getAgentActionLogModel(),
+                    aiAgentModel: models.getAiAgentModel<AiAgentModel>(),
                     aiAccessService: repository.getAiAccessService(),
                     lightdashConfig: context.lightdashConfig,
                     analytics: context.lightdashAnalytics,
@@ -1916,7 +1978,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     schedulerClient: repository.getSchedulerClient(),
                 }),
         },
-        pgWireServerFactory: (serviceRepository) => {
+        pgWireServerFactory: (serviceRepository, analytics) => {
             // parseConfig fail-fasts when PGWIRE_PORT is set in `require` mode
             // without cert/key, so missing paths here can only mean the
             // explicit `disabled` opt-out (plaintext).
@@ -1926,7 +1988,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     ? { certPath: ssl.certPath, keyPath: ssl.keyPath }
                     : undefined;
             return new PostgresWireServer(
-                createLightdashPgWireHandlers(serviceRepository),
+                createLightdashPgWireHandlers(serviceRepository, analytics),
                 { tls: tlsOptions },
             );
         },

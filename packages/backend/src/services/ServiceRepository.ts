@@ -35,7 +35,6 @@ import {
 } from './AiAccessService/AiAccessService';
 import { SnowflakeAgentClientResolver } from './AiAccessService/SnowflakeAgentClientResolver';
 import { AiServiceAccountService } from './AiServiceAccountService/AiServiceAccountService';
-import { AnalyticsProjectService } from './AnalyticsProjectService/AnalyticsProjectService';
 import { AnalyticsService } from './AnalyticsService/AnalyticsService';
 import { AsyncQueryService } from './AsyncQueryService/AsyncQueryService';
 import { ComposeEngineClient } from './AsyncQueryService/ComposeEngineClient';
@@ -76,6 +75,7 @@ import { NotificationsService } from './NotificationsService/NotificationsServic
 import { ManagedSignInService } from './OAuthService/managedSignIn/ManagedSignInService';
 import { OAuthService } from './OAuthService/OAuthService';
 import { OrganizationAccessService } from './OrganizationAccessService/OrganizationAccessService';
+import { OrganizationBrandService } from './OrganizationBrandService/OrganizationBrandService';
 import { OrganizationDesignService } from './OrganizationDesignService/OrganizationDesignService';
 import { OrganizationDomainVerificationService } from './OrganizationDomainVerificationService/OrganizationDomainVerificationService';
 import { OrganizationService } from './OrganizationService/OrganizationService';
@@ -155,6 +155,7 @@ interface ServiceManifest {
     oauthService: OAuthService;
 
     organizationDesignService: OrganizationDesignService;
+    organizationBrandService: OrganizationBrandService;
     organizationService: OrganizationService;
     organizationSettingsService: OrganizationSettingsService;
     organizationSsoService: OrganizationSsoService;
@@ -173,7 +174,6 @@ interface ServiceManifest {
     agentConnectionService: AgentConnectionService;
     aiServiceAccountService: AiServiceAccountService;
     projectService: ProjectService;
-    analyticsProjectService: AnalyticsProjectService;
     promptService: PromptService;
     savedChartService: SavedChartService;
     schedulerService: SchedulerService;
@@ -213,6 +213,7 @@ interface ServiceManifest {
     projectCompileLogService: ProjectCompileLogService;
     permissionsService: PermissionsService;
     /** An implementation signature for these services are not available at this stage */
+    analyticsProjectService: unknown;
     aiWritebackService: unknown;
     aiDeepResearchService: unknown;
     aiAgentMemoryService: unknown;
@@ -877,7 +878,6 @@ export class ServiceRepository
                     lightdashConfig: this.context.lightdashConfig,
                     organizationSettingsModel:
                         this.models.getOrganizationSettingsModel(),
-                    featureFlagModel: this.models.getFeatureFlagModel(),
                 }),
         );
     }
@@ -898,6 +898,8 @@ export class ServiceRepository
             () =>
                 new PersistentDownloadFileService({
                     analytics: this.context.lightdashAnalytics,
+                    projectModel: this.models.getProjectModel(),
+                    getProjectService: () => this.getProjectService(),
                     lightdashConfig: this.context.lightdashConfig,
                     persistentDownloadFileModel:
                         this.models.getPersistentDownloadFileModel(),
@@ -976,24 +978,10 @@ export class ServiceRepository
         );
     }
 
-    public getAnalyticsProjectService(): AnalyticsProjectService {
-        return this.getService(
-            'analyticsProjectService',
-            () =>
-                new AnalyticsProjectService({
-                    lightdashConfig: this.context.lightdashConfig,
-                    schedulerClient: this.clients.getSchedulerClient(),
-                    coderService: this.getCoderService(),
-                    contentVerificationModel:
-                        this.models.getContentVerificationModel(),
-                    dashboardModel: this.models.getDashboardModel(),
-                    savedChartModel: this.models.getSavedChartModel(),
-                    projectModel: this.models.getProjectModel(),
-                    projectService: this.getProjectService(),
-                    userModel: this.models.getUserModel(),
-                    spaceModel: this.models.getSpaceModel(),
-                }),
-        );
+    public getAnalyticsProjectService<
+        AnalyticsProjectServiceImplT,
+    >(): AnalyticsProjectServiceImplT {
+        return this.getService('analyticsProjectService');
     }
 
     public getAiServiceAccountService(): AiServiceAccountService {
@@ -1426,6 +1414,7 @@ export class ServiceRepository
             });
 
             return new QuerySourceService({
+                analytics: this.context.lightdashAnalytics,
                 getAsyncQueryService: () => this.getAsyncQueryService(),
                 getAgentPermissionService: () =>
                     this.getAgentPermissionService(),
@@ -2243,6 +2232,18 @@ export class ServiceRepository
 
     public getScimService<ScimServiceImplT>(): ScimServiceImplT {
         return this.getService('scimService');
+    }
+
+    public getOrganizationBrandService(): OrganizationBrandService {
+        return this.getService(
+            'organizationBrandService',
+            () =>
+                new OrganizationBrandService({
+                    lightdashConfig: this.context.lightdashConfig,
+                    organizationBrandModel:
+                        this.models.getOrganizationBrandModel(),
+                }),
+        );
     }
 
     public getReleaseHighlightsService<ServiceImplT>(): ServiceImplT {

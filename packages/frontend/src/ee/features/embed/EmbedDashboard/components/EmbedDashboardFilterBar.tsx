@@ -11,13 +11,17 @@ import { useState, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import {
     selectActiveTabUuid,
+    selectControlSections,
     selectDashboardFilters,
     selectDateZoomGranularity,
     useDashboardSelector,
     useDashboardTemporaryFilters,
 } from '../../../../../features/dashboard/store';
 import { AddControl } from '../../../../../features/dashboardControls/AddControl';
+import { MappingSwap } from '../../../../../features/dashboardControls/ControlsBar';
 import { FilterPills } from '../../../../../features/dashboardControls/FilterPills';
+import { SectionedFilters } from '../../../../../features/dashboardControls/SectionedFilters';
+import { SettledFilterFields } from '../../../../../features/dashboardControls/SettledFilterFields';
 import { DashboardFiltersBarSummary } from '../../../../../features/dashboardFilters/DashboardFiltersBarSummary';
 import { DateZoom } from '../../../../../features/dateZoom';
 import { getDateZoomSummaryLabel } from '../../../../../features/dateZoom/utils';
@@ -41,13 +45,17 @@ type Props = {
 };
 
 // The filters as the rail's bar has them: "Add filter" and the pills open
-// the rail, and stay on screen while it is open
+// the rail, and stay on screen while it is open; a dashboard with sections
+// shows them as the app's viewer bar does
 const ControlsFilterArea: FC<{ canAddFilters: boolean }> = ({
     canAddFilters,
 }) => {
     const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
+    const hasSections = useDashboardSelector(
+        (state) => selectControlSections(state).length > 0,
+    );
     const getUiString = useUiStrings();
-    return (
+    const actions = (
         <>
             <AddControl
                 triggerClassName={embedContractClass('ld-dashboard-add-filter')}
@@ -56,14 +64,28 @@ const ControlsFilterArea: FC<{ canAddFilters: boolean }> = ({
                 )}
             />
             {!canAddFilters && <EmbedResetFiltersButton />}
-            <FilterPills
-                activeTabUuid={activeTabUuid}
-                triggerClassName={embedContractClass('ld-dashboard-filter')}
-                dropdownClassName={embedContractClass(
-                    'ld-dashboard-filter-dropdown',
-                )}
-            />
         </>
+    );
+    const triggerClassName = embedContractClass('ld-dashboard-filter');
+    // A tile added or removed keeps the pills, as on the app's bar
+    return (
+        <SettledFilterFields>
+            {hasSections ? (
+                <SectionedFilters
+                    activeTabUuid={activeTabUuid}
+                    viewerActions={actions}
+                    triggerClassName={triggerClassName}
+                />
+            ) : (
+                <>
+                    {actions}
+                    <FilterPills
+                        activeTabUuid={activeTabUuid}
+                        triggerClassName={triggerClassName}
+                    />
+                </>
+            )}
+        </SettledFilterFields>
     );
 };
 
@@ -130,7 +152,7 @@ const EmbedDashboardFilterBar: FC<Props> = ({
         );
     }
 
-    return (
+    const bar = (
         <Group
             className={embedContractClass(
                 'ld-dashboard-filters',
@@ -149,6 +171,7 @@ const EmbedDashboardFilterBar: FC<Props> = ({
                 gap="xs"
                 flex="1 1 24rem"
                 miw={0}
+                className={isControlsEnabled ? styles.filterArea : undefined}
             >
                 {shouldShowFilters &&
                     (isControlsEnabled ? (
@@ -208,6 +231,8 @@ const EmbedDashboardFilterBar: FC<Props> = ({
             </Group>
         </Group>
     );
+    // Choosing a filter's tiles: the mapping row takes the bar's place
+    return isControlsEnabled ? <MappingSwap>{bar}</MappingSwap> : bar;
 };
 
 export default EmbedDashboardFilterBar;

@@ -1,4 +1,5 @@
 import { validate as isUuid } from 'uuid';
+import { CLI_VERSION } from '../env';
 import { createAgentConnectionFetch } from './apiUrl';
 import { parseApprovedProjectProof } from './approvedProjectProof';
 import { responseRecord } from './statusResponse';
@@ -33,6 +34,7 @@ export const exchangeInitialConnectionToken = async ({
         method: 'POST',
         headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
+            'User-Agent': `lightdash-cli/${CLI_VERSION}`,
             ...(proxyAuthorization === null
                 ? {}
                 : { 'Proxy-Authorization': proxyAuthorization }),

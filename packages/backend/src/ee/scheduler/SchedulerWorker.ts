@@ -498,12 +498,17 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                 const now = new Date();
                 const analysis =
                     await this.dataAppAnalysisService.cleanRateCounters(now);
+                const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
                 const external =
                     await this.externalConnectionModel.deleteRateCountersBefore(
-                        new Date(now.getTime() - 24 * 60 * 60 * 1000),
+                        dayAgo,
+                    );
+                const apiSource =
+                    await this.externalConnectionModel.deleteApiSourceCallWindowsBefore(
+                        dayAgo,
                     );
                 Logger.info(
-                    `Rate counter cleanup completed. Analysis windows deleted: ${analysis}; external connection windows deleted: ${external}`,
+                    `Rate counter cleanup completed. Analysis windows deleted: ${analysis}; external connection windows deleted: ${external}; live source windows deleted: ${apiSource}`,
                 );
             },
             [EE_SCHEDULER_TASKS.CLEAN_DATA_APP_ANALYSES]: async (

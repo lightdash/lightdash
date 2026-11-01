@@ -185,7 +185,7 @@ const ProjectRow: FC<{
                     </Highlight>
                 </Tooltip>
 
-                <Group gap="xs" wrap="nowrap" style={{ flexShrink: 0 }}>
+                <Group gap="xs" wrap="nowrap" flex="none">
                     {isActive && <CurrentBadge />}
                     {isPlaygroundProject(item) && <PlaygroundBadge />}
                     {previewCount > 0 && (
@@ -249,7 +249,7 @@ const PreviewRow: FC<{
                         </Highlight>
                     </Tooltip>
                     {upstreamName && (
-                        <Text fz="xs" c="ldGray.5" truncate maw={120}>
+                        <Text fz="xs" c="dimmed" truncate maw={120}>
                             {upstreamName}
                         </Text>
                     )}
@@ -597,7 +597,7 @@ const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ portalTarget }) => {
                         resetMenuState();
                     }
                 }}
-                classNames={{ dropdown: classes.dropdown }}
+                classNames={{ dropdown: classes.dropdown, item: classes.item }}
                 zIndex={getDefaultZIndex('max')}
                 {...getNavBarMenuProps(portalTarget)}
             >
@@ -621,7 +621,7 @@ const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ portalTarget }) => {
                 <Menu.Dropdown
                     w="min(400px, calc(100vw - 24px))"
                     mah="calc(100dvh - 24px)"
-                    style={{ overflowY: 'auto' }}
+                    className={classes.scrollableDropdown}
                 >
                     {isLoadingProjects ? (
                         <Box p="lg" ta="center">
@@ -648,10 +648,10 @@ const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ portalTarget }) => {
                                         size="sm"
                                         color="dimmed"
                                     />
-                                    <Text fz="xs" fw={500} c="ldGray.5">
+                                    <Text fz="xs" fw={500} c="dimmed">
                                         Projects
                                     </Text>
-                                    <Text fz="xs" c="ldGray.4">
+                                    <Text fz="xs" c="dimmed">
                                         /
                                     </Text>
                                     <Text fz="xs" fw={600} c="ldDark.9">
@@ -772,7 +772,7 @@ const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ portalTarget }) => {
                                                     <Text
                                                         fz="xs"
                                                         fw={600}
-                                                        c="ldGray.5"
+                                                        c="dimmed"
                                                         tt="uppercase"
                                                     >
                                                         Matching previews ·{' '}

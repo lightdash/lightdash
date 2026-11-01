@@ -136,7 +136,6 @@ export enum EventName {
     DASHBOARD_FILTER_LOCK_TOGGLED = 'dashboard_filter_lock.toggled',
     DASHBOARD_FILTER_REQUIREMENTS_SAVED = 'dashboard_filter_requirements.saved',
     DASHBOARD_SECTION_CREATED = 'dashboard_section.created',
-    DASHBOARD_SECTIONS_TIP_DISMISSED = 'dashboard_sections_tip.dismissed',
     DASHBOARD_FILTERS_MOVED = 'dashboard_filters.moved',
     DASHBOARD_FILTER_EDITOR_OPENED = 'dashboard_filter_editor.opened',
     DASHBOARD_FILTER_EDITOR_CLOSED = 'dashboard_filter_editor.closed',
@@ -225,6 +224,11 @@ export enum EventName {
     AI_AGENT_SUGGESTION_CLICK = 'ai_agent.suggestion_click',
     AI_DEEP_RESEARCH_REPORT_ENGAGED = 'ai_deep_research.report_engaged',
     AI_AGENT_BATTLE_STARTED = 'ai_agent_battle.started',
+    AI_AGENT_RESPONSE_FEEDBACK_CLICKED = 'ai_agent_response.feedback_clicked',
+    AI_AGENT_RESPONSE_FEEDBACK_COMMENT_SUBMITTED = 'ai_agent_response.feedback_comment_submitted',
+    AI_AGENT_RESPONSE_COPIED = 'ai_agent_response.copied',
+    AI_AGENT_RESPONSE_ADD_TO_EVALS_CLICKED = 'ai_agent_response.add_to_evals_clicked',
+    AI_AGENT_RESPONSE_DEBUG_OPENED = 'ai_agent_response.debug_opened',
 
     // Content review
     CONTENT_REVIEW_SIMILAR_CONTENT_CLICKED = 'content_review_similar_content.clicked',
@@ -240,6 +244,7 @@ export enum EventName {
     ORGANIZATION_SETUP_STEP_COMPLETED = 'organization_setup_step.completed',
     ORGANIZATION_BRAND_DETECTED = 'organization_brand.detected',
     ONBOARDING_WAREHOUSE_SELECTED = 'onboarding_warehouse.selected',
+    LIVE_DATA_SOURCE_REQUESTED = 'live_data_source.requested',
     BIGQUERY_SSO_SIGNIN_CLICKED = 'bigquery_sso.signin_clicked',
     BIGQUERY_SSO_SIGNIN_COMPLETED = 'bigquery_sso.signin_completed',
     SNOWFLAKE_CLI_SSO_COMMAND_COPIED = 'snowflake_cli_sso.command_copied',

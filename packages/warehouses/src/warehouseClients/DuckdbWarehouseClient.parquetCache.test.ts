@@ -71,6 +71,51 @@ describe('private query staging of cached Parquet', () => {
         expect(manifest.tables[0].urls[0]).toMatch(/^https:/);
     });
 
+    it('stages a complete cached table larger than 8 MiB without remote reads', async () => {
+        const file = path.join(directory, 'large-fixture.parquet');
+        const instance = await DuckDBInstance.create(':memory:', {
+            memory_limit: '256MB',
+            threads: '1',
+        });
+        const db = await instance.connect();
+        try {
+            await db.run(
+                `COPY (SELECT i AS value, md5(i::VARCHAR) AS payload FROM range(10000) t(i)) TO '${file}' (FORMAT PARQUET, COMPRESSION UNCOMPRESSED)`,
+            );
+        } finally {
+            db.closeSync();
+            instance.closeSync();
+        }
+        const part = await fs.readFile(file);
+        expect(part.length).toBeLessThan(1024 * 1024);
+        const manifest = source('large');
+        const urls = Array.from({ length: 40 }, (_, i) =>
+            manifest.tables[0].urls[0].replace(
+                'part.parquet',
+                `part-${i}.parquet`,
+            ),
+        );
+        expect(part.length * urls.length).toBeGreaterThan(8 * 1024 * 1024);
+        expect(part.length * urls.length).toBeLessThan(32 * 1024 * 1024);
+        manifest.tables[0].urls = urls;
+        manifest.fileBuffers = new Map(urls.map((url) => [url, part]));
+        const writes = vi.spyOn(fs, 'writeFile');
+        // The signed URLs intentionally cannot resolve; success requires local staging.
+        expect(
+            (
+                await reader(manifest).runQuery(
+                    'SELECT count(*) AS total, sum(value) AS sum FROM query_events',
+                )
+            ).rows,
+        ).toEqual([{ total: '400000', sum: '1999800000' }]);
+        expect(writes).toHaveBeenCalledTimes(urls.length);
+        await Promise.all(
+            writes.mock.calls.map(([staged]) =>
+                expect(fs.stat(String(staged))).rejects.toThrow(),
+            ),
+        );
+    });
+
     it('denies another organization cached file even at the engine boundary', async () => {
         const writes = vi.spyOn(fs, 'writeFile');
         const a = reader(source('a'));

@@ -9,6 +9,7 @@ import { BrandPreview } from '../components/UserSettings/AppearanceSettingsPanel
 import classes from './OrganizationSetup.module.css';
 
 type OrganizationSetupPreviewProps = {
+    caption: string;
     name: string | null;
     logos: OrganizationBrandLogo[];
     colors: OrganizationBrandColor[];
@@ -19,6 +20,7 @@ type OrganizationSetupPreviewProps = {
 };
 
 const OrganizationSetupPreview: FC<OrganizationSetupPreviewProps> = ({
+    caption,
     name,
     logos,
     colors,
@@ -56,7 +58,7 @@ const OrganizationSetupPreview: FC<OrganizationSetupPreviewProps> = ({
         />
 
         <Text size="xs" c="dimmed" ta="center">
-            A preview of Lightdash, themed to your brand.
+            {caption}
         </Text>
     </Box>
 );

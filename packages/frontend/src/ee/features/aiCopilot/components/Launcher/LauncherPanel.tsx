@@ -85,7 +85,7 @@ type Props = {
     agent: LauncherSelectedAgent;
     agents: AiAgentSummary[];
     activeThreadId: string | null;
-    style?: CSSProperties;
+    transitionStyle?: CSSProperties;
 };
 
 export const LauncherPanel: FC<Props> = ({
@@ -93,11 +93,11 @@ export const LauncherPanel: FC<Props> = ({
     agent,
     agents,
     activeThreadId,
-    style,
+    transitionStyle,
 }) => {
     if (!agent) {
         return (
-            <LauncherPanelFrame style={style}>
+            <LauncherPanelFrame transitionStyle={transitionStyle}>
                 <PanelHeader
                     projectUuid={projectUuid}
                     agent={null}
@@ -118,14 +118,14 @@ export const LauncherPanel: FC<Props> = ({
             agent={agent}
             agents={agents}
             threadId={activeThreadId}
-            style={style}
+            transitionStyle={transitionStyle}
         />
     ) : (
         <NewThreadPanel
             projectUuid={projectUuid}
             agent={agent}
             agents={agents}
-            style={style}
+            transitionStyle={transitionStyle}
         />
     );
 };
@@ -134,8 +134,8 @@ const NewThreadPanel: FC<{
     projectUuid: string;
     agent: NonNullable<LauncherSelectedAgent>;
     agents: AiAgentSummary[];
-    style?: CSSProperties;
-}> = ({ projectUuid, agent, agents, style }) => {
+    transitionStyle?: CSSProperties;
+}> = ({ projectUuid, agent, agents, transitionStyle }) => {
     const navigate = useNavigate();
     const dispatch = useAiAgentStoreDispatch();
     const pendingContext = useAiAgentStoreSelector(
@@ -330,7 +330,7 @@ const NewThreadPanel: FC<{
         : agent.description;
 
     return (
-        <LauncherPanelFrame style={style}>
+        <LauncherPanelFrame transitionStyle={transitionStyle}>
             <PanelHeader
                 projectUuid={projectUuid}
                 agent={agent}
@@ -474,8 +474,8 @@ const ExistingThreadPanel: FC<{
     agent: AiAgentSummary;
     agents: AiAgentSummary[];
     threadId: string;
-    style?: CSSProperties;
-}> = ({ projectUuid, agent, agents, threadId, style }) => {
+    transitionStyle?: CSSProperties;
+}> = ({ projectUuid, agent, agents, threadId, transitionStyle }) => {
     const { user } = useApp();
     const canStartDeepResearch = useDeepResearchAccess(projectUuid);
     const navigate = useNavigate();
@@ -656,7 +656,7 @@ const ExistingThreadPanel: FC<{
 
     if (isLoadingThread || !thread) {
         return (
-            <LauncherPanelFrame style={style}>
+            <LauncherPanelFrame transitionStyle={transitionStyle}>
                 <PanelHeader
                     projectUuid={projectUuid}
                     agent={agent}
@@ -672,7 +672,7 @@ const ExistingThreadPanel: FC<{
     }
 
     return (
-        <LauncherPanelFrame style={style}>
+        <LauncherPanelFrame transitionStyle={transitionStyle}>
             <PanelHeader
                 projectUuid={projectUuid}
                 agent={agent}

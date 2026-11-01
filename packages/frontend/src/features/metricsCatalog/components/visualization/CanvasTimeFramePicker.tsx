@@ -105,7 +105,7 @@ export const CanvasTimeFramePicker: FC<Props> = ({
                 />
                 <Text
                     size="sm"
-                    c="ldGray.7"
+                    c="dimmed"
                     fw={500}
                     className={clsx(
                         styles.dateDisplay,
@@ -118,12 +118,7 @@ export const CanvasTimeFramePicker: FC<Props> = ({
             <Text c="dimmed" fz="sm" fw={500}>
                 compared to
             </Text>
-            <Text
-                size="sm"
-                c="ldGray.7"
-                fw={500}
-                className={styles.dateDisplay}
-            >
+            <Text size="sm" c="dimmed" fw={500} className={styles.dateDisplay}>
                 {dateRanges.previousRange}
             </Text>
         </Group>

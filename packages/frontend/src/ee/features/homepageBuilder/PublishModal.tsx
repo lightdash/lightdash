@@ -321,13 +321,13 @@ const PublishModalBody: FC<BodyProps> = ({
                                 color="green"
                                 className={classes.infoPanelIcon}
                             />
-                            <Text size="sm" c="ldGray.7" lh={1.5}>
+                            <Text size="sm" c="dimmed" lh={1.5}>
                                 This becomes the{' '}
                                 <Text span fw={600} c="inherit">
                                     starting point
                                 </Text>{' '}
-                                everyone lands on — unless a group they’re in
-                                has its own homepage.
+                                everyone lands on, unless a group they’re in has
+                                its own homepage.
                             </Text>
                         </Group>
                     </Box>
@@ -515,7 +515,7 @@ const PublishModalBody: FC<BodyProps> = ({
                 <DraftAnnouncementsCallout {...draftAnnouncements} />
 
                 <Group gap={7} p="10px 12px" className={classes.resolvesBar}>
-                    <Text fz={11.5} fw={500} c="ldGray.5">
+                    <Text fz={11.5} fw={500} c="dimmed">
                         Resolves:
                     </Text>
                     {RESOLUTION_STEPS.map((step, index) => (

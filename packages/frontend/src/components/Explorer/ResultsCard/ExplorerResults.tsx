@@ -1,5 +1,5 @@
 import { getItemLabel, getItemMap, isField } from '@lightdash/common';
-import { Box, Loader, Text } from '@mantine/core';
+import { Box, Center, Loader, Text } from '@mantine/core';
 import { memo, useCallback, useMemo, useState, type FC } from 'react';
 import {
     explorerActions,
@@ -31,6 +31,7 @@ import Table from '../../common/Table';
 import { JsonViewerModal } from '../../JsonViewerModal';
 import CellContextMenu from './CellContextMenu';
 import ColumnHeaderContextMenu from './ColumnHeaderContextMenu';
+import classes from './ExplorerResults.module.css';
 import {
     EmptyStateExploreLoading,
     EmptyStateNoColumns,
@@ -532,16 +533,9 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
 
         if (pivotTableQuery.isLoading || groupedResultsData?.isFetchingRows) {
             return (
-                <Box
-                    style={{
-                        display: 'flex',
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        minHeight: 200,
-                    }}
-                >
+                <Center mih={200}>
                     <Loader />
-                </Box>
+                </Center>
             );
         }
 
@@ -592,13 +586,7 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
                 {showGroupedView ? (
                     // Grouped results view - shows pivoted data with hierarchical headers
                     // Match approximate height of the paginated results table
-                    <Box
-                        style={{
-                            minHeight: 300,
-                            maxHeight: 450,
-                            overflow: 'auto',
-                        }}
-                    >
+                    <Box mih={300} mah={450} className={classes.groupedView}>
                         {renderGroupedView()}
                     </Box>
                 ) : (

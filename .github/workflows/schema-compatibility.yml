@@ -83,7 +83,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
-      - uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2.0.2
+      - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
         with:
           cache: true
           install: false
@@ -144,7 +144,7 @@ jobs:
           "$RUNNER_TEMP/dbt1.12/bin/pip" install "dbt-core==1.12.0" "dbt-postgres~=1.10.0"
           sudo ln -sf "$RUNNER_TEMP/dbt1.12/bin/dbt" /usr/local/bin/dbt1.12
           dbt1.12 --version
-      - uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2.0.2
+      - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
         with:
           cache: true
           install: false
@@ -222,7 +222,7 @@ jobs:
           "$RUNNER_TEMP/dbt1.12/bin/pip" install "dbt-core==1.12.0" "dbt-postgres~=1.10.0"
           sudo ln -sf "$RUNNER_TEMP/dbt1.12/bin/dbt" /usr/local/bin/dbt1.12
           dbt1.12 --version
-      - uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2.0.2
+      - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
         with:
           cache: true
           install: false

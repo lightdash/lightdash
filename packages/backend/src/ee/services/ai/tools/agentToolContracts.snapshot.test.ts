@@ -221,6 +221,7 @@ const makeAgentTools = (enableFilterExpressions = false) => {
             enableDataAccess: true,
             canRunSql: true,
             enablePythonNodes: false,
+            apiConnections: [],
             getPrompt: noop,
             recordSqlApproval: noop,
             isThreadSqlAutoApproved: noop,

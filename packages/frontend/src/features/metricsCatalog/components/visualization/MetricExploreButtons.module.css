@@ -4,3 +4,11 @@
 .segmentationSelect:hover {
     cursor: not-allowed;
 }
+
+.clearButtonSection[data-position='right'] {
+    margin-inline-start: var(--mantine-spacing-xxs);
+}
+
+.hidden {
+    visibility: hidden;
+}

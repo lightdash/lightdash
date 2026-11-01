@@ -15,5 +15,6 @@
     "DBT_CROSS_SOURCE_MAX_PASSES": "Set for the cross-source dbt refs experiment, which is off by default and is now removed. Independent source compiles never read this setting, so they keep their existing behaviour without it.",
     "DBT_SOURCE_PREPARE_TIMEOUT_MS": "Set for the cross-source dbt refs experiment, which is off by default and is now removed. Independent source compiles never read this setting, so they keep their existing behaviour without it.",
     "DBT_SOURCE_LS_TIMEOUT_MS": "Set for the cross-source dbt refs experiment, which is off by default and is now removed. Independent source compiles never read this setting, so they keep their existing behaviour without it.",
-    "DBT_CROSS_SOURCE_RESOLUTION_TIMEOUT_MS": "Set for the cross-source dbt refs experiment, which is off by default and is now removed. Independent source compiles never read this setting, so they keep their existing behaviour without it."
+    "DBT_CROSS_SOURCE_RESOLUTION_TIMEOUT_MS": "Set for the cross-source dbt refs experiment, which is off by default and is now removed. Independent source compiles never read this setting, so they keep their existing behaviour without it.",
+    "ORGANIZATION_WAREHOUSE_CREDENTIALS_ENABLED": "Self-hosted operators set it to turn on organization warehouse credentials; never documented for operators. The flag it fed has no readers since the credentials UI was removed, and the credentials API and project linking do not check it, so nothing changes when it is left set or removed."
 }

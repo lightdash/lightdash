@@ -1,5 +1,4 @@
 import {
-    buildComposerArtifactPipeline,
     COMPOSER_QUERY_PREVIEW_ROW_LIMIT,
     createToolComposerQueriesArgsSchema,
     getSourceQueryResultReferences,
@@ -8,17 +7,15 @@ import {
     QuerySourceType,
     queryToolDefinition,
     toComposerNodeColumns,
-    toolComposerQueryNodeToSourceQuery,
-    type AnyType,
+    WarehouseQueryError,
+    type ComposerApiConnection,
     type ParameterDefinitions,
     type SemanticLayerSourceQuery,
     type SourceQuery,
-    type SubmittedSourceQuery,
     type ToolComposerQueriesStructuredContent,
     type ToolComposerQueriesSuccessMetadata,
 } from '@lightdash/common';
 import { tool } from 'ai';
-import { stringify } from 'csv-stringify/sync';
 import { type AiDecisionClient } from '../decisions/AiDecisionClient';
 import { getEmptyFilterHints } from '../decisions/queryChecks';
 import {
@@ -40,19 +37,22 @@ import type {
     WaitForSqlApprovalFn,
 } from '../types/aiAgentDependencies';
 import { type AgentContext } from '../utils/AgentContext';
-import {
-    getAppliedParameters,
-    renderAppliedParameters,
-} from '../utils/appliedParameters';
+import { renderAppliedParameters } from '../utils/appliedParameters';
 import { serializeData } from '../utils/serializeData';
 import type {
     ExecuteStructuredToolResult,
     ExecuteToolErrorResult,
 } from '../utils/structuredToolResult';
 import { toolErrorOutput } from '../utils/toolErrorHandler';
-import { validateQueryParameters } from '../utils/validators';
-import { resolveComposerQueryNode } from './composerSemanticLayerFilters';
-import { validateSelectOnly } from './runSql';
+import {
+    buildComposerPreview,
+    buildComposerQueryPipeline,
+    isSaved,
+    renderComposerNodeSummary,
+    renderSavedNodes,
+    toComposerNodeSummaries,
+    toNodeColumns,
+} from './composerQueryPipeline';
 import { getSqlApprovalSteps } from './slackSqlAggregate';
 import { createSqlApprovalGate, type SqlApprovalCopy } from './sqlApprovalGate';
 import {
@@ -88,6 +88,8 @@ type Dependencies = {
     enableDataAccess: boolean;
     canRunSql: boolean;
     enablePythonNodes: boolean;
+    // Project API connections api nodes may query; empty disables api nodes.
+    apiConnections: ComposerApiConnection[];
     autoApproveSql?: boolean;
     autoApproveSqlUserUuid?: string | null;
     useSlackStreamCard?: boolean;
@@ -124,46 +126,6 @@ const failure = (
     metadata: { status },
     structuredContent: { error: result },
 });
-
-/**
- * Resolves which node the artifact should show: the explicit terminalNodeId
- * when given, otherwise the unique sink (the one node no other node
- * references in-submission). Throws a model-actionable error otherwise.
- */
-export const resolveTerminalNodeId = (
-    submitted: SubmittedSourceQuery[],
-    terminalNodeId: string | null,
-    pipeline: SourceQuery[],
-): string => {
-    const nodeIds = new Set(submitted.map((query) => query.nodeId));
-    if (terminalNodeId !== null) {
-        if (!pipeline.some((node) => node.nodeId === terminalNodeId)) {
-            throw new Error(
-                `terminalNodeId "${terminalNodeId}" does not name a node in this pipeline`,
-            );
-        }
-        return terminalNodeId;
-    }
-
-    const referenced = new Set<string>();
-    submitted.forEach((query) => {
-        Object.values(getSourceQueryResultReferences(query))
-            .filter((reference) => nodeIds.has(reference))
-            .forEach((reference) => referenced.add(reference));
-    });
-
-    const sinks = submitted
-        .map((query) => query.nodeId)
-        .filter((nodeId) => !referenced.has(nodeId));
-    if (sinks.length !== 1) {
-        throw new Error(
-            `The pipeline has ${sinks.length} sinks (${sinks.join(
-                ', ',
-            )}); pass terminalNodeId to pick which node's result this tool returns`,
-        );
-    }
-    return sinks[0];
-};
 
 /** Semantic layer nodes the terminal node reads from, itself included. */
 const getSemanticLayerAncestors = (
@@ -225,6 +187,7 @@ export const getRunComposerQueries = ({
     enableDataAccess,
     canRunSql,
     enablePythonNodes,
+    apiConnections,
     autoApproveSql = false,
     autoApproveSqlUserUuid = null,
     useSlackStreamCard = false,
@@ -250,13 +213,18 @@ export const getRunComposerQueries = ({
         COMPOSER_SQL_APPROVAL_COPY,
     );
 
+    const enableApiNodes = apiConnections.length > 0;
     const inputSchema = createToolComposerQueriesArgsSchema({
         maxLimit: maxQueryLimit,
         enablePythonNodes,
+        enableApiNodes,
     });
 
     return tool({
-        description: getToolComposerQueriesDescription({ enablePythonNodes }),
+        description: getToolComposerQueriesDescription({
+            enablePythonNodes,
+            apiConnections,
+        }),
         inputSchema,
         outputSchema: toolDefinition.outputSchema,
         toModelOutput: toolDefinition.toModelOutput,
@@ -285,98 +253,31 @@ export const getRunComposerQueries = ({
                     sql: approvalSql,
                 });
             try {
-                const duplicates = queryNodes
-                    .map((node) => node.nodeId)
-                    .filter(
-                        (nodeId, index, nodeIds) =>
-                            nodeIds.indexOf(nodeId) !== index,
-                    );
-                if (duplicates.length > 0) {
-                    return await persistIfResumed(
-                        failure(
-                            `Duplicate node id(s) in submission: ${duplicates.join(', ')}. Give every node a unique nodeId.`,
-                            'error',
-                        ),
-                    );
-                }
-
-                queryNodes.forEach((node) => {
-                    if (
-                        node.sourceType !== QuerySourceType.SEMANTIC_LAYER ||
-                        node.parameters === null
-                    )
-                        return;
-                    validateQueryParameters(
-                        node.parameters,
-                        agentContext.getExplore(node.exploreName),
-                        projectParameterDefinitions,
-                    );
-                });
-
                 const prompt = await getPrompt();
-                // Filters resolve against the explore before anything runs.
-                const submitted = queryNodes.map((node) =>
-                    toolComposerQueryNodeToSourceQuery(
-                        resolveComposerQueryNode(node, {
-                            getExplore: (exploreName) =>
-                                agentContext.getExplore(exploreName),
-                        }),
-                    ),
+                const threadNodes = await listThreadComposerQueryNodes(
+                    prompt.threadUuid,
                 );
-                const queries = buildComposerArtifactPipeline({
-                    queries: submitted,
-                    threadNodes: await listThreadComposerQueryNodes(
-                        prompt.threadUuid,
-                    ),
+                const built = buildComposerQueryPipeline({
+                    args: { queries: queryNodes, terminalNodeId },
+                    explores: agentContext.getAvailableExplores(),
+                    projectParameterDefinitions,
+                    reusableNodes: threadNodes,
+                    enablePythonNodes,
+                    apiConnections,
+                    canRunSql,
+                    sqlDisabledMessage:
+                        'This pipeline contains "sql" nodes but SQL execution is not enabled for this agent. Rebuild the pipeline without sql nodes (semanticLayer and duckdb nodes are still available).',
                 });
-                // Reused nodes run with the values they were defined with.
-                const appliedParameters = queries.flatMap((node) => {
-                    if (node.sourceType !== QuerySourceType.SEMANTIC_LAYER)
-                        return [];
-                    const explore = agentContext
-                        .getAvailableExplores()
-                        .find(({ name }) => name === node.exploreName);
-                    const applied = explore
-                        ? getAppliedParameters(
-                              explore,
-                              projectParameterDefinitions,
-                              node.parameters ?? null,
-                          )
-                        : null;
-                    return applied ? [{ nodeId: node.nodeId, ...applied }] : [];
-                });
-                const resolvedTerminalNodeId = resolveTerminalNodeId(
-                    submitted,
-                    terminalNodeId,
+                if ('error' in built) {
+                    return await persistIfResumed(
+                        failure(built.error, 'error'),
+                    );
+                }
+                const {
                     queries,
-                );
-
-                if (
-                    !enablePythonNodes &&
-                    queries.some(
-                        (node) => node.sourceType === QuerySourceType.PYTHON,
-                    )
-                ) {
-                    return await persistIfResumed(
-                        failure(
-                            'This pipeline contains "python" nodes but python queries are not enabled. Rebuild the pipeline with duckdb nodes instead.',
-                            'error',
-                        ),
-                    );
-                }
-
-                const sqlNodes = queries.filter(
-                    (node) => node.sourceType === QuerySourceType.SQL,
-                );
-                if (sqlNodes.length > 0 && !canRunSql) {
-                    return await persistIfResumed(
-                        failure(
-                            'This pipeline contains "sql" nodes but SQL execution is not enabled for this agent. Rebuild the pipeline without sql nodes (semanticLayer and duckdb nodes are still available).',
-                            'error',
-                        ),
-                    );
-                }
-                sqlNodes.forEach((node) => validateSelectOnly(node.sql));
+                    terminalNodeId: resolvedTerminalNodeId,
+                    appliedParameters,
+                } = built.pipeline;
 
                 if (approvalSql !== null) {
                     try {
@@ -398,7 +299,7 @@ export const getRunComposerQueries = ({
 
                 await updateProgress('Running composer queries...');
 
-                const [{ terminal }, review] = await Promise.all([
+                const [run, review] = await Promise.all([
                     runComposerQueries({
                         queries,
                         terminalNodeId: resolvedTerminalNodeId,
@@ -441,6 +342,23 @@ export const getRunComposerQueries = ({
                         : '',
                 ]);
 
+                // Only ready nodes are saved; other node ids stay free to resubmit corrected.
+                const saved = run.nodeStatuses.filter(isSaved);
+                const savedNodes = queries.filter((node) =>
+                    saved.some(({ nodeId }) => nodeId === node.nodeId),
+                );
+                if (run.status === 'failure') {
+                    await registerThreadComposerQueryNodes({
+                        threadUuid: prompt.threadUuid,
+                        nodes: savedNodes,
+                        nodeColumns: toNodeColumns(saved),
+                    });
+                    throw new WarehouseQueryError(
+                        `${run.error}\n${renderSavedNodes(queries, run.nodeStatuses, threadNodes)}`,
+                    );
+                }
+                const { terminal, nodeStatuses } = run;
+
                 if (approvalSql !== null) {
                     await renderState({
                         kind: 'success',
@@ -460,24 +378,15 @@ export const getRunComposerQueries = ({
                     description: description ?? null,
                 };
 
-                const nodes = queries.map((node) => ({
-                    nodeId: node.nodeId,
-                    title: node.title ?? null,
-                    sourceType: node.sourceType,
-                }));
-                const nodeSummary = nodes
-                    .map((node) =>
-                        node.title === null
-                            ? `- ${node.nodeId} (${node.sourceType})`
-                            : `- ${node.nodeId}: "${node.title}" (${node.sourceType})`,
-                    )
-                    .join('\n');
-                const columns = Object.values(terminal.columns).map(
-                    ({ reference, type }) => ({ reference, type }),
+                const nodes = toComposerNodeSummaries(queries, nodeStatuses);
+                const nodeSummary = renderComposerNodeSummary(
+                    queries,
+                    nodes,
+                    nodeStatuses,
+                    maxQueryLimit,
                 );
-                const columnReferences = columns.map(
-                    (column) => column.reference,
-                );
+                const preview = buildComposerPreview(terminal);
+                const { columns } = preview;
                 const columnSummary = columns
                     .map((column) => `${column.reference} (${column.type})`)
                     .join(', ');
@@ -541,35 +450,19 @@ export const getRunComposerQueries = ({
                             structuredContent: { ...summary, preview: null },
                         };
                     }
-                    const previewRows = terminal.rows
-                        .slice(0, COMPOSER_QUERY_PREVIEW_ROW_LIMIT)
-                        .map((row) =>
-                            columnReferences.reduce<Record<string, AnyType>>(
-                                (acc, col) => {
-                                    acc[col] = row[col];
-                                    return acc;
-                                },
-                                {},
-                            ),
-                        );
-                    const previewCsv = stringify(previewRows, {
-                        header: true,
-                        columns: columnReferences,
-                    });
-                    const truncated =
-                        terminal.rowCount > COMPOSER_QUERY_PREVIEW_ROW_LIMIT;
+                    const { truncated } = preview;
                     const truncatedNote = truncated
                         ? `\n(Showing first ${COMPOSER_QUERY_PREVIEW_ROW_LIMIT} of ${terminal.rowCount} rows.)`
                         : '';
                     return {
                         result: `${resultSummary}${truncatedNote}\n${serializeData(
-                            previewCsv,
+                            preview.csv,
                             'csv',
                         )}`,
                         metadata,
                         structuredContent: {
                             ...summary,
-                            preview: { rows: previewRows, truncated },
+                            preview: { rows: preview.rows, truncated },
                         },
                     };
                 };
@@ -578,8 +471,9 @@ export const getRunComposerQueries = ({
                 // Last fallible step: a failure anywhere above registers nothing.
                 await registerThreadComposerQueryNodes({
                     threadUuid: prompt.threadUuid,
-                    nodes: queries,
+                    nodes: savedNodes,
                     nodeColumns: {
+                        ...toNodeColumns(saved),
                         [resolvedTerminalNodeId]: toComposerNodeColumns(
                             terminal.columns,
                         ),

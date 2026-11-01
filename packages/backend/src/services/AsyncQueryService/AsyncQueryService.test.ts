@@ -395,6 +395,11 @@ const projectModel = {
     get: vi.fn(async () => projectWithSensitiveFields),
     getSummary: vi.fn(async () => projectSummary),
     getEffectiveResultsCacheTtlSeconds: vi.fn(async () => 86400),
+    getResultsCacheSettings: vi.fn(async () => ({
+        cacheTtlSeconds: null,
+        cacheGeneration: 0,
+        lastInvalidatedAt: null,
+    })),
     getTablesConfiguration: vi.fn(async () => tablesConfiguration),
     updateTablesConfiguration: vi.fn(),
     getQueryTimezone: vi.fn(async () => 'UTC'),
@@ -545,6 +550,7 @@ const getMockedAsyncQueryService = (
             }) as DocumentService,
         getQuerySourceService: () => {
             querySourceService ??= new QuerySourceService({
+                analytics: analyticsMock,
                 getAsyncQueryService: () => service,
                 getAgentPermissionService: () => ({
                     loadRequest: vi.fn().mockResolvedValue({
@@ -1545,6 +1551,69 @@ describe('AsyncQueryService', () => {
             const stored = vi.mocked(service.queryHistoryModel.create).mock
                 .calls[0][1].requestParameters;
             expect(stored.resultEntitlementFingerprint).toBeNull();
+        });
+    });
+
+    describe('executeAsyncApiQuery result reuse', () => {
+        test('keeps the original fetch time when reusing a live result', async () => {
+            const now = new Date();
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                featureFlagModel: {
+                    get: vi.fn(async ({ featureFlagId }) => ({
+                        id: featureFlagId,
+                        enabled: featureFlagId === FeatureFlags.ApiQuerySources,
+                    })),
+                } as unknown as FeatureFlagModel,
+                queryHistoryModel: {
+                    create: vi.fn(async () => ({ queryUuid: 'api-uuid' })),
+                    findMostRecentByCacheKey: vi.fn(async () => ({
+                        queryHistory: {
+                            status: QueryHistoryStatus.READY,
+                            warehouseExecutionTimeMs: 254,
+                        },
+                        totalRowCount: 3,
+                        resultsFileName: 'api-results.jsonl',
+                        resultsCreatedAt: now,
+                        resultsUpdatedAt: now,
+                        resultsExpiresAt: null,
+                        columns: null,
+                    })),
+                    recordResultProducer: vi.fn(),
+                    update: vi.fn(),
+                } as unknown as QueryHistoryModel,
+            } as never);
+            vi.spyOn(service, 'getUserAttributes').mockResolvedValue({
+                userAttributes: {},
+                intrinsicUserAttributes: {},
+            });
+
+            await service.executeAsyncApiQuery({
+                account: sessionAccount,
+                projectUuid,
+                context: QueryExecutionContext.AI,
+                connectionUuid: 'connection-uuid',
+                connector: {
+                    describe: () => ({ connector: 'posthog' }),
+                    execute: vi.fn(),
+                    usage: () => ({
+                        apiCalls: 0,
+                        responseBytes: 0,
+                        providerStatus: null,
+                    }),
+                    logCall: vi.fn(async () => undefined),
+                } as never,
+                payload: { kind: 'query', query: 'select 1' },
+            });
+
+            expect(service.queryHistoryModel.update).toHaveBeenCalledWith(
+                'api-uuid',
+                projectUuid,
+                expect.objectContaining({
+                    status: QueryHistoryStatus.READY,
+                    warehouse_execution_time_ms: 254,
+                }),
+                sessionAccount,
+            );
         });
     });
 
@@ -2759,7 +2828,6 @@ describe('AsyncQueryService', () => {
                 featureFlagModel.get as import('vitest').Mock
             ).mock.calls.map(([{ featureFlagId }]) => featureFlagId);
             expect(flagsRead).not.toContain(FeatureFlags.ComposeSqlRunner);
-            expect(flagsRead).not.toContain(FeatureFlags.MultiSourceQuery);
             expect(service.queryHistoryModel.create).toHaveBeenCalledWith(
                 sessionAccount,
                 expect.objectContaining({
@@ -3531,6 +3599,7 @@ describe('AsyncQueryService', () => {
                 vi.spyOn(service, 'findResultsCache').mockResolvedValue({
                     resultProducer: null,
                     cacheHit: true,
+                    cacheGeneration: 0,
                     cacheKey: 'cache',
                     totalRowCount: 10,
                     createdAt: new Date(),
@@ -3603,6 +3672,7 @@ describe('AsyncQueryService', () => {
                     hit
                         ? {
                               cacheHit: true,
+                              cacheGeneration: 0,
                               cacheKey: 'key',
                               totalRowCount: 1,
                               fileName: 'file',
@@ -3743,6 +3813,7 @@ describe('AsyncQueryService', () => {
             const mockCacheResult: CacheHitCacheResult = {
                 resultProducer: null,
                 cacheHit: true,
+                cacheGeneration: 0,
                 cacheKey: 'test-cache-key',
                 totalRowCount: 10,
                 createdAt,
@@ -3817,6 +3888,7 @@ describe('AsyncQueryService', () => {
                     total_row_count: 10,
                     warehouse_execution_time_ms: 0,
                     results_file_name: 'file-name',
+                    cache_generation: 0,
                     columns: expectedColumns,
                     original_columns: expectedColumns,
                     results_created_at: createdAt,
@@ -5597,6 +5669,78 @@ describe('AsyncQueryService', () => {
     });
 
     describe('executeAsyncMetricQuery', () => {
+        const getServiceWithExportLimit = (csvCellsLimit: number | null) => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                organizationSettingsModel: {
+                    get: vi.fn(async () => ({
+                        queryLimit: null,
+                        csvCellsLimit,
+                    })),
+                } as unknown as OrganizationSettingsModel,
+            });
+            vi.spyOn(
+                service.projectModel,
+                'findExploresFromCache',
+            ).mockResolvedValue({
+                [validExplore.name]: validExplore,
+            });
+            vi.spyOn(service, 'getUserAttributes').mockResolvedValue({
+                userAttributes: {},
+                intrinsicUserAttributes: {},
+            });
+            service['getWarehouseCredentials'] = vi
+                .fn()
+                .mockResolvedValue(warehouseClientMock.credentials);
+            const prepare = vi
+                .fn()
+                .mockResolvedValue(createQueryComposerMock());
+            service['prepareMetricQueryAsyncQueryArgs'] = prepare;
+            service['executeAsyncQuery'] = vi.fn().mockResolvedValue({
+                queryUuid: 'query-uuid',
+                cacheMetadata: { cacheHit: false },
+            });
+            return { service, prepare };
+        };
+
+        const effectiveQueryLimit = (prepare: ReturnType<typeof vi.fn>) =>
+            prepare.mock.calls[0][0].metricQuery.limit;
+
+        // metricQueryMock has 3 columns (1 dimension, 1 metric, 1 table calc),
+        // so a 60-cell org limit allows 20 rows
+        test.each([
+            ['all results', null, 20],
+            ['a custom row count above the cap', 50, 20],
+            ['a custom row count under the cap', 5, 5],
+        ])(
+            'an export of %s is capped by the org CSV cells limit',
+            async (_label, limit, expectedLimit) => {
+                const { service, prepare } = getServiceWithExportLimit(60);
+
+                await service.executeAsyncMetricQuery({
+                    account: sessionAccount,
+                    projectUuid,
+                    metricQuery: metricQueryMock,
+                    limit,
+                    context: QueryExecutionContext.EXPLORE,
+                });
+
+                expect(effectiveQueryLimit(prepare)).toBe(expectedLimit);
+            },
+        );
+
+        test('a query without an export limit keeps its own limit', async () => {
+            const { service, prepare } = getServiceWithExportLimit(60);
+
+            await service.executeAsyncMetricQuery({
+                account: sessionAccount,
+                projectUuid,
+                metricQuery: metricQueryMock,
+                context: QueryExecutionContext.EXPLORE,
+            });
+
+            expect(effectiveQueryLimit(prepare)).toBe(metricQueryMock.limit);
+        });
+
         test.each(['anyAttributes', 'requiredAttributes'] as const)(
             'authorizes %s with effective attribute overrides before compiling',
             async (restriction) => {
@@ -8383,6 +8527,38 @@ describe('AsyncQueryService', () => {
                 },
             });
         });
+
+        test('maxPageSize raises the page size cap for that read', async () => {
+            serviceWithCache.queryHistoryModel.get = vi.fn().mockResolvedValue({
+                ...buildPendingAiQueryHistory(sessionAccount.user.id),
+                context: QueryExecutionContext.MCP_RUN_SQL,
+                status: QueryHistoryStatus.READY,
+                totalRowCount: 3000,
+                resultsFileName: 'results-file-name.json',
+                resultsExpiresAt: new Date(Date.now() + 60_000),
+                columns: expectedColumns,
+            });
+            (serviceWithCache as AnyType).getResultsPageFromS3 = vi
+                .fn()
+                .mockResolvedValue({ rows: [expectedFormattedRow] });
+            const args = {
+                account: sessionAccount,
+                projectUuid,
+                queryUuid: 'test-query-uuid',
+                page: 1,
+                pageSize: 3000,
+            };
+
+            await expect(
+                serviceWithCache.getAsyncQueryResults(args),
+            ).rejects.toThrow('page size is too large, max is 2500');
+            await expect(
+                serviceWithCache.getAsyncQueryResults({
+                    ...args,
+                    maxPageSize: 5000,
+                }),
+            ).resolves.toMatchObject({ status: QueryHistoryStatus.READY });
+        });
     });
 
     describe('runAsyncPreAggregateQuery', () => {
@@ -9132,6 +9308,229 @@ describe('AsyncQueryService', () => {
     });
 
     describe('analytics cached-result boundaries', () => {
+        const unsupportedFormat =
+            'Managed analytics supports CSV and Excel downloads only';
+        const missingStorage =
+            'Managed analytics downloads require export storage to be configured';
+        test.each([
+            [undefined, unsupportedFormat],
+            [DownloadFileType.JSONL, unsupportedFormat],
+            [DownloadFileType.S3_JSONL, unsupportedFormat],
+            [DownloadFileType.IMAGE, unsupportedFormat],
+            [DownloadFileType.CSV, missingStorage],
+            [DownloadFileType.XLSX, missingStorage],
+        ] as const)(
+            'rejects analytics %s export: %s',
+            async (type, expected) => {
+                const exportStorage = {
+                    isEnabled: () => false,
+                } as FileStorageClient;
+                const service = getMockedAsyncQueryService(
+                    lightdashConfigMock,
+                    {
+                        exportsStorageClient: exportStorage,
+                        fileStorageClient: exportStorage,
+                    },
+                );
+                const account = buildAccount();
+                account.user.ability = new Ability<PossibleAbilities>([
+                    { action: 'view', subject: 'Project' },
+                    { action: 'view', subject: 'SystemAnalytics' },
+                ]);
+                vi.spyOn(projectModel, 'getSummary').mockResolvedValue({
+                    ...projectSummary,
+                    organizationUuid: account.organization.organizationUuid!,
+                    provisioningSource: 'analytics',
+                });
+                vi.spyOn(
+                    analyticsClient,
+                    'assertAnalyticsProjectEnabled',
+                ).mockResolvedValue(undefined);
+                const args: DownloadAsyncQueryResultsArgs = {
+                    account,
+                    projectUuid,
+                    queryUuid: 'analytics-query',
+                    type,
+                    accessMode:
+                        PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
+                };
+                await expect(
+                    service.scheduleDownloadAsyncQueryResults(args),
+                ).rejects.toThrow(expected);
+                await expect(service.download(args)).rejects.toThrow(expected);
+                vi.spyOn(service, 'pollForQueryCompletion').mockResolvedValue(
+                    undefined,
+                );
+                await expect(
+                    service.downloadSyncQueryResults({
+                        ...args,
+                        accessMode: PersistentDownloadFileAccessMode.SIGNED,
+                    }),
+                ).rejects.toThrow(expected);
+                expect(service.queryHistoryModel.get).not.toHaveBeenCalled();
+                expect(
+                    service.resultsStorageClient.getFileUrl,
+                ).not.toHaveBeenCalled();
+            },
+        );
+
+        test.each([
+            [DownloadFileType.CSV, 'schedule'],
+            [DownloadFileType.XLSX, 'schedule'],
+            [DownloadFileType.CSV, 'download'],
+            [DownloadFileType.XLSX, 'download'],
+            [DownloadFileType.CSV, 'downloadSync'],
+            [DownloadFileType.XLSX, 'downloadSync'],
+        ] as const)(
+            'allows %s %s for a user with managed analytics access',
+            async (type, operation) => {
+                const account = buildAccount();
+                account.user.ability = new Ability<PossibleAbilities>([
+                    { action: 'view', subject: 'Project' },
+                    { action: 'view', subject: 'SystemAnalytics' },
+                ]);
+                vi.spyOn(projectModel, 'getSummary').mockResolvedValue({
+                    ...projectSummary,
+                    organizationUuid: account.organization.organizationUuid!,
+                    provisioningSource: 'analytics',
+                });
+                vi.spyOn(
+                    analyticsClient,
+                    'assertAnalyticsProjectEnabled',
+                ).mockResolvedValue(undefined);
+                const exportStorage = {
+                    isEnabled: () => true,
+                    createUploadStream: () => ({
+                        writeStream: new Writable({
+                            write(_chunk, _encoding, callback) {
+                                callback();
+                            },
+                        }),
+                        close: async () => undefined,
+                    }),
+                    getFileUrl: async () => 'export-url',
+                    uploadExcel: async (stream: Readable) => {
+                        await stream.toArray();
+                        return 'export-url';
+                    },
+                } as unknown as FileStorageClient;
+                const createPersistentUrl = vi
+                    .fn()
+                    .mockResolvedValue('download-url');
+                const service = getMockedAsyncQueryService(
+                    lightdashConfigMock,
+                    {
+                        exportsStorageClient: exportStorage,
+                        fileStorageClient: exportStorage,
+                        persistentDownloadFileService: {
+                            createPersistentUrl,
+                        } as unknown as PersistentDownloadFileService,
+                    },
+                );
+                const history: QueryHistory = {
+                    queryUuid: 'analytics-query',
+                    projectUuid,
+                    organizationUuid: account.organization.organizationUuid!,
+                    createdAt: new Date(),
+                    createdBy: account.user.id,
+                    createdByUserUuid: account.user.id,
+                    createdByAccount: null,
+                    createdByActorType: 'session',
+                    agentIdentity: null,
+                    context: QueryExecutionContext.EXPLORE,
+                    status: QueryHistoryStatus.READY,
+                    requestParameters: { query: metricQueryMock },
+                    metricQuery: metricQueryMock,
+                    compiledSql: 'SELECT * FROM analytics',
+                    fields: validExplore.tables.a.dimensions,
+                    columns: expectedColumns,
+                    originalColumns: null,
+                    resultsFileName: 'analytics-results.jsonl',
+                    resultsCreatedAt: new Date(),
+                    resultsUpdatedAt: new Date(),
+                    resultsExpiresAt: new Date(Date.now() + 60_000),
+                    totalRowCount: 1,
+                    defaultPageSize: 10,
+                    warehouseQueryId: null,
+                    warehouseQueryMetadata: null,
+                    warehouseExecutionStats: null,
+                    warehouseExecutionTimeMs: null,
+                    usedParameters: null,
+                    error: null,
+                    erroredAt: null,
+                    cacheKey: 'analytics-export',
+                    pivotConfiguration: null,
+                    pivotValuesColumns: null,
+                    pivotTotalColumnCount: null,
+                    preAggregateCompiledSql: null,
+                    preAggregateExecution: null,
+                    preAggregateFallbackReason: null,
+                    processingStartedAt: null,
+                };
+                vi.mocked(service.queryHistoryModel.get).mockResolvedValue(
+                    history,
+                );
+                const scheduleDownload = vi
+                    .fn()
+                    .mockResolvedValue({ jobId: 'analytics-export-job' });
+                Object.assign(service, {
+                    schedulerClient: {
+                        downloadAsyncQueryResults: scheduleDownload,
+                    },
+                });
+                vi.spyOn(service, 'pollForQueryCompletion').mockResolvedValue(
+                    undefined,
+                );
+                const args: DownloadAsyncQueryResultsArgs = {
+                    account,
+                    projectUuid,
+                    queryUuid: history.queryUuid,
+                    type,
+                    accessMode:
+                        operation === 'downloadSync'
+                            ? PersistentDownloadFileAccessMode.SIGNED
+                            : PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
+                };
+
+                if (operation === 'schedule') {
+                    await expect(
+                        service.scheduleDownloadAsyncQueryResults(args),
+                    ).resolves.toEqual({ jobId: 'analytics-export-job' });
+                    expect(scheduleDownload).toHaveBeenCalledWith(
+                        expect.objectContaining({
+                            projectUuid,
+                            queryUuid: history.queryUuid,
+                            type,
+                            organizationUuid:
+                                account.organization.organizationUuid,
+                            userUuid: account.user.id,
+                        }),
+                    );
+                } else {
+                    await expect(
+                        operation === 'downloadSync'
+                            ? service.downloadSyncQueryResults(args)
+                            : service.download(args),
+                    ).resolves.toMatchObject({
+                        fileUrl: 'download-url',
+                        truncated: false,
+                    });
+                    expect(createPersistentUrl).toHaveBeenCalledWith(
+                        expect.objectContaining({
+                            projectUuid,
+                            organizationUuid:
+                                account.organization.organizationUuid,
+                            fileType: type,
+                            accessMode: args.accessMode,
+                        }),
+                    );
+                }
+                expect(
+                    analyticsClient.assertAnalyticsProjectEnabled,
+                ).toHaveBeenCalled();
+            },
+        );
+
         afterEach(() => {
             projectModel.getSummary.mockResolvedValue(projectSummary);
             vi.mocked(
@@ -9194,6 +9593,15 @@ describe('AsyncQueryService', () => {
                     service.scheduleDownloadAsyncQueryResults(args),
                 ).rejects.toThrow(expected);
                 await expect(service.download(args)).rejects.toThrow(expected);
+                vi.spyOn(service, 'pollForQueryCompletion').mockResolvedValue(
+                    undefined,
+                );
+                await expect(
+                    service.downloadSyncQueryResults({
+                        ...args,
+                        accessMode: PersistentDownloadFileAccessMode.SIGNED,
+                    }),
+                ).rejects.toThrow(expected);
                 expect(service.queryHistoryModel.get).not.toHaveBeenCalled();
                 await expect(
                     service.getAsyncQueryResults(args),
@@ -10097,6 +10505,7 @@ describe('AsyncQueryService', () => {
             const mockCacheResult: CacheHitCacheResult = {
                 resultProducer: null,
                 cacheHit: true,
+                cacheGeneration: 0,
                 cacheKey: 'test-cache-key',
                 totalRowCount: 10,
                 createdAt,
@@ -10323,6 +10732,9 @@ describe('AsyncQueryService', () => {
                     },
                 });
                 expect(completed()).toHaveLength(1);
+                expect(completed()[0][0].properties?.errorMessage).toBe(
+                    uploadFails ? 'upload failed' : undefined,
+                );
                 expect(completed()[0][0]).toMatchObject({
                     properties: {
                         inheritedFromProjectUuid: null,
@@ -15803,6 +16215,7 @@ describe('runDuckdbQuery', () => {
     const cachedResults: CacheHitCacheResult = {
         resultProducer: null,
         cacheHit: true,
+        cacheGeneration: 0,
         cacheKey: 'cached-key',
         fileName: 'cached-results.jsonl',
         createdAt: new Date('2026-09-07T10:00:00Z'),
@@ -22654,6 +23067,7 @@ describe('fresh execution producer to result reader', () => {
             const candidate = {
                 ...original,
                 cacheKey: oldKey,
+                cacheGeneration: 0,
                 resultsUpdatedAt: new Date(),
                 resultsCreatedAt: new Date(),
                 resultProducer: oldProducer,
@@ -27498,6 +27912,7 @@ describe('fresh execution producer to result reader', () => {
                     }),
                 );
                 const source = new QuerySourceService({
+                    analytics: analyticsMock,
                     getAsyncQueryService: () => f.service,
                     getAgentPermissionService: () =>
                         ({ assertOperation: vi.fn() }) as never,
@@ -27607,6 +28022,7 @@ describe('fresh execution producer to result reader', () => {
                 }),
             );
             const source = new QuerySourceService({
+                analytics: analyticsMock,
                 getAsyncQueryService: () => f.service,
                 getAgentPermissionService: () =>
                     ({ assertOperation: vi.fn() }) as never,
@@ -27718,6 +28134,7 @@ describe('fresh execution producer to result reader', () => {
     test('source status uses the real connection guard before returning pending or error state', async () => {
         await boundFixture(async (f, auth, queryUuid) => {
             const source = new QuerySourceService({
+                analytics: analyticsMock,
                 getAsyncQueryService: () => f.service,
                 getAgentPermissionService: () => auth.permissions,
                 projectModel: f.service.projectModel,

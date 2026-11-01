@@ -1,5 +1,5 @@
 import type * as DndKitCore from '@dnd-kit/core';
-import { type DragEndEvent } from '@dnd-kit/core';
+import { DndContext, type DragEndEvent } from '@dnd-kit/core';
 import {
     DashboardTileTypes,
     DimensionType,
@@ -7,8 +7,16 @@ import {
     type DashboardFilterRule,
     type DashboardTile,
 } from '@lightdash/common';
-import { act, screen, within } from '@testing-library/react';
+import {
+    act,
+    fireEvent,
+    screen,
+    waitFor,
+    within,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import fs from 'fs';
+import path from 'path';
 import { type ReactElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -151,6 +159,26 @@ const tile = (uuid: string, tabUuid?: string) =>
         properties: {},
     }) as DashboardTile;
 
+// jsdom has no PointerEvent: dnd-kit's PointerSensor needs `isPrimary`
+if (typeof window.PointerEvent === 'undefined') {
+    window.PointerEvent = class extends MouseEvent {
+        isPrimary: boolean;
+        constructor(type: string, init: PointerEventInit = {}) {
+            super(type, init);
+            this.isPrimary = init.isPrimary ?? false;
+        }
+    } as typeof PointerEvent;
+}
+// A real pointer gesture through dnd-kit's PointerSensor
+const pointerDrag = (element: HTMLElement, distance: number) => {
+    fireEvent.pointerDown(element, { isPrimary: true, button: 0 });
+    fireEvent.pointerMove(document, {
+        isPrimary: true,
+        clientX: distance,
+        clientY: 0,
+    });
+};
+
 const dragEvent = (activeId: string, overId: string) =>
     ({ active: { id: activeId }, over: { id: overId } }) as DragEndEvent;
 
@@ -162,6 +190,12 @@ const pill = (name: RegExp | string) => {
     if (!match) throw new Error(`No pill named ${name}`);
     return match;
 };
+// The icons before a pill's name, in order
+const leadingIconsOf = (element: HTMLElement) => [
+    ...(element.querySelector('[data-position="left"] > div')?.children ?? []),
+];
+const isFieldIcon = (element: Element | undefined) =>
+    /statusIcon/.test(element?.getAttribute('class') ?? '');
 const queryPill = (name: RegExp) =>
     screen
         .queryAllByRole('button', { name })
@@ -171,7 +205,7 @@ describe('FilterPills', () => {
     const open = vi.fn();
     const close = vi.fn();
     const removeFilterById = vi.fn();
-    const setHoveredFilterId = vi.fn();
+    const moveFilter = vi.fn();
     const tileHoverOwner: { current: string | null } = { current: null };
     const setDashboardFilters = vi.fn();
     const setHaveFiltersChanged = vi.fn();
@@ -211,7 +245,7 @@ describe('FilterPills', () => {
             dashboardTemporaryFilters: noFilters,
         };
         mockDashboardContext.current = {
-            dashboard: { uuid: 'dashboard-1', filters: noFilters },
+            dashboard: { uuid: 'dashboard-1', filters },
             setDashboardFilters,
             setHaveFiltersChanged,
             dashboardTiles: [tile('tile-1')],
@@ -236,12 +270,13 @@ describe('FilterPills', () => {
         };
         mockSidebar.current = {
             editing: null,
+            editingRule: null,
             isSidebarOpen: false,
             isNew: false,
             open,
             close,
             removeFilterById,
-            setHoveredFilterId,
+            moveFilter,
             tileHoverOwner,
         };
     });
@@ -277,7 +312,7 @@ describe('FilterPills', () => {
         expect(open).toHaveBeenCalledWith('saved');
     });
 
-    it('dots the pills whose rule differs from the saved dashboard', () => {
+    it('never dots a pill whose rule differs from the saved dashboard', () => {
         setContext({
             dashboard: {
                 uuid: 'dashboard-1',
@@ -294,28 +329,17 @@ describe('FilterPills', () => {
         renderWithProviders(<FilterPills activeTabUuid={undefined} />);
 
         expect(
-            within(pill(/^Status/).parentElement!).queryByRole('img', {
-                name: 'Changed',
-            }),
+            screen.queryByRole('img', { name: 'Changed' }),
         ).not.toBeInTheDocument();
-        expect(
-            within(pill(/^Region/).parentElement!).getByRole('img', {
-                name: 'Changed',
-            }),
-        ).toBeInTheDocument();
+        expect(pill(/^Region/)).not.toHaveAttribute('data-temporary');
     });
 
-    it('dots a pill moved to another section, and one not saved yet', () => {
+    it('dashes a pill not saved yet, in effect or not', () => {
         setContext({
-            dashboardFilters: {
-                dimensions: [{ ...savedRule, sectionId: 'a' }, noDefaultRule],
-                metrics: [],
-                tableCalculations: [],
-            },
             dashboard: {
                 uuid: 'dashboard-1',
                 filters: {
-                    dimensions: [savedRule],
+                    dimensions: [noDefaultRule],
                     metrics: [],
                     tableCalculations: [],
                 },
@@ -323,7 +347,121 @@ describe('FilterPills', () => {
         });
         renderWithProviders(<FilterPills activeTabUuid={undefined} />);
 
-        expect(screen.getAllByRole('img', { name: 'Changed' })).toHaveLength(2);
+        expect(pill(/^Status/)).toHaveAttribute('data-temporary');
+        expect(pill(/^Status/)).toHaveAttribute('data-in-effect');
+        expect(pill(/^Status/)).toHaveAttribute('data-variant', 'default');
+        expect(pill(/^Region/)).not.toHaveAttribute('data-temporary');
+    });
+
+    describe('a new filter', () => {
+        const draftPill = () =>
+            document.querySelector<HTMLElement>('[data-controls-pill="new"]');
+        const newRule: DashboardFilterRule = {
+            id: 'new',
+            label: undefined,
+            operator: FilterOperator.EQUALS,
+            target: { fieldId: 'orders_region', tableName: 'orders' },
+            values: ['EMEA'],
+        };
+        const editingNew = (overrides: Record<string, unknown>) => {
+            setContext({
+                dashboardFilters: { ...noFilters, dimensions: [savedRule] },
+            });
+            mockSidebar.current = {
+                ...mockSidebar.current,
+                editing: { filterId: 'new' },
+                isSidebarOpen: true,
+                isNew: true,
+                isPlaceholder: false,
+                editingRule: newRule,
+                ...overrides,
+            };
+        };
+
+        it('has no pill while its field is being picked', () => {
+            editingNew({
+                isPlaceholder: true,
+                editingRule: {
+                    ...newRule,
+                    target: { fieldId: '', tableName: '' },
+                },
+            });
+            renderWithProviders(<FilterPills activeTabUuid={undefined} />);
+            expect(draftPill()).toBeNull();
+        });
+
+        it('gets a dashed, open pill once its field is picked, in effect only after Apply', () => {
+            editingNew({});
+            renderWithProviders(<FilterPills activeTabUuid={undefined} />);
+
+            const created = draftPill();
+            expect(created).toHaveAttribute('data-temporary');
+            expect(created).toHaveAttribute('data-open');
+            expect(created).not.toHaveAttribute('data-in-effect');
+            expect(created).toHaveTextContent('Order region is any value');
+            // Last on the bar, after the saved pills
+            const pills = document.querySelectorAll('[data-controls-pill]');
+            expect(pills[pills.length - 1]).toBe(created);
+        });
+
+        it("is a viewer's own dashed pill for a viewer", () => {
+            editingNew({ isViewer: true });
+            renderWithProviders(<FilterPills activeTabUuid={undefined} />);
+
+            const created = draftPill();
+            expect(created).toHaveAttribute('data-temporary');
+            expect(created).toHaveAttribute('data-open');
+        });
+
+        it('draws once when Apply has already put it in the store', () => {
+            editingNew({ isViewer: true });
+            setContext({
+                dashboardFilters: { ...noFilters, dimensions: [savedRule] },
+                dashboardTemporaryFilters: {
+                    ...noFilters,
+                    dimensions: [newRule],
+                },
+            });
+            renderWithProviders(<FilterPills activeTabUuid={undefined} />);
+
+            expect(
+                document.querySelectorAll('[data-controls-pill="new"]'),
+            ).toHaveLength(1);
+        });
+    });
+
+    describe('looks', () => {
+        it('reads a value in effect bold and mutes a pill not in effect', () => {
+            renderWithProviders(<FilterPills activeTabUuid={undefined} />);
+
+            const inEffect = pill(/^Status/);
+            expect(inEffect).toHaveAttribute('data-in-effect');
+            expect(inEffect.className).toContain('plain');
+            expect(within(inEffect).getByText('done')).toHaveStyle({
+                fontWeight: '600',
+            });
+            expect(inEffect).not.toHaveAttribute('data-filter-active');
+            const muted = pill(/^Region/);
+            expect(muted).not.toHaveAttribute('data-in-effect');
+            expect(muted).toHaveTextContent('Region is any value');
+        });
+
+        it('looks in effect when required with its default, with no requirement cue', () => {
+            setContext({
+                dashboardFilters: {
+                    ...filters,
+                    dimensions: [{ ...savedRule, required: true }],
+                },
+            });
+            renderWithProviders(<FilterPills activeTabUuid={undefined} />);
+
+            const required = pill(/^Status/);
+            expect(required).toHaveAttribute('data-in-effect');
+            expect(
+                required.querySelector('[data-requirement-icon]'),
+            ).toBeNull();
+            expect(required).not.toHaveAttribute('data-requirement-unmet');
+        });
     });
 
     it('removes the filter from the X without opening it', async () => {
@@ -338,51 +476,172 @@ describe('FilterPills', () => {
         expect(open).not.toHaveBeenCalled();
     });
 
-    it('marks the pill being edited as selected', () => {
+    it('marks the pill being edited as open, with no badge', () => {
         mockSidebar.current = {
             ...mockSidebar.current,
             editing: { filterId: 'saved' },
             isSidebarOpen: true,
         };
-        renderWithProviders(<FilterPills activeTabUuid={undefined} />);
+        const { rerender } = renderWithProviders(
+            <FilterPills activeTabUuid={undefined} />,
+        );
 
-        expect(
-            screen.getByRole('button', { name: /^Status/, pressed: true }),
-        ).toBeInTheDocument();
+        const openPill = screen.getByRole('button', {
+            name: /^Status/,
+            pressed: true,
+        });
+        expect(openPill).toHaveAttribute('data-open');
         expect(
             screen.getByRole('button', { name: /^Region/, pressed: false }),
-        ).toBeInTheDocument();
-        // The light blue look, never the picked pill's solid one
-        expect(pill(/^Status/)).toHaveClass(/selectedPill/);
+        ).not.toHaveAttribute('data-open');
+        // The field icon comes first: the pill has no grip
+        const icons = leadingIconsOf(pill(/^Status/));
+        expect(icons.some(isFieldIcon)).toBe(true);
         expect(pill(/^Status/)).not.toHaveClass(/pickedPill/);
-        expect(pill(/^Region/)).not.toHaveClass(/selectedPill/);
-    });
+        const openClassName = pill(/^Status/).className;
 
-    it("keeps the sectioned bar's drag on while a filter is edited", () => {
+        // Closed: only the open marker goes
         mockSidebar.current = {
             ...mockSidebar.current,
-            editing: { filterId: 'saved' },
-            isSidebarOpen: true,
+            editing: null,
+            isSidebarOpen: false,
         };
-        const { container } = renderWithProviders(
-            <FilterPills activeTabUuid={undefined} sectionId={null} />,
-        );
-
-        const draggables = container.querySelectorAll('[aria-roledescription]');
-        expect(draggables.length).toBeGreaterThan(0);
-        draggables.forEach((draggable) =>
-            expect(draggable).toHaveAttribute('aria-disabled', 'false'),
-        );
+        rerender(<FilterPills activeTabUuid={undefined} />);
+        expect(pill(/^Status/)).not.toHaveAttribute('data-open');
+        expect(pill(/^Status/).className).toBe(openClassName);
     });
 
-    it('keeps the X but hides the lock while a filter is edited', async () => {
+    it("marks the loose pass's landing pill for the bar's leave line", () => {
+        renderWithProviders(
+            <FilterPills
+                activeTabUuid={undefined}
+                sectionId={null}
+                looseEnds={{ saved: 'dimensions metrics' }}
+            />,
+        );
+        expect(pill(/^Status/).closest('[data-loose-end]')).toHaveAttribute(
+            'data-loose-end',
+            'dimensions metrics',
+        );
+        expect(pill(/^Region/).closest('[data-loose-end]')).toBeNull();
+    });
+
+    describe('drag from the pill itself', () => {
+        it.each([
+            ['flat', undefined],
+            ['sectioned', null],
+        ] as const)(
+            'on the %s bar the wrapper takes no focus and Enter or Space opens the pill',
+            async (_, sectionId) => {
+                const user = userEvent.setup();
+                const { container } = renderWithProviders(
+                    <FilterPills
+                        activeTabUuid={undefined}
+                        sectionId={sectionId}
+                    />,
+                );
+                expect(
+                    container.querySelectorAll(
+                        '[tabindex]:not(button):not(input)',
+                    ),
+                ).toHaveLength(0);
+                expect(
+                    container.querySelector('[aria-roledescription]'),
+                ).toBeNull();
+
+                await user.tab();
+                expect(pill(/^Status/)).toHaveFocus();
+                await user.keyboard('{Enter}');
+                expect(open).toHaveBeenLastCalledWith('saved');
+                open.mockClear();
+                await user.keyboard(' ');
+                expect(open).toHaveBeenLastCalledWith('saved');
+                expect(
+                    pill(/^Status/).querySelector('.tabler-icon-grip-vertical'),
+                ).toBeNull();
+            },
+        );
+
+        it('opens on a click and moves past 5px without opening', () => {
+            renderWithProviders(<FilterPills activeTabUuid={undefined} />);
+            const wrapper = () =>
+                pill(/^Status/).closest('[data-can-drag]') as HTMLElement;
+
+            fireEvent.click(pill(/^Status/));
+            expect(open).toHaveBeenLastCalledWith('saved');
+            open.mockClear();
+
+            pointerDrag(pill(/^Status/), 3);
+            expect(wrapper()).not.toHaveAttribute('data-dragging');
+            fireEvent.pointerUp(document);
+
+            pointerDrag(pill(/^Status/), 20);
+            expect(wrapper()).toHaveAttribute('data-dragging');
+            fireEvent.pointerUp(document);
+            fireEvent.click(pill(/^Status/));
+            expect(open).not.toHaveBeenCalled();
+        });
+
+        it("starts the bar's drag from a picked pill's button only", () => {
+            const onDragStart = vi.fn();
+            renderWithProviders(
+                <DndContext onDragStart={onDragStart}>
+                    <BarSelectionContext.Provider
+                        value={{
+                            selectedIds: ['saved', 'no-default'],
+                            pick: vi.fn(),
+                            clear: vi.fn(),
+                        }}
+                    >
+                        <FilterPills
+                            activeTabUuid={undefined}
+                            sectionId={null}
+                        />
+                    </BarSelectionContext.Provider>
+                </DndContext>,
+            );
+            // Off the pill button (as in its portalled editor) nothing drags
+            pointerDrag(
+                pill(/^Region/).closest('[data-can-drag]') as HTMLElement,
+                20,
+            );
+            expect(onDragStart).not.toHaveBeenCalled();
+            fireEvent.pointerUp(document);
+
+            pointerDrag(pill(/^Region/), 20);
+            expect(onDragStart).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    active: expect.objectContaining({ id: 'no-default' }),
+                }),
+            );
+            fireEvent.pointerUp(document);
+        });
+    });
+
+    it('keeps the X, and the lock in place but hidden and inert, while a filter is edited', async () => {
         const user = userEvent.setup();
         mockSidebar.current = { ...mockSidebar.current, isSidebarOpen: true };
+        setContext({
+            dashboardFilters: {
+                ...filters,
+                dimensions: [
+                    { ...savedRule, lockedTabUuids: ['dashboard-1'] },
+                    noDefaultRule,
+                ],
+            },
+        });
         renderWithProviders(<FilterPills activeTabUuid={undefined} />);
 
-        expect(
-            screen.queryByRole('button', { name: /ock filter/ }),
-        ).not.toBeInTheDocument();
+        // Still rendered, so no pill changes width as the rail opens
+        const locks = screen.getAllByRole('button', {
+            name: /ock filter/,
+            hidden: true,
+        });
+        expect(locks.length).toBeGreaterThan(0);
+        locks.forEach((lock) => {
+            expect(lock.closest('[inert]')).not.toBeNull();
+            expect(lock.closest('[class*="hiddenAction"]')).not.toBeNull();
+        });
         await user.click(
             screen.getAllByRole('button', { name: 'Remove filter' })[0],
         );
@@ -439,7 +698,7 @@ describe('FilterPills', () => {
                 pressed: true,
             });
             expect(picked.className).toContain('pickedPill');
-            expect(picked.className).not.toContain('selectedPill');
+            expect(picked).not.toHaveAttribute('data-open');
             // A check in place of the field icon
             expect(picked.querySelector('.tabler-icon-check')).not.toBeNull();
             const unpicked = screen.getByRole('button', {
@@ -458,6 +717,34 @@ describe('FilterPills', () => {
             expect(
                 await screen.findByText('Click to edit · Ctrl click to select'),
             ).toBeInTheDocument();
+        });
+
+        it("shows only the lock's tooltip while the lock is hovered", async () => {
+            const user = userEvent.setup();
+            setContext({
+                dashboardFilters: {
+                    ...filters,
+                    dimensions: [
+                        { ...savedRule, lockedTabUuids: ['dashboard-1'] },
+                    ],
+                },
+            });
+            renderSelectable([]);
+
+            await user.hover(
+                within(pill(/^Status/)).getByRole('button', {
+                    name: 'Unlock filter',
+                }),
+            );
+
+            expect(
+                await screen.findByRole('tooltip', { name: 'Unlock filter' }),
+            ).toBeInTheDocument();
+            // Past the pill tooltip's 500ms delay
+            await act(() => new Promise((resolve) => setTimeout(resolve, 700)));
+            expect(
+                screen.queryByText('Click to edit · Ctrl click to select'),
+            ).not.toBeInTheDocument();
         });
 
         it('picks nothing on a bar without a selection, as on the flat bar', async () => {
@@ -479,40 +766,20 @@ describe('FilterPills', () => {
             { uuid: 't2', name: 'Two', order: 1 },
         ];
 
-        it('locks the filter on the active tab without opening it', async () => {
-            const user = userEvent.setup();
+        it('shows no lock on a filter that is not locked', () => {
             setContext({
                 dashboardTabs: tabs,
                 dashboardTiles: [tile('tile-1', 't1')],
             });
             renderWithProviders(<FilterPills activeTabUuid="t1" />);
 
-            await user.click(
-                screen.getAllByRole('button', {
-                    name: 'Lock filter on this tab',
-                })[0],
-            );
-
-            expect(setHaveFiltersChanged).toHaveBeenCalledWith(true);
-            expect(open).not.toHaveBeenCalled();
-            const update = setDashboardFilters.mock.calls[0][0];
-            expect(update(filters).dimensions).toEqual([
-                { ...savedRule, lockedTabUuids: ['t1'] },
-                noDefaultRule,
-            ]);
-            expect(mockTrack).toHaveBeenCalledWith({
-                name: EventName.DASHBOARD_FILTER_LOCK_TOGGLED,
-                properties: {
-                    action: 'lock',
-                    dashboardUuid: 'dashboard-1',
-                    tabUuid: 't1',
-                    fieldId: 'orders_status',
-                    tableName: 'orders',
-                },
-            });
+            expect(
+                screen.queryByRole('button', { name: /ock filter/ }),
+            ).not.toBeInTheDocument();
         });
 
-        it('pins the lock only for a filter locked on the active tab', () => {
+        it('shows the lock only on a filter locked on the active tab, always', async () => {
+            const user = userEvent.setup();
             setContext({
                 dashboardFilters: {
                     ...filters,
@@ -530,11 +797,19 @@ describe('FilterPills', () => {
                 name: 'Unlock filter on this tab',
             });
             expect(unlock.parentElement?.className).toContain('lockSlotActive');
-            const lock = screen.getByRole('button', {
-                name: 'Lock filter on this tab',
-            });
-            expect(lock.parentElement?.className).not.toContain(
-                'lockSlotActive',
+            // Shown at all times, so a hover never widens the pill
+            expect(unlock.parentElement).toHaveAttribute('data-reserved');
+            expect(
+                screen.getAllByRole('button', { name: /ock filter/ }),
+            ).toHaveLength(1);
+
+            await user.click(unlock);
+            expect(open).not.toHaveBeenCalled();
+            expect(setHaveFiltersChanged).toHaveBeenCalledWith(true);
+            expect(mockTrack).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    name: EventName.DASHBOARD_FILTER_LOCK_TOGGLED,
+                }),
             );
         });
 
@@ -746,7 +1021,7 @@ describe('FilterPills', () => {
                 },
                 allFilterableFields: undefined,
                 allFilterableFieldsMap: {},
-                isLoadingDashboardFilters: true,
+                isFetchingDashboardFilters: true,
             });
             const user = userEvent.setup({ pointerEventsCheck: 0 });
             const { rerender } = renderWithProviders(
@@ -762,11 +1037,23 @@ describe('FilterPills', () => {
             setContext({
                 allFilterableFields: [statusField, regionField],
                 allFilterableFieldsMap: { orders_status: statusField },
-                isLoadingDashboardFilters: false,
+                isFetchingDashboardFilters: false,
             });
             rerender(<FilterPills activeTabUuid={undefined} />);
             await user.click(pill(/^Status/));
             expect(open).toHaveBeenCalledWith('saved');
+        });
+
+        it('shows an editor the skeletons while the filters first load, so the bar settles once', () => {
+            setContext({ isLoadingDashboardFilters: true });
+            const { container } = renderWithProviders(
+                <FilterPills activeTabUuid={undefined} sectionId={null} />,
+            );
+
+            expect(queryPill(/^Status/)).toBeNull();
+            expect(
+                container.querySelectorAll('.mantine-Skeleton-root'),
+            ).toHaveLength(5);
         });
 
         it('keeps an ordinary pill while the fields are loading', () => {
@@ -782,9 +1069,6 @@ describe('FilterPills', () => {
     });
 
     describe('required filters', () => {
-        // The grip, plus the requirement status icon
-        const leftIcons = (element: HTMLElement) =>
-            element.querySelectorAll('[data-position="left"] svg').length;
         const requiredRule: DashboardFilterRule = {
             ...savedRule,
             values: [],
@@ -792,7 +1076,7 @@ describe('FilterPills', () => {
             required: true,
         };
 
-        it('marks a required filter and its unmet state', () => {
+        it('gives a required filter no cue: muted without a value', () => {
             setContext({
                 dashboardFilters: {
                     ...filters,
@@ -801,29 +1085,15 @@ describe('FilterPills', () => {
             });
             renderWithProviders(<FilterPills activeTabUuid={undefined} />);
 
-            // Grip, requirement and field icons, as the shipped pill
             const required = pill(/^Status/);
-            expect(leftIcons(required)).toBe(3);
-            expect(required).toHaveAttribute('data-requirement-unmet');
             const optional = pill(/^Region/);
-            expect(leftIcons(optional)).toBe(2);
-            expect(optional).not.toHaveAttribute('data-requirement-unmet');
-        });
-
-        it('keeps the marker without the unmet style once it has a value', () => {
-            setContext({
-                dashboardFilters: {
-                    ...filters,
-                    dimensions: [
-                        { ...requiredRule, values: ['a'], disabled: false },
-                    ],
-                },
-            });
-            renderWithProviders(<FilterPills activeTabUuid={undefined} />);
-
-            const required = pill(/^Status/);
-            expect(leftIcons(required)).toBe(3);
+            // Grip and field icons, as an optional pill
+            expect(leadingIconsOf(required)).toHaveLength(
+                leadingIconsOf(optional).length,
+            );
             expect(required).not.toHaveAttribute('data-requirement-unmet');
+            expect(required).not.toHaveAttribute('data-in-effect');
+            expect(required.className).toBe(optional.className);
         });
     });
 
@@ -834,7 +1104,7 @@ describe('FilterPills', () => {
             expect(pill(/^Status/).className).not.toContain('inactiveFilter');
         });
 
-        it('marks a pill that reaches no tile on a dashboard with no tabs', () => {
+        it('mutes a pill that reaches no tile on a dashboard with no tabs, never dashed', () => {
             setContext({
                 dashboardFilters: {
                     ...filters,
@@ -845,7 +1115,9 @@ describe('FilterPills', () => {
             });
             renderWithProviders(<FilterPills activeTabUuid={undefined} />);
 
-            expect(pill(/^Status/).className).toContain('inactiveFilter');
+            expect(pill(/^Status/).className).not.toContain('inactiveFilter');
+            expect(pill(/^Status/)).not.toHaveAttribute('data-in-effect');
+            expect(pill(/^Status/)).not.toHaveAttribute('data-temporary');
         });
 
         it('hides a pill on a tab where it reaches no tile', () => {
@@ -908,31 +1180,32 @@ describe('FilterPills', () => {
             expect(setHaveFiltersChanged).not.toHaveBeenCalled();
         });
 
-        it('offers the grip only while the sidebar is closed', () => {
+        it('drags a pill only while the sidebar is closed and its field is loaded', () => {
             const { unmount } = renderWithProviders(
                 <FilterPills activeTabUuid={undefined} />,
             );
-            const status = pill(/^Status/);
-            expect(
-                status.querySelector('.tabler-icon-grip-vertical'),
-            ).not.toBeNull();
-            expect(
-                status.closest('[aria-roledescription="draggable"]'),
-            ).not.toBeNull();
+            expect(pill(/^Status/).closest('[data-can-drag]')).not.toBeNull();
             unmount();
 
             mockSidebar.current = {
                 ...mockSidebar.current,
                 isSidebarOpen: true,
             };
+            const { unmount: unmountOpen } = renderWithProviders(
+                <FilterPills activeTabUuid={undefined} />,
+            );
+            pointerDrag(pill(/^Status/), 20);
+            expect(pill(/^Status/).closest('[data-dragging]')).toBeNull();
+            expect(pill(/^Status/).closest('[data-can-drag]')).toBeNull();
+            unmountOpen();
+
+            mockSidebar.current = {
+                ...mockSidebar.current,
+                isSidebarOpen: false,
+            };
+            setContext({ allFilterableFields: undefined });
             renderWithProviders(<FilterPills activeTabUuid={undefined} />);
-            const disabled = pill(/^Status/);
-            expect(
-                disabled.querySelector('.tabler-icon-grip-vertical'),
-            ).toBeNull();
-            expect(
-                disabled.closest('[aria-roledescription="draggable"]'),
-            ).toBeNull();
+            expect(pill(/^Status/).closest('[data-can-drag]')).toBeNull();
         });
     });
 
@@ -944,7 +1217,31 @@ describe('FilterPills', () => {
             values: ['shipped'],
         };
 
-        it('shows a temporary rule as an outline pill after the saved ones', () => {
+        it('says only you see it before its tables', async () => {
+            const user = userEvent.setup();
+            setContext({
+                dashboardTemporaryFilters: {
+                    ...noFilters,
+                    dimensions: [temporaryRule],
+                },
+            });
+            renderWithProviders(<FilterPills activeTabUuid={undefined} />);
+
+            const name = pill(/^Order status/).querySelector<HTMLElement>(
+                'p span[class*="Text"]',
+            );
+            await user.hover(name ?? pill(/^Order status/));
+            const tooltip = await screen.findByRole(
+                'tooltip',
+                {},
+                { timeout: 2000 },
+            );
+            expect(tooltip.textContent).toMatch(
+                /^Only you see this filterTable: orders/i,
+            );
+        });
+
+        it('shows a temporary rule as a dashed pill after the saved ones', () => {
             setContext({
                 dashboardTemporaryFilters: {
                     ...noFilters,
@@ -955,7 +1252,8 @@ describe('FilterPills', () => {
 
             const temporary = pill(/^Order status/);
             expect(temporary).toHaveTextContent('Order status is shipped');
-            expect(temporary).toHaveAttribute('data-variant', 'outline');
+            expect(temporary).toHaveAttribute('data-variant', 'default');
+            expect(temporary).toHaveAttribute('data-temporary');
             expect(
                 pill(/^Region/).compareDocumentPosition(temporary) &
                     Node.DOCUMENT_POSITION_FOLLOWING,
@@ -1030,19 +1328,12 @@ describe('FilterPills', () => {
             });
         });
 
-        it('opens a saved pill in the shipped popover, never the rail', async () => {
+        it('opens a saved pill in the editor, with no lock toggle or X', async () => {
             const user = userEvent.setup();
-            renderWithProviders(
-                <FilterPills
-                    activeTabUuid={undefined}
-                    dropdownClassName="ld-dashboard-filter-dropdown"
-                />,
-            );
+            renderWithProviders(<FilterPills activeTabUuid={undefined} />);
 
             await user.click(pill(/^Status/));
-            expect(open).not.toHaveBeenCalled();
-            const dialog = await screen.findByRole('dialog');
-            expect(dialog).toHaveClass('ld-dashboard-filter-dropdown');
+            expect(open).toHaveBeenCalledWith('saved');
             expect(
                 screen.queryByRole('button', { name: /ock filter/ }),
             ).not.toBeInTheDocument();
@@ -1051,28 +1342,41 @@ describe('FilterPills', () => {
                     name: 'Remove filter',
                 }),
             ).toBeNull();
+            expect(pill(/^Status/)).not.toHaveAttribute('data-temporary');
         });
 
-        it("applies a saved pill's value as the shipped view-mode write", async () => {
-            const user = userEvent.setup();
-            const updateDimensionDashboardFilter = vi.fn();
-            setContext({ updateDimensionDashboardFilter });
+        it('marks a saved pill open while it is edited, with no badge', () => {
             renderWithProviders(<FilterPills activeTabUuid={undefined} />);
+            expect(pill(/^Status/)).not.toHaveAttribute('data-open');
+            expect(pill(/^Status/)).toHaveAttribute('data-in-effect');
 
-            await user.click(pill(/^Status/));
-            await user.click(
-                await screen.findByRole('button', { name: 'Apply' }),
-            );
-            // The dashboard keeps it as a `filters` URL override
-            expect(updateDimensionDashboardFilter).toHaveBeenCalledWith(
-                expect.objectContaining({ id: 'saved', values: ['done'] }),
-                0,
-                false,
-                false,
-            );
+            mockSidebar.current = {
+                ...mockSidebar.current,
+                editing: { filterId: 'saved' },
+                isSidebarOpen: true,
+            };
+            renderWithProviders(<FilterPills activeTabUuid={undefined} />);
+            const opened = screen.getAllByRole('button', {
+                name: /^Status/,
+            })[1];
+            expect(opened).toHaveAttribute('data-open');
+            expect(isFieldIcon(leadingIconsOf(opened)[0])).toBe(true);
         });
 
-        it('opens their own pill in the rail and removes it from its X', async () => {
+        it('dashes their own pill and marks it open in the editor', () => {
+            mockSidebar.current = {
+                ...mockSidebar.current,
+                editing: { filterId: 'own' },
+                isSidebarOpen: true,
+            };
+            renderWithProviders(<FilterPills activeTabUuid={undefined} />);
+            const own = pill(/^Order region/);
+            expect(own).toHaveAttribute('data-temporary');
+            expect(own).toHaveAttribute('data-open');
+            expect(isFieldIcon(leadingIconsOf(own)[0])).toBe(true);
+        });
+
+        it('opens their own pill in the editor and removes it from its X', async () => {
             const user = userEvent.setup();
             renderWithProviders(<FilterPills activeTabUuid={undefined} />);
 
@@ -1101,16 +1405,6 @@ describe('FilterPills', () => {
 
         describe('by section', () => {
             const inSection = { ...noDefaultRule, sectionId: 'a' };
-            const clickApply = async (
-                user: ReturnType<typeof userEvent.setup>,
-                name: RegExp,
-            ) => {
-                await user.click(pill(name));
-                await user.click(
-                    await screen.findByRole('button', { name: 'Apply' }),
-                );
-            };
-
             beforeEach(() => {
                 setContext({
                     dashboard: {
@@ -1141,44 +1435,16 @@ describe('FilterPills', () => {
                 expect(pill(/^Order region/)).toBeInTheDocument();
             });
 
-            it("renders a section's rules alone, writing on the saved index", async () => {
+            it("renders a section's rules alone, each opening the editor", async () => {
                 const user = userEvent.setup();
-                const updateDimensionDashboardFilter = vi.fn();
-                setContext({ updateDimensionDashboardFilter });
                 renderWithProviders(
                     <FilterPills activeTabUuid={undefined} sectionId="a" />,
                 );
                 expect(queryPill(/^Status/)).toBeNull();
                 expect(queryPill(/^Order region/)).toBeNull();
 
-                await clickApply(user, /^Region/);
-                expect(updateDimensionDashboardFilter).toHaveBeenCalledWith(
-                    expect.objectContaining({ id: 'no-default' }),
-                    1,
-                    false,
-                    false,
-                );
-            });
-
-            it('opens one popover across passes through the shared state', async () => {
-                const user = userEvent.setup();
-                const onPopoverOpen = vi.fn();
-                renderWithProviders(
-                    <FilterPills
-                        activeTabUuid={undefined}
-                        sectionId="a"
-                        popover={{
-                            openPopoverId: undefined,
-                            onPopoverOpen,
-                            onPopoverClose: vi.fn(),
-                        }}
-                    />,
-                );
-
                 await user.click(pill(/^Region/));
-                // The shipped pill names its popover with its own id
-                expect(onPopoverOpen).toHaveBeenCalledWith(expect.any(String));
-                expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+                expect(open).toHaveBeenCalledWith('no-default');
             });
         });
 
@@ -1245,23 +1511,20 @@ describe('FilterPills', () => {
             await user.hover(pill(/^Region/));
             expect(hoveredTiles()).toEqual(['tile-1', 'tile-3']);
 
+            // A short grace on leave, so the gap between pills never flashes
             await user.unhover(pill(/^Region/));
-            expect(hoveredTiles()).toEqual([]);
+            expect(hoveredTiles()).toEqual(['tile-1', 'tile-3']);
+            await waitFor(() => expect(hoveredTiles()).toEqual([]));
         });
 
-        it('names the hovered filter for the tab badges and clears only its own', async () => {
+        it("keeps the next pill's marks when the last one's grace ends", async () => {
             const user = userEvent.setup();
             renderWithProviders(<FilterPills activeTabUuid={undefined} />);
 
             await user.hover(pill(/^Status/));
-            expect(setHoveredFilterId).toHaveBeenLastCalledWith('saved');
-
-            await user.unhover(pill(/^Status/));
-            const update = setHoveredFilterId.mock.lastCall?.[0] as (
-                id: string | null,
-            ) => string | null;
-            expect(update('saved')).toBeNull();
-            expect(update('no-default')).toBe('no-default');
+            await user.hover(pill(/^Region/));
+            await act(() => new Promise((resolve) => setTimeout(resolve, 400)));
+            expect(hoveredTiles()).toEqual(['tile-1', 'tile-3']);
         });
 
         it('leaving a pill keeps the marks another pill made since', async () => {
@@ -1273,8 +1536,8 @@ describe('FilterPills', () => {
             expect(hoveredTiles()).toEqual(['tile-1']);
 
             await user.unhover(pill(/^Region/));
+            await act(() => new Promise((resolve) => setTimeout(resolve, 400)));
             expect(hoveredTiles()).toEqual(['tile-1']);
-            expect(setHoveredFilterId).toHaveBeenLastCalledWith('saved');
         });
 
         it('re-renders no pill when the tiles change, and marks from the latest ones', async () => {
@@ -1326,7 +1589,120 @@ describe('FilterPills', () => {
 
             await user.hover(pill(/^Region/));
             expect(hoveredTiles()).toEqual([]);
-            expect(setHoveredFilterId).not.toHaveBeenCalledWith('no-default');
         });
+    });
+
+    describe('moving a pill with the keyboard', () => {
+        const altArrow = (element: HTMLElement, key: string) =>
+            fireEvent.keyDown(element, { key, altKey: true });
+
+        it('asks the provider to move it with Alt and an arrow', () => {
+            renderWithProviders(<FilterPills activeTabUuid={undefined} />);
+
+            altArrow(pill(/^Region/), 'ArrowLeft');
+            expect(moveFilter).toHaveBeenCalledWith('no-default', 'left');
+            altArrow(pill(/^Status/), 'ArrowRight');
+            expect(moveFilter).toHaveBeenLastCalledWith('saved', 'right');
+
+            moveFilter.mockClear();
+            fireEvent.keyDown(pill(/^Status/), { key: 'ArrowRight' });
+            expect(moveFilter).not.toHaveBeenCalled();
+        });
+
+        it("never moves a viewer's pill", () => {
+            mockSidebar.current = { ...mockSidebar.current, isViewer: true };
+            renderWithProviders(<FilterPills activeTabUuid={undefined} />);
+            altArrow(pill(/^Region/), 'ArrowLeft');
+            expect(moveFilter).not.toHaveBeenCalled();
+            pointerDrag(pill(/^Region/), 20);
+            expect(pill(/^Region/).closest('[data-can-drag]')).toBeNull();
+            expect(pill(/^Region/).closest('[data-dragging]')).toBeNull();
+        });
+    });
+
+    describe('a dashed pill', () => {
+        // The tables tooltip sits on the pill's field name
+        const fieldNameOf = (element: HTMLElement) =>
+            element.querySelector<HTMLElement>('p span[class*="Text"]') ??
+            element;
+
+        it('puts "Not saved yet" before the select hint in edit mode', async () => {
+            const user = userEvent.setup();
+            setContext({
+                dashboard: {
+                    uuid: 'dashboard-1',
+                    filters: { ...noFilters, dimensions: [noDefaultRule] },
+                },
+            });
+            renderWithProviders(
+                <BarSelectionContext.Provider
+                    value={{ selectedIds: [], pick: vi.fn(), clear: vi.fn() }}
+                >
+                    <FilterPills activeTabUuid={undefined} sectionId={null} />
+                </BarSelectionContext.Provider>,
+            );
+
+            await user.hover(pill(/^Status/));
+            expect((await screen.findByRole('tooltip')).textContent).toBe(
+                'Not saved yetClick to edit · Ctrl click to select',
+            );
+        });
+
+        it('puts "Not saved yet" before the tables on the flat bar', async () => {
+            const user = userEvent.setup();
+            setContext({
+                dashboard: {
+                    uuid: 'dashboard-1',
+                    filters: { ...noFilters, dimensions: [noDefaultRule] },
+                },
+            });
+            renderWithProviders(<FilterPills activeTabUuid={undefined} />);
+
+            await user.hover(fieldNameOf(pill(/^Status/)));
+            const tooltip = await screen.findByRole(
+                'tooltip',
+                {},
+                { timeout: 2000 },
+            );
+            expect(tooltip.textContent).toMatch(/^Not saved yetTable: orders/i);
+        });
+
+        it('puts "Only you see this filter" before a viewer\'s own tables', async () => {
+            const user = userEvent.setup();
+            mockSidebar.current = { ...mockSidebar.current, isViewer: true };
+            setContext({
+                dashboardTemporaryFilters: {
+                    ...noFilters,
+                    dimensions: [{ ...noDefaultRule, id: 'own' }],
+                },
+                dashboardFilters: { ...noFilters, dimensions: [savedRule] },
+            });
+            renderWithProviders(<FilterPills activeTabUuid={undefined} />);
+
+            await user.hover(fieldNameOf(pill(/^Region/)));
+            const tooltip = await screen.findByRole(
+                'tooltip',
+                {},
+                { timeout: 2000 },
+            );
+            expect(tooltip.textContent).toMatch(
+                /^Only you see this filterTable: orders/i,
+            );
+        });
+    });
+
+    it('keeps the standard border on a pill not in effect', () => {
+        const css = fs.readFileSync(
+            path.resolve(
+                __dirname,
+                '../dashboardFilters/ActiveFilters/Filter.module.css',
+            ),
+            'utf8',
+        );
+        const muted = css.match(
+            /\.plain:hover:not\(\[data-in-effect\], :disabled\) \{([^}]*)\}/,
+        );
+        expect(muted?.[1]).toContain('color: var(--mantine-color-dimmed)');
+        expect(muted?.[1]).not.toContain('border');
     });
 });

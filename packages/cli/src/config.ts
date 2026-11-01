@@ -80,7 +80,7 @@ const setConfig = async (config: Config) => {
     await writeConfigToFile(configFilePath, config);
 };
 
-const getRawConfig = async (): Promise<Config> => {
+export const getRawConfig = async (): Promise<Config> => {
     try {
         await ensureConfigFilePermissions(configFilePath);
         const contents = await fs.readFile(configFilePath, 'utf8');
@@ -237,4 +237,10 @@ export const setAnswer = async (answer: Config['answers']) => {
         ...config,
         answers: lodash.merge(config.answers, answer),
     });
+};
+
+export const unsetApiKey = async (): Promise<void> => {
+    const config = await getRawConfig();
+    if (config.context) delete config.context.apiKey;
+    await setConfig(config);
 };

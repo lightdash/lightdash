@@ -1,3 +1,13 @@
 .serverCard {
     overflow: hidden;
 }
+
+.toolsToggle {
+    width: 100%;
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+    font: inherit;
+    color: inherit;
+    text-align: inherit;
+}

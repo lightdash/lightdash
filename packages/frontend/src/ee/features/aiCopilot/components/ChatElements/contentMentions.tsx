@@ -652,7 +652,7 @@ const renderContentMentionItem = (
                             fz="xs"
                             fw={500}
                             inline
-                            style={{ flex: 1, minWidth: 0 }}
+                            className={styles.contentMentionSuggestionName}
                         >
                             {item.label}
                         </TruncatedText>

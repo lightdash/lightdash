@@ -121,7 +121,7 @@ describe('answer evidence', () => {
         const runSqlJob = vi.fn().mockResolvedValue(input);
         const runComposerQueries = vi
             .fn()
-            .mockResolvedValue({ terminal: input });
+            .mockResolvedValue({ status: 'success', terminal: input });
         const dependencies = {
             runAsyncQuery,
             runSavedChartQuery,

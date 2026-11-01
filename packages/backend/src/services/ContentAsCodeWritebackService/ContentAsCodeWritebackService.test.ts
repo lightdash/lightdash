@@ -144,6 +144,7 @@ const buildService = (overrides: Overrides = {}) => {
                     ? overrides.snapshot
                     : { snapshotHash: 'abc' },
             ),
+        pruneMissingFromDirectory: vi.fn().mockResolvedValue([]),
     };
     const contentAsCodeWritebackModel = {
         findLive: vi.fn(
@@ -189,6 +190,7 @@ const buildService = (overrides: Overrides = {}) => {
             .mockResolvedValue(overrides.openDraftCount ?? 0),
         findOpenDraft: vi.fn().mockResolvedValue(undefined),
         update: vi.fn(),
+        dismissOpenBySlugs: vi.fn().mockResolvedValue(0),
     };
     const userModel = {
         getUserDetailsByUuid: vi.fn().mockResolvedValue({
@@ -237,6 +239,7 @@ const buildService = (overrides: Overrides = {}) => {
         gitIntegrationService,
         coderService,
         contentAsCodeProjectSettingsModel,
+        contentAsCodeSnapshotModel,
         contentAsCodeWritebackModel,
         contentDraftModel,
         userModel,
@@ -596,6 +599,44 @@ describe('ContentAsCodeWritebackService', () => {
         expect(filePath).toBe(
             'packages/team_a/lightdash/charts/monthly-revenue.yml',
         );
+    });
+
+    it('writes back to a local package source beside the project dir', async () => {
+        const { service, gitIntegrationService } = buildService({
+            settings: { syncEnabled: true, path: 'lightdash' },
+            snapshot: {
+                snapshotHash: 'abc',
+                filePath:
+                    '../../packages/team_a/lightdash/charts/monthly-revenue.yml',
+            },
+        });
+        gitIntegrationService.getProjectRepo.mockResolvedValue({
+            owner: 'acme',
+            repo: 'analytics',
+            branch: 'main',
+            path: 'projects/core',
+            type: DbtProjectType.GITHUB,
+        });
+        await service.propose(user, 'project-uuid', 'chart', 'monthly-revenue');
+
+        const [, , , filePath] = gitIntegrationService.saveFile.mock.calls[0];
+        expect(filePath).toBe(
+            'packages/team_a/lightdash/charts/monthly-revenue.yml',
+        );
+    });
+
+    it('falls back to the content path when the source path leaves the repo', async () => {
+        const { service, gitIntegrationService } = buildService({
+            settings: { syncEnabled: true, path: 'lightdash' },
+            snapshot: {
+                snapshotHash: 'abc',
+                filePath: '../elsewhere/charts/monthly-revenue.yml',
+            },
+        });
+        await service.propose(user, 'project-uuid', 'chart', 'monthly-revenue');
+
+        const [, , , filePath] = gitIntegrationService.saveFile.mock.calls[0];
+        expect(filePath).toBe('lightdash/charts/monthly-revenue.yml');
     });
 
     it('names the reviewed file by the recorded source path', async () => {
@@ -1167,6 +1208,38 @@ describe('ContentAsCodeWritebackService', () => {
         expect(contentDraftModel.update).not.toHaveBeenCalled();
     });
 
+    it('names the blocking pull request when refusing a competing draft', async () => {
+        const { service } = buildService({
+            liveRow: {
+                uuid: 'row-uuid',
+                contentType: 'dashboard',
+                slug: 'weekly-kpis',
+                contentDraftUuid: 'other-draft-uuid',
+                branch: 'lightdash/write-back/app.lightdash.dev/dashboards/weekly-kpis--draft-other-draft-uuid',
+                prNumber: 7,
+                prUrl: 'https://github.com/org/repo/pull/7',
+                status: 'open',
+            },
+        });
+        vi.mocked(getPullRequest).mockResolvedValueOnce({
+            state: 'open',
+            merged: false,
+        } as never);
+
+        const rejected = await service
+            .writeBackDraft(user, 'project-uuid', 'draft-uuid')
+            .catch((error: unknown) => error);
+
+        expect(rejected).toBeInstanceOf(ConflictError);
+        expect((rejected as ConflictError).message).toContain(
+            'https://github.com/org/repo/pull/7',
+        );
+        expect((rejected as ConflictError).data).toMatchObject({
+            prUrl: 'https://github.com/org/repo/pull/7',
+            existingDraftUuid: 'other-draft-uuid',
+        });
+    });
+
     it('refuses the losing draft when another owner wins the database race', async () => {
         const competingRow = {
             uuid: 'other-row-uuid',
@@ -1446,6 +1519,87 @@ describe('ContentAsCodeWritebackService', () => {
             await expect(
                 service.rebaseDraft(user, 'project-uuid', 'draft-uuid', {
                     tiles: 'mine',
+                }),
+            ).rejects.toThrow(ForbiddenError);
+        });
+    });
+
+    describe('pruneSnapshots', () => {
+        it('releases snapshots missing from the uploaded directory and dismisses their drafts', async () => {
+            const { service, contentAsCodeSnapshotModel, contentDraftModel } =
+                buildService();
+            contentAsCodeSnapshotModel.pruneMissingFromDirectory
+                .mockResolvedValueOnce(['old-chart'])
+                .mockResolvedValueOnce([])
+                .mockResolvedValueOnce(['old-dashboard']);
+
+            const result = await service.pruneSnapshots(user, 'project-uuid', {
+                path: './lightdash/',
+                charts: ['kept-chart'],
+                sqlCharts: [],
+                dashboards: ['kept-dashboard'],
+            });
+
+            expect(result).toEqual({
+                charts: ['old-chart'],
+                sqlCharts: [],
+                dashboards: ['old-dashboard'],
+            });
+            expect(
+                contentAsCodeSnapshotModel.pruneMissingFromDirectory,
+            ).toHaveBeenCalledWith('project-uuid', 'chart', 'lightdash', [
+                'kept-chart',
+            ]);
+            expect(
+                contentAsCodeSnapshotModel.pruneMissingFromDirectory,
+            ).toHaveBeenCalledWith('project-uuid', 'dashboard', 'lightdash', [
+                'kept-dashboard',
+            ]);
+            expect(contentDraftModel.dismissOpenBySlugs).toHaveBeenCalledWith(
+                'project-uuid',
+                'chart',
+                ['old-chart'],
+            );
+            expect(contentDraftModel.dismissOpenBySlugs).toHaveBeenCalledWith(
+                'project-uuid',
+                'dashboard',
+                ['old-dashboard'],
+            );
+        });
+
+        it('keeps the package-relative path a symlinked local package uploads from', async () => {
+            const { service, contentAsCodeSnapshotModel } = buildService();
+
+            await service.pruneSnapshots(user, 'project-uuid', {
+                path: '../../packages/minster/lightdash',
+                charts: [],
+                sqlCharts: [],
+                dashboards: [],
+            });
+
+            expect(
+                contentAsCodeSnapshotModel.pruneMissingFromDirectory,
+            ).toHaveBeenCalledWith(
+                'project-uuid',
+                'chart',
+                '../../packages/minster/lightdash',
+                [],
+            );
+        });
+
+        it('refuses users who cannot manage content as code', async () => {
+            const { service } = buildService();
+            const viewer = {
+                ...user,
+                ability: new Ability<PossibleAbilities>([]),
+            } as unknown as SessionUser;
+
+            await expect(
+                service.pruneSnapshots(viewer, 'project-uuid', {
+                    path: '',
+                    charts: [],
+                    sqlCharts: [],
+                    dashboards: [],
                 }),
             ).rejects.toThrow(ForbiddenError);
         });

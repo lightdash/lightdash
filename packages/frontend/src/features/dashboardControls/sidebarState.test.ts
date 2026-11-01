@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
+    applyDraft,
     canKeepFilterRule,
     findFilterRule,
     isDefaultValueIncomplete,
@@ -62,14 +63,24 @@ describe('sidebarState', () => {
         ).toBe(true);
     });
 
-    it('counts the section a rule sits in as an edit, and puts it back', () => {
-        const moved = replaceFilterRule(filters, {
+    it('puts a rule back in the section it sits in now', () => {
+        const snapshot = replaceFilterRule(filters, {
             ...rule('a', ['1']),
             sectionId: 's',
         });
-        expect(isFilterRuleDirty(filters, moved, 'a', asIs)).toBe(true);
+        const intoOther = replaceFilterRule(filters, {
+            ...rule('a', ['9']),
+            sectionId: 't',
+        });
         expect(
-            findFilterRule(restoreFilterRule(moved, filters, 'a'), 'a'),
+            findFilterRule(restoreFilterRule(intoOther, snapshot, 'a'), 'a'),
+        ).toEqual({ ...rule('a', ['1']), sectionId: 't' });
+        const outOfIt = replaceFilterRule(filters, rule('a', ['9']));
+        expect(
+            findFilterRule(restoreFilterRule(outOfIt, snapshot, 'a'), 'a'),
+        ).toEqual(rule('a', ['1']));
+        expect(
+            findFilterRule(restoreFilterRules(outOfIt, snapshot, ['a']), 'a'),
         ).toEqual(rule('a', ['1']));
     });
 
@@ -276,5 +287,44 @@ describe('sidebarState', () => {
                 target: PLACEHOLDER_TARGET,
             }),
         ).toBe(false);
+    });
+
+    it("applies the draft's edited and other rules, each in its current section", () => {
+        const store: DashboardFilters = {
+            ...filters,
+            dimensions: [
+                { ...rule('a', ['1']), sectionId: 'moved' },
+                rule('b', ['2']),
+                rule('c', ['3']),
+            ],
+        };
+        const draft: DashboardFilters = {
+            ...filters,
+            dimensions: [
+                rule('a', ['9']),
+                rule('b', ['8']),
+                rule('c', ['7']),
+                rule('new', ['6']),
+            ],
+        };
+        // The edited one keeps the section it moved to on the dashboard
+        expect(applyDraft(store, draft, 'a', ['b']).dimensions).toEqual([
+            { ...rule('a', ['9']), sectionId: 'moved' },
+            rule('b', ['8']),
+            rule('c', ['3']),
+        ]);
+        // A new one lands at its place in the draft
+        expect(
+            applyDraft(store, draft, 'new', []).dimensions.map((r) => r.id),
+        ).toEqual(['a', 'b', 'c', 'new']);
+        // One the draft dropped leaves
+        expect(
+            applyDraft(
+                store,
+                removeFilterRule(draft, 'c'),
+                'c',
+                [],
+            ).dimensions.map((r) => r.id),
+        ).toEqual(['a', 'b']);
     });
 });

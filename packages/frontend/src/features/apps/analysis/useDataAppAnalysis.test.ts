@@ -39,6 +39,7 @@ const analysis = (appUuid: string) => ({
     anomalies: [],
     limitations: [],
     dataAsOf: null,
+    investigations: [],
 });
 
 const render = (autoAnalyse = false) =>
@@ -273,6 +274,47 @@ describe('useDataAppAnalysis', () => {
         );
     });
 
+    it('restores stored investigations when detect serves a cached analysis', async () => {
+        const cached = analysis('app-a');
+        vi.mocked(detectAnalysisAnomalies).mockResolvedValue({
+            ...cached,
+            investigations: [
+                {
+                    investigationId: 'inv-1',
+                    analysisId: cached.analysisId,
+                    target: {
+                        kind: 'app' as const,
+                        appUuid: 'app-a',
+                        appVersion: 1,
+                    },
+                    generatedAt: new Date(),
+                    explanation: 'because',
+                    anomaly: {
+                        id: 'anom-1',
+                        severity: 'high',
+                        text: 't',
+                        queryUuid: 'q-1',
+                        fieldId: 'orders_count',
+                        dimensionValues: {},
+                        expected: null,
+                        actual: '1',
+                    },
+                    agentUuid: 'agent-1',
+                    threadUuid: 'thread-1',
+                    queriesRun: 2,
+                    partial: false,
+                },
+            ],
+        });
+        const { result } = render();
+        await settle();
+        await act(async () => {
+            await result.current.analyse();
+        });
+        expect(result.current.state.status).toBe('ready');
+        expect(result.current.investigations['anom-1']?.status).toBe('ready');
+    });
+
     it('stays idle on a lookup miss and does not force the first run', async () => {
         const { result } = render();
         await settle();
@@ -333,16 +375,140 @@ describe('useDataAppAnalysis', () => {
                 { ...readyQuery, id: 'req-2', timestamp: 2, queryUuid: 'q-2' },
             ],
         });
-        expect(result.current.state).toMatchObject({
-            status: 'ready',
-            stale: true,
-        });
+        // The re-run is coming, so the viewer sees analysing immediately
+        // instead of the old summary with a stale note.
+        expect(result.current.state.status).toBe('analysing');
         await settle();
         expect(detectAnalysisAnomalies).toHaveBeenCalledTimes(2);
         expect(result.current.state).toMatchObject({
             status: 'ready',
             stale: false,
         });
+    });
+
+    it('presents analysing while the changed view is still running its queries', async () => {
+        vi.mocked(lookupAnalysis)
+            .mockResolvedValueOnce(null)
+            .mockResolvedValueOnce({
+                analysis: analysis('app-a'),
+                investigations: [],
+            });
+        const { result, rerender } = renderHook(
+            ({
+                queries,
+                mountedQueryUuids,
+            }: {
+                queries: QueryEvent[];
+                mountedQueryUuids: string[];
+            }) =>
+                useDataAppAnalysis({
+                    projectUuid: 'proj-1',
+                    appUuid: 'app-a',
+                    queries,
+                    mountedQueryUuids,
+                    enabled: true,
+                    autoAnalyse: true,
+                }),
+            {
+                initialProps: {
+                    queries: [readyQuery],
+                    mountedQueryUuids: ['q-1'],
+                },
+            },
+        );
+        await settle();
+        expect(result.current.state.status).toBe('ready');
+
+        // Tab switch: the new view's query is still pending, so there is no
+        // ready source yet — feedback must not wait for the warehouse.
+        const pendingQuery: QueryEvent = {
+            ...readyQuery,
+            id: 'req-2',
+            timestamp: 2,
+            queryUuid: null,
+            status: 'pending',
+        };
+        rerender({
+            queries: [readyQuery, pendingQuery],
+            mountedQueryUuids: [],
+        });
+        expect(result.current.state.status).toBe('analysing');
+
+        // The query lands, the view settles, and the stored analysis loads.
+        rerender({
+            queries: [
+                readyQuery,
+                { ...pendingQuery, queryUuid: 'q-2', status: 'ready' },
+            ],
+            mountedQueryUuids: ['q-2'],
+        });
+        expect(result.current.state.status).toBe('analysing');
+        await settle();
+        expect(result.current.state).toMatchObject({
+            status: 'ready',
+            stale: false,
+        });
+        expect(detectAnalysisAnomalies).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps the stale analysis when the changed view has nothing to analyse', async () => {
+        const { result, rerender } = renderHook(
+            ({ mountedQueryUuids }: { mountedQueryUuids: string[] }) =>
+                useDataAppAnalysis({
+                    projectUuid: 'proj-1',
+                    appUuid: 'app-a',
+                    queries: [readyQuery],
+                    mountedQueryUuids,
+                    enabled: true,
+                    autoAnalyse: true,
+                }),
+            { initialProps: { mountedQueryUuids: ['q-1'] } },
+        );
+        await settle();
+        expect(result.current.state.status).toBe('ready');
+
+        // A view with no queries never looks up, so analysing would hang.
+        rerender({ mountedQueryUuids: [] });
+        await settle();
+        expect(result.current.state).toMatchObject({
+            status: 'ready',
+            stale: true,
+        });
+    });
+
+    it('falls back to the stale analysis when the re-run lookup fails', async () => {
+        const { result, rerender } = renderHook(
+            ({ queries }: { queries: QueryEvent[] }) =>
+                useDataAppAnalysis({
+                    projectUuid: 'proj-1',
+                    appUuid: 'app-a',
+                    queries,
+                    mountedQueryUuids: null,
+                    enabled: true,
+                    autoAnalyse: true,
+                }),
+            { initialProps: { queries: [readyQuery] } },
+        );
+        await settle();
+        expect(result.current.state.status).toBe('ready');
+
+        vi.mocked(lookupAnalysis).mockRejectedValueOnce(
+            new Error('lookup down'),
+        );
+        rerender({
+            queries: [
+                readyQuery,
+                { ...readyQuery, id: 'req-2', timestamp: 2, queryUuid: 'q-2' },
+            ],
+        });
+        expect(result.current.state.status).toBe('analysing');
+        await settle();
+        // No run is coming; the old summary with its stale note is honest.
+        expect(result.current.state).toMatchObject({
+            status: 'ready',
+            stale: true,
+        });
+        expect(detectAnalysisAnomalies).toHaveBeenCalledTimes(1);
     });
 
     it('drops a finished analysis when the app changes', async () => {
@@ -409,6 +575,58 @@ describe('useDataAppAnalysis', () => {
             status: 'ready',
             stale: false,
             analysis: { headline: 'View B' },
+        });
+    });
+
+    describe('analysis on load declared after the lookup', () => {
+        const QUERIES = [readyQuery];
+        const renderLate = () =>
+            renderHook(
+                ({ autoAnalyse }: { autoAnalyse: boolean }) =>
+                    useDataAppAnalysis({
+                        projectUuid: 'proj-1',
+                        appUuid: 'app-a',
+                        queries: QUERIES,
+                        mountedQueryUuids: null,
+                        enabled: true,
+                        autoAnalyse,
+                    }),
+                { initialProps: { autoAnalyse: false } },
+            );
+
+        it('runs detect once when turned on after a lookup miss', async () => {
+            const { result, rerender } = renderLate();
+            await settle();
+            expect(lookupAnalysis).toHaveBeenCalledTimes(1);
+            expect(detectAnalysisAnomalies).not.toHaveBeenCalled();
+            expect(result.current.state.status).toBe('idle');
+
+            rerender({ autoAnalyse: true });
+            await settle();
+            expect(detectAnalysisAnomalies).toHaveBeenCalledTimes(1);
+            expect(result.current.state.status).toBe('ready');
+
+            // Toggling again for the same view never re-runs.
+            rerender({ autoAnalyse: false });
+            rerender({ autoAnalyse: true });
+            await settle();
+            expect(detectAnalysisAnomalies).toHaveBeenCalledTimes(1);
+            expect(lookupAnalysis).toHaveBeenCalledTimes(1);
+        });
+
+        it('keeps a stored analysis when turned on after a lookup hit', async () => {
+            vi.mocked(lookupAnalysis).mockResolvedValue({
+                analysis: analysis('app-a'),
+                investigations: [],
+            });
+            const { result, rerender } = renderLate();
+            await settle();
+            expect(result.current.state.status).toBe('ready');
+
+            rerender({ autoAnalyse: true });
+            await settle();
+            expect(detectAnalysisAnomalies).not.toHaveBeenCalled();
+            expect(result.current.state.status).toBe('ready');
         });
     });
 

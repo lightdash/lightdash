@@ -620,6 +620,28 @@ type AiAgentChatMinimizedEvent = {
     };
 };
 
+type AiAgentResponseEventProperties = {
+    organizationId: string | undefined;
+    projectId: string;
+    agentUuid: string;
+    threadUuid: string;
+    messageUuid: string;
+};
+
+type AiAgentResponseFeedbackClickedEvent = {
+    name: EventName.AI_AGENT_RESPONSE_FEEDBACK_CLICKED;
+    properties: AiAgentResponseEventProperties & { rating: 'up' | 'down' };
+};
+
+type AiAgentResponseActionEvent = {
+    name:
+        | EventName.AI_AGENT_RESPONSE_FEEDBACK_COMMENT_SUBMITTED
+        | EventName.AI_AGENT_RESPONSE_COPIED
+        | EventName.AI_AGENT_RESPONSE_ADD_TO_EVALS_CLICKED
+        | EventName.AI_AGENT_RESPONSE_DEBUG_OPENED;
+    properties: AiAgentResponseEventProperties;
+};
+
 type AiAgentBattleStartedEvent = {
     name: EventName.AI_AGENT_BATTLE_STARTED;
     properties: {
@@ -783,6 +805,8 @@ type DashboardControlsEventBase = {
 
 export type DashboardSectionCreatedSource =
     | 'add_section_icon'
+    | 'new_section_capsule'
+    | 'new_section_drop'
     | 'selection_bar'
     | 'move_to_menu';
 
@@ -803,13 +827,7 @@ type DashboardSectionCreatedEvent = {
     properties: DashboardControlsEventBase & {
         source: DashboardSectionCreatedSource;
         filtersMoved: number;
-        wasTipShown: boolean;
     };
-};
-
-type DashboardSectionsTipDismissedEvent = {
-    name: EventName.DASHBOARD_SECTIONS_TIP_DISMISSED;
-    properties: DashboardControlsEventBase;
 };
 
 type DashboardFiltersMovedEvent = {
@@ -927,6 +945,15 @@ type OnboardingWarehouseSelectedEvent = {
         warehouse: string;
         tier: 'popular' | 'all' | 'other';
         onboardingFlow: 'legacy' | 'new';
+    };
+};
+
+type LiveDataSourceRequestedEvent = {
+    name: EventName.LIVE_DATA_SOURCE_REQUESTED;
+    properties: {
+        organizationId: string | null;
+        projectId: string;
+        integration: string;
     };
 };
 
@@ -1156,7 +1183,8 @@ export type LearnStartSource =
     | 'resume'
     | 'recommended'
     | 'next_from_completion'
-    | 'deep_link';
+    | 'deep_link'
+    | 'homepage';
 
 type LearnLibraryViewedEvent = {
     name: EventName.LEARN_LIBRARY_VIEWED;
@@ -1361,6 +1389,8 @@ export type EventData =
     | AiAgentChatMinimizedEvent
     | AiDeepResearchReportEngagedEvent
     | AiAgentBattleStartedEvent
+    | AiAgentResponseFeedbackClickedEvent
+    | AiAgentResponseActionEvent
     | ContentReviewSimilarContentClickedEvent
     | AiAgentSuggestionsDisplayedEvent
     | AiAgentSuggestionImpressionEvent
@@ -1379,7 +1409,6 @@ export type EventData =
     | FormulaTableCalculationAiGenerateClickedEvent
     | DashboardFilterLockToggledEvent
     | DashboardSectionCreatedEvent
-    | DashboardSectionsTipDismissedEvent
     | DashboardFiltersMovedEvent
     | DashboardFilterEditorOpenedEvent
     | DashboardFilterEditorClosedEvent
@@ -1392,7 +1421,8 @@ export type EventData =
     | SqlRunnerConnectionSwitchedEvent
     | SqlRunnerConnectionHintResolvedEvent
     | SqlRunnerShareLinkOpenedEvent
-    | OpenInSqlRunnerClickedEvent;
+    | OpenInSqlRunnerClickedEvent
+    | LiveDataSourceRequestedEvent;
 
 export type IdentifyData = {
     id: string;

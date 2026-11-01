@@ -4,6 +4,7 @@ import {
     FeatureFlags,
     ForbiddenError,
     ParameterError,
+    TableSelectionType,
     type ExternalConnectionSample,
 } from '@lightdash/common';
 import { buildAppThumbnailClientMock } from '../../clients/AppThumbnailClient.mock';
@@ -327,11 +328,17 @@ describe('AppGenerateService pipeline external connection samples', () => {
                 chartReferences: undefined,
                 template: undefined,
             ) => Promise<unknown>;
-            projectModel: { getAllExploresFromCache: import('vitest').Mock };
+            projectModel: {
+                getAllExploresFromCache: import('vitest').Mock;
+                getTablesConfiguration: import('vitest').Mock;
+            };
             projectParametersModel: { find: import('vitest').Mock };
         };
         privateService.projectModel = {
             getAllExploresFromCache: vi.fn().mockResolvedValue({}),
+            getTablesConfiguration: vi.fn().mockResolvedValue({
+                tableSelection: { type: TableSelectionType.ALL, value: null },
+            }),
         };
         privateService.projectParametersModel = {
             find: vi.fn().mockResolvedValue([]),
@@ -366,11 +373,17 @@ describe('AppGenerateService pipeline external connection samples', () => {
         ).mockResolvedValue([]);
         const privateService = service as unknown as {
             writeCatalogAndPrompt: (...args: unknown[]) => Promise<unknown>;
-            projectModel: { getAllExploresFromCache: import('vitest').Mock };
+            projectModel: {
+                getAllExploresFromCache: import('vitest').Mock;
+                getTablesConfiguration: import('vitest').Mock;
+            };
             projectParametersModel: { find: import('vitest').Mock };
         };
         privateService.projectModel = {
             getAllExploresFromCache: vi.fn().mockResolvedValue({}),
+            getTablesConfiguration: vi.fn().mockResolvedValue({
+                tableSelection: { type: TableSelectionType.ALL, value: null },
+            }),
         };
         privateService.projectParametersModel = {
             find: vi.fn().mockResolvedValue([]),
@@ -434,10 +447,16 @@ describe('AppGenerateService pipeline external connection samples', () => {
                 dimensionCount: number;
                 metricCount: number;
             }>;
-            projectModel: { getAllExploresFromCache: import('vitest').Mock };
+            projectModel: {
+                getAllExploresFromCache: import('vitest').Mock;
+                getTablesConfiguration: import('vitest').Mock;
+            };
             projectParametersModel: { find: import('vitest').Mock };
         };
-        privateService.projectModel = { getAllExploresFromCache };
+        privateService.projectModel = {
+            getAllExploresFromCache,
+            getTablesConfiguration: vi.fn(),
+        };
         privateService.projectParametersModel = { find };
 
         const result = await privateService.writeCatalogAndPrompt(
@@ -469,6 +488,74 @@ describe('AppGenerateService pipeline external connection samples', () => {
             expect.stringMatching(/^\/tmp\/dbt-repo\//),
             expect.anything(),
         );
+    });
+
+    it('excludes explores outside the Tables configuration from the catalog', async () => {
+        const sandbox = makeSandbox();
+        const { service } = buildService();
+        vi.spyOn(
+            service as unknown as PrivateWithSamples,
+            'resolveExternalConnectionSamples',
+        ).mockResolvedValue([]);
+        const explore = (name: string, tags: string[]) => ({
+            name,
+            baseTable: name,
+            tags,
+            joinedTables: [],
+            tables: {
+                [name]: {
+                    metrics: {},
+                    dimensions: { id: { name: 'id', type: 'string' } },
+                },
+            },
+        });
+        const privateService = service as unknown as {
+            writeCatalogAndPrompt: (...args: unknown[]) => Promise<{
+                tableCount: number;
+            }>;
+            projectModel: {
+                getAllExploresFromCache: import('vitest').Mock;
+                getTablesConfiguration: import('vitest').Mock;
+            };
+            projectParametersModel: { find: import('vitest').Mock };
+        };
+        privateService.projectModel = {
+            getAllExploresFromCache: vi.fn().mockResolvedValue({
+                'uuid-1': explore('orders', ['app']),
+                'uuid-2': explore('restricted', []),
+            }),
+            getTablesConfiguration: vi.fn().mockResolvedValue({
+                tableSelection: {
+                    type: TableSelectionType.WITH_TAGS,
+                    value: ['app'],
+                },
+            }),
+        };
+        privateService.projectParametersModel = {
+            find: vi.fn().mockResolvedValue([]),
+        };
+
+        const result = await privateService.writeCatalogAndPrompt(
+            sandbox,
+            'app-1',
+            'project-1',
+            'build me an app',
+            undefined,
+            {} as never,
+            'bucket',
+            undefined,
+            undefined,
+            undefined,
+            false,
+        );
+
+        expect(result).toMatchObject({ tableCount: 1 });
+        const catalogWrites = sandbox.files.write.mock.calls
+            .filter(([path]) => path === '/tmp/dbt-repo/models.tar')
+            .map(([, contents]) => String(contents));
+        expect(catalogWrites).toHaveLength(1);
+        expect(catalogWrites[0]).toContain('orders');
+        expect(catalogWrites[0]).not.toContain('restricted');
     });
 });
 

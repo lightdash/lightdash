@@ -41,7 +41,10 @@ const otherClient = { ...client, id: 'other-client' };
 const user = { userId: 42, organizationUuid: 'org' };
 const verifier = 'a'.repeat(43);
 const challenge = createHash('sha256').update(verifier).digest('base64url');
-const codes = new Map<string, OAuth2Server.AuthorizationCode>();
+const codes = new Map<
+    string,
+    OAuth2Server.AuthorizationCode & { sessionExpiresAt: Date | null }
+>();
 const modes = [null, 'log', 'enforce'] as const;
 
 const setScopeMode = async (mode: OAuthScopeMode | null) => {
@@ -112,7 +115,12 @@ beforeEach(() => {
     });
     vi.spyOn(model, 'saveAuthorizationCode').mockImplementation(
         async (code, savedClient, savedUser) => {
-            const saved = { ...code, client: savedClient, user: savedUser };
+            const saved = {
+                ...code,
+                sessionExpiresAt: null,
+                client: savedClient,
+                user: savedUser,
+            };
             codes.set(code.authorizationCode, saved);
             return saved;
         },
@@ -419,7 +427,11 @@ it.each(modes)(
     async (mode) => {
         await setScopeMode(mode);
         const code = await authorize();
-        codes.set(code.authorizationCode, { ...code, expiresAt: new Date(0) });
+        codes.set(code.authorizationCode, {
+            ...code,
+            sessionExpiresAt: null,
+            expiresAt: new Date(0),
+        });
         await expect(exchange(code)).rejects.toBeInstanceOf(
             OAuth2Server.InvalidGrantError,
         );

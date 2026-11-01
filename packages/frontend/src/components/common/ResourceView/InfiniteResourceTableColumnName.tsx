@@ -29,6 +29,7 @@ import {
 } from '../ResourceInfoPopup/ResourceInfoPopup';
 import ViewsCountPopover from '../ViewsCountPopover';
 import DataAppBuildStatus from './DataAppBuildStatus';
+import classes from './InfiniteResourceTable.module.css';
 import AttributeCount from './ResourceAttributeCount';
 import {
     getResourceTypeName,
@@ -222,7 +223,7 @@ const InfiniteResourceTableColumnName = ({
                             fz="sm"
                             fw={600}
                             lineClamp={1}
-                            style={{ overflowWrap: 'anywhere' }}
+                            className={classes.itemName}
                         >
                             {getResourceViewItemName(item)}
                         </Text>

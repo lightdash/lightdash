@@ -176,7 +176,7 @@ export const createS3AnalyticsSourceResolver = ({
                                 const cacheable =
                                     !!size &&
                                     size <= 1024 * 1024 &&
-                                    bufferedBytes + size <= 8 * 1024 * 1024;
+                                    bufferedBytes + size <= 32 * 1024 * 1024;
                                 if (cacheable) bufferedBytes += size!;
                                 const buffer = cacheable
                                     ? await analyticsFileCache.get(

@@ -146,10 +146,30 @@ export type QueryDefinition = {
 
 export type ColumnType = 'string' | 'number' | 'date' | 'timestamp' | 'boolean';
 
+/**
+ * A link pattern declared on the field in the semantic layer (`urls:` in the
+ * model YAML). `url` is a template: `${value.raw}` / `${value.formatted}` is
+ * the cell's own value, `${row.<table>.<field>.raw}` (or `.formatted`)
+ * references another field in the same result row, and a `| url_encode`
+ * filter URL-encodes the substituted value. Resolve with `resolveColumnUrls`.
+ */
+export type ColumnUrl = {
+    label: string;
+    url: string;
+};
+
 export type Column = {
     name: string;
     label: string;
     type: ColumnType;
+    /**
+     * The API field id (`<table>_<field>`), preserved across result paths so
+     * `${row.<table>.<field>}` url references resolve to the right column
+     * even where names are qualified differently (underlying data, joins).
+     */
+    fieldId?: string;
+    /** Link patterns for this field's values; render cells as links when set. */
+    urls?: ColumnUrl[];
 };
 
 export type Row = Record<string, string | number | boolean | null>;
@@ -352,6 +372,34 @@ export const EXPLORE_BASE_TABLE_PATH = '/__sdk/explore-base-table';
 export type ExploreBaseTableRequest = { exploreName: string };
 
 export type ExploreBaseTableResult = { baseTable: string | null };
+
+/**
+ * Host-answered virtual route returning the saved charts in a space.
+ * Duplicated from `@lightdash/common` (`APP_SDK_SPACE_CHARTS_PATH`) — this
+ * package must not depend on common. The bridge and the CLI preview proxy
+ * answer it with the viewer's own credentials; the backend has no such route.
+ */
+export const SPACE_CHARTS_PATH = '/__sdk/space-charts';
+
+export type SpaceChartsRequest = { space: string };
+
+/** One saved chart in a space, as listed by `useSpaceCharts`. */
+export type SpaceChartSummary = {
+    uuid: string;
+    name: string;
+    description: string | null;
+    /** e.g. `line`, `vertical_bar`, `table` — null on older charts. */
+    chartKind: string | null;
+    slug: string | null;
+    /** ISO timestamp of the chart's last save. */
+    updatedAt: string | null;
+};
+
+export type SpaceChartsResult = {
+    /** Null when the space doesn't exist or the viewer can't access it. */
+    space: { uuid: string; name: string; slug: string } | null;
+    charts: SpaceChartSummary[];
+};
 
 // --- Client config ---
 
@@ -569,4 +617,10 @@ export type Transport = {
      * `useAiPrompt().available` is false when absent.
      */
     aiPrompt?: (request: AiPromptRequest) => Promise<AiPromptResult>;
+    /**
+     * List the saved charts the viewer can see in a space (by slug or uuid).
+     * Optional so custom transports predating the capability stay valid —
+     * `useSpaceCharts().available` is false when absent.
+     */
+    listSpaceCharts?: (space: string) => Promise<SpaceChartsResult>;
 };

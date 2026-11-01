@@ -8,6 +8,7 @@ import {
 } from '@lightdash/common';
 import { buildAiTokenDashboard } from './aiTokenDashboard';
 import { withAnalyticsChartPresentation } from './analyticsChartPresentation';
+import { withEmbedRankingPresentation } from './embedDashboard';
 import { buildQueryCalendarChart } from './queryCalendarChart';
 import { buildUsageDashboards } from './usageDashboards';
 
@@ -388,7 +389,9 @@ export const analyticsContentAsCode = [
         verified: true,
     },
     charts: charts.map((chartDefinition) => ({
-        ...withAnalyticsChartPresentation(chartDefinition),
+        ...withEmbedRankingPresentation(
+            withAnalyticsChartPresentation(chartDefinition),
+        ),
         spaceSlug: analyticsDefaultSpace.slug,
     })),
 }));

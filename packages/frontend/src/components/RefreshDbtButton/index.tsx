@@ -11,7 +11,6 @@ import {
     Stack,
     Text,
     Tooltip,
-    type ButtonProps,
 } from '@mantine/core';
 import { IconChevronDown, IconRefresh } from '@tabler/icons-react';
 import { useEffect, useState, type FC } from 'react';
@@ -92,14 +91,14 @@ const RefreshDbtButton: FC<{
     // Surfaces with their own refresh copy keep the plain button
     allowContentSync?: boolean;
     onClick?: () => void;
-    buttonStyles?: ButtonProps['style'];
+    className?: string;
     leftIcon?: React.ReactNode;
     defaultTextOverride?: React.ReactNode;
     refreshingTextOverride?: React.ReactNode;
 }> = ({
     allowContentSync = true,
     onClick,
-    buttonStyles,
+    className,
     leftIcon,
     defaultTextOverride,
     refreshingTextOverride,
@@ -256,7 +255,7 @@ const RefreshDbtButton: FC<{
                 leftSection={leftIcon ?? <MantineIcon icon={IconRefresh} />}
                 loading={busy}
                 onClick={handleRefresh}
-                style={canSyncContent ? undefined : buttonStyles}
+                className={canSyncContent ? undefined : className}
             >
                 {!busy
                     ? (defaultTextOverride ?? modeCopy[activeMode].label)

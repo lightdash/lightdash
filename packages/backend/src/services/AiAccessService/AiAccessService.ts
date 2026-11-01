@@ -95,7 +95,7 @@ import {
     matchesResultEntitlementFingerprint,
     type ResultEntitlementFingerprintForms,
 } from '../../utils/queryResultProducer';
-import { assertHumanManagedMutation } from '../AgentPermissionService/assertHumanManagedMutation';
+import { assertHumanAgentPolicyMutation } from '../AgentPermissionService/assertHumanManagedMutation';
 import {
     AiServiceAccountSlotResolutionError,
     AiServiceAccountSlotResolver,
@@ -777,7 +777,7 @@ export class AiAccessService extends BaseService {
         account: Account,
         body: UpdateOrganizationSnowflakeAgentClient,
     ): Promise<OrganizationAgentIdentitySnowflakeSetup> {
-        await assertHumanManagedMutation({
+        await assertHumanAgentPolicyMutation({
             organizationUuid: account.organization.organizationUuid,
             ability: account.user.ability,
             oauth: account.authentication.type === 'oauth',
@@ -933,7 +933,7 @@ export class AiAccessService extends BaseService {
         account: Account,
         settings: OrganizationAgentIdentitySettings,
     ): Promise<OrganizationAgentIdentityOverview> {
-        await assertHumanManagedMutation({
+        await assertHumanAgentPolicyMutation({
             organizationUuid: account.organization.organizationUuid,
             ability: account.user.ability,
             oauth: account.authentication.type === 'oauth',
@@ -1012,7 +1012,7 @@ export class AiAccessService extends BaseService {
         warehouseType: WarehouseTypes,
         rule: UpdateOrganizationAgentIdentityRule,
     ): Promise<OrganizationAgentIdentityRule> {
-        await assertHumanManagedMutation({
+        await assertHumanAgentPolicyMutation({
             organizationUuid: account.organization.organizationUuid,
             ability: account.user.ability,
             oauth: account.authentication.type === 'oauth',
@@ -1758,6 +1758,7 @@ export class AiAccessService extends BaseService {
                     saved = await this.slotResolver.resolve({
                         projectUuid: args.projectUuid,
                         connection: args.warehouseConnectionUuid,
+                        configuration: args.connection,
                     });
                     inheritedFromProjectUuid = saved?.inherited
                         ? saved.sourceProjectUuid
@@ -1779,7 +1780,7 @@ export class AiAccessService extends BaseService {
                 let credentials;
                 try {
                     credentials = await resolveAiServiceAccountCredentials({
-                        connection: args.connection,
+                        connection: saved.configuration,
                         stored: saved.slot.secrets,
                         owner: {
                             kind: 'aiServiceAccount',
@@ -2667,6 +2668,7 @@ export class AiAccessService extends BaseService {
                     const resolved = await this.slotResolver.resolveMetadata({
                         projectUuid: args.projectUuid,
                         connection: args.warehouseConnectionUuid,
+                        configuration: args.connection,
                     });
                     const slot = resolved?.slot ?? null;
                     if (slot === null) {

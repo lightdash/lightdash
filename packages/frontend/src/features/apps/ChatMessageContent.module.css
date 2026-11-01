@@ -17,13 +17,6 @@
     overflow: hidden;
     text-overflow: ellipsis;
     color: var(--mantine-color-foreground-0);
-
-    @mixin light {
-        background-color: var(--mantine-color-ldGray-0);
-        border: 1px solid var(--mantine-color-ldGray-3);
-    }
-    @mixin dark {
-        background-color: var(--mantine-color-ldDark-4);
-        border: 1px solid var(--mantine-color-ldDark-5);
-    }
+    background-color: var(--mantine-color-ldGray-0);
+    border: 1px solid var(--mantine-color-ldGray-3);
 }

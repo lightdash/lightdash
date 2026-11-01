@@ -207,12 +207,7 @@ const Parameter: FC<Props> = ({
                         }
                         onClick={handleToggle}
                     >
-                        <Box
-                            style={{
-                                maxWidth: '100%',
-                                overflow: 'hidden',
-                            }}
-                        >
+                        <Box className={styles.valueSummary}>
                             <Text fz="xs" truncate>
                                 <Text span fw={600}>
                                     {displayLabel}

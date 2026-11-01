@@ -126,9 +126,7 @@ const FilterMultiNumberInput: FC<Props> = ({
             <ActionIcon
                 size="sm"
                 onClick={open}
-                style={{
-                    visibility: hovered ? 'visible' : 'hidden',
-                }}
+                className={hovered ? undefined : classes.hidden}
             >
                 <MantineIcon icon={IconListDetails} />
             </ActionIcon>

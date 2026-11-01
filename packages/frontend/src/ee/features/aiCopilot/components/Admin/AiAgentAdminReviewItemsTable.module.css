@@ -3,10 +3,7 @@
 }
 
 .expandableText:hover {
-    color: light-dark(
-        var(--mantine-color-ldGray-8),
-        var(--mantine-color-dark-1)
-    );
+    color: var(--mantine-color-ldGray-8);
 }
 
 .suggestedStep {
@@ -59,10 +56,7 @@
 }
 
 .bodyRow:hover {
-    background-color: light-dark(
-        var(--mantine-color-ldGray-0),
-        var(--mantine-color-dark-6)
-    );
+    background-color: var(--mantine-color-default-hover);
 }
 
 .bodyRow:hover .threadIcon,

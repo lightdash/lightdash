@@ -393,7 +393,7 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                 {(style) => (
                     <OmnibarTarget
                         placeholder="Search"
-                        style={style}
+                        transitionStyle={style}
                         onOpen={handleOmnibarOpenInputClick}
                     />
                 )}

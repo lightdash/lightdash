@@ -159,13 +159,6 @@ export enum FeatureFlags {
     OrganizationTrialBlock = 'organization-trial-block',
 
     /**
-     * Gate the org-level export Limits settings panel (per-org query max rows
-     * and CSV cells limit). Backend enforcement of any stored overrides is
-     * always on; this flag only controls who can see/configure the panel.
-     */
-    ProLimits = 'pro-limits',
-
-    /**
      * Show the coding-agent project onboarding flow. This gates only the UI;
      * the CLI, APIs, and installed skills remain available independently.
      */
@@ -222,13 +215,11 @@ export enum FeatureFlags {
     ComposeSqlRunner = 'compose-sql-runner',
 
     /**
-     * Enable the multi-source query endpoints
-     * (/api/v2/projects/{projectUuid}/query-sources/*): source discovery,
-     * schema scans, source-query submission and batch status. Off by
-     * default; on in preview/dev environments via
-     * PREVIEW_ENABLED_FEATURE_FLAGS.
+     * Enable api query sources: queries sent live to an external API (HogQL
+     * to PostHog) through a project connection, and the Live data sources
+     * project settings page. Off by default; enable per org.
      */
-    MultiSourceQuery = 'multi-source-query',
+    ApiQuerySources = 'api-query-sources',
 
     /**
      * Enable the "My query history" page

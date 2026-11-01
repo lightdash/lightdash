@@ -289,7 +289,7 @@ const EmbedFiltersInteractivity: React.FC<Props> = ({
                                                     <>
                                                         <Text
                                                             span
-                                                            c="ldGray.7"
+                                                            c="dimmed"
                                                             fz="xs"
                                                         >
                                                             {

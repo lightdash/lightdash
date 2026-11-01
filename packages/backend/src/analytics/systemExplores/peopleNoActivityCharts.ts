@@ -32,7 +32,7 @@ export const peopleNoActivityChartSpecs: UsageChartSpec[] = [
         key: 'people-without-observed-activity-detail',
         name: 'Who has no observed activity?',
         description:
-            'Current active, setup-complete members with no confirmed human activity in retained capture. This includes people with only automated, inferred or unclassified activity. Missing capture does not prove someone has never used the app. Names fall back to user UUIDs; up to 1,000 people are shown.',
+            'Current active, setup-complete members with no confirmed human activity in retained capture. This includes people with only automated, inferred or unclassified activity. Missing capture does not prove someone has never used the app. Missing names fall back to primary email, then user UUIDs; up to 1,000 people are shown.',
         explore: 'people_adoption',
         dimensions: [
             ...personDimensions,
@@ -54,7 +54,7 @@ export const peopleNoActivityChartSpecs: UsageChartSpec[] = [
         key: 'people-without-activity-30d-detail',
         name: 'Who had no observed activity in the last 30 closed days?',
         description:
-            'Current active, setup-complete members without confirmed human activity in the 30 closed UTC days before the membership snapshot. Includes both people with no observed activity and previously observed people who have lapsed; activity status distinguishes them. Names fall back to user UUIDs; up to 1,000 people are shown.',
+            'Current active, setup-complete members without confirmed human activity in the 30 closed UTC days before the membership snapshot. Includes both people with no observed activity and previously observed people who have lapsed; activity status distinguishes them. Missing names fall back to primary email, then user UUIDs; up to 1,000 people are shown.',
         explore: 'people_adoption',
         dimensions: [
             ...personDimensions,

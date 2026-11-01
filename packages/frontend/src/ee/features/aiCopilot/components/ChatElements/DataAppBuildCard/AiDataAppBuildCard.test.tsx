@@ -124,7 +124,6 @@ const app = (
     addAnalysisDismissed: false,
     icon: null,
     verification: null,
-    autoAnalysis: 'inherit',
 });
 
 const pending: ToolGenerateDataAppOutput['metadata'] = {

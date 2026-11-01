@@ -7,6 +7,8 @@ import {
 } from '../../models/FeatureFlagModel/FeatureFlagModel';
 
 export class CommercialFeatureFlagModel extends FeatureFlagModel {
+    protected override readonly supportsAnalyticsProject = true;
+
     constructor(args: { database: Knex; lightdashConfig: LightdashConfig }) {
         super(args);
         this.featureFlagHandlers = {
@@ -14,21 +16,7 @@ export class CommercialFeatureFlagModel extends FeatureFlagModel {
             // Add new commercial handlers
             [CommercialFeatureFlags.AiCopilot]:
                 this.getAiCopilotFlag.bind(this),
-            [CommercialFeatureFlags.HomepageBuilder]:
-                this.getHomepageBuilderFlag.bind(this),
         };
-    }
-
-    // Default-off; enabled per-org via DB-backed overrides.
-    private async getHomepageBuilderFlag({
-        featureFlagId,
-        user,
-    }: FeatureFlagLogicArgs) {
-        if (!user) {
-            return { id: featureFlagId, enabled: false };
-        }
-        const dbResult = await this.tryGetFromDatabase({ user, featureFlagId });
-        return dbResult ?? { id: featureFlagId, enabled: false };
     }
 
     private async getAiCopilotFlag({

@@ -1,5 +1,13 @@
 import { subject } from '@casl/ability';
-import { Button, Skeleton, Stack } from '@mantine/core';
+import {
+    Box,
+    Button,
+    Group,
+    Skeleton,
+    Stack,
+    Text,
+    Title,
+} from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
 import {
@@ -127,26 +135,39 @@ const AppearanceSettingsPanel: FC = () => {
     return (
         <SettingsPage
             title="Appearance"
-            description="Customize organization branding and the color palettes used in charts and visualizations."
+            description="Customize your brand’s appearance and the color palettes used in charts."
             actions={
                 <SettingsPageActions>
                     <SettingsPageDocumentationLink href="https://docs.lightdash.com/guides/customizing-the-appearance-of-your-project" />
-                    {canManageColorPalette ? (
+                </SettingsPageActions>
+            }
+        >
+            {canManageOrgSettings && (
+                <BrandAppearanceSettings
+                    canManageColorPalette={
+                        canManageColorPalette && !hasColorPaletteOverride
+                    }
+                />
+            )}
+            <SettingsCard>
+                <Group justify="space-between" mb="lg" gap="sm">
+                    <Box>
+                        <Title order={5}>Chart palettes</Title>
+                        <Text size="sm" c="dimmed">
+                            Choose the default palette for your charts.
+                        </Text>
+                    </Box>
+                    {canManageColorPalette && (
                         <Button
-                            size="xs"
+                            variant="default"
                             leftSection={<MantineIcon icon={IconPlus} />}
                             onClick={() => setIsCreatePaletteModalOpen(true)}
-                            variant="default"
                             disabled={hasColorPaletteOverride}
                         >
                             Add palette
                         </Button>
-                    ) : null}
-                </SettingsPageActions>
-            }
-        >
-            {canManageOrgSettings && <BrandAppearanceSettings />}
-            <SettingsCard>
+                    )}
+                </Group>
                 <AppearanceColorSettings
                     canManage={canManageColorPalette}
                     isCreatePaletteModalOpen={isCreatePaletteModalOpen}

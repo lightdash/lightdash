@@ -1,0 +1,9 @@
+.groupToggleButton {
+    height: unset;
+    padding-left: var(--mantine-spacing-two);
+    padding-right: var(--mantine-spacing-xxs);
+}
+
+.groupToggleSection {
+    margin-right: 0;
+}

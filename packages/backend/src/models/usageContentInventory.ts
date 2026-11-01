@@ -100,41 +100,41 @@ export const usageContentInventoryQuery = (
             WHERE sc.enabled AND sc.deleted_at IS NULL
                 AND (sc.project_uuid = i.project_id OR sc.project_uuid IS NULL)
             GROUP BY i.content_id
-        ), referenced_dashboards AS MATERIALIZED (
+        ), latest_project_dashboards AS MATERIALIZED (
+            -- Resolve current versions before joining tiles, so old dashboard
+            -- revisions cannot multiply the work for each inventory item.
+            SELECT d.dashboard_id, p.project_uuid,
+                (SELECT MAX(v.dashboard_version_id) FROM dashboard_versions v
+                 WHERE v.dashboard_id = d.dashboard_id
+                 GROUP BY v.dashboard_id) AS dashboard_version_id
+            FROM dashboards d
+            JOIN spaces s ON s.space_id = d.space_id
+            JOIN projects p ON p.project_id = s.project_id
+            WHERE p.project_uuid = ANY(ARRAY(SELECT DISTINCT project_id FROM inventory))
+                AND d.deleted_at IS NULL AND s.deleted_at IS NULL
+        ), ${
+            reference
+                ? `current_dashboard_tiles AS MATERIALIZED (
+            -- Join tiles before inventory: joining on project first multiplies
+            -- every page item by every dashboard in that project.
+            SELECT d.dashboard_id, d.project_uuid, t.${reference.column} AS content_reference
+            FROM latest_project_dashboards d
+            JOIN ${reference.table} t ON t.dashboard_version_id = d.dashboard_version_id
+            WHERE t.${reference.column} = ANY(ARRAY(SELECT ${reference.inventoryColumn} FROM inventory))
+        ),`
+                : ''
+        } dashboard_references AS (
             ${
                 reference
                     ? `
-            SELECT i.content_id, d.dashboard_id, d.dashboard_version_id
-            FROM inventory i
-            JOIN ${reference.table} t ON t.${reference.column} = i.${reference.inventoryColumn}
-            -- This key identifies at most one row. Keep the lookup lateral so
-            -- a page cannot hash/scan the whole instance's version history.
-            JOIN LATERAL (
-                SELECT d.dashboard_id, v.dashboard_version_id
-                FROM dashboard_versions v
-                JOIN dashboards d ON d.dashboard_id = v.dashboard_id
-                JOIN spaces s ON s.space_id = d.space_id
-                JOIN projects p ON p.project_id = s.project_id
-                WHERE v.dashboard_version_id = t.dashboard_version_id
-                    AND p.project_uuid = i.project_id
-                    AND d.deleted_at IS NULL AND s.deleted_at IS NULL
-                LIMIT 1
-            ) d ON true
+            SELECT i.content_id, COUNT(DISTINCT d.dashboard_id) AS count
+            FROM current_dashboard_tiles d
+            JOIN inventory i ON i.${reference.inventoryColumn} = d.content_reference
+                AND i.project_id = d.project_uuid
+            GROUP BY i.content_id
             `
-                    : 'SELECT NULL::uuid AS content_id, NULL::integer AS dashboard_id, NULL::integer AS dashboard_version_id WHERE false'
+                    : 'SELECT NULL::uuid AS content_id, 0::bigint AS count WHERE false'
             }
-        ), latest_referenced_dashboards AS MATERIALIZED (
-            -- Resolve the latest version once per distinct dashboard in this page,
-            -- not once per historical tile. Materialize before joining tiles back
-            -- so the planner cannot inline and repeat this lookup for each tile.
-            SELECT d.dashboard_id, (SELECT MAX(latest.dashboard_version_id)
-                FROM dashboard_versions latest WHERE latest.dashboard_id = d.dashboard_id) AS dashboard_version_id
-            FROM (SELECT DISTINCT dashboard_id FROM referenced_dashboards) d
-        ), dashboard_references AS (
-            SELECT content_id, COUNT(DISTINCT dashboard_id) AS count
-            FROM referenced_dashboards d
-            JOIN latest_referenced_dashboards latest USING (dashboard_id, dashboard_version_id)
-            GROUP BY content_id
         )
     SELECT i.content_id AS cursor,
         json_build_object(

@@ -455,7 +455,7 @@ export const ServiceAccountsTable: FC<Props> = ({
                             position="top"
                             label={formatTimestamp(row.original.createdAt)}
                         >
-                            <Text fz="sm" c="ldGray.7">
+                            <Text fz="sm" c="dimmed">
                                 {formatDate(row.original.createdAt)}
                             </Text>
                         </Tooltip>
@@ -488,7 +488,7 @@ export const ServiceAccountsTable: FC<Props> = ({
                         const { expiresAt, rotatedAt } = row.original;
                         return (
                             <Group align="center" gap="xs" wrap="nowrap">
-                                <Text fz="sm" c="ldGray.7">
+                                <Text fz="sm" c="dimmed">
                                     {expiresAt
                                         ? formatDate(expiresAt)
                                         : 'No expiration'}
@@ -539,7 +539,7 @@ export const ServiceAccountsTable: FC<Props> = ({
                         const lastUsedAt = row.original.lastUsedAt;
                         if (!lastUsedAt) {
                             return (
-                                <Text fz="sm" c="ldGray.5">
+                                <Text fz="sm" c="dimmed">
                                     Never
                                 </Text>
                             );
@@ -549,7 +549,7 @@ export const ServiceAccountsTable: FC<Props> = ({
                                 position="top"
                                 label={formatTimestamp(lastUsedAt)}
                             >
-                                <Text fz="sm" c="ldGray.7">
+                                <Text fz="sm" c="dimmed">
                                     {formatDate(lastUsedAt)}
                                 </Text>
                             </Tooltip>
@@ -661,9 +661,7 @@ export const ServiceAccountsTable: FC<Props> = ({
         enableSorting: true,
         enableTopToolbar: true,
         enableBottomToolbar: false,
-        mantinePaperProps: { className: classes.tablePaper },
-        mantineTableHeadCellProps: { className: classes.headCell },
-        mantineTableBodyCellProps: { className: classes.bodyCell },
+        mantineTableBodyCellProps: { py: 'sm' },
         mantineTableProps: { highlightOnHover: true },
         state: { isLoading },
         renderEmptyRowsFallback: () => (
@@ -738,12 +736,7 @@ export const ServiceAccountsTable: FC<Props> = ({
                         />
                     </Tooltip>
 
-                    <Divider
-                        orientation="vertical"
-                        w={1}
-                        h={20}
-                        className={classes.verticalDivider}
-                    />
+                    <Divider orientation="vertical" w={1} h={20} />
 
                     <SegmentedControl
                         size="xs"
@@ -770,12 +763,7 @@ export const ServiceAccountsTable: FC<Props> = ({
 
                     {availableCreators.length > 0 && (
                         <>
-                            <Divider
-                                orientation="vertical"
-                                w={1}
-                                h={20}
-                                className={classes.verticalDivider}
-                            />
+                            <Divider orientation="vertical" w={1} h={20} />
                             <Popover width={250} position="bottom-start">
                                 <Popover.Target>
                                     <Tooltip label="Filter by creator">

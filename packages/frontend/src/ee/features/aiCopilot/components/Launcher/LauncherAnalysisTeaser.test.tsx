@@ -65,7 +65,6 @@ const buildAdapter = (
         availabilityStatus === 'available'
             ? {
                   status: 'available',
-                  autoAnalyseDefault: false,
                   canContinueInAskAi: true,
               }
             : { status: 'unavailable', reason: 'org_setting_off' },

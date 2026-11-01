@@ -42,6 +42,7 @@ import MantineIcon from '../../../common/MantineIcon';
 import { NumberInput } from '../../../common/NumberInput';
 import { Config } from '../../common/Config';
 import { LabelEditor } from '../../common/LabelEditor';
+import classes from './AxesLabelSections.module.css';
 import { AxisMinInterval } from './AxisMinInterval';
 import { AxisMinMax } from './AxisMinMax';
 
@@ -52,7 +53,7 @@ const XAxisSortSelectItem: FC<{
 }> = ({ icon, label, mirrorIcon = false }) => (
     <Group gap="xs" wrap="nowrap">
         <MantineIcon
-            style={mirrorIcon ? { transform: 'rotateY(180deg)' } : undefined}
+            className={mirrorIcon ? classes.mirroredIcon : undefined}
             icon={icon}
         />
         <Text fz="xs">{label}</Text>

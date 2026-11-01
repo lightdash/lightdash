@@ -76,7 +76,7 @@ const PaletteOptionRow: FC<{ name: string; swatches: SwatchSet | null }> = ({
                 />
                 {swatches.darkColors && swatches.darkColors.length > 0 && (
                     <>
-                        <Text size="xs" c="ldGray.3">
+                        <Text size="xs" c="dimmed">
                             /
                         </Text>
                         <SwatchInline
@@ -124,6 +124,7 @@ const MiniBarChart: FC<{ colors: string[]; theme: 'light' | 'dark' }> = ({
         >
             <EChartsReact
                 option={option}
+                // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
                 style={{ height: 60, width: '100%' }}
                 opts={{ renderer: 'svg' }}
             />

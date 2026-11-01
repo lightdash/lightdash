@@ -11,22 +11,13 @@ export const AiAgentDocumentRelevanceCard = ({ summary }: Props) => {
     const isNotRelevant =
         !!warning || relevance === 'low' || relevance === 'none';
 
-    if (isNotRelevant) {
-        return (
-            <Callout variant="warning">
-                <Text size="xs">
-                    {warning ??
-                        'This document does not appear to relate to the project — the agent may ignore it.'}
-                </Text>
-            </Callout>
-        );
-    }
+    if (!isNotRelevant) return null;
 
     return (
-        <Callout variant="neutral">
+        <Callout variant="warning">
             <Text size="xs">
-                The agent uses this summary to decide whether to read the file.
-                The full text is retrieved on demand.
+                {warning ??
+                    'This document does not appear to relate to the project — the agent may ignore it.'}
             </Text>
         </Callout>
     );

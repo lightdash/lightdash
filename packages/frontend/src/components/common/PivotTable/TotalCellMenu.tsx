@@ -21,7 +21,6 @@ const TotalCellMenu: FC<React.PropsWithChildren<TotalCellMenuProps>> = ({
             onClose={onClose}
             closeOnItemClick
             closeOnEscape
-            radius={0}
             position="bottom-end"
             offset={{
                 mainAxis: 0,

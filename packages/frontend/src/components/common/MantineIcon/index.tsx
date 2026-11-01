@@ -92,6 +92,7 @@ const MantineIcon = forwardRef<SVGSVGElement, MantineIconProps>(
                 aria-hidden
                 display={display}
                 {...rest}
+                // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
                 style={{
                     display,
                     width: sizeValue,

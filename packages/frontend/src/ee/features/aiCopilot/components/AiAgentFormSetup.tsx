@@ -325,14 +325,10 @@ export const AiAgentFormSetup = ({
         FeatureFlags.AiThreadRetention,
     );
 
-    const multiSourceQueryFlagQuery = useServerFeatureFlag(
-        FeatureFlags.MultiSourceQuery,
-    );
     const composeSqlRunnerFlagQuery = useServerFeatureFlag(
         FeatureFlags.ComposeSqlRunner,
     );
     const composerQueriesAvailable =
-        multiSourceQueryFlagQuery.data?.enabled === true &&
         composeSqlRunnerFlagQuery.data?.enabled === true;
 
     const isGroupsEnabled =
@@ -625,7 +621,7 @@ export const AiAgentFormSetup = ({
                                 <Box>
                                     <Title
                                         order={6}
-                                        c="ldGray.7"
+                                        c="dimmed"
                                         size="sm"
                                         fw={500}
                                     >
@@ -1332,7 +1328,7 @@ export const AiAgentFormSetup = ({
                                 <Box>
                                     <Title
                                         order={6}
-                                        c="ldGray.7"
+                                        c="dimmed"
                                         size="sm"
                                         fw={500}
                                     >

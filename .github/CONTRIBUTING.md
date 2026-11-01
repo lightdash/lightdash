@@ -40,7 +40,7 @@ If a Lightdash maintainer has invited you to contribute or approved your propose
 
 1. Confirm the scope and intended approach with the maintainer before you begin.
 2. Make sure the agreement is recorded on the relevant issue or pull request.
-3. Read the repository-level guidance and any instruction or context files relevant to the area you are changing, including `AGENTS.md`, `CLAUDE.md` and `CONTEXT-MAP.md`.
+3. Read the repository-level guidance and any instruction or context files relevant to the area you are changing, including `AGENTS.md` and `CONTEXT-MAP.md`.
 4. Keep the pull request focused on the agreed scope.
 5. Run the relevant tests and checks before requesting review.
 
@@ -530,16 +530,16 @@ pnpm install
 pnpm common-build
 pnpm warehouses-build
 
-# Run cypress in interactive mode
+# Run Playwright in UI mode
 pnpm e2e-open
 
-# Or run cypress in cli mode
+# Or run Playwright headless
 pnpm e2e-run
 ```
 
 Note:
 
-- Edit `packages/e2e/cypress.json` if you're running Lightdash on a different domain/port than `http://localhost:8080`
+- Set `PLAYWRIGHT_BASE_URL` if you're running Lightdash somewhere other than `http://localhost:3000` (see `packages/e2e/AGENTS.md`)
 
 #### How to check code quality
 

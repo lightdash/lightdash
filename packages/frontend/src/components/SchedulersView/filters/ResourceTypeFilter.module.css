@@ -6,11 +6,8 @@
 
 .indicator {
     background: var(--mantine-color-indigo-light);
-    border: 1px solid var(--mantine-color-indigo-2);
-
-    @mixin dark {
-        border-color: var(--mantine-color-indigo-4);
-    }
+    border: 1px solid
+        light-dark(var(--mantine-color-indigo-2), var(--mantine-color-indigo-4));
 }
 
 .label p {

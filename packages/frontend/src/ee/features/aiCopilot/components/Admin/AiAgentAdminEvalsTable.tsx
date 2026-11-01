@@ -38,6 +38,7 @@ import { useIsTruncated } from '../../../../../hooks/useIsTruncated';
 import { useInfiniteAiAgentAdminEvals } from '../../hooks/useAiAgentAdmin';
 import { useAiAgentAdminFilters } from '../../hooks/useAiAgentAdminFilters';
 import { AgentNamePill } from '../AgentNamePill';
+import adminClasses from './AdminTable.module.css';
 import AgentsFilter from './AgentsFilter';
 import { RunStatusIndicator, TimeAgo } from './EvalRunStatus';
 import ProjectsFilter from './ProjectsFilter';
@@ -253,7 +254,7 @@ const AiAgentAdminEvalsTable = ({
                 const { latestRun } = row.original;
                 if (!latestRun) {
                     return (
-                        <Text fz="xs" c="ldGray.5" fw={500}>
+                        <Text fz="xs" c="dimmed" fw={500}>
                             Never run
                         </Text>
                     );
@@ -283,7 +284,7 @@ const AiAgentAdminEvalsTable = ({
                 </Group>
             ),
             Cell: ({ row }) => (
-                <Text fz="sm" c="ldGray.7">
+                <Text fz="sm" c="dimmed">
                     {new Date(row.original.createdAt).toLocaleDateString()}
                 </Text>
             ),
@@ -315,9 +316,7 @@ const AiAgentAdminEvalsTable = ({
         },
         mantineTableContainerProps: {
             ref: tableContainerRef,
-            style: {
-                maxHeight: 'calc(100dvh - 320px)',
-            },
+            mah: 'calc(100dvh - 320px)',
             onScroll,
         },
         mantineTableProps: {
@@ -332,24 +331,11 @@ const AiAgentAdminEvalsTable = ({
             const isSelected = selectedEval?.evalUuid === evalSummary.evalUuid;
 
             return {
-                style: {
-                    cursor: 'pointer',
-                    backgroundColor: isSelected
-                        ? theme.colors.ldGray[1]
-                        : undefined,
-                },
+                'data-selected': isSelected || undefined,
                 onClick: () => onEvalSelect(evalSummary),
             };
         },
-        mantineTableBodyCellProps: {
-            style: {
-                padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                borderRight: 'none',
-                borderLeft: 'none',
-                borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                borderTop: 'none',
-            },
-        },
+        mantineTableBodyCellProps: { py: 'sm' },
         renderTopToolbar: () => (
             <Box>
                 <Group
@@ -406,17 +392,7 @@ const AiAgentAdminEvalsTable = ({
                         )}
                     </Group>
 
-                    <Box
-                        bg="ldGray.1"
-                        c="ldGray.9"
-                        style={{
-                            borderRadius: 6,
-                            padding: `${theme.spacing.sm} ${theme.spacing.xs}`,
-                            height: 32,
-                            display: 'flex',
-                            alignItems: 'center',
-                        }}
-                    >
+                    <Box bg="ldGray.1" className={adminClasses.resultsCount}>
                         <Text fz="sm" fw={500}>
                             {isFetching
                                 ? 'Loading...'
@@ -435,17 +411,13 @@ const AiAgentAdminEvalsTable = ({
                 fz="xs"
                 fw={500}
                 color="ldGray.8"
-                style={{
-                    borderTop: `1px solid ${theme.colors.ldGray[3]}`,
-                }}
+                className={adminClasses.loadMoreFooter}
             >
                 {isFetching ? (
-                    <Text c="ldGray.8" fz="xs">
-                        Loading more...
-                    </Text>
+                    <Text fz="xs">Loading more...</Text>
                 ) : (
                     <Group gap="two">
-                        <Text fz="xs" c="ldGray.8">
+                        <Text fz="xs">
                             {hasNextPage
                                 ? 'Scroll for more results'
                                 : 'All results loaded'}

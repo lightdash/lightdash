@@ -1,9 +1,10 @@
+import { type DraggableSyntheticListeners } from '@dnd-kit/core';
 import {
     isValuelessDashboardFilterRule,
     type DashboardFilterableField,
     type DashboardFilterRule,
 } from '@lightdash/common';
-import { ActionIcon, Button, Group, Tooltip } from '@mantine/core';
+import { ActionIcon, Box, Button, Group, Tooltip } from '@mantine/core';
 import {
     IconCircleCheck,
     IconCircleDashed,
@@ -28,6 +29,12 @@ import { showsComposedFilterValue } from './filterLabels';
 import { FilterRuleLabel } from './FilterRuleLabel';
 import { getTruncatedValuesDisplay } from './utils';
 
+/** A drag handle on the grip alone: its node and pointer listeners. */
+export type PillDragHandle = {
+    setNode: (node: HTMLElement | null) => void;
+    listeners: DraggableSyntheticListeners;
+};
+
 type Props = Omit<
     ComponentPropsWithoutRef<'button'>,
     'children' | 'onClick' | 'color'
@@ -37,10 +44,16 @@ type Props = Omit<
     isOrphaned: boolean;
     isTemporary: boolean;
     isDraggable: boolean;
+    /** Drags from the grip only (default: the grip is a plain icon). */
+    dragHandle?: PillDragHandle;
     isLocked: boolean;
     /** The lock action's label; null leaves the action out. */
     lockLabel: string | null;
     onLockToggle: (e: MouseEvent) => void;
+    /** Shows the lock at all times, so hovering never widens the pill; default false. */
+    isLockSpaceReserved?: boolean;
+    /** Keeps the grip and lock in place but hidden and inert; default false. */
+    areActionsHidden?: boolean;
     /** The label of the read-only lock icon; null leaves it out. */
     readOnlyLockLabel: string | null;
     /** Null leaves the X out. */
@@ -48,9 +61,14 @@ type Props = Omit<
     /** Names the X and gives it a tooltip; default: neither. */
     removeLabel?: string;
     isTablesTooltipDisabled: boolean;
+    /** A first line in the tables tooltip (default none). */
+    tablesTooltipNote?: string;
     triggerClassName?: string;
     /** Shown in place of the field icon (default: the field's icon). */
     fieldIconOverride?: ReactNode;
+    /** One default pill: muted when not in effect, a bold value when in
+     * effect, dashed when temporary; no requirement or no-tiles cue (default false). */
+    isPlain?: boolean;
     onClick: (event: MouseEvent<HTMLButtonElement>) => void;
 };
 
@@ -63,15 +81,20 @@ export const FilterPillButton = forwardRef<HTMLButtonElement, Props>(
             isOrphaned,
             isTemporary,
             isDraggable,
+            dragHandle,
             isLocked,
             lockLabel,
             onLockToggle,
+            isLockSpaceReserved = false,
+            areActionsHidden = false,
             readOnlyLockLabel,
             onRemove,
             removeLabel,
             isTablesTooltipDisabled,
+            tablesTooltipNote,
             triggerClassName,
             fieldIconOverride,
+            isPlain = false,
             className,
             onClick,
             ...others
@@ -103,11 +126,15 @@ export const FilterPillButton = forwardRef<HTMLButtonElement, Props>(
 
         // Same predicate as requirement checks, so a pill is never both active and unmet
         const isActive = !isValuelessDashboardFilterRule(filterRule);
-        const statusColor = isRequirementUnmet
-            ? 'yellow.7'
-            : isActive && field
-              ? getFieldColor(field)
-              : 'dimmed';
+        // A plain pill that reaches no tile changes no result either
+        const isInEffect = isActive && !isOrphaned;
+        const statusColor =
+            isRequirementUnmet && !isPlain
+                ? 'yellow.7'
+                : (isPlain ? isInEffect : isActive) && field
+                  ? getFieldColor(field)
+                  : 'dimmed';
+        const hasRequirementIcon = showRequirementIcon && !isPlain;
 
         const removeAction = onRemove && (
             <ActionIcon
@@ -126,33 +153,72 @@ export const FilterPillButton = forwardRef<HTMLButtonElement, Props>(
                 ref={ref}
                 {...others}
                 data-dashboard-filter-control
-                data-filter-active={isActive || undefined}
-                data-requirement-unmet={isRequirementUnmet || undefined}
+                {...(isPlain
+                    ? {
+                          'data-in-effect': isInEffect || undefined,
+                          'data-temporary': isTemporary || undefined,
+                      }
+                    : {
+                          'data-filter-active': isActive || undefined,
+                          'data-requirement-unmet':
+                              isRequirementUnmet || undefined,
+                      })}
                 pos="relative"
                 size="xs"
-                variant={isTemporary ? 'outline' : 'default'}
+                variant={isTemporary && !isPlain ? 'outline' : 'default'}
                 classNames={{
                     label: classes.label,
                     root: triggerClassName,
                 }}
                 className={`${classes.button} ${
-                    isOrphaned ? classes.inactiveFilter : ''
+                    isPlain
+                        ? classes.plain
+                        : isOrphaned
+                          ? classes.inactiveFilter
+                          : ''
                 }${className ? ` ${className}` : ''}`}
                 pr={truncatedValuesDisplay.hasMore ? 6 : undefined}
                 leftSection={
                     (isDraggable ||
-                        showRequirementIcon ||
+                        hasRequirementIcon ||
                         field ||
                         fieldIconOverride) && (
                         <Group gap={4} wrap="nowrap">
-                            {isDraggable && (
-                                <MantineIcon
-                                    icon={IconGripVertical}
-                                    cursor="grab"
-                                    size="sm"
-                                />
-                            )}
-                            {showRequirementIcon && (
+                            {isDraggable &&
+                                (dragHandle === undefined ? (
+                                    <MantineIcon
+                                        icon={IconGripVertical}
+                                        cursor="grab"
+                                        size="sm"
+                                        {...(areActionsHidden && {
+                                            className: classes.hiddenAction,
+                                            'aria-hidden': true,
+                                        })}
+                                    />
+                                ) : (
+                                    <Box
+                                        component="span"
+                                        ref={dragHandle.setNode}
+                                        display="inline-flex"
+                                        data-drag-handle
+                                        className={
+                                            areActionsHidden
+                                                ? classes.hiddenAction
+                                                : undefined
+                                        }
+                                        aria-hidden={
+                                            areActionsHidden || undefined
+                                        }
+                                        {...dragHandle.listeners}
+                                    >
+                                        <MantineIcon
+                                            icon={IconGripVertical}
+                                            cursor="grab"
+                                            size="sm"
+                                        />
+                                    </Box>
+                                ))}
+                            {hasRequirementIcon && (
                                 <Tooltip
                                     fz="xs"
                                     label={requirementTooltip}
@@ -167,6 +233,7 @@ export const FilterPillButton = forwardRef<HTMLButtonElement, Props>(
                                         size="sm"
                                         color={statusColor}
                                         className={classes.statusIcon}
+                                        data-requirement-icon
                                     />
                                 </Tooltip>
                             )}
@@ -186,11 +253,13 @@ export const FilterPillButton = forwardRef<HTMLButtonElement, Props>(
                     <Group gap={2} wrap="nowrap">
                         {lockLabel !== null && (
                             <span
-                                className={
+                                className={`${
                                     isLocked
                                         ? classes.lockSlotActive
                                         : classes.lockSlot
-                                }
+                                }${areActionsHidden ? ` ${classes.hiddenAction}` : ''}`}
+                                data-reserved={isLockSpaceReserved || undefined}
+                                inert={areActionsHidden || undefined}
                             >
                                 <Tooltip fz="xs" label={lockLabel}>
                                     <ActionIcon
@@ -248,6 +317,8 @@ export const FilterPillButton = forwardRef<HTMLButtonElement, Props>(
                     field={field}
                     truncatedValuesDisplay={truncatedValuesDisplay}
                     isTablesTooltipDisabled={isTablesTooltipDisabled}
+                    tooltipNote={tablesTooltipNote}
+                    isValueBold={isPlain}
                 />
             </Button>
         );

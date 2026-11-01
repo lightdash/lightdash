@@ -2,13 +2,6 @@
     border-radius: var(--mantine-radius-md);
 }
 
-.segmentedControl {
-    background-color: light-dark(
-        var(--mantine-color-gray-1),
-        var(--mantine-color-dark-6)
-    );
-}
-
 .selectInput {
     font-weight: 500;
     text-align: right;
@@ -22,10 +15,7 @@
 }
 
 .userRow:hover {
-    background-color: light-dark(
-        var(--mantine-color-gray-0),
-        var(--mantine-color-dark-5)
-    );
+    background-color: var(--mantine-color-default-hover);
 }
 
 .pagination {
@@ -38,12 +28,12 @@
         align-items: stretch;
     }
 
-    .accessModelLayout :global(.mantine-SegmentedControl-root) {
+    .segmentedControl {
         flex-shrink: 0;
         width: 100%;
     }
 
-    .accessModelLayout :global(.mantine-SegmentedControl-label) {
+    .segmentedLabel {
         display: flex;
         align-items: center;
         justify-content: center;

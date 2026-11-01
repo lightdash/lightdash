@@ -502,7 +502,7 @@ describe('getSystemPromptV2 composer queries', () => {
 
             expect(
                 content.includes(
-                    'Use a semanticLayer node when an explore covers the question',
+                    'use a `sql` node only when the user points you at a raw table',
                 ),
             ).toBe(scoped);
             expect(content).not.toContain('**When to use it:**');

@@ -32,7 +32,10 @@ import {
 import { mockOrdersExplore } from '../validationExplore.mock';
 import { validateFilterRules } from '../validators';
 import { formatFilterExpressionError } from './renderFilterExpressionError';
-import { resolveFilterExpressionArgs } from './resolveFilterExpressionArgs';
+import {
+    resolveExploreFilterExpressions,
+    resolveFilterExpressionArgs,
+} from './resolveFilterExpressionArgs';
 
 const baseQueryConfig = {
     exploreName: mockOrdersExplore.name,
@@ -2521,4 +2524,118 @@ describe('legacy JSON differential parity', () => {
             ).not.toThrow();
         },
     );
+});
+
+describe('date-only bounds on timestamp fields', () => {
+    const ordersTable = mockOrdersExplore.tables.orders;
+    const timestampExplore: Explore = {
+        ...mockOrdersExplore,
+        tables: {
+            ...mockOrdersExplore.tables,
+            orders: {
+                ...ordersTable,
+                dimensions: {
+                    ...ordersTable.dimensions,
+                    created_at: {
+                        ...ordersTable.dimensions.order_date,
+                        type: DimensionType.TIMESTAMP,
+                        name: 'created_at',
+                        label: 'Created At',
+                        sql: '${TABLE}.created_at',
+                        compiledSql: 'orders.created_at',
+                    },
+                },
+                metrics: {
+                    ...ordersTable.metrics,
+                    last_created_at: {
+                        ...ordersTable.metrics.max_date,
+                        type: MetricType.TIMESTAMP,
+                        name: 'last_created_at',
+                        label: 'Last Created At',
+                    },
+                },
+            },
+        },
+    };
+
+    const resolveValues = (filters: {
+        dimensions: string | null;
+        metrics: string | null;
+    }) => {
+        const result = resolveExploreFilterExpressions({
+            filters,
+            explore: timestampExplore,
+        });
+        if (!result.success) {
+            throw new Error(formatFilterExpressionError(result.error));
+        }
+        if (result.data === null) throw new Error('Expected filters');
+        return getTotalFilterRules(result.data).map((rule) => rule.values);
+    };
+    const resolveDimensionValues = (dimensions: string) =>
+        resolveValues({ dimensions, metrics: null });
+
+    it.each([
+        [
+            'orders_created_at inBetween=2026-04-26,2026-10-25',
+            [['2026-04-26', '2026-10-25T23:59:59.999Z']],
+        ],
+        [
+            'orders_created_at lessThanOrEqual=2026-10-25',
+            [['2026-10-25T23:59:59.999Z']],
+        ],
+    ] as const)(
+        'extends a date-only end bound to the end of that day: %s',
+        (expression, expected) => {
+            expect(resolveDimensionValues(expression)).toEqual(expected);
+        },
+    );
+
+    it.each([
+        [
+            'orders_created_at inBetween=2026-04-26,2026-10-25T12:00:00Z',
+            [['2026-04-26', '2026-10-25T12:00:00Z']],
+        ],
+        [
+            'orders_created_at lessThanOrEqual=2026-10-25T12:00:00Z',
+            [['2026-10-25T12:00:00Z']],
+        ],
+        ['orders_created_at lessThan=2026-10-25', [['2026-10-25']]],
+        ['orders_created_at greaterThanOrEqual=2026-10-25', [['2026-10-25']]],
+        [
+            'orders_order_date inBetween=2026-04-26,2026-10-25',
+            [['2026-04-26', '2026-10-25']],
+        ],
+        ['orders_order_date lessThanOrEqual=2026-10-25', [['2026-10-25']]],
+    ] as const)('leaves other bounds untouched: %s', (expression, expected) => {
+        expect(resolveDimensionValues(expression)).toEqual(expected);
+    });
+
+    it('widens a date-only upper bound on a timestamp metric', () => {
+        expect(
+            resolveValues({
+                dimensions: null,
+                metrics: 'orders_last_created_at lessThanOrEqual=2026-10-25',
+            }),
+        ).toEqual([['2026-10-25T23:59:59.999Z']]);
+    });
+
+    it('applies the same rule on the classic runQuery expression path', async () => {
+        const data = await expectResolved(
+            expressionArgs({
+                filters: {
+                    dimensions:
+                        'orders_created_at inBetween=2026-04-26,2026-10-25',
+                    metrics: null,
+                    tableCalculations: null,
+                },
+            }),
+            () => timestampExplore,
+        );
+        expect(
+            rulesWithoutIds(data.transformed.queryConfig.filters).map(
+                (rule) => rule.values,
+            ),
+        ).toEqual([['2026-04-26', '2026-10-25T23:59:59.999Z']]);
+    });
 });

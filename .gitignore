@@ -17,10 +17,8 @@ node_modules/
 # testing
 /coverage
 /packages/**/coverage
-/packages/e2e/cypress/screenshots/**/*
-/packages/e2e/cypress/videos/**/*
-/packages/e2e/cypress/downloads/**/*
-/packages/e2e/cypress/artifacts/**/*
+/packages/e2e/test-results
+/packages/e2e/playwright-report
 # Content as code e2e tests
 packages/e2e/lightdash
 
@@ -136,7 +134,6 @@ http-client.private.env.json
 # HAR replay
 scripts/har-replay-server.ts
 *.har
-agent-harness/cloud/credentials.env
 
 # AI
 .agents

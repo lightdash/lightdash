@@ -3,6 +3,7 @@ import {
     MapChartType,
     MapTileBackground,
 } from '@lightdash/common';
+import { Box } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { captureException } from '@sentry/react';
 import { IconMap } from '@tabler/icons-react';
@@ -63,6 +64,7 @@ import { MAX_HEXBIN_POINTS } from './hexbin/hexbinUtils';
 import MapContextMenu from './MapContextMenu';
 import MapLegend from './MapLegend';
 import MapTileLayer from './MapTileLayer';
+import { useMapResetKey } from './useMapResetKey';
 
 const HexbinLayer = lazy(() => import('./hexbin/HexbinLayer'));
 
@@ -151,7 +153,6 @@ type MapContentBaseProps = {
 
 type MapTooltipContentProps = MapContentBaseProps;
 
-// Inline styles: rendered into a Leaflet tooltip where Mantine styles don't apply
 const MapTooltipContent: FC<MapTooltipContentProps> = ({
     tooltipFields,
     rowData,
@@ -163,42 +164,28 @@ const MapTooltipContent: FC<MapTooltipContentProps> = ({
 
     if (noData) {
         return (
-            <div style={{ padding: '4px 6px' }}>
-                <div style={{ fontSize: 14 }}>
+            <div className={classes.tooltipContent}>
+                <div className={classes.tooltipRow}>
                     <strong>{noData.locationLabel}:</strong>{' '}
                     {noData.locationValue}
                 </div>
-                <div
-                    style={{
-                        fontSize: 14,
-                        color: '#868e96',
-                        fontStyle: 'italic',
-                    }}
-                >
-                    No data
-                </div>
+                <div className={classes.tooltipNoData}>No data</div>
             </div>
         );
     }
 
     return (
-        <div style={{ padding: '4px 6px' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <div className={classes.tooltipContent}>
+            <div className={classes.tooltipRows}>
                 {visibleFields.map((field) => (
-                    <div key={field.fieldId} style={{ fontSize: 14 }}>
+                    <div key={field.fieldId} className={classes.tooltipRow}>
                         <strong>{field.label}:</strong>{' '}
                         {getFormattedValue(rowData, field.fieldId)}
                     </div>
                 ))}
             </div>
             {lat !== undefined && lon !== undefined && (
-                <div
-                    style={{
-                        fontSize: 12,
-                        color: '#868e96',
-                        marginTop: 8,
-                    }}
-                >
+                <div className={classes.tooltipCoords}>
                     Lat: {lat.toFixed(4)}, Lon: {lon.toFixed(4)}
                 </div>
             )}
@@ -497,13 +484,13 @@ const EmptyChart: FC<{ locationType?: MapChartType }> = ({ locationType }) => {
             : 'Query metrics and dimensions with latitude/longitude data.';
 
     return (
-        <div style={{ height: '100%', width: '100%', padding: '50px 0' }}>
+        <Box h="100%" w="100%" py={50}>
             <SuboptimalState
                 title="No data available"
                 description={description}
                 icon={IconMap}
             />
-        </div>
+        </Box>
     );
 };
 
@@ -518,6 +505,7 @@ type SimpleMapProps = {
 const SimpleMap: FC<SimpleMapProps> = memo(
     ({ onScreenshotReady, onScreenshotError, ...props }) => {
         const { leafletMapRef } = useVisualizationServices();
+        const mapResetKey = useMapResetKey();
         const visualizationConfig = useVisualizationConfig();
         const {
             isLoading,
@@ -1116,21 +1104,19 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                     className={`${classes.container} ${props.className ?? ''}`}
                     data-should-expand={props.$shouldExpand}
                     style={
-                        mapConfig.backgroundColor
-                            ? ({
-                                  '--map-background-color':
-                                      mapConfig.backgroundColor,
-                              } as React.CSSProperties)
-                            : undefined
+                        {
+                            '--map-background-color': mapConfig.backgroundColor,
+                        } as React.CSSProperties
                     }
                 >
                     <MapContainer
+                        key={mapResetKey}
                         center={[
                             effectiveExtent?.lat ?? 20,
                             effectiveExtent?.lng ?? 0,
                         ]}
                         zoom={effectiveExtent?.zoom ?? 2}
-                        style={{ height: '100%', width: '100%' }}
+                        className={classes.mapContainer}
                         scrollWheelZoom
                         minZoom={1}
                         maxBounds={[
@@ -1320,21 +1306,19 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                     className={`${classes.container} ${props.className ?? ''}`}
                     data-should-expand={props.$shouldExpand}
                     style={
-                        mapConfig.backgroundColor
-                            ? ({
-                                  '--map-background-color':
-                                      mapConfig.backgroundColor,
-                              } as React.CSSProperties)
-                            : undefined
+                        {
+                            '--map-background-color': mapConfig.backgroundColor,
+                        } as React.CSSProperties
                     }
                 >
                     <MapContainer
+                        key={mapResetKey}
                         center={[
                             effectiveExtent?.lat ?? 20,
                             effectiveExtent?.lng ?? 0,
                         ]}
                         zoom={effectiveExtent?.zoom ?? 2}
-                        style={{ height: '100%', width: '100%' }}
+                        className={classes.mapContainer}
                         scrollWheelZoom
                         minZoom={1}
                         maxBounds={[
@@ -1368,6 +1352,7 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                                 <GeoJSON
                                     key={`geojson-${mapConfig.geoJsonUrl}-${geoJsonLayerKey}-${geoJsonData.features.length}`}
                                     data={geoJsonData}
+                                    // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
                                     style={choroplethStyle}
                                     onEachFeature={onEachFeature}
                                 />

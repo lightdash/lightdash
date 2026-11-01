@@ -3,7 +3,7 @@ import {
     FilterType,
     type DashboardFilterRule,
 } from '@lightdash/common';
-import { fireEvent, screen } from '@testing-library/react';
+import { cleanup, fireEvent, screen } from '@testing-library/react';
 import { useState, type ReactElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -115,6 +115,28 @@ const renderControls = (
     return onChange;
 };
 
+const renderControlled = (initial: DashboardFilterRule) => {
+    const onChange = vi.fn();
+    const Controlled = () => {
+        const [rule, setRule] = useState(initial);
+        return (
+            <ViewerControls
+                rule={rule}
+                filterType={FilterType.STRING}
+                field={null}
+                onChange={(next) => {
+                    onChange(next);
+                    setRule(next);
+                }}
+                onChangeOthers={onChangeOthers}
+                onEditRules={null}
+            />
+        );
+    };
+    renderWithProviders(<Controlled />);
+    return onChange;
+};
+
 const lockSwitch = () => screen.getByRole('switch', { name: 'Lock' });
 const requiredSwitch = () => screen.getByRole('switch', { name: 'Required' });
 const scope = (name: string) => screen.getByRole('radio', { name });
@@ -141,11 +163,13 @@ describe('ViewerControls', () => {
     });
 
     describe('lock', () => {
-        it('says what a lock does, with the open lock while it is off', () => {
+        it('is a plain switch, off, with no explanation', () => {
             renderControls(makeRule('a'));
             expect(
-                screen.getByText("Viewers see the value but can't change it."),
-            ).toBeInTheDocument();
+                screen.queryByText(
+                    "Viewers see the value but can't change it.",
+                ),
+            ).not.toBeInTheDocument();
             expect(lockSwitch()).not.toBeChecked();
             expect(screen.queryAllByRole('radio')).toHaveLength(0);
         });
@@ -286,6 +310,37 @@ describe('ViewerControls', () => {
             expect(onChange).toHaveBeenCalledWith(
                 expect.objectContaining({ lockedTabUuids: undefined }),
             );
+        });
+
+        it('locks the saved tabs again when the switch goes off and on', () => {
+            const filter = makeRule('a', { lockedTabUuids: ['t1', 't2'] });
+            setContext(TABS, [filter]);
+            const onChange = renderControlled(filter);
+            fireEvent.click(lockSwitch());
+            fireEvent.click(lockSwitch());
+            expect(onChange).toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    lockedTabUuids: expect.arrayContaining(['t1', 't2']),
+                }),
+            );
+            expect(onChange.mock.lastCall?.[0].lockedTabUuids).toHaveLength(2);
+        });
+
+        it('locks the saved tabs again after the controls are opened anew', () => {
+            const filter = makeRule('a', { lockedTabUuids: ['t1', 't2'] });
+            setContext(TABS, [filter]);
+            const first = renderControls(filter);
+            fireEvent.click(lockSwitch());
+            const unlocked = first.mock.lastCall?.[0] as DashboardFilterRule;
+            expect(unlocked.lockedTabUuids).toBeUndefined();
+            cleanup();
+
+            const second = renderControls(unlocked);
+            fireEvent.click(lockSwitch());
+            expect(second.mock.lastCall?.[0].lockedTabUuids).toEqual(
+                expect.arrayContaining(['t1', 't2']),
+            );
+            expect(second.mock.lastCall?.[0].lockedTabUuids).toHaveLength(2);
         });
 
         it('unlocks every tab with the switch', () => {
@@ -518,6 +573,40 @@ describe('ViewerControls', () => {
                 }),
             );
             expect(onChangeOthers).not.toHaveBeenCalled();
+        });
+
+        it('leaves a filter with a default value as it was when switched on and off', () => {
+            const filter = makeRule('a', {
+                disabled: false,
+                values: ['completed'],
+            });
+            setContext(TABS, [filter]);
+            const onChange = renderControlled(filter);
+            fireEvent.click(requiredSwitch());
+            fireEvent.click(requiredSwitch());
+            expect(onChange).toHaveBeenLastCalledWith({
+                ...filter,
+                required: false,
+                requiredGroupId: undefined,
+            });
+        });
+
+        it('puts the saved default back, not a value typed while required', () => {
+            const saved = makeRule('a', {
+                disabled: false,
+                values: ['completed'],
+            });
+            const draft = { ...saved, required: true, values: ['typed'] };
+            setContext(TABS, [draft], [], [saved]);
+            const onChange = renderControls(draft);
+            fireEvent.click(requiredSwitch());
+            expect(onChange).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    required: false,
+                    disabled: false,
+                    values: ['completed'],
+                }),
+            );
         });
 
         it('goes back into the rule it was saved in when switched on again', () => {

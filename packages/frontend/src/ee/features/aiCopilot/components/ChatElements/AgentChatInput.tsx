@@ -92,6 +92,12 @@ import {
     type ThreadFileAttachment,
 } from '../../hooks/useThreadFileAttachment';
 import {
+    clearThreadComposerNodes,
+    removeThreadComposerNode,
+    selectThreadComposerNodes,
+    type ThreadComposerNode,
+} from '../../store/aiAgentThreadComposerNodesSlice';
+import {
     clearThreadElementReferences,
     removeThreadElementReference,
     selectThreadElementReferences,
@@ -156,12 +162,14 @@ const buildSubmitContext = ({
     externalSources,
     threadFiles,
     elementReferences,
+    composerNodes,
     theme,
 }: {
     mentionContext: SubmitContext;
     externalSources: ExternalSourceAttachment[];
     threadFiles: ThreadFileAttachment[];
     elementReferences: ThreadElementReference[];
+    composerNodes: ThreadComposerNode[];
     theme: ComposerTheme | null;
 }): SubmitContext => {
     const context: AiPromptContextItemInput[] = [
@@ -181,6 +189,12 @@ const buildSubmitContext = ({
             tag,
             text,
             loc,
+        })),
+        ...composerNodes.map(({ artifactUuid, versionUuid, nodeId }) => ({
+            type: 'composer_node' as const,
+            artifactUuid,
+            versionUuid,
+            nodeId,
         })),
         ...(theme
             ? [{ type: 'design' as const, designUuid: theme.designUuid }]
@@ -210,6 +224,10 @@ const buildSubmitContext = ({
                 displayName: appDisplayName,
             }),
         ),
+        ...composerNodes.map((node) => ({
+            type: 'composer_node' as const,
+            ...node,
+        })),
         ...(theme
             ? [
                   {
@@ -387,6 +405,10 @@ export const AgentChatInput = ({
     const elementReferences = useAiAgentStoreSelector(
         selectThreadElementReferences(threadUuid),
     );
+    // Picked in the thread's composer pipeline panel.
+    const composerNodes = useAiAgentStoreSelector(
+        selectThreadComposerNodes(threadUuid),
+    );
     const disableElementPicker = useCallback(() => {
         if (threadUuid) {
             storeDispatch(
@@ -397,14 +419,12 @@ export const AgentChatInput = ({
     const clearElementReferences = useCallback(() => {
         if (threadUuid) {
             storeDispatch(clearThreadElementReferences({ threadUuid }));
+            storeDispatch(clearThreadComposerNodes({ threadUuid }));
         }
     }, [storeDispatch, threadUuid]);
     const resetCsvFileInputRef = useRef<() => void>(null);
     const { data: externalSourcesFlag } = useServerFeatureFlag(
         FeatureFlags.ExternalSources,
-    );
-    const { data: multiSourceQueryFlag } = useServerFeatureFlag(
-        FeatureFlags.MultiSourceQuery,
     );
     const { data: composeSqlRunnerFlag } = useServerFeatureFlag(
         FeatureFlags.ComposeSqlRunner,
@@ -707,6 +727,16 @@ export const AgentChatInput = ({
         });
     }, [editor, threadUuid]);
 
+    // A step added from the Queries panel puts the cursor here to ask about it.
+    const composerNodeCount = composerNodes.length;
+    const prevComposerNodeCount = useRef(composerNodeCount);
+    useEffect(() => {
+        if (editor && composerNodeCount > prevComposerNodeCount.current) {
+            editor.commands.focus('end');
+        }
+        prevComposerNodeCount.current = composerNodeCount;
+    }, [editor, composerNodeCount]);
+
     const isAgentActive = threadStream
         ? isAiAgentThreadStreamActive(threadStream.connection)
         : false;
@@ -786,6 +816,7 @@ export const AgentChatInput = ({
                     externalSources: externalSourceAttachments,
                     threadFiles: threadFileAttachments,
                     elementReferences,
+                    composerNodes,
                     theme: selectedTheme,
                 }),
             });
@@ -813,6 +844,7 @@ export const AgentChatInput = ({
             externalSourceAttachments,
             threadFileAttachments,
             elementReferences,
+            composerNodes,
             clearElementReferences,
             disableElementPicker,
             isPreparingAttachments,
@@ -872,7 +904,6 @@ export const AgentChatInput = ({
         projectUuid &&
         externalSourcesFlag?.enabled &&
         app.health.data?.externalSources.engineAvailable &&
-        multiSourceQueryFlag?.enabled &&
         composeSqlRunnerFlag?.enabled &&
         // Hidden only when the agent is known to have composer queries off.
         agent?.enableComposerQueries !== false &&
@@ -1001,6 +1032,7 @@ export const AgentChatInput = ({
                 externalSources: externalSourceAttachments,
                 threadFiles: threadFileAttachments,
                 elementReferences,
+                composerNodes,
                 theme: selectedTheme,
             }),
         });
@@ -1499,13 +1531,15 @@ export const AgentChatInput = ({
         pendingCsvFiles.length > 0 ||
         threadFileAttachments.length > 0 ||
         pendingThreadFiles.length > 0 ||
-        elementReferences.length > 0 ? (
+        elementReferences.length > 0 ||
+        composerNodes.length > 0 ? (
             <PromptAttachments
                 externalSources={externalSourceAttachments}
                 pendingCsvFiles={pendingCsvFiles}
                 threadFiles={threadFileAttachments}
                 pendingThreadFiles={pendingThreadFiles}
                 elementRefs={elementReferences}
+                composerNodes={composerNodes}
                 onRemoveExternalSource={(sourceUuid) => {
                     setExternalSourceAttachments((attachments) =>
                         attachments.filter(
@@ -1530,6 +1564,12 @@ export const AgentChatInput = ({
                             threadUuid,
                             reference,
                         }),
+                    );
+                }}
+                onRemoveComposerNode={(node) => {
+                    if (!threadUuid) return;
+                    storeDispatch(
+                        removeThreadComposerNode({ threadUuid, node }),
                     );
                 }}
             />

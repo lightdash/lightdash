@@ -11,6 +11,7 @@ type Props = {
     disabled: boolean;
     onFiles: (files: File[]) => void;
     compact?: boolean;
+    multiple?: boolean;
 };
 
 const FileDropzone: FC<Props> = ({
@@ -19,6 +20,7 @@ const FileDropzone: FC<Props> = ({
     disabled,
     onFiles,
     compact = false,
+    multiple = true,
 }) => {
     const inputId = useId();
     const input = useRef<HTMLInputElement>(null);
@@ -54,7 +56,9 @@ const FileDropzone: FC<Props> = ({
                 </Box>
                 <Stack align="center" gap={4} className={classes.copy}>
                     <Text fw={500} size="sm">
-                        Drag and drop your files here
+                        {multiple
+                            ? 'Drag and drop your files here'
+                            : 'Drop an image here'}
                     </Text>
                     <Text
                         c="dimmed"
@@ -72,7 +76,7 @@ const FileDropzone: FC<Props> = ({
                         disabled={disabled}
                         onClick={() => input.current?.click()}
                     >
-                        Browse files
+                        {multiple ? 'Browse files' : 'Choose file'}
                     </Button>
                 </Group>
             </Stack>
@@ -81,10 +85,14 @@ const FileDropzone: FC<Props> = ({
                 ref={input}
                 id={inputId}
                 type="file"
-                multiple
+                multiple={multiple}
                 accept={accept}
                 disabled={disabled}
-                aria-label="Choose files to upload"
+                aria-label={
+                    multiple
+                        ? 'Choose files to upload'
+                        : 'Choose image to upload'
+                }
                 aria-describedby={`${inputId}-hint`}
                 className={classes.input}
                 onChange={(event) => {

@@ -117,6 +117,8 @@ export default function mockHealthResponse(
         hasGitlab: false,
         hasJira: false,
         hasLinear: false,
+        hasPostHogOAuth: false,
+        hasGoogleLiveSources: false,
         hasCacheAutocompleResults: false,
         hasMicrosoftTeams: false,
         appearance: {
@@ -124,7 +126,6 @@ export default function mockHealthResponse(
             overrideColorPaletteName: undefined,
         },
         hasBrandfetch: false,
-        isOrganizationWarehouseCredentialsEnabled: false,
         isAthenaWarehouseIamRoleAuthEnabled: false,
         isSaveCredentialsFormEnabled: false,
         isCustomRolesEnabled: false,

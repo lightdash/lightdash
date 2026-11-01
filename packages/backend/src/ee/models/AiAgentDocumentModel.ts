@@ -44,6 +44,10 @@ const mapRowToSummary = (row: DbDocumentWithAccess): AiAgentDocumentSummary => {
     return data;
 };
 
+export type AiAgentOwnedDocument = AiAgentDocumentSummary & {
+    content: string;
+};
+
 const mapRowToContext = (
     row: DbDocumentWithAccess,
 ): AiAgentDocumentContext => ({
@@ -340,6 +344,51 @@ export class AiAgentDocumentModel {
         return rows.map(mapRowToSummary);
     }
 
+    // In the agent's project and granted to no other agent, so a caller can
+    // rewrite the whole set without touching anything shared.
+    async findOwnedByAgent(args: {
+        organizationUuid: string;
+        agentUuid: string;
+        projectUuid: string;
+    }): Promise<AiAgentOwnedDocument[]> {
+        const rows = await this.baseSelect()
+            .where(
+                `${AiAgentDocumentTableName}.organization_uuid`,
+                args.organizationUuid,
+            )
+            .andWhere(
+                `${AiAgentDocumentTableName}.project_uuid`,
+                args.projectUuid,
+            )
+            .andWhere(
+                AiAgentDocumentModel.agentAccessSubquery(
+                    this.database,
+                    args.agentUuid,
+                ),
+            )
+            .andWhere(
+                this.database.raw(
+                    `NOT EXISTS (
+                        SELECT 1 FROM ?? AS other
+                        WHERE other.ai_agent_document_uuid = ??.ai_agent_document_uuid
+                          AND other.ai_agent_uuid <> ?
+                    )`,
+                    [
+                        AiAgentDocumentAccessTableName,
+                        AiAgentDocumentTableName,
+                        args.agentUuid,
+                    ],
+                ),
+            )
+            .orderBy(`${AiAgentDocumentTableName}.name`, 'asc');
+
+        return rows.flatMap((row) =>
+            row.content === null
+                ? []
+                : [{ ...mapRowToSummary(row), content: row.content }],
+        );
+    }
+
     async findAllContextForAgent(args: {
         organizationUuid: string;
         agentUuid: string;
@@ -436,6 +485,7 @@ export class AiAgentDocumentModel {
         organizationUuid: string;
         name: string;
         content: string;
+        mimeType?: string;
         summary: AiAgentDocumentStructuredSummary;
         updatedByUserUuid: string;
     }): Promise<AiAgentDocument> {
@@ -444,6 +494,9 @@ export class AiAgentDocumentModel {
             .andWhere('organization_uuid', args.organizationUuid)
             .update({
                 name: args.name,
+                ...(args.mimeType !== undefined
+                    ? { mime_type: args.mimeType }
+                    : {}),
                 content: args.content,
                 content_size_bytes: Buffer.byteLength(args.content, 'utf8'),
                 summary: args.summary,

@@ -63,7 +63,6 @@ export default function AppPreviewTest() {
     const appSlug = firstPage?.slug ?? null;
     const appViews = firstPage?.views ?? null;
     const appVerification = firstPage?.verification ?? null;
-    const appAutoAnalysis = firstPage?.autoAnalysis ?? null;
     // Latest build activity stands in for "last modified" — apps have no
     // updated-at of their own.
     const newestVersion = firstPage?.versions[0];
@@ -145,12 +144,15 @@ export default function AppPreviewTest() {
     const [insightInstructions, setInsightInstructions] = useState<
         string | null
     >(null);
+    const [insightAnalyseOnLoad, setInsightAnalyseOnLoad] = useState<
+        boolean | null
+    >(null);
     const analysisController = useDataAppAnalysisController({
         projectUuid,
         appUuid,
         queries: inspector.panelProps.queries,
         availability: analysisAvailability,
-        autoAnalyse: appAutoAnalysis ?? 'inherit',
+        analyseOnLoad: insightAnalyseOnLoad ?? false,
         instructions: insightInstructions,
         onNeedsAgent: openAnalysis,
         // Expired sources: reload the app once so its queries re-run.
@@ -311,6 +313,7 @@ export default function AppPreviewTest() {
                     }
                     onInsightAction={analysisController.handleAction}
                     onInsightInstructionsChange={setInsightInstructions}
+                    onInsightAnalyseOnLoadChange={setInsightAnalyseOnLoad}
                     onMountedQueriesChange={
                         analysisController.setMountedQueryUuids
                     }
@@ -410,7 +413,6 @@ export default function AppPreviewTest() {
                             appSpaceUuid={appSpaceUuid}
                             appCreatedByUserUuid={appCreatedByUserUuid}
                             verification={appVerification}
-                            autoAnalysis={appAutoAnalysis}
                             latestVersionNumber={latestReadyVersion ?? null}
                             latestVersionStatus={
                                 latestReadyVersion ? 'ready' : null
@@ -458,7 +460,7 @@ export default function AppPreviewTest() {
                 data-tour-step="1"
                 data-tour-route="/projects/:projectUuid/apps/:appUuid/view"
                 data-tour-label="Data apps"
-                data-tour-docs="data-apps.mdx#sharing-an-app:p2:1"
+                data-tour-docs="data-apps.mdx#sharing-an-app:p4:1"
                 data-tour-resultdocs="data-apps.mdx#space-access:li1"
                 data-tour-return="none"
                 className={classes.previewBody}

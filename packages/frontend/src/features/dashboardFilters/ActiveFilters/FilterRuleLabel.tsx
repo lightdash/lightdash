@@ -28,6 +28,10 @@ type Props = {
     field: DashboardFilterableField | undefined;
     truncatedValuesDisplay: TruncatedValuesDisplay;
     isTablesTooltipDisabled: boolean;
+    /** Default false: the value at weight 500. */
+    isValueBold?: boolean;
+    /** A first line in the tables tooltip, shown even with no tables (default none). */
+    tooltipNote?: string;
 };
 
 export const FilterRuleLabel: FC<Props> = ({
@@ -35,6 +39,8 @@ export const FilterRuleLabel: FC<Props> = ({
     field,
     truncatedValuesDisplay,
     isTablesTooltipDisabled,
+    isValueBold = false,
+    tooltipNote,
 }) => {
     const getUiString = useUiStrings();
     const allFilterableFields = useDashboardContext(
@@ -70,31 +76,34 @@ export const FilterRuleLabel: FC<Props> = ({
     }, [filterRule, field, allFilterableFields, filterableFieldsByTileUuid]);
 
     return (
-        <Box
-            style={{
-                maxWidth: '100%',
-                overflow: 'hidden',
-            }}
-        >
+        <Box className={classes.ruleLabel}>
             <Text fz="xs" truncate>
                 <Tooltip
                     position="top-start"
                     disabled={
-                        isTablesTooltipDisabled || !filterRuleTables?.length
+                        isTablesTooltipDisabled ||
+                        (!filterRuleTables?.length && tooltipNote === undefined)
                     }
                     openDelay={1000}
                     offset={8}
                     label={
-                        <Text>
-                            {getUiString(
-                                filterRuleTables?.length === 1
-                                    ? 'filters.tableLabel'
-                                    : 'filters.tablesLabel',
+                        <>
+                            {tooltipNote !== undefined && (
+                                <Text>{tooltipNote}</Text>
                             )}
-                            <Text span fw={600}>
-                                {filterRuleTables?.join(', ')}
-                            </Text>
-                        </Text>
+                            {!!filterRuleTables?.length && (
+                                <Text>
+                                    {getUiString(
+                                        filterRuleTables.length === 1
+                                            ? 'filters.tableLabel'
+                                            : 'filters.tablesLabel',
+                                    )}
+                                    <Text span fw={600}>
+                                        {filterRuleTables.join(', ')}
+                                    </Text>
+                                </Text>
+                            )}
+                        </>
                     }
                 >
                     <Text fw={600} span truncate>
@@ -112,7 +121,7 @@ export const FilterRuleLabel: FC<Props> = ({
                         <Text span c="dimmed" truncate>
                             {filterRuleLabels?.operator}{' '}
                         </Text>
-                        <Text fw={500} span truncate>
+                        <Text fw={isValueBold ? 600 : 500} span truncate>
                             {truncatedValuesDisplay.displayedValues.length > 0
                                 ? truncatedValuesDisplay.displayedValues.join(
                                       ', ',
@@ -136,7 +145,7 @@ export const FilterRuleLabel: FC<Props> = ({
                                     </Badge>
                                 </HoverCard.Target>
                                 <HoverCard.Dropdown>
-                                    <Text fz="xs" fw={500} c="ldGray.5">
+                                    <Text fz="xs" fw={500} c="dimmed">
                                         Additional values (
                                         {
                                             truncatedValuesDisplay
