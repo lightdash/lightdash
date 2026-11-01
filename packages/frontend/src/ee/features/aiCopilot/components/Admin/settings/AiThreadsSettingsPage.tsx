@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import { type AiAgentAdminThreadSummary } from '@lightdash/common';
 import { Button, Drawer } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
@@ -12,6 +13,7 @@ import {
     SettingsPageActions,
 } from '../../../../../../components/common/Settings/SettingsPage';
 import useHealth from '../../../../../../hooks/health/useHealth';
+import useApp from '../../../../../../providers/App/useApp';
 import { useAiOrganizationSettings } from '../../../hooks/useAiOrganizationSettings';
 import AiAgentAdminThreadsTable from '../AiAgentAdminThreadsTable';
 import { AnalyticsEmbedDashboard } from '../AnalyticsEmbedDashboard';
@@ -20,6 +22,7 @@ import { AiFeaturesDisabledAlert } from './AiFeaturesDisabledAlert';
 import drawerClasses from './ThreadPreviewDrawer.module.css';
 
 export const AiThreadsSettingsPage = () => {
+    const { user } = useApp();
     const { data: health } = useHealth();
     const { data: settings } = useAiOrganizationSettings();
 
@@ -43,7 +46,15 @@ export const AiThreadsSettingsPage = () => {
     };
 
     const isAnalyticsEmbedEnabled =
-        health?.ai.analyticsProjectUuid && health?.ai.analyticsDashboardUuid;
+        health?.ai.analyticsProjectUuid &&
+        health?.ai.analyticsDashboardUuid &&
+        user.data?.organizationUuid &&
+        user.data.ability.can(
+            'manage',
+            subject('Organization', {
+                organizationUuid: user.data.organizationUuid,
+            }),
+        );
 
     return (
         <SettingsPage
