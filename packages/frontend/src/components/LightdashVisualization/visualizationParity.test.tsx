@@ -62,11 +62,6 @@ vi.mock('@shopify/react-web-worker', () => ({
     useWorker: () => ({}),
 }));
 
-vi.mock('../../hooks/useServerOrClientFeatureFlag', async (importOriginal) => ({
-    ...(await importOriginal<object>()),
-    useServerFeatureFlag: () => ({ data: undefined }),
-}));
-
 const dimension = (name: string, label: string): Dimension => ({
     fieldType: FieldType.DIMENSION,
     type: DimensionType.STRING,

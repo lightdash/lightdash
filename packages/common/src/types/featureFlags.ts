@@ -29,13 +29,6 @@ export enum FeatureFlags {
     EnableTimezoneSupport = 'enable-timezone-support',
 
     /**
-     * Enable the dynamic calculation of series color, when not manually set on the chart config.
-     * This aims to make the colors more consistent, depending on the groups, but this could cause the opposite effect.
-     * For more details, see https://github.com/lightdash/lightdash/issues/13831
-     */
-    CalculateSeriesColor = 'calculate-series-color',
-
-    /**
      * Enable the ability to show the warehouse execution time and total time in the chart tile.
      */
     ShowExecutionTime = 'show-execution-time',

@@ -73,11 +73,6 @@ vi.mock('../MonacoEditor', () => ({
     useMonaco: () => null,
 }));
 
-vi.mock('../../hooks/useServerOrClientFeatureFlag', async (importOriginal) => ({
-    ...(await importOriginal<object>()),
-    useServerFeatureFlag: () => ({ data: undefined }),
-}));
-
 // ---------------------------------------------------------------------------
 // Fixture
 // ---------------------------------------------------------------------------

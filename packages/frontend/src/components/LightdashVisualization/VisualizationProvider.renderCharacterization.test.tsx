@@ -47,11 +47,6 @@ vi.mock('@shopify/react-web-worker', () => ({
     useWorker: () => ({}),
 }));
 
-vi.mock('../../hooks/useServerOrClientFeatureFlag', async (importOriginal) => ({
-    ...(await importOriginal<object>()),
-    useServerFeatureFlag: () => ({ data: undefined }),
-}));
-
 const fields: ItemsMap = {
     orders_order_date_month: {
         fieldType: FieldType.DIMENSION,
