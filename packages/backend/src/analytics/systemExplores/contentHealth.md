@@ -7,6 +7,13 @@ file. It uses the same bounded database pages and atomic publication as the
 other snapshots. There is no new scheduler, event capture or compaction stage.
 Existing event and User activity metrics are unchanged.
 
+**Content inventory** exposes the same current inventory fields and Total content
+without joining event history. The built-in **Content creation by month** and
+**Content ownership · current snapshot** charts use this Explore. Soft-deleted
+items and items without activity remain included. Use Content health when you
+also need observed views, queries or app loads. Existing Content health charts
+keep their fields and counting behavior.
+
 The Explore joins separately aggregated Content reach views, query outcomes and
 data app loads to that inventory. This avoids multiplying counts by dependencies
 or by unrelated events. Stable query identities are deduplicated within the
