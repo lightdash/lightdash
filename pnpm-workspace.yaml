@@ -109,8 +109,8 @@ minimumReleaseAgeExclude:
   - csv-parse@7.0.2
   # Renovate security update: scim-patch@0.9.3
   - scim-patch@0.9.3
-  # Renovate security update: @modelcontextprotocol/sdk@1.31.0
-  - "@modelcontextprotocol/sdk@1.31.0"
+  # Renovate security update: @modelcontextprotocol/sdk@1.31.0 || 1.32.0
+  - "@modelcontextprotocol/sdk@1.31.0 || 1.32.0"
   # Security update: Node.js 24.22.1 base binaries for the Homebrew CLI (GHSA-9vrh-hg26-pgj3)
   - "@yao-pkg/pkg@6.24.0"
   - "@yao-pkg/pkg-fetch@3.6.7"
