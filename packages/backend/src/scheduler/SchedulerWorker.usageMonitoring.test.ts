@@ -6,6 +6,10 @@ import {
     type SchedulerWorkerArguments,
 } from './SchedulerWorker';
 
+vi.mock('./usageProcessingLease', () => ({
+    extendUsageProcessingLease: vi.fn().mockResolvedValue(undefined),
+}));
+
 vi.mock('../analytics/eventStream/UsageEventsCompactor', () => ({
     UsageEventsCompactor: vi.fn(),
 }));
