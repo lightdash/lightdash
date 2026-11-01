@@ -4983,6 +4983,7 @@ Design a summary dashboard for monitoring a topic at a glance (e.g. Support, Rev
                       "type": "null",
                     },
                   ],
+                  "default": null,
                   "description": "Define new metric columns the explore doesn't already have. Two kinds:
 
 (1) kind: "aggregation" — a NEW metric built by aggregating a base dimension
@@ -5031,14 +5032,12 @@ Example B — "Revenue by month with year-over-year comparison"
                   "type": "string",
                 },
                 "filters": {
-                  "anyOf": [
+                  "allOf": [
                     {
                       "$ref": "#/definitions/__schema117",
                     },
-                    {
-                      "type": "null",
-                    },
                   ],
+                  "default": null,
                   "description": "\`type\` sets how rules combine within each category; dimensions, metrics and tableCalculations always combine with each other by AND. \`or\` makes every rule in a category optional, so a non-date filter beside alternative date ranges is silently dropped. For several periods at one granularity (e.g. "Mar or May 2025"), keep \`and\` with one \`equals\` rule on the date field at that grain and a value per period (\`2025-03-01\`, \`2025-05-01\`). Use \`or\`, with one \`inBetween\` per range, only when arbitrary date ranges (e.g. "Mar 1–6 vs Apr 1–6") are the sole dimension filters.",
                 },
                 "limit": {
@@ -5081,6 +5080,7 @@ Example B — "Revenue by month with year-over-year comparison"
                       "type": "null",
                     },
                   ],
+                  "default": null,
                   "description": "
 Table calculations perform row-by-row calculations on query results without collapsing rows, using spreadsheet-like formulas.
 
@@ -5107,9 +5107,6 @@ Use them whenever the question needs math the metric query alone can't express; 
                 "metrics",
                 "sorts",
                 "limit",
-                "customMetrics",
-                "tableCalculations",
-                "filters",
               ],
               "type": "object",
             },
@@ -5279,7 +5276,10 @@ All branches of an IF must return the same type.",
             "metrics",
             "tableCalculations",
           ],
-          "type": "object",
+          "type": [
+            "object",
+            "null",
+          ],
         },
         "__schema120": {
           "anyOf": [
@@ -15422,7 +15422,10 @@ All branches of an IF must return the same type.",
             "metrics",
             "tableCalculations",
           ],
-          "type": "object",
+          "type": [
+            "object",
+            "null",
+          ],
         },
         "__schema119": {
           "anyOf": [
@@ -16687,6 +16690,7 @@ All branches of an IF must return the same type.",
                   "type": "null",
                 },
               ],
+              "default": null,
               "description": "Define new metric columns the explore doesn't already have. Two kinds:
 
 (1) kind: "aggregation" — a NEW metric built by aggregating a base dimension
@@ -16735,14 +16739,12 @@ Example B — "Revenue by month with year-over-year comparison"
               "type": "string",
             },
             "filters": {
-              "anyOf": [
+              "allOf": [
                 {
                   "$ref": "#/definitions/__schema116",
                 },
-                {
-                  "type": "null",
-                },
               ],
+              "default": null,
               "description": "\`type\` sets how rules combine within each category; dimensions, metrics and tableCalculations always combine with each other by AND. \`or\` makes every rule in a category optional, so a non-date filter beside alternative date ranges is silently dropped. For several periods at one granularity (e.g. "Mar or May 2025"), keep \`and\` with one \`equals\` rule on the date field at that grain and a value per period (\`2025-03-01\`, \`2025-05-01\`). Use \`or\`, with one \`inBetween\` per range, only when arbitrary date ranges (e.g. "Mar 1–6 vs Apr 1–6") are the sole dimension filters.",
             },
             "limit": {
@@ -16785,6 +16787,7 @@ Example B — "Revenue by month with year-over-year comparison"
                   "type": "null",
                 },
               ],
+              "default": null,
               "description": "
 Table calculations perform row-by-row calculations on query results without collapsing rows, using spreadsheet-like formulas.
 
@@ -16811,9 +16814,6 @@ Use them whenever the question needs math the metric query alone can't express; 
             "metrics",
             "sorts",
             "limit",
-            "customMetrics",
-            "tableCalculations",
-            "filters",
           ],
           "type": "object",
         },
@@ -24524,6 +24524,7 @@ All branches of an IF must return the same type.",
                 "type": "null",
               },
             ],
+            "default": null,
             "description": "Define new metric columns the explore doesn't already have. Two kinds:
 
 (1) kind: "aggregation" — a NEW metric built by aggregating a base dimension
@@ -24573,6 +24574,7 @@ Example B — "Revenue by month with year-over-year comparison"
           },
           "filters": {
             "additionalProperties": false,
+            "default": null,
             "description": "Separate flat expressions for dimensions, metrics, and table calculations. Each category chooses AND or OR independently. Non-null categories combine implicitly with AND. For example, dimensions "D1 AND D2" and metrics "M1 OR M2" mean "(D1 AND D2) AND (M1 OR M2)", where D1, D2, M1, and M2 are complete filter rules. Use null when a category has no filters.",
             "properties": {
               "dimensions": {
@@ -24653,6 +24655,7 @@ Example B — "Revenue by month with year-over-year comparison"
                 "type": "null",
               },
             ],
+            "default": null,
             "description": "
 Table calculations perform row-by-row calculations on query results without collapsing rows, using spreadsheet-like formulas.
 
@@ -24679,9 +24682,6 @@ Use them whenever the question needs math the metric query alone can't express; 
           "metrics",
           "sorts",
           "limit",
-          "customMetrics",
-          "tableCalculations",
-          "filters",
         ],
         "type": "object",
       },

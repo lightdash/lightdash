@@ -43,6 +43,18 @@ export class McpSchemaCompatLayer extends SchemaCompatLayer {
     }
 
     private processZod4Type(v: z.ZodType): z.ZodType {
+        // `.nullable().default(null)`: the nullable branch below already turns
+        // omission into null, so the default wrapper only adds noise here.
+        if (v instanceof z.ZodDefault && v.def.defaultValue === null) {
+            const defaultInner = v.unwrap();
+            if (defaultInner instanceof z.ZodNullable) {
+                const processed = this.processZod4Type(defaultInner);
+                return v.description
+                    ? processed.describe(v.description)
+                    : processed;
+            }
+        }
+
         // Handle nullable types (e.g., z.string().nullable()) map them to optional but default to null
         if (v instanceof z.ZodNullable) {
             const nullableInner = v.unwrap() as z.ZodType;
