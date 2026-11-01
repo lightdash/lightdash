@@ -1,5 +1,5 @@
 import { AiCreditsPausedError, MissingConfigError } from '@lightdash/common';
-import { APICallError, RetryError } from 'ai';
+import { APICallError, RetryError, type FinishReason } from 'ai';
 import { get, isPlainObject } from 'lodash';
 import type { AiKeyManagement } from '../../../../analytics/aiUsage';
 import type { AiDecisionClient } from '../decisions/AiDecisionClient';
@@ -34,6 +34,9 @@ export class AiAgentStepCapReachedError extends Error {
 
 export const EMPTY_RESPONSE_MESSAGE =
     'The agent finished without writing a response. Please try again — if it keeps happening, rephrase the question or start a new thread.';
+
+export const OUTPUT_LIMIT_REACHED_MESSAGE =
+    "The agent hit the model's output length limit before it could write a response. Try again, or ask for fewer things at once.";
 
 export const PROVIDER_BILLING_MESSAGE =
     'The configured AI provider account has a billing or credit issue. Check its billing settings or add credits, then try again.';
@@ -101,11 +104,11 @@ const isProviderBillingError = (error: unknown): boolean => {
 // without producing any text, which would otherwise persist as a blank chat
 // bubble with no explanation.
 export class AiAgentEmptyResponseError extends Error {
-    readonly finishReason: string;
+    readonly finishReason: FinishReason;
 
     readonly stepsCount: number;
 
-    constructor(finishReason: string, stepsCount: number) {
+    constructor(finishReason: FinishReason, stepsCount: number) {
         super(EMPTY_RESPONSE_MESSAGE);
         this.name = 'AiAgentEmptyResponseError';
         this.finishReason = finishReason;
@@ -137,6 +140,8 @@ export const getKnownUserFacingErrorMessage = (
     }
 
     if (error instanceof AiAgentEmptyResponseError) {
+        if (error.finishReason === 'length')
+            return OUTPUT_LIMIT_REACHED_MESSAGE;
         return EMPTY_RESPONSE_MESSAGE;
     }
 
