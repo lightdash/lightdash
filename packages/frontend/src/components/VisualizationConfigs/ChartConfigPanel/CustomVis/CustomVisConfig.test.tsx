@@ -32,14 +32,21 @@ type CustomChartTypeSectionProps = {
     onClear: (() => void) | null;
 };
 
-const { locationSearch, navigate, sectionProps, enabledFlags, savedChart } =
-    vi.hoisted(() => ({
-        locationSearch: { current: '' },
-        navigate: vi.fn(),
-        sectionProps: [] as CustomChartTypeSectionProps[],
-        enabledFlags: new Set<string>(),
-        savedChart: { current: undefined as { uuid: string } | undefined },
-    }));
+const {
+    locationSearch,
+    navigate,
+    sectionProps,
+    enabledFlags,
+    savedChart,
+    ambientAi,
+} = vi.hoisted(() => ({
+    locationSearch: { current: '' },
+    navigate: vi.fn(),
+    sectionProps: [] as CustomChartTypeSectionProps[],
+    enabledFlags: new Set<string>(),
+    ambientAi: { enabled: false },
+    savedChart: { current: undefined as { uuid: string } | undefined },
+}));
 
 vi.mock('../../../../features/chartTypes/hooks/useChartStudioAvailable');
 vi.mock('react-router', async (importOriginal) => ({
@@ -79,6 +86,12 @@ vi.mock('../../../MonacoEditor', () => ({
 vi.mock('./components/CustomVisTemplate', () => ({
     SelectTemplate: () => null,
 }));
+vi.mock('../../../../ee/features/ambientAi/hooks/useAmbientAiEnabled', () => ({
+    useAmbientAiEnabled: () => ambientAi.enabled,
+}));
+vi.mock('./components/CustomVisAi', () => ({
+    GenerateVizWithAi: () => <div>Generate with AI</div>,
+}));
 
 describe('CustomVisConfig', () => {
     beforeEach(() => {
@@ -86,6 +99,7 @@ describe('CustomVisConfig', () => {
         navigate.mockClear();
         sectionProps.length = 0;
         enabledFlags.clear();
+        ambientAi.enabled = false;
         savedChart.current = undefined;
         window.localStorage.clear();
         vi.mocked(useChartStudioAvailable).mockReturnValue(true);
@@ -316,5 +330,23 @@ describe('CustomVisConfig', () => {
 
             expect(await screen.findByText(infoText)).toBeInTheDocument();
         });
+    });
+
+    it('offers AI generation when ambient AI is available', async () => {
+        ambientAi.enabled = true;
+        renderWithProviders(<StoredConfigTabs />, licensedAppMocks);
+
+        await waitFor(() =>
+            expect(screen.getByText('Generate with AI')).toBeInTheDocument(),
+        );
+    });
+
+    it('hides AI generation when ambient AI is unavailable', async () => {
+        renderWithProviders(<StoredConfigTabs />, licensedAppMocks);
+
+        await waitFor(() =>
+            expect(screen.queryByText('Vega-Lite JSON')).toBeInTheDocument(),
+        );
+        expect(screen.queryByText('Generate with AI')).not.toBeInTheDocument();
     });
 });

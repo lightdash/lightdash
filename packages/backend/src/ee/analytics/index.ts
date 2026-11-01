@@ -1,4 +1,3 @@
-import { type TokenUsage } from '@langchain/core/language_models/base';
 import { DashboardFilterInteractivityOptions } from '@lightdash/common';
 import { Track as AnalyticsTrack } from '@rudderstack/rudder-sdk-node';
 
@@ -36,9 +35,6 @@ export type CustomVizGenerated = BaseTrack & {
         // Track the metadata of the request and response
         prompt: string; // the prompt used to generate the custom viz
         responseSize: number; // length in chars
-        tokenUsage?: TokenUsage;
-        // Track how long is taking to get the response
-        timeOpenAi: number;
     };
 };
 

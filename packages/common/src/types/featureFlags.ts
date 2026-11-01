@@ -41,11 +41,6 @@ export enum FeatureFlags {
     ShowExecutionTime = 'show-execution-time',
 
     /**
-     * Enable the ability to create custom visualizations with AI
-     */
-    AiCustomViz = 'ai-custom-viz',
-
-    /**
      * Enable admin user impersonation. When disabled, impersonation
      * actions are blocked and active sessions are cleared.
      */

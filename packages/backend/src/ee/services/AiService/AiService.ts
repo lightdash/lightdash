@@ -1,8 +1,6 @@
 import { subject } from '@casl/ability';
-import { type TokenUsage } from '@langchain/core/language_models/base';
 import {
     CommercialFeatureFlags,
-    FeatureFlags,
     ForbiddenError,
     GenerateChartMetadataRequest,
     GenerateCustomDimensionRequest,
@@ -15,7 +13,6 @@ import {
     GenerateTableCalculationRequest,
     GenerateTooltipRequest,
     getAccountUserTimezone,
-    getErrorMessage,
     getItemId,
     isField,
     isSummaryExploreError,
@@ -27,7 +24,6 @@ import {
     SuggestedChartTypeExploreResult,
     SuggestedChartTypeFields,
     TableCalculationType,
-    UnexpectedServerError,
     type AnalysisTargetRef,
 } from '@lightdash/common';
 import { generateText, Output } from 'ai';
@@ -60,7 +56,6 @@ import {
     GenerateTooltipGenerated,
 } from '../../analytics';
 import { type ReleaseFeatureCandidate } from '../../clients/GithubReleaseNotes/releaseFeatureCandidates';
-import OpenAi from '../../clients/OpenAi';
 import { type RankedReleaseHighlight } from '../../database/entities/releaseHighlights';
 import { generateChartMetadata as generateChartMetadataFromContext } from '../ai/agents/chartMetadataGenerator';
 import {
@@ -76,6 +71,7 @@ import {
     type ChartTypeExploreCandidate,
 } from '../ai/agents/chartTypeSuggestionGenerator';
 import { generateCustomDimension as generateCustomDimensionFromContext } from '../ai/agents/customDimensionGenerator';
+import { generateCustomViz as generateCustomVizFromContext } from '../ai/agents/customVizGenerator';
 import {
     detectDataAppAnomalies,
     type DataAppDetection,
@@ -108,8 +104,6 @@ import {
     getGeneratorTelemetry,
     getLanguageModelAttribution,
 } from '../ai/utils/aiCallTelemetry';
-import { DEFAULT_CUSTOM_VIZ_PROMPT } from './utils/prompts';
-import { getTotalTokenUsage } from './utils/tokens';
 
 const ReleaseHighlightsSchema = z.object({
     highlights: z.array(
@@ -124,7 +118,6 @@ const ReleaseHighlightsSchema = z.object({
 type Dependencies = {
     analytics: LightdashAnalytics;
     projectService: ProjectService;
-    openAi: OpenAi;
     lightdashConfig: LightdashConfig;
     featureFlagService: FeatureFlagService;
     orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
@@ -137,8 +130,6 @@ export class AiService extends BaseService {
     private readonly analytics: LightdashAnalytics;
 
     private readonly projectService: ProjectService;
-
-    private readonly openAi: OpenAi;
 
     private readonly featureFlagService: FeatureFlagService;
 
@@ -289,7 +280,6 @@ Use plain text only, with no HTML, markdown, or links. Return fewer entries if t
         this.analytics = dependencies.analytics;
         this.organizationSettingsModel = dependencies.organizationSettingsModel;
         this.projectService = dependencies.projectService;
-        this.openAi = dependencies.openAi;
         this.lightdashConfig = dependencies.lightdashConfig;
         this.featureFlagService = dependencies.featureFlagService;
         this.orgAiCopilotConfigResolver =
@@ -442,70 +432,34 @@ Use plain text only, with no HTML, markdown, or links. Return fewer entries if t
             throw new ForbiddenError();
         }
 
-        const aiCustomVizFlag = await this.featureFlagService.get({
-            user,
-            featureFlagId: FeatureFlags.AiCustomViz,
+        const modelOptions = await this.getAmbientAiModel(user, {
+            projectUuid,
         });
-
-        if (!aiCustomVizFlag.enabled) {
-            throw new Error('AI Custom viz feature not enabled!');
-        }
-        let openAiResponse: {
-            result: string;
-            tokenUsage: TokenUsage | undefined;
-        };
-
         const fields = Object.values(itemsMap).map((item) => ({
             id: getItemId(item),
             name: item.name,
             type: item.type,
             fieldType: isField(item) ? item.fieldType : undefined,
         }));
-
-        const startTime = new Date().getTime();
-
-        try {
-            openAiResponse = await this.openAi.run(DEFAULT_CUSTOM_VIZ_PROMPT, {
-                user_prompt: prompt,
-                fields: JSON.stringify(fields),
-                sample_data: JSON.stringify(sampleResults),
-                current_viz_config: currentVizConfig,
-            });
-        } catch (e) {
-            const errorCode =
-                e instanceof Error && 'code' in e ? e.code : getErrorMessage(e);
-            throw new Error(`Failed to generate vega config - ${errorCode}`);
-        }
-
-        const { result: vegaConfigResult, tokenUsage } = openAiResponse;
-
-        const timeOpenAi = new Date().getTime() - startTime;
-
-        const totalTokenUsages = [tokenUsage].filter(
-            (t): t is TokenUsage => t !== undefined,
-        );
-
-        const totalTokens = getTotalTokenUsage(totalTokenUsages);
-
-        if (this.openAi.model === undefined) {
-            throw new UnexpectedServerError('OpenAi model is not initialized');
-        }
+        const spec = await generateCustomVizFromContext(modelOptions, {
+            prompt,
+            fields,
+            sampleResults,
+            currentVizConfig,
+        });
 
         this.analytics.track<CustomVizGenerated>({
             userId: user.userUuid,
             event: 'ai.custom_viz.generated',
             properties: {
-                openAIModelName: this.openAi.model.modelName,
                 organizationId: user.organizationUuid!,
                 projectId: projectUuid,
                 prompt,
-                responseSize: vegaConfigResult.length,
-                tokenUsage: totalTokens,
-                timeOpenAi,
+                responseSize: spec.length,
             },
         });
 
-        return vegaConfigResult;
+        return spec;
     }
 
     async generateGoogleSheetsExtensionReportDraft(
