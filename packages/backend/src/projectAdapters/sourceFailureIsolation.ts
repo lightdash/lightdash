@@ -13,7 +13,6 @@ import {
     CompileInterruptedError,
     throwIfCompileAborted,
 } from '../scheduler/compileShutdown';
-import { DbtSourceDiskError } from './DbtSourceDiskPool';
 
 export type SourceFailurePhase = 'prepare' | 'manifest' | 'dependency';
 
@@ -32,7 +31,6 @@ export const isFatalSourceFailure = (error: unknown): boolean => {
         return true;
     return (
         error instanceof CompileInterruptedError ||
-        error instanceof DbtSourceDiskError ||
         (error instanceof Error &&
             ['AbortError', 'TimeoutError'].includes(error.name))
     );

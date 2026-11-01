@@ -11,6 +11,7 @@ import {
     FieldType,
     getCatalogMissingEntries,
     getDeferredExploreName,
+    getExternalModelNodesFromManifest,
     getModelsFromManifest,
     getPreAggregateExploreName,
     InlineErrorType,
@@ -27,6 +28,7 @@ import {
     SupportedDbtAdapter,
     SupportedDbtVersions,
     type CreateWarehouseCredentials,
+    type DbtExternalModelNode,
     type DbtManifest,
     type DbtProjectConfig,
     type Explore,
@@ -317,6 +319,24 @@ describe('Multi-connection compile on the real schema', () => {
             warehouseConnectionUuid,
         );
 
+    const insertSourceProjectName = (
+        projectUuid: string,
+        dbtSourceUuid: string,
+        projectName: string,
+        nodes: DbtExternalModelNode[] = [],
+    ) =>
+        database('dbt_source_ref_catalogs').insert({
+            project_uuid: projectUuid,
+            dbt_source_uuid: dbtSourceUuid,
+            connection_group: 'original',
+            project_name: projectName,
+            dbt_version: '1.7.0',
+            status: 'confirmed',
+            nodes: JSON.stringify(nodes),
+            nodes_digest: 'existing-catalog-fixture',
+            compile_job_uuid: null,
+        });
+
     const compile = async (
         fixture: Fixture,
         primary: FixtureModel[] = primaryModels,
@@ -326,7 +346,6 @@ describe('Multi-connection compile on the real schema', () => {
         failure: {
             sources: string[];
             phase: 'prepare' | 'manifest';
-            crossSourceRefs: boolean;
             onWarning?: (warning: string) => Promise<void>;
         } | null = null,
     ) => {
@@ -379,23 +398,14 @@ describe('Multi-connection compile on the real schema', () => {
                         },
                     },
                     dbtVersion: SupportedDbtVersions.V1_8,
-                    crossSourceRefsEnabled: failure?.crossSourceRefs ?? false,
                     mixedWarehouseConnectionsEnabled: false,
                     onSourceWarning: failure?.onWarning,
-                    prepareSourceManifest: async (source) => {
-                        if (
-                            failure?.phase === 'prepare' &&
-                            failure.sources.includes(source.name)
-                        )
-                            throw new Error('Repository clone failed');
-                        return null;
-                    },
                     fetchSourceManifest: async (...args) => {
-                        if (
-                            failure?.phase === 'manifest' &&
-                            failure.sources.includes(args[0].name)
-                        )
+                        if (failure?.sources.includes(args[0].name)) {
+                            if (failure.phase === 'prepare')
+                                throw new Error('Repository clone failed');
                             throw new DbtError('Source parse failed');
+                        }
                         return fetchSourceManifest(args[0], args[1]);
                     },
                     loadExtraCredentials: loadExtraCredentials(
@@ -537,9 +547,6 @@ describe('Multi-connection compile on the real schema', () => {
             database,
         });
         compiler = new MultiConnectionCompiler({
-            dbtSourceRefCatalogModel: new DbtSourceRefCatalogModel({
-                database,
-            }),
             projectModel,
             projectDbtSourcesModel,
             warehouseConnectionCompileModel,
@@ -712,7 +719,6 @@ describe('Multi-connection compile on the real schema', () => {
                                 warehouseConnectionUuids: [],
                             },
                             persistArtifacts: async () => {},
-                            signal: context.controller.signal,
                         },
                         beforeWrite,
                     );
@@ -806,7 +812,6 @@ describe('Multi-connection compile on the real schema', () => {
                                   warehouseConnectionUuids: [],
                               },
                               persistArtifacts: async () => {},
-                              signal: context.controller.signal,
                           });
                 await expect(saving).rejects.toBeInstanceOf(
                     CompileInterruptedError,
@@ -1002,22 +1007,18 @@ describe('Multi-connection compile on the real schema', () => {
                                 : '',
                     });
                     return {
-                        prepareDbtSource: async () => {
+                        getDbtManifest: async () => {
                             if (options.failedSources?.includes(name))
                                 throw new Error('Repository clone failed');
                             return {
-                                projectDir: null,
-                                timings: { gitRefreshMs: null, depsMs: null },
+                                manifest: sourceManifests[name],
+                                timings: {
+                                    gitRefreshMs: null,
+                                    depsMs: null,
+                                    manifestMs: 0,
+                                },
                             };
                         },
-                        getDbtManifest: async () => ({
-                            manifest: sourceManifests[name],
-                            timings: {
-                                gitRefreshMs: null,
-                                depsMs: null,
-                                manifestMs: 0,
-                            },
-                        }),
                         releaseDisk: async () => {},
                         destroy: async () => {},
                     };
@@ -2325,18 +2326,11 @@ Sources in this project: Core models, marketing, finance.`;
 
             test('accepts a fresh single-package preview using the parent ref catalog', async () => {
                 const parent = await setup();
-                await new DbtSourceRefCatalogModel({
-                    database,
-                }).upsertProvisional({
-                    projectUuid: parent.fixture.projectUuid,
-                    dbtSourceUuid: parent.primary.dbtSourceUuid,
-                    connectionGroup: 'original',
-                    projectName: 'analytics',
-                    dbtVersion: '1.7.0',
-                    nodes: [],
-                    referencedProjects: [],
-                    compileJobUuid: null,
-                });
+                await insertSourceProjectName(
+                    parent.fixture.projectUuid,
+                    parent.primary.dbtSourceUuid,
+                    'analytics',
+                );
                 await database('cached_explore')
                     .where('project_uuid', parent.fixture.projectUuid)
                     .delete();
@@ -3213,18 +3207,11 @@ Sources in this project: Core models, marketing, finance.`;
                             "explore #- '{tables,orders,dbtPackageName}' #- '{tables,retired,dbtPackageName}'",
                         ),
                     });
-                await new DbtSourceRefCatalogModel({
-                    database,
-                }).upsertProvisional({
-                    projectUuid: fixture.projectUuid,
-                    dbtSourceUuid: primary.dbtSourceUuid,
-                    connectionGroup: 'original',
-                    projectName: 'analytics',
-                    dbtVersion: '1.7.0',
-                    nodes: [],
-                    referencedProjects: [],
-                    compileJobUuid: null,
-                });
+                await insertSourceProjectName(
+                    fixture.projectUuid,
+                    primary.dbtSourceUuid,
+                    'analytics',
+                );
                 await deploy();
                 expect(
                     Object.keys(await bindings(fixture.projectUuid)),
@@ -4010,7 +3997,6 @@ Sources in this project: Core models, marketing, finance.`;
                         {
                             sources: [],
                             phase: 'prepare',
-                            crossSourceRefs: true,
                         },
                     );
                     const deployed = (
@@ -4065,7 +4051,6 @@ Sources in this project: Core models, marketing, finance.`;
                         {
                             sources: ['marketing'],
                             phase: 'prepare',
-                            crossSourceRefs: true,
                         },
                     );
                     expect(
@@ -4163,23 +4148,16 @@ Sources in this project: Core models, marketing, finance.`;
                     fixture,
                     primaryModels,
                     postgresWarehouse(ORIGINAL_DB),
-                    { sources: [], phase: 'prepare', crossSourceRefs: true },
+                    { sources: [], phase: 'prepare' },
                 );
-                const sourceCatalog = await database('dbt_source_ref_catalogs')
-                    .where({
-                        project_uuid: fixture.projectUuid,
-                        dbt_source_uuid: fixture.sourceUuids.marketing,
-                    })
-                    .first();
-                expect(sourceCatalog?.project_name).toBe('marketing');
-                expect(
-                    sourceCatalog?.nodes.map((node) => node.package_name),
-                ).toEqual(
-                    expect.arrayContaining(['marketing', 'synthetic_vendor']),
+                await insertSourceProjectName(
+                    fixture.projectUuid,
+                    fixture.sourceUuids.marketing,
+                    'marketing',
+                    getExternalModelNodesFromManifest(
+                        sourceManifests.marketing,
+                    ),
                 );
-                expect(
-                    sourceCatalog?.nodes.map((node) => node.package_name),
-                ).not.toContain('reference_only');
                 const names = ['campaigns', 'settlements', 'vendor_receipt'];
                 const deployed = (await cachedExplores(fixture.projectUuid))
                     .filter((row) => names.includes(row.name))
@@ -4445,18 +4423,11 @@ Sources in this project: Core models, marketing, finance.`;
                             ['primary', identity.dbtSourceUuid],
                             ['finance', fixture.sourceUuids.finance],
                         ].map(async ([projectName, dbtSourceUuid]) => {
-                            await new DbtSourceRefCatalogModel({
-                                database,
-                            }).upsertProvisional({
-                                projectUuid: fixture.projectUuid,
+                            await insertSourceProjectName(
+                                fixture.projectUuid,
                                 dbtSourceUuid,
-                                connectionGroup: 'original',
                                 projectName,
-                                dbtVersion: '1.7.0',
-                                nodes: [],
-                                referencedProjects: [],
-                                compileJobUuid: null,
-                            });
+                            );
                         }),
                     );
                     const user = await compilingUser(fixture.projectUuid);
@@ -5421,7 +5392,6 @@ Sources in this project: Core models, marketing, finance.`;
                         {
                             sources: ['marketing'],
                             phase,
-                            crossSourceRefs: true,
                         },
                     );
                     const after = await database('cached_explore')
@@ -5467,8 +5437,17 @@ Sources in this project: Core models, marketing, finance.`;
                         {
                             sources: [],
                             phase: 'prepare',
-                            crossSourceRefs: true,
                         },
+                    );
+                    await insertSourceProjectName(
+                        fixture.projectUuid,
+                        fixture.sourceUuids.marketing,
+                        'marketing',
+                    );
+                    await insertSourceProjectName(
+                        fixture.projectUuid,
+                        fixture.sourceUuids.finance,
+                        'finance',
                     );
                     const rows = await cachedExplores(fixture.projectUuid);
                     const campaigns = rows.find(
@@ -5550,7 +5529,6 @@ Sources in this project: Core models, marketing, finance.`;
                     {
                         sources: ['marketing', 'finance'],
                         phase: 'manifest',
-                        crossSourceRefs: false,
                     },
                 );
                 const after = await cachedExplores(fixture.projectUuid);
@@ -5582,7 +5560,6 @@ Sources in this project: Core models, marketing, finance.`;
                     {
                         sources: ['marketing'],
                         phase: 'manifest',
-                        crossSourceRefs: true,
                     },
                 );
                 expect(
@@ -5607,7 +5584,6 @@ Sources in this project: Core models, marketing, finance.`;
                         {
                             sources: ['primary'],
                             phase: 'manifest',
-                            crossSourceRefs: true,
                         },
                     ),
                 ).rejects.toThrow('Primary parse failed');
@@ -5679,7 +5655,6 @@ Sources in this project: Core models, marketing, finance.`;
                     {
                         sources: ['marketing'],
                         phase: 'manifest',
-                        crossSourceRefs: true,
                     },
                 );
                 expect(
@@ -5706,8 +5681,12 @@ Sources in this project: Core models, marketing, finance.`;
                         {
                             sources: [],
                             phase: 'prepare',
-                            crossSourceRefs: true,
                         },
+                    );
+                    await insertSourceProjectName(
+                        fixture.projectUuid,
+                        fixture.sourceUuids.marketing,
+                        'marketing',
                     );
                     if (ownership === 'legacy')
                         await database('cached_explore')
@@ -5770,7 +5749,6 @@ Sources in this project: Core models, marketing, finance.`;
                             {
                                 sources: ['marketing'],
                                 phase: 'manifest',
-                                crossSourceRefs: true,
                                 onWarning: (warning) =>
                                     jobs.appendJobStepWarning(
                                         jobUuid,
@@ -7111,9 +7089,6 @@ Sources in this project: Core models, marketing, finance.`;
                 .orderBy('name');
         const freshCompiler = () =>
             new MultiConnectionCompiler({
-                dbtSourceRefCatalogModel: new DbtSourceRefCatalogModel({
-                    database,
-                }),
                 projectModel,
                 projectDbtSourcesModel,
                 warehouseConnectionCompileModel,
@@ -8845,13 +8820,6 @@ Sources in this project: Core models, marketing, finance.`;
         const bindingAnalytics = { track: vi.fn() };
         const bindingService = () =>
             new WarehouseConnectionBindingService({
-                dbtSourceRefCatalogModel: { deleteForSource: vi.fn() },
-                featureFlagService: {
-                    get: vi.fn(async ({ featureFlagId }) => ({
-                        id: featureFlagId,
-                        enabled: false,
-                    })),
-                } as never,
                 projectModel,
                 warehouseConnectionCompileModel,
                 warehouseConnectionModel,
@@ -9095,9 +9063,6 @@ Sources in this project: Core models, marketing, finance.`;
 
         const dbtSourcesService = () =>
             new ProjectDbtSourcesService({
-                dbtSourceRefCatalogModel: new DbtSourceRefCatalogModel({
-                    database,
-                }),
                 lightdashConfig: lightdashConfigMock,
                 analytics: { track: vi.fn() } as never,
                 projectModel,
