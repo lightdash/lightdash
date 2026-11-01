@@ -14551,60 +14551,149 @@ describe('ProjectService.resolveCompileAdapter (single-source regression firewal
         return (await adapter).adapter;
     };
 
-    it('fetches independent sources once without preparation or injected refs', async () => {
-        const { projectService } = buildServiceWithMocks([]);
-        const primarySource = buildAdapterWithManifest(
-            buildManifest([
+    it.each([
+        { stubIsPrimary: true, includeRealModel: true },
+        { stubIsPrimary: false, includeRealModel: true },
+        { stubIsPrimary: true, includeRealModel: false },
+        { stubIsPrimary: false, includeRealModel: false },
+    ])(
+        'strips Loom stubs before merging sources (primary=$stubIsPrimary, selected=$includeRealModel)',
+        async ({ stubIsPrimary, includeRealModel }) => {
+            const realId = 'model.upstream.customers';
+            const realManifest = buildManifest([
                 {
-                    uniqueId: 'model.primary.orders',
-                    name: 'orders',
-                    packageName: 'primary',
-                },
-            ]),
-        );
-        const additionalSource = buildAdapterWithManifest(
-            buildManifest([
-                {
-                    uniqueId: 'model.additional.customers',
+                    uniqueId: realId,
                     name: 'customers',
-                    packageName: 'additional',
+                    packageName: 'upstream',
                 },
-            ]),
-        );
-        vi.spyOn(projectService, 'buildSourceAdapter').mockResolvedValue(
-            additionalSource,
-        );
-        const resolved = await projectService.buildMergedManifestAdapter({
-            ...baseArgs,
-            primary: { ...primary, adapter: primarySource },
-            sources: [buildSource('additional')],
-            manifestFetchAdapters: [],
-        });
-        expect(resolved.connectionWarnings).toEqual([]);
-        for (const adapter of [primarySource, additionalSource]) {
-            expect(adapter.prepareDbtSource).not.toHaveBeenCalled();
-            expect(adapter.getDbtManifest).toHaveBeenCalledOnce();
-            expect(adapter.releaseDisk).toHaveBeenCalledOnce();
-            expect(
-                vi.mocked(adapter.releaseDisk).mock.invocationCallOrder[0],
-            ).toBeGreaterThan(
-                vi.mocked(adapter.getDbtManifest).mock.invocationCallOrder[0],
+            ]);
+            const stubManifest = buildManifest([
+                {
+                    uniqueId: 'model.downstream.orders',
+                    name: 'orders',
+                    packageName: 'downstream',
+                },
+            ]);
+            const realNode = realManifest.nodes[realId] as DbtRawModelNode &
+                DbtManifest['nodes'][string];
+            const stub = {
+                ...realNode,
+                path: '',
+                original_file_path: '',
+            };
+            stubManifest.nodes[realId] = stub;
+            const orphanId = 'model.unavailable.orphan';
+            const orphan = {
+                ...stub,
+                unique_id: orphanId,
+                name: 'orphan',
+                package_name: 'unavailable',
+            };
+            stubManifest.nodes[orphanId] = orphan;
+            const realSelection = includeRealModel ? [realId] : [];
+            const stubSelection = ['model.downstream.orders', realId, orphanId];
+            const adapter = await buildMergedAdapter(
+                stubIsPrimary ? stubManifest : realManifest,
+                stubIsPrimary ? realManifest : stubManifest,
+                {
+                    primary: stubIsPrimary ? stubSelection : realSelection,
+                    source: stubIsPrimary ? realSelection : stubSelection,
+                },
             );
-        }
-        expect(primarySource.releaseDisk).toHaveBeenCalledWith({
-            keepProject: true,
-        });
-        expect(additionalSource.releaseDisk).toHaveBeenCalledWith();
-        const merged = await resolved.adapter.getDbtManifest();
-        expect(merged.manifest.nodes['model.primary.orders']).toMatchObject({
-            lightdash_source_uuid: 'primary-source-uuid',
-        });
-        expect(
-            merged.manifest.nodes['model.additional.customers'],
-        ).toMatchObject({
-            lightdash_source_uuid: 'additional-uuid',
-        });
-    });
+            const result = await adapter.getDbtManifest();
+            expect(result.manifest.nodes[realId]).toMatchObject({
+                path: 'models/customers.sql',
+                compiled: includeRealModel,
+                lightdash_source_uuid: stubIsPrimary
+                    ? 'source-b-uuid'
+                    : 'primary-source-uuid',
+            });
+            expect(result.manifest.nodes[orphanId]).toBeUndefined();
+            expect(result.selectedModelIds).toEqual(
+                expect.arrayContaining(['model.downstream.orders']),
+            );
+            expect(result.selectedModelIds?.includes(realId)).toBe(
+                includeRealModel,
+            );
+            expect(result.selectedModelIds).not.toContain(orphanId);
+        },
+    );
+
+    it.each([false, true])(
+        'fetches independent sources once with a legacy cross-source override of %s',
+        async (legacyOverrideEnabled) => {
+            const { projectService } = buildServiceWithMocks([]);
+            const getFlag = vi.fn(async (args: unknown) => {
+                const { featureFlagId } = args as { featureFlagId: string };
+                return {
+                    id: featureFlagId,
+                    enabled:
+                        featureFlagId === 'cross-source-dbt-refs' &&
+                        legacyOverrideEnabled,
+                };
+            });
+            projectService.featureFlagModel = { get: getFlag };
+            const primarySource = buildAdapterWithManifest(
+                buildManifest([
+                    {
+                        uniqueId: 'model.primary.orders',
+                        name: 'orders',
+                        packageName: 'primary',
+                    },
+                ]),
+            );
+            const additionalSource = buildAdapterWithManifest(
+                buildManifest([
+                    {
+                        uniqueId: 'model.additional.customers',
+                        name: 'customers',
+                        packageName: 'additional',
+                    },
+                ]),
+            );
+            vi.spyOn(projectService, 'buildSourceAdapter').mockResolvedValue(
+                additionalSource,
+            );
+            const resolved = await projectService.buildMergedManifestAdapter({
+                ...baseArgs,
+                primary: { ...primary, adapter: primarySource },
+                sources: [buildSource('additional')],
+                manifestFetchAdapters: [],
+            });
+            expect(resolved.connectionWarnings).toEqual([]);
+            for (const adapter of [primarySource, additionalSource]) {
+                expect(adapter.prepareDbtSource).not.toHaveBeenCalled();
+                expect(adapter.getDbtManifest).toHaveBeenCalledOnce();
+                expect(adapter.releaseDisk).toHaveBeenCalledOnce();
+                expect(
+                    vi.mocked(adapter.releaseDisk).mock.invocationCallOrder[0],
+                ).toBeGreaterThan(
+                    vi.mocked(adapter.getDbtManifest).mock
+                        .invocationCallOrder[0],
+                );
+            }
+            expect(primarySource.releaseDisk).toHaveBeenCalledWith({
+                keepProject: true,
+            });
+            expect(additionalSource.releaseDisk).toHaveBeenCalledWith();
+            const merged = await resolved.adapter.getDbtManifest();
+            expect(merged.manifest.nodes['model.primary.orders']).toMatchObject(
+                {
+                    lightdash_source_uuid: 'primary-source-uuid',
+                },
+            );
+            expect(
+                merged.manifest.nodes['model.additional.customers'],
+            ).toMatchObject({
+                lightdash_source_uuid: 'additional-uuid',
+            });
+            expect(getFlag).not.toHaveBeenCalledWith(
+                expect.objectContaining({
+                    featureFlagId: 'cross-source-dbt-refs',
+                }),
+            );
+        },
+    );
 
     it('keeps a failed source on its last-good explores without retrying missing refs', async () => {
         const { projectService } = buildServiceWithMocks([]);

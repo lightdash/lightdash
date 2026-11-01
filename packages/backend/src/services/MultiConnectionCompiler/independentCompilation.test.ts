@@ -3,6 +3,7 @@ import {
     DbtProjectType,
     DimensionType,
     getDeferredExploreName,
+    InlineErrorType,
     isExploreError,
     SupportedDbtAdapter,
     SupportedDbtVersions,
@@ -25,7 +26,6 @@ import {
     type CompilableDbtSource,
     type CompileGroupPlan,
 } from '../../projectAdapters/CompileGroup';
-import { DbtManifestProjectAdapter } from '../../projectAdapters/dbtManifestProjectAdapter';
 import { warehouseClientMock } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
 import {
     connectionContextFromUser,
@@ -479,5 +479,469 @@ describe('independent source compilation', () => {
         );
         expect(releaseAllSourceDisk).toHaveBeenCalledOnce();
         expect(h.saveCompileArtifacts).not.toHaveBeenCalled();
+    });
+});
+
+describe('joins after independent source compilation', () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    it.each(['meta', 'config'] as const)(
+        'keeps same-source joins in base, inherited and explicit explores from %s',
+        async (location) => {
+            const h = harness();
+            const orders = model('analytics', 'orders');
+            const calendar = model('analytics', 'calendar');
+            const joins = [
+                {
+                    join: 'calendar',
+                    alias: 'order_calendar',
+                    sql_on: '${orders.id} = ${order_calendar.id}',
+                },
+            ];
+            const metadata = {
+                joins,
+                explores: {
+                    inherited_orders: {},
+                    explicit_orders: { joins },
+                    unjoined_orders: { joins: [] },
+                },
+            };
+            if (location === 'meta') orders.meta = metadata;
+            else
+                orders.config = {
+                    materialized: 'table',
+                    snowflake_warehouse: '',
+                    meta: metadata,
+                };
+            h.fetchSourceManifest.mockImplementation(async (dbtSource) => ({
+                manifest:
+                    dbtSource.name === 'shared'
+                        ? manifest(
+                              'shared_dimensions',
+                              'calendar',
+                              SupportedDbtAdapter.POSTGRES,
+                          )
+                        : {
+                              ...manifest(
+                                  'analytics',
+                                  'orders',
+                                  SupportedDbtAdapter.TRINO,
+                              ),
+                              nodes: {
+                                  [orders.unique_id]: orders,
+                                  [calendar.unique_id]: calendar,
+                              },
+                          },
+                timings: { gitRefreshMs: null, depsMs: null, manifestMs: 0 },
+            }));
+            const compilation = await h.compiler.compile(h.input);
+            const explores = await collect(compilation.exploreStream);
+            expect(explores.filter(isExploreError)).toEqual([]);
+            const orderExplores = explores.filter(
+                (explore) =>
+                    explore.dbtModelIdentity?.uniqueId === orders.unique_id,
+            ) as Explore[];
+            expect(orderExplores).toHaveLength(4);
+            for (const explore of orderExplores) {
+                expect(compilation.bindingOf(explore.name)).toBe('extra');
+                expect(explore.warnings ?? []).toEqual([]);
+                if (explore.name === 'unjoined_orders') {
+                    expect(explore.joinedTables).toEqual([]);
+                    expect(explore.tables.order_calendar).toBeUndefined();
+                } else {
+                    expect(explore.joinedTables).toHaveLength(1);
+                    expect(explore.tables.order_calendar).toMatchObject({
+                        dbtSourceUuid: 'analytics-uuid',
+                        dbtPackageName: 'analytics',
+                        dbtModelUniqueId: calendar.unique_id,
+                    });
+                }
+            }
+            expect(h.fetchSourceManifest).toHaveBeenCalledTimes(2);
+            expect(compilation.carry).toEqual({
+                kind: 'connections',
+                warehouseConnectionUuids: [],
+            });
+        },
+    );
+
+    it.each([true, false])(
+        'skips a bare join to another connection with mixed connections enabled=%s',
+        async (mixed) => {
+            const h = harness({ mixed });
+            const orders = model('analytics', 'orders');
+            const joins = [
+                { join: 'calendar', sql_on: '${orders.id} = ${calendar.id}' },
+            ];
+            orders.meta = {
+                joins,
+                explores: { inherited_orders: {}, explicit_orders: { joins } },
+            };
+            h.fetchSourceManifest.mockImplementation(async (dbtSource) => ({
+                manifest:
+                    dbtSource.name === 'shared'
+                        ? manifest(
+                              'shared_dimensions',
+                              'calendar',
+                              SupportedDbtAdapter.POSTGRES,
+                          )
+                        : {
+                              ...manifest(
+                                  'analytics',
+                                  'orders',
+                                  SupportedDbtAdapter.TRINO,
+                              ),
+                              nodes: { [orders.unique_id]: orders },
+                          },
+                timings: { gitRefreshMs: null, depsMs: null, manifestMs: 0 },
+            }));
+            const compilation = await h.compiler.compile(h.input);
+            const explores = await collect(compilation.exploreStream);
+            expect(explores.filter(isExploreError)).toEqual([]);
+            const orderExplores = explores.filter(
+                (explore) =>
+                    explore.dbtModelIdentity?.uniqueId === orders.unique_id,
+            ) as Explore[];
+            expect(orderExplores).toHaveLength(3);
+            for (const explore of orderExplores) {
+                expect(explore.joinedTables).toEqual([]);
+                expect(explore.tables.calendar).toBeUndefined();
+                expect(explore.warnings).toEqual([
+                    expect.objectContaining({
+                        type: InlineErrorType.MISSING_TABLE,
+                        message: expect.stringContaining(
+                            mixed
+                                ? 'Joins across connections are not supported'
+                                : 'model is not available',
+                        ),
+                    }),
+                ]);
+            }
+            expect(
+                explores.some(
+                    (explore) =>
+                        explore.dbtModelIdentity?.uniqueId ===
+                        calendarIdentity.uniqueId,
+                ),
+            ).toBe(true);
+            expect(h.fetchSourceManifest).toHaveBeenCalledTimes(2);
+        },
+    );
+
+    it.each(['disabled', 'uncompiled', 'selector-excluded', 'absent'] as const)(
+        'resolves bare and qualified additional-explore joins with an own-source target that is %s',
+        async (state) => {
+            const h = harness();
+            h.plans.splice(1);
+            const orders = model('primary_project', 'primary_orders');
+            const calendar = model('primary_project', 'calendar');
+            const joins = [
+                {
+                    join: 'calendar',
+                    sql_on: '${primary_orders.id} = ${calendar.id}',
+                },
+            ];
+            orders.meta = {
+                joins,
+                explores: {
+                    inherited_orders: {},
+                    explicit_orders: { joins },
+                    qualified_orders: {
+                        joins: [
+                            {
+                                ...joins[0],
+                                join: 'shared__calendar',
+                                alias: 'calendar',
+                            },
+                        ],
+                    },
+                },
+            };
+            const primaryManifest = {
+                ...manifest(
+                    'primary_project',
+                    'primary_orders',
+                    SupportedDbtAdapter.POSTGRES,
+                ),
+                nodes: {
+                    [orders.unique_id]: orders,
+                    ...(state === 'disabled' || state === 'absent'
+                        ? {}
+                        : {
+                              [calendar.unique_id]: {
+                                  ...calendar,
+                                  compiled: state !== 'uncompiled',
+                              },
+                          }),
+                },
+                disabled:
+                    state === 'disabled'
+                        ? {
+                              [calendar.unique_id]: [
+                                  {
+                                      ...calendar,
+                                      config: {
+                                          ...calendar.config,
+                                          enabled: false,
+                                      },
+                                  },
+                              ],
+                          }
+                        : {},
+            };
+            h.input.primary.fetchManifest = async () => ({
+                manifest: primaryManifest,
+                ...(state === 'selector-excluded'
+                    ? { selectedModelIds: [orders.unique_id] }
+                    : {}),
+                timings: { gitRefreshMs: null, depsMs: null, manifestMs: 0 },
+            });
+            const compilation = await h.compiler.compile(h.input);
+            const explores = await collect(compilation.exploreStream);
+            expect(explores.filter(isExploreError)).toEqual([]);
+            const orderExplores = explores.filter(
+                (explore) =>
+                    explore.dbtModelIdentity?.uniqueId === orders.unique_id,
+            ) as Explore[];
+            expect(orderExplores).toHaveLength(4);
+            for (const explore of orderExplores) {
+                if (explore.name === 'qualified_orders' || state === 'absent') {
+                    expect(explore.joinedTables).toHaveLength(1);
+                    expect(explore.tables.calendar).toMatchObject({
+                        dbtSourceUuid: 'shared-uuid',
+                        dbtModelUniqueId: calendarIdentity.uniqueId,
+                    });
+                    expect(explore.warnings ?? []).toEqual([]);
+                } else {
+                    expect(explore.joinedTables).toEqual([]);
+                    expect(explore.tables.calendar).toBeUndefined();
+                    expect(explore.warnings).toEqual([
+                        expect.objectContaining({
+                            type: InlineErrorType.MISSING_TABLE,
+                            message: expect.stringContaining(
+                                'own-source model is disabled or excluded',
+                            ),
+                        }),
+                    ]);
+                }
+            }
+        },
+    );
+
+    it.each([1, 2])(
+        'resolves a qualified additional-explore join to declared latest version %s',
+        async (latestVersion) => {
+            const h = harness();
+            h.plans.splice(1);
+            const orders = model('primary_project', 'primary_orders');
+            orders.meta = {
+                explores: {
+                    versioned_orders: {
+                        joins: [
+                            {
+                                join: 'shared__calendar',
+                                alias: 'calendar',
+                                sql_on: '${primary_orders.id} = ${calendar.id}',
+                            },
+                        ],
+                    },
+                },
+            };
+            h.input.primary.fetchManifest = async () => ({
+                manifest: {
+                    ...manifest(
+                        'primary_project',
+                        'primary_orders',
+                        SupportedDbtAdapter.POSTGRES,
+                    ),
+                    nodes: { [orders.unique_id]: orders },
+                },
+                timings: { gitRefreshMs: null, depsMs: null, manifestMs: 0 },
+            });
+            const calendars = [2, 1].map((version) => ({
+                ...model('shared_dimensions', 'calendar'),
+                unique_id: `model.shared_dimensions.calendar.v${version}`,
+                version,
+                latest_version: latestVersion,
+                relation_name: `"warehouse"."public"."calendar_v${version}"`,
+            }));
+            h.fetchSourceManifest.mockResolvedValue({
+                manifest: {
+                    ...manifest(
+                        'shared_dimensions',
+                        'calendar',
+                        SupportedDbtAdapter.POSTGRES,
+                    ),
+                    nodes: Object.fromEntries(
+                        calendars.map((calendar) => [
+                            calendar.unique_id,
+                            calendar,
+                        ]),
+                    ),
+                },
+                timings: { gitRefreshMs: null, depsMs: null, manifestMs: 0 },
+            });
+            const compilation = await h.compiler.compile(h.input);
+            const explores = await collect(compilation.exploreStream);
+            expect(explores.filter(isExploreError)).toEqual([]);
+            const explore = explores.find(
+                (item) => item.name === 'versioned_orders',
+            ) as Explore;
+            expect(explore.joinedTables).toHaveLength(1);
+            expect(explore.warnings ?? []).toEqual([]);
+            expect(explore.tables.calendar).toMatchObject({
+                dbtSourceUuid: 'shared-uuid',
+                dbtModelUniqueId: `model.shared_dimensions.calendar.v${latestVersion}`,
+                sqlTable: `"warehouse"."public"."calendar_v${latestVersion}"`,
+            });
+        },
+    );
+});
+
+describe('external model stubs after independent source compilation', () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    it.each([
+        ['analytics', 'shared'],
+        ['shared', 'analytics'],
+    ])(
+        'keeps the real source model when %s compiles before %s',
+        async (first, second) => {
+            const h = harness();
+            h.plans.splice(1);
+            h.plans[0].sources = [source(first, 1), source(second, 2)];
+            const calendar = model('shared_dimensions', 'calendar');
+            const stub = {
+                ...calendar,
+                path: '',
+                original_file_path: '',
+                relation_name: 'stale_calendar',
+            };
+            const orders = model('analytics', 'orders');
+            orders.meta = {
+                joins: [
+                    {
+                        join: 'calendar',
+                        sql_on: '${orders.id} = ${calendar.id}',
+                    },
+                ],
+            };
+            h.fetchSourceManifest.mockImplementation(async (dbtSource) => ({
+                manifest:
+                    dbtSource.name === 'shared'
+                        ? manifest(
+                              'shared_dimensions',
+                              'calendar',
+                              SupportedDbtAdapter.POSTGRES,
+                          )
+                        : {
+                              ...manifest(
+                                  'analytics',
+                                  'orders',
+                                  SupportedDbtAdapter.POSTGRES,
+                              ),
+                              nodes: {
+                                  [orders.unique_id]: orders,
+                                  [stub.unique_id]: stub,
+                              },
+                          },
+                timings: { gitRefreshMs: null, depsMs: null, manifestMs: 0 },
+            }));
+            const compilation = await h.compiler.compile(h.input);
+            const explores = await collect(compilation.exploreStream);
+            expect(explores.filter(isExploreError)).toEqual([]);
+            const calendars = explores.filter(
+                (explore) =>
+                    explore.dbtModelIdentity?.uniqueId === calendar.unique_id,
+            );
+            expect(calendars).toHaveLength(1);
+            expect(calendars[0].dbtModelIdentity?.sourceUuid).toBe(
+                'shared-uuid',
+            );
+            const ordersExplore = explores.find(
+                (explore) =>
+                    explore.dbtModelIdentity?.uniqueId === orders.unique_id,
+            ) as Explore;
+            expect(ordersExplore.joinedTables).toHaveLength(1);
+            expect(ordersExplore.tables.calendar).toMatchObject({
+                dbtSourceUuid: 'shared-uuid',
+                sqlTable: calendar.relation_name,
+            });
+            expect(compilation.warnings).toEqual([]);
+        },
+    );
+
+    it('does not let selected external stubs select an excluded real model or create orphan explores', async () => {
+        const h = harness();
+        h.plans.splice(1);
+        h.plans[0].sources.push(source('analytics', 2));
+        const calendar = model('shared_dimensions', 'calendar');
+        const stub = { ...calendar, path: '', original_file_path: '' };
+        const orphan = {
+            ...model('missing_source', 'orphan'),
+            path: '',
+            original_file_path: '',
+        };
+        const orders = model('analytics', 'orders');
+        orders.meta = {
+            joins: [
+                { join: 'calendar', sql_on: '${orders.id} = ${calendar.id}' },
+                { join: 'orphan', sql_on: '${orders.id} = ${orphan.id}' },
+            ],
+        };
+        h.fetchSourceManifest.mockImplementation(async (dbtSource) => ({
+            manifest:
+                dbtSource.name === 'shared'
+                    ? manifest(
+                          'shared_dimensions',
+                          'calendar',
+                          SupportedDbtAdapter.POSTGRES,
+                      )
+                    : {
+                          ...manifest(
+                              'analytics',
+                              'orders',
+                              SupportedDbtAdapter.POSTGRES,
+                          ),
+                          nodes: {
+                              [orders.unique_id]: orders,
+                              [stub.unique_id]: stub,
+                              [orphan.unique_id]: orphan,
+                          },
+                      },
+            selectedModelIds:
+                dbtSource.name === 'shared'
+                    ? []
+                    : [orders.unique_id, stub.unique_id, orphan.unique_id],
+            timings: { gitRefreshMs: null, depsMs: null, manifestMs: 0 },
+        }));
+        const compilation = await h.compiler.compile(h.input);
+        const explores = await collect(compilation.exploreStream);
+        expect(explores.filter(isExploreError)).toEqual([]);
+        expect(
+            explores
+                .map((explore) => explore.dbtModelIdentity?.uniqueId)
+                .sort(),
+        ).toEqual([orders.unique_id, primaryOrdersIdentity.uniqueId].sort());
+        const ordersExplore = explores.find(
+            (explore) =>
+                explore.dbtModelIdentity?.uniqueId === orders.unique_id,
+        ) as Explore;
+        expect(ordersExplore.joinedTables).toEqual([]);
+        expect(ordersExplore.tables.calendar).toBeUndefined();
+        expect(ordersExplore.tables.orphan).toBeUndefined();
+        expect(ordersExplore.warnings).toHaveLength(2);
+        expect(ordersExplore.warnings).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    type: InlineErrorType.MISSING_TABLE,
+                    message: expect.stringContaining('calendar'),
+                }),
+                expect.objectContaining({
+                    type: InlineErrorType.MISSING_TABLE,
+                    message: expect.stringContaining('orphan'),
+                }),
+            ]),
+        );
     });
 });

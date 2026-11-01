@@ -248,6 +248,7 @@ import {
     SqlRunnerPivotQueryPayload,
     SqlRunnerWarehouseConnection,
     SshTunnelError,
+    stripExternalDbtNodes,
     SummaryExplore,
     SupportedDbtAdapter,
     supportsConnectionDatabaseListing,
@@ -8861,7 +8862,10 @@ export class ProjectService
         });
         const successful = results.filter((entry) => entry !== null);
         const fetched = successful.map(({ task, result }) => {
-            const { manifest, selectedModelIds } = result;
+            const manifest = stripExternalDbtNodes(result.manifest);
+            const selectedModelIds = result.selectedModelIds?.filter(
+                (id) => id in manifest.nodes,
+            );
             const selectedManifest = manifestWithCompilationSelection(
                 manifest,
                 selectedModelIds,

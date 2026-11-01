@@ -3,6 +3,7 @@ import {
     getCompiledModels,
     getModelsFromManifest,
     ParameterError,
+    stripExternalDbtNodes,
     UnexpectedServerError,
     type DbtManifest,
     type DbtProjectConfig,
@@ -163,13 +164,20 @@ const combineSelectedModelIds = (
 export const mergeCompileGroupManifests = (
     sources: SourceManifest[],
 ): { manifest: DbtManifest; selectedModelIds: string[] | undefined } => {
-    const prepared = sources.map((source) => ({
-        ...source,
-        manifest: withSourceIdentity(
-            withCompilationSelection(source.manifest, source.selectedModelIds),
-            source.dbtSourceUuid,
-        ),
-    }));
+    const prepared = sources.map((source) => {
+        const manifest = stripExternalDbtNodes(source.manifest);
+        const selectedModelIds = source.selectedModelIds?.filter(
+            (id) => id in manifest.nodes,
+        );
+        return {
+            ...source,
+            selectedModelIds,
+            manifest: withSourceIdentity(
+                withCompilationSelection(manifest, selectedModelIds),
+                source.dbtSourceUuid,
+            ),
+        };
+    });
     const { manifest, collisions } = combineManifestSources(
         prepared.map(({ name, precedence, manifest: sourceManifest }) => ({
             name,
