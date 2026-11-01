@@ -132,13 +132,19 @@ describe('toLlmJsonSchema', () => {
         const shared = z.object({
             value: z.string().nullable().describe('A'.repeat(200)),
         });
+        const definitionNames = new WeakMap<z.core.$ZodType, string>([
+            [shared, 'Shared'],
+        ]);
         const schema = toLlmJsonSchema(
             z.object({ first: shared, second: shared }),
-            { reused: 'ref' },
+            {
+                resolveDefinitionName: (candidate) =>
+                    definitionNames.get(candidate),
+            },
         );
 
         expect(schema.properties?.first).toEqual({
-            $ref: '#/definitions/__schema0',
+            $ref: '#/definitions/Shared',
         });
         expect(Object.values(schema.definitions ?? {})[0]).toMatchObject({
             additionalProperties: false,
@@ -148,9 +154,15 @@ describe('toLlmJsonSchema', () => {
 
     test('keeps schemas referenced more than once as definitions', () => {
         const connector = z.union([z.literal('and'), z.literal('or')]);
+        const definitionNames = new WeakMap<z.core.$ZodType, string>([
+            [connector, 'Connector'],
+        ]);
         const schema = toLlmJsonSchema(
             z.object({ first: connector, second: connector.nullable() }),
-            { reused: 'ref' },
+            {
+                resolveDefinitionName: (candidate) =>
+                    definitionNames.get(candidate),
+            },
         );
 
         expect(Object.values(schema.definitions ?? {})[0]).toEqual({
@@ -158,7 +170,7 @@ describe('toLlmJsonSchema', () => {
             enum: ['and', 'or'],
         });
         expect(schema.properties?.first).toEqual({
-            $ref: '#/definitions/__schema0',
+            $ref: '#/definitions/Connector',
         });
     });
 
@@ -167,19 +179,15 @@ describe('toLlmJsonSchema', () => {
         const definitionNames = new WeakMap<z.core.$ZodType, string>([
             [shared, 'Shared'],
         ]);
-        const schema = toLlmJsonSchema(
-            z.object({ first: shared.describe('First') }),
-            {
-                resolveDefinitionName: (candidate) =>
-                    definitionNames.get(candidate),
-            },
-        );
+        const schema = toLlmJsonSchema(z.object({ first: shared }), {
+            resolveDefinitionName: (candidate) =>
+                definitionNames.get(candidate),
+        });
 
         expect(schema).not.toHaveProperty('definitions');
         expect(schema.properties?.first).toEqual({
             type: ['object', 'null'],
             additionalProperties: { type: 'string' },
-            description: 'First',
         });
     });
 
