@@ -6,6 +6,7 @@ import {
     UnitOfTime,
     unitOfTimeSupportsToDate,
 } from '../../../../types/filter';
+import { nameAgentDefinition } from '../agentJsonSchema';
 import { getFieldIdSchema } from '../fieldId';
 import {
     datePresenceOperatorDescription,
@@ -18,6 +19,8 @@ const dateOrDateTimeSchema = z
     .describe(
         'ISO date (YYYY-MM-DD) or ISO datetime. Do not use relative phrases like "last 2 weeks" here.',
     );
+
+nameAgentDefinition('DateFilterValue', dateOrDateTimeSchema);
 
 const commonDateFilterRuleSchema = z.object({
     fieldId: getFieldIdSchema({ additionalDescription: null }),
@@ -262,5 +265,7 @@ const dateFilterSchema = z.union([
             )}`,
         ),
 ]);
+
+nameAgentDefinition('DateFilterRule', dateFilterSchema);
 
 export default dateFilterSchema;

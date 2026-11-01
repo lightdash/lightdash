@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { DimensionType, MetricType } from '../../../../types/field';
 import { FilterOperator, FilterType } from '../../../../types/filter';
+import { nameAgentDefinition } from '../agentJsonSchema';
 import { getFieldIdSchema } from '../fieldId';
 import {
     filterOperatorList,
@@ -8,22 +9,26 @@ import {
 } from './filterDescriptionUtils';
 import { filterJsonExamplesForOperators } from './filterExamples';
 
+const numberFieldTypeSchema = z.union([
+    z.literal(DimensionType.NUMBER),
+    z.literal(MetricType.NUMBER),
+    z.literal(MetricType.PERCENTILE),
+    z.literal(MetricType.MEDIAN),
+    z.literal(MetricType.AVERAGE),
+    z.literal(MetricType.COUNT),
+    z.literal(MetricType.COUNT_DISTINCT),
+    z.literal(MetricType.SUM),
+    z.literal(MetricType.SUM_DISTINCT),
+    z.literal(MetricType.AVERAGE_DISTINCT),
+    z.literal(MetricType.MIN),
+    z.literal(MetricType.MAX),
+]);
+
+nameAgentDefinition('NumberFieldType', numberFieldTypeSchema);
+
 const commonNumberFilterRuleSchema = z.object({
     fieldId: getFieldIdSchema({ additionalDescription: null }),
-    fieldType: z.union([
-        z.literal(DimensionType.NUMBER),
-        z.literal(MetricType.NUMBER),
-        z.literal(MetricType.PERCENTILE),
-        z.literal(MetricType.MEDIAN),
-        z.literal(MetricType.AVERAGE),
-        z.literal(MetricType.COUNT),
-        z.literal(MetricType.COUNT_DISTINCT),
-        z.literal(MetricType.SUM),
-        z.literal(MetricType.SUM_DISTINCT),
-        z.literal(MetricType.AVERAGE_DISTINCT),
-        z.literal(MetricType.MIN),
-        z.literal(MetricType.MAX),
-    ]),
+    fieldType: numberFieldTypeSchema,
     fieldFilterType: z.literal(FilterType.NUMBER),
 });
 
@@ -138,5 +143,7 @@ const numberFilterSchema = z.union([
             )}`,
         ),
 ]);
+
+nameAgentDefinition('NumberFilterRule', numberFilterSchema);
 
 export default numberFilterSchema;
