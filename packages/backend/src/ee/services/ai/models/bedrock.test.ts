@@ -1,6 +1,11 @@
 import { createAmazonBedrock } from '@ai-sdk/amazon-bedrock';
 import { fromNodeProviderChain } from '@aws-sdk/credential-providers';
-import { getBedrockModelPrefix, getBedrockProvider } from './bedrock';
+import {
+    getBedrockModel,
+    getBedrockModelPrefix,
+    getBedrockProvider,
+} from './bedrock';
+import { BEDROCK_MAX_OUTPUT_TOKENS, MODEL_PRESETS } from './presets';
 
 vi.mock('@ai-sdk/amazon-bedrock', () => ({
     createAmazonBedrock: vi.fn(),
@@ -78,5 +83,93 @@ describe('getBedrockProvider', () => {
                 credentialProvider: expect.any(Function),
             }),
         );
+    });
+});
+
+describe('getBedrockModel output budget', () => {
+    const preset = MODEL_PRESETS.bedrock.find(
+        (candidate) => candidate.name === 'claude-opus-5-5',
+    );
+    if (!preset) throw new Error('Missing adaptive model preset');
+    const config = {
+        apiKey: 'test',
+        region: 'us-east-1',
+        modelName: preset.name,
+        embeddingModelName: 'amazon.titan-embed-text-v2:0',
+        customHeaders: {},
+        supportsStreaming: true,
+    };
+
+    beforeEach(async () => {
+        vi.clearAllMocks();
+        const actual = await vi.importActual<
+            typeof import('@ai-sdk/amazon-bedrock')
+        >('@ai-sdk/amazon-bedrock');
+        vi.mocked(createAmazonBedrock).mockImplementation(
+            actual.createAmazonBedrock,
+        );
+    });
+
+    test('sets an explicit output budget for adaptive reasoning at medium effort', () => {
+        const { callOptions } = getBedrockModel(config, preset, {
+            enableReasoning: true,
+            reasoningEffort: 'medium',
+        });
+        expect(callOptions.maxOutputTokens).toBe(BEDROCK_MAX_OUTPUT_TOKENS);
+    });
+
+    test('preserves the xhigh output budget', () => {
+        const { callOptions } = getBedrockModel(config, preset, {
+            enableReasoning: true,
+            reasoningEffort: 'xhigh',
+        });
+        expect(callOptions.maxOutputTokens).toBe(24_000);
+    });
+
+    test('uses the configured output cap before an adaptive preset cap', () => {
+        const { callOptions } = getBedrockModel(
+            { ...config, maxOutputTokens: 32_000 },
+            {
+                ...preset,
+                callOptions: { ...preset.callOptions, maxOutputTokens: 48_000 },
+            },
+            { enableReasoning: true, reasoningEffort: 'medium' },
+        );
+        expect(callOptions.maxOutputTokens).toBe(32_000);
+    });
+
+    test('uses the configured output cap for budget reasoning at xhigh effort', () => {
+        const budgetPreset = MODEL_PRESETS.bedrock.find(
+            (candidate) => candidate.name === 'claude-haiku-4-5',
+        );
+        if (!budgetPreset) throw new Error('Missing budget model preset');
+        const { callOptions } = getBedrockModel(
+            {
+                ...config,
+                modelName: budgetPreset.name,
+                maxOutputTokens: 32_000,
+            },
+            budgetPreset,
+            { enableReasoning: true, reasoningEffort: 'xhigh' },
+        );
+        expect(callOptions.maxOutputTokens).toBe(32_000);
+    });
+
+    test('uses a preset output cap before the built-in default', () => {
+        const { callOptions } = getBedrockModel(config, {
+            ...preset,
+            callOptions: { ...preset.callOptions, maxOutputTokens: 48_000 },
+        });
+        expect(callOptions.maxOutputTokens).toBe(48_000);
+    });
+
+    test('sets an explicit output cap even when reasoning is disabled', () => {
+        const { callOptions } = getBedrockModel(config, preset, {
+            enableReasoning: false,
+        });
+        expect(callOptions).toEqual({
+            ...preset.callOptions,
+            maxOutputTokens: BEDROCK_MAX_OUTPUT_TOKENS,
+        });
     });
 });
