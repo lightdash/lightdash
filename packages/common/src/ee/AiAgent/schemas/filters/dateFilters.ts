@@ -6,6 +6,7 @@ import {
     UnitOfTime,
     unitOfTimeSupportsToDate,
 } from '../../../../types/filter';
+import { isoDateTimeStringSchema } from '../../../../utils/isoDateTime';
 import { nameAgentDefinition } from '../agentJsonSchema';
 import { getFieldIdSchema } from '../fieldId';
 import {
@@ -15,7 +16,7 @@ import {
 import { filterJsonExamplesForOperators } from './filterExamples';
 
 const dateOrDateTimeSchema = z
-    .union([z.string().date(), z.string().datetime()])
+    .union([z.string().date(), isoDateTimeStringSchema])
     .describe(
         'ISO date (YYYY-MM-DD) or ISO datetime. Do not use relative phrases like "last 2 weeks" here.',
     );

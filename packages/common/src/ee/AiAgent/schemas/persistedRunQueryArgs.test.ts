@@ -93,6 +93,25 @@ describe('parsePersistedRunQueryPayload', () => {
         });
     });
 
+    it('accepts persisted minute-precision datetimes', () => {
+        const payload = runQueryPayload({
+            type: 'and',
+            dimensions: [
+                {
+                    fieldId: 'orders_order_date',
+                    fieldType: DimensionType.DATE,
+                    fieldFilterType: FilterType.DATE,
+                    operator: FilterOperator.EQUALS,
+                    values: ['2025-01-01T06:15Z'],
+                },
+            ],
+            metrics: null,
+            tableCalculations: null,
+        });
+
+        expect(parsePersistedRunQueryPayload(payload)).not.toBeNull();
+    });
+
     it('preserves the existing parser result for shared connectors', () => {
         const payload = runQueryPayload({
             type: 'or',
