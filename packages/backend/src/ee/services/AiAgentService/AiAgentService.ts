@@ -843,6 +843,11 @@ const isGithubMcpBearerServer = (
     server: Pick<AiMcpServer, 'url' | 'authType'>,
 ) => isGithubMcpServerUrl(server.url) && server.authType === 'bearer';
 
+// runQuery saves a data answer (purpose 'answer') as a chart version without a chartConfig.
+const isDataAnswerVersion = (version: AiArtifact) =>
+    version.chartConfig?.source === 'semantic' &&
+    !version.chartConfig.config.chartConfig;
+
 type GenerateAgentExecutionOptions =
     | {
           mode: 'standard';
@@ -14830,6 +14835,13 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         ]);
         if (latest?.chartConfig?.source !== 'semantic') return null;
         if (promptContext.get(prompt.promptUuid)?.length) return null;
+        // A data answer saved over a chart leaves "this" ambiguous, so only the agent can tell which to edit.
+        if (
+            isDataAnswerVersion(latest) &&
+            (await this.hasEarlierChartVersion(latest))
+        ) {
+            return null;
+        }
         const artifact = await this.getArtifact(
             user,
             prompt.projectUuid,
@@ -14876,6 +14888,21 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 filterRules: getFilterRules(chartConfig) ?? [],
             }),
         };
+    }
+
+    private async hasEarlierChartVersion(
+        version: AiArtifact,
+    ): Promise<boolean> {
+        const previous = await this.aiAgentModel.getPreviousArtifactVersion(
+            version.artifactUuid,
+            version.versionNumber,
+        );
+        if (!previous) {
+            return false;
+        }
+        return isDataAnswerVersion(previous)
+            ? this.hasEarlierChartVersion(previous)
+            : true;
     }
 
     private async assertFastChartQuery(user: SessionUser, projectUuid: string) {
