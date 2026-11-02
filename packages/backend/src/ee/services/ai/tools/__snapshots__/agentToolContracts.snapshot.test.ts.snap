@@ -933,6 +933,10 @@ For explore-backed tables use grepFields and getMetadata; to find a table's name
                   ],
                   "type": "object",
                 },
+                "requiresSnowflakeReauthentication": {
+                  "const": true,
+                  "type": "boolean",
+                },
                 "status": {
                   "allOf": [
                     {
@@ -4366,6 +4370,10 @@ Usage tips:
                   ],
                   "type": "object",
                 },
+                "requiresSnowflakeReauthentication": {
+                  "const": true,
+                  "type": "boolean",
+                },
                 "status": {
                   "allOf": [
                     {
@@ -4712,6 +4720,10 @@ Usage tips:
                     "connectUrl",
                   ],
                   "type": "object",
+                },
+                "requiresSnowflakeReauthentication": {
+                  "const": true,
+                  "type": "boolean",
                 },
                 "status": {
                   "allOf": [
@@ -6550,6 +6562,10 @@ All branches of an IF must return the same type.",
                   ],
                   "type": "object",
                 },
+                "requiresSnowflakeReauthentication": {
+                  "const": true,
+                  "type": "boolean",
+                },
                 "status": {
                   "allOf": [
                     {
@@ -6821,6 +6837,10 @@ All branches of an IF must return the same type.",
                   ],
                   "type": "object",
                 },
+                "requiresSnowflakeReauthentication": {
+                  "const": true,
+                  "type": "boolean",
+                },
                 "status": {
                   "allOf": [
                     {
@@ -7087,6 +7107,10 @@ All branches of an IF must return the same type.",
                     "connectUrl",
                   ],
                   "type": "object",
+                },
+                "requiresSnowflakeReauthentication": {
+                  "const": true,
+                  "type": "boolean",
                 },
                 "status": {
                   "allOf": [
@@ -7473,6 +7497,10 @@ All branches of an IF must return the same type.",
                     "connectUrl",
                   ],
                   "type": "object",
+                },
+                "requiresSnowflakeReauthentication": {
+                  "const": true,
+                  "type": "boolean",
                 },
                 "status": {
                   "allOf": [
@@ -8059,6 +8087,10 @@ Read the full text of one knowledge document or Deep Research report by its uuid
                   ],
                   "type": "object",
                 },
+                "requiresSnowflakeReauthentication": {
+                  "const": true,
+                  "type": "boolean",
+                },
                 "status": {
                   "allOf": [
                     {
@@ -8498,6 +8530,10 @@ Read the full text of one knowledge document or Deep Research report by its uuid
                   ],
                   "type": "object",
                 },
+                "requiresSnowflakeReauthentication": {
+                  "const": true,
+                  "type": "boolean",
+                },
                 "status": {
                   "allOf": [
                     {
@@ -8828,6 +8864,10 @@ When to use:
                   ],
                   "type": "object",
                 },
+                "requiresSnowflakeReauthentication": {
+                  "const": true,
+                  "type": "boolean",
+                },
                 "status": {
                   "allOf": [
                     {
@@ -9098,6 +9138,10 @@ When to use:
                     "connectUrl",
                   ],
                   "type": "object",
+                },
+                "requiresSnowflakeReauthentication": {
+                  "const": true,
+                  "type": "boolean",
                 },
                 "status": {
                   "allOf": [
@@ -9476,6 +9520,10 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
                     "connectUrl",
                   ],
                   "type": "object",
+                },
+                "requiresSnowflakeReauthentication": {
+                  "const": true,
+                  "type": "boolean",
                 },
                 "status": {
                   "allOf": [
@@ -9864,6 +9912,10 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
                   ],
                   "type": "object",
                 },
+                "requiresSnowflakeReauthentication": {
+                  "const": true,
+                  "type": "boolean",
+                },
                 "skill": {
                   "additionalProperties": false,
                   "properties": {
@@ -10196,6 +10248,10 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
                     "connectUrl",
                   ],
                   "type": "object",
+                },
+                "requiresSnowflakeReauthentication": {
+                  "const": true,
+                  "type": "boolean",
                 },
                 "status": {
                   "allOf": [
@@ -11093,6 +11149,10 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
                   ],
                   "type": "object",
                 },
+                "requiresSnowflakeReauthentication": {
+                  "const": true,
+                  "type": "boolean",
+                },
                 "status": {
                   "allOf": [
                     {
@@ -11400,6 +11460,10 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
                     "connectUrl",
                   ],
                   "type": "object",
+                },
+                "requiresSnowflakeReauthentication": {
+                  "const": true,
+                  "type": "boolean",
                 },
                 "status": {
                   "allOf": [
@@ -11893,6 +11957,10 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
                       ],
                       "type": "object",
                     },
+                    "requiresSnowflakeReauthentication": {
+                      "const": true,
+                      "type": "boolean",
+                    },
                     "status": {
                       "allOf": [
                         {
@@ -12081,6 +12149,10 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
                       ],
                       "type": "object",
                     },
+                    "requiresSnowflakeReauthentication": {
+                      "const": true,
+                      "type": "boolean",
+                    },
                     "status": {
                       "allOf": [
                         {
@@ -12219,6 +12291,10 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
                         "connectUrl",
                       ],
                       "type": "object",
+                    },
+                    "requiresSnowflakeReauthentication": {
+                      "const": true,
+                      "type": "boolean",
                     },
                     "status": {
                       "allOf": [
@@ -12796,6 +12872,10 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
                   ],
                   "type": "object",
                 },
+                "requiresSnowflakeReauthentication": {
+                  "const": true,
+                  "type": "boolean",
+                },
                 "status": {
                   "allOf": [
                     {
@@ -13073,6 +13153,10 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
                     "connectUrl",
                   ],
                   "type": "object",
+                },
+                "requiresSnowflakeReauthentication": {
+                  "const": true,
+                  "type": "boolean",
                 },
                 "status": {
                   "allOf": [
@@ -13431,6 +13515,10 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
                   ],
                   "type": "object",
                 },
+                "requiresSnowflakeReauthentication": {
+                  "const": true,
+                  "type": "boolean",
+                },
                 "status": {
                   "allOf": [
                     {
@@ -13693,6 +13781,10 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
                     "connectUrl",
                   ],
                   "type": "object",
+                },
+                "requiresSnowflakeReauthentication": {
+                  "const": true,
+                  "type": "boolean",
                 },
                 "status": {
                   "allOf": [
@@ -13972,6 +14064,10 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
                     "connectUrl",
                   ],
                   "type": "object",
+                },
+                "requiresSnowflakeReauthentication": {
+                  "const": true,
+                  "type": "boolean",
                 },
                 "status": {
                   "allOf": [
@@ -15143,6 +15239,10 @@ Sources:
                     "connectUrl",
                   ],
                   "type": "object",
+                },
+                "requiresSnowflakeReauthentication": {
+                  "const": true,
+                  "type": "boolean",
                 },
                 "status": {
                   "allOf": [
@@ -17412,6 +17512,10 @@ Use them whenever the question needs math the metric query alone can't express; 
                   ],
                   "type": "object",
                 },
+                "requiresSnowflakeReauthentication": {
+                  "const": true,
+                  "type": "boolean",
+                },
                 "status": {
                   "allOf": [
                     {
@@ -17927,6 +18031,10 @@ Use them whenever the question needs math the metric query alone can't express; 
                   ],
                   "type": "object",
                 },
+                "requiresSnowflakeReauthentication": {
+                  "const": true,
+                  "type": "boolean",
+                },
                 "status": {
                   "allOf": [
                     {
@@ -18295,6 +18403,10 @@ Each result renders as its own artifact with a "Continue exploring in SQL Runner
                     "connectUrl",
                   ],
                   "type": "object",
+                },
+                "requiresSnowflakeReauthentication": {
+                  "const": true,
+                  "type": "boolean",
                 },
                 "status": {
                   "allOf": [
@@ -19400,6 +19512,10 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
                       ],
                       "type": "object",
                     },
+                    "requiresSnowflakeReauthentication": {
+                      "const": true,
+                      "type": "boolean",
+                    },
                     "status": {
                       "allOf": [
                         {
@@ -19499,6 +19615,10 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
                         "connectUrl",
                       ],
                       "type": "object",
+                    },
+                    "requiresSnowflakeReauthentication": {
+                      "const": true,
+                      "type": "boolean",
                     },
                     "status": {
                       "enum": [
@@ -20070,6 +20190,10 @@ Pie and series-split charts return readability notes when they have many slices 
                       ],
                       "type": "object",
                     },
+                    "requiresSnowflakeReauthentication": {
+                      "const": true,
+                      "type": "boolean",
+                    },
                     "status": {
                       "allOf": [
                         {
@@ -20162,6 +20286,10 @@ Pie and series-split charts return readability notes when they have many slices 
                         "connectUrl",
                       ],
                       "type": "object",
+                    },
+                    "requiresSnowflakeReauthentication": {
+                      "const": true,
+                      "type": "boolean",
                     },
                     "status": {
                       "allOf": [
@@ -21361,6 +21489,10 @@ Reading the result: the values describe observed data, not the permitted filter 
                   ],
                   "type": "object",
                 },
+                "requiresSnowflakeReauthentication": {
+                  "const": true,
+                  "type": "boolean",
+                },
                 "status": {
                   "allOf": [
                     {
@@ -22055,6 +22187,10 @@ When no field matches literally, the result lists the closest catalog matches (f
                     "connectUrl",
                   ],
                   "type": "object",
+                },
+                "requiresSnowflakeReauthentication": {
+                  "const": true,
+                  "type": "boolean",
                 },
                 "status": {
                   "allOf": [
@@ -22799,6 +22935,10 @@ Use a metric's default time dimension unless the user asks for a different one.
                   ],
                   "type": "object",
                 },
+                "requiresSnowflakeReauthentication": {
+                  "const": true,
+                  "type": "boolean",
+                },
                 "status": {
                   "allOf": [
                     {
@@ -23259,6 +23399,10 @@ It reports references, not values: when a field keeps its id but its SQL or aggr
                     "connectUrl",
                   ],
                   "type": "object",
+                },
+                "requiresSnowflakeReauthentication": {
+                  "const": true,
+                  "type": "boolean",
                 },
                 "status": {
                   "allOf": [
@@ -23773,6 +23917,10 @@ Search or list metrics and dimensions across every explore at once, as one flat,
                   ],
                   "type": "object",
                 },
+                "requiresSnowflakeReauthentication": {
+                  "const": true,
+                  "type": "boolean",
+                },
                 "status": {
                   "allOf": [
                     {
@@ -24091,6 +24239,10 @@ Reading the result: the values describe observed data, not the permitted filter 
                   "connectUrl",
                 ],
                 "type": "object",
+              },
+              "requiresSnowflakeReauthentication": {
+                "const": true,
+                "type": "boolean",
               },
               "status": {
                 "allOf": [
@@ -25457,6 +25609,10 @@ Use them whenever the question needs math the metric query alone can't express; 
                   "connectUrl",
                 ],
                 "type": "object",
+              },
+              "requiresSnowflakeReauthentication": {
+                "const": true,
+                "type": "boolean",
               },
               "status": {
                 "allOf": [
