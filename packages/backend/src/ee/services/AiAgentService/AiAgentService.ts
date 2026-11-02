@@ -60,6 +60,7 @@ import {
     AnyType,
     ApiAiAgentArtifactVizQuery,
     ApiAiAgentComposerArtifactChartStage,
+    ApiAiAgentSlackChartImageRequest,
     ApiAiAgentThreadCreateRequest,
     ApiAiAgentThreadDataAppRestoreRequest,
     ApiAiAgentThreadDataAppRestoreResponse,
@@ -83,6 +84,7 @@ import {
     buildAgentIdentityClaim,
     CatalogType,
     CommercialFeatureFlags,
+    composerBuiltinChartVizConfigSchemaV1,
     composerNodeContextKey,
     ConflictError,
     ContentType,
@@ -2480,6 +2482,48 @@ export class AiAgentService extends BaseService {
             });
             return null;
         }
+    }
+
+    /** Debug harness: draws caller-provided rows exactly as the Slack composer chart image. */
+    public async renderSlackChartImage(
+        user: SessionUser,
+        projectUuid: string,
+        { title, columns, rows, vizConfig }: ApiAiAgentSlackChartImageRequest,
+    ): Promise<Buffer> {
+        if (!(await this.getIsCopilotEnabled(user))) {
+            throw new ForbiddenError('Copilot is not enabled');
+        }
+        const project = await this.projectModel.getSummary(projectUuid);
+        if (
+            project.organizationUuid !== user.organizationUuid ||
+            this.createAuditedAbility(user).cannot(
+                'manage',
+                subject('AiAgent', {
+                    organizationUuid: project.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        const parsed =
+            composerBuiltinChartVizConfigSchemaV1.safeParse(vizConfig);
+        if (!parsed.success) {
+            throw new ParameterError(
+                `Invalid vizConfig: ${parsed.error.message}`,
+            );
+        }
+        const options = await getComposerSlackEchartsConfig({
+            columns,
+            rows,
+            vizConfig: parsed.data,
+            metadata: { title, description: '' },
+            getPivotedResults,
+        });
+        if (!options) {
+            throw new ParameterError('This chart has no Slack image');
+        }
+        return renderEcharts(options);
     }
 
     private async uploadSlackAgentCardImage(

@@ -350,6 +350,7 @@ export const REST_OPERATION_CAPABILITIES = {
     'AiAgentController.pinAgentThread': [AgentCapability.ContentWrite],
     'AiAgentController.refreshMcpServerTools': [AgentCapability.Administration],
     'AiAgentController.renameMcpServer': [AgentCapability.Administration],
+    'AiAgentController.renderSlackChartImage': [AgentCapability.Administration],
     'AiAgentController.restoreAgentThreadDataAppVersion': [
         AgentCapability.ContentWrite,
     ],

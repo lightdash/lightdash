@@ -24,6 +24,7 @@ import {
     ApiAiAgentModelOptionsResponse,
     ApiAiAgentProjectThreadSummaryListResponse,
     ApiAiAgentResponse,
+    ApiAiAgentSlackChartImageRequest,
     ApiAiAgentSqlApprovalRequest,
     ApiAiAgentSqlApprovalResponse,
     ApiAiAgentSummaryResponse,
@@ -103,6 +104,7 @@ import {
     SuccessResponse,
 } from '@tsoa/runtime';
 import express from 'express';
+import { Readable } from 'stream';
 import { toSessionUser } from '../../auth/account';
 import { requireOAuthScopeOperation } from '../../auth/oauthScopes/unchecked';
 import {
@@ -164,6 +166,30 @@ export class AiAgentController extends BaseController {
                 projectUuid,
             ),
         };
+    }
+
+    /**
+     * Draw rows with a visualize-tool viz config as the Slack chart image, for debugging the Slack renderer.
+     * @summary Render Slack chart image
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/slack-chart-image')
+    @OperationId('renderSlackChartImage')
+    async renderSlackChartImage(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Body() body: ApiAiAgentSlackChartImageRequest,
+    ): Promise<Readable> {
+        assertRegisteredAccount(req.account);
+        const image = await this.getAiAgentService().renderSlackChartImage(
+            toSessionUser(req.account),
+            projectUuid,
+            body,
+        );
+        this.setStatus(200);
+        this.setHeader('Content-Type', 'image/png');
+        return Readable.from(image);
     }
 
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
