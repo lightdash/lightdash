@@ -12,6 +12,7 @@ import {
     OAUTH_REQUEST_TIMEOUT_MS,
     OAuthRequestTimeoutError,
 } from '../../../auth/oauthRequestDeadline';
+import { toolErrorOutput } from '../../../ee/services/ai/utils/toolErrorHandler';
 import {
     createDatabase,
     deferred,
@@ -680,3 +681,44 @@ describe('Snowflake OAuth refresh concurrency', () => {
         expect(f.transaction).toHaveBeenCalledTimes(2);
     });
 });
+
+test.each([
+    'user',
+    'organization',
+    'project',
+    'warehouseConnection',
+    null,
+] as const)(
+    'offers personal chat recovery only for a personal credential owner (%s)',
+    async (kind) => {
+        const f = setup();
+        f.exchange.mockRejectedValue({
+            data: JSON.stringify({ message: 'invalid_grant' }),
+        });
+        const getOwner = (): CredentialOwner | null => {
+            if (kind === null) {
+                return null;
+            }
+            if (kind === 'user') {
+                return {
+                    kind,
+                    uuid: 'row',
+                    purpose: UserWarehouseCredentialPurpose.DEFAULT,
+                };
+            }
+            return { kind, uuid: 'row' };
+        };
+        const owner = getOwner();
+        const error = await f.resolver
+            .resolve({ ...selection(), owner })
+            .catch((caught: unknown) => caught);
+        expect(error).toBeInstanceOf(SnowflakeTokenError);
+        const output = toolErrorOutput(error, 'Error running query.');
+        expect(output.metadata.requiresSnowflakeReauthentication).toBe(
+            kind === 'user' ? true : undefined,
+        );
+        if (kind !== 'user') {
+            expect(output.result).not.toContain('your own Snowflake account');
+        }
+    },
+);

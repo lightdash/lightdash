@@ -24,6 +24,10 @@ export const DEFAULT_UI_STRINGS = {
     'agentAttribution.dataApp': 'Data app',
     'agentAttribution.aiSummary': 'AI summary',
 
+    'aiAccess.snowflakeSignInExpired': 'Your Snowflake sign-in has expired.',
+    'aiAccess.snowflakeReconnect': 'Re-authenticate with Snowflake',
+    'aiAccess.snowflakeReconnected':
+        'You are reconnected. Send your question again to continue.',
     'aiAccess.runAsMe': 'Run as me',
     'aiAccess.alsoNeeded': 'Also needed: {requirements}',
     'aiAccess.requirements.capabilities.read_discover': 'Read and discover',

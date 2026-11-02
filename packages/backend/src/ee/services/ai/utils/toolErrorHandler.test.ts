@@ -5,6 +5,8 @@ import {
     ForbiddenError,
     MissingWarehouseCredentialsError,
     NotFoundError,
+    PersonSignInProvider,
+    SnowflakeTokenError,
     toolErrorStructuredContentSchema,
     toolRunSqlOutputSchema,
     UnexpectedServerError,
@@ -208,4 +210,47 @@ test('appends plain additional requirements and See why without changing the fir
         error: output.result,
         refusal: error.refusal,
     });
+});
+
+test('preserves personal Snowflake reauthentication through tool metadata parsing', () => {
+    const output = toolErrorOutput(
+        new SnowflakeTokenError('Error refreshing snowflake token', {
+            requiresUserReauthentication: true,
+        }),
+        'Error running query.',
+    );
+    expect(output.metadata).toMatchObject({
+        requiresSnowflakeReauthentication: true,
+    });
+    expect(toolRunSqlOutputSchema.parse(output).metadata).toMatchObject({
+        requiresSnowflakeReauthentication: true,
+    });
+    expect(output.result).toContain('Your Snowflake sign-in has expired');
+    expect(output.result).not.toContain('Try again');
+});
+
+test('does not offer personal reauthentication for an expired shared project sign-in', () => {
+    const error = new SnowflakeTokenError('Ask a project admin to reconnect.', {
+        sharedSignIn: {
+            projectUuid: 'project',
+            provider: PersonSignInProvider.SNOWFLAKE,
+            subjectUserUuid: null,
+            subjectName: null,
+            subjectBasis: null,
+        },
+    });
+    const output = toolErrorOutput(error, 'Error running query.');
+    expect(output.metadata).toEqual({ status: 'error' });
+    expect(output.result).toContain(error.message);
+    expect(output.result).not.toContain('your own Snowflake account');
+});
+
+test('keeps unattributed Snowflake token errors unchanged', () => {
+    const output = toolErrorOutput(
+        new SnowflakeTokenError('Expired token'),
+        'Error running query.',
+    );
+    expect(output.metadata).toEqual({ status: 'error' });
+    expect(output.result).toContain('Expired token');
+    expect(output.result).not.toContain('your own Snowflake account');
 });

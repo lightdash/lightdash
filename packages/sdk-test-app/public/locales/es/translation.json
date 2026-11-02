@@ -100,6 +100,9 @@
         }
     },
     "uiOverrides": {
+        "aiAccess.snowflakeSignInExpired": "Tu sesión de Snowflake ha caducado.",
+        "aiAccess.snowflakeReconnect": "Volver a autenticar con Snowflake",
+        "aiAccess.snowflakeReconnected": "Te has vuelto a conectar. Envía tu pregunta de nuevo para continuar.",
         "aiAccess.alsoNeeded": "También se necesita: {requirements}",
         "aiAccess.requirements.capabilities.read_discover": "Leer y descubrir",
         "aiAccess.requirements.capabilities.query": "Consultar datos",
