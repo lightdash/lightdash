@@ -66,6 +66,11 @@ type Props = {
     isCompactDrawerSuppressed?: boolean;
     /** How the filter row aligns its items (default `flex-start`). */
     filtersAlign?: 'flex-start' | 'center';
+    /**
+     * Wraps the parameters in their own column beside a filter area that
+     * spans several lines (default false: inline with the filters).
+     */
+    isParametersColumn?: boolean;
 };
 
 export const DashboardFiltersBar: FC<Props> = ({
@@ -89,6 +94,7 @@ export const DashboardFiltersBar: FC<Props> = ({
     filterArea,
     isCompactDrawerSuppressed = false,
     filtersAlign = 'flex-start',
+    isParametersColumn = false,
 }) => {
     const compact = useCompactContentHeader();
     const [opened, { open, close }] = useDisclosure(false);
@@ -132,10 +138,8 @@ export const DashboardFiltersBar: FC<Props> = ({
 
     const renderFilters = !isAddFilterDisabled || isEditMode || hasFilters;
 
-    // A swapped-in filter area spans several lines: the parameters wrap in
-    // their own column beside it, not under it
     const wrapParameters = (node: ReactNode) =>
-        filterArea ? (
+        isParametersColumn ? (
             <Group className={classes.parameters} gap="xs">
                 {node}
             </Group>
