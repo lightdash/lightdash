@@ -104,9 +104,8 @@ export const selectAllFilterableFieldsMap = createSelector(
     [selectAllFilterableFields],
     (fields) =>
         fields && fields.length > 0
-            ? fields.reduce<Record<string, FilterableDimension>>(
-                  (sum, field) => ({ ...sum, [getItemId(field)]: field }),
-                  {},
+            ? Object.fromEntries(
+                  fields.map((field) => [getItemId(field), field]),
               )
             : emptyFieldsMap,
 );
@@ -116,9 +115,8 @@ export const selectAllFilterableMetricsMap = createSelector(
     [selectAllFilterableMetrics],
     (metrics) =>
         metrics && metrics.length > 0
-            ? metrics.reduce<Record<string, Metric>>(
-                  (sum, field) => ({ ...sum, [getItemId(field)]: field }),
-                  {},
+            ? Object.fromEntries(
+                  metrics.map((metric) => [getItemId(metric), metric]),
               )
             : emptyMetricsMap,
 );
