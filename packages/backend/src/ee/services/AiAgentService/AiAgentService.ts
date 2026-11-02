@@ -21756,6 +21756,10 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
             return;
         }
 
+        if (slackSettings.aiMultiAgentRequireMention) {
+            return;
+        }
+
         Logger.info(`Got message event in multi-agent channel: ${event.text}`);
 
         // Handle authentication
