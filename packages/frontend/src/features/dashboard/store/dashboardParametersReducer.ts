@@ -7,6 +7,7 @@ import {
 } from '@lightdash/common';
 import { createAction, type UnknownAction } from '@reduxjs/toolkit';
 import isEqual from 'lodash/isEqual';
+import union from 'lodash/union';
 import { reconcileDashboardParameters } from '../../../providers/Dashboard/dashboardParametersUrl';
 
 export type DashboardParametersState = {
@@ -22,7 +23,12 @@ export type DashboardParametersState = {
     hasParameterOrderChanged: boolean;
     parameterDefinitions: ParameterDefinitions;
     parameterLabelOverrides: LanguageMap['parameters'];
+    /** Each tile's references: the union of the two sources below */
     tileParameterReferences: Record<string, string[]>;
+    /** From each tile's own query response */
+    tileQueryParameterReferences: Record<string, string[]>;
+    /** From the dashboard's list of tile references, before tiles run */
+    tileListedParameterReferences: Record<string, string[]>;
     tileChartSavedParameters: Record<string, ParametersValuesMap>;
     tileVirtualViewSavedParameters: Record<string, ParametersValuesMap>;
 };
@@ -39,6 +45,8 @@ export const initialDashboardParametersState: DashboardParametersState = {
     parameterDefinitions: {},
     parameterLabelOverrides: undefined,
     tileParameterReferences: {},
+    tileQueryParameterReferences: {},
+    tileListedParameterReferences: {},
     tileChartSavedParameters: {},
     tileVirtualViewSavedParameters: {},
 };
@@ -86,6 +94,11 @@ export const dashboardParametersActions = {
         tileUuid: string;
         references: string[];
     }>('dashboardParameters/addParameterReferences'),
+    /** References listed for a tile before it runs; kept alongside its query's */
+    addListedParameterReferences: createAction<{
+        tileUuid: string;
+        references: string[];
+    }>('dashboardParameters/addListedParameterReferences'),
     setTileChartSavedParameters: createAction<{
         tileUuid: string;
         values: ParametersValuesMap;
@@ -263,9 +276,33 @@ export const dashboardParametersReducer = (
         const { tileUuid, references } = action.payload;
         return {
             ...state,
+            tileQueryParameterReferences: {
+                ...state.tileQueryParameterReferences,
+                [tileUuid]: references,
+            },
             tileParameterReferences: {
                 ...state.tileParameterReferences,
+                [tileUuid]: union(
+                    state.tileListedParameterReferences[tileUuid] ?? [],
+                    references,
+                ),
+            },
+        };
+    }
+    if (dashboardParametersActions.addListedParameterReferences.match(action)) {
+        const { tileUuid, references } = action.payload;
+        return {
+            ...state,
+            tileListedParameterReferences: {
+                ...state.tileListedParameterReferences,
                 [tileUuid]: references,
+            },
+            tileParameterReferences: {
+                ...state.tileParameterReferences,
+                [tileUuid]: union(
+                    references,
+                    state.tileQueryParameterReferences[tileUuid] ?? [],
+                ),
             },
         };
     }
@@ -305,6 +342,14 @@ export const dashboardParametersReducer = (
             state.tileParameterReferences,
             tileUuids,
         );
+        const tileQueryParameterReferences = keepTiles(
+            state.tileQueryParameterReferences,
+            tileUuids,
+        );
+        const tileListedParameterReferences = keepTiles(
+            state.tileListedParameterReferences,
+            tileUuids,
+        );
         const tileChartSavedParameters = keepTiles(
             state.tileChartSavedParameters,
             tileUuids,
@@ -314,6 +359,10 @@ export const dashboardParametersReducer = (
             tileUuids,
         );
         return tileParameterReferences === state.tileParameterReferences &&
+            tileQueryParameterReferences ===
+                state.tileQueryParameterReferences &&
+            tileListedParameterReferences ===
+                state.tileListedParameterReferences &&
             tileChartSavedParameters === state.tileChartSavedParameters &&
             tileVirtualViewSavedParameters ===
                 state.tileVirtualViewSavedParameters
@@ -321,6 +370,8 @@ export const dashboardParametersReducer = (
             : {
                   ...state,
                   tileParameterReferences,
+                  tileQueryParameterReferences,
+                  tileListedParameterReferences,
                   tileChartSavedParameters,
                   tileVirtualViewSavedParameters,
               };

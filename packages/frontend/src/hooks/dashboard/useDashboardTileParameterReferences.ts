@@ -66,10 +66,10 @@ export const useDashboardTileParameterReferences = ({
     useEffect(() => {
         if (!isEnabled || !data) return;
         data.forEach((result) => {
-            // A failed tile keeps whatever its own query response registers
+            // A failed tile keeps what its own query response registers
             if (result.error !== null) return;
             store.dispatch(
-                dashboardParametersActions.addParameterReferences({
+                dashboardParametersActions.addListedParameterReferences({
                     tileUuid: result.tileUuid,
                     references: result.parameterReferences,
                 }),

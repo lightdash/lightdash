@@ -348,6 +348,52 @@ describe('dashboardParametersReducer', () => {
             ).toBe(next);
         });
 
+        it.each([
+            ['listed first', ['listed', 'query']],
+            ['query first', ['query', 'listed']],
+        ] as const)(
+            'keeps the union of listed and query references (%s)',
+            (_name, order) => {
+                const byOrigin = {
+                    listed: actions.addListedParameterReferences({
+                        tileUuid: 'tile-1',
+                        references: ['status', 'region'],
+                    }),
+                    query: actions.addParameterReferences({
+                        tileUuid: 'tile-1',
+                        references: ['status', 'week_start'],
+                    }),
+                };
+                const next = order.reduce(
+                    (state, origin) => reducer(state, byOrigin[origin]),
+                    stateWith(),
+                );
+                expect(
+                    [...next.tileParameterReferences['tile-1']].sort(),
+                ).toEqual(['region', 'status', 'week_start']);
+            },
+        );
+
+        it('replaces only the source that reports again', () => {
+            const next = [
+                actions.addListedParameterReferences({
+                    tileUuid: 'tile-1',
+                    references: ['region'],
+                }),
+                actions.addParameterReferences({
+                    tileUuid: 'tile-1',
+                    references: ['status'],
+                }),
+                actions.addParameterReferences({
+                    tileUuid: 'tile-1',
+                    references: ['week_start'],
+                }),
+            ].reduce(reducer, stateWith());
+            expect(next.tileParameterReferences).toEqual({
+                'tile-1': ['region', 'week_start'],
+            });
+        });
+
         it('setTileChartSavedParameters stores values and no-ops on deep-equal ones', () => {
             const next = reducer(
                 stateWith(),
