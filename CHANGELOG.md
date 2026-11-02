@@ -1,3 +1,10 @@
+# [3.118.0](https://github.com/lightdash/lightdash/compare/3.117.0...3.118.0) (2026-11-02)
+
+
+### Features
+
+* **ai:** custom metrics and period comparisons on composer semanticLayer node ([#31561](https://github.com/lightdash/lightdash/issues/31561)) ([7d4f30a](https://github.com/lightdash/lightdash/commit/7d4f30a4acc9e769d20021c9ab5ae8e9c8fb4c48))
+
 # [3.117.0](https://github.com/lightdash/lightdash/compare/3.116.0...3.117.0) (2026-11-02)
 
 
