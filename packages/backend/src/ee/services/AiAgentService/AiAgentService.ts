@@ -18620,8 +18620,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         };
     }
 
-    // Always ≥1 message so the stream closes. Cards, feedback and any truncation
-    // notice ride on the last answer message; native tables post on their own.
+    // Always ≥1 message so the stream closes. With native tables, the tables and
+    // every block after them (cards, feedback) post as their own last message.
     private static getSlackAnswerMessages({
         slackResponse,
         trailingBlocks,
