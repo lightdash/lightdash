@@ -37,6 +37,10 @@ import { AppLineageView } from '../features/apps/lineage/AppLineageView';
 import { AppViewSwitcher } from '../features/apps/lineage/AppViewSwitcher';
 import { useAppLineageView } from '../features/apps/lineage/useAppLineageView';
 import { usePreviewOrigin } from '../features/apps/previewOrigin';
+import {
+    buildAppPreviewSrc,
+    useAppDevSrc,
+} from '../features/apps/utils/appDevSrc';
 import { useProjectUuid } from '../hooks/useProjectUuid';
 import { useRecordContentView } from '../hooks/useRecordContentView';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
@@ -210,6 +214,7 @@ export default function AppPreviewTest() {
     useRegisterLauncherAnalysisAdapter(analysisAdapter);
 
     const previewOrigin = usePreviewOrigin();
+    const appDevSrc = useAppDevSrc();
 
     // Presentation mode: native fullscreen with all Lightdash chrome hidden
     // (navbar hides itself via the shared context). Esc exits via the
@@ -290,9 +295,19 @@ export default function AppPreviewTest() {
         );
     }
 
-    const previewUrl = token
-        ? `${previewOrigin}/api/apps/${appUuid}/versions/${version}/t/${token}/?r=${refreshKey}#transport=postMessage&projectUuid=${projectUuid}`
-        : undefined;
+    const preview =
+        token && version !== undefined
+            ? buildAppPreviewSrc({
+                  devSrc: appDevSrc,
+                  previewOrigin,
+                  projectUuid,
+                  appUuid,
+                  version,
+                  token,
+                  refreshKey,
+              })
+            : undefined;
+    const previewUrl = preview?.src;
 
     // App data is loaded — always render the header chrome so users can still
     // navigate (rename, delete, "Continue building", …) when there's nothing
@@ -324,7 +339,7 @@ export default function AppPreviewTest() {
                     ref={previewRef}
                     src={previewUrl}
                     previewToken={token}
-                    expectedPreviewOrigin={previewOrigin}
+                    expectedPreviewOrigin={preview?.origin ?? previewOrigin}
                     projectUuid={projectUuid}
                     appUuid={appUuid}
                     identityKey={identityKey}

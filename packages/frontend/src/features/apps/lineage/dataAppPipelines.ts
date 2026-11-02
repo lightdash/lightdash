@@ -200,7 +200,7 @@ export const toDataAppPipelines = (
     ].sort((a, b) => a.timestamp - b.timestamp);
 };
 
-export const terminalQueryUuidOf = (pipeline: DataAppPipeline): string | null =>
+const terminalQueryUuidOf = (pipeline: DataAppPipeline): string | null =>
     pipeline.nodeQueryUuids[pipeline.terminalNodeId] ?? null;
 
 /** What the app outlines for a pipeline, or for one of its nodes. */

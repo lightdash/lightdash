@@ -19,6 +19,7 @@ import type {
     SdkManifest,
 } from '../hooks/useAppSdkBridge';
 import { usePreviewOrigin } from '../previewOrigin';
+import { buildAppPreviewSrc, useAppDevSrc } from '../utils/appDevSrc';
 
 export type AppPreviewProps = {
     projectUuid: string;
@@ -107,9 +108,19 @@ const AppPreview = forwardRef<AppIframePreviewHandle, AppPreviewProps>(
         );
 
         const previewOrigin = usePreviewOrigin();
-        const previewUrl = token
-            ? `${previewOrigin}/api/apps/${appUuid}/versions/${version}/t/${token}/?r=${refreshKey}#transport=postMessage&projectUuid=${projectUuid}`
+        const appDevSrc = useAppDevSrc();
+        const preview = token
+            ? buildAppPreviewSrc({
+                  devSrc: appDevSrc,
+                  previewOrigin,
+                  projectUuid,
+                  appUuid,
+                  version,
+                  token,
+                  refreshKey,
+              })
             : undefined;
+        const previewUrl = preview?.src;
         const visibleError = getVisiblePreviewTokenError(error, !!token);
 
         if (isLoading) {
@@ -141,7 +152,7 @@ const AppPreview = forwardRef<AppIframePreviewHandle, AppPreviewProps>(
                 ref={ref}
                 src={previewUrl}
                 previewToken={token}
-                expectedPreviewOrigin={previewOrigin}
+                expectedPreviewOrigin={preview?.origin ?? previewOrigin}
                 projectUuid={projectUuid}
                 appUuid={appUuid}
                 identityKey={appUuid}
