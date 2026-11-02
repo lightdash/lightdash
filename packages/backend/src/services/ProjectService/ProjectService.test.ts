@@ -79,6 +79,7 @@ import {
     SupportedDbtVersions,
     TableCalculation,
     TableCalculationTemplateType,
+    TimeFrames,
     UserWarehouseCredentialPurpose,
     VizAggregationOptions,
     VizIndexType,
@@ -18524,6 +18525,184 @@ describe('assertCustomSqlAuthorizedForQuery', () => {
                 },
             }),
         ).rejects.toThrow(CustomSqlQueryForbiddenError);
+    });
+});
+
+describe('available filter week boundaries', () => {
+    const weeklyExplore = (
+        name: string,
+        type = ExploreType.DEFAULT,
+    ): Explore => ({
+        ...validExplore,
+        name,
+        type,
+        tables: {
+            a: {
+                ...validExplore.tables.a,
+                dimensions: {
+                    week: {
+                        ...validExplore.tables.a.dimensions.dim1,
+                        name: 'week',
+                        type: DimensionType.DATE,
+                        timeInterval: TimeFrames.WEEK,
+                    },
+                },
+                metrics: {},
+            },
+        },
+    });
+
+    test.each([
+        {
+            type: ExploreType.EXTERNAL_SOURCE,
+            startOfWeek: null,
+            expected: WeekDay.MONDAY,
+        },
+        {
+            type: ExploreType.EXTERNAL_SOURCE,
+            startOfWeek: WeekDay.WEDNESDAY,
+            expected: WeekDay.WEDNESDAY,
+        },
+        {
+            type: ExploreType.DEFAULT,
+            startOfWeek: null,
+            expected: WeekDay.SUNDAY,
+        },
+        {
+            type: ExploreType.DEFAULT,
+            startOfWeek: WeekDay.MONDAY,
+            expected: WeekDay.MONDAY,
+        },
+    ])(
+        'uses the effective boundary for $type with start $startOfWeek',
+        async ({ type, startOfWeek, expected }) => {
+            const service = getMockedProjectService(
+                lightdashConfigWithGoogleOAuthMock,
+            );
+            const explore = weeklyExplore('weekly', type);
+            vi.spyOn(
+                service,
+                'getWarehouseSqlBuilderSettings',
+            ).mockResolvedValue({
+                type: WarehouseTypes.BIGQUERY,
+                startOfWeek,
+                columnTimezone: 'UTC',
+                dataTimezone: null,
+            });
+
+            const filters = await service.getFilterableDimensionsForExplore(
+                projectSummary.projectUuid,
+                explore,
+            );
+
+            expect(filters).toEqual([
+                {
+                    ...explore.tables.a.dimensions.week,
+                    filterStartOfWeek: expected,
+                },
+            ]);
+            expect(explore.tables.a.dimensions.week).not.toHaveProperty(
+                'filterStartOfWeek',
+            );
+        },
+    );
+
+    test('does not read warehouse settings for non-week filters', async () => {
+        const service = getMockedProjectService(
+            lightdashConfigWithGoogleOAuthMock,
+        );
+        const settings = vi.spyOn(service, 'getWarehouseSqlBuilderSettings');
+
+        const filters = await service.getFilterableDimensionsForExplore(
+            projectSummary.projectUuid,
+            validExplore,
+        );
+
+        expect(filters.length).toBeGreaterThan(0);
+        expect(
+            filters.every((field) => field.filterStartOfWeek === undefined),
+        ).toBe(true);
+        expect(settings).not.toHaveBeenCalled();
+    });
+
+    test('keeps native and DuckDB boundaries distinct and resolves repeated explores once', async () => {
+        const filterAccount = {
+            ...account,
+            user: {
+                ...account.user,
+                ability: new Ability<PossibleAbilities>([
+                    { subject: 'Project', action: 'view' },
+                    { subject: 'SavedChart', action: 'view' },
+                ]),
+            },
+        } as typeof account;
+        const explores = [
+            weeklyExplore('native'),
+            weeklyExplore('upload', ExploreType.EXTERNAL_SOURCE),
+        ];
+        const charts = ['native', 'upload', 'upload'].map(
+            (tableName, index) => ({
+                uuid: `weekly-chart-${index}`,
+                name: 'Weekly chart',
+                tableName,
+                projectUuid: projectSummary.projectUuid,
+                spaceUuid: 'space',
+                dashboardUuid: null,
+            }),
+        );
+        savedChartModel.getInfoForAvailableFilters.mockResolvedValueOnce(
+            charts,
+        );
+        const service = getMockedProjectService(
+            lightdashConfigWithGoogleOAuthMock,
+            {
+                spacePermissionService: {
+                    resolveAccessBatch: vi.fn().mockResolvedValue(
+                        charts.map((chart) => ({
+                            target: { type: 'chart', chartUuid: chart.uuid },
+                            context: {
+                                organizationUuid:
+                                    account.organization.organizationUuid,
+                                projectUuid: projectSummary.projectUuid,
+                                inheritsFromOrgOrProject: true,
+                                access: [],
+                            },
+                        })),
+                    ),
+                } as unknown as SpacePermissionService,
+            },
+        );
+        vi.spyOn(service, 'findExplores').mockResolvedValue(
+            Object.fromEntries(
+                explores.map((explore) => [explore.name, explore]),
+            ),
+        );
+        const settings = vi
+            .spyOn(service, 'getWarehouseSqlBuilderSettings')
+            .mockResolvedValue({
+                type: WarehouseTypes.BIGQUERY,
+                startOfWeek: null,
+                columnTimezone: 'UTC',
+                dataTimezone: null,
+            });
+
+        const result = await service.getAvailableFiltersForSavedQueries(
+            filterAccount,
+            charts.map((chart, index) => ({
+                savedChartUuid: chart.uuid,
+                tileUuid: `weekly-tile-${index}`,
+            })),
+        );
+
+        expect(
+            result.allFilterableFields.map((field) => field.filterStartOfWeek),
+        ).toEqual([WeekDay.SUNDAY, WeekDay.MONDAY]);
+        expect(result.savedQueryFilters).toEqual({
+            'weekly-tile-0': [0],
+            'weekly-tile-1': [1],
+            'weekly-tile-2': [1],
+        });
+        expect(settings).toHaveBeenCalledTimes(2);
     });
 });
 

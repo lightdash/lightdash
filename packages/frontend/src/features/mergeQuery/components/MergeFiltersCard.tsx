@@ -35,7 +35,7 @@ const SourceFilters: FC<{
     setFilters: (filters: Filters) => void;
 }> = ({ query, label, setFilters }) => {
     const projectUuid = useProjectUuid();
-    const { startOfWeek } = useExploreWarehouseConnection(
+    const { startOfWeek, warehouseType } = useExploreWarehouseConnection(
         query.exploreName,
         projectUuid,
     );
@@ -65,6 +65,7 @@ const SourceFilters: FC<{
                 projectUuid={projectUuid}
                 itemsMap={fields}
                 startOfWeek={startOfWeek ?? undefined}
+                warehouseType={warehouseType}
                 popoverProps={{ withinPortal: true }}
                 baseTable={explore?.baseTable}
                 parameterValues={parameterValues}

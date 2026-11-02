@@ -54,7 +54,7 @@ export const useDataForFiltersProvider = (
     const rows = queryResults.rows;
 
     const { data: exploreData } = useExplore(tableName);
-    const { startOfWeek } = useExploreWarehouseConnection(
+    const { startOfWeek, warehouseType } = useExploreWarehouseConnection(
         tableName ?? null,
         projectUuid,
     );
@@ -72,5 +72,6 @@ export const useDataForFiltersProvider = (
         projectUuid,
         fieldsMap: fieldsWithSuggestions,
         startOfWeek,
+        warehouseType,
     };
 };

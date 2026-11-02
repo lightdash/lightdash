@@ -1,6 +1,7 @@
 import { SupportedDbtAdapter } from '../types/dbt';
 import { ParseError } from '../types/errors';
 import { DimensionType, type TimestampDomain } from '../types/field';
+import { type WarehouseTypes } from '../types/projects';
 import { DateGranularity, TimeFrames } from '../types/timeFrames';
 
 export enum WeekDay {
@@ -12,6 +13,18 @@ export enum WeekDay {
     SATURDAY,
     SUNDAY,
 }
+
+export const getDefaultStartOfWeek = (
+    adapterType: SupportedDbtAdapter | WarehouseTypes,
+): WeekDay => {
+    switch (adapterType) {
+        case SupportedDbtAdapter.BIGQUERY:
+        case SupportedDbtAdapter.CLICKHOUSE:
+            return WeekDay.SUNDAY;
+        default:
+            return WeekDay.MONDAY;
+    }
+};
 
 export const isWeekDay = (value: unknown): value is WeekDay =>
     Number.isSafeInteger(value) &&
