@@ -185,7 +185,7 @@ const fromPipelineEvent = (
 /**
  * Every lineage entry, oldest first: composer pipelines plus each tracked
  * query as a one-node pipeline. Blank rows (failures before the request was
- * parsed) are skipped.
+ * parsed) and saved charts run as a pipeline's source are skipped.
  */
 export const toDataAppPipelines = (
     queries: QueryEvent[],
@@ -194,8 +194,16 @@ export const toDataAppPipelines = (
     const queriesByUuid = new Map(
         queries.flatMap((q) => (q.queryUuid ? [[q.queryUuid, q]] : [])),
     );
+    const pipelineSourceUuids = new Set(
+        pipelines.flatMap((p) => p.savedChartNodes.map((n) => n.queryUuid)),
+    );
+    const standaloneQueries = queries.filter(
+        (q) =>
+            q.exploreName !== '' &&
+            (q.queryUuid === null || !pipelineSourceUuids.has(q.queryUuid)),
+    );
     return [
-        ...queries.filter((q) => q.exploreName !== '').map(fromQueryEvent),
+        ...standaloneQueries.map(fromQueryEvent),
         ...pipelines.map((p) => fromPipelineEvent(p, queriesByUuid)),
     ].sort((a, b) => a.timestamp - b.timestamp);
 };

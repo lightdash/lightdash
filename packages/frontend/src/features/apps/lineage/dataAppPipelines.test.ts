@@ -110,7 +110,7 @@ describe('toDataAppPipelines', () => {
         ]);
     });
 
-    it('draws saved-chart sources as nodes and points references at them', () => {
+    it('folds saved-chart sources into the pipeline as nodes', () => {
         const chartRun = queryEvent({
             id: 'chart-run',
             timestamp: 2,
@@ -119,7 +119,7 @@ describe('toDataAppPipelines', () => {
         });
         const pipelines = toDataAppPipelines([chartRun], [pipelineEvent]);
         const composer = pipelines.find((p) => p.kind === 'composer')!;
-        expect(pipelines.map((p) => p.id)).toEqual(['chart-run', 'p1']);
+        expect(pipelines.map((p) => p.id)).toEqual(['p1']);
         expect(composer.savedChartNodeIds).toEqual(['chart']);
         expect(composer.queries).toEqual([
             expect.objectContaining({
@@ -161,7 +161,7 @@ describe('lineage selection and highlight', () => {
                 queryUuid: CHART_QUERY_UUID,
                 queryId: null,
             })?.id,
-        ).toBe('chart');
+        ).toBe('p1');
         expect(
             findPipelineForSelection(pipelines, {
                 queryUuid: 'q-joined',
