@@ -6,8 +6,11 @@ import {
 } from '@lightdash/common';
 import { getVisualizationFiltersCount } from '../../AiVisualizationRenderer.utils';
 
+// Null for a semantic node whose explore is unknown (e.g. an opaque saved chart).
 export const semanticQueryOf = (query: SourceQuery) =>
-    query.sourceType === QuerySourceType.SEMANTIC_LAYER ? query : null;
+    query.sourceType === QuerySourceType.SEMANTIC_LAYER && query.exploreName
+        ? query
+        : null;
 
 export const hasQueryDetails = (query: SemanticLayerSourceQuery) => {
     const { dimensions, metrics, filters, sorts } =

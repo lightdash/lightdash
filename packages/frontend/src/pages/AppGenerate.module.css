@@ -465,3 +465,8 @@
 .themeBadge:disabled {
     cursor: not-allowed;
 }
+
+/* Lineage covers the app; the iframe stays mounted so its state survives. */
+.previewContent[data-lineage-open] iframe {
+    visibility: hidden;
+}

@@ -70,6 +70,12 @@ export type PipelineNotebookProps = {
     chatNodeIds: ReadonlySet<string>;
     /** Null when the pipeline can't be pinned to a chat. */
     onAddToChat: ((node: PipelineNode) => void) | null;
+    /** Overrides the AI agent SQL permission, for non-agent hosts. */
+    canViewSql?: boolean;
+    /** Extra actions in each cell header. */
+    renderNodeActions?: (node: PipelineNode) => ReactNode;
+    /** Pointer entering/leaving a cell header. */
+    onNodeHover?: (nodeId: string | null) => void;
 };
 
 const CellStatus: FC<{
@@ -89,7 +95,7 @@ const CellStatus: FC<{
 
 type CellProps = Omit<
     PipelineNotebookProps,
-    'ref' | 'nodes' | 'chatNodeIds'
+    'ref' | 'nodes' | 'chatNodeIds' | 'onNodeHover'
 > & {
     node: PipelineNode;
     /** The nodes this one reads. */
@@ -112,10 +118,13 @@ const NotebookCell: FC<CellProps> = ({
     flashing,
     onJump,
     onLineageHover,
+    canViewSql: canViewSqlOverride,
+    renderNodeActions,
 }) => {
     const getUiString = useUiStrings();
     const rowsLabel = useComposerNodeRowsLabel();
-    const canViewSql = useCanViewAiAgentSql();
+    const canViewAiAgentSql = useCanViewAiAgentSql();
+    const canViewSql = canViewSqlOverride ?? canViewAiAgentSql;
     const exploreFromHere = useExploreFromHere(projectUuid);
     const [resultsOpen, setResultsOpen] = useState(false);
     const status = nodeStatuses[node.nodeId];
@@ -191,6 +200,7 @@ const NotebookCell: FC<CellProps> = ({
                     )}
                 </Stack>
                 <Group gap="xxs" wrap="nowrap" className={styles.cellActions}>
+                    {renderNodeActions?.(node)}
                     {onAddToChat && !inChat && (
                         <Button
                             size="compact-xs"
@@ -388,6 +398,7 @@ export const PipelineNotebook: FC<PipelineNotebookProps> = ({
     ref,
     nodes,
     chatNodeIds,
+    onNodeHover,
     ...cellProps
 }) => {
     const cellEls = useRef(new Map<string, HTMLDivElement>());
@@ -499,9 +510,11 @@ export const PipelineNotebook: FC<PipelineNotebookProps> = ({
                         inChat={chatNodeIds.has(node.nodeId)}
                         flashing={flashNodeId === node.nodeId}
                         onJump={focusNode}
-                        onLineageHover={(hovering) =>
-                            hovering ? showLineage(node.nodeId) : hideLineage()
-                        }
+                        onLineageHover={(hovering) => {
+                            onNodeHover?.(hovering ? node.nodeId : null);
+                            if (hovering) showLineage(node.nodeId);
+                            else hideLineage();
+                        }}
                         {...cellProps}
                     />
                 </Box>

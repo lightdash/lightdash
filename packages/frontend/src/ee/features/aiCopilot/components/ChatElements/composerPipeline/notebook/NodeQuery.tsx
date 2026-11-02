@@ -36,7 +36,11 @@ import { useExploreByProjectUuid } from '../../../../../../../hooks/useExplore';
 import { useUiStrings } from '../../../../../../providers/Embed/useUiStrings';
 import { SemanticNodeDetails } from '../SemanticNodeDetails';
 import styles from './PipelineNotebook.module.css';
-import { hasQueryDetails, type QueryPanel } from './semanticQueryOf';
+import {
+    hasQueryDetails,
+    semanticQueryOf,
+    type QueryPanel,
+} from './semanticQueryOf';
 
 const codeOf = (
     query: Exclude<SourceQuery, SemanticLayerSourceQuery>,
@@ -248,14 +252,14 @@ const SemanticPanels: FC<
 /** Semantic query views when toggled open; a code cell's code, always. */
 export const CellQueryPanels: FC<CellQueryProps> = ({ query, ...props }) => (
     <Box className={styles.panels}>
-        {query.sourceType === QuerySourceType.SEMANTIC_LAYER ? (
-            <SemanticPanels query={query} {...props} />
-        ) : (
-            props.canViewSql && (
-                <Box className={styles.codePanel}>
-                    <CodeBlock {...codeOf(query)} />
-                </Box>
-            )
-        )}
+        {query.sourceType === QuerySourceType.SEMANTIC_LAYER
+            ? semanticQueryOf(query) && (
+                  <SemanticPanels query={query} {...props} />
+              )
+            : props.canViewSql && (
+                  <Box className={styles.codePanel}>
+                      <CodeBlock {...codeOf(query)} />
+                  </Box>
+              )}
     </Box>
 );

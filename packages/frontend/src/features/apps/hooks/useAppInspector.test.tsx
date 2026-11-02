@@ -38,6 +38,9 @@ const queryEvent = (
 ): QueryEvent => ({
     timestamp: 0,
     label: 'Revenue',
+    queryId: null,
+    description: null,
+    chartUuid: null,
     exploreName: 'orders',
     dimensions: [],
     metrics: ['orders_revenue'],
@@ -158,11 +161,38 @@ describe('useAppInspector', () => {
         expect(screen.queryByText(/Queries \(/)).not.toBeInTheDocument();
 
         act(() =>
-            inspector.iframeProps.onLineageSelected({ queryUuid: 'q-1' }),
+            inspector.iframeProps.onLineageSelected({
+                queryUuid: 'q-1',
+                queryId: null,
+            }),
         );
 
         const row = document.querySelector('[data-query-uuid="q-1"]')!;
         expect(row.className).toMatch(/queryRowFocused/);
-        expect(inspector.iframeProps.lineageHighlightQueryUuid).toBe('q-1');
+        expect(inspector.iframeProps.lineageHighlight).toEqual({
+            queryUuid: 'q-1',
+            queryId: null,
+        });
+    });
+
+    it("resolves an author-id-only selection to that query id's latest run", () => {
+        renderHost();
+        emitQuery(
+            queryEvent({
+                id: 'r1',
+                status: 'ready',
+                queryUuid: 'q-1',
+                queryId: 'revenue',
+            }),
+        );
+
+        act(() =>
+            inspector.iframeProps.onLineageSelected({
+                queryUuid: null,
+                queryId: 'revenue',
+            }),
+        );
+
+        expect(inspector.iframeProps.lineageHighlight?.queryUuid).toBe('q-1');
     });
 });

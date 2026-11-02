@@ -1,4 +1,8 @@
-import { FeatureFlags, isAppVersionInProgress } from '@lightdash/common';
+import {
+    FeatureFlags,
+    isAppVersionInProgress,
+    type AppSdkLineageSelection,
+} from '@lightdash/common';
 import { ActionIcon, Box, Loader, Stack, Text, Tooltip } from '@mantine/core';
 import { IconAppsOff, IconMaximize, IconMinimize } from '@tabler/icons-react';
 import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
@@ -29,6 +33,9 @@ import { useAppInspector } from '../features/apps/hooks/useAppInspector';
 import { useAppPreviewToken } from '../features/apps/hooks/useAppPreviewToken';
 import { useCanEditVerifiedDataApp } from '../features/apps/hooks/useCanEditDataApp';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
+import { AppLineageView } from '../features/apps/lineage/AppLineageView';
+import { AppViewSwitcher } from '../features/apps/lineage/AppViewSwitcher';
+import { useAppLineageView } from '../features/apps/lineage/useAppLineageView';
 import { usePreviewOrigin } from '../features/apps/previewOrigin';
 import { useProjectUuid } from '../hooks/useProjectUuid';
 import { useRecordContentView } from '../hooks/useRecordContentView';
@@ -114,6 +121,23 @@ export default function AppPreviewTest() {
     const identityKey = `${appUuid}:${version}`;
     const inspector = useAppInspector({ identityKey, defaultHidden: true });
     const { rolloverLogs } = inspector;
+    const lineageView = useAppLineageView({
+        identityKey,
+        queries: inspector.panelProps.queries,
+        pipelineEvents: inspector.pipelines,
+    });
+    const showLineage =
+        lineageView.view === 'lineage' && lineageView.canShowLineage;
+    const { onLineageSelected: onInspectorLineageSelected } =
+        inspector.iframeProps;
+    const { handleLineageSelected: onLineageViewSelected } = lineageView;
+    const handleLineageSelected = useCallback(
+        (selection: AppSdkLineageSelection) => {
+            onInspectorLineageSelected(selection);
+            onLineageViewSelected(selection);
+        },
+        [onInspectorLineageSelected, onLineageViewSelected],
+    );
 
     // "Analyse this view": host-side AI analysis over the queries the app
     // ran. Hidden entirely until the org is rolled out; otherwise the panel
@@ -318,7 +342,18 @@ export default function AppPreviewTest() {
                         analysisController.setMountedQueryUuids
                     }
                     {...inspector.iframeProps}
+                    lineageHighlight={
+                        lineageView.highlight ??
+                        inspector.iframeProps.lineageHighlight
+                    }
+                    onLineageSelected={handleLineageSelected}
                 />
+                {showLineage && (
+                    <AppLineageView
+                        projectUuid={projectUuid}
+                        lineage={lineageView}
+                    />
+                )}
                 {!inspector.hidden && !isFullscreen && (
                     <AppInspectorPanel
                         projectUuid={projectUuid}
@@ -377,81 +412,90 @@ export default function AppPreviewTest() {
                         verification: appVerification,
                     }}
                     rightSection={
-                        <AppHeaderActions
-                            capturedQueryCount={inspector.readyQueryCount}
-                            fullscreenToggle={
-                                isFullscreenFeatureEnabled &&
-                                document.fullscreenEnabled ? (
-                                    <Tooltip
-                                        label="Enter Fullscreen Mode"
-                                        position="bottom"
-                                        openDelay={200}
-                                        transitionProps={{
-                                            transition: 'fade',
-                                            duration: 150,
-                                        }}
-                                    >
-                                        <ActionIcon
-                                            variant="default"
-                                            size="md"
-                                            onClick={handleToggleFullscreen}
-                                            aria-label="Enter Fullscreen Mode"
+                        <>
+                            <AppViewSwitcher
+                                view={lineageView.view}
+                                onChange={lineageView.setView}
+                                canShowLineage={lineageView.canShowLineage}
+                            />
+                            <AppHeaderActions
+                                capturedQueryCount={inspector.readyQueryCount}
+                                fullscreenToggle={
+                                    isFullscreenFeatureEnabled &&
+                                    document.fullscreenEnabled ? (
+                                        <Tooltip
+                                            label="Enter Fullscreen Mode"
+                                            position="bottom"
+                                            openDelay={200}
+                                            transitionProps={{
+                                                transition: 'fade',
+                                                duration: 150,
+                                            }}
                                         >
-                                            <MantineIcon
-                                                icon={IconMaximize}
+                                            <ActionIcon
+                                                variant="default"
                                                 size="md"
-                                            />
-                                        </ActionIcon>
-                                    </Tooltip>
-                                ) : null
-                            }
-                            projectUuid={projectUuid}
-                            appUuid={appUuid}
-                            upgrade={null}
-                            appName={appName}
-                            appDescription={appDescription}
-                            appSpaceUuid={appSpaceUuid}
-                            appCreatedByUserUuid={appCreatedByUserUuid}
-                            verification={appVerification}
-                            latestVersionNumber={latestReadyVersion ?? null}
-                            latestVersionStatus={
-                                latestReadyVersion ? 'ready' : null
-                            }
-                            onRefresh={handleRefresh}
-                            refreshDisabled={version === undefined}
-                            captureThumbnail={null}
-                            capturePreviewScreenshot={
-                                screenshotAvailable
-                                    ? capturePreviewScreenshot
-                                    : null
-                            }
-                            previewVersion={version ?? null}
-                            onViewNetwork={inspector.show}
-                            onDeleted={() => {
-                                void navigate(`/projects/${projectUuid}/home`);
-                            }}
-                            onEdit={
-                                canEditApp
-                                    ? () =>
-                                          void navigate(
-                                              `/projects/${projectUuid}/apps/${appUuid}`,
-                                          )
-                                    : null
-                            }
-                            shareUrl={window.location.href}
-                            navItem={null}
-                            askAiItem={
-                                <AskAiAgentMenuItem
-                                    projectUuid={projectUuid}
-                                    dataAppUuid={appUuid}
-                                    clickedFrom={
-                                        explicitVersion === undefined
-                                            ? 'data_app_header'
-                                            : 'data_app_version_header'
-                                    }
-                                />
-                            }
-                        />
+                                                onClick={handleToggleFullscreen}
+                                                aria-label="Enter Fullscreen Mode"
+                                            >
+                                                <MantineIcon
+                                                    icon={IconMaximize}
+                                                    size="md"
+                                                />
+                                            </ActionIcon>
+                                        </Tooltip>
+                                    ) : null
+                                }
+                                projectUuid={projectUuid}
+                                appUuid={appUuid}
+                                upgrade={null}
+                                appName={appName}
+                                appDescription={appDescription}
+                                appSpaceUuid={appSpaceUuid}
+                                appCreatedByUserUuid={appCreatedByUserUuid}
+                                verification={appVerification}
+                                latestVersionNumber={latestReadyVersion ?? null}
+                                latestVersionStatus={
+                                    latestReadyVersion ? 'ready' : null
+                                }
+                                onRefresh={handleRefresh}
+                                refreshDisabled={version === undefined}
+                                captureThumbnail={null}
+                                capturePreviewScreenshot={
+                                    screenshotAvailable
+                                        ? capturePreviewScreenshot
+                                        : null
+                                }
+                                previewVersion={version ?? null}
+                                onViewNetwork={inspector.show}
+                                onDeleted={() => {
+                                    void navigate(
+                                        `/projects/${projectUuid}/home`,
+                                    );
+                                }}
+                                onEdit={
+                                    canEditApp
+                                        ? () =>
+                                              void navigate(
+                                                  `/projects/${projectUuid}/apps/${appUuid}`,
+                                              )
+                                        : null
+                                }
+                                shareUrl={window.location.href}
+                                navItem={null}
+                                askAiItem={
+                                    <AskAiAgentMenuItem
+                                        projectUuid={projectUuid}
+                                        dataAppUuid={appUuid}
+                                        clickedFrom={
+                                            explicitVersion === undefined
+                                                ? 'data_app_header'
+                                                : 'data_app_version_header'
+                                        }
+                                    />
+                                }
+                            />
+                        </>
                     }
                 />
             )}
@@ -464,6 +508,7 @@ export default function AppPreviewTest() {
                 data-tour-resultdocs="data-apps.mdx#space-access:li1"
                 data-tour-return="none"
                 className={classes.previewBody}
+                mod={{ 'lineage-open': showLineage }}
             >
                 {body}
             </Box>

@@ -7,6 +7,8 @@ import {
     APP_SDK_INSIGHT_ACTION_MESSAGE,
     APP_SDK_INSIGHTS_MESSAGE,
     APP_SDK_INSIGHTS_REQUEST_MESSAGE,
+    APP_SDK_LINEAGE_HIGHLIGHT_MESSAGE,
+    APP_SDK_LINEAGE_SELECTED_MESSAGE,
     APP_SDK_MOUNTED_QUERIES_MESSAGE,
     APP_SDK_VIZ_CONTEXT_REQUEST_MESSAGE,
     DATA_APP_ANALYSIS_INSTRUCTIONS_MAX_CHARS,
@@ -22,6 +24,10 @@ import {
     extractAppSdkSpaceCharts,
     extractExploreBaseTable,
     isAllowedAppSdkRoute,
+    isAppSdkComposerRoute,
+    parseAppSdkComposerMetadata,
+    parseAppSdkComposerRequest,
+    parseAppSdkQueryMetadata,
     parseAppSdkSpaceChartsRequest,
     resolveAppSdkSpaceUuid,
     isAppSdkScheduleDownloadRoute,
@@ -31,6 +37,9 @@ import {
     LightdashSignedDownloadHeader,
     parseAppSdkExploreBaseTableRequest,
     type AppColorScheme,
+    type AppSdkComposerSavedChartNode,
+    type AppSdkLineageHighlight,
+    type AppSdkLineageSelection,
     type AppSdkSpaceChartsResult,
     type AppSdkExploreBaseTableResult,
     type DashboardFilters,
@@ -40,6 +49,8 @@ import {
     type ExternalFetchRequest,
     type ExternalFetchResponse,
     type QueryExecutionContext,
+    type SourceQuery,
+    type SourceQuerySubmission,
 } from '@lightdash/common';
 import { useCallback, useEffect, useRef, type RefObject } from 'react';
 import { validate as isValidUuid } from 'uuid';
@@ -300,6 +311,11 @@ export type QueryEvent = {
     id: string;
     timestamp: number;
     label: string | null;
+    /** Author-assigned id the app's DOM stamps carry (`data-ld-query-id`). */
+    queryId: string | null;
+    description: string | null;
+    /** Set for saved charts the app ran live (`POST /query/chart`). */
+    chartUuid: string | null;
     exploreName: string;
     dimensions: string[];
     metrics: string[];
@@ -326,6 +342,9 @@ export type QueryEvent = {
 const TERMINAL_EVENT_DEFAULTS: Pick<
     QueryEvent,
     | 'label'
+    | 'queryId'
+    | 'description'
+    | 'chartUuid'
     | 'exploreName'
     | 'dimensions'
     | 'metrics'
@@ -337,6 +356,9 @@ const TERMINAL_EVENT_DEFAULTS: Pick<
     | 'rawMetricQuery'
 > = {
     label: null,
+    queryId: null,
+    description: null,
+    chartUuid: null,
     exploreName: '',
     dimensions: [],
     metrics: [],
@@ -346,6 +368,29 @@ const TERMINAL_EVENT_DEFAULTS: Pick<
     additionalMetrics: [],
     limit: 0,
     rawMetricQuery: null,
+};
+
+/**
+ * A composer pipeline the app submitted (`POST .../query-sources/queries`).
+ * Emitted as full snapshots keyed by the POST id: `pending` on submit,
+ * `running` once node queryUuids are known, then `ready`/`error` when the
+ * terminal node's poll settles.
+ */
+export type PipelineEvent = {
+    id: string;
+    timestamp: number;
+    queryId: string;
+    label: string | null;
+    description: string | null;
+    terminalNodeId: string;
+    /** Submission nodes as sent; saved-chart sources are in `savedChartNodes`. */
+    queries: SourceQuery[];
+    savedChartNodes: AppSdkComposerSavedChartNode[];
+    /** nodeId → queryUuid, saved-chart nodes included. */
+    nodeQueryUuids: Record<string, string>;
+    status: 'pending' | 'running' | 'ready' | 'error';
+    error: string | null;
+    durationMs: number | null;
 };
 
 /**
@@ -489,7 +534,9 @@ export type UseAppSdkBridgeParams = {
      */
     capabilities?: { gsheetExport?: boolean };
     onLineageAvailable?: () => void;
-    onLineageSelected?: (event: { queryUuid: string }) => void;
+    onLineageSelected?: (event: AppSdkLineageSelection) => void;
+    /** Composer pipelines the app submits, for the lineage view. */
+    onPipelineEvent?: (event: PipelineEvent) => void;
     /**
      * Fires when the iframe SDK reports its capability manifest
      * (`lightdash:sdk:manifest`) — sent by SDKs new enough to have a feature
@@ -613,6 +660,7 @@ export function useAppSdkBridge({
     capabilities,
     onLineageAvailable,
     onLineageSelected,
+    onPipelineEvent,
     onExternalRequestEvent,
     dataAppVizContext,
     dataAppVizMode = false,
@@ -661,6 +709,11 @@ export function useAppSdkBridge({
     // in-flight set never drains and the screenshot indicator never
     // mounts).
     const queryUuidToPostIdRef = useRef<Map<string, string>>(new Map());
+    // Latest snapshot per composer submission, and every node queryUuid →
+    // its submission, so polls of composer nodes update the pipeline instead
+    // of surfacing as blank metric-query rows.
+    const pipelinesRef = useRef<Map<string, PipelineEvent>>(new Map());
+    const queryUuidToPipelineIdRef = useRef<Map<string, string>>(new Map());
 
     // Push the render context into the iframe. Sent in response to the iframe's
     // `viz-context-request` handshake (the renderer mounts after its bundle
@@ -913,11 +966,18 @@ export function useAppSdkBridge({
                 return;
             }
 
-            if (data?.type === 'lightdash:lineage:selected') {
+            if (data?.type === APP_SDK_LINEAGE_SELECTED_MESSAGE) {
+                // Older SDKs send only `queryUuid`.
                 const queryUuid =
-                    typeof data.queryUuid === 'string' ? data.queryUuid : '';
-                if (queryUuid && onLineageSelected) {
-                    onLineageSelected({ queryUuid });
+                    typeof data.queryUuid === 'string' && data.queryUuid
+                        ? data.queryUuid
+                        : null;
+                const queryId =
+                    typeof data.queryId === 'string' && data.queryId
+                        ? data.queryId
+                        : null;
+                if ((queryUuid || queryId) && onLineageSelected) {
+                    onLineageSelected({ queryUuid, queryId });
                 }
                 return;
             }
@@ -1363,6 +1423,104 @@ export function useAppSdkBridge({
                 return;
             }
 
+            const emitPipeline = (pipeline: PipelineEvent) => {
+                pipelinesRef.current.set(pipeline.id, pipeline);
+                onPipelineEvent?.(pipeline);
+            };
+            const isComposerPost = isAppSdkComposerRoute(method, path);
+            if (isComposerPost) {
+                const composer = parseAppSdkComposerRequest(body);
+                if (!composer.ok) {
+                    respond({
+                        error: `Blocked: invalid composer submission (${composer.reason})`,
+                    });
+                    return;
+                }
+                const composerMetadata = parseAppSdkComposerMetadata(metadata);
+                const savedChartNodes = composerMetadata?.savedChartNodes ?? [];
+                emitPipeline({
+                    id,
+                    timestamp: Date.now(),
+                    queryId: composerMetadata?.queryId ?? id,
+                    label: composerMetadata?.label ?? null,
+                    description: composerMetadata?.description ?? null,
+                    terminalNodeId:
+                        composerMetadata?.terminalNodeId ??
+                        composer.queries[composer.queries.length - 1].nodeId ??
+                        '',
+                    queries: composer.queries,
+                    savedChartNodes,
+                    nodeQueryUuids: Object.fromEntries(
+                        savedChartNodes.map((node) => [
+                            node.nodeId,
+                            node.queryUuid,
+                        ]),
+                    ),
+                    status: 'pending',
+                    error: null,
+                    durationMs: null,
+                });
+                // Forward only the validated shape; host stamps are added below.
+                body = {
+                    queries: composer.queries,
+                    ...(composer.parameters
+                        ? { parameters: composer.parameters }
+                        : {}),
+                };
+            }
+            // Resolves a composer node poll: true when the uuid belongs to a
+            // submitted pipeline, settling it once its terminal node settles.
+            const settlePipelinePoll = (
+                result:
+                    | { queryUuid?: unknown; status?: unknown; error?: unknown }
+                    | undefined,
+            ): boolean => {
+                const queryUuid = result?.queryUuid;
+                if (typeof queryUuid !== 'string') return false;
+                const pipelineId =
+                    queryUuidToPipelineIdRef.current.get(queryUuid);
+                if (pipelineId === undefined) return false;
+                const pipeline = pipelinesRef.current.get(pipelineId);
+                if (
+                    !pipeline ||
+                    pipeline.nodeQueryUuids[pipeline.terminalNodeId] !==
+                        queryUuid ||
+                    pipeline.status === 'ready' ||
+                    pipeline.status === 'error'
+                ) {
+                    return true;
+                }
+                if (result?.status === 'ready') {
+                    emitPipeline({
+                        ...pipeline,
+                        status: 'ready',
+                        durationMs: Date.now() - pipeline.timestamp,
+                    });
+                } else if (
+                    result?.status === 'error' ||
+                    result?.status === 'expired'
+                ) {
+                    emitPipeline({
+                        ...pipeline,
+                        status: 'error',
+                        error:
+                            typeof result.error === 'string'
+                                ? result.error
+                                : 'Query failed',
+                        durationMs: Date.now() - pipeline.timestamp,
+                    });
+                }
+                return true;
+            };
+            const queryMetadata = parseAppSdkQueryMetadata(metadata);
+            const requestedChartUuid: unknown = isChartQueryPost(method, path)
+                ? (body as { chartUuid?: unknown } | undefined)?.chartUuid
+                : null;
+            const chartUuid =
+                typeof requestedChartUuid === 'string'
+                    ? requestedChartUuid
+                    : null;
+
             // Record the pre-stamp body — dashboard filters/invalidateCache/
             // context are per-render decoration, not part of the query's identity.
             if (
@@ -1394,11 +1552,13 @@ export function useAppSdkBridge({
                 !!dashboardFilters;
             const stampInvalidate =
                 (isMetricQueryPost(method, path) ||
-                    isChartQueryPost(method, path)) &&
+                    isChartQueryPost(method, path) ||
+                    isComposerPost) &&
                 !!invalidateCache;
             const stampContext =
                 (isMetricQueryPost(method, path) ||
-                    isChartQueryPost(method, path)) &&
+                    isChartQueryPost(method, path) ||
+                    isComposerPost) &&
                 !!queryContextOverride;
             const effectiveBody =
                 stampFilters || stampInvalidate || stampContext
@@ -1416,14 +1576,14 @@ export function useAppSdkBridge({
             if (isMetricQueryPost(method, path) && onQueryEvent && body) {
                 const query = (body as { query?: Record<string, unknown> })
                     ?.query;
-                const sdkLabel = (
-                    metadata as Record<string, unknown> | undefined
-                )?.label as string | undefined;
                 if (query) {
                     onQueryEvent({
                         id,
                         timestamp: Date.now(),
-                        label: sdkLabel ?? null,
+                        label: queryMetadata.label,
+                        queryId: queryMetadata.queryId,
+                        description: queryMetadata.description,
+                        chartUuid: null,
                         exploreName: (query.exploreName as string) ?? 'unknown',
                         dimensions: (query.dimensions as string[]) ?? [],
                         metrics: (query.metrics as string[]) ?? [],
@@ -1465,6 +1625,18 @@ export function useAppSdkBridge({
             // already emit their own terminal events, so this only runs
             // for the POST.
             const emitPostFailure = (errorMessage: string) => {
+                const pipeline = isComposerPost
+                    ? pipelinesRef.current.get(id)
+                    : undefined;
+                if (pipeline) {
+                    emitPipeline({
+                        ...pipeline,
+                        status: 'error',
+                        error: errorMessage,
+                        durationMs: Date.now() - pipeline.timestamp,
+                    });
+                    return;
+                }
                 if (
                     !isMetricQueryPost(method, path) &&
                     !isChartQueryPost(method, path)
@@ -1476,6 +1648,9 @@ export function useAppSdkBridge({
                     id,
                     timestamp: Date.now(),
                     label: null,
+                    queryId: null,
+                    description: null,
+                    chartUuid: null,
                     exploreName: '',
                     dimensions: [],
                     metrics: [],
@@ -1533,6 +1708,39 @@ export function useAppSdkBridge({
                         );
                     }
 
+                    const submittedNodes: unknown = json.results?.queries;
+                    const pipeline = isComposerPost
+                        ? pipelinesRef.current.get(id)
+                        : undefined;
+                    if (pipeline && Array.isArray(submittedNodes)) {
+                        const submitted = (
+                            submittedNodes as SourceQuerySubmission[]
+                        ).filter(
+                            (node) =>
+                                typeof node?.nodeId === 'string' &&
+                                typeof node.queryUuid === 'string',
+                        );
+                        submitted.forEach((node) =>
+                            queryUuidToPipelineIdRef.current.set(
+                                node.queryUuid,
+                                id,
+                            ),
+                        );
+                        emitPipeline({
+                            ...pipeline,
+                            status: 'running',
+                            nodeQueryUuids: {
+                                ...pipeline.nodeQueryUuids,
+                                ...Object.fromEntries(
+                                    submitted.map((node) => [
+                                        node.nodeId,
+                                        node.queryUuid,
+                                    ]),
+                                ),
+                            },
+                        });
+                    }
+
                     // Track metric query initiation response (has queryUuid)
                     if (
                         (isMetricQueryPost(method, path) ||
@@ -1540,10 +1748,6 @@ export function useAppSdkBridge({
                         onQueryEvent &&
                         json.results?.queryUuid
                     ) {
-                        const initLabel = (
-                            metadata as Record<string, unknown> | undefined
-                        )?.label as string | undefined;
-
                         // Displaced by results-cache dedupe (see ref comment
                         // above); `queryUuid: null` avoids masking the real terminal.
                         const displacedId = queryUuidToPostIdRef.current.get(
@@ -1568,7 +1772,10 @@ export function useAppSdkBridge({
                         onQueryEvent({
                             id,
                             timestamp: Date.now(),
-                            label: initLabel ?? null,
+                            label: queryMetadata.label,
+                            queryId: queryMetadata.queryId,
+                            description: queryMetadata.description,
+                            chartUuid,
                             exploreName:
                                 json.results?.metricQuery?.exploreName ??
                                 'unknown',
@@ -1594,7 +1801,10 @@ export function useAppSdkBridge({
                     }
 
                     // Track query result polling responses
-                    if (isQueryResultGet(method, path)) {
+                    if (
+                        isQueryResultGet(method, path) &&
+                        !settlePipelinePoll(json.results)
+                    ) {
                         const result = json.results;
                         // Re-key terminal events to the POST id so consumers
                         // see a single stable id across the pending →
@@ -1686,6 +1896,7 @@ export function useAppSdkBridge({
             capabilities,
             onLineageAvailable,
             onLineageSelected,
+            onPipelineEvent,
             onExternalRequestEvent,
             pushDataAppVizContext,
             rewriteVizUnderlyingDataRequest,
@@ -1796,9 +2007,13 @@ export function useAppSdkBridge({
     }, [iframeRef]);
 
     const highlightLineage = useCallback(
-        (queryUuid: string | null) => {
+        (highlight: AppSdkLineageHighlight | null) => {
             iframeRef.current?.contentWindow?.postMessage(
-                { type: 'lightdash:lineage:highlight', queryUuid },
+                {
+                    type: APP_SDK_LINEAGE_HIGHLIGHT_MESSAGE,
+                    queryUuid: highlight?.queryUuid ?? null,
+                    queryId: highlight?.queryId ?? null,
+                },
                 '*',
             );
         },

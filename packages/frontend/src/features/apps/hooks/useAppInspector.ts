@@ -1,11 +1,17 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+    type AppSdkLineageHighlight,
+    type AppSdkLineageSelection,
+} from '@lightdash/common';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
     ExternalRequestEvent,
+    PipelineEvent,
     QueryEvent,
     SdkManifest,
 } from './useAppSdkBridge';
 import {
     countReadyQueriesSinceBoundary,
+    resolveSelectedQueryUuid,
     useTrackedAppQueries,
 } from './useTrackedAppQueries';
 import { useTrackedExternalRequests } from './useTrackedExternalRequests';
@@ -13,12 +19,13 @@ import { useTrackedExternalRequests } from './useTrackedExternalRequests';
 /** Bridge callbacks and lineage state to spread onto `AppIframePreview`. */
 export type AppInspectorIframeProps = {
     onQueryEvent: (event: QueryEvent) => void;
+    onPipelineEvent: (event: PipelineEvent) => void;
     onExternalRequestEvent: (event: ExternalRequestEvent) => void;
     onSdkManifest: (manifest: SdkManifest) => void;
     lineageEnabled: boolean;
     onLineageAvailabilityChange: (available: boolean) => void;
-    onLineageSelected: (event: { queryUuid: string }) => void;
-    lineageHighlightQueryUuid: string | null;
+    onLineageSelected: (event: AppSdkLineageSelection) => void;
+    lineageHighlight: AppSdkLineageHighlight | null;
     onLineageCancelled: () => void;
 };
 
@@ -51,6 +58,8 @@ export type UseAppInspectorResult = {
     /** `ready` queries since the last version switch, unaffected by rows
      *  Persist carried over from a previous bundle. */
     readyQueryCount: number;
+    /** Composer pipelines the app submitted, for the lineage view. */
+    pipelines: PipelineEvent[];
     iframeProps: AppInspectorIframeProps;
     panelProps: AppInspectorPanelProps;
 };
@@ -75,9 +84,11 @@ export const useAppInspector = ({
 }): UseAppInspectorResult => {
     const {
         queries,
+        pipelines,
         persistLogs,
         setPersistLogs,
         handleQueryEvent,
+        handlePipelineEvent,
         clearQueries,
         resetQueries,
         interruptInFlightQueries,
@@ -154,14 +165,28 @@ export const useAppInspector = ({
         setFocusedQueryUuid(null);
     }, []);
     const handleLineageSelected = useCallback(
-        (event: { queryUuid: string }) => {
+        (event: AppSdkLineageSelection) => {
+            const queryUuid = resolveSelectedQueryUuid(
+                queriesRef.current,
+                event,
+            );
+            if (queryUuid === null) return;
             setHidden(false);
             // Re-clicking the selected element deselects it.
             setFocusedQueryUuid((prev) =>
-                prev === event.queryUuid ? null : event.queryUuid,
+                prev === queryUuid ? null : queryUuid,
             );
         },
         [],
+    );
+    // Hover overrides the persistent click-selection.
+    const highlightQueryUuid = hoveredQueryUuid ?? focusedQueryUuid;
+    const lineageHighlight = useMemo(
+        () =>
+            highlightQueryUuid
+                ? { queryUuid: highlightQueryUuid, queryId: null }
+                : null,
+        [highlightQueryUuid],
     );
     const handleLineageCancelled = useCallback(() => {
         setLineageEnabled(false);
@@ -177,15 +202,16 @@ export const useAppInspector = ({
             queries,
             readyQueryBoundary,
         ),
+        pipelines,
         iframeProps: {
             onQueryEvent: handleQueryEvent,
+            onPipelineEvent: handlePipelineEvent,
             onExternalRequestEvent: handleExternalRequestEvent,
             onSdkManifest: setSdkManifest,
             lineageEnabled,
             onLineageAvailabilityChange: setLineageAvailable,
             onLineageSelected: handleLineageSelected,
-            // Hover overrides the persistent click-selection.
-            lineageHighlightQueryUuid: hoveredQueryUuid ?? focusedQueryUuid,
+            lineageHighlight,
             onLineageCancelled: handleLineageCancelled,
         },
         panelProps: {

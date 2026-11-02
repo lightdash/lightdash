@@ -10,6 +10,7 @@ import {
     type ApiAppVersionSummary,
     type AppClarification,
     type AppExternalConnectionReference,
+    type AppSdkLineageSelection,
     type AppVersionDependencyEntry,
     type DataAppTemplate,
     type DataAppVizContext,
@@ -141,9 +142,13 @@ import { useRestoreAppVersion } from '../features/apps/hooks/useRestoreAppVersio
 import { useSdkUpgradeStatus } from '../features/apps/hooks/useSdkUpgradeStatus';
 import {
     countReadyQueriesSinceBoundary,
+    resolveSelectedQueryUuid,
     useTrackedAppQueries,
 } from '../features/apps/hooks/useTrackedAppQueries';
 import { useTrackedExternalRequests } from '../features/apps/hooks/useTrackedExternalRequests';
+import { AppLineageView } from '../features/apps/lineage/AppLineageView';
+import { AppViewSwitcher } from '../features/apps/lineage/AppViewSwitcher';
+import { useAppLineageView } from '../features/apps/lineage/useAppLineageView';
 import { getTemplate } from '../features/apps/templates';
 import {
     toAppClarifyParams,
@@ -411,9 +416,11 @@ const AppGenerate: FC = () => {
     }, []);
     const {
         queries: trackedQueries,
+        pipelines: trackedPipelines,
         persistLogs,
         setPersistLogs,
         handleQueryEvent,
+        handlePipelineEvent,
         clearQueries,
         resetQueries,
         interruptInFlightQueries,
@@ -429,13 +436,20 @@ const AppGenerate: FC = () => {
     // consistency. Defaults to visible because the builder is the technical
     // workflow where seeing queries as they fire is the point.
     const [networkPanelHidden, setNetworkPanelHidden] = useState(false);
-    const handleLineageSelected = useCallback(
-        (event: { queryUuid: string }) => {
+    const lineageQueriesRef = useRef(trackedQueries);
+    lineageQueriesRef.current = trackedQueries;
+    const handleInspectorLineageSelected = useCallback(
+        (event: AppSdkLineageSelection) => {
+            const queryUuid = resolveSelectedQueryUuid(
+                lineageQueriesRef.current,
+                event,
+            );
+            if (queryUuid === null) return;
             setNetworkPanelHidden(false);
             // Selection persists (row highlight + in-app element outline);
             // re-clicking the selected element deselects it.
             setFocusedQueryUuid((prev) =>
-                prev === event.queryUuid ? null : event.queryUuid,
+                prev === queryUuid ? null : queryUuid,
             );
         },
         [],
@@ -1156,6 +1170,32 @@ const AppGenerate: FC = () => {
         if (!latestReadyVersion) return null;
         return { appUuid: activeAppUuid, version: latestReadyVersion.version };
     }, [activeAppUuid, effectivePinnedVersion, latestReadyVersion]);
+
+    const lineageView = useAppLineageView({
+        identityKey: previewApp
+            ? `${previewApp.appUuid}:${previewApp.version}`
+            : '',
+        queries: trackedQueries,
+        pipelineEvents: trackedPipelines,
+    });
+    const showLineage =
+        lineageView.view === 'lineage' && lineageView.canShowLineage;
+    const { handleLineageSelected: onLineageViewSelected } = lineageView;
+    const handleLineageSelected = useCallback(
+        (selection: AppSdkLineageSelection) => {
+            handleInspectorLineageSelected(selection);
+            onLineageViewSelected(selection);
+        },
+        [handleInspectorLineageSelected, onLineageViewSelected],
+    );
+    const inspectorHighlightQueryUuid = hoveredQueryUuid ?? focusedQueryUuid;
+    const inspectorLineageHighlight = useMemo(
+        () =>
+            inspectorHighlightQueryUuid
+                ? { queryUuid: inspectorHighlightQueryUuid, queryId: null }
+                : null,
+        [inspectorHighlightQueryUuid],
+    );
 
     // Header-menu "Capture thumbnail": saves the preview as the thumbnail of
     // the version on screen, without attaching a screenshot to the next prompt.
@@ -3373,87 +3413,96 @@ const AppGenerate: FC = () => {
                                         verification: appVerification,
                                     }}
                                     rightSection={
-                                        <AppHeaderActions
-                                            fullscreenToggle={null}
-                                            onEdit={null}
-                                            shareUrl={null}
-                                            projectUuid={projectUuid}
-                                            appUuid={activeAppUuid}
-                                            upgrade={{
-                                                ...sdkUpgradeOffer,
-                                                disabled:
-                                                    !previewApp ||
-                                                    isAgentWorking,
-                                            }}
-                                            appName={appName}
-                                            appDescription={
-                                                appDescription || null
-                                            }
-                                            appSpaceUuid={appSpaceUuid}
-                                            appCreatedByUserUuid={
-                                                appCreatedByUserUuid
-                                            }
-                                            verification={appVerification}
-                                            latestVersionNumber={
-                                                latestReadyVersion?.version ??
-                                                null
-                                            }
-                                            latestVersionStatus={
-                                                latestReadyVersion?.status ??
-                                                null
-                                            }
-                                            onRefresh={handleRefreshPreview}
-                                            refreshDisabled={!previewApp}
-                                            captureThumbnail={{
-                                                onCapture: () =>
-                                                    void captureThumbnail(),
-                                                disabled:
-                                                    !previewApp ||
-                                                    !screenshotAvailable ||
-                                                    isCapturingScreenshot ||
-                                                    isCapturingThumbnail,
-                                            }}
-                                            capturePreviewScreenshot={
-                                                screenshotAvailable
-                                                    ? capturePreviewScreenshot
-                                                    : null
-                                            }
-                                            previewVersion={
-                                                previewApp?.version ?? null
-                                            }
-                                            onViewNetwork={() =>
-                                                setNetworkPanelHidden(false)
-                                            }
-                                            capturedQueryCount={countReadyQueriesSinceBoundary(
-                                                trackedQueries,
-                                                versionQueryBoundaryRef.current,
-                                            )}
-                                            onDeleted={() =>
-                                                void navigate(
-                                                    `/projects/${projectUuid}/apps/generate`,
-                                                )
-                                            }
-                                            navItem={
-                                                previewApp ? (
-                                                    <Menu.Item
-                                                        component={Link}
-                                                        to={`/projects/${projectUuid}/apps/${previewApp.appUuid}/view`}
-                                                        target="_blank"
-                                                        leftSection={
-                                                            <MantineIcon
-                                                                icon={
-                                                                    IconExternalLink
-                                                                }
-                                                                size={14}
-                                                            />
-                                                        }
-                                                    >
-                                                        Preview latest
-                                                    </Menu.Item>
-                                                ) : null
-                                            }
-                                            askAiItem={null}
-                                        />
+                                        <>
+                                            <AppViewSwitcher
+                                                view={lineageView.view}
+                                                onChange={lineageView.setView}
+                                                canShowLineage={
+                                                    lineageView.canShowLineage
+                                                }
+                                            />
+                                            <AppHeaderActions
+                                                fullscreenToggle={null}
+                                                onEdit={null}
+                                                shareUrl={null}
+                                                projectUuid={projectUuid}
+                                                appUuid={activeAppUuid}
+                                                upgrade={{
+                                                    ...sdkUpgradeOffer,
+                                                    disabled:
+                                                        !previewApp ||
+                                                        isAgentWorking,
+                                                }}
+                                                appName={appName}
+                                                appDescription={
+                                                    appDescription || null
+                                                }
+                                                appSpaceUuid={appSpaceUuid}
+                                                appCreatedByUserUuid={
+                                                    appCreatedByUserUuid
+                                                }
+                                                verification={appVerification}
+                                                latestVersionNumber={
+                                                    latestReadyVersion?.version ??
+                                                    null
+                                                }
+                                                latestVersionStatus={
+                                                    latestReadyVersion?.status ??
+                                                    null
+                                                }
+                                                onRefresh={handleRefreshPreview}
+                                                refreshDisabled={!previewApp}
+                                                captureThumbnail={{
+                                                    onCapture: () =>
+                                                        void captureThumbnail(),
+                                                    disabled:
+                                                        !previewApp ||
+                                                        !screenshotAvailable ||
+                                                        isCapturingScreenshot ||
+                                                        isCapturingThumbnail,
+                                                }}
+                                                capturePreviewScreenshot={
+                                                    screenshotAvailable
+                                                        ? capturePreviewScreenshot
+                                                        : null
+                                                }
+                                                previewVersion={
+                                                    previewApp?.version ?? null
+                                                }
+                                                onViewNetwork={() =>
+                                                    setNetworkPanelHidden(false)
+                                                }
+                                                capturedQueryCount={countReadyQueriesSinceBoundary(
+                                                    trackedQueries,
+                                                    versionQueryBoundaryRef.current,
+                                                )}
+                                                onDeleted={() =>
+                                                    void navigate(
+                                                        `/projects/${projectUuid}/apps/generate`,
+                                                    )
+                                                }
+                                                navItem={
+                                                    previewApp ? (
+                                                        <Menu.Item
+                                                            component={Link}
+                                                            to={`/projects/${projectUuid}/apps/${previewApp.appUuid}/view`}
+                                                            target="_blank"
+                                                            leftSection={
+                                                                <MantineIcon
+                                                                    icon={
+                                                                        IconExternalLink
+                                                                    }
+                                                                    size={14}
+                                                                />
+                                                            }
+                                                        >
+                                                            Preview latest
+                                                        </Menu.Item>
+                                                    ) : null
+                                                }
+                                                askAiItem={null}
+                                            />
+                                        </>
                                     }
                                 />
                             )}
@@ -3532,6 +3581,7 @@ const AppGenerate: FC = () => {
 
                             <Box
                                 className={classes.previewContent}
+                                mod={{ 'lineage-open': showLineage }}
                                 // Walkthrough result for create:DataApp: a
                                 // finished app in the builder, the seeded one
                                 // standing in for the build the learner did
@@ -3553,6 +3603,7 @@ const AppGenerate: FC = () => {
                                         refreshKey={previewRefreshKey}
                                         invalidateCache={invalidatePreviewCache}
                                         onQueryEvent={handleQueryEvent}
+                                        onPipelineEvent={handlePipelineEvent}
                                         onExternalRequestEvent={
                                             handleExternalRequestEvent
                                         }
@@ -3571,10 +3622,11 @@ const AppGenerate: FC = () => {
                                         onLineageSelected={
                                             handleLineageSelected
                                         }
-                                        lineageHighlightQueryUuid={
-                                            // Hover overrides; falls back to
-                                            // the persistent click-selection.
-                                            hoveredQueryUuid ?? focusedQueryUuid
+                                        lineageHighlight={
+                                            // Lineage view first, then inspector
+                                            // hover, then the click-selection.
+                                            lineageView.highlight ??
+                                            inspectorLineageHighlight
                                         }
                                         onLineageCancelled={
                                             handleLineageCancelled
@@ -3613,6 +3665,12 @@ const AppGenerate: FC = () => {
                                             Your app preview will appear here
                                         </Text>
                                     </Box>
+                                )}
+                                {showLineage && projectUuid && (
+                                    <AppLineageView
+                                        projectUuid={projectUuid}
+                                        lineage={lineageView}
+                                    />
                                 )}
                                 {!networkPanelHidden && (
                                     <AppInspectorPanel

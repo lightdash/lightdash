@@ -1,4 +1,6 @@
 import {
+    type AppSdkLineageHighlight,
+    type AppSdkLineageSelection,
     type DataAppInsightAction,
     type DataAppInsightsPayload,
     type DataAppVizContext,
@@ -12,6 +14,7 @@ import { getVisiblePreviewTokenError } from '../hooks/previewTokenQueryOptions';
 import { useAppPreviewToken } from '../hooks/useAppPreviewToken';
 import type {
     ExternalRequestEvent,
+    PipelineEvent,
     QueryEvent,
     SdkManifest,
 } from '../hooks/useAppSdkBridge';
@@ -36,8 +39,9 @@ export type AppPreviewProps = {
     onInspectorCancelled?: () => void;
     lineageEnabled?: boolean;
     onLineageAvailabilityChange?: (available: boolean) => void;
-    onLineageSelected?: (event: { queryUuid: string }) => void;
-    lineageHighlightQueryUuid?: string | null;
+    onLineageSelected?: (event: AppSdkLineageSelection) => void;
+    lineageHighlight?: AppSdkLineageHighlight | null;
+    onPipelineEvent?: (event: PipelineEvent) => void;
     onLineageCancelled?: () => void;
     dataAppVizContext?: DataAppVizContext;
     dataAppVizMode?: boolean;
@@ -74,7 +78,8 @@ const AppPreview = forwardRef<AppIframePreviewHandle, AppPreviewProps>(
             lineageEnabled,
             onLineageAvailabilityChange,
             onLineageSelected,
-            lineageHighlightQueryUuid,
+            lineageHighlight,
+            onPipelineEvent,
             onLineageCancelled,
             dataAppVizContext,
             dataAppVizMode,
@@ -151,7 +156,8 @@ const AppPreview = forwardRef<AppIframePreviewHandle, AppPreviewProps>(
                 lineageEnabled={lineageEnabled}
                 onLineageAvailabilityChange={onLineageAvailabilityChange}
                 onLineageSelected={onLineageSelected}
-                lineageHighlightQueryUuid={lineageHighlightQueryUuid}
+                lineageHighlight={lineageHighlight}
+                onPipelineEvent={onPipelineEvent}
                 onLineageCancelled={onLineageCancelled}
                 capabilities={{ gsheetExport: true }}
                 dataAppVizContext={dataAppVizContext}

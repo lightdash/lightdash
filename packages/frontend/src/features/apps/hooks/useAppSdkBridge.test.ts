@@ -32,6 +32,7 @@ import {
     resolveAppStateRequest,
     useAppSdkBridge,
     type ExternalRequestEvent,
+    type PipelineEvent,
     type QueryEvent,
 } from './useAppSdkBridge';
 
@@ -1023,8 +1024,21 @@ describe('lineage message routing', () => {
             type: 'lightdash:lineage:selected',
             queryUuid: 'q-9',
         });
+        dispatchFetchMessage({
+            type: 'lightdash:lineage:selected',
+            queryUuid: null,
+            queryId: 'revenue',
+        });
+        dispatchFetchMessage({
+            type: 'lightdash:lineage:selected',
+            queryUuid: null,
+            queryId: null,
+        });
 
-        expect(onLineageSelected).toHaveBeenCalledWith({ queryUuid: 'q-9' });
+        expect(onLineageSelected.mock.calls).toEqual([
+            [{ queryUuid: 'q-9', queryId: null }],
+            [{ queryUuid: null, queryId: 'revenue' }],
+        ]);
     });
 
     it('routes lightdash:lineage:available to onLineageAvailable when it carries a stamp count', () => {
@@ -1103,6 +1117,192 @@ describe('lineage message routing', () => {
         });
 
         expect(onLineageAvailable).not.toHaveBeenCalled();
+    });
+});
+
+describe('composer pipeline routing', () => {
+    beforeEach(() => {
+        vi.stubGlobal('fetch', vi.fn());
+    });
+
+    afterEach(() => {
+        vi.unstubAllGlobals();
+        vi.clearAllMocks();
+    });
+
+    const COMPOSER_PATH = `/api/v2/projects/${PROJECT_UUID}/query-sources/queries`;
+    const COMPOSER_POST_ID = '44444444-4444-4444-4444-444444444444';
+    const CHART_QUERY_UUID = 'cccccccc-cccc-cccc-cccc-cccccccccccc';
+    const ORDERS_QUERY_UUID = 'dddddddd-dddd-dddd-dddd-dddddddddddd';
+    const JOINED_QUERY_UUID = 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee';
+    const QUERIES = [
+        {
+            sourceType: 'semanticLayer',
+            nodeId: 'orders',
+            exploreName: 'orders',
+            dimensions: [],
+            metrics: ['orders_count'],
+        },
+        {
+            sourceType: 'duckdb',
+            nodeId: 'joined',
+            sql: 'SELECT * FROM o, c',
+            references: { o: 'orders', c: CHART_QUERY_UUID },
+        },
+    ];
+    const METADATA = {
+        kind: 'composer',
+        queryId: 'revenue',
+        label: 'Revenue',
+        description: 'Orders joined to the chart',
+        terminalNodeId: 'joined',
+        savedChartNodes: [
+            {
+                nodeId: 'chart',
+                chartUuid: 'chart-uuid',
+                queryUuid: CHART_QUERY_UUID,
+                title: 'Chart',
+                description: null,
+            },
+        ],
+    };
+
+    function renderComposerBridge(onQueryEvent = vi.fn()) {
+        const pipelineEvents: PipelineEvent[] = [];
+        const iframeRef = {
+            current: { contentWindow: window } as unknown as HTMLIFrameElement,
+        } as RefObject<HTMLIFrameElement | null>;
+        renderHook(() =>
+            useAppSdkBridge({
+                colorScheme: 'light',
+                iframeRef,
+                expectedPreviewOrigin: window.location.origin,
+                projectUuid: PROJECT_UUID,
+                appUuid: APP_UUID,
+                previewToken: PREVIEW_TOKEN,
+                invalidateCache: true,
+                onQueryEvent,
+                onPipelineEvent: (e) => pipelineEvents.push(e),
+            }),
+        );
+        return pipelineEvents;
+    }
+
+    function postComposer(body: Record<string, unknown>) {
+        dispatchFetchMessage({
+            type: 'lightdash:sdk:fetch',
+            id: COMPOSER_POST_ID,
+            method: 'POST',
+            path: COMPOSER_PATH,
+            body,
+            metadata: METADATA,
+        });
+    }
+
+    it('blocks an invalid submission without forwarding it', async () => {
+        const pipelineEvents = renderComposerBridge();
+        const postMessageSpy = vi.spyOn(window, 'postMessage');
+
+        postComposer({
+            queries: [{ sourceType: 'sql', nodeId: 'raw', sql: 'select 1' }],
+        });
+
+        await vi.waitFor(() =>
+            expect(postMessageSpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    type: 'lightdash:sdk:fetch-response',
+                    id: COMPOSER_POST_ID,
+                    error: expect.stringMatching(/^Blocked: invalid composer/),
+                }),
+                '*',
+            ),
+        );
+        expect(fetch).not.toHaveBeenCalled();
+        expect(pipelineEvents).toEqual([]);
+        postMessageSpy.mockRestore();
+    });
+
+    it('forwards a valid submission and tracks the pipeline to its terminal node', async () => {
+        const onQueryEvent = vi.fn();
+        const pipelineEvents = renderComposerBridge(onQueryEvent);
+        mockFetchOk({
+            status: 'ok',
+            results: {
+                queries: [
+                    {
+                        nodeId: 'orders',
+                        sourceType: 'semanticLayer',
+                        queryUuid: ORDERS_QUERY_UUID,
+                    },
+                    {
+                        nodeId: 'joined',
+                        sourceType: 'duckdb',
+                        queryUuid: JOINED_QUERY_UUID,
+                    },
+                ],
+            },
+        });
+
+        postComposer({ queries: QUERIES, smuggled: true });
+
+        await vi.waitFor(() => expect(pipelineEvents).toHaveLength(2));
+        const [url, init] = (fetch as Mock).mock.calls[0];
+        expect(url).toBe(COMPOSER_PATH);
+        expect(JSON.parse(init.body)).toEqual({
+            queries: QUERIES,
+            invalidateCache: true,
+        });
+        expect(pipelineEvents[0]).toMatchObject({
+            id: COMPOSER_POST_ID,
+            queryId: 'revenue',
+            label: 'Revenue',
+            terminalNodeId: 'joined',
+            status: 'pending',
+            nodeQueryUuids: { chart: CHART_QUERY_UUID },
+        });
+        expect(pipelineEvents[1]).toMatchObject({
+            status: 'running',
+            nodeQueryUuids: {
+                chart: CHART_QUERY_UUID,
+                orders: ORDERS_QUERY_UUID,
+                joined: JOINED_QUERY_UUID,
+            },
+        });
+
+        mockFetchOk({
+            status: 'ok',
+            results: { queryUuid: JOINED_QUERY_UUID, status: 'ready' },
+        });
+        dispatchFetchMessage({
+            type: 'lightdash:sdk:fetch',
+            id: GET_ID,
+            method: 'GET',
+            path: `/api/v2/projects/${PROJECT_UUID}/query/${JOINED_QUERY_UUID}?page=1`,
+        });
+
+        await vi.waitFor(() => expect(pipelineEvents).toHaveLength(3));
+        expect(pipelineEvents[2]).toMatchObject({
+            id: COMPOSER_POST_ID,
+            status: 'ready',
+        });
+        // Composer polls never surface as blank metric-query rows.
+        expect(onQueryEvent).not.toHaveBeenCalled();
+    });
+
+    it('marks the pipeline failed when the submission is rejected', async () => {
+        const pipelineEvents = renderComposerBridge();
+        mockFetchNonOk(
+            { status: 'error', error: { message: 'Forbidden' } },
+            403,
+        );
+
+        postComposer({ queries: QUERIES });
+
+        await vi.waitFor(() => expect(pipelineEvents).toHaveLength(2));
+        expect(pipelineEvents[1]).toMatchObject({
+            status: 'error',
+            error: 'Forbidden',
+        });
     });
 });
 

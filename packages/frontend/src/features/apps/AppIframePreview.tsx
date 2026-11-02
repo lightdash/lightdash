@@ -1,5 +1,7 @@
 import {
     type AppColorScheme,
+    type AppSdkLineageHighlight,
+    type AppSdkLineageSelection,
     type DataAppInsightAction,
     type DataAppInsightsPayload,
     type DataAppVizContext,
@@ -24,6 +26,7 @@ import {
     useAppSdkBridge,
     type ElementSelectedEvent,
     type ExternalRequestEvent,
+    type PipelineEvent,
     type QueryEvent,
     type SdkManifest,
 } from './hooks/useAppSdkBridge';
@@ -97,9 +100,10 @@ type Props = {
     /** When true, clicks inside the iframe are intercepted to reveal the query. */
     lineageEnabled?: boolean;
     onLineageAvailabilityChange?: (available: boolean) => void;
-    onLineageSelected?: (event: { queryUuid: string }) => void;
-    /** queryUuid whose rendered elements should be outlined (null clears). */
-    lineageHighlightQueryUuid?: string | null;
+    onLineageSelected?: (event: AppSdkLineageSelection) => void;
+    /** Query whose rendered elements should be outlined (null clears). */
+    lineageHighlight?: AppSdkLineageHighlight | null;
+    onPipelineEvent?: (event: PipelineEvent) => void;
     onLineageCancelled?: () => void;
     /** Dashboard filters to merge into every metric-query the iframe runs.
      *  Set by `DashboardDataAppTile`; left undefined by `AppGenerate` where
@@ -213,7 +217,8 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             lineageEnabled,
             onLineageAvailabilityChange,
             onLineageSelected,
-            lineageHighlightQueryUuid,
+            lineageHighlight,
+            onPipelineEvent,
             onLineageCancelled,
             dashboardFilters,
             invalidateCache,
@@ -372,6 +377,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             capabilities,
             onLineageAvailable: handleLineageAnnounce,
             onLineageSelected,
+            onPipelineEvent,
             onExternalRequestEvent,
             dataAppVizContext,
             dataAppVizMode,
@@ -431,9 +437,22 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             else disableLineage();
         }, [lineageEnabled, enableLineage, disableLineage]);
 
+        // Primitives, so a re-created highlight object doesn't re-post.
+        const highlightQueryUuid = lineageHighlight?.queryUuid ?? null;
+        const highlightQueryId = lineageHighlight?.queryId ?? null;
+        const currentHighlight = useMemo(
+            () =>
+                highlightQueryUuid || highlightQueryId
+                    ? {
+                          queryUuid: highlightQueryUuid,
+                          queryId: highlightQueryId,
+                      }
+                    : null,
+            [highlightQueryUuid, highlightQueryId],
+        );
         useEffect(() => {
-            highlightLineage(lineageHighlightQueryUuid ?? null);
-        }, [lineageHighlightQueryUuid, highlightLineage]);
+            highlightLineage(currentHighlight);
+        }, [currentHighlight, highlightLineage]);
 
         // Esc-to-cancel. Lives on the parent's window because focus is on the
         // parent (the toolbar button before any click; the editor afterwards) —
@@ -463,7 +482,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             setLoadedSrc(effectiveSrc);
             if (inspectorEnabled) enableInspector();
             if (lineageEnabled) enableLineage();
-            highlightLineage(lineageHighlightQueryUuid ?? null);
+            highlightLineage(currentHighlight);
             onIframeLoad?.();
         };
 

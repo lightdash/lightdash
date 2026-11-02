@@ -1444,8 +1444,12 @@ export {
     APP_SDK_COLOR_SCHEME_MESSAGE,
     APP_SDK_COLOR_SCHEME_REQUEST_MESSAGE,
     APP_SDK_DATA_APP_VIZ_CONTEXT_MESSAGE,
+    APP_SDK_LINEAGE_HIGHLIGHT_MESSAGE,
+    APP_SDK_LINEAGE_SELECTED_MESSAGE,
     APP_SDK_VIZ_CONTEXT_REQUEST_MESSAGE,
     type AppColorScheme,
+    type AppSdkLineageHighlight,
+    type AppSdkLineageSelection,
 } from './sdkMessages';
 
 // AI analysis pushed into a running app (mirrors packages/query-sdk/src/insights.ts).
