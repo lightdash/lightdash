@@ -30,3 +30,16 @@ lockfile change.
   them.
 - A new job that tests against the preview should need `preview`. Do not let it
   start alongside the cheap checks.
+
+## Runner choice
+- Depot runners (`depot-ubuntu-24.04-4` / `-8`) are for jobs that do real CPU
+  work: installs, builds, test suites.
+- Jobs that only wait, poll, post a comment or run a tiny script use
+  `ubuntu-latest`: Select Tests to Run, Post Test Selection Comment, Deploy
+  Preview (it waits on Rainbow's commit status) and Renovate.
+- GitHub-hosted jobs share one org-wide concurrency limit with every other
+  repo. Do not move a job that runs many times per PR to `ubuntu-latest`
+  without checking peak concurrency first.
+- A job on `ubuntu-latest` uses GitHub's own Actions cache, not Depot Cache, so
+  it cannot restore the pnpm store `build-and-lint` saves.
+

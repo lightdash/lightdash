@@ -286,7 +286,7 @@ jobs:
   # ============================================================================
   files-changed:
     name: Select Tests to Run
-    runs-on: depot-ubuntu-24.04-4
+    runs-on: ubuntu-latest
     outputs:
       # Rainbow builds a preview for same-repo PRs only; forks get no preview
       # and no E2E suites (they would have no secrets anyway).
@@ -360,7 +360,7 @@ jobs:
 
   post-test-selection-comment:
     name: Post Test Selection Comment
-    runs-on: depot-ubuntu-24.04-4
+    runs-on: ubuntu-latest
     needs: files-changed
     steps:
       - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
@@ -457,7 +457,7 @@ jobs:
   preview:
     timeout-minutes: 45
     name: Deploy Preview
-    runs-on: depot-ubuntu-24.04-4
+    runs-on: ubuntu-latest
     # Fail fast: every E2E and CLI job needs this one, so waiting here for
     # lint, types and unit tests means a push that breaks any of them never
     # starts those suites. Rainbow builds the preview in parallel regardless,
