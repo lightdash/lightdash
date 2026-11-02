@@ -55,7 +55,6 @@ The backend uses two S3 endpoint settings:
 
 When the backend creates a presigned URL for browser-direct upload, it uses `S3_PUBLIC_ENDPOINT` (falling back to `S3_ENDPOINT`) as the signing endpoint. See `parseBaseS3Config()` in `packages/backend/src/config/parseConfig.ts`.
 
-
 ## Common Development Commands
 
 -   Assume the dev-server is always running and watching source files; a separate `api-routes-watch` process regenerates TSOA routes when controllers change, so backend and generated-route changes reload the API automatically.
