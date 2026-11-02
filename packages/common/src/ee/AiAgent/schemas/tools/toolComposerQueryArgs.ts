@@ -69,7 +69,7 @@ import pandas as pd
 
 def run(inputs, params):
     df = inputs["orders"]                           # one DataFrame per reference, columns already typed
-    cutoff = pd.Timestamp("2026-01-01", tz="UTC")   # timestamps are tz-aware UTC, dates tz-naive midnight
+    cutoff = pd.Timestamp("2026-01-01")             # all datetimes are tz-naive UTC wall clock; never tz_localize/tz_convert
     out = df[df["created_at"] >= cutoff].groupby("customer_id", as_index=False)["revenue"].sum()
     return out                                      # unique [A-Za-z_][A-Za-z0-9_]* column names, index dropped
 
