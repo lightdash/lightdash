@@ -1115,8 +1115,13 @@ export type SavedChartVisualization = Pick<
     'chartConfig' | 'pivotConfig' | 'tableConfig'
 >;
 
+// Flat (not `ApiExecuteAsyncMetricQueryResults & …`) so the OpenAPI schema
+// keeps its shape; nesting the intersection reads as a breaking change.
 export type ApiExecuteAsyncSavedChartQueryResults =
-    ApiExecuteAsyncMetricQueryResults & {
+    ApiExecuteAsyncQueryResultsCommon & {
+        metricQuery: MetricQuery;
+        fields: ItemsMap;
+        warnings: QueryWarning[];
         chartVisualization: SavedChartVisualization;
     };
 
