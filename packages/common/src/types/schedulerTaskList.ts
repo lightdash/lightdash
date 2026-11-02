@@ -281,6 +281,7 @@ export const SCHEDULER_TASKS = {
     BACKFILL_USAGE_QUERY_HISTORY: 'backfillUsageQueryHistory',
     POLL_EMAIL_WHITELABEL: 'pollEmailWhitelabelVerification',
     CLEAN_WAREHOUSE_CONNECT_CODES: 'cleanWarehouseConnectCodes',
+    CLEAR_DUE_RESULTS_CACHES: 'clearDueResultsCaches',
     CLEAN_AGENT_CONNECTION_APPROVAL_REQUESTS:
         'cleanAgentConnectionApprovalRequests',
     RECONCILE_PLAYGROUND_BUNDLES: 'reconcilePlaygroundBundles',
@@ -339,6 +340,7 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.BACKFILL_USAGE_QUERY_HISTORY]: TraceTaskBase;
     [SCHEDULER_TASKS.POLL_EMAIL_WHITELABEL]: TraceTaskBase;
     [SCHEDULER_TASKS.CLEAN_WAREHOUSE_CONNECT_CODES]: TraceTaskBase;
+    [SCHEDULER_TASKS.CLEAR_DUE_RESULTS_CACHES]: TraceTaskBase;
     [SCHEDULER_TASKS.CLEAN_AGENT_CONNECTION_APPROVAL_REQUESTS]: TraceTaskBase;
     [SCHEDULER_TASKS.RECONCILE_PLAYGROUND_BUNDLES]: TraceTaskBase;
     [SCHEDULER_TASKS.BACKFILL_DEFAULT_USER_SPACES]: BackfillDefaultUserSpacesPayload;

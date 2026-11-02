@@ -1631,6 +1631,9 @@ export class ProjectModel {
         cacheTtlSeconds: number | null;
         cacheGeneration: number;
         lastInvalidatedAt: Date | null;
+        clearCron: string | null;
+        clearNextRunAt: Date | null;
+        schedulerTimezone: string;
     }> {
         const row = await this.database(ProjectTableName)
             .where('project_uuid', projectUuid)
@@ -1638,6 +1641,9 @@ export class ProjectModel {
                 'results_cache_ttl_seconds',
                 'results_cache_generation',
                 'results_cache_invalidated_at',
+                'results_cache_clear_cron',
+                'results_cache_clear_next_run_at',
+                'scheduler_timezone',
             )
             .first();
 
@@ -1651,6 +1657,9 @@ export class ProjectModel {
             cacheTtlSeconds: row.results_cache_ttl_seconds,
             cacheGeneration: row.results_cache_generation,
             lastInvalidatedAt: row.results_cache_invalidated_at,
+            clearCron: row.results_cache_clear_cron,
+            clearNextRunAt: row.results_cache_clear_next_run_at,
+            schedulerTimezone: row.scheduler_timezone,
         };
     }
 
@@ -1693,6 +1702,95 @@ export class ProjectModel {
                 `Cannot find project with id: ${projectUuid}`,
             );
         }
+    }
+
+    async updateResultsCacheClearSchedule(
+        projectUuid: string,
+        schedule: { cron: string; nextRunAt: Date | null },
+    ): Promise<void> {
+        const affectedRows = await this.database(ProjectTableName)
+            .where('project_uuid', projectUuid)
+            .update({
+                results_cache_clear_cron: schedule.cron,
+                results_cache_clear_next_run_at: schedule.nextRunAt,
+            });
+        if (affectedRows === 0) {
+            throw new NotFoundError(
+                `Cannot find project with id: ${projectUuid}`,
+            );
+        }
+    }
+
+    async getDueResultsCacheClears(now: Date): Promise<
+        {
+            projectUuid: string;
+            organizationUuid: string;
+            cron: string;
+            schedulerTimezone: string;
+            nextRunAt: Date;
+        }[]
+    > {
+        const rows = await this.database(ProjectTableName)
+            .innerJoin(
+                OrganizationTableName,
+                `${OrganizationTableName}.organization_id`,
+                `${ProjectTableName}.organization_id`,
+            )
+            .whereNotNull(`${ProjectTableName}.results_cache_clear_cron`)
+            .where(
+                `${ProjectTableName}.results_cache_clear_next_run_at`,
+                '<=',
+                now,
+            )
+            .select<
+                {
+                    project_uuid: string;
+                    organization_uuid: string;
+                    results_cache_clear_cron: string;
+                    scheduler_timezone: string;
+                    results_cache_clear_next_run_at: Date;
+                }[]
+            >(
+                `${ProjectTableName}.project_uuid`,
+                `${OrganizationTableName}.organization_uuid`,
+                `${ProjectTableName}.results_cache_clear_cron`,
+                `${ProjectTableName}.scheduler_timezone`,
+                `${ProjectTableName}.results_cache_clear_next_run_at`,
+            );
+        return rows.map((row) => ({
+            projectUuid: row.project_uuid,
+            organizationUuid: row.organization_uuid,
+            cron: row.results_cache_clear_cron,
+            schedulerTimezone: row.scheduler_timezone,
+            nextRunAt: row.results_cache_clear_next_run_at,
+        }));
+    }
+
+    /** Compare-and-swap on next_run_at, so concurrent sweeps or an edit mid-sweep can't double-clear. */
+    async claimDueResultsCacheClear(
+        projectUuid: string,
+        claim: { expectedNextRunAt: Date; nextRunAt: Date; clear: boolean },
+    ): Promise<boolean> {
+        const affectedRows = await this.database(ProjectTableName)
+            .where('project_uuid', projectUuid)
+            // JS dates only keep milliseconds, Postgres timestamps keep microseconds
+            .whereRaw(
+                `date_trunc('milliseconds', results_cache_clear_next_run_at) = ?`,
+                [claim.expectedNextRunAt],
+            )
+            .update({
+                results_cache_clear_next_run_at: claim.nextRunAt,
+                ...(claim.clear
+                    ? {
+                          results_cache_generation: this.database.raw(
+                              'results_cache_generation + 1',
+                          ) as unknown as number,
+                          results_cache_invalidated_at:
+                              this.database.fn.now() as unknown as Date,
+                      }
+                    : {}),
+            });
+        return affectedRows > 0;
     }
 
     async getEffectiveResultsCacheTtlSeconds(

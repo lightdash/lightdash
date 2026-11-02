@@ -121,6 +121,7 @@ import {
     getMetrics,
     getModelInventoryFromManifest,
     getModelsFromManifest,
+    getNextResultsCacheClearAt,
     getParameterReferences,
     getPersonSignIn,
     getPreAggregateExploreName,
@@ -193,6 +194,7 @@ import {
     omitDisallowedParameterValues,
     OpenIdIdentityIssuerType,
     ParameterError,
+    parseResultsCacheClearCron,
     parseTableCalculationFunctions,
     PersonSignInProvider,
     PivotChartData,
@@ -261,6 +263,7 @@ import {
     UpdateProjectDetails,
     UpdateProjectMember,
     UpdateQueryTimezoneSettings,
+    UpdateResultsCacheClearSchedule,
     UpdateResultsCacheProjectSettings,
     UpdateSchedulerSettings,
     UpdateVirtualViewPayload,
@@ -329,6 +332,7 @@ import v8 from 'v8';
 import { Worker } from 'worker_threads';
 import { gzip } from 'zlib';
 import {
+    ANONYMOUS_TRACKING_UUID,
     LightdashAnalytics,
     MetricQueryExecutionProperties,
     ProjectEvent,
@@ -15854,15 +15858,7 @@ export class ProjectService
         ) {
             throw new ForbiddenError();
         }
-        const { cacheTtlSeconds, lastInvalidatedAt } =
-            await this.projectModel.getResultsCacheSettings(projectUuid);
-        return {
-            projectUuid,
-            cacheTtlSeconds,
-            instanceDefaultTtlSeconds:
-                this.lightdashConfig.results.cacheStateTimeSeconds,
-            lastInvalidatedAt,
-        };
+        return this.buildResultsCacheProjectSettings(projectUuid);
     }
 
     async updateProjectResultsCacheSettings(
@@ -15908,14 +15904,33 @@ export class ProjectService
         await this.projectModel.updateResultsCacheSettings(projectUuid, {
             cacheTtlSeconds,
         });
-        const { lastInvalidatedAt } =
-            await this.projectModel.getResultsCacheSettings(projectUuid);
+        return this.buildResultsCacheProjectSettings(projectUuid);
+    }
+
+    private async buildResultsCacheProjectSettings(
+        projectUuid: string,
+    ): Promise<ResultsCacheProjectSettings> {
+        const {
+            cacheTtlSeconds,
+            lastInvalidatedAt,
+            clearCron,
+            clearNextRunAt,
+            schedulerTimezone,
+        } = await this.projectModel.getResultsCacheSettings(projectUuid);
         return {
             projectUuid,
             cacheTtlSeconds,
             instanceDefaultTtlSeconds:
                 this.lightdashConfig.results.cacheStateTimeSeconds,
             lastInvalidatedAt,
+            clearSchedule: clearCron
+                ? {
+                      cron: clearCron,
+                      enabled: clearNextRunAt !== null,
+                      nextRunAt: clearNextRunAt,
+                  }
+                : null,
+            schedulerTimezone,
         };
     }
 
@@ -15966,6 +15981,90 @@ export class ProjectService
             },
         });
         return { projectUuid, invalidatedAt };
+    }
+
+    async updateProjectResultsCacheClearSchedule(
+        user: SessionUser,
+        projectUuid: string,
+        { cron, enabled }: UpdateResultsCacheClearSchedule,
+    ): Promise<ResultsCacheProjectSettings> {
+        const { organizationUuid } = await this.assertCanInvalidateResultsCache(
+            user,
+            projectUuid,
+        );
+        if (parseResultsCacheClearCron(cron) === null) {
+            throw new ParameterError(
+                'Schedule must run daily or weekly at one or more hours, on the hour',
+            );
+        }
+        const { schedulerTimezone } =
+            await this.projectModel.getResultsCacheSettings(projectUuid);
+        await this.projectModel.updateResultsCacheClearSchedule(projectUuid, {
+            cron,
+            nextRunAt: enabled
+                ? getNextResultsCacheClearAt(
+                      cron,
+                      schedulerTimezone,
+                      new Date(),
+                  )
+                : null,
+        });
+        this.analytics.track({
+            event: 'results_cache.clear_schedule_updated',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                enabled,
+                cron,
+            },
+        });
+        return this.buildResultsCacheProjectSettings(projectUuid);
+    }
+
+    /** Runs from the hourly scheduler task. A failed project stays due and retries on the next sweep. */
+    async clearDueResultsCaches(now: Date = new Date()): Promise<void> {
+        const dueClears = await this.projectModel.getDueResultsCacheClears(now);
+        await Promise.all(
+            dueClears.map(async (due) => {
+                try {
+                    const { enabled: clear } = await this.featureFlagModel.get({
+                        user: { organizationUuid: due.organizationUuid },
+                        featureFlagId: FeatureFlags.ResultsCacheEnabled,
+                    });
+                    const claimed =
+                        await this.projectModel.claimDueResultsCacheClear(
+                            due.projectUuid,
+                            {
+                                expectedNextRunAt: due.nextRunAt,
+                                nextRunAt: getNextResultsCacheClearAt(
+                                    due.cron,
+                                    due.schedulerTimezone,
+                                    now,
+                                ),
+                                clear,
+                            },
+                        );
+                    if (claimed && clear) {
+                        this.analytics.track({
+                            event: 'results_cache.invalidated',
+                            userId: ANONYMOUS_TRACKING_UUID,
+                            properties: {
+                                organizationId: due.organizationUuid,
+                                projectId: due.projectUuid,
+                                scope: 'project',
+                                contentUuid: null,
+                                trigger: 'schedule',
+                            },
+                        });
+                    }
+                } catch (error) {
+                    this.logger.error(
+                        `Failed to run scheduled results cache clear for project ${due.projectUuid}: ${getErrorMessage(error)}`,
+                    );
+                }
+            }),
+        );
     }
 
     async updatePreviewExpiresAt(
@@ -18324,6 +18423,21 @@ export class ProjectService
         );
 
         if (settings.schedulerTimezone !== undefined) {
+            const { clearCron, clearNextRunAt } =
+                await this.projectModel.getResultsCacheSettings(projectUuid);
+            if (clearCron && clearNextRunAt) {
+                await this.projectModel.updateResultsCacheClearSchedule(
+                    projectUuid,
+                    {
+                        cron: clearCron,
+                        nextRunAt: getNextResultsCacheClearAt(
+                            clearCron,
+                            settings.schedulerTimezone,
+                            new Date(),
+                        ),
+                    },
+                );
+            }
             this.analytics.track({
                 event: 'default_scheduler_timezone.updated',
                 userId: user.userUuid,

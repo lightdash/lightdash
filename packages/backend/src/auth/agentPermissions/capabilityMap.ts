@@ -1606,6 +1606,9 @@ export const REST_OPERATION_CAPABILITIES = {
     'ProjectController.invalidateProjectResultsCache': [
         AgentCapability.Administration,
     ],
+    'ProjectController.updateProjectResultsCacheClearSchedule': [
+        AgentCapability.Administration,
+    ],
     'ProjectController.updateQueryTimezoneSettings': [
         AgentCapability.Administration,
     ],

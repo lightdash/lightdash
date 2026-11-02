@@ -426,6 +426,7 @@ export const OAUTH_CASL_CHECKED_ROUTES: readonly string[] = [
     'ProjectController.updateProjectDetails',
     'ProjectController.updateProjectMetadata',
     'ProjectController.updateProjectPreviewExpirationSettings',
+    'ProjectController.updateProjectResultsCacheClearSchedule',
     'ProjectController.updateProjectResultsCacheSettings',
     'ProjectController.updateQueryTimezoneSettings',
     'ProjectController.updateTag',

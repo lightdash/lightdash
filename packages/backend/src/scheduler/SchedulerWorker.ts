@@ -933,6 +933,14 @@ export class SchedulerWorker extends SchedulerTask {
                 },
             },
             {
+                task: SCHEDULER_TASKS.CLEAR_DUE_RESULTS_CACHES,
+                pattern: '0 * * * *', // Every hour
+                options: {
+                    backfillPeriod: 2 * 3600 * 1000, // 2 hours in ms
+                    maxAttempts: 1,
+                },
+            },
+            {
                 task: SCHEDULER_TASKS.CLEAN_WAREHOUSE_CONNECT_CODES,
                 pattern: '41 * * * *', // Hourly, off the top of the hour
                 options: {
@@ -2121,6 +2129,9 @@ export class SchedulerWorker extends SchedulerTask {
                 Logger.info(
                     `AI usage ledger cleanup completed. Records deleted: ${deletedCount}. Organizations kept in full: ${retainedOrganizationUuids.length}`,
                 );
+            },
+            [SCHEDULER_TASKS.CLEAR_DUE_RESULTS_CACHES]: async () => {
+                await this.projectService.clearDueResultsCaches();
             },
             [SCHEDULER_TASKS.CLEAN_WAREHOUSE_CONNECT_CODES]: async () => {
                 Logger.info('Starting warehouse connect codes cleanup job');

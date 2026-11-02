@@ -25,6 +25,7 @@ import useApp from '../../providers/App/useApp';
 import MantineModal from '../common/MantineModal';
 import { NumberInput } from '../common/NumberInput';
 import { SettingsGridCard } from '../common/Settings/SettingsCard';
+import { ResultsCacheClearScheduleForm } from './ResultsCacheClearScheduleForm';
 
 const MIN_TTL_MINUTES = MIN_RESULTS_CACHE_TTL_SECONDS / 60;
 const MAX_TTL_MINUTES = MAX_RESULTS_CACHE_TTL_SECONDS / 60;
@@ -249,6 +250,22 @@ const ProjectResultsCache: FC<Props> = ({ projectUuid }) => {
                     projectUuid={projectUuid}
                     lastInvalidatedAt={settings.lastInvalidatedAt}
                 />
+            )}
+            {canClearCache && settings && (
+                <SettingsGridCard>
+                    <Box>
+                        <Title order={5}>Clear on a schedule</Title>
+                        <Text c="dimmed" fz="xs">
+                            Clear cached results automatically, for example
+                            after a nightly data load.
+                        </Text>
+                    </Box>
+                    <ResultsCacheClearScheduleForm
+                        projectUuid={projectUuid}
+                        clearSchedule={settings.clearSchedule}
+                        schedulerTimezone={settings.schedulerTimezone}
+                    />
+                </SettingsGridCard>
             )}
         </Stack>
     );
