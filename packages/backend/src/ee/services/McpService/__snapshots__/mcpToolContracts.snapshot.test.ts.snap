@@ -10489,8 +10489,12 @@ Returns the terminal node's first rows, other submitted nodes' columns and first
             "type": "string",
           },
           "description": {
+            "default": null,
             "description": "A one-line description of what the pipeline computes.",
-            "type": "string",
+            "type": [
+              "string",
+              "null",
+            ],
           },
           "projectUuid": {
             "description": "Project UUID for this operation.",
@@ -10607,23 +10611,47 @@ Returns the terminal node's first rows, other submitted nodes' columns and first
                       "type": "string",
                     },
                     "filters": {
-                      "additionalProperties": false,
+                      "anyOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "dimensions": {
+                              "anyOf": [
+                                {
+                                  "maxLength": 16384,
+                                  "minLength": 1,
+                                  "type": "string",
+                                },
+                                {
+                                  "type": "null",
+                                },
+                              ],
+                              "default": null,
+                              "description": "Flat filter expression for dimension fields.",
+                            },
+                            "metrics": {
+                              "anyOf": [
+                                {
+                                  "maxLength": 16384,
+                                  "minLength": 1,
+                                  "type": "string",
+                                },
+                                {
+                                  "type": "null",
+                                },
+                              ],
+                              "default": null,
+                              "description": "Flat filter expression for metric fields.",
+                            },
+                          },
+                          "type": "object",
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                      "default": null,
                       "description": "Filters on this node's explore as flat expression strings, never structured rule objects: one for dimension fields and one for metric fields, each choosing AND or OR independently and combined with AND. Null when unfiltered, or null for an unused kind.",
-                      "properties": {
-                        "dimensions": {
-                          "description": "Flat filter expression for dimension fields.",
-                          "maxLength": 16384,
-                          "minLength": 1,
-                          "type": "string",
-                        },
-                        "metrics": {
-                          "description": "Flat filter expression for metric fields.",
-                          "maxLength": 16384,
-                          "minLength": 1,
-                          "type": "string",
-                        },
-                      },
-                      "type": "object",
                     },
                     "limit": {
                       "default": 500,
@@ -10716,25 +10744,33 @@ Returns the terminal node's first rows, other submitted nodes' columns and first
                       "description": "Each adds a column holding a metric shifted back in time, next to that metric, e.g. revenue the same month last year. The warehouse reads the earlier period even when the filters exclude it. The column id is generated; read it from the result columns.",
                     },
                     "sorts": {
-                      "description": "Sorts by fields this node also selects in dimensions or metrics, e.g. [{"fieldId": "orders_order_date", "descending": true}].",
-                      "items": {
-                        "properties": {
-                          "descending": {
-                            "description": "If true sorts in descending order, ascending otherwise.",
-                            "type": "boolean",
+                      "anyOf": [
+                        {
+                          "items": {
+                            "properties": {
+                              "descending": {
+                                "description": "If true sorts in descending order, ascending otherwise.",
+                                "type": "boolean",
+                              },
+                              "fieldId": {
+                                "description": "Field id to sort by.",
+                                "type": "string",
+                              },
+                            },
+                            "required": [
+                              "fieldId",
+                              "descending",
+                            ],
+                            "type": "object",
                           },
-                          "fieldId": {
-                            "description": "Field id to sort by.",
-                            "type": "string",
-                          },
+                          "type": "array",
                         },
-                        "required": [
-                          "fieldId",
-                          "descending",
-                        ],
-                        "type": "object",
-                      },
-                      "type": "array",
+                        {
+                          "type": "null",
+                        },
+                      ],
+                      "default": null,
+                      "description": "Sorts by fields this node also selects in dimensions or metrics, e.g. [{"fieldId": "orders_order_date", "descending": true}].",
                     },
                     "sourceType": {
                       "const": "semanticLayer",
@@ -10993,12 +11029,20 @@ Returns the terminal node's first rows, other submitted nodes' columns and first
             "type": "string",
           },
           "terminalNodeId": {
+            "default": null,
             "description": "The terminal node. Null picks the one submitted node no other submitted node reads; a node id returns that node of the pipeline instead, including a node from an earlier call.",
-            "type": "string",
+            "type": [
+              "string",
+              "null",
+            ],
           },
           "title": {
+            "default": null,
             "description": "A short title for the result.",
-            "type": "string",
+            "type": [
+              "string",
+              "null",
+            ],
           },
         },
         "required": [
@@ -13809,22 +13853,46 @@ Example B — "Revenue by month with year-over-year comparison"
             "description": "Separate flat expressions for dimensions, metrics, and table calculations. Each category chooses AND or OR independently. Non-null categories combine implicitly with AND. For example, dimensions "D1 AND D2" and metrics "M1 OR M2" mean "(D1 AND D2) AND (M1 OR M2)", where D1, D2, M1, and M2 are complete filter rules. Use null when a category has no filters.",
             "properties": {
               "dimensions": {
+                "anyOf": [
+                  {
+                    "maxLength": 16384,
+                    "minLength": 1,
+                    "type": "string",
+                  },
+                  {
+                    "type": "null",
+                  },
+                ],
+                "default": null,
                 "description": "Flat filter expression for dimension fields.",
-                "maxLength": 16384,
-                "minLength": 1,
-                "type": "string",
               },
               "metrics": {
+                "anyOf": [
+                  {
+                    "maxLength": 16384,
+                    "minLength": 1,
+                    "type": "string",
+                  },
+                  {
+                    "type": "null",
+                  },
+                ],
+                "default": null,
                 "description": "Flat filter expression for metric fields.",
-                "maxLength": 16384,
-                "minLength": 1,
-                "type": "string",
               },
               "tableCalculations": {
+                "anyOf": [
+                  {
+                    "maxLength": 16384,
+                    "minLength": 1,
+                    "type": "string",
+                  },
+                  {
+                    "type": "null",
+                  },
+                ],
+                "default": null,
                 "description": "Flat filter expression for table calculations.",
-                "maxLength": 16384,
-                "minLength": 1,
-                "type": "string",
               },
             },
             "type": "object",

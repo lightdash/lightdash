@@ -152,7 +152,8 @@ const persistedNodeDescriptionSchema = z.string().nullish().default(null);
 export const composerSemanticLayerFiltersSchema = filterExpressionsSchema
     .omit({ tableCalculations: true })
     .strict()
-    .nullable()
+    .nullish()
+    .default(null)
     .describe(
         "Filters on this node's explore as flat expression strings, never structured rule objects: one for dimension fields and one for metric fields, each choosing AND or OR independently and combined with AND. Null when unfiltered, or null for an unused kind.",
     );
@@ -309,7 +310,8 @@ export const createToolComposerQueriesArgsSchemaV1 = ({
         filters: composerSemanticLayerFiltersSchema,
         sorts: z
             .array(sortFieldSchema)
-            .nullable()
+            .nullish()
+            .default(null)
             .describe(
                 'Sorts by fields this node also selects in dimensions or metrics, e.g. [{"fieldId": "orders_order_date", "descending": true}].',
             ),
@@ -427,11 +429,13 @@ export const createToolComposerQueriesArgsSchemaV1 = ({
         .extend({
             title: z
                 .string()
-                .nullable()
+                .nullish()
+                .default(null)
                 .describe('A short title for the result.'),
             description: z
                 .string()
-                .nullable()
+                .nullish()
+                .default(null)
                 .describe(
                     'A one-line description of what the pipeline computes.',
                 ),
@@ -445,7 +449,8 @@ export const createToolComposerQueriesArgsSchemaV1 = ({
                 ),
             terminalNodeId: z
                 .string()
-                .nullable()
+                .nullish()
+                .default(null)
                 .describe(
                     'The terminal node. Null picks the one submitted node no other submitted node reads; a node id returns that node of the pipeline instead, including a node from an earlier call.',
                 ),
