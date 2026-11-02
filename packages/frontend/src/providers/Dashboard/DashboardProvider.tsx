@@ -37,6 +37,7 @@ import {
     getFilterableFieldsByTileUuid,
     getSavedDateZoomSettings,
     getTemporaryFilterLocks,
+    initialDashboardProviderState,
     selectActiveTab,
     selectAvailableCustomGranularities,
     selectDashboardTabs,
@@ -164,6 +165,17 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
             parameterLabelOverrides,
             dateZoom,
             invalidateCache: defaultInvalidateCache === true,
+            // What is loaded before the store exists; the rest syncs below
+            source: {
+                ...initialDashboardProviderState,
+                projectUuid,
+                includeUnpublishedDraft,
+                embedToken,
+                queryDashboard: dashboard,
+                isDashboardLoading,
+                dashboardError: dashboardError ?? null,
+                dashboardCommentsCheck,
+            },
         });
         return {
             store: createDashboardStore(initial.state),
@@ -399,10 +411,8 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         }
     }, [store, versionRefresh, dashboard]);
 
-    // Mirrors what this provider loaded into the store. The first render
-    // writes it before the children render (nothing subscribes yet); after
-    // that it lands before paint, one commit after react-query. The reducer
-    // ignores unchanged payloads.
+    // Mirrors what this provider loaded into the store before paint, one
+    // commit after react-query. The reducer ignores unchanged payloads.
     const providerState = useMemo<DashboardProviderState>(
         () => ({
             projectUuid,
@@ -435,11 +445,6 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
             isRefreshingDashboardVersion,
         ],
     );
-    const isSeeded = useRef(false);
-    if (!isSeeded.current) {
-        isSeeded.current = true;
-        store.dispatch(dashboardSourceActions.sync(providerState));
-    }
     useLayoutEffect(() => {
         store.dispatch(dashboardSourceActions.sync(providerState));
     }, [store, providerState]);
