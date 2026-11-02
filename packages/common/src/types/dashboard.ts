@@ -1,4 +1,5 @@
 import { type AgentIdentityClaim } from './agentIdentity';
+import { type ContentAsCodeRepositorySource } from './contentAsCode/base';
 import { type ContentDraftStaleness } from './contentAsCode/draftRebase';
 import { type ContentVerificationInfo } from './contentVerification';
 import { type FilterableDimension, type Metric } from './field';
@@ -293,7 +294,7 @@ export type Dashboard = {
     organizationUuid: string;
     projectUuid: string;
     /** The repo owns this dashboard: UI saves become drafts until written back */
-    managedFromRepository?: boolean;
+    managedFromRepository?: ContentAsCodeRepositorySource;
     /** Set when the viewer has an unpublished draft applied on top */
     hasUnpublishedChanges?: boolean;
     /** For reviewers: open drafts by other users awaiting review */

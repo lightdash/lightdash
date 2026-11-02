@@ -207,6 +207,11 @@ export type ApiContentAsCodeSnapshotPruneResponse = {
 
 export type ContentAsCodeReleasableType = 'chart' | 'dashboard';
 
+// Null filePath: nothing links it to a file, so no upload will take it back
+export type ContentAsCodeRepositorySource = {
+    filePath: string | null;
+};
+
 export type ContentAsCodePullFailure = {
     file: string;
     message: string;

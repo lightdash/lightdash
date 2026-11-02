@@ -567,9 +567,10 @@ const SavedChartsHeader: FC = () => {
                                             description={savedChart.description}
                                             slug={savedChart.slug}
                                             managedFromRepository={
-                                                savedChart.managedFromRepository
-                                                    ? 'chart'
-                                                    : undefined
+                                                savedChart.managedFromRepository && {
+                                                    contentType: 'chart',
+                                                    source: savedChart.managedFromRepository,
+                                                }
                                             }
                                             updatedAt={savedChart.updatedAt}
                                             spaceName={savedChart.spaceName}
@@ -821,9 +822,10 @@ const SavedChartsHeader: FC = () => {
                         description={savedChart.description}
                         slug={savedChart.slug}
                         managedFromRepository={
-                            savedChart.managedFromRepository
-                                ? 'chart'
-                                : undefined
+                            savedChart.managedFromRepository && {
+                                contentType: 'chart',
+                                source: savedChart.managedFromRepository,
+                            }
                         }
                         updatedAt={savedChart.updatedAt}
                         spaceName={savedChart.spaceName}

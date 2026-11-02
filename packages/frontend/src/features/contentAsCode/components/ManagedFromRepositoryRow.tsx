@@ -1,5 +1,8 @@
-import { type ContentAsCodeReleasableType } from '@lightdash/common';
-import { Anchor } from '@mantine/core';
+import {
+    type ContentAsCodeReleasableType,
+    type ContentAsCodeRepositorySource,
+} from '@lightdash/common';
+import { Anchor, Group, Stack, Text } from '@mantine/core';
 import { IconGitBranch } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import InfoRow from '../../../components/common/PageHeader/InfoRow';
@@ -12,6 +15,7 @@ type Props = {
     projectUuid: string | undefined;
     contentType: ContentAsCodeReleasableType;
     slug: string;
+    source: ContentAsCodeRepositorySource;
 };
 
 // Shown in the info popups of Git-managed content, so nobody needs a DB
@@ -20,6 +24,7 @@ const ManagedFromRepositoryRow: FC<Props> = ({
     projectUuid,
     contentType,
     slug,
+    source,
 }) => {
     const canManage = useCanManageContentAsCode(projectUuid);
     const release = useReleaseContentAsCodeSnapshot(
@@ -30,31 +35,66 @@ const ManagedFromRepositoryRow: FC<Props> = ({
     const [confirming, setConfirming] = useState(false);
 
     return (
-        <InfoRow icon={IconGitBranch} label="Source">
-            Managed from repository
-            {canManage && (
-                <>
-                    {' · '}
+        <Stack gap={4}>
+            <InfoRow icon={IconGitBranch} label="Source">
+                Repository
+            </InfoRow>
+            {source.filePath ? (
+                <Text
+                    fz="xs"
+                    c="dimmed"
+                    ff="monospace"
+                    truncate="start"
+                    title={source.filePath}
+                >
+                    {source.filePath}
+                </Text>
+            ) : (
+                <Text fz="xs" c="dimmed">
+                    Not linked to a file in the repository
+                </Text>
+            )}
+            {canManage &&
+                (confirming ? (
+                    <Stack gap={4}>
+                        <Text fz="xs" c="dimmed">
+                            {source.filePath
+                                ? 'The file is still in the repository, so the next upload manages this again and replaces edits made here. Delete the file to stop managing it for good.'
+                                : 'Saves here will publish directly. Open drafts on this are dismissed.'}
+                        </Text>
+                        <Group gap="sm">
+                            <Anchor
+                                component="button"
+                                fz="xs"
+                                fw={500}
+                                c="red"
+                                disabled={release.isLoading}
+                                onClick={() => release.mutate()}
+                            >
+                                {source.filePath ? 'Release anyway' : 'Release'}
+                            </Anchor>
+                            <Anchor
+                                component="button"
+                                fz="xs"
+                                c="dimmed"
+                                onClick={() => setConfirming(false)}
+                            >
+                                Cancel
+                            </Anchor>
+                        </Group>
+                    </Stack>
+                ) : (
                     <Anchor
                         component="button"
                         fz="xs"
                         fw={500}
-                        disabled={release.isLoading}
-                        onClick={() => {
-                            if (!confirming) {
-                                setConfirming(true);
-                                return;
-                            }
-                            release.mutate();
-                        }}
+                        ta="left"
+                        onClick={() => setConfirming(true)}
                     >
-                        {confirming
-                            ? 'Confirm: open drafts are dismissed'
-                            : 'Release'}
+                        Stop managing from the repository
                     </Anchor>
-                </>
-            )}
-        </InfoRow>
+                ))}
+        </Stack>
     );
 };
 

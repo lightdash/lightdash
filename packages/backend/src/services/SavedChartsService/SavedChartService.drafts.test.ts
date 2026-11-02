@@ -510,16 +510,36 @@ describe('SavedChartService chart drafts', () => {
         );
     });
 
-    it('flags Git-managed charts so the UI can explain why saves draft', async () => {
-        const { service } = buildService();
+    it('flags Git-managed charts with the file the repo keeps them in', async () => {
+        const { service } = buildService({
+            snapshot: {
+                snapshotHash: 'hash',
+                filePath: 'lightdash/charts/monthly-revenue.yml',
+            },
+        });
 
         const result = await service['applyOpenDraftOverlay'](editor, {
             ...chart,
             ...spaceContext,
         } as AnyType);
 
-        expect(result.managedFromRepository).toBe(true);
+        expect(result.managedFromRepository).toEqual({
+            filePath: 'lightdash/charts/monthly-revenue.yml',
+        });
         expect(result.hasUnpublishedChanges).toBeUndefined();
+    });
+
+    it('flags Git-managed charts with no linked file', async () => {
+        const { service } = buildService({
+            snapshot: { snapshotHash: 'hash', filePath: null },
+        });
+
+        const result = await service['applyOpenDraftOverlay'](editor, {
+            ...chart,
+            ...spaceContext,
+        } as AnyType);
+
+        expect(result.managedFromRepository).toEqual({ filePath: null });
     });
 
     it('leaves UI-only charts unflagged', async () => {

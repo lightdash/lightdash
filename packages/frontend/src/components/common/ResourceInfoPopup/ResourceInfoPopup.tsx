@@ -2,6 +2,7 @@ import {
     isAppVersionInProgress,
     type AppVersionStatus,
     type ContentAsCodeReleasableType,
+    type ContentAsCodeRepositorySource,
 } from '@lightdash/common';
 import {
     Anchor,
@@ -54,8 +55,11 @@ export type ResourceInfoPopupProps = {
     title?: string;
     description?: string;
     slug?: string;
-    /** Set when the repo owns this content; names the type the release targets */
-    managedFromRepository?: ContentAsCodeReleasableType;
+    /** Set when the repo owns this content */
+    managedFromRepository?: {
+        contentType: ContentAsCodeReleasableType;
+        source: ContentAsCodeRepositorySource;
+    };
     updatedAt?: Date | string | null;
     spaceName?: string;
     spaceUuid?: string | null;
@@ -248,8 +252,9 @@ export const ResourceInfoPopupContent: FC<ResourceInfoPopupProps> = ({
                 {slug && managedFromRepository && (
                     <ManagedFromRepositoryRow
                         projectUuid={projectUuid}
-                        contentType={managedFromRepository}
+                        contentType={managedFromRepository.contentType}
                         slug={slug}
+                        source={managedFromRepository.source}
                     />
                 )}
             </Stack>

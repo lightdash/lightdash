@@ -117,6 +117,7 @@ const DashboardInfoOverlay: FC<DashboardInfoOverlayProps> = ({
                         projectUuid={projectUuid}
                         contentType="dashboard"
                         slug={dashboard.slug}
+                        source={dashboard.managedFromRepository}
                     />
                 )}
             </Stack>

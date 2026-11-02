@@ -5,6 +5,7 @@ import { type ViewStatistics } from './analytics';
 import { type DateZoom } from './api/paginatedQuery';
 import { type ConditionalFormattingConfig } from './conditionalFormatting';
 import { type ChartSourceType } from './content';
+import { type ContentAsCodeRepositorySource } from './contentAsCode/base';
 import { type ContentDraftStaleness } from './contentAsCode/draftRebase';
 import { type ContentVerificationInfo } from './contentVerification';
 import { type CompactOrAlias, type FieldId } from './field';
@@ -1004,7 +1005,7 @@ export type SavedChart = {
     slug: string;
     verification: ContentVerificationInfo | null;
     /** The repo owns this chart: UI saves become drafts until written back. */
-    managedFromRepository?: boolean;
+    managedFromRepository?: ContentAsCodeRepositorySource;
     /** The caller's unpublished content-as-code draft is applied. */
     hasUnpublishedChanges?: boolean;
     /** Open drafts from other authors visible to content-as-code reviewers. */

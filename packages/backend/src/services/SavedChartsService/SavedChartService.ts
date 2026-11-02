@@ -100,7 +100,10 @@ import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { getChartFieldUsageChanges } from '../../models/CatalogModel/utils';
 import { ContentAsCodeProjectSettingsModel } from '../../models/ContentAsCodeProjectSettingsModel';
-import { ContentAsCodeSnapshotModel } from '../../models/ContentAsCodeSnapshotModel';
+import {
+    ContentAsCodeSnapshotModel,
+    type ContentAsCodeSnapshot,
+} from '../../models/ContentAsCodeSnapshotModel';
 import {
     ContentDraftModel,
     pruneUnchangedDraftFields,
@@ -834,17 +837,24 @@ export class SavedChartService
     private async resolveDraftBase(
         existingChart: Pick<SavedChartDAO, 'projectUuid' | 'slug'>,
     ): Promise<ContentDraftBase | null> {
-        const settings = await this.contentAsCodeProjectSettingsModel.get(
-            existingChart.projectUuid,
-        );
-        if (!settings?.syncEnabled) return null;
-        const snapshot = await this.contentAsCodeSnapshotModel.get(
-            existingChart.projectUuid,
-            ContentAsCodeType.CHART,
-            existingChart.slug,
-        );
+        const snapshot = await this.findRepositorySnapshot(existingChart);
         if (snapshot === undefined) return null;
         return { snapshot: snapshot.snapshot, hash: snapshot.snapshotHash };
+    }
+
+    // The upload snapshot that makes this content Git-managed, if any
+    private async findRepositorySnapshot(
+        content: Pick<SavedChartDAO, 'projectUuid' | 'slug'>,
+    ): Promise<ContentAsCodeSnapshot | undefined> {
+        const settings = await this.contentAsCodeProjectSettingsModel.get(
+            content.projectUuid,
+        );
+        if (!settings?.syncEnabled) return undefined;
+        return this.contentAsCodeSnapshotModel.get(
+            content.projectUuid,
+            ContentAsCodeType.CHART,
+            content.slug,
+        );
     }
 
     private async storeDraft(
@@ -896,12 +906,14 @@ export class SavedChartService
         publishedChart: SavedChart,
     ): Promise<SavedChart> {
         try {
-            if ((await this.resolveDraftBase(publishedChart)) === null) {
-                return publishedChart;
-            }
+            const repositorySnapshot =
+                await this.findRepositorySnapshot(publishedChart);
+            if (repositorySnapshot === undefined) return publishedChart;
             const chart: SavedChart = {
                 ...publishedChart,
-                managedFromRepository: true,
+                managedFromRepository: {
+                    filePath: repositorySnapshot.filePath,
+                },
             };
             const draft = await this.contentDraftModel.findOpenDraft(
                 chart.projectUuid,
