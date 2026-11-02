@@ -13,6 +13,7 @@ import {
     DATA_APP_VIZ_TEMPLATE,
     DimensionType,
     Explore,
+    ExploreType,
     FieldType,
     FilterOperator,
     ForbiddenError,
@@ -30,6 +31,7 @@ import {
     RequestMethod,
     SessionUser,
     SourceQuery,
+    TableSelectionType,
     UnitOfTime,
     WarehouseTypes,
     type DataAppSearchResult,
@@ -37,6 +39,7 @@ import {
     type ExtractedDataReference,
     type PersistedDataAppDataReferences,
     type SavedMergeDefinition,
+    type TablesConfiguration,
 } from '@lightdash/common';
 import { EventEmitter } from 'events';
 import knex from 'knex';
@@ -237,6 +240,9 @@ const makeService = ({
             ),
             getAllByOrganizationUuid: vi.fn().mockResolvedValue([]),
             get: vi.fn(),
+            getTablesConfiguration: vi.fn().mockResolvedValue({
+                tableSelection: { type: TableSelectionType.ALL, value: null },
+            }),
             ...projectModel,
         },
         projectService: {
@@ -1713,6 +1719,165 @@ describe('AiAgentToolsService', () => {
         expect(Object.keys(explore.tables.orders.metrics)).toEqual([
             'visible_metric',
         ]);
+    });
+
+    describe('project Tables configuration', () => {
+        const makeSelectionService = (
+            tableSelection: TablesConfiguration['tableSelection'],
+            userAttributes: Record<string, string[]> = {},
+        ) =>
+            makeService({
+                userAttributes,
+                explores: {
+                    orders: makeExplore({
+                        name: 'orders',
+                        tags: ['approved', 'ai'],
+                    }),
+                    customers: makeExplore({
+                        name: 'customers',
+                        tags: ['internal', 'ai'],
+                    }),
+                    secure: makeExplore({
+                        name: 'secure',
+                        tags: ['approved', 'ai'],
+                        requiredAttributes: { access_level: '2' },
+                    }),
+                    payments: makeExplore({
+                        name: 'payments',
+                        tags: ['approved'],
+                    }),
+                    virtual_view: {
+                        ...makeExplore({ name: 'virtual_view' }),
+                        type: ExploreType.VIRTUAL,
+                    },
+                    orders__daily: {
+                        ...makeExplore({
+                            name: 'orders__daily',
+                            tags: ['approved', 'ai'],
+                        }),
+                        type: ExploreType.PRE_AGGREGATE,
+                        preAggregateSource: {
+                            sourceExploreName: 'orders',
+                            preAggregateName: 'daily',
+                        },
+                    },
+                    customers__daily: {
+                        ...makeExplore({
+                            name: 'customers__daily',
+                            tags: ['internal', 'ai'],
+                        }),
+                        type: ExploreType.PRE_AGGREGATE,
+                        preAggregateSource: {
+                            sourceExploreName: 'customers',
+                            preAggregateName: 'daily',
+                        },
+                    },
+                },
+                projectModel: {
+                    getTablesConfiguration: vi
+                        .fn()
+                        .mockResolvedValue({ tableSelection }),
+                },
+            });
+
+        const listNames = async (
+            service: AiAgentToolsService,
+            availableTags: string[] | null = null,
+        ) =>
+            (
+                await service.getAvailableExplores({
+                    user,
+                    projectUuid,
+                    availableTags,
+                })
+            )
+                .map((explore) => explore.name)
+                .sort();
+
+        it('keeps every explore for the entire project', async () => {
+            const service = makeSelectionService(
+                { type: TableSelectionType.ALL, value: null },
+                { access_level: ['2'] },
+            );
+
+            await expect(listNames(service)).resolves.toEqual([
+                'customers',
+                'customers__daily',
+                'orders',
+                'orders__daily',
+                'payments',
+                'secure',
+                'virtual_view',
+            ]);
+        });
+
+        it('excludes explores outside a models-in-list selection from listing and lookup', async () => {
+            const service = makeSelectionService({
+                type: TableSelectionType.WITH_NAMES,
+                value: ['orders'],
+            });
+
+            await expect(listNames(service)).resolves.toEqual([
+                'orders',
+                'orders__daily',
+                'virtual_view',
+            ]);
+            await expect(
+                service.getExplore({
+                    user,
+                    projectUuid,
+                    availableTags: null,
+                    exploreName: 'orders',
+                }),
+            ).resolves.toMatchObject({ name: 'orders' });
+            await expect(
+                service.getExplore({
+                    user,
+                    projectUuid,
+                    availableTags: null,
+                    exploreName: 'customers',
+                }),
+            ).rejects.toThrow(NotFoundError);
+        });
+
+        it('excludes explores without a selected tag', async () => {
+            const service = makeSelectionService({
+                type: TableSelectionType.WITH_TAGS,
+                value: ['approved'],
+            });
+
+            await expect(listNames(service)).resolves.toEqual([
+                'orders',
+                'orders__daily',
+                'payments',
+                'virtual_view',
+            ]);
+            await expect(
+                service.getExplore({
+                    user,
+                    projectUuid,
+                    availableTags: null,
+                    exploreName: 'customers',
+                }),
+            ).rejects.toThrow(NotFoundError);
+        });
+
+        it('combines the selection with agent tags and user attributes', async () => {
+            const selection = {
+                type: TableSelectionType.WITH_TAGS,
+                value: ['approved'],
+            };
+
+            await expect(
+                listNames(makeSelectionService(selection), ['ai']),
+            ).resolves.toEqual(['orders', 'orders__daily']);
+            await expect(
+                listNames(
+                    makeSelectionService(selection, { access_level: ['2'] }),
+                    ['ai'],
+                ),
+            ).resolves.toEqual(['orders', 'orders__daily', 'secure']);
+        });
     });
 
     it('adds verified field usage for AI runtime searches but not MCP searches', async () => {
