@@ -1,3 +1,10 @@
+## [3.122.2](https://github.com/lightdash/lightdash/compare/3.122.1...3.122.2) (2026-11-02)
+
+
+### Bug Fixes
+
+* **slack:** require org permissions to install Slack or change Slack settings ([#31928](https://github.com/lightdash/lightdash/issues/31928)) ([5e05c40](https://github.com/lightdash/lightdash/commit/5e05c4068656a6305ac5859bb1d66ff8a3b8da25))
+
 ## [3.122.1](https://github.com/lightdash/lightdash/compare/3.122.0...3.122.1) (2026-11-02)
 
 
