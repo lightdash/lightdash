@@ -61,6 +61,7 @@ export interface SchedulerFormValues {
     }>;
     includeLinks: boolean;
     plainTextEmail: boolean;
+    useCachedResults: boolean;
     notificationFrequency?: NotificationFrequency;
     // Saved to the EE ai-augmentation sub-resource, not the scheduler body.
     aiAugmentation: SchedulerAiAugmentation | null;
@@ -102,6 +103,7 @@ export const DEFAULT_VALUES: SchedulerFormValues = {
     thresholds: [],
     includeLinks: true,
     plainTextEmail: false,
+    useCachedResults: false,
     aiAugmentation: null,
 };
 
@@ -218,6 +220,7 @@ export const getFormValuesFromScheduler = (
         notificationFrequency: schedulerData.notificationFrequency,
         includeLinks: schedulerData.includeLinks !== false,
         plainTextEmail: schedulerData.plainTextEmail === true,
+        useCachedResults: schedulerData.useCachedResults === true,
         // Populated separately from the ai-augmentation sub-resource.
         aiAugmentation: null,
     };
@@ -331,5 +334,6 @@ export const transformFormValues = (
         plainTextEmail:
             (values.emailTargets?.length || 0) > 0 &&
             values.plainTextEmail === true,
+        useCachedResults: values.useCachedResults === true,
     };
 };

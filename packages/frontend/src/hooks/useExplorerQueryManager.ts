@@ -33,6 +33,7 @@ import {
     getMetricQueryEstimateBody,
     useQueryCostEstimateSettings,
 } from './useQueryCostEstimate';
+import useSearchParams from './useSearchParams';
 
 type ExplorerQueryManagerArgs = {
     projectUuid?: string;
@@ -65,6 +66,8 @@ export const useExplorerQueryManager = ({
     const tableName = useExplorerSelector(selectTableName);
     const isEditMode = useExplorerSelector(selectIsEditMode);
     const minimal = useExplorerSelector(selectIsMinimal);
+    const useCachedResultsParam = useSearchParams('useCachedResults');
+    const useCachedResults = minimal && useCachedResultsParam === 'true';
     const parameterDefinitions = useExplorerSelector(
         selectParameterDefinitions,
     );
@@ -206,6 +209,7 @@ export const useExplorerQueryManager = ({
                 dateZoomGranularity,
                 minimal,
                 usePreAggregateCache: preAggCacheEnabled,
+                useCachedResults,
                 customSqlProvenanceChartUuid,
                 savedChart: chartConfigForQuery,
             }),
@@ -221,6 +225,7 @@ export const useExplorerQueryManager = ({
             dateZoomGranularity,
             minimal,
             preAggCacheEnabled,
+            useCachedResults,
             customSqlProvenanceChartUuid,
             chartConfigForQuery,
         ],

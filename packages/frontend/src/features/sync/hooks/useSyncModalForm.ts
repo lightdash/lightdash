@@ -120,6 +120,7 @@ export const useSyncModalForm = (resource: SyncResource) => {
                 showFilters:
                     isSchedulerGsheetsOptions(schedulerData.options) &&
                     schedulerData.options.showFilters === true,
+                useCachedResults: schedulerData.useCachedResults === true,
             });
             form.resetDirty();
         }
@@ -144,6 +145,7 @@ export const useSyncModalForm = (resource: SyncResource) => {
                 cron: values.cron,
                 timezone: values.timezone || undefined,
                 ...defaultNewSchedulerValues,
+                useCachedResults: values.useCachedResults,
                 options: {
                     ...values.options,
                     tabName: values.saveInNewTab
