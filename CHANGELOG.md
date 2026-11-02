@@ -1,3 +1,10 @@
+## [3.121.1](https://github.com/lightdash/lightdash/compare/3.121.0...3.121.1) (2026-11-02)
+
+
+### Bug Fixes
+
+* **ai:** route chart edits after a data answer to the agent ([#31917](https://github.com/lightdash/lightdash/issues/31917)) ([f34fe69](https://github.com/lightdash/lightdash/commit/f34fe6920f7a05046b02c1657f9fd61e659d36b5))
+
 # [3.121.0](https://github.com/lightdash/lightdash/compare/3.120.2...3.121.0) (2026-11-02)
 
 
