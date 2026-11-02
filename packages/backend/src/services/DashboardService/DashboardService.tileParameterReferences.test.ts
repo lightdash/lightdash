@@ -146,6 +146,39 @@ describe('DashboardService.getTileParameterReferences', () => {
         expect(projectService.compileQuery).toHaveBeenCalledTimes(2);
     });
 
+    it('compiles at most five charts at a time', async () => {
+        const { service, projectService } = setup();
+        const manyCharts = Array.from({ length: 12 }, (_, index) =>
+            savedChart({ uuid: `many-${index}` }),
+        );
+        manyCharts.forEach((manyChart) => {
+            charts[manyChart.uuid] = manyChart;
+        });
+        let running = 0;
+        let maxRunning = 0;
+        projectService.compileQuery.mockImplementation(async () => {
+            running += 1;
+            maxRunning = Math.max(maxRunning, running);
+            await new Promise((resolve) => {
+                setTimeout(resolve, 5);
+            });
+            running -= 1;
+            return { parameterReferences: ['orders.region'] };
+        });
+
+        const results = await service.getTileParameterReferences(
+            account,
+            projectUuid,
+            manyCharts.map((manyChart) =>
+                chartTile(`tile-${manyChart.uuid}`, manyChart.uuid),
+            ),
+        );
+
+        expect(results.every((result) => result.error === null)).toBe(true);
+        expect(projectService.compileQuery).toHaveBeenCalledTimes(12);
+        expect(maxRunning).toBe(5);
+    });
+
     it('compiles a merged chart as a merge query', async () => {
         const { service, projectService } = setup();
 

@@ -194,6 +194,8 @@ type DashboardDraftOverlay = Partial<
     >
 >;
 
+const TILE_COMPILE_CONCURRENCY = 5;
+
 type ParameterReferencesResult =
     | { parameterReferences: string[]; error: null }
     | { parameterReferences: null; error: string };
@@ -1004,6 +1006,8 @@ export class DashboardService
             ]),
         );
         const auditedAbility = this.createAuditedAbility(account);
+        // Each compile makes several DB calls; cap them so one dashboard can't drain the pool
+        const limitCompile = pLimit(TILE_COMPILE_CONCURRENCY);
 
         await Promise.all(
             charts.map(async (chart) => {
@@ -1035,13 +1039,14 @@ export class DashboardService
                 }
                 try {
                     results.set(chart.uuid, {
-                        parameterReferences:
-                            await this.compileChartParameterReferences(
+                        parameterReferences: await limitCompile(() =>
+                            this.compileChartParameterReferences(
                                 account,
                                 projectUuid,
                                 chart,
                                 explores[chart.tableName],
                             ),
+                        ),
                         error: null,
                     });
                 } catch (e) {
