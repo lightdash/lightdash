@@ -26,6 +26,21 @@ a cache-hit share donut, average/P90 warehouse execution trends,
 and top query contexts. Token volume is not cost; warehouse execution time is not
 end-to-end latency. Missing cache flags are not treated as misses.
 
+The five Ask AI charts on **Adoption** use the **Agent request starts** Explore.
+It keeps one row per captured prompt using the same event and earliest-creation
+deduplication as **Agent requests**, including pending and failed requests. The
+starts-only queries prepare request events and only the selected user/agent
+lookups; they do not prepare AI usage or calculate outcome, retry, feedback or
+token measures.
+Weekly people counts remain distinct across the entire week.
+
+Existing projects receive the new Explore and chart definitions through **Sync
+content**. Chart UUIDs, slugs, field IDs, filters, result keys, user email fallbacks
+and visualization settings remain unchanged. The full **Agent requests** Explore
+and custom charts remain available for outcome, latency, feedback and token
+analysis. This changes read-time queries only; capture, compaction and retained
+history are unchanged.
+
 Queries → **Monthly comparison** shows querying users and query runs for the last
 12 completed UTC calendar months, with absolute and percentage changes against
 the preceding calendar month. Monthly users are counted distinctly across the

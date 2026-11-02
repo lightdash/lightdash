@@ -30,6 +30,9 @@ import {
     agentRequestsColumns,
     agentRequestsMetrics,
     agentRequestsSql,
+    agentRequestStartsColumns,
+    agentRequestStartsMetrics,
+    agentRequestStartsSql,
 } from '../../../analytics/systemExplores/agentRequests';
 import {
     contentHealthColumns,
@@ -108,6 +111,7 @@ export const analyticsExploreNames = [
     'content_health',
     'content_inventory',
     'agent_requests',
+    'agent_request_starts',
     'agent_request_events',
     'semantic_usage',
     'data_app_reach',
@@ -124,7 +128,13 @@ const getBaseTableName = (name: (typeof analyticsExploreNames)[number]) =>
 export const createAnalyticsExplores = (): Explore[] => {
     const sqlBuilder = warehouseSqlBuilderFromType(WarehouseTypes.DUCKDB);
     const compiler = new ExploreCompiler(sqlBuilder);
-    const buildTable = (name: (typeof analyticsExploreNames)[number]) => {
+    const buildTable = (
+        name: Exclude<
+            (typeof analyticsExploreNames)[number],
+            'agent_request_starts'
+        >,
+        startsOnly = false,
+    ) => {
         const label = friendlyName(name);
         const tableName = getBaseTableName(name);
         const base = {
@@ -194,8 +204,12 @@ export const createAnalyticsExplores = (): Explore[] => {
                 metrics: toolActivityMetrics,
             },
             agent_requests: {
-                columns: agentRequestsColumns,
-                metrics: agentRequestsMetrics,
+                columns: startsOnly
+                    ? agentRequestStartsColumns
+                    : agentRequestsColumns,
+                metrics: startsOnly
+                    ? agentRequestStartsMetrics
+                    : agentRequestsMetrics,
             },
             agent_request_events: {
                 columns: compactedStreamSchemas.agent_request_events,
@@ -286,7 +300,7 @@ export const createAnalyticsExplores = (): Explore[] => {
                 sql: '1.0 * COUNT(DISTINCT ${verified_viewer_id}) / NULLIF(COUNT(DISTINCT ${known_verification_viewer_id}), 0)',
             };
         }
-        if (name === 'agent_requests') {
+        if (name === 'agent_requests' && !startsOnly) {
             const ratio = (
                 metricName: string,
                 condition: string,
@@ -335,21 +349,23 @@ export const createAnalyticsExplores = (): Explore[] => {
             ...(name === 'query_events'
                 ? { primaryKey: ['org_id', 'query_id'] }
                 : {}),
-            sqlTable:
-                (
-                    {
-                        embed_reach: embedReachSql,
-                        tool_activity: toolActivitySql,
-                        content_reach: contentReachSql,
-                        content_health: contentHealthSql,
-                        content_inventory: '"lightdash_content"',
-                        agent_requests: agentRequestsSql,
-                        semantic_usage: semanticUsageSql,
-                        data_app_reach: dataAppReachSql,
-                        data_app_outcomes: dataAppOutcomesSql,
-                        people_adoption: peopleAdoptionSql,
-                    } as Partial<Record<typeof name, string>>
-                )[name] ?? `"${name}"`,
+            sqlTable: startsOnly
+                ? agentRequestStartsSql
+                : ((
+                      {
+                          embed_reach: embedReachSql,
+                          tool_activity: toolActivitySql,
+                          content_reach: contentReachSql,
+                          content_health: contentHealthSql,
+                          content_inventory: '"lightdash_content"',
+                          agent_requests: agentRequestsSql,
+                          semantic_usage: semanticUsageSql,
+                          data_app_reach: dataAppReachSql,
+                          data_app_outcomes: dataAppOutcomesSql,
+                          people_adoption: peopleAdoptionSql,
+                      } as Partial<Record<typeof name, string>>
+                  )[name] ?? `"${name}"`),
+
             database: 'memory',
             schema: 'main',
             lineageGraph: { nodes: [], edges: [] },
@@ -370,6 +386,7 @@ export const createAnalyticsExplores = (): Explore[] => {
         if (table.dimensions.user_id)
             table.dimensions.user_id.label = 'User UUID';
         table.dimensions.project_id.label = 'Project UUID';
+        if (startsOnly) table.dimensions.org_id.hidden = true;
         if (name === 'embed_reach') {
             for (const field of [
                 'org_id',
@@ -477,7 +494,9 @@ export const createAnalyticsExplores = (): Explore[] => {
         return table;
     };
 
-    return analyticsExploreNames.map((name) => {
+    return analyticsExploreNames.map((exploreName) => {
+        const startsOnly = exploreName === 'agent_request_starts';
+        const name = startsOnly ? 'agent_requests' : exploreName;
         const dimensions: Exclude<UsageDimensionName, 'content' | 'people'>[] =
             [];
         if (
@@ -551,7 +570,7 @@ export const createAnalyticsExplores = (): Explore[] => {
                 ];
             }),
         );
-        const label = friendlyName(name);
+        const label = friendlyName(exploreName);
         const includeContentMetadata =
             name === 'content_reach' || name === 'historical_activity';
         const contentTableName = usageDimensionTable('content');
@@ -596,7 +615,7 @@ export const createAnalyticsExplores = (): Explore[] => {
         if (name === 'historical_activity')
             appFields.name.sql = `CASE WHEN \${${name}.app_id} IS NULL THEN NULL ELSE ${appFields.name.sql} END`;
         const explore: UncompiledExplore = {
-            name,
+            name: exploreName,
             label,
             tags: [],
             baseTable: getBaseTableName(name),
@@ -696,7 +715,7 @@ export const createAnalyticsExplores = (): Explore[] => {
                       }
                     : {}),
                 ...dimensionTables,
-                [getBaseTableName(name)]: buildTable(name),
+                [getBaseTableName(name)]: buildTable(name, startsOnly),
                 ...(includeQueryMetadata
                     ? { query_events: buildTable('query_events') }
                     : {}),
@@ -708,6 +727,10 @@ export const createAnalyticsExplores = (): Explore[] => {
                 table.name === explore.baseTable ? name : table.name;
             table.description = analyticsTableDescriptions[modelName];
             describeAnalyticsDimensions(modelName, table.dimensions);
+        }
+        if (startsOnly) {
+            explore.tables[name].description =
+                'One row per captured human prompt, using the same event and creation deduplication as Agent requests. Counts questions and exact distinct requesters without preparing outcomes or model usage. Pending and failed prompts remain included.';
         }
 
         // Keep the joins lazy, but present their fields alongside the activity.

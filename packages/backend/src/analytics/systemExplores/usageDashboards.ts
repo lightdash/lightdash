@@ -111,9 +111,13 @@ const withPeopleDisplayName = (chart: ChartAsCode): ChartAsCode => {
 };
 
 const withUserActivityLabels = (chart: ChartAsCode): ChartAsCode => {
-    const nameField = `${chart.tableName}_user_name`;
-    const emailField = `${chart.tableName}_user_email`;
-    const idField = `${chart.tableName}_user_id`;
+    const tableName =
+        chart.tableName === 'agent_request_starts'
+            ? 'agent_requests'
+            : chart.tableName;
+    const nameField = `${tableName}_user_name`;
+    const emailField = `${tableName}_user_email`;
+    const idField = `${tableName}_user_id`;
     if (
         chart.chartConfig.type !== ChartType.TABLE ||
         !chart.metricQuery.dimensions.includes(nameField) ||
@@ -122,12 +126,12 @@ const withUserActivityLabels = (chart: ChartAsCode): ChartAsCode => {
         return chart;
     }
     const columns = chart.chartConfig.config?.columns;
-    const name = `\${${chart.tableName}.user_name}`;
-    const email = `\${${chart.tableName}.user_email}`;
-    const id = `\${${chart.tableName}.user_id}`;
+    const name = `\${${tableName}.user_name}`;
+    const email = `\${${tableName}.user_email}`;
+    const id = `\${${tableName}.user_id}`;
     const displayField = 'user_display_name';
     const originName = 'activity_origin';
-    const originField = `${chart.tableName}_${originName}`;
+    const originField = `${tableName}_${originName}`;
     return {
         ...chart,
         description: `${chart.description} Primary email is shown when no display name is available. User <ID> means neither a display name nor primary email is available; No user recorded means no user identifier was captured. Activity source lists captured origins within each row; older summaries cannot recover missing embed context.`,
@@ -140,11 +144,11 @@ const withUserActivityLabels = (chart: ChartAsCode): ChartAsCode => {
             additionalMetrics: [
                 ...(chart.metricQuery.additionalMetrics ?? []),
                 {
-                    table: chart.tableName,
+                    table: tableName,
                     name: originName,
                     label: 'Activity source',
                     type: MetricType.STRING,
-                    sql: usageActivityOriginSql(chart.tableName),
+                    sql: usageActivityOriginSql(tableName),
                 },
             ],
             tableCalculations: [

@@ -292,6 +292,7 @@ describe('createAnalyticsExplores', () => {
             'content_health',
             'content_inventory',
             'agent_requests',
+            'agent_request_starts',
             'agent_request_events',
             'semantic_usage',
             'data_app_reach',
