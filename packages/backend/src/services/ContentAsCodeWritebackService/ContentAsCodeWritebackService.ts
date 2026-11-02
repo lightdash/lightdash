@@ -463,8 +463,7 @@ export class ContentAsCodeWritebackService extends BaseService {
         return { charts, sqlCharts, dashboards };
     }
 
-    // A manager hands one item back to the UI: the snapshot goes, open drafts
-    // are dismissed so authors reach the existing dismissed-draft path.
+    // Dismiss open drafts so authors reach the existing dismissed-draft path.
     async releaseSnapshot(
         user: SessionUser,
         projectUuid: string,
