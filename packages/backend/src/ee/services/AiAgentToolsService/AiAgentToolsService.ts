@@ -37,6 +37,7 @@ import {
     isDashboardSqlChartTile,
     isDimension,
     isExploreError,
+    isExploreIncludedInTableSelection,
     isFilterAutocompleteManualOnly,
     isGitProjectType,
     JobStatusType,
@@ -777,30 +778,43 @@ export class AiAgentToolsService extends BaseService {
                     throw new ForbiddenError('Organization not found');
                 }
 
-                const dbAttributes =
-                    await this.userAttributesModel.getAttributeValuesForOrgMember(
-                        {
-                            organizationUuid,
-                            userUuid: user.userUuid,
-                        },
-                    );
+                const [dbAttributes, { tableSelection }, cachedExplores] =
+                    await Promise.all([
+                        this.userAttributesModel.getAttributeValuesForOrgMember(
+                            {
+                                organizationUuid,
+                                userUuid: user.userUuid,
+                            },
+                        ),
+                        this.projectModel.getTablesConfiguration(projectUuid),
+                        this.projectModel.findExploresFromCache(
+                            projectUuid,
+                            'name',
+                            exploreNames,
+                        ),
+                    ]);
                 const userAttributes = mergeUserAttributes(
                     dbAttributes,
                     userAttributeOverrides,
                 );
 
-                const allExplores = Object.values(
-                    await this.projectModel.findExploresFromCache(
-                        projectUuid,
-                        'name',
-                        exploreNames,
-                    ),
-                );
-
-                return allExplores
+                return Object.values(cachedExplores)
                     .filter(
                         (explore): explore is Explore =>
                             !isExploreError(explore),
+                    )
+                    .filter((explore) =>
+                        // Pre-aggregate explores follow their source explore's selection
+                        isExploreIncludedInTableSelection(
+                            {
+                                name:
+                                    explore.preAggregateSource
+                                        ?.sourceExploreName ?? explore.name,
+                                tags: explore.tags,
+                                type: explore.type,
+                            },
+                            tableSelection,
+                        ),
                     )
                     .filter((explore) =>
                         doesExploreMatchRequiredAttributes(
