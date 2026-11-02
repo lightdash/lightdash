@@ -1,3 +1,10 @@
+## [3.122.3](https://github.com/lightdash/lightdash/compare/3.122.2...3.122.3) (2026-11-02)
+
+
+### Bug Fixes
+
+* **ai-agents:** accept custom dimensions in agent content queries ([#31927](https://github.com/lightdash/lightdash/issues/31927)) ([82caa13](https://github.com/lightdash/lightdash/commit/82caa13eae052261f7a9631c84433920500bfea5))
+
 ## [3.122.2](https://github.com/lightdash/lightdash/compare/3.122.1...3.122.2) (2026-11-02)
 
 
