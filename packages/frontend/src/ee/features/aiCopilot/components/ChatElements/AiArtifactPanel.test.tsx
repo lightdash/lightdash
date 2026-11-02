@@ -80,7 +80,8 @@ vi.mock('../../hooks/useCanViewAiAgentSql', () => ({
 vi.mock('../../../../../hooks/useCompiledSql', () => ({
     useCompiledSqlFromMetricQuery: () => ({ data: undefined }),
 }));
-vi.mock('../../../../../hooks/useQueryResults', () => ({
+vi.mock('../../../../../hooks/useQueryResults', async (original) => ({
+    ...(await original<typeof QueryResultsHooks>()),
     useInfiniteQueryResults: mocks.rows,
 }));
 vi.mock('../../../../../hooks/health/useHealth', () => ({
@@ -500,13 +501,16 @@ describe('composer artifact', () => {
                 labels: null,
             },
         };
-        const statusCounts = resultsOf(
-            {
-                status: { reference: 'status', type: 'string' },
-                n: { reference: 'n', type: 'number' },
-            },
-            [{ status: 'completed', n: 3 }],
-        );
+        const statusCounts = {
+            ...resultsOf(
+                {
+                    status: { reference: 'status', type: 'string' },
+                    n: { reference: 'n', type: 'number' },
+                },
+                [{ status: 'completed', n: 3 }],
+            ),
+            totalResults: 1,
+        };
         const canExport = {
             user: {
                 abilityRules: [
@@ -575,6 +579,39 @@ describe('composer artifact', () => {
             expect(
                 screen.queryByRole('button', { name: 'Quick actions' }),
             ).not.toBeInTheDocument();
+        });
+
+        it('downloads the displayed node result as run from the same menu', async () => {
+            mockedLightdashApi.mockImplementation((async ({
+                url,
+            }: {
+                url: string;
+            }) =>
+                url.endsWith('/schedule-download')
+                    ? { jobId: 'job' }
+                    : undefined) as unknown as typeof sharedLightdashApi);
+            renderChart(canExport, composerConfig);
+            fireEvent.click(
+                await screen.findByRole('button', { name: 'Quick actions' }),
+            );
+            expect(
+                screen.queryByRole('menuitem', { name: 'Export image' }),
+            ).not.toBeInTheDocument();
+            fireEvent.click(
+                await screen.findByRole('menuitem', {
+                    name: 'Download results',
+                }),
+            );
+            fireEvent.click(
+                await screen.findByRole('button', { name: 'Download' }),
+            );
+            await waitFor(() =>
+                expect(mockedLightdashApi).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        url: '/projects/project/query/query/schedule-download',
+                    }),
+                ),
+            );
         });
     });
 
