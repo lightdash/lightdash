@@ -519,7 +519,17 @@ const projectModel = {
             cacheTtlSeconds: null,
             cacheGeneration: 0,
             lastInvalidatedAt: null,
+            clearCron: null,
+            clearNextRunAt: null,
+            schedulerTimezone: 'UTC',
         }),
+    ),
+    updateResultsCacheClearSchedule: vi.fn(async () => undefined),
+    getDueResultsCacheClears: vi.fn<ProjectModel['getDueResultsCacheClears']>(
+        async () => [],
+    ),
+    claimDueResultsCacheClear: vi.fn<ProjectModel['claimDueResultsCacheClear']>(
+        async () => true,
     ),
     updateResultsCacheSettings: vi.fn(async () => undefined),
     invalidateResultsCache: vi.fn<ProjectModel['invalidateResultsCache']>(
@@ -2296,6 +2306,151 @@ describe('ProjectService', () => {
         });
     });
 
+    describe('results cache clear schedule', () => {
+        const cachingService = getMockedProjectService({
+            ...lightdashConfigWithGoogleOAuthMock,
+            results: {
+                ...lightdashConfigWithGoogleOAuthMock.results,
+                cacheEnabled: true,
+            },
+        });
+        const projectAdmin: SessionUser = {
+            ...user,
+            ability: new Ability<PossibleAbilities>([
+                { subject: 'Project', action: ['manage'] },
+            ]),
+        };
+        const now = new Date('2026-01-15T07:00:02Z');
+        const dueClear = {
+            projectUuid,
+            organizationUuid: user.organizationUuid!,
+            cron: '0 7 * * *',
+            schedulerTimezone: 'UTC',
+            nextRunAt: new Date('2026-01-15T07:00:00Z'),
+        };
+
+        beforeEach(() => {
+            projectModel.updateResultsCacheClearSchedule.mockClear();
+            projectModel.getDueResultsCacheClears.mockReset();
+            projectModel.claimDueResultsCacheClear.mockReset();
+            projectModel.claimDueResultsCacheClear.mockResolvedValue(true);
+        });
+
+        test('rejects users who cannot manage the project', async () => {
+            await expect(
+                cachingService.updateProjectResultsCacheClearSchedule(
+                    user,
+                    projectUuid,
+                    { enabled: true, cron: '0 6 * * *' },
+                ),
+            ).rejects.toThrow(ForbiddenError);
+        });
+
+        test('rejects an unsupported cron', async () => {
+            await expect(
+                cachingService.updateProjectResultsCacheClearSchedule(
+                    projectAdmin,
+                    projectUuid,
+                    { enabled: true, cron: '30 6 * * *' },
+                ),
+            ).rejects.toThrow(ParameterError);
+            expect(
+                projectModel.updateResultsCacheClearSchedule,
+            ).not.toHaveBeenCalled();
+        });
+
+        test('rejects an hourly cron', async () => {
+            await expect(
+                cachingService.updateProjectResultsCacheClearSchedule(
+                    projectAdmin,
+                    projectUuid,
+                    { enabled: true, cron: '0 * * * *' },
+                ),
+            ).rejects.toThrow(ParameterError);
+        });
+
+        test('saves a schedule with several hours a day', async () => {
+            await cachingService.updateProjectResultsCacheClearSchedule(
+                projectAdmin,
+                projectUuid,
+                { enabled: true, cron: '0 6,14,22 * * *' },
+            );
+            expect(
+                projectModel.updateResultsCacheClearSchedule,
+            ).toHaveBeenCalledWith(projectUuid, {
+                cron: '0 6,14,22 * * *',
+                nextRunAt: expect.any(Date),
+            });
+        });
+
+        test('rejects while results caching is disabled', async () => {
+            await expect(
+                service.updateProjectResultsCacheClearSchedule(
+                    projectAdmin,
+                    projectUuid,
+                    { enabled: true, cron: '0 6 * * *' },
+                ),
+            ).rejects.toThrow(ForbiddenError);
+        });
+
+        test('keeps the cron but clears the next run when disabled', async () => {
+            await cachingService.updateProjectResultsCacheClearSchedule(
+                projectAdmin,
+                projectUuid,
+                { enabled: false, cron: '0 6 * * *' },
+            );
+            expect(
+                projectModel.updateResultsCacheClearSchedule,
+            ).toHaveBeenCalledWith(projectUuid, {
+                cron: '0 6 * * *',
+                nextRunAt: null,
+            });
+        });
+
+        test('clears due projects and advances the next run', async () => {
+            projectModel.getDueResultsCacheClears.mockResolvedValue([dueClear]);
+            await cachingService.clearDueResultsCaches(now);
+            expect(projectModel.claimDueResultsCacheClear).toHaveBeenCalledWith(
+                projectUuid,
+                {
+                    expectedNextRunAt: dueClear.nextRunAt,
+                    nextRunAt: new Date('2026-01-16T07:00:00Z'),
+                    clear: true,
+                },
+            );
+        });
+
+        test('advances without clearing while the flag is off', async () => {
+            projectModel.getDueResultsCacheClears.mockResolvedValue([dueClear]);
+            await service.clearDueResultsCaches(now);
+            expect(projectModel.claimDueResultsCacheClear).toHaveBeenCalledWith(
+                projectUuid,
+                expect.objectContaining({ clear: false }),
+            );
+        });
+
+        test('one failing project does not stop the others', async () => {
+            projectModel.getDueResultsCacheClears.mockResolvedValue([
+                { ...dueClear, projectUuid: 'failing-project' },
+                dueClear,
+            ]);
+            projectModel.claimDueResultsCacheClear.mockImplementation(
+                async (uuid) => {
+                    if (uuid === 'failing-project') {
+                        throw new Error('boom');
+                    }
+                    return true;
+                },
+            );
+            await expect(
+                cachingService.clearDueResultsCaches(now),
+            ).resolves.toBeUndefined();
+            expect(
+                projectModel.claimDueResultsCacheClear,
+            ).toHaveBeenCalledTimes(2);
+        });
+    });
+
     describe('updateProjectResultsCacheSettings', () => {
         const cachingService = getMockedProjectService({
             ...lightdashConfigWithGoogleOAuthMock,
@@ -2366,6 +2521,14 @@ describe('ProjectService', () => {
         });
 
         test('persists a TTL within bounds', async () => {
+            projectModel.getResultsCacheSettings.mockResolvedValueOnce({
+                cacheTtlSeconds: 1800,
+                cacheGeneration: 0,
+                lastInvalidatedAt: null,
+                clearCron: null,
+                clearNextRunAt: null,
+                schedulerTimezone: 'UTC',
+            });
             const result =
                 await cachingService.updateProjectResultsCacheSettings(
                     user,
@@ -2383,6 +2546,8 @@ describe('ProjectService', () => {
                     lightdashConfigWithGoogleOAuthMock.results
                         .cacheStateTimeSeconds,
                 lastInvalidatedAt: null,
+                clearSchedule: null,
+                schedulerTimezone: 'UTC',
             });
         });
 
@@ -2404,6 +2569,8 @@ describe('ProjectService', () => {
                     lightdashConfigWithGoogleOAuthMock.results
                         .cacheStateTimeSeconds,
                 lastInvalidatedAt: null,
+                clearSchedule: null,
+                schedulerTimezone: 'UTC',
             });
         });
     });

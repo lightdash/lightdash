@@ -1,3 +1,119 @@
+## [3.122.3](https://github.com/lightdash/lightdash/compare/3.122.2...3.122.3) (2026-11-02)
+
+
+### Bug Fixes
+
+* **ai-agents:** accept custom dimensions in agent content queries ([#31927](https://github.com/lightdash/lightdash/issues/31927)) ([82caa13](https://github.com/lightdash/lightdash/commit/82caa13eae052261f7a9631c84433920500bfea5))
+
+## [3.122.2](https://github.com/lightdash/lightdash/compare/3.122.1...3.122.2) (2026-11-02)
+
+
+### Bug Fixes
+
+* **slack:** require org permissions to install Slack or change Slack settings ([#31928](https://github.com/lightdash/lightdash/issues/31928)) ([5e05c40](https://github.com/lightdash/lightdash/commit/5e05c4068656a6305ac5859bb1d66ff8a3b8da25))
+
+## [3.122.1](https://github.com/lightdash/lightdash/compare/3.122.0...3.122.1) (2026-11-02)
+
+
+### Bug Fixes
+
+* **ai-agent:** accept omitted optional fields in query and visualize tools ([#31922](https://github.com/lightdash/lightdash/issues/31922)) ([cea6f43](https://github.com/lightdash/lightdash/commit/cea6f43a45626c8d1ae493e77989c2f4f18786eb))
+* **ai-agent:** guide composer to AS-alias and quote keywords in DuckDB SQL ([#31924](https://github.com/lightdash/lightdash/issues/31924)) ([e0d8625](https://github.com/lightdash/lightdash/commit/e0d8625ace7df84cfc72ff4715478bfee4d9eece))
+
+# [3.122.0](https://github.com/lightdash/lightdash/compare/3.121.1...3.122.0) (2026-11-02)
+
+
+### Bug Fixes
+
+* **ai:** Slack chart images pivot the secondary axis per group ([#31920](https://github.com/lightdash/lightdash/issues/31920)) ([bc12482](https://github.com/lightdash/lightdash/commit/bc1248265a8ec35889eead49b549a94c39bc07c5))
+
+
+### Features
+
+* **ai-agents:** download results from composer artifacts ([#31921](https://github.com/lightdash/lightdash/issues/31921)) ([dba2686](https://github.com/lightdash/lightdash/commit/dba2686d63ac32d7faac96bcf21b1c3b6a5457e8))
+
+## [3.121.1](https://github.com/lightdash/lightdash/compare/3.121.0...3.121.1) (2026-11-02)
+
+
+### Bug Fixes
+
+* **ai:** route chart edits after a data answer to the agent ([#31917](https://github.com/lightdash/lightdash/issues/31917)) ([f34fe69](https://github.com/lightdash/lightdash/commit/f34fe6920f7a05046b02c1657f9fd61e659d36b5))
+
+# [3.121.0](https://github.com/lightdash/lightdash/compare/3.120.2...3.121.0) (2026-11-02)
+
+
+### Features
+
+* **ai-agent:** export image from composer artifacts ([#31918](https://github.com/lightdash/lightdash/issues/31918)) ([89fdf95](https://github.com/lightdash/lightdash/commit/89fdf955570768e71408a983f6f34e04a49f54e4))
+
+## [3.120.2](https://github.com/lightdash/lightdash/compare/3.120.1...3.120.2) (2026-11-02)
+
+
+### Bug Fixes
+
+* **content-review:** allow review requests from nested personal spaces ([#31911](https://github.com/lightdash/lightdash/issues/31911)) ([29a4c61](https://github.com/lightdash/lightdash/commit/29a4c6129e2f7300a45d33f7ceddfb10855302c8))
+* **dashboards:** keep parameters beside the sectioned filters ([#31915](https://github.com/lightdash/lightdash/issues/31915)) ([2e873f6](https://github.com/lightdash/lightdash/commit/2e873f6cf38d0b08644fb97d67438bbdd5b6fa20))
+
+## [3.120.1](https://github.com/lightdash/lightdash/compare/3.120.0...3.120.1) (2026-11-02)
+
+
+### Bug Fixes
+
+* **filters:** resolve DST fold datetimes independently of the current date ([#31913](https://github.com/lightdash/lightdash/issues/31913)) ([1935af4](https://github.com/lightdash/lightdash/commit/1935af412db0762b75708315e5842113c91b3680))
+* **frontend:** stop scroll fade masking top of settings nav at rest ([#31916](https://github.com/lightdash/lightdash/issues/31916)) ([8987808](https://github.com/lightdash/lightdash/commit/89878084d02e3d98be4013d0e8e4bdb4806525e9))
+
+# [3.120.0](https://github.com/lightdash/lightdash/compare/3.119.0...3.120.0) (2026-11-02)
+
+
+### Features
+
+* **results-cache:** let admins schedule cache clears ([#31912](https://github.com/lightdash/lightdash/issues/31912)) ([10460e2](https://github.com/lightdash/lightdash/commit/10460e24f16561b51028239244a851f81fa4e268))
+
+# [3.119.0](https://github.com/lightdash/lightdash/compare/3.118.3...3.119.0) (2026-11-02)
+
+
+### Features
+
+* **ai:** require an [@mention](https://github.com/mention) in the Slack multi-agent channel (opt-in) ([#31907](https://github.com/lightdash/lightdash/issues/31907)) ([a885ab6](https://github.com/lightdash/lightdash/commit/a885ab65d9997b3b5ff100c00265a7b9d916a7bf))
+
+## [3.118.3](https://github.com/lightdash/lightdash/compare/3.118.2...3.118.3) (2026-11-02)
+
+
+### Bug Fixes
+
+* **backend:** apply secureFetch timeout to response bodies ([#31908](https://github.com/lightdash/lightdash/issues/31908)) ([ade1826](https://github.com/lightdash/lightdash/commit/ade182653582e04c915ea1f9945d7b83b6a1aa45))
+
+## [3.118.2](https://github.com/lightdash/lightdash/compare/3.118.1...3.118.2) (2026-11-02)
+
+
+### Bug Fixes
+
+* **ai-agents:** keep the trailing slash in OAuth MCP protected-resource discovery ([#31904](https://github.com/lightdash/lightdash/issues/31904)) ([3bc6fc9](https://github.com/lightdash/lightdash/commit/3bc6fc9347ce058f0489e3bd932960b9af016c68))
+* **ai:** apply project Tables configuration to agent explores ([#31906](https://github.com/lightdash/lightdash/issues/31906)) ([e5533d3](https://github.com/lightdash/lightdash/commit/e5533d38817326978d06e03ef8713850cc1ab274))
+* **exports:** warn when cell limit truncates flat CSV and Excel exports ([#31905](https://github.com/lightdash/lightdash/issues/31905)) ([1bf8917](https://github.com/lightdash/lightdash/commit/1bf8917afa499fb214c07c114a76990aca4ae0dc))
+
+## [3.118.1](https://github.com/lightdash/lightdash/compare/3.118.0...3.118.1) (2026-11-02)
+
+
+### Bug Fixes
+
+* **embed:** save charts created in embedded dashboards to the dashboard ([#31882](https://github.com/lightdash/lightdash/issues/31882)) ([f11793b](https://github.com/lightdash/lightdash/commit/f11793be38706ef66828bc6b86fbe1bf76859874))
+
+# [3.118.0](https://github.com/lightdash/lightdash/compare/3.117.0...3.118.0) (2026-11-02)
+
+
+### Features
+
+* **ai:** custom metrics and period comparisons on composer semanticLayer node ([#31561](https://github.com/lightdash/lightdash/issues/31561)) ([7d4f30a](https://github.com/lightdash/lightdash/commit/7d4f30a4acc9e769d20021c9ab5ae8e9c8fb4c48))
+
+# [3.117.0](https://github.com/lightdash/lightdash/compare/3.116.0...3.117.0) (2026-11-02)
+
+
+### Features
+
+* **ai:** one unread node per composer submission, show node columns and samples ([#31853](https://github.com/lightdash/lightdash/issues/31853)) ([af70c8c](https://github.com/lightdash/lightdash/commit/af70c8c23393344e6bff24b0fe75ffc0880e2173))
+* **mcp:** composer query node samples, listing and unread-node guidance ([#31899](https://github.com/lightdash/lightdash/issues/31899)) ([b16c938](https://github.com/lightdash/lightdash/commit/b16c938cfe07afc68c2704e21d35a3115f2cc0a5))
+
 # [3.116.0](https://github.com/lightdash/lightdash/compare/3.115.0...3.116.0) (2026-10-31)
 
 

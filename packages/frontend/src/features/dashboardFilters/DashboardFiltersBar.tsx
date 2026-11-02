@@ -66,6 +66,11 @@ type Props = {
     isCompactDrawerSuppressed?: boolean;
     /** How the filter row aligns its items (default `flex-start`). */
     filtersAlign?: 'flex-start' | 'center';
+    /**
+     * Wraps the parameters in their own column beside a filter area that
+     * spans several lines (default false: inline with the filters).
+     */
+    isParametersColumn?: boolean;
 };
 
 export const DashboardFiltersBar: FC<Props> = ({
@@ -89,6 +94,7 @@ export const DashboardFiltersBar: FC<Props> = ({
     filterArea,
     isCompactDrawerSuppressed = false,
     filtersAlign = 'flex-start',
+    isParametersColumn = false,
 }) => {
     const compact = useCompactContentHeader();
     const [opened, { open, close }] = useDisclosure(false);
@@ -131,6 +137,15 @@ export const DashboardFiltersBar: FC<Props> = ({
     );
 
     const renderFilters = !isAddFilterDisabled || isEditMode || hasFilters;
+
+    const wrapParameters = (node: ReactNode) =>
+        isParametersColumn ? (
+            <Group className={classes.parameters} gap="xs">
+                {node}
+            </Group>
+        ) : (
+            node
+        );
 
     const content = (
         <div className={classes.content}>
@@ -196,29 +211,35 @@ export const DashboardFiltersBar: FC<Props> = ({
                                         <Divider orientation="vertical" />
                                     )}
 
-                                    <Parameters
-                                        isEditMode={isEditMode}
-                                        parameterValues={parameterValues}
-                                        onParameterChange={onParameterChange}
-                                        onClearAll={onParameterClearAll}
-                                        parameters={parameters}
-                                        shadowedReservedNames={
-                                            shadowedReservedNames
-                                        }
-                                        isLoading={isParameterLoading}
-                                        missingRequiredParameters={
-                                            missingRequiredParameters
-                                        }
-                                        pinnedParameters={pinnedParameters}
-                                        onParameterPin={onParameterPin}
-                                        parameterOrder={parameterOrder}
-                                        onParameterReorder={onParameterReorder}
-                                        separator={
-                                            compact
-                                                ? undefined
-                                                : parametersSeparator
-                                        }
-                                    />
+                                    {wrapParameters(
+                                        <Parameters
+                                            isEditMode={isEditMode}
+                                            parameterValues={parameterValues}
+                                            onParameterChange={
+                                                onParameterChange
+                                            }
+                                            onClearAll={onParameterClearAll}
+                                            parameters={parameters}
+                                            shadowedReservedNames={
+                                                shadowedReservedNames
+                                            }
+                                            isLoading={isParameterLoading}
+                                            missingRequiredParameters={
+                                                missingRequiredParameters
+                                            }
+                                            pinnedParameters={pinnedParameters}
+                                            onParameterPin={onParameterPin}
+                                            parameterOrder={parameterOrder}
+                                            onParameterReorder={
+                                                onParameterReorder
+                                            }
+                                            separator={
+                                                compact
+                                                    ? undefined
+                                                    : parametersSeparator
+                                            }
+                                        />,
+                                    )}
                                 </>
                             )}
                         </Group>

@@ -297,6 +297,7 @@ jobs:
         with:
           runtime: node@${{ steps.node-version.outputs.version }}
           cache: true
+          save-cache: false
           install: false
 
       - name: Read packageManager
@@ -449,6 +450,7 @@ jobs:
         with:
           runtime: node@${{ steps.node-version.outputs.version }}
           cache: true
+          save-cache: false
           install: false
 
       - name: Read packageManager
@@ -844,6 +846,7 @@ jobs:
         with:
           runtime: node@${{ steps.node-version.outputs.version }}
           cache: true
+          save-cache: false
           cache-dependency-path: pnpm-lock.yaml
           install: false
 

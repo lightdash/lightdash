@@ -30744,6 +30744,31 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "ApiAiAgentVisualizeSlackPreviewRequest": {
+                "properties": {
+                    "vizConfig": {
+                        "$ref": "#/components/schemas/Record_string.unknown_"
+                    },
+                    "rows": {
+                        "items": {
+                            "$ref": "#/components/schemas/Record_string.unknown_"
+                        },
+                        "type": "array"
+                    },
+                    "columns": {
+                        "items": {
+                            "$ref": "#/components/schemas/ResultColumn"
+                        },
+                        "type": "array"
+                    },
+                    "title": {
+                        "type": "string"
+                    }
+                },
+                "required": ["vizConfig", "rows", "columns", "title"],
+                "type": "object",
+                "description": "Rows and a visualize-tool viz config to draw as the Slack chart image; vizConfig is parsed server-side."
+            },
             "AiAgentUserPreferences": {
                 "properties": {
                     "defaultAgentUuid": {
@@ -56590,6 +56615,9 @@
                     "unfurlsEnabled": {
                         "type": "boolean"
                     },
+                    "aiMultiAgentRequireMention": {
+                        "type": "boolean"
+                    },
                     "aiMultiAgentProjectUuids": {
                         "items": {
                             "type": "string"
@@ -56675,6 +56703,9 @@
                         "type": "boolean"
                     },
                     "unfurlsEnabled": {
+                        "type": "boolean"
+                    },
+                    "aiMultiAgentRequireMention": {
                         "type": "boolean"
                     },
                     "aiMultiAgentProjectUuids": {
@@ -56921,6 +56952,7 @@
                     "backfillUsageQueryHistory",
                     "pollEmailWhitelabelVerification",
                     "cleanWarehouseConnectCodes",
+                    "clearDueResultsCaches",
                     "cleanAgentConnectionApprovalRequests",
                     "reconcilePlaygroundBundles",
                     "backfillDefaultUserSpaces",
@@ -60726,8 +60758,36 @@
                 ],
                 "type": "object"
             },
+            "ResultsCacheClearSchedule": {
+                "properties": {
+                    "nextRunAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "enabled": {
+                        "type": "boolean"
+                    },
+                    "cron": {
+                        "type": "string"
+                    }
+                },
+                "required": ["nextRunAt", "enabled", "cron"],
+                "type": "object"
+            },
             "ResultsCacheProjectSettings": {
                 "properties": {
+                    "schedulerTimezone": {
+                        "type": "string"
+                    },
+                    "clearSchedule": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ResultsCacheClearSchedule"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "lastInvalidatedAt": {
                         "type": "string",
                         "format": "date-time",
@@ -60747,6 +60807,8 @@
                     }
                 },
                 "required": [
+                    "schedulerTimezone",
+                    "clearSchedule",
                     "lastInvalidatedAt",
                     "instanceDefaultTtlSeconds",
                     "cacheTtlSeconds",
@@ -60780,6 +60842,18 @@
                     }
                 },
                 "required": ["cacheTtlSeconds"],
+                "type": "object"
+            },
+            "UpdateResultsCacheClearSchedule": {
+                "properties": {
+                    "enabled": {
+                        "type": "boolean"
+                    },
+                    "cron": {
+                        "type": "string"
+                    }
+                },
+                "required": ["enabled", "cron"],
                 "type": "object"
             },
             "ResultsCacheInvalidation": {
@@ -74582,7 +74656,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.116.0",
+        "version": "3.122.3",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -83975,6 +84049,57 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/ApiCreateAiAgent"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/aiAgents/visualize/slack-preview": {
+            "post": {
+                "operationId": "previewVisualizeSlackChart",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "string",
+                                    "format": "byte"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Draw rows with a visualize-tool viz config as the Slack chart image, for debugging the Slack renderer.",
+                "summary": "Preview visualize Slack chart",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiAiAgentVisualizeSlackPreviewRequest"
                             }
                         }
                     }
@@ -103861,6 +103986,57 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/UpdateResultsCacheProjectSettings"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/results-cache-config/clear-schedule": {
+            "put": {
+                "operationId": "updateProjectResultsCacheClearSchedule",
+                "responses": {
+                    "200": {
+                        "description": "Updated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiResultsCacheProjectSettingsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Set a recurring schedule that invalidates every cached query result in\nthe project. Schedules run daily or weekly at one or more\nhours, on the hour, in the project's scheduler timezone. Requires project admin access.",
+                "summary": "Update results cache clear schedule",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateResultsCacheClearSchedule"
                             }
                         }
                     }

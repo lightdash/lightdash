@@ -880,6 +880,17 @@ type ResultsCacheInvalidatedEvent = BaseTrack & {
         projectId: string;
         scope: 'project' | 'chart' | 'dashboard';
         contentUuid: string | null;
+        trigger?: 'schedule';
+    };
+};
+
+type ResultsCacheClearScheduleUpdatedEvent = BaseTrack & {
+    event: 'results_cache.clear_schedule_updated';
+    properties: {
+        organizationId: string;
+        projectId: string;
+        enabled: boolean;
+        cron: string;
     };
 };
 
@@ -4884,6 +4895,7 @@ type TypedEvent =
     | ResultsCacheReadEvent
     | ResultsCacheDeleteEvent
     | ResultsCacheInvalidatedEvent
+    | ResultsCacheClearScheduleUpdatedEvent
     | ModeDashboardChartEvent
     | UpdateSavedChartEvent
     | SavedChartExploreChangedEvent

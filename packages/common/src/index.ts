@@ -438,6 +438,7 @@ export * from './utils/mergeQueryItems';
 export * from './utils/mergeTotals';
 export * from './utils/queryHistoryList';
 export * from './utils/resultColumns';
+export * from './utils/resultsCacheClearSchedule';
 export * from './utils/learnSandbox';
 export * from './utils/learnYamlKeyTypos';
 export * from './utils/loadLightdashProjectConfig';

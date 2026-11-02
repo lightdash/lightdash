@@ -80,6 +80,10 @@ import {
     restoreFilterLabelOverrides,
 } from '../filterLabelOverrides';
 import { useEmbedDashboard, useEmbedSavedParameters } from '../hooks';
+import {
+    type ChartSaveDestination,
+    type EmbedChartSaveDashboard,
+} from '../types';
 import { canUseEmbeddedChartBuilder } from '../utils';
 import classes from './EmbedDashboard.module.css';
 import EmbedDashboardChartEditorModal from './EmbedDashboardChartEditorModal';
@@ -365,11 +369,13 @@ const EmbedDashboard: FC<{
     initialDashboard?: EmbedDashboardType;
     isEditMode?: boolean;
     onEditModeChange?: (isEditMode: boolean) => void;
+    chartSaveDestinations?: ChartSaveDestination[];
 }> = ({
     containerStyles,
     initialDashboard,
     isEditMode: controlledIsEditMode,
     onEditModeChange,
+    chartSaveDestinations,
 }) => {
     const projectUuid = useDashboardContext((c) => c.projectUuid);
     const activeTab = useDashboardSelector(selectActiveTab);
@@ -713,6 +719,30 @@ const EmbedDashboard: FC<{
         (chart: SavedChart) => writeSpaceUuids.includes(chart.spaceUuid),
         [writeSpaceUuids],
     );
+    const dashboardUuid = dashboard?.uuid;
+    const dashboardName = dashboard?.name;
+    // Hosts usually pass an inline array, so memoize on its contents
+    const offersSpaceDestination =
+        chartSaveDestinations?.includes('space') ?? false;
+    const offersDashboardDestination =
+        !chartSaveDestinations?.length ||
+        chartSaveDestinations.includes('dashboard');
+    const chartSaveDashboard = useMemo<
+        EmbedChartSaveDashboard | undefined
+    >(() => {
+        if (dashboardUuid === undefined || dashboardName === undefined) {
+            return undefined;
+        }
+        const destinations: ChartSaveDestination[] = [];
+        if (offersDashboardDestination) destinations.push('dashboard');
+        if (offersSpaceDestination) destinations.push('space');
+        return { uuid: dashboardUuid, name: dashboardName, destinations };
+    }, [
+        dashboardUuid,
+        dashboardName,
+        offersDashboardDestination,
+        offersSpaceDestination,
+    ]);
     const [isNewChartOpen, setIsNewChartOpen] = useState(false);
     const [chartToEdit, setChartToEdit] = useState<SavedChart>();
     const hasDashboardNameChanged =
@@ -800,6 +830,7 @@ const EmbedDashboard: FC<{
                         uuid: uuid4(),
                         type: DashboardTileTypes.SAVED_CHART,
                         properties: {
+                            belongsToDashboard: chart.dashboardUuid !== null,
                             savedChartUuid: chart.uuid,
                             chartName: chart.name,
                             // BigNumber charts default to hidden title for cleaner appearance
@@ -1262,7 +1293,7 @@ const EmbedDashboard: FC<{
                         {renderGridWithGuidedSetup()}
                     </>
                 )}
-                {canUseChartBuilder && (
+                {canUseChartBuilder && chartSaveDashboard && (
                     <EmbedDashboardChartEditorModal
                         opened={isNewChartOpen || chartToEdit !== undefined}
                         onClose={() => {
@@ -1270,6 +1301,7 @@ const EmbedDashboard: FC<{
                             setChartToEdit(undefined);
                         }}
                         onChartSaved={handleChartEditorSaved}
+                        chartSaveDashboard={chartSaveDashboard}
                         editChart={chartToEdit}
                     />
                 )}

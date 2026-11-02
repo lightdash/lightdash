@@ -99,10 +99,17 @@ same submission or thread composer query nodes. Shown to users by node
 title, never by node id.
 _Avoid_: depends on, inputs, references (in user-facing copy)
 
+**Unread node**:
+A node of a submission that no other node of the same submission reads. A
+submission has exactly one; a submission with several is rejected before it
+runs.
+_Avoid_: sink, end node, orphan, leaf
+
 **Terminal node**:
-The node whose result the tool returns to the agent. The unique sink by
-default, or chosen explicitly. Labelled "Final result" in the Lineage.
-_Avoid_: output node, final node, sink (in user-facing copy)
+The node whose result the tool returns to the agent. The submission's unread
+node by default, or any node of the pipeline chosen explicitly. Labelled
+"Final result" in the Lineage.
+_Avoid_: output node, final node, sink
 
 **Present**:
 The agent's act of making an artifact from a node so its result is shown to
@@ -135,6 +142,11 @@ How one node did in a run: its state, error, row count and result columns,
 read from the node's query history row and never stored on its own. A node
 whose row count equals its limit reached its limit, so its result may be cut.
 _Avoid_: node run, query status, limit reached flag
+
+**Node sample**:
+The first few rows of a non-terminal node's result, shown to the agent in the
+composer query tool's result beside its node columns. Never shown to users.
+_Avoid_: preview (the terminal node's rows), peek, head
 
 **Node columns**:
 The result column references and types of a node, stored beside its

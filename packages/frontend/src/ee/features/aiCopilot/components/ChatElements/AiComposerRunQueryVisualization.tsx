@@ -8,7 +8,15 @@ import {
     type ComposerStoredChartVizConfig,
 } from '@lightdash/common';
 import { Box, Center, Loader, Stack, Text } from '@mantine/core';
-import { useEffect, useMemo, type FC, type ReactNode } from 'react';
+import {
+    useEffect,
+    useMemo,
+    type FC,
+    type ReactNode,
+    type RefObject,
+} from 'react';
+import { CHART_TYPES_WITHOUT_IMAGE_EXPORT } from '../../../../../components/common/ChartDownload/chartDownloadUtils';
+import { type EChartsReact } from '../../../../../components/EChartsReactWrapper';
 import { useDataAppVizRenderMetadata } from '../../../../../features/chartTypes/hooks/useDataAppVizRender';
 import {
     useInfiniteQueryResults,
@@ -38,6 +46,10 @@ type Props = {
     headerContent?: ReactNode;
     onScreenshotReady?: () => void;
     onScreenshotError?: () => void;
+    /** Receives the chart's echarts ref, only for chart types that export as an image. */
+    setImageExportRef?: (
+        ref: RefObject<EChartsReact | null> | undefined,
+    ) => void;
 };
 
 // A composer node result drawn by the runQuery chart builders, read-only.
@@ -53,6 +65,7 @@ export const AiComposerRunQueryVisualization: FC<Props> = ({
     headerContent,
     onScreenshotReady,
     onScreenshotError,
+    setImageExportRef,
 }) => {
     const columns = useMemo(
         () => Object.values(nodeResults.columns ?? {}),
@@ -164,6 +177,13 @@ export const AiComposerRunQueryVisualization: FC<Props> = ({
                 rows={rows}
                 onScreenshotReady={onScreenshotReady}
                 onScreenshotError={onScreenshotError}
+                setEchartsRef={
+                    CHART_TYPES_WITHOUT_IMAGE_EXPORT.includes(
+                        readyChart.chartConfig.type,
+                    )
+                        ? undefined
+                        : setImageExportRef
+                }
             />
         );
     })();
