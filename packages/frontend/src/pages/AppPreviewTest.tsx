@@ -367,6 +367,7 @@ export default function AppPreviewTest() {
                     <AppLineageView
                         projectUuid={projectUuid}
                         lineage={lineageView}
+                        chat={null}
                     />
                 )}
                 {!inspector.hidden && !isFullscreen && (

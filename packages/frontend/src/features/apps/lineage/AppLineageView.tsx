@@ -23,10 +23,17 @@ import {
     type ComposerRunNodeStatus,
 } from '../../../ee/features/aiCopilot/components/ChatElements/useComposerRunNodeStatuses';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
+import { type QueryRef } from '../utils/queryRefs';
 import classes from './AppLineageView.module.css';
 import { DataAppNodeResult } from './DataAppNodeResult';
 import { type DataAppPipeline } from './dataAppPipelines';
 import { type UseAppLineageViewResult } from './useAppLineageView';
+
+/** Query references attached to the builder's chat input; null when no chat. */
+export type LineageChat = {
+    refs: QueryRef[];
+    add: (ref: QueryRef) => void;
+};
 
 const NO_CHAT_NODES: ReadonlySet<string> = new Set();
 
@@ -50,8 +57,20 @@ const PipelineDetail: FC<{
     projectUuid: string;
     pipeline: DataAppPipeline;
     lineage: UseAppLineageViewResult;
-}> = ({ projectUuid, pipeline, lineage }) => {
+    chat: LineageChat | null;
+}> = ({ projectUuid, pipeline, lineage, chat }) => {
     const getUiString = useUiStrings();
+    const chatNodeIds = useMemo(
+        () =>
+            chat
+                ? new Set(
+                      chat.refs
+                          .filter((ref) => ref.pipelineId === pipeline.id)
+                          .map((ref) => ref.pipelineNodeId),
+                  )
+                : NO_CHAT_NODES,
+        [chat, pipeline.id],
+    );
     const notebookRef = useRef<PipelineNotebookHandle>(null);
     const polledStatuses = useComposerRunNodeStatuses({
         projectUuid,
@@ -95,12 +114,25 @@ const PipelineDetail: FC<{
                     />
                 ) : null;
             }}
-            chatNodeIds={NO_CHAT_NODES}
-            onAddToChat={null}
+            chatNodeIds={chatNodeIds}
+            onAddToChat={
+                chat
+                    ? (node) =>
+                          chat.add({
+                              title: node.title,
+                              queryId: pipeline.queryId,
+                              nodeId:
+                                  pipeline.kind === 'composer'
+                                      ? node.nodeId
+                                      : null,
+                              pipelineId: pipeline.id,
+                              pipelineNodeId: node.nodeId,
+                          })
+                    : null
+            }
             onNodeHover={(nodeId) => hover(nodeId ? pipeline : null, nodeId)}
             renderNodeActions={(node) =>
-                pipeline.nodeQueryUuids[node.nodeId] ||
-                node.nodeId === pipeline.terminalNodeId ? (
+                node.isTerminal ? (
                     <Tooltip label={showInAppLabel}>
                         <ActionIcon
                             size="sm"
@@ -184,7 +216,8 @@ const matchesSearch = (pipeline: DataAppPipeline, needle: string) =>
 export const AppLineageView: FC<{
     projectUuid: string;
     lineage: UseAppLineageViewResult;
-}> = ({ projectUuid, lineage }) => {
+    chat: LineageChat | null;
+}> = ({ projectUuid, lineage, chat }) => {
     const getUiString = useUiStrings();
     const { pipelines, selectedPipeline } = lineage;
     const [search, setSearch] = useState('');
@@ -272,6 +305,7 @@ export const AppLineageView: FC<{
                                 projectUuid={projectUuid}
                                 pipeline={selectedPipeline}
                                 lineage={lineage}
+                                chat={chat}
                             />
                         </Box>
                     </>

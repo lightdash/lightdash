@@ -111,6 +111,7 @@ import ConnectionChip from '../features/apps/components/ConnectionChip';
 import { ElementPickerButton } from '../features/apps/components/ElementPickerButton';
 import { ElementRefPill } from '../features/apps/components/ElementRefPill';
 import LoadingDots from '../features/apps/components/LoadingDots';
+import { QueryRefPill } from '../features/apps/components/QueryRefPill';
 import RecentAppSuggestions from '../features/apps/components/RecentAppSuggestions';
 import { RestoreAppVersionModal } from '../features/apps/components/RestoreAppVersionModal';
 import { SampleDataButton } from '../features/apps/components/SampleDataButton';
@@ -146,7 +147,10 @@ import {
     useTrackedAppQueries,
 } from '../features/apps/hooks/useTrackedAppQueries';
 import { useTrackedExternalRequests } from '../features/apps/hooks/useTrackedExternalRequests';
-import { AppLineageView } from '../features/apps/lineage/AppLineageView';
+import {
+    AppLineageView,
+    type LineageChat,
+} from '../features/apps/lineage/AppLineageView';
 import { AppViewSwitcher } from '../features/apps/lineage/AppViewSwitcher';
 import { useAppLineageView } from '../features/apps/lineage/useAppLineageView';
 import { getTemplate } from '../features/apps/templates';
@@ -173,6 +177,11 @@ import {
     refToWireString,
 } from '../features/apps/utils/elementRefs';
 import { getHistoryLiveBuild } from '../features/apps/utils/historyLiveBuild';
+import {
+    queryRefKey,
+    queryRefToWireString,
+    type QueryRef,
+} from '../features/apps/utils/queryRefs';
 import { getVersionNarration } from '../features/apps/utils/versionNarration';
 import { versionsToThreadChat } from '../features/apps/utils/versionsToChatMessages';
 import DataAppVizResultCard from '../features/chartTypes/components/DataAppVizResultCard';
@@ -492,6 +501,19 @@ const AppGenerate: FC = () => {
     });
     const cancelElementPicker = elementPicker.cancel;
     const clearElementRefs = elementPicker.clear;
+    // Query references from the lineage view travel as wire-string lines too.
+    const [queryRefs, setQueryRefs] = useState<QueryRef[]>([]);
+    const addQueryRef = useCallback((ref: QueryRef) => {
+        setQueryRefs((prev) =>
+            prev.some((r) => queryRefKey(r) === queryRefKey(ref))
+                ? prev
+                : [...prev, ref],
+        );
+    }, []);
+    const lineageChat = useMemo<LineageChat>(
+        () => ({ refs: queryRefs, add: addQueryRef }),
+        [queryRefs, addQueryRef],
+    );
     const handleToggleLineage = useCallback(() => {
         const next = !lineageEnabled;
         setLineageEnabled(next);
@@ -547,6 +569,7 @@ const AppGenerate: FC = () => {
         setSelectedDashboard(null);
         setSelectedConnections([]);
         clearElementRefs();
+        setQueryRefs([]);
         cancelElementPicker();
         setFileAttachments([]);
         setLocalMessages([]);
@@ -1780,14 +1803,20 @@ const AppGenerate: FC = () => {
     const handleSubmit = async () => {
         const typed = (promptEditorRef.current?.getText() ?? '').trim();
         if (
-            (!typed && elementPicker.refs.length === 0) ||
+            (!typed &&
+                elementPicker.refs.length === 0 &&
+                queryRefs.length === 0) ||
             isLoading ||
             submitState.isInFlight()
         )
             return;
         const trimmed = isVizBuilder
             ? typed
-            : [typed, ...elementPicker.refs.map(refToWireString)]
+            : [
+                  typed,
+                  ...elementPicker.refs.map(refToWireString),
+                  ...queryRefs.map(queryRefToWireString),
+              ]
                   .filter(Boolean)
                   .join('\n');
         const vizContext = isVizBuilder
@@ -1968,6 +1997,7 @@ const AppGenerate: FC = () => {
             setSelectedDashboard(null);
             setSelectedConnections([]);
             clearElementRefs();
+            setQueryRefs([]);
             resetGenerate();
             resetIterate();
 
@@ -2913,6 +2943,7 @@ const AppGenerate: FC = () => {
                                                 selectedConnections.length >
                                                     0 ||
                                                 elementPicker.refs.length > 0 ||
+                                                queryRefs.length > 0 ||
                                                 fileAttachments.length > 0) && (
                                                 <Box
                                                     className={
@@ -2934,6 +2965,40 @@ const AppGenerate: FC = () => {
                                                                         onRemove={() =>
                                                                             elementPicker.remove(
                                                                                 ref,
+                                                                            )
+                                                                        }
+                                                                    />
+                                                                ),
+                                                            )}
+                                                        </Group>
+                                                    )}
+                                                    {queryRefs.length > 0 && (
+                                                        <Group gap={4}>
+                                                            {queryRefs.map(
+                                                                (ref) => (
+                                                                    <QueryRefPill
+                                                                        key={queryRefKey(
+                                                                            ref,
+                                                                        )}
+                                                                        queryRef={
+                                                                            ref
+                                                                        }
+                                                                        onRemove={() =>
+                                                                            setQueryRefs(
+                                                                                (
+                                                                                    prev,
+                                                                                ) =>
+                                                                                    prev.filter(
+                                                                                        (
+                                                                                            r,
+                                                                                        ) =>
+                                                                                            queryRefKey(
+                                                                                                r,
+                                                                                            ) !==
+                                                                                            queryRefKey(
+                                                                                                ref,
+                                                                                            ),
+                                                                                    ),
                                                                             )
                                                                         }
                                                                     />
@@ -3674,6 +3739,7 @@ const AppGenerate: FC = () => {
                                     <AppLineageView
                                         projectUuid={projectUuid}
                                         lineage={lineageView}
+                                        chat={lineageChat}
                                     />
                                 )}
                                 {!networkPanelHidden && (
