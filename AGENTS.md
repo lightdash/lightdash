@@ -23,7 +23,7 @@ These live next to the code and load when Claude works there. Read the linked fi
 - **Formula package**: never read files in `packages/formula-tests/`; dev loop in `packages/formula/AGENTS.md`.
 - **Release safety**: `Release-safety preview` is required on `main`; before declaring a break, read `docs/release-safety.md`.
 - **Merge freeze**: agents never freeze or unfreeze merges; ask a human. Details in `docs/merge-freeze.md`.
-- **CI caches on Depot runners**: cache keys never include run id or uuid, and only `build-and-lint` saves the pnpm store; see `.github/workflows/AGENTS.md`.
+- **CI workflows**: cache keys, the single pnpm store writer, and when the heavy E2E and CLI suites run; see `.github/workflows/AGENTS.md`.
 - **dbt YAML schemas**: two schemas must stay in sync when field types change; see `packages/common/src/dbt/AGENTS.md`.
 - **Warehouse credentials**: new sensitive credential fields go in `sensitiveCredentialsFieldNames`; see `packages/common/src/types/AGENTS.md`.
 - **LIGHTDASH_SECRET-derived state** must register for rotation; see `packages/backend/AGENTS.md`.

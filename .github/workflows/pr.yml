@@ -458,7 +458,11 @@ jobs:
     timeout-minutes: 45
     name: Deploy Preview
     runs-on: depot-ubuntu-24.04-4
-    needs: files-changed
+    # Fail fast: every E2E and CLI job needs this one, so waiting here for
+    # lint, types and unit tests means a push that breaks any of them never
+    # starts those suites. Rainbow builds the preview in parallel regardless,
+    # so this rarely delays them: the preview is usually still building.
+    needs: [files-changed, build-and-lint, unit-tests]
     if: needs.files-changed.outputs.preview == 'true'
     outputs:
       url: ${{ steps.preview-url.outputs.url }}

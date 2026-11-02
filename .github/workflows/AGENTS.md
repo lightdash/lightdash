@@ -23,3 +23,10 @@ grows storage until the org retention policy removes it.
 After touching caching, search each job log in a PR run for
 `Cache saved with the key`. Only Build & Lint may print it, and only after a
 lockfile change.
+
+## When the heavy suites run
+- The E2E and CLI jobs all need `preview`, and `preview` needs `build-and-lint`
+  and `unit-tests`. A push that fails lint, types or unit tests never starts
+  them.
+- A new job that tests against the preview should need `preview`. Do not let it
+  start alongside the cheap checks.
