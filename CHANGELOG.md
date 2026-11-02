@@ -1,3 +1,11 @@
+## [3.120.2](https://github.com/lightdash/lightdash/compare/3.120.1...3.120.2) (2026-11-02)
+
+
+### Bug Fixes
+
+* **content-review:** allow review requests from nested personal spaces ([#31911](https://github.com/lightdash/lightdash/issues/31911)) ([29a4c61](https://github.com/lightdash/lightdash/commit/29a4c6129e2f7300a45d33f7ceddfb10855302c8))
+* **dashboards:** keep parameters beside the sectioned filters ([#31915](https://github.com/lightdash/lightdash/issues/31915)) ([2e873f6](https://github.com/lightdash/lightdash/commit/2e873f6cf38d0b08644fb97d67438bbdd5b6fa20))
+
 ## [3.120.1](https://github.com/lightdash/lightdash/compare/3.120.0...3.120.1) (2026-11-02)
 
 
