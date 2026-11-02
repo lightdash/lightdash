@@ -878,9 +878,10 @@ type ResultsCacheInvalidatedEvent = BaseTrack & {
     properties: {
         organizationId: string;
         projectId: string;
-        scope: 'project' | 'chart' | 'dashboard';
+        scope: 'project' | 'chart' | 'dashboard' | 'explores';
         contentUuid: string | null;
         trigger?: 'schedule';
+        exploreNames?: string[];
     };
 };
 

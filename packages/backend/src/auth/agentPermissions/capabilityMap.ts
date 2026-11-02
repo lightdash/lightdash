@@ -1615,6 +1615,9 @@ export const REST_OPERATION_CAPABILITIES = {
     'ProjectController.updateProjectResultsCacheSettings': [
         AgentCapability.Administration,
     ],
+    'ProjectController.invalidateExploresResultsCache': [
+        AgentCapability.Administration,
+    ],
     'ProjectController.invalidateProjectResultsCache': [
         AgentCapability.Administration,
     ],
