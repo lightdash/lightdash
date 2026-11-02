@@ -256,6 +256,7 @@ export {
     stripDucklakeNestedSensitive,
     SupportedDbtVersions,
     supportsOptionalUserCredentials,
+    USER_CREATABLE_PROJECT_TYPES,
     allowsOptionalUserCredentials,
     WAREHOUSE_TYPES_WITH_OPTIONAL_USER_CREDENTIALS,
     WarehouseTypes,
@@ -382,6 +383,7 @@ export * from './types/spotlightTableConfig';
 export * from './types/sqlRunner';
 export * from './types/SshKeyPair';
 export * from './types/awsWebIdentity';
+export * from './types/bigqueryWorkloadIdentity';
 export * from './types/sshTunnel';
 export * from './types/table';
 export * from './types/tags';
