@@ -17,7 +17,7 @@ import {
 import { Box } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
-import { type ComponentProps, type ReactNode } from 'react';
+import { useEffect, type ComponentProps, type ReactNode } from 'react';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { sharedLightdashApi } from '../../../../../api';
 import type * as QueryResultsHooks from '../../../../../hooks/useQueryResults';
@@ -110,24 +110,33 @@ vi.mock('../../../../../hooks/appearance/useProjectColorPalette', () => ({
 }));
 // The headers the Lightdash table would draw.
 vi.mock('./AiComposerRunQueryChart', () => ({
-    AiComposerRunQueryChart: ({ chart }: { chart: ComposerRunQueryChart }) => (
-        <table>
-            <thead>
-                <tr>
-                    {[
-                        ...chart.metricQuery.dimensions,
-                        ...chart.metricQuery.metrics,
-                    ].map((fieldId) => (
-                        <th key={fieldId}>
-                            {getItemLabelWithoutTableName(
-                                chart.fields[fieldId],
-                            )}
-                        </th>
-                    ))}
-                </tr>
-            </thead>
-        </table>
-    ),
+    AiComposerRunQueryChart: ({
+        chart,
+        setEchartsRef,
+    }: {
+        chart: ComposerRunQueryChart;
+        setEchartsRef?: (ref: { current: null }) => void;
+    }) => {
+        useEffect(() => setEchartsRef?.({ current: null }), [setEchartsRef]);
+        return (
+            <table>
+                <thead>
+                    <tr>
+                        {[
+                            ...chart.metricQuery.dimensions,
+                            ...chart.metricQuery.metrics,
+                        ].map((fieldId) => (
+                            <th key={fieldId}>
+                                {getItemLabelWithoutTableName(
+                                    chart.fields[fieldId],
+                                )}
+                            </th>
+                        ))}
+                    </tr>
+                </thead>
+            </table>
+        );
+    },
 }));
 vi.mock('./AiVisualizationRenderer', () => ({
     AiVisualizationRenderer: ({
@@ -472,6 +481,76 @@ describe('composer artifact', () => {
             cellOf('joined').getByText('Orders with amounts'),
         ).toBeInTheDocument();
         expect(screen.queryByText('joined')).not.toBeInTheDocument();
+    });
+
+    describe('image export', () => {
+        const barConfig: AiComposerChartArtifactConfig = {
+            ...composerConfig,
+            schemaVersion: 2,
+            vizConfig: {
+                type: 'bar',
+                x: 'status',
+                y: ['n'],
+                groupBy: null,
+                stack: null,
+                horizontal: null,
+                y2: null,
+                labels: null,
+            },
+        };
+        const statusCounts = resultsOf(
+            {
+                status: { reference: 'status', type: 'string' },
+                n: { reference: 'n', type: 'number' },
+            },
+            [{ status: 'completed', n: 3 }],
+        );
+        const canExport = {
+            user: {
+                abilityRules: [
+                    {
+                        action: 'manage' as const,
+                        subject: 'ExportCsv' as const,
+                    },
+                ],
+            },
+        };
+        const renderBar = (appMocks?: typeof canExport) => {
+            mocks.artifact.mockReturnValue({
+                data: {
+                    artifactType: 'chart',
+                    title: 'Orders vs amounts',
+                    chartConfig: barConfig,
+                },
+                isLoading: false,
+                error: null,
+                refetch: mocks.retry,
+            });
+            mocks.query.mockReturnValue(composerRun);
+            mocks.rows.mockReturnValue(statusCounts);
+            return renderWithProviders(
+                <AiArtifactPanel artifact={artifact} />,
+                appMocks,
+            );
+        };
+
+        it('offers export image in the quick actions menu', async () => {
+            renderBar(canExport);
+            fireEvent.click(
+                await screen.findByRole('button', { name: 'Quick actions' }),
+            );
+            expect(
+                await screen.findByRole('menuitem', { name: 'Export image' }),
+            ).toBeInTheDocument();
+        });
+
+        it('hides it without export permission', async () => {
+            renderBar();
+            await screen.findByRole('columnheader', { name: 'Status' });
+            expect(
+                screen.queryByRole('button', { name: 'Quick actions' }),
+            ).not.toBeInTheDocument();
+        });
     });
 
     it('falls back to node ids when titles are missing', () => {

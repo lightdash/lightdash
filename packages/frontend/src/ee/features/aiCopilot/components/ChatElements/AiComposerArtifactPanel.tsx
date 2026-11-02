@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import {
     ChartKind,
     getComposerVizPanelOptions,
@@ -10,15 +11,29 @@ import {
     type ComposerVizKind,
     type ComposerVizPanelOptions,
 } from '@lightdash/common';
-import { ActionIcon, Box, Group, SegmentedControl, Stack } from '@mantine/core';
-import { useDebouncedCallback } from '@mantine/hooks';
-import { IconX } from '@tabler/icons-react';
+import {
+    ActionIcon,
+    Box,
+    Group,
+    Menu,
+    SegmentedControl,
+    Stack,
+} from '@mantine/core';
+import { useDebouncedCallback, useDisclosure } from '@mantine/hooks';
+import { IconDots, IconX } from '@tabler/icons-react';
 import { clsx } from 'clsx';
-import { useMemo, useState, type FC } from 'react';
+import { useMemo, useState, type FC, type RefObject } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import TruncatedText from '../../../../../components/common/TruncatedText';
+import { type EChartsReact } from '../../../../../components/EChartsReactWrapper';
+import useApp from '../../../../../providers/App/useApp';
+import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
 import { useUiStrings } from '../../../../providers/Embed/useUiStrings';
 import styles from './AiArtifactPanel.module.css';
+import {
+    AiChartImageExportMenuItem,
+    AiChartImageExportModal,
+} from './AiChartImageExport';
 import { AiComposerArtifactVisualization } from './AiComposerArtifactVisualization';
 import { AiComposerNodeResult } from './AiComposerNodeResult';
 import { AiComposerRunQueryVisualization } from './AiComposerRunQueryVisualization';
@@ -78,7 +93,25 @@ export const AiComposerArtifactPanel: FC<Props> = ({
     onAddToChat,
 }) => {
     const getUiString = useUiStrings();
+    const { user } = useApp();
+    const isEmbed = useIsEmbedded();
     const [view, setView] = useState<ArtifactView>('chart');
+    const [imageExportRef, setImageExportRef] =
+        useState<RefObject<EChartsReact | null>>();
+    const [
+        exportImageModalOpened,
+        { open: openExportImageModal, close: closeExportImageModal },
+    ] = useDisclosure(false);
+    const canExportData = user.data?.ability?.can(
+        'manage',
+        subject('ExportCsv', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid,
+        }),
+    );
+    // The ref is only set for chart types that export as an image.
+    const canExportImage =
+        view === 'chart' && !isEmbed && !!canExportData && !!imageExportRef;
     const nodeQueryUuids = run?.nodeQueryUuids ?? null;
     const displayableNodeIds = useMemo(
         () => new Set(Object.keys(nodeQueryUuids ?? {})),
@@ -197,6 +230,25 @@ export const AiComposerArtifactPanel: FC<Props> = ({
                         },
                     ]}
                 />
+                {canExportImage && (
+                    <Menu withArrow position="bottom-end">
+                        <Menu.Target>
+                            <ActionIcon
+                                size="sm"
+                                color="ldGray.9"
+                                aria-label="Quick actions"
+                            >
+                                <MantineIcon icon={IconDots} size="lg" />
+                            </ActionIcon>
+                        </Menu.Target>
+                        <Menu.Dropdown>
+                            <Menu.Label>Quick actions</Menu.Label>
+                            <AiChartImageExportMenuItem
+                                onClick={openExportImageModal}
+                            />
+                        </Menu.Dropdown>
+                    </Menu>
+                )}
                 {onClose && (
                     <ActionIcon size="sm" onClick={onClose} aria-label="Close">
                         <MantineIcon icon={IconX} />
@@ -222,6 +274,7 @@ export const AiComposerArtifactPanel: FC<Props> = ({
                 vizConfig={runQueryVizConfig}
                 metadata={metadata}
                 headerContent={null}
+                setImageExportRef={setImageExportRef}
             />
         ) : (
             <AiComposerArtifactVisualization
@@ -286,6 +339,12 @@ export const AiComposerArtifactPanel: FC<Props> = ({
                     </Box>
                 </Stack>
             </Box>
+            <AiChartImageExportModal
+                chartRef={imageExportRef}
+                chartName={title}
+                opened={exportImageModalOpened}
+                onClose={closeExportImageModal}
+            />
         </Box>
     );
 };
