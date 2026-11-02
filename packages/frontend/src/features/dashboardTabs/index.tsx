@@ -3,6 +3,7 @@ import {
     assertUnreachable,
     copyDateZoomTileTargets,
     FeatureFlags,
+    getDefaultStartOfWeek,
     type DashboardFilterRule,
     type DashboardTab,
     type DashboardTile,
@@ -590,6 +591,12 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     const project = useProject(
         showGuidedSetup ? dashboardProjectUuid : undefined,
     );
+
+    const warehouseConnection = project.data?.warehouseConnection;
+    const startOfWeek = warehouseConnection
+        ? (warehouseConnection.startOfWeek ??
+          getDefaultStartOfWeek(warehouseConnection.type))
+        : undefined;
 
     const firstSortedTabUuid = sortedTabs?.[0]?.uuid;
     const isActiveTile = useCallback(
@@ -1189,10 +1196,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
 
                                 {showGuidedSetup && (
                                     <GuidedFilterSetupOverlay
-                                        startOfWeek={
-                                            project.data?.warehouseConnection
-                                                ?.startOfWeek ?? undefined
-                                        }
+                                        startOfWeek={startOfWeek}
                                         onDismiss={() =>
                                             setIsGuidedSetupDismissed(true)
                                         }

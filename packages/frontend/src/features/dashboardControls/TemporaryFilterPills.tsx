@@ -43,6 +43,7 @@ const TemporaryPills: FC<Props> = ({ activeTabUuid }) => {
             startOfWeek={
                 project.data?.warehouseConnection?.startOfWeek ?? undefined
             }
+            warehouseType={project.data?.warehouseConnection?.type}
             dashboardFilters={allFilters}
             dashboardTiles={dashboardTiles}
             filterableFieldsByTileUuid={filterableFieldsByTileUuid}

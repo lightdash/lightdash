@@ -12,6 +12,7 @@ import {
     ProjectType,
     QueryExecutionContext,
     SchedulerFormat,
+    WeekDay,
     type AnonymousAccount,
     type CreateEmbedJwt,
     type DashboardDAO,
@@ -329,6 +330,11 @@ describe('EmbedService', () => {
                 projectModel: {
                     getExploreFromCache: vi.fn().mockResolvedValue(explore),
                 },
+                projectService: {
+                    getFilterableDimensionsForExplore: vi
+                        .fn()
+                        .mockResolvedValue([explore.tables.a.dimensions.dim1]),
+                },
             } as unknown as ConstructorParameters<typeof EmbedService>[0]);
 
             const result =
@@ -343,6 +349,68 @@ describe('EmbedService', () => {
             expect(getByIdOrSlug).toHaveBeenCalledWith('dashboard-uuid', {
                 projectUuid: mockProjectUuid,
             });
+        });
+
+        test('keeps per-explore week boundaries and resolves duplicate charts once', async () => {
+            const charts = ['native', 'upload', 'upload'].map(
+                (tableName, index) => ({
+                    uuid: `chart-${index}`,
+                    tableName,
+                    projectUuid: mockProjectUuid,
+                    spaceUuid: 'space-uuid',
+                }),
+            );
+            const getFilterableDimensionsForExplore = vi.fn(
+                async (_projectUuid: string, explore: Explore) => [
+                    {
+                        ...validExplore.tables.a.dimensions.dim1,
+                        filterStartOfWeek:
+                            explore.name === 'native'
+                                ? WeekDay.SUNDAY
+                                : WeekDay.MONDAY,
+                    },
+                ],
+            );
+            const scopedService = new EmbedService({
+                ...EmbedServiceArgumentsMock,
+                savedChartModel: {
+                    getInfoForAvailableFilters: vi
+                        .fn()
+                        .mockResolvedValue(charts),
+                },
+                projectModel: {
+                    getExploreFromCache: vi.fn(
+                        async (_projectUuid: string, name: string) => ({
+                            ...validExplore,
+                            name,
+                        }),
+                    ),
+                },
+                projectService: { getFilterableDimensionsForExplore },
+            } as unknown as ConstructorParameters<typeof EmbedService>[0]);
+
+            const result =
+                await scopedService.getAvailableFiltersForSavedQueries(
+                    mockProjectUuid,
+                    embedAccount(FilterInteractivityValues.all),
+                    charts.map((chart, index) => ({
+                        savedChartUuid: chart.uuid,
+                        tileUuid: `tile-${index}`,
+                    })),
+                    false,
+                );
+
+            expect(
+                result.allFilterableFields.map(
+                    (field) => field.filterStartOfWeek,
+                ),
+            ).toEqual([WeekDay.SUNDAY, WeekDay.MONDAY]);
+            expect(result.savedQueryFilters).toEqual({
+                'tile-0': [0],
+                'tile-1': [1],
+                'tile-2': [1],
+            });
+            expect(getFilterableDimensionsForExplore).toHaveBeenCalledTimes(2);
         });
 
         test('returns no hidden ids when filter interactivity is off', async () => {

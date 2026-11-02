@@ -107,6 +107,7 @@ import {
     getDashboardFilterRulesForTables,
     getDashboardTileParameterOverrides,
     getDbtEnvironmentVariableKeyError,
+    getDefaultStartOfWeek,
     getDimensions,
     getEffectiveParameterDefinitions,
     getErrorMessage,
@@ -254,6 +255,7 @@ import {
     SupportedDbtAdapter,
     supportsConnectionDatabaseListing,
     TablesConfiguration,
+    TimeFrames,
     TooManyRequestsError,
     UnexpectedServerError,
     UpdateAgentSqlScope,
@@ -16150,6 +16152,38 @@ export class ProjectService
         return { projectUuid, expiresAt };
     }
 
+    async getFilterableDimensionsForExplore(
+        projectUuid: string,
+        explore: Explore,
+    ): Promise<FilterableDimension[]> {
+        const filters = getDimensions(explore).filter(
+            (field) => isFilterableDimension(field) && !field.hidden,
+        );
+        if (!filters.some((field) => field.timeInterval === TimeFrames.WEEK)) {
+            return filters;
+        }
+
+        const settings = await this.getWarehouseSqlBuilderSettings(
+            projectUuid,
+            {
+                kind: 'explore',
+                exploreName: explore.name,
+            },
+        );
+        const warehouseType =
+            explore.type === ExploreType.EXTERNAL_SOURCE
+                ? WarehouseTypes.DUCKDB
+                : settings.type;
+        const filterStartOfWeek =
+            settings.startOfWeek ?? getDefaultStartOfWeek(warehouseType);
+
+        return filters.map((field) =>
+            field.timeInterval === TimeFrames.WEEK
+                ? { ...field, filterStartOfWeek }
+                : field,
+        );
+    }
+
     async getAvailableFiltersForSavedQuery(
         account: Account,
         savedChartUuid: string,
@@ -16202,8 +16236,9 @@ export class ProjectService
                     savedChart.tableName,
                 );
 
-                const filters = getDimensions(explore).filter(
-                    (field) => isFilterableDimension(field) && !field.hidden,
+                const filters = await this.getFilterableDimensionsForExplore(
+                    savedChart.projectUuid,
+                    explore,
                 );
                 return this.cannotViewEmbedCompiledSql(
                     account,
@@ -16221,7 +16256,7 @@ export class ProjectService
     ): Promise<DashboardAvailableFilters> {
         type ChartFilters = {
             uuid: string;
-            filters: CompiledDimension[];
+            filters: FilterableDimension[];
             metricFilters: Metric[];
             hiddenFieldIds: string[];
         };
@@ -16310,45 +16345,59 @@ export class ProjectService
                     savedCharts[0].projectUuid,
                 );
 
-                return savedCharts.map((savedChart) => {
-                    if (!chartAccess.get(savedChart.uuid)) {
+                const filtersByExplore = new Map<
+                    string,
+                    Promise<FilterableDimension[]>
+                >();
+                return Promise.all(
+                    savedCharts.map(async (savedChart) => {
+                        if (!chartAccess.get(savedChart.uuid)) {
+                            return {
+                                uuid: savedChart.uuid,
+                                filters: [],
+                                metricFilters: [],
+                                hiddenFieldIds: [],
+                            };
+                        }
+
+                        const cachedExplore = exploresMap[savedChart.tableName];
+                        const explore =
+                            shouldRedactSql &&
+                            cachedExplore &&
+                            !isExploreError(cachedExplore)
+                                ? redactExploreSql(cachedExplore)
+                                : cachedExplore;
+
+                        let filters: FilterableDimension[] = [];
+                        let metricFilters: Metric[] = [];
+                        let hiddenFieldIds: string[] = [];
+                        if (explore && !isExploreError(explore)) {
+                            const filtersPromise =
+                                filtersByExplore.get(savedChart.tableName) ??
+                                this.getFilterableDimensionsForExplore(
+                                    savedChart.projectUuid,
+                                    explore,
+                                );
+                            filtersByExplore.set(
+                                savedChart.tableName,
+                                filtersPromise,
+                            );
+                            filters = await filtersPromise;
+                            metricFilters = getMetrics(explore).filter(
+                                (field) => !field.hidden,
+                            );
+                            hiddenFieldIds =
+                                getHiddenFilterableFieldIds(explore);
+                        }
+
                         return {
                             uuid: savedChart.uuid,
-                            filters: [],
-                            metricFilters: [],
-                            hiddenFieldIds: [],
+                            filters,
+                            metricFilters,
+                            hiddenFieldIds,
                         };
-                    }
-
-                    const cachedExplore = exploresMap[savedChart.tableName];
-                    const explore =
-                        shouldRedactSql &&
-                        cachedExplore &&
-                        !isExploreError(cachedExplore)
-                            ? redactExploreSql(cachedExplore)
-                            : cachedExplore;
-
-                    let filters: CompiledDimension[] = [];
-                    let metricFilters: Metric[] = [];
-                    let hiddenFieldIds: string[] = [];
-                    if (explore && !isExploreError(explore)) {
-                        filters = getDimensions(explore).filter(
-                            (field) =>
-                                isFilterableDimension(field) && !field.hidden,
-                        );
-                        metricFilters = getMetrics(explore).filter(
-                            (field) => !field.hidden,
-                        );
-                        hiddenFieldIds = getHiddenFilterableFieldIds(explore);
-                    }
-
-                    return {
-                        uuid: savedChart.uuid,
-                        filters,
-                        metricFilters,
-                        hiddenFieldIds,
-                    };
-                });
+                    }),
+                );
             },
         );
 

@@ -489,14 +489,26 @@ export const createFilterRuleFromField = (
 export const matchFieldExact = (a: Field) => (b: Field) =>
     a.type === b.type && a.name === b.name && a.table === b.table;
 
-/** Same query field and the same labels; explores that relabel a shared join alias yield distinct dashboard fields. */
-const matchDashboardFilterableField = (a: Field) => (b: Field) =>
-    matchFieldExact(a)(b) &&
-    a.label === b.label &&
-    a.tableLabel === b.tableLabel;
+type DashboardFieldWithWeekStart = Field &
+    Pick<FilterableDimension, 'filterStartOfWeek'>;
 
-export const getDashboardFilterableFieldKey = (field: Field): string =>
-    `${getItemId(field)}::${field.tableLabel}::${field.label}`;
+const matchDashboardFilterableField =
+    (a: DashboardFieldWithWeekStart) => (b: DashboardFieldWithWeekStart) =>
+        matchFieldExact(a)(b) &&
+        a.label === b.label &&
+        a.tableLabel === b.tableLabel &&
+        (a.filterStartOfWeek === undefined ||
+            b.filterStartOfWeek === undefined ||
+            a.filterStartOfWeek === b.filterStartOfWeek);
+
+export const getDashboardFilterableFieldKey = (
+    field: DashboardFieldWithWeekStart,
+): string =>
+    `${getItemId(field)}::${field.tableLabel}::${field.label}${
+        field.filterStartOfWeek === undefined
+            ? ''
+            : `::${field.filterStartOfWeek}`
+    }`;
 
 /** The field a dashboard filter displays: an explicitly targeted tile carries its own explore's labels. */
 export const getDashboardFilterField = <T extends ItemsMap[string]>(
@@ -622,8 +634,8 @@ const getDefaultTileTargets = (
         };
     }, {});
 
-/** Tiles that carry the same query field under different labels are excluded, not left to auto-apply */
-const getRelabelledTileExclusions = (
+/** A shared query field with incompatible labels or week boundaries must not auto-apply. */
+const getMismatchedTileExclusions = (
     field: FilterableDimension | Metric | Field,
     availableTileFilters: Record<
         string,
@@ -636,10 +648,10 @@ const getRelabelledTileExclusions = (
             const sameQueryField = availableFilters.some(
                 matchFieldExact(field),
             );
-            const sameLabels = availableFilters.some(
+            const matchingField = availableFilters.some(
                 matchDashboardFilterableField(field),
             );
-            return sameQueryField && !sameLabels
+            return sameQueryField && !matchingField
                 ? { ...acc, [tileUuid]: false }
                 : acc;
         },
@@ -696,7 +708,7 @@ export const createDashboardFilterRuleFromField = ({
                 fieldName: field.name,
             },
             tileTargets: {
-                ...getRelabelledTileExclusions(field, availableTileFilters),
+                ...getMismatchedTileExclusions(field, availableTileFilters),
                 ...getDefaultTileTargets(field, availableTileFilters),
             },
             disabled: !isTemporary,
