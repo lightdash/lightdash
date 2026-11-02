@@ -8,6 +8,7 @@ import {
     EMPTY_RESPONSE_MESSAGE,
     getKnownUserFacingErrorMessage,
     getUserFacingErrorMessage,
+    OUTPUT_LIMIT_REACHED_MESSAGE,
     PROVIDER_BILLING_MESSAGE,
     PROVIDER_RATE_LIMIT_MESSAGE,
     STEP_CAP_REACHED_MESSAGE,
@@ -44,6 +45,20 @@ describe('getUserFacingErrorMessage', () => {
             );
             expect(error.finishReason).toBe('stop');
             expect(error.stepsCount).toBe(3);
+        });
+
+        it.each([
+            {
+                name: 'getUserFacingErrorMessage',
+                resolve: getUserFacingErrorMessage,
+            },
+            {
+                name: 'getKnownUserFacingErrorMessage',
+                resolve: getKnownUserFacingErrorMessage,
+            },
+        ])('distinguishes output exhaustion through $name', ({ resolve }) => {
+            const message = resolve(new AiAgentEmptyResponseError('length', 1));
+            expect(message).toBe(OUTPUT_LIMIT_REACHED_MESSAGE);
         });
     });
 
