@@ -30,6 +30,10 @@ lockfile change.
   them.
 - A new job that tests against the preview should need `preview`. Do not let it
   start alongside the cheap checks.
+- On draft PRs the preview, E2E and CLI jobs are skipped; lint, types and unit
+  tests still run. Marking the PR ready for review starts them. `test-all` in
+  the PR body runs them on a draft too; the per-suite keywords (`test-cli`,
+  `deploy-preview`, ...) only apply once the PR is not a draft.
 
 ## Runner choice
 - Depot runners (`depot-ubuntu-24.04-4` / `-8`) are for jobs that do real CPU
