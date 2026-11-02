@@ -3511,7 +3511,7 @@
                                             "type": "string"
                                         },
                                         "sql": {
-                                            "description": "DuckDB SQL over the tables \"references\" exposes. Write AS before every column alias, since DuckDB rejects most keywords (value, day, label) as bare aliases, and double-quote a reserved word such as \"order\" wherever it names a column.",
+                                            "description": "DuckDB SQL over the tables \"references\" exposes. Write AS before every column alias (SUM(v) AS value, not SUM(v) value), and double-quote a column named after a reserved word, such as \"order\".",
                                             "type": "string"
                                         },
                                         "title": {
@@ -3552,7 +3552,7 @@
                                             "type": "string"
                                         },
                                         "sql": {
-                                            "description": "DuckDB SQL over the tables \"tables\" declares. Write AS before every column alias, since DuckDB rejects most keywords (value, day, label) as bare aliases, and double-quote a reserved word such as \"order\" wherever it names a column.",
+                                            "description": "DuckDB SQL over the tables \"tables\" declares. Write AS before every column alias (SUM(v) AS value, not SUM(v) value), and double-quote a column named after a reserved word, such as \"order\".",
                                             "type": "string"
                                         },
                                         "tables": {

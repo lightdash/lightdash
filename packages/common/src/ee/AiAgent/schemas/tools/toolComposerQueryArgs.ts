@@ -61,7 +61,7 @@ type ComposerQueriesDescriptionOptions = {
 };
 
 const DUCKDB_ALIAS_GUIDANCE =
-    'Write AS before every column alias, since DuckDB rejects most keywords (value, day, label) as bare aliases, and double-quote a reserved word such as "order" wherever it names a column.';
+    'Write AS before every column alias (SUM(v) AS value, not SUM(v) value), and double-quote a column named after a reserved word, such as "order".';
 
 const getComposerNodeKindsDescription = ({
     enablePythonNodes,
