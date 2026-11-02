@@ -258,6 +258,31 @@ export class ContentReviewRequestService extends BaseService {
         return space;
     }
 
+    private async getSpaceTreeUuids(
+        rootSpaceUuid: string,
+    ): Promise<Set<string>> {
+        const descendantSpaceUuids =
+            await this.spaceModel.getDescendantSpaceUuids(rootSpaceUuid);
+        return new Set([rootSpaceUuid, ...descendantSpaceUuids]);
+    }
+
+    private async isWithinPersonalSpace(
+        spaceUuid: string,
+        projectUuid: string,
+    ): Promise<boolean> {
+        const breadcrumbs = await this.spaceModel.getSpaceBreadcrumbs(
+            spaceUuid,
+            projectUuid,
+        );
+        const spaceInfo = await this.contentReviewRequestModel.findSpaceInfo(
+            breadcrumbs.map((breadcrumb) => breadcrumb.uuid),
+        );
+        return breadcrumbs.some(
+            (breadcrumb) =>
+                spaceInfo.get(breadcrumb.uuid)?.isDefaultUserSpace === true,
+        );
+    }
+
     private async getPendingRequest(
         projectUuid: string,
         requestUuid: string,
@@ -273,8 +298,9 @@ export class ContentReviewRequestService extends BaseService {
         return request;
     }
 
-    // A dashboard brings the personal-space charts its tiles use; charts
-    // saved inside the dashboard follow it automatically
+    // A dashboard brings the personal-space charts its tiles use, including
+    // those in nested spaces; charts saved inside the dashboard follow it
+    // automatically
     private async computeMoveSet(request: {
         contentType: ContentReviewContentType;
         contentUuid: string;
@@ -294,9 +320,14 @@ export class ContentReviewRequestService extends BaseService {
         if (request.contentType !== ContentReviewContentType.DASHBOARD) {
             return items;
         }
-        const dashboard = await this.dashboardModel.getByIdOrSlug(
-            request.contentUuid,
-        );
+        const [dashboard, sourceSpaceUuids] = await Promise.all([
+            this.dashboardModel.getByIdOrSlug(request.contentUuid),
+            this.getSpaceTreeUuids(request.sourceSpaceUuid),
+        ]);
+        const isInSourceSpaceTree = (chart: ContentReviewContentLocation) =>
+            !chart.deleted &&
+            chart.spaceUuid !== null &&
+            sourceSpaceUuids.has(chart.spaceUuid);
         const tileChartUuids = [
             ...new Set(
                 dashboard.tiles
@@ -312,19 +343,13 @@ export class ContentReviewRequestService extends BaseService {
             await this.contentReviewRequestModel.findChartLocations(
                 tileChartUuids,
             );
-        charts
-            .filter(
-                (chart) =>
-                    !chart.deleted &&
-                    chart.spaceUuid === request.sourceSpaceUuid,
-            )
-            .forEach((chart) => {
-                items.push({
-                    contentType: ContentReviewContentType.CHART,
-                    contentUuid: chart.uuid,
-                    name: chart.name,
-                });
+        charts.filter(isInSourceSpaceTree).forEach((chart) => {
+            items.push({
+                contentType: ContentReviewContentType.CHART,
+                contentUuid: chart.uuid,
+                name: chart.name,
             });
+        });
         // SQL runner tiles travel with the dashboard the same way
         const tileSqlChartUuids = [
             ...new Set(
@@ -341,19 +366,13 @@ export class ContentReviewRequestService extends BaseService {
             await this.contentReviewRequestModel.findSqlChartLocations(
                 tileSqlChartUuids,
             );
-        sqlCharts
-            .filter(
-                (chart) =>
-                    !chart.deleted &&
-                    chart.spaceUuid === request.sourceSpaceUuid,
-            )
-            .forEach((chart) => {
-                items.push({
-                    contentType: ContentReviewContentType.SQL_CHART,
-                    contentUuid: chart.uuid,
-                    name: chart.name,
-                });
+        sqlCharts.filter(isInSourceSpaceTree).forEach((chart) => {
+            items.push({
+                contentType: ContentReviewContentType.SQL_CHART,
+                contentUuid: chart.uuid,
+                name: chart.name,
             });
+        });
         return items;
     }
 
@@ -692,10 +711,27 @@ export class ContentReviewRequestService extends BaseService {
             body.contentType,
             body.contentUuid,
         );
-        if (content.spaceUuid !== personalSpace.uuid) {
+        const personalSpaceUuids = await this.getSpaceTreeUuids(
+            personalSpace.uuid,
+        );
+        if (
+            content.spaceUuid === null ||
+            !personalSpaceUuids.has(content.spaceUuid)
+        ) {
             throw new ParameterError(
                 'Only content in your personal space can be submitted for review',
             );
+        }
+        // A nested space can stop inheriting from the personal space, so
+        // owning the personal space doesn't imply access to its content
+        if (
+            !(await this.spacePermissionService.can(
+                'view',
+                user,
+                content.spaceUuid,
+            ))
+        ) {
+            throw new ForbiddenError('You do not have access to this content');
         }
         // Documents are feature-flagged; this also checks the requester's access
         if (body.contentType === ContentReviewContentType.DOCUMENT) {
@@ -709,7 +745,7 @@ export class ContentReviewRequestService extends BaseService {
         const targetSpace = await this.getSpaceInfo(body.targetSpaceUuid);
         if (
             targetSpace.projectUuid !== projectUuid ||
-            targetSpace.isDefaultUserSpace
+            (await this.isWithinPersonalSpace(targetSpace.uuid, projectUuid))
         ) {
             throw new ParameterError(
                 'Choose a shared space in this project as the target',
