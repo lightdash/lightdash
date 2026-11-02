@@ -96,10 +96,7 @@ import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { getChartFieldUsageChanges } from '../../models/CatalogModel/utils';
 import { ContentAsCodeProjectSettingsModel } from '../../models/ContentAsCodeProjectSettingsModel';
-import {
-    ContentAsCodeSnapshotModel,
-    type ContentAsCodeSnapshot,
-} from '../../models/ContentAsCodeSnapshotModel';
+import { ContentAsCodeSnapshotModel } from '../../models/ContentAsCodeSnapshotModel';
 import {
     ContentDraftModel,
     pruneUnchangedDraftFields,
@@ -2077,25 +2074,17 @@ export class DashboardService
     private async resolveDraftBase(
         existingDashboardDao: Pick<DashboardDAO, 'projectUuid' | 'slug'>,
     ): Promise<ContentDraftBase | null> {
-        const snapshot =
-            await this.findRepositorySnapshot(existingDashboardDao);
+        const settings = await this.contentAsCodeProjectSettingsModel.get(
+            existingDashboardDao.projectUuid,
+        );
+        if (!settings?.syncEnabled) return null;
+        const snapshot = await this.contentAsCodeSnapshotModel.get(
+            existingDashboardDao.projectUuid,
+            ContentAsCodeType.DASHBOARD,
+            existingDashboardDao.slug,
+        );
         if (snapshot === undefined) return null;
         return { snapshot: snapshot.snapshot, hash: snapshot.snapshotHash };
-    }
-
-    // The upload snapshot that makes this content Git-managed, if any
-    private async findRepositorySnapshot(
-        content: Pick<DashboardDAO, 'projectUuid' | 'slug'>,
-    ): Promise<ContentAsCodeSnapshot | undefined> {
-        const settings = await this.contentAsCodeProjectSettingsModel.get(
-            content.projectUuid,
-        );
-        if (!settings?.syncEnabled) return undefined;
-        return this.contentAsCodeSnapshotModel.get(
-            content.projectUuid,
-            ContentAsCodeType.DASHBOARD,
-            content.slug,
-        );
     }
 
     private async storeDraft(
@@ -2152,15 +2141,24 @@ export class DashboardService
         publishedDashboard: Dashboard,
     ): Promise<Dashboard> {
         try {
+            const settings = await this.contentAsCodeProjectSettingsModel.get(
+                publishedDashboard.projectUuid,
+            );
+            if (!settings?.syncEnabled) return publishedDashboard;
             const repositorySnapshot =
-                await this.findRepositorySnapshot(publishedDashboard);
-            if (repositorySnapshot === undefined) return publishedDashboard;
-            const dashboard: Dashboard = {
-                ...publishedDashboard,
-                managedFromRepository: {
-                    filePath: repositorySnapshot.filePath,
-                },
-            };
+                await this.contentAsCodeSnapshotModel.get(
+                    publishedDashboard.projectUuid,
+                    ContentAsCodeType.DASHBOARD,
+                    publishedDashboard.slug,
+                );
+            const dashboard: Dashboard = repositorySnapshot
+                ? {
+                      ...publishedDashboard,
+                      managedFromRepository: {
+                          filePath: repositorySnapshot.filePath,
+                      },
+                  }
+                : publishedDashboard;
             const draft = await this.contentDraftModel.findOpenDraft(
                 dashboard.projectUuid,
                 'dashboard',

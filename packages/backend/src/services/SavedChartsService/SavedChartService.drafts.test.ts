@@ -553,6 +553,23 @@ describe('SavedChartService chart drafts', () => {
         expect(result.managedFromRepository).toBeUndefined();
     });
 
+    it('still offers the dismissed draft after the chart is released', async () => {
+        const { service, contentDraftModel } = buildService({
+            snapshot: undefined,
+        });
+        contentDraftModel.findLatestDismissedDraft.mockResolvedValue({
+            uuid: 'dismissed-uuid',
+        });
+
+        const result = await service['applyOpenDraftOverlay'](editor, {
+            ...chart,
+            ...spaceContext,
+        } as AnyType);
+
+        expect(result.managedFromRepository).toBeUndefined();
+        expect(result.dismissedDraftUuid).toBe('dismissed-uuid');
+    });
+
     it('serves published content when a stored chart draft is invalid', async () => {
         const { service } = buildService({
             draft: {
