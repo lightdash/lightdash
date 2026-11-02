@@ -33,6 +33,7 @@ import type {
     QueryDefinition,
     QueryResult,
     Row,
+    SavedChartVisualization,
     Transport,
     UnderlyingDataOptions,
     UnderlyingDataResult,
@@ -1380,9 +1381,11 @@ export function createApiTransport(
                 buildChartBody(),
                 metadata,
             );
-            const { queryUuid, fields, metricQuery } =
+            const { queryUuid, fields, metricQuery, chartVisualization } =
                 execResult as AsyncQueryResponse & {
                     metricQuery?: ChartResponseMetricQuery;
+                    // Absent on hosts that predate the field.
+                    chartVisualization?: SavedChartVisualization;
                 };
 
             const { firstReadyPage, apiRows } = await pollQueryRows(
@@ -1528,6 +1531,7 @@ export function createApiTransport(
                 getUnderlyingData,
                 downloadUnderlyingData,
                 downloadResults,
+                ...(chartVisualization ? { chartVisualization } : {}),
             };
         },
 

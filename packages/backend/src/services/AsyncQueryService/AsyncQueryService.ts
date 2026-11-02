@@ -141,6 +141,7 @@ import {
     type ApiExecuteAsyncFieldValueSearchResults,
     type ApiExecuteAsyncMergeQueryResults,
     type ApiExecuteAsyncMetricQueryResults,
+    type ApiExecuteAsyncSavedChartQueryResults,
     type ApiGetAsyncQueryResults,
     type ApiQueryHistoryListResponse,
     type ApiSourcePayload,
@@ -186,6 +187,7 @@ import {
     type ResultsCacheInvalidation,
     type RunQueryTags,
     type SavedChartDAO,
+    type SavedChartVisualization,
     type SavedMergeDefinition,
     type SessionUser,
     type SpaceSummaryBase,
@@ -8754,7 +8756,7 @@ export class AsyncQueryService extends ProjectService {
         schedulerFilters,
         dashboardFilters,
         userAttributeOverrides,
-    }: ExecuteAsyncSavedChartQueryArgs): Promise<ApiExecuteAsyncMetricQueryResults> {
+    }: ExecuteAsyncSavedChartQueryArgs): Promise<ApiExecuteAsyncSavedChartQueryResults> {
         // Check user is in organization
         assertIsAccountWithOrg(account);
 
@@ -8908,8 +8910,14 @@ export class AsyncQueryService extends ProjectService {
             dashboardFilters,
         };
 
+        const chartVisualization: SavedChartVisualization = {
+            chartConfig: savedChart.chartConfig,
+            pivotConfig: savedChart.pivotConfig,
+            tableConfig: savedChart.tableConfig,
+        };
+
         if (savedChart.merge) {
-            return this.executeAsyncSavedMergeQuery({
+            const mergeResults = await this.executeAsyncSavedMergeQuery({
                 account,
                 projectUuid,
                 savedChart,
@@ -8925,6 +8933,7 @@ export class AsyncQueryService extends ProjectService {
                 dashboardFilters,
                 userAttributeOverrides,
             });
+            return { ...mergeResults, chartVisualization };
         }
 
         const { maxLimit, csvCellsLimit } =
@@ -9136,6 +9145,7 @@ export class AsyncQueryService extends ProjectService {
             parameterReferences: queryComposer.getParameterReferences(),
             usedParametersValues: queryComposer.getUsedParameters(),
             resolvedTimezone: queryComposer.getDisplayTimezone(),
+            chartVisualization,
         };
     }
 

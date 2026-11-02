@@ -1111,6 +1111,22 @@ export type ApiExecuteAsyncMetricQueryResults =
         warnings: QueryWarning[];
     };
 
+/** How a saved chart is drawn, as stored on the chart. */
+export type SavedChartVisualization = Pick<
+    SavedChart,
+    'chartConfig' | 'pivotConfig' | 'tableConfig'
+>;
+
+// Flat (not `ApiExecuteAsyncMetricQueryResults & …`) so the OpenAPI schema
+// keeps its shape; nesting the intersection reads as a breaking change.
+export type ApiExecuteAsyncSavedChartQueryResults =
+    ApiExecuteAsyncQueryResultsCommon & {
+        metricQuery: MetricQuery;
+        fields: ItemsMap;
+        warnings: QueryWarning[];
+        chartVisualization: SavedChartVisualization;
+    };
+
 type ApiExecuteAsyncMergeQueryMetadata = {
     parameterReferences: string[];
     fieldOrigins: MergeFieldOrigins;
@@ -1670,6 +1686,7 @@ type ApiResults =
     | ApiScanQuerySourceSchemaResults
     | ApiExecuteAsyncDashboardSqlChartQueryResults
     | ApiExecuteAsyncMetricQueryResults
+    | ApiExecuteAsyncSavedChartQueryResults
     | ApiQueryHistoryListResponse['results']
     | ApiExecuteAsyncDashboardChartQueryResults
     | ApiGetAsyncQueryResults

@@ -1202,6 +1202,10 @@ describe('AsyncQueryService', () => {
                         metrics: [],
                         tableCalculations: [],
                     },
+                    chartVisualization: {
+                        chartConfig: { type: ChartType.TABLE },
+                        tableConfig: { columnOrder: [] },
+                    },
                 };
                 const execute =
                     kind === 'saved'
@@ -14037,6 +14041,7 @@ describe('AsyncQueryService', () => {
             parameters: undefined,
             pivotConfig: { columns: [pivotColumn] },
             chartConfig: { type: ChartType.BIG_NUMBER },
+            tableConfig: { columnOrder: [] },
         };
 
         test.each([false, true])(
@@ -14208,7 +14213,7 @@ describe('AsyncQueryService', () => {
             });
             service['executeAsyncQuery'] = executeAsyncQuery;
 
-            await service.executeAsyncSavedChartQuery({
+            const result = await service.executeAsyncSavedChartQuery({
                 account: authorizedAccount,
                 projectUuid,
                 chartUuid: bigNumberChart.uuid,
@@ -14218,6 +14223,12 @@ describe('AsyncQueryService', () => {
                 pivotConfiguration,
             });
 
+            // Data apps render saved charts from the stored config.
+            expect(result.chartVisualization).toEqual({
+                chartConfig: bigNumberChart.chartConfig,
+                pivotConfig: bigNumberChart.pivotConfig,
+                tableConfig: bigNumberChart.tableConfig,
+            });
             expect(prepareSpy).toHaveBeenCalledWith(
                 expect.objectContaining({ pivotConfiguration }),
             );
