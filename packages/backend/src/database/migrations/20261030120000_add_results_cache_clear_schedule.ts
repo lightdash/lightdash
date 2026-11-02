@@ -3,6 +3,11 @@ import { Knex } from 'knex';
 const ProjectTableName = 'projects';
 const NextRunIndexName = 'projects_results_cache_clear_next_run_at_idx';
 
+export const classification = {
+    kind: 'safe',
+    reason: 'Adds nullable columns and a partial index with no entries yet, on a small table. Old versions ignore both.',
+};
+
 export async function up(knex: Knex): Promise<void> {
     await knex.raw("SET LOCAL lock_timeout = '5s'");
     await knex.schema.alterTable(ProjectTableName, (table) => {
