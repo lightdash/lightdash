@@ -1,5 +1,8 @@
 import {
+    DashboardTileTypes,
+    ForbiddenError,
     NotFoundError,
+    type Account,
     type Explore,
     type SavedChartDAO,
     type SavedMergeDefinition,
@@ -44,6 +47,27 @@ const charts: Record<string, SavedChartDAO> = {
     hidden: savedChart({ uuid: 'hidden', spaceUuid: privateSpaceUuid }),
 };
 
+const embeddedDashboard = {
+    uuid: 'embedded-dashboard',
+    tiles: [
+        {
+            uuid: 'embed-chart-tile',
+            type: DashboardTileTypes.SAVED_CHART,
+            properties: { savedChartUuid: 'plain' },
+        },
+        {
+            uuid: 'embed-hidden-tile',
+            type: DashboardTileTypes.SAVED_CHART,
+            properties: { savedChartUuid: 'hidden' },
+        },
+        {
+            uuid: 'embed-sql-tile',
+            type: DashboardTileTypes.SQL_CHART,
+            properties: { savedSqlUuid: 'sql', chartName: 'SQL' },
+        },
+    ],
+};
+
 const setup = () => {
     const savedChartModel = {
         get: vi.fn(async (uuid: string) => {
@@ -84,15 +108,49 @@ const setup = () => {
             parameterReferences: ['orders.region', 'payments.region'],
         })),
     };
+    const dashboardModel = {
+        getByIdOrSlug: vi.fn(async () => embeddedDashboard),
+    };
+    const permissionsService = {
+        checkEmbedPermissions: vi.fn(
+            async (_account: unknown, uuid: string) => {
+                if (uuid === 'hidden') throw new ForbiddenError('Not embedded');
+            },
+        ),
+        checkEmbedSqlChartPermissions: vi.fn(async () => undefined),
+    };
     const service = new DashboardService({
         lightdashConfig: lightdashConfigMock,
         savedChartModel,
         savedSqlModel,
         spacePermissionService,
         projectService,
+        dashboardModel,
+        permissionsService,
     } as unknown as ConstructorParameters<typeof DashboardService>[0]);
-    return { service, savedChartModel, projectService };
+    return {
+        service,
+        savedChartModel,
+        projectService,
+        dashboardModel,
+        permissionsService,
+    };
 };
+
+const embedAccount = (content: Record<string, unknown>) =>
+    ({
+        isJwtUser: () => true,
+        isRegisteredUser: () => false,
+        user: { id: 'embed-user' },
+        organization: { organizationUuid: user.organizationUuid },
+        access: { content },
+    }) as unknown as Account;
+const dashboardEmbed = embedAccount({
+    type: 'dashboard',
+    dashboardUuid: 'embedded-dashboard',
+    chartUuids: [],
+    explores: [],
+});
 
 const chartTile = (tileUuid: string, savedChartUuid: string) => ({
     tileUuid,
@@ -265,5 +323,90 @@ describe('DashboardService.getTileParameterReferences', () => {
                 error: "You don't have access to view this chart",
             },
         ]);
+    });
+
+    describe('embed accounts', () => {
+        it("lists the token dashboard's tiles with the charts saved on it", async () => {
+            const { service, savedChartModel, permissionsService } = setup();
+
+            const results = await service.getTileParameterReferences(
+                dashboardEmbed,
+                projectUuid,
+                [
+                    // the body names another chart; the dashboard's chart wins
+                    chartTile('embed-chart-tile', 'merged'),
+                    {
+                        tileUuid: 'embed-sql-tile',
+                        savedChartUuid: null,
+                        savedSqlUuid: 'other-sql',
+                    },
+                    chartTile('embed-hidden-tile', 'hidden'),
+                ],
+            );
+
+            expect(results).toEqual([
+                {
+                    tileUuid: 'embed-chart-tile',
+                    parameterReferences: ['orders.region'],
+                    error: null,
+                },
+                {
+                    tileUuid: 'embed-sql-tile',
+                    parameterReferences: ['region'],
+                    error: null,
+                },
+                {
+                    tileUuid: 'embed-hidden-tile',
+                    parameterReferences: null,
+                    error: "You don't have access to view this chart",
+                },
+            ]);
+            expect(savedChartModel.get).not.toHaveBeenCalledWith(
+                'merged',
+                undefined,
+                expect.anything(),
+            );
+            expect(
+                permissionsService.checkEmbedPermissions,
+            ).toHaveBeenCalledWith(dashboardEmbed, 'plain');
+            expect(
+                permissionsService.checkEmbedSqlChartPermissions,
+            ).toHaveBeenCalledWith(dashboardEmbed, 'sql');
+        });
+
+        it('refuses a tile that is not on the token dashboard', async () => {
+            const { service, savedChartModel } = setup();
+
+            await expect(
+                service.getTileParameterReferences(
+                    dashboardEmbed,
+                    projectUuid,
+                    [chartTile('not-on-dashboard', 'plain')],
+                ),
+            ).resolves.toEqual([
+                {
+                    tileUuid: 'not-on-dashboard',
+                    parameterReferences: null,
+                    error: 'Tile is not on the embedded dashboard',
+                },
+            ]);
+            expect(savedChartModel.get).not.toHaveBeenCalled();
+        });
+
+        it('refuses a token that does not embed a dashboard', async () => {
+            const { service } = setup();
+
+            await expect(
+                service.getTileParameterReferences(
+                    embedAccount({
+                        type: 'chart',
+                        chartUuids: ['plain'],
+                        explores: [],
+                    }),
+                    projectUuid,
+                    [chartTile('tile-1', 'plain')],
+                ),
+            ).rejects.toThrow(ForbiddenError);
+        });
     });
 });

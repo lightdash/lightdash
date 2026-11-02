@@ -287,6 +287,7 @@ describe('DashboardService', () => {
         spacePermissionService:
             spacePermissionService as unknown as SpacePermissionService,
         projectService: {} as never,
+        permissionsService: {} as never,
         contentVerificationModel:
             contentVerificationModel as unknown as ContentVerificationModel,
     });

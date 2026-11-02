@@ -32,6 +32,7 @@ import {
     hasChartsInDashboard,
     isDashboardChartTileType,
     isDashboardScheduler,
+    isDashboardSqlChartTile,
     isDashboardUnversionedFields,
     isDashboardVersionedFields,
     isExploreError,
@@ -59,6 +60,7 @@ import {
     UpdateMultipleDashboards,
     UserDashboardsSummary,
     type Account,
+    type AnonymousAccount,
     type ChartFieldUpdates,
     type ChartVersionDifference,
     type ChartVersionSummary,
@@ -127,6 +129,7 @@ import { createDashboardChartTiles } from '../../utils/dashboardTileUtils';
 import { getContentWriteAgentIdentity } from '../AiAccessService/agentExecutionContext';
 import { logAgentContentWrite } from '../AiAccessService/logAgentContentWrite';
 import { BaseService } from '../BaseService';
+import type { PermissionsService } from '../PermissionsService/PermissionsService';
 import type { ProjectService } from '../ProjectService/ProjectService';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
 import type { SchedulerService } from '../SchedulerService/SchedulerService';
@@ -174,6 +177,10 @@ type DashboardServiceArguments = {
     projectService: Pick<
         ProjectService,
         'findExplores' | 'compileQuery' | 'compileMergeQuery'
+    >;
+    permissionsService: Pick<
+        PermissionsService,
+        'checkEmbedPermissions' | 'checkEmbedSqlChartPermissions'
     >;
 };
 
@@ -288,6 +295,8 @@ export class DashboardService
     contentVerificationModel: ContentVerificationModel;
 
     private readonly projectService: DashboardServiceArguments['projectService'];
+
+    private readonly permissionsService: DashboardServiceArguments['permissionsService'];
 
     async scheduleExportContent(
         account: Account,
@@ -446,6 +455,7 @@ export class DashboardService
         spacePermissionService,
         contentVerificationModel,
         projectService,
+        permissionsService,
     }: DashboardServiceArguments) {
         super();
         this.featureFlagModel = featureFlagModel;
@@ -475,6 +485,7 @@ export class DashboardService
         this.spacePermissionService = spacePermissionService;
         this.contentVerificationModel = contentVerificationModel;
         this.projectService = projectService;
+        this.permissionsService = permissionsService;
     }
 
     async verifyDashboard(
@@ -936,24 +947,78 @@ export class DashboardService
         projectUuid: string,
         tiles: DashboardTileParameterReferencesTile[],
     ): Promise<DashboardTileParameterReferences[]> {
+        const sources = isJwtUser(account)
+            ? await this.getEmbedDashboardTileSources(
+                  account,
+                  projectUuid,
+                  tiles,
+              )
+            : tiles;
         const [chartResults, sqlResults] = await Promise.all([
             this.getSavedChartParameterReferences(
                 account,
                 projectUuid,
-                uniq(tiles.flatMap((tile) => tile.savedChartUuid ?? [])),
+                uniq(sources.flatMap((tile) => tile?.savedChartUuid ?? [])),
             ),
             this.getSavedSqlParameterReferences(
                 account,
                 projectUuid,
-                uniq(tiles.flatMap((tile) => tile.savedSqlUuid ?? [])),
+                uniq(sources.flatMap((tile) => tile?.savedSqlUuid ?? [])),
             ),
         ]);
-        return tiles.map(({ tileUuid, savedChartUuid, savedSqlUuid }) => {
+        return tiles.map(({ tileUuid }, index) => {
+            const source = sources[index];
+            if (source === null) {
+                return {
+                    tileUuid,
+                    ...parameterReferencesFailure(
+                        'Tile is not on the embedded dashboard',
+                    ),
+                };
+            }
             const result =
-                (savedChartUuid && chartResults.get(savedChartUuid)) ||
-                (savedSqlUuid && sqlResults.get(savedSqlUuid)) ||
+                (source.savedChartUuid &&
+                    chartResults.get(source.savedChartUuid)) ||
+                (source.savedSqlUuid && sqlResults.get(source.savedSqlUuid)) ||
                 parameterReferencesFailure('Tile has no saved chart');
             return { tileUuid, ...result };
+        });
+    }
+
+    /**
+     * An embed lists only its token's dashboard tiles, with the queries saved
+     * on that dashboard; a tile missing from it maps to null.
+     */
+    private async getEmbedDashboardTileSources(
+        account: AnonymousAccount,
+        projectUuid: string,
+        tiles: DashboardTileParameterReferencesTile[],
+    ): Promise<(DashboardTileParameterReferencesTile | null)[]> {
+        const { content } = account.access;
+        if (content.type !== 'dashboard' || !content.dashboardUuid) {
+            throw new ForbiddenError(
+                'Embed token does not allow listing tile parameters outside a dashboard',
+            );
+        }
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            content.dashboardUuid,
+            { projectUuid },
+        );
+        const dashboardTiles = new Map(
+            dashboard.tiles.map((tile) => [tile.uuid, tile]),
+        );
+        return tiles.map(({ tileUuid }) => {
+            const tile = dashboardTiles.get(tileUuid);
+            if (!tile) return null;
+            return {
+                tileUuid,
+                savedChartUuid: isDashboardChartTileType(tile)
+                    ? (tile.properties.savedChartUuid ?? null)
+                    : null,
+                savedSqlUuid: isDashboardSqlChartTile(tile)
+                    ? tile.properties.savedSqlUuid
+                    : null,
+            };
         });
     }
 
@@ -978,16 +1043,17 @@ export class DashboardService
         );
         if (charts.length === 0) return results;
 
-        const [accessResults, explores] = await Promise.all([
-            this.spacePermissionService.resolveAccessBatch(
-                account.user.id,
-                charts.map((chart) => ({
-                    type: 'chart' as const,
-                    chartUuid: chart.uuid,
-                    dashboardUuid: chart.dashboardUuid ?? null,
-                    spaceUuid: chart.spaceUuid,
-                })),
-            ),
+        const [viewableChartUuids, explores] = await Promise.all([
+            isJwtUser(account)
+                ? this.getEmbedViewableUuids(
+                      charts.map(({ uuid }) => uuid),
+                      (uuid) =>
+                          this.permissionsService.checkEmbedPermissions(
+                              account,
+                              uuid,
+                          ),
+                  )
+                : this.getViewableChartUuids(account, charts),
             this.projectService.findExplores({
                 account,
                 projectUuid,
@@ -999,36 +1065,12 @@ export class DashboardService
                 organizationUuid: account.organization.organizationUuid,
             }),
         ]);
-        const contextByChartUuid = new Map(
-            accessResults.map(({ target, context }) => [
-                target.chartUuid,
-                context,
-            ]),
-        );
-        const auditedAbility = this.createAuditedAbility(account);
         // Each compile makes several DB calls; cap them so one dashboard can't drain the pool
         const limitCompile = pLimit(TILE_COMPILE_CONCURRENCY);
 
         await Promise.all(
             charts.map(async (chart) => {
-                const context = contextByChartUuid.get(chart.uuid);
-                if (
-                    !context ||
-                    auditedAbility.cannot(
-                        'view',
-                        subject('SavedChart', {
-                            organizationUuid: context.organizationUuid,
-                            projectUuid: context.projectUuid,
-                            inheritsFromOrgOrProject:
-                                context.inheritsFromOrgOrProject,
-                            access: context.access,
-                            metadata: {
-                                savedChartUuid: chart.uuid,
-                                savedChartName: chart.name,
-                            },
-                        }),
-                    )
-                ) {
+                if (!viewableChartUuids.has(chart.uuid)) {
                     results.set(
                         chart.uuid,
                         parameterReferencesFailure(
@@ -1055,6 +1097,70 @@ export class DashboardService
             }),
         );
         return results;
+    }
+
+    private async getViewableChartUuids(
+        account: Account,
+        charts: SavedChartDAO[],
+    ): Promise<Set<string>> {
+        const accessResults =
+            await this.spacePermissionService.resolveAccessBatch(
+                account.user.id,
+                charts.map((chart) => ({
+                    type: 'chart' as const,
+                    chartUuid: chart.uuid,
+                    dashboardUuid: chart.dashboardUuid ?? null,
+                    spaceUuid: chart.spaceUuid,
+                })),
+            );
+        const contextByChartUuid = new Map(
+            accessResults.map(({ target, context }) => [
+                target.chartUuid,
+                context,
+            ]),
+        );
+        const auditedAbility = this.createAuditedAbility(account);
+        return new Set(
+            charts
+                .filter((chart) => {
+                    const context = contextByChartUuid.get(chart.uuid);
+                    return (
+                        !!context &&
+                        auditedAbility.can(
+                            'view',
+                            subject('SavedChart', {
+                                organizationUuid: context.organizationUuid,
+                                projectUuid: context.projectUuid,
+                                inheritsFromOrgOrProject:
+                                    context.inheritsFromOrgOrProject,
+                                access: context.access,
+                                metadata: {
+                                    savedChartUuid: chart.uuid,
+                                    savedChartName: chart.name,
+                                },
+                            }),
+                        )
+                    );
+                })
+                .map(({ uuid }) => uuid),
+        );
+    }
+
+    /** Embed viewers see what the tile queries allow: the check throws when they can't */
+    // eslint-disable-next-line class-methods-use-this
+    private async getEmbedViewableUuids(
+        uuids: string[],
+        check: (uuid: string) => Promise<unknown>,
+    ): Promise<Set<string>> {
+        const allowed = await Promise.all(
+            uuids.map((uuid) =>
+                check(uuid).then(
+                    () => true,
+                    () => false,
+                ),
+            ),
+        );
+        return new Set(uuids.filter((_uuid, index) => allowed[index]));
     }
 
     private async compileChartParameterReferences(
@@ -1085,6 +1191,7 @@ export class DashboardService
             projectUuid,
             explore,
             body: { ...chart.metricQuery, parameters: chart.parameters },
+            customSqlProvenanceChartUuid: chart.uuid,
         });
         return compiled.parameterReferences;
     }
@@ -1111,33 +1218,18 @@ export class DashboardService
         );
         if (sqlCharts.length === 0) return results;
 
-        const accessResults =
-            await this.spacePermissionService.resolveAccessBatch(
-                account.user.id,
-                sqlCharts.map((sqlChart) => ({
-                    type: 'sqlChart' as const,
-                    savedSqlUuid: sqlChart.savedSqlUuid,
-                    spaceUuid: sqlChart.space.uuid,
-                })),
-            );
-        const contextBySavedSqlUuid = new Map(
-            accessResults.map(({ target, context }) => [
-                target.savedSqlUuid,
-                context,
-            ]),
-        );
-        const auditedAbility = this.createAuditedAbility(account);
+        const viewableSqlUuids = isJwtUser(account)
+            ? await this.getEmbedViewableUuids(
+                  sqlCharts.map(({ savedSqlUuid }) => savedSqlUuid),
+                  (uuid) =>
+                      this.permissionsService.checkEmbedSqlChartPermissions(
+                          account,
+                          uuid,
+                      ),
+              )
+            : await this.getViewableSqlChartUuids(account, sqlCharts);
         sqlCharts.forEach((sqlChart) => {
-            const context = contextBySavedSqlUuid.get(sqlChart.savedSqlUuid);
-            const canView =
-                !!context &&
-                auditedAbility.can(
-                    'view',
-                    subject('SavedChart', {
-                        ...context,
-                        metadata: { savedSqlUuid: sqlChart.savedSqlUuid },
-                    }),
-                );
+            const canView = viewableSqlUuids.has(sqlChart.savedSqlUuid);
             results.set(
                 sqlChart.savedSqlUuid,
                 canView
@@ -1153,6 +1245,37 @@ export class DashboardService
             );
         });
         return results;
+    }
+
+    private async getViewableSqlChartUuids(
+        account: Account,
+        sqlCharts: { savedSqlUuid: string; space: { uuid: string } }[],
+    ): Promise<Set<string>> {
+        const accessResults =
+            await this.spacePermissionService.resolveAccessBatch(
+                account.user.id,
+                sqlCharts.map((sqlChart) => ({
+                    type: 'sqlChart' as const,
+                    savedSqlUuid: sqlChart.savedSqlUuid,
+                    spaceUuid: sqlChart.space.uuid,
+                })),
+            );
+        const auditedAbility = this.createAuditedAbility(account);
+        return new Set(
+            accessResults
+                .filter(
+                    ({ target, context }) =>
+                        !!context &&
+                        auditedAbility.can(
+                            'view',
+                            subject('SavedChart', {
+                                ...context,
+                                metadata: { savedSqlUuid: target.savedSqlUuid },
+                            }),
+                        ),
+                )
+                .map(({ target }) => target.savedSqlUuid),
+        );
     }
 
     async getByIdOrSlug(

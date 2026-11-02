@@ -11,8 +11,9 @@ vi.mock('../useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: () => ({ data: { enabled: flag.enabled } }),
 }));
 
-import { sharedLightdashApi } from '../../api';
+import { sharedLightdashApi, type LightdashApi } from '../../api';
 import { dashboardEditActions } from '../../features/dashboard/store';
+import { LightdashApiContext } from '../../providers/LightdashApi/LightdashApiContext';
 import { createDashboardTestStore } from '../../testing/dashboardStore';
 import { useDashboardTileParameterReferences } from './useDashboardTileParameterReferences';
 
@@ -44,7 +45,7 @@ const tiles = [
     tile('tile-sql', 'tab-2', DashboardTileTypes.SQL_CHART, 'sql-1'),
 ];
 
-const setup = () => {
+const setup = (embedApi?: LightdashApi) => {
     const store = createDashboardTestStore();
     store.dispatch(dashboardEditActions.setTiles(tiles));
     const queryClient = new QueryClient({
@@ -52,7 +53,13 @@ const setup = () => {
     });
     const wrapper = ({ children }: PropsWithChildren) => (
         <QueryClientProvider client={queryClient}>
-            {children}
+            {embedApi ? (
+                <LightdashApiContext.Provider value={embedApi}>
+                    {children}
+                </LightdashApiContext.Provider>
+            ) : (
+                children
+            )}
         </QueryClientProvider>
     );
     renderHook(
@@ -60,7 +67,6 @@ const setup = () => {
             useDashboardTileParameterReferences({
                 store,
                 projectUuid: 'project-uuid',
-                embedToken: undefined,
             }),
         { wrapper },
     );
@@ -122,6 +128,31 @@ describe('useDashboardTileParameterReferences', () => {
                 },
             ],
         });
+    });
+
+    it("requests through the embed's API client, which sends its token", async () => {
+        const embedApi = vi.fn().mockResolvedValue([
+            {
+                tileUuid: 'tile-open',
+                parameterReferences: ['orders.region'],
+                error: null,
+            },
+        ]);
+
+        const store = setup(embedApi as unknown as LightdashApi);
+
+        await waitFor(() =>
+            expect(store.getState().parameters.tileParameterReferences).toEqual(
+                { 'tile-open': ['orders.region'] },
+            ),
+        );
+        expect(embedApi).toHaveBeenCalledWith(
+            expect.objectContaining({
+                url: '/projects/project-uuid/dashboards/tile-parameter-references',
+                version: 'v2',
+            }),
+        );
+        expect(mockApi).not.toHaveBeenCalled();
     });
 
     it('makes no request with the flag off', async () => {

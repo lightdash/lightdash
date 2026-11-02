@@ -9910,6 +9910,8 @@ export class ProjectService
              */
             asCteBody?: boolean;
             userAttributeOverrides?: UserAttributeValueMap;
+            /** Saved chart whose custom SQL an embed viewer may compile */
+            customSqlProvenanceChartUuid?: UUID;
         } & ({ exploreName: string } | { explore: Explore }),
     ) {
         const {
@@ -9969,6 +9971,7 @@ export class ProjectService
                 organizationUuid,
                 exploreName: sourceExplore.name,
                 metricQuery,
+                customSqlProvenanceChartUuid: args.customSqlProvenanceChartUuid,
             });
         }
 

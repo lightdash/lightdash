@@ -77,6 +77,11 @@ export class ProjectDashboardControllerV2 extends BaseController {
     /**
      * List the parameters each dashboard tile uses, compiled without running
      * its query. Tiles that can't be viewed or compiled report an error.
+     *
+     * Embed tokens can call this with the `Lightdash-Embed-Token` header. The
+     * token must embed a dashboard: only that dashboard's tiles are listed,
+     * with the charts saved on it (request chart uuids are ignored), and a
+     * tile not on it reports an error.
      * @summary Get tile parameter references
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -88,14 +93,13 @@ export class ProjectDashboardControllerV2 extends BaseController {
         @Body() body: DashboardTileParameterReferencesRequest,
         @Request() req: express.Request,
     ): Promise<ApiDashboardTileParameterReferencesResponse> {
-        assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getDashboardService()
                 .getTileParameterReferences(
-                    req.account,
+                    req.account!,
                     projectUuid,
                     body.tiles,
                 ),

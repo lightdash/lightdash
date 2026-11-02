@@ -513,6 +513,7 @@ export class ServiceRepository
             () =>
                 new DashboardService({
                     projectService: this.getProjectService(),
+                    permissionsService: this.getPermissionsService(),
                     featureFlagModel: this.models.getFeatureFlagModel(),
                     agentActionLogModel: this.models.getAgentActionLogModel(),
                     lightdashConfig: this.context.lightdashConfig,

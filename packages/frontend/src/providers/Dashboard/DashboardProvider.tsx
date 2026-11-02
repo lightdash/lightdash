@@ -357,7 +357,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         projectUuid,
         embedToken,
     );
-    useDashboardTileParameterReferences({ store, projectUuid, embedToken });
+    useDashboardTileParameterReferences({ store, projectUuid });
 
     // Computed here as well as in the store, so the filter sync gets them in
     // the same render as the dashboard, not a commit later

@@ -17,16 +17,14 @@ import { useServerFeatureFlag } from '../useServerOrClientFeatureFlag';
 
 /**
  * Registers the parameters every tile uses, on every tab, before any tile
- * runs. Embeds keep learning them from each tile's query response.
+ * runs. In embeds the API client sends the embed token.
  */
 export const useDashboardTileParameterReferences = ({
     store,
     projectUuid,
-    embedToken,
 }: {
     store: DashboardStore;
     projectUuid: string | undefined;
-    embedToken: string | undefined;
 }) => {
     const lightdashApi = useLightdashApi();
     const { data: dashboardControlsFlag } = useServerFeatureFlag(
@@ -42,7 +40,6 @@ export const useDashboardTileParameterReferences = ({
     );
     const isEnabled =
         dashboardControlsFlag?.enabled === true &&
-        !embedToken &&
         !!projectUuid &&
         tiles.length > 0;
 
