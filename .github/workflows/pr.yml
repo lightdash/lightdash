@@ -124,8 +124,8 @@ jobs:
           egress-policy: audit
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       # The one job that writes the pnpm store cache. pnpm/setup v3 keys every
-      # save by run id, so a save per job was ~9GB of new Depot Cache per PR run
-      # (12 jobs x 730MB) and nothing ever reused it. Every other call site sets
+      # save by run id, so a save per job wrote ~9GB of cache per PR run (12 jobs x 730MB)
+      # that nothing ever restored. Every other call site sets
       # save-cache: false and restores the freshest lockfile match this job wrote.
       - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
         with:
