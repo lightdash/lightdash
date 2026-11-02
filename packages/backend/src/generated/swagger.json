@@ -1586,6 +1586,10 @@
                 "required": ["dashboards", "sqlCharts", "charts", "path"],
                 "type": "object"
             },
+            "ContentAsCodeReleasableType": {
+                "type": "string",
+                "enum": ["chart", "dashboard"]
+            },
             "ParameterValue": {
                 "anyOf": [
                     {
@@ -9878,6 +9882,16 @@
                 "enum": ["DEFAULT", "PREVIEW", "TRAINING"],
                 "type": "string"
             },
+            "ContentAsCodeRepositorySource": {
+                "properties": {
+                    "filePath": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "required": ["filePath"],
+                "type": "object"
+            },
             "DashboardDraftOverlayError": {
                 "properties": {
                     "draftUuid": {
@@ -9998,6 +10012,10 @@
                     },
                     "projectType": {
                         "$ref": "#/components/schemas/ProjectType"
+                    },
+                    "managedFromRepository": {
+                        "$ref": "#/components/schemas/ContentAsCodeRepositorySource",
+                        "description": "The repo owns this dashboard: UI saves become drafts until written back"
                     },
                     "hasUnpublishedChanges": {
                         "type": "boolean",
@@ -10473,6 +10491,10 @@
                     },
                     "projectType": {
                         "$ref": "#/components/schemas/ProjectType"
+                    },
+                    "managedFromRepository": {
+                        "$ref": "#/components/schemas/ContentAsCodeRepositorySource",
+                        "description": "The repo owns this chart: UI saves become drafts until written back."
                     },
                     "hasUnpublishedChanges": {
                         "type": "boolean",
@@ -17286,6 +17308,10 @@
                         "type": "boolean",
                         "description": "Set when the viewer has an unpublished draft applied on top"
                     },
+                    "managedFromRepository": {
+                        "$ref": "#/components/schemas/ContentAsCodeRepositorySource",
+                        "description": "The repo owns this dashboard: UI saves become drafts until written back"
+                    },
                     "projectUuid": {
                         "type": "string"
                     },
@@ -18157,6 +18183,10 @@
                     "hasUnpublishedChanges": {
                         "type": "boolean",
                         "description": "The caller's unpublished content-as-code draft is applied."
+                    },
+                    "managedFromRepository": {
+                        "$ref": "#/components/schemas/ContentAsCodeRepositorySource",
+                        "description": "The repo owns this chart: UI saves become drafts until written back."
                     },
                     "verification": {
                         "allOf": [
@@ -74750,7 +74780,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.124.0",
+        "version": "3.125.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -75680,6 +75710,63 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/code/snapshots/{contentType}/{slug}": {
+            "delete": {
+                "operationId": "releaseContentAsCodeSnapshot",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Stop managing one chart or dashboard from the repo so UI saves publish\ndirectly again. The content itself is kept.",
+                "summary": "Release content-as-code snapshot",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "contentType",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/ContentAsCodeReleasableType"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "slug",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/projects/{projectUuid}/code/charts": {

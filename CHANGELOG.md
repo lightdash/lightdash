@@ -1,3 +1,10 @@
+# [3.125.0](https://github.com/lightdash/lightdash/compare/3.124.0...3.125.0) (2026-11-02)
+
+
+### Features
+
+* **content-as-code:** show Git-managed content in info popups with a release action ([#31909](https://github.com/lightdash/lightdash/issues/31909)) ([ba3b512](https://github.com/lightdash/lightdash/commit/ba3b5128f8337e23288bf6e37d8047227bcb51c8))
+
 # [3.124.0](https://github.com/lightdash/lightdash/compare/3.123.0...3.124.0) (2026-11-02)
 
 

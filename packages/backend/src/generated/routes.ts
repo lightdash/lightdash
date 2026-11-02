@@ -1998,6 +1998,18 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ContentAsCodeReleasableType: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['chart'] },
+                { dataType: 'enum', enums: ['dashboard'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ParameterValue: {
         dataType: 'refAlias',
         type: {
@@ -9556,6 +9568,24 @@ const models: TsoaRoute.Models = {
         enums: ['DEFAULT', 'PREVIEW', 'TRAINING'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ContentAsCodeRepositorySource: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                filePath: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DashboardDraftOverlayError: {
         dataType: 'refAlias',
         type: {
@@ -9689,6 +9719,13 @@ const models: TsoaRoute.Models = {
                         dataType: 'union',
                         subSchemas: [
                             { ref: 'ProjectType' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    managedFromRepository: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { ref: 'ContentAsCodeRepositorySource' },
                             { dataType: 'undefined' },
                         ],
                     },
@@ -10138,6 +10175,13 @@ const models: TsoaRoute.Models = {
                         dataType: 'union',
                         subSchemas: [
                             { ref: 'ProjectType' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    managedFromRepository: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { ref: 'ContentAsCodeRepositorySource' },
                             { dataType: 'undefined' },
                         ],
                     },
@@ -16715,6 +16759,7 @@ const models: TsoaRoute.Models = {
                 draftOverlayError: { ref: 'DashboardDraftOverlayError' },
                 draftsAwaitingReview: { dataType: 'double' },
                 hasUnpublishedChanges: { dataType: 'boolean' },
+                managedFromRepository: { ref: 'ContentAsCodeRepositorySource' },
                 projectUuid: { dataType: 'string', required: true },
                 organizationUuid: { dataType: 'string', required: true },
                 projectType: { ref: 'ProjectType' },
@@ -17310,6 +17355,7 @@ const models: TsoaRoute.Models = {
                 dismissedDraftUuid: { dataType: 'string' },
                 draftsAwaitingReview: { dataType: 'double' },
                 hasUnpublishedChanges: { dataType: 'boolean' },
+                managedFromRepository: { ref: 'ContentAsCodeRepositorySource' },
                 verification: {
                     dataType: 'union',
                     subSchemas: [
@@ -80838,6 +80884,74 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'pruneContentAsCodeSnapshots',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsProjectCoderController_releaseContentAsCodeSnapshot: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        contentType: {
+            in: 'path',
+            name: 'contentType',
+            required: true,
+            ref: 'ContentAsCodeReleasableType',
+        },
+        slug: { in: 'path', name: 'slug', required: true, dataType: 'string' },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.delete(
+        '/api/v1/projects/:projectUuid/code/snapshots/:contentType/:slug',
+        ...fetchMiddlewares<RequestHandler>(ProjectCoderController),
+        ...fetchMiddlewares<RequestHandler>(
+            ProjectCoderController.prototype.releaseContentAsCodeSnapshot,
+        ),
+
+        async function ProjectCoderController_releaseContentAsCodeSnapshot(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsProjectCoderController_releaseContentAsCodeSnapshot,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<ProjectCoderController>(
+                        ProjectCoderController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'releaseContentAsCodeSnapshot',
                     controller,
                     response,
                     next,
