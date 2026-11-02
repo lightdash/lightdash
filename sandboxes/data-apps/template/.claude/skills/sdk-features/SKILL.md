@@ -35,6 +35,7 @@ Users describe features by what they see in the Lightdash editor. Translate:
 | light/dark mode, "matches my Lightdash theme" | `follow-host-theme` | CSS tokens — see below |
 | "executive summary", "what changed", anomaly callouts, "AI insight", "Analyse this view" | `ai-insights` | app code opt-in |
 | chart gallery, "my charts", "show the charts in this space", list that updates as charts are saved | `space-charts` | app code opt-in |
+| forecast, statistical test, Python/DuckDB step over query results | `composer` | app code opt-in |
 | "Adapts to small tiles", responsive, works on a phone, readable in a narrow or short tile (viz only) | `viz-responsive-layout` | layout — see below |
 
 ## Automatic (zero wiring — active on any current-SDK bundle)
@@ -59,7 +60,10 @@ return <div {...lineage}>{/* chart rendered from data */}</div>;
 ```
 
 Stamp every visualization, not just one — each stamp maps that block to its
-query in the host's Queries panel.
+query in the host's Queries panel. Give every query a stable
+`.id('<kebab-id>')` and a `.description(...)` (pipelines: `compose('<id>')`
+plus `.title()` / `.description()`); the id is stamped as `data-ld-query-id`
+before the query loads and lets the host match blocks across iterations.
 
 ### `screenshot` — thumbnails and scheduled deliveries
 
@@ -218,6 +222,12 @@ order, `sortBy` describes result ordering, `totalColumnCount` exposes truncation
   explicit `savedChart('<uuid>')` references for charts the app lays out by
   hand. Render a friendly empty state for `charts.length === 0` and hide the
   section when `available` is false (older host).
+- `composer`: `compose('<stable-kebab-id>')` chains semantic sources
+  (`.semantic(nodeId, query(...) | savedChart(uuid))`), `.duckdb` / `.python`
+  steps that list the node ids they read in `reads`, and a required
+  `.terminal(nodeId)`; pass it to `useLightdash` like a query. Only when the
+  installed SDK exports `compose`. Full contract in
+  `/app/references/composer-queries.md`.
 - `delivery-render`: `useDeliveryRender()` is `true` during scheduled-delivery
   and delivery-preview capture renders. Gate tab/slide DATA mounting on it so
   every tab's queries execute during capture while only the active tab stays

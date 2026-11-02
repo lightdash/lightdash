@@ -250,9 +250,11 @@ The client and provider are already set up in `main.jsx`. Import `query` and `us
 import { query, useLightdash } from '@lightdash/query-sdk';
 
 // Define queries at module scope — immutable, safe to hoist out of render.
-// Always use .label() to describe what the query powers (shown in dev tools).
+// Always set .id(), .label() and .description() (see "Tagging query blocks").
 const revenueQuery = query('orders')
+    .id('revenue-by-segment')
     .label('Revenue by Segment')
+    .description('Revenue and order count for the top 10 segments over the last 90 days.')
     .dimensions(['customer_segment'])
     .metrics(['total_revenue', 'order_count'])
     .filters([
@@ -294,8 +296,8 @@ The builder is immutable — you can derive variants from a base:
 
 ```ts
 const base = query('orders').metrics(['total_revenue']);
-const bySegment = base.label('Revenue by Segment').dimensions(['customer_segment']);
-const byRegion = base.label('Revenue by Region').dimensions(['region']);
+const bySegment = base.id('revenue-by-segment').label('Revenue by Segment').dimensions(['customer_segment']);
+const byRegion = base.id('revenue-by-region').label('Revenue by Region').dimensions(['region']);
 ```
 
 **Every field in `.sorts()` must also be selected by the query** — include it in `.dimensions()` or `.metrics()`, or define it as a table calculation. The backend sorts by the selected output alias, so sorting by an unselected field produces an invalid query. A field used only for ordering can stay selected in the query while being omitted from the rendered UI.
@@ -307,14 +309,21 @@ KPI cards — metrics without dimensions gives a single aggregated row:
 query('orders').label('KPI Summary').metrics(['total_revenue', 'order_count']).limit(1);
 ```
 
-**Always add `.label()`** — it describes what the query powers and is shown in the query inspector dev tools. Use a short human-readable name like "Revenue by Month Chart" or "Top Customers Table".
+**Always add `.label()`** (plus `.id()` and `.description()`, below) — it describes what the query powers and is shown in the query inspector dev tools. Use a short human-readable name like "Revenue by Month Chart" or "Top Customers Table".
 
 The query inspector shows for each query: the label, status, row count, duration, explore name, dimensions, and metrics. If present, it also shows table calculations and additional metrics. Write clear labels so users can match each inspector entry to the component it powers.
 
-**Spread `lineage` on each query block** — `useLightdash` returns a `lineage`
-prop bag; spread it onto the root element of the card/table/chart that renders
-that query (e.g. `<Card {...lineage}>`). This lets users click a value to see
-which query produced it. One spread per query block is enough.
+**Tagging query blocks** — every query gets all three of:
+
+- `.id('<kebab-id>')` — a stable id that describes the card (`revenue-by-segment`, `top-customers-table`). Keep it unchanged across iterations; change it only when the card's meaning changes. Unique per app.
+- `.label('…')` — the short human title.
+- `.description('…')` — one sentence on what the block shows.
+
+`savedChart(uuid)` takes the same three methods. Then **spread `lineage` on each query block** — `useLightdash` returns a `lineage` prop bag; spread it onto the root element of the card/table/chart that renders that query (e.g. `<Card {...lineage}>`). One block per query, one spread per block. This lets users click a value to see which query produced it.
+
+### Composer pipelines (forecasts, stat tests, reshaping)
+
+Available only when the host advertises composer pipelines; if `compose` is not exported by the installed SDK, don't use it. When a card needs a computation the semantic layer can't express — a forecast, a statistical test, a pivot or join across query results — read `/app/references/composer-queries.md` and build it with `compose()`: semantic-layer sources feeding DuckDB SQL or Python steps, rendered with `useLightdash` like any query.
 
 ### Table calculations
 
@@ -389,7 +398,7 @@ If the dbt YAML declares a `parameters:` block (under a model's `meta:` / `confi
 | `totalResults` | `number \| null` | Total rows returned by the loaded source query. Use for export labels/counts. |
 | `loading` | `boolean` | True while query is in flight. |
 | `error` | `Error \| null` | Query error. |
-| `lineage` | `LineageProps` | **Spread on the root element of every rendered query block** (`<div {...lineage}>`). Stamps the block so the host's Inspect data button can trace it back to this query — without it that button stays disabled. |
+| `lineage` | `LineageProps` | **Spread on the root element of every rendered query block** (`<div {...lineage}>`). Stamps the block with the query's `.id()` immediately and its query UUID once loaded, so the host's Inspect data button can trace it back to this query — without it that button stays disabled. |
 | `refetch` | `() => void` | Re-run the query on demand. |
 | `queryUuid` | `string \| null` | The async Lightdash query UUID for the loaded source query. Rarely needed directly. |
 | `getUnderlyingData` | `({ row, metric, limit? }) => Promise<{ rows, columns, format, queryUuid }>` | Fetch raw rows behind an aggregated metric value. Call from a user action, never on initial render. |
@@ -1362,6 +1371,7 @@ The action-menu example above shows typical `drillDown()` usage. For the full AP
 | Building queries inside render | Infinite re-fetching | Define queries at module scope or memoize them |
 | Forgetting to apply global filters to a query | Chart shows unfiltered data while the rest of the page is filtered → contradictory results | Every `useLightdash()` call must pass `filtersFor(EXPLORE)` into `.filters([...])` via `useMemo` |
 | Forgetting to spread `lineage` on a query block | The host's Inspect data button stays disabled for that block | Destructure `lineage` from `useLightdash()` and spread it on the block's root element |
+| A query without `.id()` and `.description()`, or an id that changes between iterations | The host can't match the block to its query across versions or explain what it shows | Give every query (and `compose()` pipeline) a stable kebab-case id, a label/title and a description |
 | Spreading `lineage` onto a component that swallows unknown props | The stamp never reaches the DOM, so the block looks wired but Inspect data still can't trace it | Spread onto a plain element (`<div {...lineage}>`) or a component that forwards rest props to its root element (all `@/components/ui` primitives do) |
 | Calling `addFilter` without an `explore` tag | Filter has no explore → the `filtersFor(otherExplore)` lookup never returns it, or (worse) you broadcast it everywhere → `FieldReferenceError` like `regional_sales_status` not found | Always include `explore: EXPLORE` on every `addFilter` call |
 | Using `filters` (raw) instead of `filtersFor(EXPLORE)` | Sends filters from other explores into this query → SDK qualifies the field name to the wrong explore → `FieldReferenceError` | Always select via `filtersFor(EXPLORE)`; never pass `allFilters` into `.filters()` |

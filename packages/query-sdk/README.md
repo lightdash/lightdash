@@ -106,6 +106,49 @@ metric can be used only as a filter and does not need to be selected with
 
 Supported filter operators: `equals`, `notEquals`, `greaterThan`, `lessThan`, `greaterThanOrEqual`, `lessThanOrEqual`, `inThePast`, `notInThePast`, `inTheNext`, `inTheCurrent`, `notInTheCurrent`, `inBetween`, `notInBetween`, `isNull`, `notNull`, `startsWith`, `endsWith`, `include`, `doesNotInclude`.
 
+### Ids and descriptions
+
+`.label(text)` is the human title. `.id(id)` sets a stable author id for the
+query's UI block (e.g. `revenue-by-month`) and `.description(text)` a one-line
+summary. All three go to the host as request metadata only — never to the API.
+`savedChart(uuid)` supports the same methods. The `lineage` props from
+`useLightdash` stamp `data-ld-query-id` (the id, immediately) and
+`data-ld-query` (the query UUID, once loaded).
+
+## Composer pipelines
+
+`compose(id)` chains semantic-layer sources into DuckDB SQL and Python steps,
+executed server-side as one submission
+(`POST /api/v2/projects/{projectUuid}/query-sources/queries`).
+
+```ts
+const forecast = compose('revenue-forecast')
+    .title('Revenue forecast')
+    .description('Projects the next 6 months of revenue from monthly orders.')
+    .semantic('orders', query('orders').dimensions(['order_date_month']).metrics(['total_revenue']),
+        { title: 'Monthly orders', description: 'Revenue by month.' })
+    .semantic('top', savedChart('<chart-uuid>'), { title: 'Top customers' })
+    .duckdb('monthly', 'select * from orders order by 1', { reads: ['orders'], title: 'Sorted months' })
+    .python('fc', 'def run(inputs, params):\n    return inputs["monthly"]', { reads: ['monthly'], title: 'Forecast' })
+    .terminal('fc');
+
+const { data, columns, format, lineage } = useLightdash(forecast);
+```
+
+- Node ids are DuckDB table / Python input names: `^[a-zA-Z_][a-zA-Z0-9_]{0,62}$`.
+  The pipeline id allows `-`.
+- `reads` names node ids of the same pipeline; `.terminal(nodeId)` is required.
+  Mistakes surface as `error` from `useLightdash`.
+- Saved-chart sources run first via `/query/chart`; steps reference their
+  result by query UUID.
+- Semantic sources expose qualified field-id columns (`orders_total_revenue`)
+  to later steps. A DuckDB/Python terminal's columns pass through unchanged; a
+  semantic terminal maps to short names like a plain query.
+- Results are cached in memory per project + definition, so re-renders and
+  remounts don't re-run Python; `refetch()` bypasses the cache.
+- `getUnderlyingData` / `downloadUnderlyingData` reject for pipelines;
+  `downloadResults` supports only `limit: 'table'`.
+
 ## Parameters
 
 Lightdash parameters (`${lightdash.parameters.X}` substitutions) let a query swap out
@@ -154,7 +197,8 @@ strings, numbers, or arrays of either. They are sent at the top level of the API
 | `loading` | `boolean`       | True while the query is running.                                 |
 | `error`   | `Error \| null` | Error if the query failed.                                       |
 | `refetch` | `() => void`    | Re-run the query.                                                |
-| `queryUuid` | `string \| null` | Async query UUID for the loaded source query.                 |
+| `queryUuid` | `string \| null` | Async query UUID for the loaded source query (a pipeline's terminal step). |
+| `lineage` | `LineageProps` | Spread on the block's root: `data-ld-query-id` / `data-ld-query` stamps. |
 | `getUnderlyingData` | `({ row, metric, limit? }) => Promise<UnderlyingDataResult>` | Fetch raw rows behind an aggregated metric value. |
 | `downloadUnderlyingData` | `({ row, metric, fileType?, values?, limit?, filename? }) => Promise<DownloadResultsResult>` | Schedule a backend CSV/XLSX export for raw rows behind an aggregated metric value. |
 | `downloadResults` | `({ fileType?, values?, limit?, filename? }) => Promise<DownloadResultsResult>` | Schedule a backend CSV/XLSX export for this query. |
