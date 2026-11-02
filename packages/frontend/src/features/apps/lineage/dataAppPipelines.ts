@@ -202,10 +202,18 @@ export const toDataAppPipelines = (
             q.exploreName !== '' &&
             (q.queryUuid === null || !pipelineSourceUuids.has(q.queryUuid)),
     );
-    return [
+    const all = [
         ...standaloneQueries.map(fromQueryEvent),
         ...pipelines.map((p) => fromPipelineEvent(p, queriesByUuid)),
     ].sort((a, b) => a.timestamp - b.timestamp);
+    // A re-run of the same author id (re-render, filter change, reload) replaces
+    // the earlier run: lineage shows what each block is built from, not history.
+    const latestByQueryId = new Map(
+        all.flatMap((p) => (p.queryId !== null ? [[p.queryId, p.id]] : [])),
+    );
+    return all.filter(
+        (p) => p.queryId === null || latestByQueryId.get(p.queryId) === p.id,
+    );
 };
 
 const terminalQueryUuidOf = (pipeline: DataAppPipeline): string | null =>

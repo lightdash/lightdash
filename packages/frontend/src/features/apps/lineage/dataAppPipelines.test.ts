@@ -110,6 +110,22 @@ describe('toDataAppPipelines', () => {
         ]);
     });
 
+    it('keeps only the latest run per author id', () => {
+        const pipelines = toDataAppPipelines(
+            [
+                queryEvent({ id: 'a', timestamp: 1, queryId: 'rev' }),
+                queryEvent({ id: 'b', timestamp: 2, queryId: 'rev' }),
+                queryEvent({ id: 'c', timestamp: 3 }),
+                queryEvent({ id: 'd', timestamp: 4 }),
+            ],
+            [
+                { ...pipelineEvent, id: 'p-old', timestamp: 5 },
+                { ...pipelineEvent, id: 'p-new', timestamp: 6 },
+            ],
+        );
+        expect(pipelines.map((p) => p.id)).toEqual(['b', 'c', 'd', 'p-new']);
+    });
+
     it('folds saved-chart sources into the pipeline as nodes', () => {
         const chartRun = queryEvent({
             id: 'chart-run',
