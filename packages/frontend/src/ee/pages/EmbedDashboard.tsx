@@ -3,7 +3,9 @@ import { Box } from '@mantine/core';
 import { IconUnlink } from '@tabler/icons-react';
 import { type FC } from 'react';
 import SuboptimalState from '../../components/common/SuboptimalState/SuboptimalState';
+import TileQueryQueueProvider from '../../features/dashboard/tileQueryQueue/TileQueryQueueProvider';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
+import useApp from '../../providers/App/useApp';
 import DashboardProvider from '../../providers/Dashboard/DashboardProvider';
 import EmbedDashboard from '../features/embed/EmbedDashboard/components/EmbedDashboard';
 import { type ChartSaveDestination } from '../features/embed/EmbedDashboard/types';
@@ -23,6 +25,7 @@ const EmbedDashboardPage: FC<{
     chartSaveDestinations,
 }) => {
     const projectUuidFromParams = useProjectUuid();
+    const { health } = useApp();
 
     const {
         embedToken,
@@ -43,19 +46,27 @@ const EmbedDashboardPage: FC<{
         );
     }
 
+    // Unlike app routes, embeds don't wait for health, which holds the tile
+    // query cap.
+    if (health.isInitialLoading) {
+        return null;
+    }
+
     return (
         <DashboardProvider
             embedToken={embedToken}
             projectUuid={projectUuid}
             parameterLabelOverrides={languageMap?.parameters}
         >
-            <EmbedDashboard
-                containerStyles={containerStyles}
-                initialDashboard={initialDashboard}
-                isEditMode={isEditMode}
-                onEditModeChange={onEditModeChange}
-                chartSaveDestinations={chartSaveDestinations}
-            />
+            <TileQueryQueueProvider>
+                <EmbedDashboard
+                    containerStyles={containerStyles}
+                    initialDashboard={initialDashboard}
+                    isEditMode={isEditMode}
+                    onEditModeChange={onEditModeChange}
+                    chartSaveDestinations={chartSaveDestinations}
+                />
+            </TileQueryQueueProvider>
         </DashboardProvider>
     );
 };

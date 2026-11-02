@@ -27,6 +27,7 @@ import {
     useDashboardDateZoomConfig,
     useDashboardSelector,
 } from '../../features/dashboard/store';
+import { useTileQueryQueue } from '../../features/dashboard/tileQueryQueue/useTileQueryQueue';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../../providers/Dashboard/useDashboardTileStatusContext';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
@@ -91,6 +92,7 @@ export const useDashboardChartReadyQuery = (
 ) => {
     const lightdashApi = useLightdashApi();
     const retryConfig = useQueryRetryConfig();
+    const tileQueryQueue = useTileQueryQueue();
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
     const invalidateCache = useDashboardSelector(selectInvalidateCache);
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
@@ -322,9 +324,14 @@ export const useDashboardChartReadyQuery = (
 
     const queryResult = useQuery<DashboardChartReadyQuery, ApiError>({
         queryKey,
-        queryFn: async () => {
+        queryFn: async (queryContext) => {
             if (!chartQuery.data || !explore) {
                 throw new Error('Chart or explore is undefined');
+            }
+            if (tileQueryQueue) {
+                // Read the signal only here: reading it opts the query into
+                // cancellation, which uncapped dashboards don't need.
+                await tileQueryQueue.acquire(tileUuid, queryContext.signal);
             }
 
             const requestedContext =
