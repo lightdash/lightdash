@@ -2,6 +2,7 @@ import {
     DndContext,
     DragOverlay,
     PointerSensor,
+    useDndContext,
     useDraggable,
     useDroppable,
     useSensor,
@@ -87,20 +88,17 @@ const PillDraggable: FC<{
     const {
         setNodeRef: setDropRef,
         isOver,
-        active,
         node,
     } = useDroppable({ id, disabled: !isInBarContext });
-    const activeId = active === null ? null : String(active.id);
-    const activePill =
-        isOver && activeId !== null && activeId !== id
-            ? document.querySelector(
-                  `[data-controls-pill="${CSS.escape(activeId)}"]`,
-              )
-            : null;
+    // The dragged pill's node, as dnd-kit registered it
+    const { activeNode } = useDndContext();
     const dropSide =
-        activePill === null || node.current === null
+        !isOver ||
+        activeNode === null ||
+        node.current === null ||
+        activeNode === node.current
             ? undefined
-            : activePill.compareDocumentPosition(node.current) &
+            : activeNode.compareDocumentPosition(node.current) &
                 Node.DOCUMENT_POSITION_FOLLOWING
               ? 'after'
               : 'before';
