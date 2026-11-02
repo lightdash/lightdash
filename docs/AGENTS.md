@@ -18,4 +18,4 @@ Never check in plans, research, or facts derivable from code (file lists, signat
 - **Subdirectories**: Group related docs by topic when there are 3+ docs on the same subject (e.g., `docs/timezones/`)
 - **Structure**: Start with context/purpose, explain the non-obvious behavior with pointers to code locations, include examples where helpful
 - **Keep current**: Update docs when the code they describe changes significantly. If a doc is no longer accurate, update or delete it.
-- **Not for**: API docs (generated from TSOA), user-facing docs (separate docs site)
+- **Not for**: API docs (generated from TSOA), user-facing docs (separate docs site), or ephemeral planning notes
