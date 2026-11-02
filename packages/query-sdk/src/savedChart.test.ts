@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createApiTransport, type FetchAdapter } from './apiTransport';
+import { QueryBuilder } from './query';
 import { savedChart } from './savedChart';
 
 describe('savedChart', () => {
@@ -20,6 +21,8 @@ describe('savedChart', () => {
     it('mirrors the full QueryBuilder chainable surface without crashing', () => {
         const chained = savedChart('chart-1')
             .label('Revenue')
+            .id('revenue')
+            .description('Revenue by status')
             .dimensions(['orders_status'])
             .metrics(['orders_revenue'])
             .filters([])
@@ -33,6 +36,25 @@ describe('savedChart', () => {
 
         expect(chained.kind).toBe('savedChart');
         expect(chained.chartUuid).toBe('chart-1');
+    });
+
+    it('has a method for every QueryBuilder method', () => {
+        const chart = savedChart('chart-1') as unknown as Record<
+            string,
+            unknown
+        >;
+        const methods = Object.getOwnPropertyNames(
+            QueryBuilder.prototype,
+        ).filter((name) => !['constructor', 'build', '_clone'].includes(name));
+        for (const method of methods) {
+            expect(typeof chart[method], method).toBe('function');
+        }
+    });
+
+    it('captures id and description', () => {
+        const q = savedChart('chart-1').id('revenue').description('Rev');
+        expect(q.idText).toBe('revenue');
+        expect(q.descriptionText).toBe('Rev');
     });
 
     it('honors label/limit/parameters and ignores structural methods', () => {
@@ -86,6 +108,45 @@ describe('executeSavedChart transport', () => {
         });
         expect(result.queryUuid).toBe('q-1');
         expect(result.rows.length).toBe(1);
+    });
+
+    it('sends label, id and description as host metadata only', async () => {
+        const calls: Array<{ body?: unknown; metadata?: unknown }> = [];
+        const adapter: FetchAdapter = async <T>(
+            method: string,
+            _path: string,
+            body?: unknown,
+            metadata?: Record<string, unknown>,
+        ): Promise<T> => {
+            if (method === 'POST') {
+                calls.push({ body, metadata });
+                return { queryUuid: 'q-1', metricQuery: {}, fields: {} } as T;
+            }
+            return {
+                status: 'ready',
+                columns: {},
+                rows: [],
+                totalResults: 0,
+            } as T;
+        };
+        const transport = createApiTransport(
+            { apiKey: '', baseUrl: '', projectUuid: 'p-1' },
+            adapter,
+        );
+        await transport.executeSavedChart({
+            chartUuid: 'chart-9',
+            label: 'Revenue',
+            id: 'revenue',
+            description: 'Revenue by month',
+        });
+        expect(calls[0]).toEqual({
+            body: { chartUuid: 'chart-9' },
+            metadata: {
+                label: 'Revenue',
+                queryId: 'revenue',
+                description: 'Revenue by month',
+            },
+        });
     });
 });
 

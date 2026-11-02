@@ -13,7 +13,8 @@
  *   // [{ customer_segment: 'Enterprise', total_revenue: 124000 }]
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ComposerQuery } from './compose';
 import { useMountedQuery } from './insights';
 import { useTransport } from './LightdashProvider';
 import { QueryBuilder } from './query';
@@ -24,20 +25,30 @@ import type {
     DownloadResultsOptions,
     DownloadResultsResult,
     FormatFunction,
+    QueryResult,
     Row,
     UnderlyingDataOptions,
     UnderlyingDataResult,
 } from './types';
 
-export type LineageProps = { 'data-ld-query'?: string };
+export type LineageProps = {
+    'data-ld-query'?: string;
+    'data-ld-query-id'?: string;
+};
 
 /**
  * Props an app spreads onto the root element of a query-bound block so the
  * Lightdash parent can trace a clicked element back to its query.
- * Empty (spread-safe) until the query has a queryUuid.
+ * `data-ld-query-id` (the author id) is present immediately;
+ * `data-ld-query` once the query has a queryUuid. Always spread-safe.
  */
-export const buildLineageProps = (queryUuid: string | null): LineageProps =>
-    queryUuid ? { 'data-ld-query': queryUuid } : {};
+export const buildLineageProps = (
+    queryUuid: string | null,
+    queryId: string | null,
+): LineageProps => ({
+    ...(queryId ? { 'data-ld-query-id': queryId } : {}),
+    ...(queryUuid ? { 'data-ld-query': queryUuid } : {}),
+});
 
 const noopFormat: FormatFunction = (_row, _fieldId) => '';
 
@@ -77,7 +88,7 @@ type UseLightdashResult = {
 };
 
 export function useLightdash(
-    query: QueryBuilder | SavedChartQuery,
+    query: QueryBuilder | SavedChartQuery | ComposerQuery,
 ): UseLightdashResult {
     const transport = useTransport();
     const [data, setData] = useState<Row[]>([]);
@@ -109,19 +120,38 @@ export function useLightdash(
         );
     });
 
-    const queryKey = useMemo(
-        () =>
-            query instanceof QueryBuilder
-                ? JSON.stringify(query.build())
-                : savedChartQueryKey(query),
-        [query],
-    );
+    const { queryKey, queryId } = useMemo(() => {
+        if (query instanceof QueryBuilder) {
+            const definition = query.build();
+            return {
+                queryKey: JSON.stringify(definition),
+                queryId: definition.id ?? null,
+            };
+        }
+        if (query instanceof ComposerQuery) {
+            const definition = query.build();
+            return {
+                queryKey: `composer:${JSON.stringify(definition)}`,
+                queryId: definition.id,
+            };
+        }
+        return {
+            queryKey: savedChartQueryKey(query),
+            queryId: query.idText ?? null,
+        };
+    }, [query]);
 
+    // Set by refetch() so the next run skips the composer result cache.
+    const refreshRequested = useRef(false);
     const refetch = useCallback(() => {
+        refreshRequested.current = true;
         setFetchCount((c) => c + 1);
     }, []);
 
-    const lineage = useMemo(() => buildLineageProps(queryUuid), [queryUuid]);
+    const lineage = useMemo(
+        () => buildLineageProps(queryUuid, queryId),
+        [queryUuid, queryId],
+    );
     useMountedQuery(queryUuid);
 
     useEffect(() => {
@@ -146,16 +176,30 @@ export function useLightdash(
             );
         });
 
-        const exec =
-            query instanceof QueryBuilder
-                ? transport.executeQuery(query.build())
-                : transport.executeSavedChart({
-                      chartUuid: query.chartUuid,
-                      label: query.labelText,
-                      limit: query.limitValue,
-                      parameters: query.parameterValues,
-                      filters: query.filterValues,
-                  });
+        const refresh = refreshRequested.current;
+        refreshRequested.current = false;
+        let exec: Promise<QueryResult>;
+        if (query instanceof QueryBuilder) {
+            exec = transport.executeQuery(query.build());
+        } else if (query instanceof ComposerQuery) {
+            exec = transport.executeComposer
+                ? transport.executeComposer(query.build(), { refresh })
+                : Promise.reject(
+                      new Error(
+                          'Composer pipelines are not supported by this transport.',
+                      ),
+                  );
+        } else {
+            exec = transport.executeSavedChart({
+                chartUuid: query.chartUuid,
+                label: query.labelText,
+                id: query.idText,
+                description: query.descriptionText,
+                limit: query.limitValue,
+                parameters: query.parameterValues,
+                filters: query.filterValues,
+            });
+        }
 
         exec.then((res) => {
             if (!cancelled) {

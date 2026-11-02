@@ -2,27 +2,39 @@
  * Data-lineage runtime that lives inside the sandboxed iframe, alongside the
  * element inspector. Unlike the inspector (which maps a clicked element to its
  * source location for AI edits and draws a crosshair overlay), this maps a
- * clicked element to the *query* that produced it (via the build-/render-time
- * `data-ld-query` stamp) and can highlight where a given query renders.
+ * clicked element to the *query* that produced it (via the render-time
+ * `data-ld-query` queryUuid and `data-ld-query-id` author-id stamps) and can
+ * highlight where a given query renders.
  *
  * Protocol (parent <-> iframe), all over postMessage:
- *   iframe -> parent : lightdash:lineage:available           (once the app has [data-ld-query] stamps)
+ *   iframe -> parent : lightdash:lineage:available           (once the app has stamps)
  *   parent -> iframe : lightdash:lineage:enable | :disable    (click-select mode)
- *   iframe -> parent : lightdash:lineage:selected {queryUuid} (on click, while enabled)
- *   parent -> iframe : lightdash:lineage:highlight {queryUuid|null}  (hover, any time)
+ *   iframe -> parent : lightdash:lineage:selected {queryUuid, queryId} (on click, while enabled)
+ *   parent -> iframe : lightdash:lineage:highlight {queryUuid, queryId?}  (hover, any time)
  */
+
+const QUERY_UUID_ATTR = 'data-ld-query';
+const QUERY_ID_ATTR = 'data-ld-query-id';
+const STAMP_SELECTOR = `[${QUERY_UUID_ATTR}],[${QUERY_ID_ATTR}]`;
 
 type LineageEnableMessage = { type: 'lightdash:lineage:enable' };
 type LineageDisableMessage = { type: 'lightdash:lineage:disable' };
 type LineageHighlightMessage = {
     type: 'lightdash:lineage:highlight';
     queryUuid: string | null;
+    /** Absent from older hosts. */
+    queryId?: string | null;
+};
+
+/** At least one of the two is non-null. */
+export type LineageTarget = {
+    queryUuid: string | null;
+    queryId: string | null;
 };
 
 export type LineageSelectedMessage = {
     type: 'lightdash:lineage:selected';
-    queryUuid: string;
-};
+} & LineageTarget;
 
 export type LineageAvailableMessage = {
     type: 'lightdash:lineage:available';
@@ -35,10 +47,13 @@ export type LineageAvailableMessage = {
 const HIGHLIGHT_OUTLINE = '2px solid #7c3aed';
 const HIGHLIGHT_OFFSET = '2px';
 
-/** queryUuid of the nearest stamped ancestor of `el`, or null. */
-export function resolveLineageTarget(el: Element | null): string | null {
-    const stamped = el?.closest?.('[data-ld-query]') ?? null;
-    return stamped?.getAttribute('data-ld-query') ?? null;
+/** Stamps of the nearest stamped ancestor of `el`, or null. */
+export function resolveLineageTarget(el: Element | null): LineageTarget | null {
+    const stamped = el?.closest?.(STAMP_SELECTOR) ?? null;
+    if (!stamped) return null;
+    const queryUuid = stamped.getAttribute(QUERY_UUID_ATTR) || null;
+    const queryId = stamped.getAttribute(QUERY_ID_ATTR) || null;
+    return queryUuid || queryId ? { queryUuid, queryId } : null;
 }
 
 let highlighted: HTMLElement[] = [];
@@ -51,13 +66,17 @@ export function clearHighlight(): void {
     highlighted = [];
 }
 
-export function applyHighlight(queryUuid: string | null): void {
+/** Outlines every element stamped with either the queryUuid or the queryId. */
+export function applyHighlight(target: LineageTarget): void {
     clearHighlight();
-    if (!queryUuid) return;
-    const nodes = document.querySelectorAll<HTMLElement>(
-        `[data-ld-query="${queryUuid}"]`,
-    );
-    nodes.forEach((el) => {
+    const { queryUuid, queryId } = target;
+    if (!queryUuid && !queryId) return;
+    document.querySelectorAll<HTMLElement>(STAMP_SELECTOR).forEach((el) => {
+        const matches =
+            (queryUuid !== null &&
+                el.getAttribute(QUERY_UUID_ATTR) === queryUuid) ||
+            (queryId !== null && el.getAttribute(QUERY_ID_ATTR) === queryId);
+        if (!matches) return;
         el.style.outline = HIGHLIGHT_OUTLINE;
         el.style.outlineOffset = HIGHLIGHT_OFFSET;
         highlighted.push(el);
@@ -76,7 +95,7 @@ let stampObserver: MutationObserver | null = null;
 // app never spread `{...lineage}`, leaving a toggle that does nothing.
 function announceIfStamped(): boolean {
     if (availabilityAnnounced) return true;
-    const stampCount = document.querySelectorAll('[data-ld-query]').length;
+    const stampCount = document.querySelectorAll(STAMP_SELECTOR).length;
     if (stampCount === 0) return false;
     availabilityAnnounced = true;
     parentWindow?.postMessage(
@@ -91,8 +110,8 @@ function announceIfStamped(): boolean {
 
 function onClick(e: MouseEvent) {
     if (!enabled) return;
-    const queryUuid = resolveLineageTarget(e.target as Element | null);
-    if (!queryUuid) return;
+    const target = resolveLineageTarget(e.target as Element | null);
+    if (!target) return;
     e.preventDefault();
     e.stopPropagation();
     if (typeof e.stopImmediatePropagation === 'function') {
@@ -101,7 +120,7 @@ function onClick(e: MouseEvent) {
     parentWindow?.postMessage(
         {
             type: 'lightdash:lineage:selected',
-            queryUuid,
+            ...target,
         } satisfies LineageSelectedMessage,
         '*',
     );
@@ -137,7 +156,7 @@ export function mountLineage(parent: Window): void {
             childList: true,
             subtree: true,
             attributes: true,
-            attributeFilter: ['data-ld-query'],
+            attributeFilter: [QUERY_UUID_ATTR, QUERY_ID_ATTR],
         });
     }
 
@@ -156,8 +175,11 @@ export function mountLineage(parent: Window): void {
         } else if (data.type === 'lightdash:lineage:disable') {
             enabled = false;
         } else if (data.type === 'lightdash:lineage:highlight') {
-            const q = (data as LineageHighlightMessage).queryUuid;
-            applyHighlight(typeof q === 'string' ? q : null);
+            const { queryUuid, queryId } = data as LineageHighlightMessage;
+            applyHighlight({
+                queryUuid: typeof queryUuid === 'string' ? queryUuid : null,
+                queryId: typeof queryId === 'string' ? queryId : null,
+            });
         }
     });
 }

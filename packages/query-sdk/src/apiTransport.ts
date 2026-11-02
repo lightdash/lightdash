@@ -9,6 +9,7 @@
  */
 
 import { AppStateError } from './appState';
+import { validateComposerDefinition } from './compose';
 import type {
     AiPromptRequest,
     AiPromptResult,
@@ -18,6 +19,9 @@ import type {
     AppStateTransport,
     AppStateUserEntry,
     Column,
+    ComposerDefinition,
+    ComposerSavedChartSource,
+    ComposerSemanticNode,
     DownloadResultsFileType,
     DownloadResultsLimit,
     DownloadResultsOptions,
@@ -114,11 +118,16 @@ type ResultRow = Record<string, { value: ResultValue }>;
 
 type ApiFilters = Record<string, unknown>;
 
+type ResultColumnsMeta = Record<
+    string,
+    { reference: string; type: string; label?: string }
+>;
+
 type PollResponse =
     | {
           status: 'ready';
           queryUuid: string;
-          columns: Record<string, { reference: string; type: string }>;
+          columns: ResultColumnsMeta;
           rows: ResultRow[];
           // Pagination — backend tells us the next page number, or undefined
           // when this is the last page. totalResults lets us short-circuit
@@ -632,6 +641,70 @@ function buildMetricQueryBody(
     };
 }
 
+/** Host-only fetch metadata; never part of the API body. */
+export type QueryFetchMetadata = {
+    label: string | null;
+    queryId: string | null;
+    description: string | null;
+};
+
+const buildQueryMetadata = (source: {
+    label?: string;
+    id?: string;
+    description?: string;
+}): QueryFetchMetadata | undefined =>
+    source.label || source.id || source.description
+        ? {
+              label: source.label || null,
+              queryId: source.id || null,
+              description: source.description || null,
+          }
+        : undefined;
+
+type SavedChartRunParams = Parameters<Transport['executeSavedChart']>[0];
+
+function buildSavedChartBody(
+    params: SavedChartRunParams,
+    limitOverride?: number,
+): Record<string, unknown> {
+    const body: Record<string, unknown> = { chartUuid: params.chartUuid };
+    const effectiveLimit = limitOverride ?? params.limit;
+    if (effectiveLimit !== undefined) body.limit = effectiveLimit;
+    if (params.parameters && Object.keys(params.parameters).length > 0) {
+        body.parameters = params.parameters;
+    }
+    if (params.filters && params.filters.length > 0) {
+        body.filters = buildApiFilters(params.filters);
+    }
+    return body;
+}
+
+/** Qualified result field ids of a metric query, and their app-facing short names. */
+function semanticResultFields(
+    query: QueryDefinition,
+    qualify: (fieldId: string) => string,
+): { fieldIds: string[]; nameForId: (fieldId: string) => string } {
+    const tableCalculationNames = query.tableCalculations.map((c) => c.name);
+    const shortNames = [
+        ...query.dimensions,
+        ...query.metrics,
+        ...tableCalculationNames,
+    ];
+    const fieldIds = [
+        ...query.dimensions.map(qualify),
+        ...query.metrics.map(qualify),
+        ...tableCalculationNames,
+    ];
+    const qualifiedToShort = new Map<string, string>();
+    fieldIds.forEach((fieldId, i) => {
+        qualifiedToShort.set(fieldId, shortNames[i]);
+    });
+    return {
+        fieldIds,
+        nameForId: (fieldId) => qualifiedToShort.get(fieldId) ?? fieldId,
+    };
+}
+
 async function executeMetricQuery(
     fetchFn: FetchAdapter,
     projectUuid: string,
@@ -639,12 +712,11 @@ async function executeMetricQuery(
     qualify: (fieldId: string) => string,
     limit?: number,
 ): Promise<AsyncQueryResponse> {
-    const metadata = query.label ? { label: query.label } : undefined;
     return fetchFn<AsyncQueryResponse>(
         'POST',
         `/api/v2/projects/${projectUuid}/query/metric-query`,
         buildMetricQueryBody(query, qualify, limit),
-        metadata,
+        buildQueryMetadata(query),
     );
 }
 
@@ -1027,7 +1099,7 @@ function mapApiRowsToQueryResult({
     fieldNameForId,
 }: {
     apiRows: ResultRow[];
-    columns: Record<string, { reference: string; type: string }>;
+    columns: ResultColumnsMeta;
     fields: Record<string, FieldMeta>;
     fieldIds: string[];
     fieldNameForId: (fieldId: string) => string;
@@ -1052,7 +1124,11 @@ function mapApiRowsToQueryResult({
             : [];
         return {
             name,
-            label: fieldMeta?.label ?? fieldMeta?.displayName ?? name,
+            label:
+                fieldMeta?.label ??
+                fieldMeta?.displayName ??
+                colMeta?.label ??
+                name,
             type: mapColumnType(colMeta?.type ?? fieldMeta?.type ?? 'string'),
             fieldId,
             ...(urls.length > 0 ? { urls } : {}),
@@ -1107,6 +1183,46 @@ function mapApiRowsToQueryResult({
         rowKeys: Object.fromEntries(idToName),
     };
 }
+
+// ---------------------------------------------------------------------------
+// Composer pipelines (compose())
+// ---------------------------------------------------------------------------
+
+type SourceQueriesResponse = {
+    queries: Array<{ nodeId: string; sourceType: string; queryUuid: string }>;
+};
+
+/** Host-only metadata for the query-sources submission. */
+export type ComposerFetchMetadata = {
+    kind: 'composer';
+    queryId: string;
+    label: string | null;
+    description: string | null;
+    terminalNodeId: string;
+    savedChartNodes: Array<{
+        nodeId: string;
+        chartUuid: string;
+        queryUuid: string;
+        title: string | null;
+        description: string | null;
+    }>;
+};
+
+// Module-level so remounts and re-renders reuse a run instead of starting
+// another Python sandbox. Keyed by project + definition.
+const composerResults = new Map<string, Promise<QueryResult>>();
+
+const nodeTitleFields = (node: {
+    title: string | null;
+    description: string | null;
+}) => ({
+    ...(node.title !== null ? { title: node.title } : {}),
+    ...(node.description !== null ? { description: node.description } : {}),
+});
+
+const composerUnavailable = (what: string) => async (): Promise<never> => {
+    throw new Error(`${what} is not available for composer pipelines.`);
+};
 
 /**
  * Creates a transport that executes queries via the Lightdash REST API.
@@ -1171,11 +1287,199 @@ export function createApiTransport(
         );
     };
 
+    const runSavedChartSource = async (
+        node: ComposerSemanticNode,
+        source: ComposerSavedChartSource,
+    ): Promise<string> => {
+        const params: SavedChartRunParams = {
+            chartUuid: source.chartUuid,
+            ...(source.limit !== null ? { limit: source.limit } : {}),
+            parameters: source.parameters,
+            filters: source.filters,
+        };
+        const { queryUuid } = await fetchFn<AsyncQueryResponse>(
+            'POST',
+            `/api/v2/projects/${config.projectUuid}/query/chart`,
+            buildSavedChartBody(params),
+            buildQueryMetadata({
+                label: node.title ?? source.label ?? undefined,
+                description: node.description ?? undefined,
+            }),
+        );
+        await pollQueryReady(fetchFn, config.projectUuid, queryUuid, 1);
+        return queryUuid;
+    };
+
+    const runComposer = async (
+        definition: ComposerDefinition,
+    ): Promise<QueryResult> => {
+        validateComposerDefinition(definition);
+        const terminalNodeId = definition.terminal as string;
+
+        const savedChartSources = definition.nodes.flatMap((node) =>
+            node.kind === 'semantic' && node.source.kind === 'savedChart'
+                ? [{ node, source: node.source }]
+                : [],
+        );
+        const savedChartNodes: ComposerFetchMetadata['savedChartNodes'] =
+            await Promise.all(
+                savedChartSources.map(async ({ node, source }) => ({
+                    nodeId: node.nodeId,
+                    chartUuid: source.chartUuid,
+                    queryUuid: await runSavedChartSource(node, source),
+                    title: node.title,
+                    description: node.description,
+                })),
+            );
+        const savedChartQueryUuids = new Map(
+            savedChartNodes.map((n) => [n.nodeId, n.queryUuid]),
+        );
+
+        const qualifiers = new Map<string, (fieldId: string) => string>();
+        const queries: Record<string, unknown>[] = [];
+        for (const node of definition.nodes) {
+            switch (node.kind) {
+                case 'semantic': {
+                    if (node.source.kind === 'savedChart') break;
+                    const qualify = await getFieldQualifier(node.source.query);
+                    qualifiers.set(node.nodeId, qualify);
+                    const body = buildMetricQueryBody(
+                        node.source.query,
+                        qualify,
+                    ) as {
+                        query: Record<string, unknown>;
+                        parameters?: ParametersValuesMap;
+                    };
+                    queries.push({
+                        sourceType: 'semanticLayer',
+                        nodeId: node.nodeId,
+                        ...nodeTitleFields(node),
+                        ...body.query,
+                        ...(body.parameters
+                            ? { parameters: body.parameters }
+                            : {}),
+                    });
+                    break;
+                }
+                case 'duckdb':
+                case 'python': {
+                    const references = Object.fromEntries(
+                        node.reads.map((read) => [
+                            read,
+                            savedChartQueryUuids.get(read) ?? read,
+                        ]),
+                    );
+                    queries.push({
+                        sourceType: node.kind,
+                        nodeId: node.nodeId,
+                        ...nodeTitleFields(node),
+                        ...(node.kind === 'duckdb'
+                            ? { sql: node.sql }
+                            : { code: node.code }),
+                        ...(node.limit !== null ? { limit: node.limit } : {}),
+                        references,
+                    });
+                    break;
+                }
+                default: {
+                    const unknownNode: never = node;
+                    throw new Error(
+                        `Unknown composer node: ${JSON.stringify(unknownNode)}`,
+                    );
+                }
+            }
+        }
+
+        let terminalQueryUuid = savedChartQueryUuids.get(terminalNodeId);
+        if (queries.length > 0) {
+            const metadata: ComposerFetchMetadata = {
+                kind: 'composer',
+                queryId: definition.id,
+                label: definition.title,
+                description: definition.description,
+                terminalNodeId,
+                savedChartNodes,
+            };
+            const submitted = await fetchFn<SourceQueriesResponse>(
+                'POST',
+                `/api/v2/projects/${config.projectUuid}/query-sources/queries`,
+                {
+                    queries,
+                    ...(Object.keys(definition.parameters).length > 0
+                        ? { parameters: definition.parameters }
+                        : {}),
+                },
+                metadata,
+            );
+            terminalQueryUuid ??= submitted.queries.find(
+                (q) => q.nodeId === terminalNodeId,
+            )?.queryUuid;
+        }
+        if (terminalQueryUuid === undefined) {
+            throw new Error(
+                `compose('${definition.id}'): no result was returned for terminal "${terminalNodeId}".`,
+            );
+        }
+
+        const { firstReadyPage, apiRows } = await pollQueryRows(
+            fetchFn,
+            config.projectUuid,
+            terminalQueryUuid,
+        );
+        const terminalNode = definition.nodes.find(
+            (node) => node.nodeId === terminalNodeId,
+        );
+        const terminalQualifier = qualifiers.get(terminalNodeId);
+        // Semantic terminals get short names like useLightdash(query);
+        // DuckDB/Python/saved-chart columns pass through as returned.
+        const mapping =
+            terminalNode?.kind === 'semantic' &&
+            terminalNode.source.kind === 'query' &&
+            terminalQualifier
+                ? semanticResultFields(
+                      terminalNode.source.query,
+                      terminalQualifier,
+                  )
+                : {
+                      fieldIds: Object.keys(firstReadyPage.columns),
+                      nameForId: (fieldId: string) => fieldId,
+                  };
+
+        const queryUuid = terminalQueryUuid;
+        return {
+            ...mapApiRowsToQueryResult({
+                apiRows,
+                columns: firstReadyPage.columns,
+                fields: {},
+                fieldIds: mapping.fieldIds,
+                fieldNameForId: mapping.nameForId,
+            }),
+            totalResults: firstReadyPage.totalResults,
+            queryUuid,
+            getUnderlyingData: composerUnavailable('Underlying data'),
+            downloadUnderlyingData: composerUnavailable(
+                'Underlying data download',
+            ),
+            downloadResults: async (options: DownloadResultsOptions = {}) => {
+                if (getDownloadLimit(options.limit).kind !== 'table') {
+                    throw new Error(
+                        'Composer pipelines can only download the loaded rows (limit: "table").',
+                    );
+                }
+                return scheduleDownloadForQuery({
+                    fetchFn,
+                    projectUuid: config.projectUuid,
+                    queryUuid,
+                    options,
+                });
+            },
+        };
+    };
+
     return {
         async executeQuery(query: QueryDefinition): Promise<QueryResult> {
             const qualify = await getFieldQualifier(query);
 
-            const qualifiedDims = query.dimensions.map(qualify);
             const qualifiedMetrics = query.metrics.map(qualify);
 
             // Kick off the async query — returns a queryUuid we then poll.
@@ -1188,25 +1492,11 @@ export function createApiTransport(
 
             const { queryUuid, fields } = execResult;
 
-            // Build a mapping from qualified → short field names
-            // so app code uses row.driver_name, not row.fct_race_results_driver_name
-            const tableCalculationNames = query.tableCalculations.map(
-                (calculation) => calculation.name,
+            // App code uses row.driver_name, not row.fct_race_results_driver_name
+            const { fieldIds, nameForId } = semanticResultFields(
+                query,
+                qualify,
             );
-            const allShort = [
-                ...query.dimensions,
-                ...query.metrics,
-                ...tableCalculationNames,
-            ];
-            const allQualified = [
-                ...qualifiedDims,
-                ...qualifiedMetrics,
-                ...tableCalculationNames,
-            ];
-            const qualifiedToShort = new Map<string, string>();
-            for (let i = 0; i < allShort.length; i++) {
-                qualifiedToShort.set(allQualified[i], allShort[i]);
-            }
 
             const { firstReadyPage, apiRows } = await pollQueryRows(
                 fetchFn,
@@ -1218,9 +1508,8 @@ export function createApiTransport(
                 apiRows,
                 columns: firstReadyPage.columns,
                 fields,
-                fieldIds: allQualified,
-                fieldNameForId: (fieldId) =>
-                    qualifiedToShort.get(fieldId) ?? fieldId,
+                fieldIds,
+                fieldNameForId: nameForId,
             });
 
             const getUnderlyingData = async (
@@ -1349,31 +1638,12 @@ export function createApiTransport(
             };
         },
 
-        async executeSavedChart(params: {
-            chartUuid: string;
-            label?: string;
-            limit?: number;
-            parameters?: ParametersValuesMap;
-            filters?: InternalFilterDefinition[];
-        }): Promise<QueryResult> {
-            const metadata = params.label ? { label: params.label } : undefined;
-            const buildChartBody = (limitOverride?: number) => {
-                const body: Record<string, unknown> = {
-                    chartUuid: params.chartUuid,
-                };
-                const effectiveLimit = limitOverride ?? params.limit;
-                if (effectiveLimit !== undefined) body.limit = effectiveLimit;
-                if (
-                    params.parameters &&
-                    Object.keys(params.parameters).length > 0
-                ) {
-                    body.parameters = params.parameters;
-                }
-                if (params.filters && params.filters.length > 0) {
-                    body.filters = buildApiFilters(params.filters);
-                }
-                return body;
-            };
+        async executeSavedChart(
+            params: SavedChartRunParams,
+        ): Promise<QueryResult> {
+            const metadata = buildQueryMetadata(params);
+            const buildChartBody = (limitOverride?: number) =>
+                buildSavedChartBody(params, limitOverride);
             const execResult = await fetchFn<AsyncQueryResponse>(
                 'POST',
                 `/api/v2/projects/${config.projectUuid}/query/chart`,
@@ -1529,6 +1799,26 @@ export function createApiTransport(
                 downloadUnderlyingData,
                 downloadResults,
             };
+        },
+
+        async executeComposer(
+            definition: ComposerDefinition,
+            options: { refresh: boolean },
+        ): Promise<QueryResult> {
+            const key = `${config.projectUuid}:${JSON.stringify(definition)}`;
+            if (options.refresh) composerResults.delete(key);
+            const cached = composerResults.get(key);
+            if (cached) return cached;
+            const run: Promise<QueryResult> = runComposer(definition).catch(
+                (error: unknown) => {
+                    if (composerResults.get(key) === run) {
+                        composerResults.delete(key);
+                    }
+                    throw error;
+                },
+            );
+            composerResults.set(key, run);
+            return run;
         },
 
         async getUser(): Promise<LightdashUser> {

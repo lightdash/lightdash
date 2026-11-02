@@ -14,7 +14,28 @@ describe('resolveLineageTarget', () => {
         document.body.innerHTML =
             '<div data-ld-query="q-1"><span id="cell">$1.2M</span></div>';
         const cell = document.getElementById('cell');
-        expect(resolveLineageTarget(cell)).toBe('q-1');
+        expect(resolveLineageTarget(cell)).toEqual({
+            queryUuid: 'q-1',
+            queryId: null,
+        });
+    });
+
+    it('returns the author id before the query has a queryUuid', () => {
+        document.body.innerHTML =
+            '<div data-ld-query-id="revenue"><span id="cell">…</span></div>';
+        expect(resolveLineageTarget(document.getElementById('cell'))).toEqual({
+            queryUuid: null,
+            queryId: 'revenue',
+        });
+    });
+
+    it('returns both stamps from the same element', () => {
+        document.body.innerHTML =
+            '<div data-ld-query-id="outer"><div data-ld-query="q-1" data-ld-query-id="revenue"><span id="cell">x</span></div></div>';
+        expect(resolveLineageTarget(document.getElementById('cell'))).toEqual({
+            queryUuid: 'q-1',
+            queryId: 'revenue',
+        });
     });
 
     it('returns null when no stamped ancestor exists', () => {
@@ -35,7 +56,7 @@ describe('applyHighlight / clearHighlight', () => {
             '<div data-ld-query="q-1" id="a"></div>' +
             '<div data-ld-query="q-1" id="b"></div>' +
             '<div data-ld-query="q-2" id="c"></div>';
-        applyHighlight('q-1');
+        applyHighlight({ queryUuid: 'q-1', queryId: null });
         expect(document.getElementById('a')!.style.outline).not.toBe('');
         expect(document.getElementById('b')!.style.outline).not.toBe('');
         expect(document.getElementById('c')!.style.outline).toBe('');
@@ -43,10 +64,21 @@ describe('applyHighlight / clearHighlight', () => {
         expect(document.getElementById('a')!.style.outline).toBe('');
     });
 
+    it('outlines the union of queryUuid and queryId matches', () => {
+        document.body.innerHTML =
+            '<div data-ld-query="q-1" id="a"></div>' +
+            '<div data-ld-query-id="revenue" id="b"></div>' +
+            '<div data-ld-query-id="other" id="c"></div>';
+        applyHighlight({ queryUuid: 'q-1', queryId: 'revenue' });
+        expect(document.getElementById('a')!.style.outline).not.toBe('');
+        expect(document.getElementById('b')!.style.outline).not.toBe('');
+        expect(document.getElementById('c')!.style.outline).toBe('');
+    });
+
     it('clearing happens automatically when applying a new/null target', () => {
         document.body.innerHTML = '<div data-ld-query="q-1" id="a"></div>';
-        applyHighlight('q-1');
-        applyHighlight(null);
+        applyHighlight({ queryUuid: 'q-1', queryId: null });
+        applyHighlight({ queryUuid: null, queryId: null });
         expect(document.getElementById('a')!.style.outline).toBe('');
     });
 });
@@ -137,5 +169,34 @@ describe('mountLineage availability announcement', () => {
             await flushObservers();
         }
         expect(availableMessages(parent)).toHaveLength(1);
+    });
+
+    it('counts author-id stamps toward availability', async () => {
+        const mountLineage = await loadMountLineage();
+        document.body.innerHTML =
+            '<div data-ld-query-id="a"></div><div data-ld-query="q-1" data-ld-query-id="b"></div>';
+        const parent = makeParent();
+        mountLineage(parent as unknown as Window);
+        expect(availableMessages(parent)[0][0]).toEqual({
+            type: 'lightdash:lineage:available',
+            stampCount: 2,
+        });
+    });
+
+    const dispatchFromParent = (data: unknown) =>
+        window.dispatchEvent(new MessageEvent('message', { data }));
+
+    it('honors legacy highlight messages that carry only a queryUuid', async () => {
+        const mountLineage = await loadMountLineage();
+        document.body.innerHTML =
+            '<div data-ld-query="q-1" data-ld-query-id="revenue" id="a"></div>';
+        mountLineage(makeParent() as unknown as Window);
+
+        window.dispatchEvent(
+            new MessageEvent('message', {
+                data: { type: 'lightdash:lineage:highlight', queryUuid: 'q-1' },
+            }),
+        );
+        expect(document.getElementById('a')!.style.outline).not.toBe('');
     });
 });

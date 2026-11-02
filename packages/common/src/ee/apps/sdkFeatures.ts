@@ -87,7 +87,7 @@ export const SDK_FEATURES: SdkFeature[] = [
         label: 'Inspect data',
         description:
             'Click any chart to trace it back to the query and fields behind it, from the Inspect data button in the editor.',
-        wiring: "Spread the `lineage` props returned by useLightdash onto each query-bound block's root element; without these stamps the host's Inspect data button stays disabled.",
+        wiring: "Spread the `lineage` props returned by useLightdash onto each query-bound block's root element (it stamps data-ld-query and, when the query has .id(), data-ld-query-id); without these stamps the host's Inspect data button stays disabled. Give every query a stable .id('<kebab-id>') and .description(...) so the host can match blocks across iterations.",
     },
     {
         key: 'screenshot',
@@ -297,6 +297,14 @@ export const SDK_FEATURES: SdkFeature[] = [
         description:
             'List the saved charts in a Lightdash space at runtime, so chart galleries update as charts are saved — limited to spaces the viewer can already access.',
         wiring: "Call useSpaceCharts('<space slug or uuid>') where the app needs the list, render from its charts array (uuid, name, description, chartKind), and pass chart.uuid to savedChart(...) to show one. Check available first — it stays false on hosts without the capability.",
+    },
+    {
+        key: 'composer',
+        appliesTo: ['data_app'],
+        label: 'Composer pipelines',
+        description:
+            'Run DuckDB and Python steps over semantic layer results with compose().',
+        wiring: "Build the pipeline with compose('<stable-kebab-id>').title(...).description(...), add .semantic(nodeId, query(...)) sources, .duckdb/.python steps that list the node ids they read in `reads`, and .terminal(nodeId); pass it to useLightdash and spread `lineage` on the block's root. Only use it when the installed SDK exports compose.",
     },
 ];
 

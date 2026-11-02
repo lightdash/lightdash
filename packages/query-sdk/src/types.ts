@@ -140,6 +140,66 @@ export type QueryDefinition = {
     parameters?: ParametersValuesMap;
     /** Human-readable label for dev tools / query inspector (not sent to the API) */
     label?: string;
+    /** Stable author id for the query's UI block (host metadata, not sent to the API) */
+    id?: string;
+    /** What the query shows (host metadata, not sent to the API) */
+    description?: string;
+};
+
+// --- Composer pipelines (compose()) ---
+
+/** A saved chart used as a composer source; run via `/query/chart`, then referenced by queryUuid. */
+export type ComposerSavedChartSource = {
+    kind: 'savedChart';
+    chartUuid: string;
+    label: string | null;
+    limit: number | null;
+    parameters: ParametersValuesMap;
+    filters: InternalFilterDefinition[];
+};
+
+export type ComposerSemanticNode = {
+    kind: 'semantic';
+    nodeId: string;
+    title: string | null;
+    description: string | null;
+    source: { kind: 'query'; query: QueryDefinition } | ComposerSavedChartSource;
+};
+
+export type ComposerDuckdbNode = {
+    kind: 'duckdb';
+    nodeId: string;
+    title: string | null;
+    description: string | null;
+    sql: string;
+    reads: string[];
+    limit: number | null;
+};
+
+export type ComposerPythonNode = {
+    kind: 'python';
+    nodeId: string;
+    title: string | null;
+    description: string | null;
+    code: string;
+    reads: string[];
+    limit: number | null;
+};
+
+export type ComposerNode =
+    | ComposerSemanticNode
+    | ComposerDuckdbNode
+    | ComposerPythonNode;
+
+/** Plain-JSON form of a `compose()` pipeline; also its cache/identity key. */
+export type ComposerDefinition = {
+    kind: 'composer';
+    id: string;
+    title: string | null;
+    description: string | null;
+    nodes: ComposerNode[];
+    terminal: string | null;
+    parameters: ParametersValuesMap;
 };
 
 // --- Query results ---
@@ -555,10 +615,21 @@ export type Transport = {
     executeSavedChart: (params: {
         chartUuid: string;
         label?: string;
+        id?: string;
+        description?: string;
         limit?: number;
         parameters?: ParametersValuesMap;
         filters?: InternalFilterDefinition[];
     }) => Promise<QueryResult>;
+    /**
+     * Run a `compose()` pipeline and return its terminal node's result.
+     * Optional so custom transports predating the capability stay valid.
+     * `refresh` skips the in-memory result cache.
+     */
+    executeComposer?: (
+        definition: ComposerDefinition,
+        options: { refresh: boolean },
+    ) => Promise<QueryResult>;
     getUser: () => Promise<LightdashUser>;
     externalFetch: (
         alias: string,

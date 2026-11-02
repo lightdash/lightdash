@@ -25,7 +25,7 @@ import type {
  * methods (dimensions/metrics/sorts/table-calcs/additional-metrics/
  * custom-dimensions) are accepted but IGNORED. `.label()`, `.limit()`,
  * `.parameters()` and `.filters()` affect the run — the `/query/chart`
- * endpoint supports them.
+ * endpoint supports them. `.id()` / `.description()` are host metadata.
  *
  * If you add a method to `QueryBuilder`, add it here too (see savedChart.test.ts,
  * which chains every QueryBuilder method to guard against a missing one).
@@ -35,6 +35,10 @@ export type SavedChartQuery = {
     chartUuid: string;
     /** Captured `.label()` value — surfaced in the query inspector. */
     labelText?: string;
+    /** Captured `.id()` value — host metadata only. */
+    idText?: string;
+    /** Captured `.description()` value — host metadata only. */
+    descriptionText?: string;
     /** Captured `.limit()` value — sent to /query/chart. */
     limitValue?: number;
     /** Captured `.parameters()` values — sent to /query/chart. */
@@ -44,6 +48,8 @@ export type SavedChartQuery = {
 
     // Honored (the /query/chart endpoint supports these):
     label: (name: string) => SavedChartQuery;
+    id: (value: string) => SavedChartQuery;
+    description: (text: string) => SavedChartQuery;
     limit: (n: number) => SavedChartQuery;
     parameters: (map: ParametersValuesMap) => SavedChartQuery;
     filters: (filters: Filter[]) => SavedChartQuery;
@@ -61,6 +67,8 @@ export type SavedChartQuery = {
 type SavedChartState = {
     chartUuid: string;
     labelText?: string;
+    idText?: string;
+    descriptionText?: string;
     limitValue?: number;
     parameterValues?: ParametersValuesMap;
     filterValues?: InternalFilterDefinition[];
@@ -72,11 +80,15 @@ export function savedChart(chartUuid: string, label?: string): SavedChartQuery {
             kind: 'savedChart',
             chartUuid: state.chartUuid,
             labelText: state.labelText,
+            idText: state.idText,
+            descriptionText: state.descriptionText,
             limitValue: state.limitValue,
             parameterValues: state.parameterValues,
             filterValues: state.filterValues,
 
             label: (name) => build({ ...state, labelText: name }),
+            id: (value) => build({ ...state, idText: value }),
+            description: (text) => build({ ...state, descriptionText: text }),
             limit: (n) => build({ ...state, limitValue: n }),
             parameters: (map) =>
                 build({

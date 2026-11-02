@@ -1,6 +1,12 @@
 // Query builder
 export { query } from './query';
 export { savedChart, type SavedChartQuery } from './savedChart';
+export {
+    compose,
+    ComposerQuery,
+    type ComposerNodeOptions,
+    type ComposerStepOptions,
+} from './compose';
 
 // Drill-down helper
 export { drillDown } from './drillDown';
@@ -46,6 +52,8 @@ export type {
     AiPromptResult,
     Column,
     ColumnType,
+    ComposerDefinition,
+    ComposerNode,
     ColumnUrl,
     CustomDimension,
     DownloadResultsFileType,

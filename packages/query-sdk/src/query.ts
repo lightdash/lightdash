@@ -38,6 +38,8 @@ type BuilderState = {
     limit: number;
     parameters: ParametersValuesMap;
     label: string | undefined;
+    id: string | undefined;
+    description: string | undefined;
 };
 
 /**
@@ -73,6 +75,8 @@ export class QueryBuilder {
                 limit: 500,
                 parameters: {},
                 label: undefined,
+                id: undefined,
+                description: undefined,
             };
         } else if (
             exploreOrState !== null &&
@@ -100,6 +104,16 @@ export class QueryBuilder {
     /** Human-readable label for dev tools / query inspector */
     label(name: string): QueryBuilder {
         return this._clone({ label: name });
+    }
+
+    /** Stable author id for this query's UI block (e.g. 'revenue-by-month'); host metadata only. */
+    id(value: string): QueryBuilder {
+        return this._clone({ id: value });
+    }
+
+    /** One-line description of what this query shows; host metadata only. */
+    description(text: string): QueryBuilder {
+        return this._clone({ description: text });
     }
 
     /** Set dimension fields (GROUP BY columns) */
@@ -206,6 +220,10 @@ export class QueryBuilder {
                 ? { parameters: this._state.parameters }
                 : {}),
             ...(this._state.label ? { label: this._state.label } : {}),
+            ...(this._state.id ? { id: this._state.id } : {}),
+            ...(this._state.description
+                ? { description: this._state.description }
+                : {}),
         };
     }
 }

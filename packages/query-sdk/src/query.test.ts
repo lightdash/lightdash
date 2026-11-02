@@ -215,3 +215,54 @@ describe('query execution', () => {
         ).not.toHaveProperty('metrics');
     });
 });
+
+describe('query id and description', () => {
+    it('includes id and description in build() and sends them as metadata only', async () => {
+        const definition = query('orders')
+            .label('Revenue')
+            .id('revenue-by-month')
+            .description('Revenue by month')
+            .metrics(['total_revenue'])
+            .build();
+        expect(definition).toMatchObject({
+            label: 'Revenue',
+            id: 'revenue-by-month',
+            description: 'Revenue by month',
+        });
+
+        const calls: Array<{ body?: unknown; metadata?: unknown }> = [];
+        const adapter: FetchAdapter = async <T>(
+            method: string,
+            _path: string,
+            body?: unknown,
+            metadata?: Record<string, unknown>,
+        ): Promise<T> => {
+            if (method === 'POST') {
+                calls.push({ body, metadata });
+                return { queryUuid: 'q-1', metricQuery: {}, fields: {} } as T;
+            }
+            return {
+                status: 'ready',
+                columns: {},
+                rows: [],
+                totalResults: 0,
+            } as T;
+        };
+        await createApiTransport(
+            { apiKey: '', baseUrl: '', projectUuid: 'p-1' },
+            adapter,
+        ).executeQuery(definition);
+
+        const { query: body } = calls[0].body as {
+            query: Record<string, unknown>;
+        };
+        expect(body).not.toHaveProperty('id');
+        expect(body).not.toHaveProperty('description');
+        expect(body).not.toHaveProperty('label');
+        expect(calls[0].metadata).toEqual({
+            label: 'Revenue',
+            queryId: 'revenue-by-month',
+            description: 'Revenue by month',
+        });
+    });
+});
