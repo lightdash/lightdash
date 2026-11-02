@@ -1,3 +1,11 @@
+## [3.127.1](https://github.com/lightdash/lightdash/compare/3.127.0...3.127.1) (2026-11-02)
+
+
+### Bug Fixes
+
+* **ai:** explicit Bedrock output cap with BEDROCK_MAX_OUTPUT_TOKENS override ([#31887](https://github.com/lightdash/lightdash/issues/31887)) ([d8b379d](https://github.com/lightdash/lightdash/commit/d8b379d88775cd156db5f3107662c31ad960dbce))
+* **ai:** report output-length finishes distinctly ([#31886](https://github.com/lightdash/lightdash/issues/31886)) ([1ca2e50](https://github.com/lightdash/lightdash/commit/1ca2e505efe40bb27f0c089eaccbaa39403480e5))
+
 # [3.127.0](https://github.com/lightdash/lightdash/compare/3.126.1...3.127.0) (2026-11-02)
 
 
