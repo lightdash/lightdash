@@ -445,11 +445,10 @@ export const FilterPopover: FC<Props> = ({
         totalTileCount,
     );
     const tileCount =
-        appliedTileCount === 0
-            ? CONTROL_STRINGS.noTiles
-            : appliedTileCount === totalTileCount
-              ? formatTileCount(getUiString, totalTileCount)
-              : `${tilesOf.count} ${tilesOf.noun}`;
+        // "0 tiles", "6 tiles" or "2 of 6 tiles": the registry's wording
+        appliedTileCount === 0 || appliedTileCount === totalTileCount
+            ? formatTileCount(getUiString, appliedTileCount)
+            : `${tilesOf.count} ${tilesOf.noun}`;
     const appliesTo = interpolateUiString(
         getUiString('filters.rail.appliesTo'),
         { tiles: tileCount },

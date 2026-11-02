@@ -286,13 +286,19 @@ export const NoTiles: Story = {
             [],
         ),
     },
-    play: async ({ canvas }) => {
+    play: async ({ canvas, canvasElement, userEvent }) => {
         await expect(
             canvas.getByText(`Sets 0 of ${TOTAL_TILE_COUNT} tiles`),
         ).toBeVisible();
+        const apply = canvas.getByRole('button', { name: 'Apply' });
+        await expect(apply).toBeDisabled();
+        // The reason reads as the filter's at no tiles
+        const wrapper = apply.parentElement;
+        await expect(wrapper).not.toBeNull();
+        if (wrapper) await userEvent.hover(wrapper);
         await expect(
-            canvas.getByRole('button', { name: 'Apply' }),
-        ).toBeDisabled();
+            await onPage(canvasElement).findByRole('tooltip'),
+        ).toHaveTextContent('This parameter is not applied to any tiles');
     },
 };
 

@@ -332,7 +332,7 @@ export const AddControlMenu: FC<Props> = ({
                             size="xs"
                             leftSection={<MantineIcon icon={IconPlus} />}
                         >
-                            {CONTROL_STRINGS.add}
+                            {getUiString('filters.rail.add')}
                         </Button>
                     </Menu.Target>
                     <Menu.Dropdown>

@@ -18,3 +18,7 @@ delete the copy here. Fix behaviour in the shipped piece, never in a copy.
 | `usePickerSearch.ts` 150 ms debounce                                                         | `src/features/dashboardFilters/FilterConfiguration/FilterFieldSelect/index.tsx`                                              |
 
 New copy that viewers see needs `DEFAULT_UI_STRINGS` keys: see `controlStrings.ts`.
+
+The shipped `ParameterInput`'s clear X is Mantine's, `aria-hidden` and
+unlabelled (Backspace clears for keyboard users). Labelling it with the
+existing `parameters.clear` key needs `clearButtonProps` on the shipped input.
