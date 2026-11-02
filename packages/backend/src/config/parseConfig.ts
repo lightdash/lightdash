@@ -1780,6 +1780,7 @@ export type LightdashConfig = {
     dashboard: {
         maxTilesPerTab: number;
         maxTabsPerDashboard: number;
+        maxConcurrentTileQueries: number | null;
         disableSentryTracking: boolean;
     };
     // This is the override color palette for the organization
@@ -3788,6 +3789,13 @@ export const parseConfig = (): LightdashConfig => {
                 getIntegerFromEnvironmentVariable(
                     'LIGHTDASH_DASHBOARD_MAX_TABS_PER_DASHBOARD',
                 ) || 20,
+            maxConcurrentTileQueries: process.env
+                .LIGHTDASH_DASHBOARD_MAX_CONCURRENT_TILE_QUERIES
+                ? getPositiveIntegerFromEnvironmentVariable(
+                      'LIGHTDASH_DASHBOARD_MAX_CONCURRENT_TILE_QUERIES',
+                      1,
+                  )
+                : null,
             disableSentryTracking:
                 process.env.LIGHTDASH_DASHBOARD_DISABLE_SENTRY_TRACKING ===
                 'true',

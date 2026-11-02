@@ -408,6 +408,24 @@ describe('query history retention', () => {
     });
 });
 
+describe('dashboard tile query concurrency', () => {
+    it('is unlimited when unset', () => {
+        expect(parseConfig().dashboard.maxConcurrentTileQueries).toBeNull();
+    });
+
+    it('reads the configured cap', () => {
+        process.env.LIGHTDASH_DASHBOARD_MAX_CONCURRENT_TILE_QUERIES = '4';
+
+        expect(parseConfig().dashboard.maxConcurrentTileQueries).toBe(4);
+    });
+
+    it.each(['0', '-1', 'invalid'])('rejects an invalid cap: %s', (value) => {
+        process.env.LIGHTDASH_DASHBOARD_MAX_CONCURRENT_TILE_QUERIES = value;
+
+        expect(() => parseConfig()).toThrow(ParseError);
+    });
+});
+
 describe('scheduler daily job generation concurrency', () => {
     it('defaults to 10', () => {
         expect(parseConfig().scheduler.dailyJobGenerationConcurrency).toBe(10);

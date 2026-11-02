@@ -64,6 +64,7 @@ export default function mockHealthResponse(
         dashboard: {
             maxTilesPerTab: 50,
             maxTabsPerDashboard: 20,
+            maxConcurrentTileQueries: null,
             disableSentryTracking: false,
         },
         pivotTable: {

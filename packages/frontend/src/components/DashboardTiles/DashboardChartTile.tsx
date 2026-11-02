@@ -130,6 +130,7 @@ import {
     selectIsDateZoomAppliedToTile,
     useDashboardSelector,
 } from '../../features/dashboard/store';
+import { useTileQueryQueueVisibility } from '../../features/dashboard/tileQueryQueue/useTileQueryQueue';
 import { FilterDashboardTo } from '../../features/dashboardFilters/FilterDashboardTo';
 import { DateZoomInfoOnTile } from '../../features/dateZoom';
 import { ExportToGoogleSheet } from '../../features/export';
@@ -2689,6 +2690,7 @@ const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
         resultsData.isFetchingFirstPage,
         resultsData.error,
     ]);
+    useTileQueryQueueVisibility(props.tile.uuid);
 
     // Publish this tile's query as an AI analysis source once it settles.
     const queryUuid = readyQuery.data?.executeQueryResponse.queryUuid ?? null;

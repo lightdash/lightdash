@@ -101,6 +101,7 @@ import {
     useHasDateZoomConfigChanged,
     useRequiredFiltersNote,
 } from '../features/dashboard/store';
+import TileQueryQueueProvider from '../features/dashboard/tileQueryQueue/TileQueryQueueProvider';
 import { ControlsSidebarPage } from '../features/dashboardControls/ControlsSidebarPage';
 import { DashboardHeaderGuard } from '../features/dashboardControls/DashboardHeaderGuard';
 import guardClasses from '../features/dashboardControls/DashboardHeaderGuard.module.css';
@@ -1758,7 +1759,9 @@ const DashboardPage: FC = () => {
             <SentryErrorBoundary fallback={() => <></>}>
                 <DashboardAnalysisAdapterBridge />
             </SentryErrorBoundary>
-            <Dashboard />
+            <TileQueryQueueProvider>
+                <Dashboard />
+            </TileQueryQueueProvider>
         </DashboardProvider>
     );
 };

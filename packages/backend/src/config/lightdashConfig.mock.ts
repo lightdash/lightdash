@@ -137,6 +137,7 @@ export const lightdashConfigMock: LightdashConfig = {
     dashboard: {
         maxTilesPerTab: 50,
         maxTabsPerDashboard: 20,
+        maxConcurrentTileQueries: null,
         disableSentryTracking: false,
     },
     database: {

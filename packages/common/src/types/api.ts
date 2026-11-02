@@ -827,6 +827,8 @@ export type HealthState = {
     dashboard: {
         maxTilesPerTab: number;
         maxTabsPerDashboard: number;
+        /** Per-viewer cap on in-flight dashboard tile queries; null means unlimited */
+        maxConcurrentTileQueries: number | null;
         disableSentryTracking: boolean;
     };
     pivotTable: {
