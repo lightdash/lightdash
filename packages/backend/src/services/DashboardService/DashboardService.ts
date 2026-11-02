@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     AbilityAction,
     assertRegisteredAccount,
+    buildMergeQueryFromMergeDefinition,
     BulkActionable,
     computeContentDraftStaleness,
     ContentAsCodeType,
@@ -24,13 +25,16 @@ import {
     ForbiddenError,
     generateSlug,
     getDashboardDeleteAccess,
+    getErrorMessage,
     getItemId,
+    getParameterReferences,
     getSchedulerResourceTypeAndId,
     hasChartsInDashboard,
     isDashboardChartTileType,
     isDashboardScheduler,
     isDashboardUnversionedFields,
     isDashboardVersionedFields,
+    isExploreError,
     isJwtUser,
     isUserWithOrg,
     isValidDashboardTilePositions,
@@ -63,11 +67,14 @@ import {
     type DashboardBasicDetailsWithTileTypes,
     type DashboardCustomMetricUpdateResult,
     type DashboardHistory,
+    type DashboardTileParameterReferences,
+    type DashboardTileParameterReferencesTile,
     type DashboardTileTarget,
     type DashboardVersion,
     type DuplicateDashboardParams,
     type Explore,
     type ExploreError,
+    type SavedChartDAO,
     type UpdateDashboardCustomMetric,
     type UUID,
     type UuidOrSlug,
@@ -120,6 +127,7 @@ import { createDashboardChartTiles } from '../../utils/dashboardTileUtils';
 import { getContentWriteAgentIdentity } from '../AiAccessService/agentExecutionContext';
 import { logAgentContentWrite } from '../AiAccessService/logAgentContentWrite';
 import { BaseService } from '../BaseService';
+import type { ProjectService } from '../ProjectService/ProjectService';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
 import type { SchedulerService } from '../SchedulerService/SchedulerService';
 import type {
@@ -163,6 +171,10 @@ type DashboardServiceArguments = {
     organizationMemberProfileModel: OrganizationMemberProfileModel;
     spacePermissionService: SpacePermissionService;
     contentVerificationModel: ContentVerificationModel;
+    projectService: Pick<
+        ProjectService,
+        'findExplores' | 'compileQuery' | 'compileMergeQuery'
+    >;
 };
 
 type ContentAsCodeDeleteOptions = SoftDeleteOptions & {
@@ -181,6 +193,15 @@ type DashboardDraftOverlay = Partial<
         | 'spaceUuid'
     >
 >;
+
+type ParameterReferencesResult =
+    | { parameterReferences: string[]; error: null }
+    | { parameterReferences: null; error: string };
+
+const parameterReferencesFailure = (e: unknown): ParameterReferencesResult => ({
+    parameterReferences: null,
+    error: typeof e === 'string' ? e : getErrorMessage(e),
+});
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
     typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -263,6 +284,8 @@ export class DashboardService
     spacePermissionService: SpacePermissionService;
 
     contentVerificationModel: ContentVerificationModel;
+
+    private readonly projectService: DashboardServiceArguments['projectService'];
 
     async scheduleExportContent(
         account: Account,
@@ -420,6 +443,7 @@ export class DashboardService
         organizationMemberProfileModel,
         spacePermissionService,
         contentVerificationModel,
+        projectService,
     }: DashboardServiceArguments) {
         super();
         this.featureFlagModel = featureFlagModel;
@@ -448,6 +472,7 @@ export class DashboardService
         this.slackClient = slackClient;
         this.spacePermissionService = spacePermissionService;
         this.contentVerificationModel = contentVerificationModel;
+        this.projectService = projectService;
     }
 
     async verifyDashboard(
@@ -898,6 +923,231 @@ export class DashboardService
             ...dashboard,
             verification: verifications.get(dashboard.uuid) ?? null,
         }));
+    }
+
+    /**
+     * The parameters each tile's query uses, compiled without running it. A
+     * tile that can't be loaded, viewed or compiled reports its own error.
+     */
+    async getTileParameterReferences(
+        account: Account,
+        projectUuid: string,
+        tiles: DashboardTileParameterReferencesTile[],
+    ): Promise<DashboardTileParameterReferences[]> {
+        const [chartResults, sqlResults] = await Promise.all([
+            this.getSavedChartParameterReferences(
+                account,
+                projectUuid,
+                uniq(tiles.flatMap((tile) => tile.savedChartUuid ?? [])),
+            ),
+            this.getSavedSqlParameterReferences(
+                account,
+                projectUuid,
+                uniq(tiles.flatMap((tile) => tile.savedSqlUuid ?? [])),
+            ),
+        ]);
+        return tiles.map(({ tileUuid, savedChartUuid, savedSqlUuid }) => {
+            const result =
+                (savedChartUuid && chartResults.get(savedChartUuid)) ||
+                (savedSqlUuid && sqlResults.get(savedSqlUuid)) ||
+                parameterReferencesFailure('Tile has no saved chart');
+            return { tileUuid, ...result };
+        });
+    }
+
+    private async getSavedChartParameterReferences(
+        account: Account,
+        projectUuid: string,
+        savedChartUuids: string[],
+    ): Promise<Map<string, ParameterReferencesResult>> {
+        const results = new Map<string, ParameterReferencesResult>();
+        const loaded = await Promise.all(
+            savedChartUuids.map((uuid) =>
+                this.savedChartModel
+                    .get(uuid, undefined, { projectUuid })
+                    .catch((e) => {
+                        results.set(uuid, parameterReferencesFailure(e));
+                        return null;
+                    }),
+            ),
+        );
+        const charts = loaded.filter(
+            (chart): chart is SavedChartDAO => chart !== null,
+        );
+        if (charts.length === 0) return results;
+
+        const [accessResults, explores] = await Promise.all([
+            this.spacePermissionService.resolveAccessBatch(
+                account.user.id,
+                charts.map((chart) => ({
+                    type: 'chart' as const,
+                    chartUuid: chart.uuid,
+                    dashboardUuid: chart.dashboardUuid ?? null,
+                    spaceUuid: chart.spaceUuid,
+                })),
+            ),
+            this.projectService.findExplores({
+                account,
+                projectUuid,
+                exploreNames: uniq(
+                    charts.flatMap((chart) =>
+                        chart.merge ? [] : [chart.tableName],
+                    ),
+                ),
+                organizationUuid: account.organization.organizationUuid,
+            }),
+        ]);
+        const contextByChartUuid = new Map(
+            accessResults.map(({ target, context }) => [
+                target.chartUuid,
+                context,
+            ]),
+        );
+        const auditedAbility = this.createAuditedAbility(account);
+
+        await Promise.all(
+            charts.map(async (chart) => {
+                const context = contextByChartUuid.get(chart.uuid);
+                if (
+                    !context ||
+                    auditedAbility.cannot(
+                        'view',
+                        subject('SavedChart', {
+                            organizationUuid: context.organizationUuid,
+                            projectUuid: context.projectUuid,
+                            inheritsFromOrgOrProject:
+                                context.inheritsFromOrgOrProject,
+                            access: context.access,
+                            metadata: {
+                                savedChartUuid: chart.uuid,
+                                savedChartName: chart.name,
+                            },
+                        }),
+                    )
+                ) {
+                    results.set(
+                        chart.uuid,
+                        parameterReferencesFailure(
+                            "You don't have access to view this chart",
+                        ),
+                    );
+                    return;
+                }
+                try {
+                    results.set(chart.uuid, {
+                        parameterReferences:
+                            await this.compileChartParameterReferences(
+                                account,
+                                projectUuid,
+                                chart,
+                                explores[chart.tableName],
+                            ),
+                        error: null,
+                    });
+                } catch (e) {
+                    results.set(chart.uuid, parameterReferencesFailure(e));
+                }
+            }),
+        );
+        return results;
+    }
+
+    private async compileChartParameterReferences(
+        account: Account,
+        projectUuid: string,
+        chart: SavedChartDAO,
+        explore: Explore | ExploreError | undefined,
+    ): Promise<string[]> {
+        if (chart.merge) {
+            const compiled = await this.projectService.compileMergeQuery({
+                account,
+                projectUuid,
+                mergeQuery: buildMergeQueryFromMergeDefinition(
+                    chart.metricQuery,
+                    chart.merge,
+                ),
+                parameters: chart.parameters,
+            });
+            return compiled.parameterReferences;
+        }
+        if (!explore || isExploreError(explore)) {
+            throw new NotFoundError(
+                `Explore "${chart.tableName}" is not available`,
+            );
+        }
+        const compiled = await this.projectService.compileQuery({
+            account,
+            projectUuid,
+            explore,
+            body: { ...chart.metricQuery, parameters: chart.parameters },
+        });
+        return compiled.parameterReferences;
+    }
+
+    private async getSavedSqlParameterReferences(
+        account: Account,
+        projectUuid: string,
+        savedSqlUuids: string[],
+    ): Promise<Map<string, ParameterReferencesResult>> {
+        const results = new Map<string, ParameterReferencesResult>();
+        const loaded = await Promise.all(
+            savedSqlUuids.map((uuid) =>
+                this.savedSqlModel
+                    .getByUuid(uuid, { projectUuid })
+                    .catch((e) => {
+                        results.set(uuid, parameterReferencesFailure(e));
+                        return null;
+                    }),
+            ),
+        );
+        const sqlCharts = loaded.filter(
+            (sqlChart): sqlChart is NonNullable<typeof sqlChart> =>
+                sqlChart !== null,
+        );
+        if (sqlCharts.length === 0) return results;
+
+        const accessResults =
+            await this.spacePermissionService.resolveAccessBatch(
+                account.user.id,
+                sqlCharts.map((sqlChart) => ({
+                    type: 'sqlChart' as const,
+                    savedSqlUuid: sqlChart.savedSqlUuid,
+                    spaceUuid: sqlChart.space.uuid,
+                })),
+            );
+        const contextBySavedSqlUuid = new Map(
+            accessResults.map(({ target, context }) => [
+                target.savedSqlUuid,
+                context,
+            ]),
+        );
+        const auditedAbility = this.createAuditedAbility(account);
+        sqlCharts.forEach((sqlChart) => {
+            const context = contextBySavedSqlUuid.get(sqlChart.savedSqlUuid);
+            const canView =
+                !!context &&
+                auditedAbility.can(
+                    'view',
+                    subject('SavedChart', {
+                        ...context,
+                        metadata: { savedSqlUuid: sqlChart.savedSqlUuid },
+                    }),
+                );
+            results.set(
+                sqlChart.savedSqlUuid,
+                canView
+                    ? {
+                          parameterReferences: getParameterReferences(
+                              sqlChart.sql,
+                          ),
+                          error: null,
+                      }
+                    : parameterReferencesFailure(
+                          "You don't have access to view this SQL chart",
+                      ),
+            );
+        });
+        return results;
     }
 
     async getByIdOrSlug(

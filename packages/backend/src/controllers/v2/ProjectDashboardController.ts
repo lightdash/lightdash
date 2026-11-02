@@ -1,9 +1,11 @@
 import {
     assertRegisteredAccount,
     type ApiDashboardResponse,
+    type ApiDashboardTileParameterReferencesResponse,
     type ApiErrorPayload,
     type ApiGetComments,
     type ApiSuccessEmpty,
+    type DashboardTileParameterReferencesRequest,
     type UpdateDashboard,
 } from '@lightdash/common';
 import {
@@ -14,6 +16,7 @@ import {
     OperationId,
     Patch,
     Path,
+    Post,
     Query,
     Request,
     Response,
@@ -68,6 +71,34 @@ export class ProjectDashboardControllerV2 extends BaseController {
                 : dashboardService.getByIdOrSlug(user, dashboardUuidOrSlug, {
                       projectUuid,
                   })),
+        };
+    }
+
+    /**
+     * List the parameters each dashboard tile uses, compiled without running
+     * its query. Tiles that can't be viewed or compiled report an error.
+     * @summary Get tile parameter references
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/tile-parameter-references')
+    @OperationId('getDashboardTileParameterReferences')
+    async getTileParameterReferences(
+        @Path() projectUuid: string,
+        @Body() body: DashboardTileParameterReferencesRequest,
+        @Request() req: express.Request,
+    ): Promise<ApiDashboardTileParameterReferencesResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getDashboardService()
+                .getTileParameterReferences(
+                    req.account,
+                    projectUuid,
+                    body.tiles,
+                ),
         };
     }
 

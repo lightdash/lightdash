@@ -512,6 +512,7 @@ export class ServiceRepository
             'dashboardService',
             () =>
                 new DashboardService({
+                    projectService: this.getProjectService(),
                     featureFlagModel: this.models.getFeatureFlagModel(),
                     agentActionLogModel: this.models.getAgentActionLogModel(),
                     lightdashConfig: this.context.lightdashConfig,

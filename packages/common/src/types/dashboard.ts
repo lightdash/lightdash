@@ -413,6 +413,25 @@ export type SavedChartsInfoForDashboardAvailableFilters = {
     savedChartUuid: string;
 }[];
 
+export type DashboardTileParameterReferencesTile = {
+    tileUuid: string;
+    savedChartUuid: string | null;
+    savedSqlUuid: string | null;
+};
+
+export type DashboardTileParameterReferencesRequest = {
+    tiles: DashboardTileParameterReferencesTile[];
+};
+
+export type DashboardTileParameterReferences =
+    | { tileUuid: string; parameterReferences: string[]; error: null }
+    | { tileUuid: string; parameterReferences: null; error: string };
+
+export type ApiDashboardTileParameterReferencesResponse = {
+    status: 'ok';
+    results: DashboardTileParameterReferences[];
+};
+
 export const isDashboardUnversionedFields = (
     data: UpdateDashboard,
 ): data is DashboardUnversionedFields =>
