@@ -19,6 +19,7 @@ import {
     initialDashboardFiltersState,
 } from './dashboardFiltersReducer';
 import { initialDashboardParametersState } from './dashboardParametersReducer';
+import { initialDashboardSourceState } from './dashboardSourceReducer';
 import { initialDashboardTileStatusState } from './dashboardTileStatusReducer';
 import {
     emptySavedFilterOverrides,
@@ -93,6 +94,7 @@ export const buildInitialDashboardState = ({
 
     return {
         state: {
+            source: initialDashboardSourceState,
             filters: {
                 ...initialDashboardFiltersState,
                 savedFilterOverrides:

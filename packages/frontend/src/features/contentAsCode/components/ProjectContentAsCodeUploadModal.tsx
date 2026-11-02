@@ -6,11 +6,10 @@ import {
 } from '@lightdash/common';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { lazy, Suspense, useCallback, useRef, type FC } from 'react';
-import { useContextSelector } from 'use-context-selector';
 import { invalidateContent } from '../../../hooks/useContent';
 import { useOptionalProjectRoute } from '../../../hooks/useProjectRoute';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
-import DashboardContext from '../../../providers/Dashboard/context';
+import { useOptionalDashboardContext } from '../../../providers/Dashboard/useDashboardContext';
 import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import { type ImportDocument, type UploadContent } from '../importContent';
 import { uploadContentAsCode } from '../uploadContent';
@@ -39,9 +38,8 @@ const ProjectContentAsCodeUploadModal: FC<Props> = ({
     const { data: spaces } = useSpaceSummaries(projectUuid, true, {
         enabled: opened,
     });
-    const refreshDashboardVersion = useContextSelector(
-        DashboardContext,
-        (context) => context?.refreshDashboardVersion,
+    const refreshDashboardVersion = useOptionalDashboardContext(
+        (context) => context.refreshDashboardVersion,
     );
     const attemptedUpload = useRef(false);
     const advisory = useQuery<

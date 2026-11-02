@@ -20,11 +20,16 @@ import {
     type DashboardParametersState,
 } from './dashboardParametersReducer';
 import {
+    dashboardSourceReducer,
+    type DashboardSourceState,
+} from './dashboardSourceReducer';
+import {
     dashboardTileStatusReducer,
     type DashboardTileStatusState,
 } from './dashboardTileStatusReducer';
 
 export type DashboardStoreState = {
+    source: DashboardSourceState;
     filters: DashboardFiltersState;
     parameters: DashboardParametersState;
     dateZoom: DashboardDateZoomState;
@@ -37,6 +42,7 @@ export type DashboardStoreState = {
 export const createDashboardStore = (preloadedState: DashboardStoreState) =>
     configureStore({
         reducer: {
+            source: dashboardSourceReducer,
             filters: dashboardFiltersReducer,
             parameters: dashboardParametersReducer,
             dateZoom: dashboardDateZoomReducer,
@@ -46,8 +52,13 @@ export const createDashboardStore = (preloadedState: DashboardStoreState) =>
         },
         preloadedState,
         middleware: (getDefaultMiddleware) =>
-            // Filter values can hold Date objects from the date inputs
-            getDefaultMiddleware({ serializableCheck: false }),
+            // Filter values can hold Date objects from the date inputs, and
+            // `source` holds whole react-query results the dev-only
+            // immutability check would deep-walk on every action
+            getDefaultMiddleware({
+                serializableCheck: false,
+                immutableCheck: false,
+            }),
     });
 
 export type DashboardStore = ReturnType<typeof createDashboardStore>;
@@ -71,6 +82,16 @@ export type { DashboardEditState } from './dashboardEditReducer';
 export * from './dashboardEditSelectors';
 export * from './editHooks';
 export { dashboardChartSortActions } from './dashboardChartSortReducer';
+export {
+    dashboardSourceActions,
+    initialDashboardProviderState,
+} from './dashboardSourceReducer';
+export type {
+    DashboardProviderState,
+    DashboardSourceState,
+} from './dashboardSourceReducer';
+export * from './dashboardSourceSelectors';
+export { getDashboardContextView } from './contextView';
 export * from './hooks';
 export { hasSavedFiltersOverrides } from './savedFilterOverrides';
 export * from './selectors';
