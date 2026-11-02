@@ -60,6 +60,9 @@ type ComposerQueriesDescriptionOptions = {
     apiConnections: ComposerApiConnection[];
 };
 
+const DUCKDB_ALIAS_GUIDANCE =
+    'Write AS before every column alias, since DuckDB rejects most keywords (value, day, label) as bare aliases, and double-quote a reserved word such as "order" wherever it names a column.';
+
 const getComposerNodeKindsDescription = ({
     enablePythonNodes,
     apiConnections,
@@ -352,7 +355,9 @@ export const createToolComposerQueriesArgsSchemaV1 = ({
         ...nodeMetaSchema,
         sql: z
             .string()
-            .describe('DuckDB SQL over the tables "references" exposes.'),
+            .describe(
+                `DuckDB SQL over the tables "references" exposes. ${DUCKDB_ALIAS_GUIDANCE}`,
+            ),
         references: referencesSchema.describe(
             'Which nodes the SQL reads, by node id: an array (each exposed as a table named by its node id), or a map of {tableName: nodeId} to alias them.',
         ),
@@ -365,7 +370,9 @@ export const createToolComposerQueriesArgsSchemaV1 = ({
         ...nodeMetaSchema,
         sql: z
             .string()
-            .describe('DuckDB SQL over the tables "tables" declares.'),
+            .describe(
+                `DuckDB SQL over the tables "tables" declares. ${DUCKDB_ALIAS_GUIDANCE}`,
+            ),
         tables: z
             .union([z.array(z.string()), z.record(z.string(), z.string())])
             .describe(

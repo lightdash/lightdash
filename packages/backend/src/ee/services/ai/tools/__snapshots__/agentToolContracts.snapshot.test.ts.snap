@@ -18826,7 +18826,7 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
                     "type": "string",
                   },
                   "sql": {
-                    "description": "DuckDB SQL over the tables "references" exposes.",
+                    "description": "DuckDB SQL over the tables "references" exposes. Write AS before every column alias, since DuckDB rejects most keywords (value, day, label) as bare aliases, and double-quote a reserved word such as "order" wherever it names a column.",
                     "type": "string",
                   },
                   "title": {
@@ -18868,7 +18868,7 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
                     "type": "string",
                   },
                   "sql": {
-                    "description": "DuckDB SQL over the tables "tables" declares.",
+                    "description": "DuckDB SQL over the tables "tables" declares. Write AS before every column alias, since DuckDB rejects most keywords (value, day, label) as bare aliases, and double-quote a reserved word such as "order" wherever it names a column.",
                     "type": "string",
                   },
                   "tables": {
