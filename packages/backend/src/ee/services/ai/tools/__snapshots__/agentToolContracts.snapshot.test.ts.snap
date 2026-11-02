@@ -18437,6 +18437,7 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
       "additionalProperties": false,
       "properties": {
         "description": {
+          "default": null,
           "description": "A one-line description of what the pipeline computes.",
           "type": [
             "string",
@@ -18569,6 +18570,7 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
                                 "type": "null",
                               },
                             ],
+                            "default": null,
                             "description": "Flat filter expression for dimension fields.",
                           },
                           "metrics": {
@@ -18582,19 +18584,17 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
                                 "type": "null",
                               },
                             ],
+                            "default": null,
                             "description": "Flat filter expression for metric fields.",
                           },
                         },
-                        "required": [
-                          "dimensions",
-                          "metrics",
-                        ],
                         "type": "object",
                       },
                       {
                         "type": "null",
                       },
                     ],
+                    "default": null,
                     "description": "Filters on this node's explore as flat expression strings, never structured rule objects: one for dimension fields and one for metric fields, each choosing AND or OR independently and combined with AND. Null when unfiltered, or null for an unused kind.",
                   },
                   "limit": {
@@ -18715,6 +18715,7 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
                         "type": "null",
                       },
                     ],
+                    "default": null,
                     "description": "Sorts by fields this node also selects in dimensions or metrics, e.g. [{"fieldId": "orders_order_date", "descending": true}].",
                   },
                   "sourceType": {
@@ -18734,8 +18735,6 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
                   "exploreName",
                   "dimensions",
                   "metrics",
-                  "filters",
-                  "sorts",
                 ],
                 "type": "object",
               },
@@ -18912,6 +18911,7 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
           "type": "array",
         },
         "terminalNodeId": {
+          "default": null,
           "description": "The terminal node. Null picks the one submitted node no other submitted node reads; a node id returns that node of the pipeline instead, including a node from an earlier call.",
           "type": [
             "string",
@@ -18919,6 +18919,7 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
           ],
         },
         "title": {
+          "default": null,
           "description": "A short title for the result.",
           "type": [
             "string",
@@ -18927,10 +18928,7 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
         },
       },
       "required": [
-        "title",
-        "description",
         "queries",
-        "terminalNodeId",
       ],
       "type": "object",
     },
@@ -19625,7 +19623,7 @@ Pie and series-split charts return readability notes when they have many slices 
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "definitions": {
-        "__schema8": {
+        "__schema10": {
           "anyOf": [
             {
               "type": "string",
@@ -19640,7 +19638,7 @@ Pie and series-split charts return readability notes when they have many slices 
           ],
           "description": "A result column reference of the presented node",
         },
-        "__schema9": {
+        "__schema11": {
           "additionalProperties": {
             "anyOf": [
               {
@@ -19695,11 +19693,45 @@ Pie and series-split charts return readability notes when they have many slices 
               },
             ],
           },
-          "type": "object",
+          "type": [
+            "object",
+            "null",
+          ],
+        },
+        "__schema8": {
+          "additionalProperties": false,
+          "properties": {
+            "x": {
+              "default": null,
+              "type": [
+                "string",
+                "null",
+              ],
+            },
+            "y": {
+              "default": null,
+              "type": [
+                "string",
+                "null",
+              ],
+            },
+            "y2": {
+              "default": null,
+              "type": [
+                "string",
+                "null",
+              ],
+            },
+          },
+          "type": [
+            "object",
+            "null",
+          ],
         },
       },
       "properties": {
         "description": {
+          "default": null,
           "description": "One sentence on what the card shows, only when the title is not enough. Null otherwise.",
           "type": [
             "string",
@@ -19720,6 +19752,7 @@ Pie and series-split charts return readability notes when they have many slices 
               "additionalProperties": false,
               "properties": {
                 "groupBy": {
+                  "default": null,
                   "description": "Columns that split y into one series per value. bar/line/area/scatter only. Must not include x.",
                   "items": {
                     "description": "A result column reference of the presented node",
@@ -19731,6 +19764,7 @@ Pie and series-split charts return readability notes when they have many slices 
                   ],
                 },
                 "horizontal": {
+                  "default": null,
                   "description": "bar only: draw bars horizontally.",
                   "type": [
                     "boolean",
@@ -19738,39 +19772,16 @@ Pie and series-split charts return readability notes when they have many slices 
                   ],
                 },
                 "labels": {
-                  "additionalProperties": false,
+                  "allOf": [
+                    {
+                      "$ref": "#/definitions/__schema8",
+                    },
+                  ],
+                  "default": null,
                   "description": "Axis titles. big_number uses labels.y as its label.",
-                  "properties": {
-                    "x": {
-                      "type": [
-                        "string",
-                        "null",
-                      ],
-                    },
-                    "y": {
-                      "type": [
-                        "string",
-                        "null",
-                      ],
-                    },
-                    "y2": {
-                      "type": [
-                        "string",
-                        "null",
-                      ],
-                    },
-                  },
-                  "required": [
-                    "x",
-                    "y",
-                    "y2",
-                  ],
-                  "type": [
-                    "object",
-                    "null",
-                  ],
                 },
                 "stack": {
+                  "default": null,
                   "description": "bar: stack series on top of each other. area always stacks. Ignored elsewhere.",
                   "type": [
                     "boolean",
@@ -19792,6 +19803,7 @@ Pie and series-split charts return readability notes when they have many slices 
                   "type": "string",
                 },
                 "x": {
+                  "default": null,
                   "description": "Category or time column. bar/line/area/scatter/pie/funnel. null for table/big_number, or to use the first non-numeric column.",
                   "type": [
                     "string",
@@ -19799,6 +19811,7 @@ Pie and series-split charts return readability notes when they have many slices 
                   ],
                 },
                 "y": {
+                  "default": null,
                   "description": "Value columns. big_number, pie and funnel use y[0]. null to use every numeric column not on x or groupBy.",
                   "items": {
                     "description": "A result column reference of the presented node",
@@ -19810,6 +19823,7 @@ Pie and series-split charts return readability notes when they have many slices 
                   ],
                 },
                 "y2": {
+                  "default": null,
                   "description": "Column on a secondary (right) y axis. bar/line/area (drawn as a line on area). Must not be in y.",
                   "type": [
                     "string",
@@ -19819,13 +19833,6 @@ Pie and series-split charts return readability notes when they have many slices 
               },
               "required": [
                 "type",
-                "x",
-                "y",
-                "groupBy",
-                "stack",
-                "horizontal",
-                "y2",
-                "labels",
               ],
               "type": "object",
             },
@@ -19838,20 +19845,18 @@ Pie and series-split charts return readability notes when they have many slices 
                 },
                 "fieldMapping": {
                   "additionalProperties": {
-                    "$ref": "#/definitions/__schema8",
+                    "$ref": "#/definitions/__schema10",
                   },
                   "description": "Binds each slot of the type, by slot name, to a column, or ordered columns for a multiple slot. The slot's kind sets the column's role: a metric slot is measured, a series slot splits the chart into one series per value, and a dimension or column slot groups, so a numeric column there is grouped, not measured. A measure split by series goes in a metric slot.",
                   "type": "object",
                 },
                 "options": {
-                  "anyOf": [
+                  "allOf": [
                     {
-                      "$ref": "#/definitions/__schema9",
-                    },
-                    {
-                      "type": "null",
+                      "$ref": "#/definitions/__schema11",
                     },
                   ],
+                  "default": null,
                   "description": "Values for the type's options; null for defaults.",
                 },
                 "type": {
@@ -19864,7 +19869,6 @@ Pie and series-split charts return readability notes when they have many slices 
                 "type",
                 "customChartTypeSlug",
                 "fieldMapping",
-                "options",
               ],
               "type": "object",
             },
@@ -19874,7 +19878,6 @@ Pie and series-split charts return readability notes when they have many slices 
       "required": [
         "nodeId",
         "title",
-        "description",
         "vizConfig",
       ],
       "type": "object",
@@ -24222,6 +24225,36 @@ Filter expressions use \`<fieldId> <operator>[=<value>...]\`. The input schema d
     "$schema": "http://json-schema.org/draft-07/schema#",
     "additionalProperties": false,
     "definitions": {
+      "__schema11": {
+        "default": null,
+        "description": "Flat filter expression for dimension fields.",
+        "maxLength": 16384,
+        "minLength": 1,
+        "type": [
+          "string",
+          "null",
+        ],
+      },
+      "__schema13": {
+        "default": null,
+        "description": "Flat filter expression for metric fields.",
+        "maxLength": 16384,
+        "minLength": 1,
+        "type": [
+          "string",
+          "null",
+        ],
+      },
+      "__schema15": {
+        "default": null,
+        "description": "Flat filter expression for table calculations.",
+        "maxLength": 16384,
+        "minLength": 1,
+        "type": [
+          "string",
+          "null",
+        ],
+      },
       "__schema2": {
         "additionalProperties": false,
         "properties": {
@@ -24248,7 +24281,7 @@ Filter expressions use \`<fieldId> <operator>[=<value>...]\`. The input schema d
         ],
         "type": "object",
       },
-      "__schema23": {
+      "__schema26": {
         "anyOf": [
           {
             "type": "string",
@@ -24263,7 +24296,7 @@ Filter expressions use \`<fieldId> <operator>[=<value>...]\`. The input schema d
         ],
         "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
       },
-      "__schema25": {
+      "__schema28": {
         "additionalProperties": {
           "anyOf": [
             {
@@ -24661,7 +24694,7 @@ All branches of an IF must return the same type.",
               },
               "fieldMapping": {
                 "additionalProperties": {
-                  "$ref": "#/definitions/__schema23",
+                  "$ref": "#/definitions/__schema26",
                 },
                 "description": "Binds each custom chart type slot to this query's fields: a field id for a single slot, or ordered unique field ids for a slot declared multiple. Every required slot must be bound.",
                 "type": "object",
@@ -24669,7 +24702,7 @@ All branches of an IF must return the same type.",
               "options": {
                 "allOf": [
                   {
-                    "$ref": "#/definitions/__schema25",
+                    "$ref": "#/definitions/__schema28",
                   },
                 ],
                 "default": null,
@@ -24755,38 +24788,15 @@ Example B — "Revenue by month with year-over-year comparison"
             "description": "Separate flat expressions for dimensions, metrics, and table calculations. Each category chooses AND or OR independently. Non-null categories combine implicitly with AND. For example, dimensions "D1 AND D2" and metrics "M1 OR M2" mean "(D1 AND D2) AND (M1 OR M2)", where D1, D2, M1, and M2 are complete filter rules. Use null when a category has no filters.",
             "properties": {
               "dimensions": {
-                "description": "Flat filter expression for dimension fields.",
-                "maxLength": 16384,
-                "minLength": 1,
-                "type": [
-                  "string",
-                  "null",
-                ],
+                "$ref": "#/definitions/__schema11",
               },
               "metrics": {
-                "description": "Flat filter expression for metric fields.",
-                "maxLength": 16384,
-                "minLength": 1,
-                "type": [
-                  "string",
-                  "null",
-                ],
+                "$ref": "#/definitions/__schema13",
               },
               "tableCalculations": {
-                "description": "Flat filter expression for table calculations.",
-                "maxLength": 16384,
-                "minLength": 1,
-                "type": [
-                  "string",
-                  "null",
-                ],
+                "$ref": "#/definitions/__schema15",
               },
             },
-            "required": [
-              "dimensions",
-              "metrics",
-              "tableCalculations",
-            ],
             "type": [
               "object",
               "null",
