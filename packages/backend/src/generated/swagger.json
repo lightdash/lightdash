@@ -40426,7 +40426,12 @@
                 "type": "string"
             },
             "BigqueryAuthenticationType": {
-                "enum": ["sso", "private_key", "adc"],
+                "enum": [
+                    "sso",
+                    "private_key",
+                    "adc",
+                    "workload_identity_federation"
+                ],
                 "type": "string"
             },
             "BigqueryMaximumBytesBilledByRole": {
@@ -40496,6 +40501,12 @@
                     "priority": {
                         "type": "string",
                         "enum": ["interactive", "batch"]
+                    },
+                    "workloadIdentityProvider": {
+                        "type": "string"
+                    },
+                    "workloadIdentityAudience": {
+                        "type": "string"
                     },
                     "allowUserCredentials": {
                         "type": "boolean"
@@ -41588,6 +41599,12 @@
                             "type": "string"
                         },
                         "type": "object"
+                    },
+                    "workloadIdentityAudience": {
+                        "type": "string"
+                    },
+                    "workloadIdentityProvider": {
+                        "type": "string"
                     },
                     "authenticationType": {
                         "$ref": "#/components/schemas/BigqueryAuthenticationType"
@@ -68550,6 +68567,36 @@
                 ],
                 "type": "object"
             },
+            "BigqueryWorkloadIdentity": {
+                "properties": {
+                    "subject": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "This instance's Google subject. Null when it can't be read."
+                    },
+                    "issuer": {
+                        "type": "string",
+                        "enum": ["https://accounts.google.com"],
+                        "nullable": false
+                    }
+                },
+                "required": ["subject", "issuer"],
+                "type": "object"
+            },
+            "ApiBigqueryWorkloadIdentityResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/BigqueryWorkloadIdentity"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "BigqueryDataset": {
                 "properties": {
                     "sizeBytes": {
@@ -74806,7 +74853,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.127.1",
+        "version": "3.128.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -113492,6 +113539,48 @@
                         "required": true,
                         "schema": {
                             "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/bigquery/workload-identity": {
+            "get": {
+                "operationId": "getBigqueryWorkloadIdentity",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiBigqueryWorkloadIdentityResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get the issuer and subject to pin in a workload identity pool provider.",
+                "summary": "Get BigQuery workload identity",
+                "tags": ["BigQuery Workload Identity"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "The project being edited. Omit when creating a project.",
+                        "in": "query",
+                        "name": "projectUuid",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
                         }
                     }
                 ]

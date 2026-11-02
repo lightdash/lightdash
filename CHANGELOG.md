@@ -1,3 +1,13 @@
+# [3.128.0](https://github.com/lightdash/lightdash/compare/3.127.1...3.128.0) (2026-11-02)
+
+
+### Features
+
+* **bigquery:** add workload identity federation to the connection form ([#31959](https://github.com/lightdash/lightdash/issues/31959)) ([aae26fd](https://github.com/lightdash/lightdash/commit/aae26fd576dc332d72bd167a0e74f25787a0d2a4))
+* **bigquery:** authenticate with workload identity federation ([#31956](https://github.com/lightdash/lightdash/issues/31956)) ([c84c17d](https://github.com/lightdash/lightdash/commit/c84c17dca25b830263cd9be34deb8d6ce265c185))
+* **bigquery:** expose the instance identity for workload identity setup ([#31958](https://github.com/lightdash/lightdash/issues/31958)) ([3c7aace](https://github.com/lightdash/lightdash/commit/3c7aace820104a6ce97d6233522dfeca18c16869))
+* **bigquery:** generate dbt profiles for workload identity federation ([#31957](https://github.com/lightdash/lightdash/issues/31957)) ([abfa816](https://github.com/lightdash/lightdash/commit/abfa8163e774bff78cc7c1cf75fe9fec1ec5b6f3))
+
 ## [3.127.1](https://github.com/lightdash/lightdash/compare/3.127.0...3.127.1) (2026-11-02)
 
 

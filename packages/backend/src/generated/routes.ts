@@ -15,6 +15,8 @@ import { AwsWebIdentityController } from './../controllers/awsWebIdentityControl
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { BigquerySSOController } from './../controllers/bigquerySSOController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+import { BigqueryWorkloadIdentityController } from './../controllers/bigqueryWorkloadIdentityController';
+// WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { CatalogController } from './../controllers/catalogController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { CommentsController } from './../controllers/commentsController';
@@ -45368,7 +45370,7 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     BigqueryAuthenticationType: {
         dataType: 'refEnum',
-        enums: ['sso', 'private_key', 'adc'],
+        enums: ['sso', 'private_key', 'adc', 'workload_identity_federation'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     BigqueryMaximumBytesBilledByRole: {
@@ -45484,6 +45486,20 @@ const models: TsoaRoute.Models = {
                             { dataType: 'undefined' },
                         ],
                         required: true,
+                    },
+                    workloadIdentityProvider: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    workloadIdentityAudience: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'undefined' },
+                        ],
                     },
                     allowUserCredentials: {
                         dataType: 'union',
@@ -46710,6 +46726,8 @@ const models: TsoaRoute.Models = {
                     additionalProperties: { dataType: 'string' },
                     required: true,
                 },
+                workloadIdentityAudience: { dataType: 'string' },
+                workloadIdentityProvider: { dataType: 'string' },
                 authenticationType: { ref: 'BigqueryAuthenticationType' },
                 priority: {
                     dataType: 'union',
@@ -73719,6 +73737,41 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 targetCatalogSearchUuid: { dataType: 'string', required: true },
                 sourceCatalogSearchUuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    BigqueryWorkloadIdentity: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                subject: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                issuer: {
+                    dataType: 'enum',
+                    enums: ['https://accounts.google.com'],
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiBigqueryWorkloadIdentityResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: { ref: 'BigqueryWorkloadIdentity', required: true },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
             },
             validators: {},
         },
@@ -141278,6 +141331,62 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'getMetricOwners',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsBigqueryWorkloadIdentityController_getIdentity: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: { in: 'query', name: 'projectUuid', ref: 'UUID' },
+    };
+    app.get(
+        '/api/v1/bigquery/workload-identity',
+        ...fetchMiddlewares<RequestHandler>(BigqueryWorkloadIdentityController),
+        ...fetchMiddlewares<RequestHandler>(
+            BigqueryWorkloadIdentityController.prototype.getIdentity,
+        ),
+
+        async function BigqueryWorkloadIdentityController_getIdentity(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsBigqueryWorkloadIdentityController_getIdentity,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<BigqueryWorkloadIdentityController>(
+                        BigqueryWorkloadIdentityController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getIdentity',
                     controller,
                     response,
                     next,
