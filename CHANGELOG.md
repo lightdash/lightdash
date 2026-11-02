@@ -1,3 +1,10 @@
+# [3.121.0](https://github.com/lightdash/lightdash/compare/3.120.2...3.121.0) (2026-11-02)
+
+
+### Features
+
+* **ai-agent:** export image from composer artifacts ([#31918](https://github.com/lightdash/lightdash/issues/31918)) ([89fdf95](https://github.com/lightdash/lightdash/commit/89fdf955570768e71408a983f6f34e04a49f54e4))
+
 ## [3.120.2](https://github.com/lightdash/lightdash/compare/3.120.1...3.120.2) (2026-11-02)
 
 
