@@ -1465,6 +1465,9 @@ export const REST_OPERATION_CAPABILITIES = {
         AgentCapability.Administration,
     ],
     'ProjectCoderController.rebaseContentDraft': [AgentCapability.ContentWrite],
+    'ProjectCoderController.releaseContentAsCodeSnapshot': [
+        AgentCapability.Administration,
+    ],
     'ProjectCoderController.renameContentSlug': [AgentCapability.ContentWrite],
     'ProjectCoderController.reopenContentDraft': [AgentCapability.ContentWrite],
     'ProjectCoderController.stampContentAsCodeSettings': [
