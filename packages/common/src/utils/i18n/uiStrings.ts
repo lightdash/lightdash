@@ -506,6 +506,8 @@ export const DEFAULT_UI_STRINGS = {
         'Lineage appears once the app runs a query',
     'dataApps.lineage.pipelines': 'Queries',
     'dataApps.lineage.empty': 'No queries yet',
+    'dataApps.lineage.search': 'Search queries',
+    'dataApps.lineage.noMatches': 'No matching queries',
     'dataApps.lineage.selectPipeline': 'Select a query to see its lineage',
     'dataApps.lineage.showInApp': 'Show in app',
     'dataApps.lineage.steps.singular': '{count} step',

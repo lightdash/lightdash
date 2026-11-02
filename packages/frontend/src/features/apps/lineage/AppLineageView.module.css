@@ -13,14 +13,18 @@
     border-right: 1px solid var(--mantine-color-default-border);
 }
 
-.railTitle {
-    padding: var(--mantine-spacing-sm) var(--mantine-spacing-md) 0;
-    text-transform: uppercase;
+.railSearch {
+    padding: 0 var(--mantine-spacing-xs);
+    border-bottom: 1px solid var(--mantine-color-default-border);
 }
 
 .railItem {
-    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
-    border-radius: var(--mantine-radius-md);
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-xs);
+    height: 28px;
+    padding: 0 var(--mantine-spacing-xs);
+    border-radius: var(--mantine-radius-sm);
 }
 
 .railItem:hover {
@@ -31,8 +35,16 @@
     background: var(--mantine-color-default-hover);
 }
 
-.railStatus {
-    padding-top: 2px;
+.railIcon {
+    display: flex;
+    flex-shrink: 0;
+    width: 14px;
+    justify-content: center;
+}
+
+.railMeta {
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
 }
 
 .main {

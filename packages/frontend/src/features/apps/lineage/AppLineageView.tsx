@@ -1,21 +1,22 @@
-import { interpolateUiString } from '@lightdash/common';
 import {
     ActionIcon,
     Box,
     Button,
     Group,
+    Loader,
     ScrollArea,
     Stack,
     Text,
+    TextInput,
     Tooltip,
     UnstyledButton,
 } from '@mantine/core';
-import { IconPointer } from '@tabler/icons-react';
-import { useEffect, useMemo, useRef, type FC } from 'react';
+import { IconAlertCircle, IconPointer, IconSearch } from '@tabler/icons-react';
+import { useEffect, useMemo, useRef, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { NodeStatusIndicator } from '../../../ee/features/aiCopilot/components/ChatElements/ComposerNodeStatusIndicator';
 // Spike: data app lineage reuses the AI composer pipeline view.
 import { AiComposerLineage } from '../../../ee/features/aiCopilot/components/ChatElements/composerPipeline/AiComposerLineage';
+import { nodeTypeIcon } from '../../../ee/features/aiCopilot/components/ChatElements/composerPipeline/nodeTypeIcon';
 import { type PipelineNotebookHandle } from '../../../ee/features/aiCopilot/components/ChatElements/composerPipeline/notebook/PipelineNotebook';
 import {
     useComposerRunNodeStatuses,
@@ -115,53 +116,65 @@ const PipelineDetail: FC<{
     );
 };
 
+const terminalQueryOf = (pipeline: DataAppPipeline) =>
+    pipeline.queries.find((q) => q.nodeId === pipeline.terminalNodeId) ?? null;
+
+/** Type icon of the step that produced the result; status only when not ready. */
+const RailItemIcon: FC<{ pipeline: DataAppPipeline }> = ({ pipeline }) => {
+    const terminal = terminalQueryOf(pipeline);
+    switch (pipeline.status) {
+        case 'running':
+            return <Loader size={12} color="gray" />;
+        case 'error':
+            return (
+                <MantineIcon icon={IconAlertCircle} size={14} color="red.6" />
+            );
+        default:
+            return terminal ? (
+                <MantineIcon
+                    icon={nodeTypeIcon(terminal)}
+                    size={14}
+                    stroke={1.5}
+                    color="ldGray.6"
+                />
+            ) : null;
+    }
+};
+
 const PipelineRailItem: FC<{
     pipeline: DataAppPipeline;
     selected: boolean;
     lineage: UseAppLineageViewResult;
 }> = ({ pipeline, selected, lineage }) => {
-    const getUiString = useUiStrings();
-    const nodeCount = pipeline.queries.length;
+    const stepCount = pipeline.queries.length;
     return (
         <UnstyledButton
             className={classes.railItem}
             mod={{ selected }}
+            title={pipeline.description ?? undefined}
             onClick={() => lineage.selectPipeline(pipeline.id)}
             onMouseEnter={() => lineage.hover(pipeline, null)}
             onMouseLeave={() => lineage.hover(null, null)}
         >
-            <Group gap="xs" wrap="nowrap" align="flex-start">
-                <Box className={classes.railStatus}>
-                    <NodeStatusIndicator
-                        status={toNodeStatus(pipeline.status)}
-                    />
-                </Box>
-                <Stack gap={2} miw={0} flex={1}>
-                    <Text fz="sm" fw={500} truncate>
-                        {pipeline.title}
-                    </Text>
-                    {pipeline.description && (
-                        <Text fz="xs" c="dimmed" lineClamp={2}>
-                            {pipeline.description}
-                        </Text>
-                    )}
-                    <Text fz="xs" c="dimmed">
-                        {interpolateUiString(
-                            getUiString(
-                                nodeCount === 1
-                                    ? 'dataApps.lineage.steps.singular'
-                                    : 'dataApps.lineage.steps.plural',
-                            ),
-                            { count: nodeCount },
-                        )}
-                        {pipeline.savedChartNodeIds.length > 0 &&
-                            ` · ${getUiString('dataApps.lineage.savedChart')}`}
-                    </Text>
-                </Stack>
-            </Group>
+            <Box className={classes.railIcon}>
+                <RailItemIcon pipeline={pipeline} />
+            </Box>
+            <Text fz="sm" truncate flex={1}>
+                {pipeline.title}
+            </Text>
+            {stepCount > 1 && (
+                <Text fz="xs" c="dimmed" className={classes.railMeta}>
+                    {stepCount}
+                </Text>
+            )}
         </UnstyledButton>
     );
 };
+
+const matchesSearch = (pipeline: DataAppPipeline, needle: string) =>
+    needle === '' ||
+    pipeline.title.toLowerCase().includes(needle) ||
+    (pipeline.description?.toLowerCase().includes(needle) ?? false);
 
 /**
  * Every query the app ran as a pipeline: a rail to pick one, its lineage
@@ -174,20 +187,40 @@ export const AppLineageView: FC<{
 }> = ({ projectUuid, lineage }) => {
     const getUiString = useUiStrings();
     const { pipelines, selectedPipeline } = lineage;
+    const [search, setSearch] = useState('');
+    const needle = search.trim().toLowerCase();
+    const visible = useMemo(
+        () =>
+            [...pipelines]
+                .reverse()
+                .filter((pipeline) => matchesSearch(pipeline, needle)),
+        [pipelines, needle],
+    );
     return (
         <Box className={classes.root}>
             <Stack gap={0} className={classes.rail}>
-                <Text fz="xs" fw={600} c="dimmed" className={classes.railTitle}>
-                    {getUiString('dataApps.lineage.pipelines')}
-                </Text>
+                <TextInput
+                    size="xs"
+                    variant="unstyled"
+                    className={classes.railSearch}
+                    placeholder={getUiString('dataApps.lineage.search')}
+                    aria-label={getUiString('dataApps.lineage.search')}
+                    leftSection={<MantineIcon icon={IconSearch} size={14} />}
+                    value={search}
+                    onChange={(e) => setSearch(e.currentTarget.value)}
+                />
                 <ScrollArea flex={1}>
-                    <Stack gap={2} p="xs">
-                        {pipelines.length === 0 && (
+                    <Stack gap={0} p={4}>
+                        {visible.length === 0 && (
                             <Text fz="xs" c="dimmed" p="xs">
-                                {getUiString('dataApps.lineage.empty')}
+                                {getUiString(
+                                    pipelines.length === 0
+                                        ? 'dataApps.lineage.empty'
+                                        : 'dataApps.lineage.noMatches',
+                                )}
                             </Text>
                         )}
-                        {[...pipelines].reverse().map((pipeline) => (
+                        {visible.map((pipeline) => (
                             <PipelineRailItem
                                 key={pipeline.id}
                                 pipeline={pipeline}
