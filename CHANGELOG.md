@@ -1,3 +1,12 @@
+## [3.118.2](https://github.com/lightdash/lightdash/compare/3.118.1...3.118.2) (2026-11-02)
+
+
+### Bug Fixes
+
+* **ai-agents:** keep the trailing slash in OAuth MCP protected-resource discovery ([#31904](https://github.com/lightdash/lightdash/issues/31904)) ([3bc6fc9](https://github.com/lightdash/lightdash/commit/3bc6fc9347ce058f0489e3bd932960b9af016c68))
+* **ai:** apply project Tables configuration to agent explores ([#31906](https://github.com/lightdash/lightdash/issues/31906)) ([e5533d3](https://github.com/lightdash/lightdash/commit/e5533d38817326978d06e03ef8713850cc1ab274))
+* **exports:** warn when cell limit truncates flat CSV and Excel exports ([#31905](https://github.com/lightdash/lightdash/issues/31905)) ([1bf8917](https://github.com/lightdash/lightdash/commit/1bf8917afa499fb214c07c114a76990aca4ae0dc))
+
 ## [3.118.1](https://github.com/lightdash/lightdash/compare/3.118.0...3.118.1) (2026-11-02)
 
 
