@@ -26,7 +26,10 @@ import {
 import type { ZodType } from 'zod';
 import { EMPTY_QUERY_GUIDANCE } from '../decisions/queryReview';
 import type { QueryReviewer } from '../decisions/queryReview';
-import type { SearchFieldValuesFn } from '../types/aiAgentDependencies';
+import type {
+    ComposerNodeStatus,
+    SearchFieldValuesFn,
+} from '../types/aiAgentDependencies';
 import { AgentContext } from '../utils/AgentContext';
 import { getSlackTablePreviews } from '../utils/slackTablePreviews';
 import { mockOrdersExplore } from '../utils/validationExplore.mock';
@@ -240,13 +243,14 @@ const readyNode = (
     error: null,
     rowCount,
     columns,
+    sample: null,
 });
 
 const unsettledNode = (
     nodeId: string,
     state: QueryHistoryStatus,
     error: string | null = null,
-) => ({ nodeId, state, error, rowCount: null, columns: null });
+) => ({ nodeId, state, error, rowCount: null, columns: null, sample: null });
 
 const revenueColumns: ResultColumns = {
     payments_month: { reference: 'payments_month', type: DimensionType.DATE },
@@ -255,6 +259,33 @@ const revenueColumns: ResultColumns = {
         type: DimensionType.NUMBER,
     },
 };
+
+const signupsColumns: ResultColumns = {
+    month: { reference: 'month', type: DimensionType.STRING },
+    signups: { reference: 'signups', type: DimensionType.NUMBER },
+};
+
+// What a node sample read returns, by node id.
+const nodeSamples: Record<string, Record<string, unknown>[]> = {
+    revenue: [
+        { payments_month: '2026-01-01', payments_total_revenue: 100 },
+        { payments_month: '2026-02-01', payments_total_revenue: 120 },
+    ],
+    signups: [{ month: '2026-01', signups: 12 }],
+};
+
+// The run reads a sample only for the node ids it is asked to sample.
+const withRequestedSamples = (
+    nodeStatuses: ComposerNodeStatus[],
+    sampleNodeIds: string[],
+) =>
+    nodeStatuses.map((status) => ({
+        ...status,
+        sample:
+            sampleNodeIds.includes(status.nodeId) && status.rowCount !== null
+                ? (nodeSamples[status.nodeId] ?? null)
+                : null,
+    }));
 
 const defaultRunResult = {
     status: 'success' as const,
@@ -286,7 +317,7 @@ const defaultRunResult = {
     },
     nodeStatuses: [
         readyNode('revenue', 12, revenueColumns),
-        readyNode('signups', 12),
+        readyNode('signups', 12, signupsColumns),
         readyNode('joined', 1),
     ],
 };
@@ -331,13 +362,22 @@ const makeTool = ({
         runComposerQueries: vi
             .fn()
             .mockImplementation(
-                async ({ queries }: { queries: SourceQuery[] }) => ({
+                async ({
+                    queries,
+                    sampleNodeIds,
+                }: {
+                    queries: SourceQuery[];
+                    sampleNodeIds: string[];
+                }) => ({
                     ...defaultRunResult,
-                    nodeStatuses: queries.map(
-                        ({ nodeId = '' }) =>
-                            defaultRunResult.nodeStatuses.find(
-                                (status) => status.nodeId === nodeId,
-                            ) ?? readyNode(nodeId, 1),
+                    nodeStatuses: withRequestedSamples(
+                        queries.map(
+                            ({ nodeId = '' }) =>
+                                defaultRunResult.nodeStatuses.find(
+                                    (status) => status.nodeId === nodeId,
+                                ) ?? readyNode(nodeId, 1),
+                        ),
+                        sampleNodeIds,
                     ),
                 }),
             ),
@@ -400,6 +440,7 @@ describe('getRunComposerQueries', () => {
                 expect.objectContaining({ nodeId: 'joined' }),
             ],
             terminalNodeId: 'joined',
+            sampleNodeIds: expect.any(Array),
             onNodeStatus: expect.any(Function),
         });
         expect(successMetadata(output)).toEqual({
@@ -417,7 +458,16 @@ describe('getRunComposerQueries', () => {
                 'Composer query complete. Terminal node "joined" returned 1 rows.',
                 'Nodes in this pipeline:',
                 '- revenue: "Revenue by month" (semanticLayer): 12 rows, limit 500.',
+                '  Columns: payments_month (date), payments_total_revenue (number)',
+                '  Sample, 2 of 12 rows:',
+                '  payments_month,payments_total_revenue',
+                '  2026-01-01,100',
+                '  2026-02-01,120',
                 '- signups: "Signups by month" (sql): 12 rows, limit 500.',
+                '  Columns: month (string), signups (number)',
+                '  Sample, 1 of 12 rows:',
+                '  month,signups',
+                '  2026-01,12',
                 '- joined: "Revenue vs signups" (duckdb): 1 rows, limit 500.',
                 'Terminal columns: month (string), signups (number).',
             ].join('\n'),
@@ -437,6 +487,11 @@ describe('getRunComposerQueries', () => {
                     sourceType: QuerySourceType.SEMANTIC_LAYER,
                     rowCount: 12,
                     limit: 500,
+                    columns: [
+                        { reference: 'payments_month', type: 'date' },
+                        { reference: 'payments_total_revenue', type: 'number' },
+                    ],
+                    sample: nodeSamples.revenue,
                 },
                 {
                     nodeId: 'signups',
@@ -444,6 +499,11 @@ describe('getRunComposerQueries', () => {
                     sourceType: QuerySourceType.SQL,
                     rowCount: 12,
                     limit: 500,
+                    columns: [
+                        { reference: 'month', type: 'string' },
+                        { reference: 'signups', type: 'number' },
+                    ],
+                    sample: nodeSamples.signups,
                 },
                 {
                     nodeId: 'joined',
@@ -451,6 +511,8 @@ describe('getRunComposerQueries', () => {
                     sourceType: QuerySourceType.DUCKDB,
                     rowCount: 1,
                     limit: 500,
+                    columns: null,
+                    sample: null,
                 },
             ],
             columns: [
@@ -489,7 +551,7 @@ describe('getRunComposerQueries', () => {
         );
     });
 
-    it('defaults the terminal node to the unique sink', async () => {
+    it('defaults the terminal node to the unread node', async () => {
         const { tool, dependencies } = makeTool({ autoApproveSql: true });
 
         await executeTool(
@@ -507,20 +569,37 @@ describe('getRunComposerQueries', () => {
         );
     });
 
-    it('requires an explicit terminal node when the pipeline has multiple sinks', async () => {
-        const { tool, dependencies } = makeTool({ autoApproveSql: true });
+    it.each([null, 'revenue'])(
+        'rejects several unread nodes before anything runs, with terminalNodeId %s',
+        async (terminalNodeId) => {
+            const { tool, dependencies } = makeTool({ autoApproveSql: true });
 
-        const output = await executeTool(
-            tool,
-            makeArgs({
-                queries: [semanticNode, sqlNode],
-                terminalNodeId: null,
-            }),
+            const output = await executeTool(
+                tool,
+                makeArgs({ queries: [semanticNode, sqlNode], terminalNodeId }),
+            );
+
+            expect(output.metadata?.status).toBe('error');
+            expect(output.result).toContain(
+                "A pipeline returns one node's rows, and no node reads revenue, signups. Combine them in one duckdb node (UNION ALL or JOIN), or submit them in separate calls; a later call can read any node from an earlier call by node id.",
+            );
+            expect(dependencies.runComposerQueries).not.toHaveBeenCalled();
+        },
+    );
+
+    it('treats several unread nodes and an unknown terminal node as agent input errors', () => {
+        const submitted = asSubmitted([semanticNode, sqlNode]);
+
+        expect(() => resolveTerminalNodeId(submitted, null, submitted)).toThrow(
+            ParameterError,
         );
-
-        expect(output.metadata?.status).toBe('error');
-        expect(output.result).toContain('terminalNodeId');
-        expect(dependencies.runComposerQueries).not.toHaveBeenCalled();
+        expect(() =>
+            resolveTerminalNodeId(
+                asSubmitted([semanticNode]),
+                'missing',
+                asSubmitted([semanticNode]),
+            ),
+        ).toThrow(ParameterError);
     });
 
     it('rejects sql nodes when SQL execution is disabled without asking for approval', async () => {
@@ -584,6 +663,7 @@ describe('getRunComposerQueries', () => {
                 },
             ],
             terminalNodeId: 'targets',
+            sampleNodeIds: expect.any(Array),
             onNodeStatus: expect.any(Function),
         });
         expect(dependencies.waitForSqlApproval).not.toHaveBeenCalled();
@@ -612,6 +692,7 @@ describe('getRunComposerQueries', () => {
                 composedNode,
             ],
             terminalNodeId: 'joined',
+            sampleNodeIds: expect.any(Array),
             onNodeStatus: expect.any(Function),
         });
         expect(dependencies.waitForSqlApproval).not.toHaveBeenCalled();
@@ -729,7 +810,14 @@ describe('getRunComposerQueries', () => {
             true,
         );
         expect(failed.result).toContain(
-            'Composer query failed.\nSaved from this call: revenue. Not saved: signups (failed: relation "raw.users" does not exist), joined (not run: reads signups).',
+            [
+                'Composer query failed.',
+                'Nodes in this pipeline, failed nodes first. A later call can read any node with rows by node id:',
+                '- signups: "Signups by month" (sql): failed: relation "raw.users" does not exist',
+                '- revenue: "Revenue by month" (semanticLayer): 12 rows, limit 500.',
+                '  Columns: payments_month (date), payments_total_revenue (number)',
+                '- joined: "Revenue vs signups" (duckdb): not run: reads signups',
+            ].join('\n'),
         );
         expect(registry.nodes('thread-uuid').map((n) => n.nodeId)).toEqual([
             'revenue',
@@ -762,7 +850,7 @@ describe('getRunComposerQueries', () => {
         );
     });
 
-    it('does not register a side sink that has not finished when the terminal is ready', async () => {
+    it('does not register a node that has not finished when the terminal it reads is ready', async () => {
         const { tool, dependencies, registry } = makeTool({
             autoApproveSql: true,
         });
@@ -770,14 +858,17 @@ describe('getRunComposerQueries', () => {
             ...defaultRunResult,
             nodeStatuses: [
                 readyNode('revenue', 12, revenueColumns),
-                unsettledNode('signups', QueryHistoryStatus.EXECUTING),
+                unsettledNode('joined', QueryHistoryStatus.EXECUTING),
             ],
         });
 
         const output = await executeTool(
             tool,
             makeArgs({
-                queries: [semanticNode, sqlNode],
+                queries: [
+                    semanticNode,
+                    { ...duckdbNode, references: ['revenue'] },
+                ],
                 terminalNodeId: 'revenue',
             }),
         );
@@ -803,7 +894,13 @@ describe('getRunComposerQueries', () => {
         const output = await executeTool(tool, makeArgs());
 
         expect(output.result).toContain(
-            'Composer query timed out after 5 minutes.\nSaved from this call: revenue. Not saved: signups (not finished: executing), joined (not run: reads signups).',
+            [
+                'Composer query timed out after 5 minutes.',
+                'Nodes in this pipeline, failed nodes first. A later call can read any node with rows by node id:',
+                '- revenue: "Revenue by month" (semanticLayer): 12 rows, limit 500.',
+                '- signups: "Signups by month" (sql): not finished: executing',
+                '- joined: "Revenue vs signups" (duckdb): not run: reads signups',
+            ].join('\n'),
         );
     });
 
@@ -996,6 +1093,74 @@ describe('getRunComposerQueries', () => {
         );
         expect(output.result).not.toContain('query-');
     });
+
+    it('shows node columns but no node samples when data access is disabled', async () => {
+        const { tool } = makeTool({
+            autoApproveSql: true,
+            enableDataAccess: false,
+        });
+
+        const output = await executeTool(tool, makeArgs());
+
+        expect(output.result).toContain(
+            [
+                '- revenue: "Revenue by month" (semanticLayer): 12 rows, limit 500.',
+                '  Columns: payments_month (date), payments_total_revenue (number)',
+                '- signups: "Signups by month" (sql): 12 rows, limit 500.',
+                '  Columns: month (string), signups (number)',
+                '- joined: "Revenue vs signups" (duckdb): 1 rows, limit 500.',
+            ].join('\n'),
+        );
+        expect(output.result).not.toContain('Sample');
+        expect(
+            output.structuredContent &&
+                'nodes' in output.structuredContent &&
+                output.structuredContent.nodes.map(({ sample }) => sample),
+        ).toEqual([null, null, null]);
+    });
+
+    it('lists a failed join first with its error, then the saved nodes it reads with columns and samples', async () => {
+        const { tool, dependencies } = makeTool({ autoApproveSql: true });
+        dependencies.runComposerQueries.mockImplementationOnce(
+            async ({ sampleNodeIds }: { sampleNodeIds: string[] }) => ({
+                status: 'failure',
+                error: 'Composer query failed.',
+                nodeStatuses: withRequestedSamples(
+                    [
+                        readyNode('revenue', 12, revenueColumns),
+                        readyNode('signups', 12, signupsColumns),
+                        unsettledNode(
+                            'joined',
+                            QueryHistoryStatus.ERROR,
+                            'Binder Error: Referenced column "product_code" not found',
+                        ),
+                    ],
+                    sampleNodeIds,
+                ),
+            }),
+        );
+
+        const output = await executeTool(tool, makeArgs());
+
+        expect(output.metadata?.status).toBe('error');
+        expect(output.result).toContain(
+            [
+                'Nodes in this pipeline, failed nodes first. A later call can read any node with rows by node id:',
+                '- joined: "Revenue vs signups" (duckdb): failed: Binder Error: Referenced column "product_code" not found',
+                '- revenue: "Revenue by month" (semanticLayer): 12 rows, limit 500.',
+                '  Columns: payments_month (date), payments_total_revenue (number)',
+                '  Sample, 2 of 12 rows:',
+                '  payments_month,payments_total_revenue',
+                '  2026-01-01,100',
+                '  2026-02-01,120',
+                '- signups: "Signups by month" (sql): 12 rows, limit 500.',
+                '  Columns: month (string), signups (number)',
+                '  Sample, 1 of 12 rows:',
+                '  month,signups',
+                '  2026-01,12',
+            ].join('\n'),
+        );
+    });
 });
 
 const ordersNode: ThreadComposerQueryNode = {
@@ -1138,7 +1303,10 @@ describe('composer artifact with reused nodes', () => {
         );
 
         expect(output.result).toContain(
-            'Not saved: orders (failed: boom; still saved from an earlier call), summary (not run: reads orders).',
+            [
+                '- orders: "Orders by customer" (semanticLayer): failed: boom; still saved from an earlier call',
+                '- summary: "Spend summary" (duckdb): not run: reads orders',
+            ].join('\n'),
         );
     });
 
@@ -1199,9 +1367,9 @@ describe('composer artifact with reused nodes', () => {
             [
                 'Composer query complete. Terminal node "summary" returned 1 rows.',
                 'Nodes in this pipeline:',
-                '- orders: "Orders by customer" (semanticLayer): 1 rows, limit 500.',
-                '- customers: "Customers" (semanticLayer): 1 rows, limit 500.',
-                '- enriched: "Orders with customer names" (duckdb): 1 rows, limit 500.',
+                '- orders: "Orders by customer" (semanticLayer): 1 rows, limit 500. Reused from an earlier call.',
+                '- customers: "Customers" (semanticLayer): 1 rows, limit 500. Reused from an earlier call.',
+                '- enriched: "Orders with customer names" (duckdb): 1 rows, limit 500. Reused from an earlier call.',
                 '- summary: "Spend summary" (duckdb): 1 rows, limit 500.',
                 'Terminal columns: total (number).',
             ].join('\n'),
@@ -1229,14 +1397,73 @@ describe('composer artifact with reused nodes', () => {
         ]);
     });
 
-    it('can present a reused node named as the terminal node', async () => {
-        const { stored } = await runReuse({
+    it('can present a reused node named as the terminal node, shown in full', async () => {
+        const { stored, output } = await runReuse({
             queries: [readerNode({ o: 'enriched' })],
             threadNodes: enrichedPipeline,
             terminalNodeId: 'enriched',
         });
 
         expect(stored?.terminalNodeId).toBe('enriched');
+        expect(output.result).toContain(
+            'Terminal node "enriched" returned 1 rows.',
+        );
+        expect(output.result).toContain('Terminal columns: total (number).');
+        expect(output.result).toContain('```csv\ntotal\n3');
+    });
+
+    it('lists a reused node as one line, with its columns when a failed node reads it', async () => {
+        const ordersColumns: ResultColumns = {
+            orders_customer_id: {
+                reference: 'orders_customer_id',
+                type: DimensionType.NUMBER,
+            },
+        };
+        const runWith = async (summary: ComposerNodeStatus) => {
+            const { tool, dependencies } = makeTool({
+                registry: makeNodeRegistry(enrichedPipeline),
+            });
+            const nodeStatuses = [
+                readyNode('orders', 7, ordersColumns),
+                summary,
+            ];
+            dependencies.runComposerQueries.mockResolvedValueOnce(
+                summary.state === QueryHistoryStatus.READY
+                    ? { ...defaultRunResult, nodeStatuses }
+                    : {
+                          status: 'failure',
+                          error: 'Composer query failed.',
+                          nodeStatuses,
+                      },
+            );
+            return executeTool(
+                tool,
+                makeArgs({ queries: [readerNode({ o: 'orders' })] }),
+            );
+        };
+
+        const succeeded = await runWith(readyNode('summary', 1));
+        const failed = await runWith(
+            unsettledNode(
+                'summary',
+                QueryHistoryStatus.ERROR,
+                'Binder Error: Referenced column "customer_id" not found',
+            ),
+        );
+
+        expect(succeeded.result).toContain(
+            [
+                '- orders: "Orders by customer" (semanticLayer): 7 rows, limit 500. Reused from an earlier call.',
+                '- summary: "Spend summary" (duckdb): 1 rows, limit 500.',
+            ].join('\n'),
+        );
+        expect(failed.result).toContain(
+            [
+                '- summary: "Spend summary" (duckdb): failed: Binder Error: Referenced column "customer_id" not found',
+                '- orders: "Orders by customer" (semanticLayer): 7 rows, limit 500. Reused from an earlier call.',
+                '  Columns: orders_customer_id (number)',
+            ].join('\n'),
+        );
     });
 
     it('accepts an unchanged earlier node resubmitted under its node id', async () => {
@@ -1400,7 +1627,7 @@ describe('python composer nodes', () => {
                 null,
                 [],
             ),
-        ).toThrow('2 sinks');
+        ).toThrow('no node reads revenue, forecast');
     });
 
     it('offers the python node in the input schema only when enabled', () => {
@@ -1478,7 +1705,9 @@ describe('python composer nodes', () => {
         );
 
         expect(output.metadata?.status).toBe('error');
-        expect(output.result).toContain('forecast (failed: run() raised:');
+        expect(output.result).toContain(
+            '- forecast: "Revenue forecast" (python): failed: run() raised:',
+        );
         expect(output.result).toContain("KeyError: 'amount'");
     });
 });
@@ -1776,7 +2005,6 @@ describe('semanticLayer node filters', () => {
         it('keeps the diagnosis when no semanticLayer node feeds the empty terminal', async () => {
             const searchFieldValues = vi.fn().mockResolvedValue(['Alice']);
             const output = await emptyTool(searchFieldValues, [
-                filteredNode,
                 sqlNode,
                 { ...duckdbNode, references: ['signups'] },
             ]).run('joined');
