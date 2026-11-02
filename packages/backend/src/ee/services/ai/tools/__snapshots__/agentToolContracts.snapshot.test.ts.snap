@@ -18826,7 +18826,7 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
                     "type": "string",
                   },
                   "sql": {
-                    "description": "DuckDB SQL over the tables "references" exposes. Write each column alias with AS, because DuckDB rejects many keywords as bare aliases: SUM(v) AS value, d AS day and fam AS label work, SUM(v) value does not. Double-quote a column named after a reserved word, such as "order".",
+                    "description": "DuckDB SQL over the tables "references" exposes. Write each column alias with AS, because DuckDB rejects many keywords as bare aliases: \`SUM(v) AS value\`, \`d AS day\` and \`fam AS label\` work, \`SUM(v) value\` does not. Double-quote a column named after a reserved word, such as \`"order"\`.",
                     "type": "string",
                   },
                   "title": {
@@ -18868,7 +18868,7 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
                     "type": "string",
                   },
                   "sql": {
-                    "description": "DuckDB SQL over the tables "tables" declares. Write each column alias with AS, because DuckDB rejects many keywords as bare aliases: SUM(v) AS value, d AS day and fam AS label work, SUM(v) value does not. Double-quote a column named after a reserved word, such as "order".",
+                    "description": "DuckDB SQL over the tables "tables" declares. Write each column alias with AS, because DuckDB rejects many keywords as bare aliases: \`SUM(v) AS value\`, \`d AS day\` and \`fam AS label\` work, \`SUM(v) value\` does not. Double-quote a column named after a reserved word, such as \`"order"\`.",
                     "type": "string",
                   },
                   "tables": {
