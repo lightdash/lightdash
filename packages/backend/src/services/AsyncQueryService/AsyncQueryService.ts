@@ -253,7 +253,10 @@ import type { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { traceSpan, type TraceSpan } from '../../tracing/tracing';
 import { wrapSentryTransaction } from '../../utils';
 import { isAiServiceAccountPermissionError } from '../../utils/aiServiceAccountErrors';
-import { metricQueryWithLimit as applyMetricQueryLimit } from '../../utils/csvLimitUtils';
+import {
+    metricQueryWithLimit as applyMetricQueryLimit,
+    isCellLimitTruncated,
+} from '../../utils/csvLimitUtils';
 import {
     getDuckdbPreAggregateSqlTable,
     getJsonlReferenceSelect,
@@ -3421,8 +3424,37 @@ export class AsyncQueryService extends ProjectService {
                       warehouseGrandTotals: undefined,
                   };
 
+        // Flat exports stream the stored results file as-is, so a cell-limit
+        // cap applied as the query's row limit has to be read from history.
+        const withCellLimitTruncation = async <
+            T extends { truncated: boolean },
+        >(
+            result: T,
+        ): Promise<T> => {
+            if (
+                result.truncated ||
+                queryHistory.metricQuery.exploreName ===
+                    SQL_QUERY_MOCK_EXPLORER_NAME
+            ) {
+                return result;
+            }
+            const { csvCellsLimit } = await resolveOrganizationExportLimits(
+                this.organizationSettingsModel,
+                this.lightdashConfig.query,
+                organizationUuid,
+            );
+            return {
+                ...result,
+                truncated: isCellLimitTruncated({
+                    metricQuery: queryHistory.metricQuery,
+                    totalRowCount: queryHistory.totalRowCount,
+                    csvCellsLimit,
+                }),
+            };
+        };
+
         switch (type) {
-            case DownloadFileType.CSV:
+            case DownloadFileType.CSV: {
                 // Check if this is a pivot table download
                 if (
                     downloadPivotConfig &&
@@ -3457,7 +3489,7 @@ export class AsyncQueryService extends ProjectService {
                         timezone: displayTimezone ?? undefined,
                     });
                 }
-                return this.downloadAsyncQueryResultsAsFormattedFile(
+                const csv = await this.downloadAsyncQueryResultsAsFormattedFile(
                     resultsFileName,
                     queryHistory.context,
                     resultFields,
@@ -3489,6 +3521,8 @@ export class AsyncQueryService extends ProjectService {
                     },
                     displayTimezone ?? undefined,
                 );
+                return withCellLimitTruncation(csv);
+            }
             case DownloadFileType.XLSX: {
                 // Check if this is a pivot table download
                 const isPivotXlsx =
@@ -3582,10 +3616,13 @@ export class AsyncQueryService extends ProjectService {
                             source: 'async_query',
                         },
                     );
+                const { truncated } = isPivotXlsx
+                    ? xlsxResult
+                    : await withCellLimitTruncation(xlsxResult);
                 return {
                     fileUrl: xlsxPersistentUrl,
                     s3FileUrl: xlsxResult.fileUrl,
-                    truncated: xlsxResult.truncated,
+                    truncated,
                 };
             }
             case undefined:
