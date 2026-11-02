@@ -154,9 +154,10 @@ export const selectMissingRequiredParameters = createSelector(
                 ([tileUuid, parameterReferences]) => ({
                     parameterReferences,
                     chartSavedValues: tileChartSavedParameters[tileUuid] ?? {},
+                    dashboardValues: appliedParameterValues,
+                    untargetedKeys: [],
                 }),
             ),
-            dashboardValues: appliedParameterValues,
             definitions: parameterDefinitions,
         }),
 );

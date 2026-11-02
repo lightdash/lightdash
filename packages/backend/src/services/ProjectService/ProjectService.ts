@@ -19608,7 +19608,7 @@ export class ProjectService
         explore,
         dashboardValues,
         chartSavedValues,
-        isTargeted,
+        untargetedKeys,
         preloadedProjectParameters,
     }: DashboardTileParameterInputs & {
         projectUuid: string;
@@ -19624,7 +19624,7 @@ export class ProjectService
             fallbackSources,
             dashboardValues,
             chartSavedValues,
-            isTargeted,
+            untargetedKeys,
         });
     }
 
@@ -19634,7 +19634,7 @@ export class ProjectService
         explores,
         dashboardValues,
         chartSavedValues,
-        isTargeted,
+        untargetedKeys,
     }: DashboardTileParameterInputs & {
         projectUuid: string;
         explores: Explore[];
@@ -19647,7 +19647,7 @@ export class ProjectService
             definitions: getEffectiveParameterDefinitions(definitionSources),
             dashboardValues,
             chartSavedValues,
-            isTargeted,
+            untargetedKeys,
         });
     }
 

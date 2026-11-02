@@ -1355,7 +1355,7 @@ export class EmbedService extends BaseService {
                 ...acceptedUserParameters,
             },
             chartSavedValues: chart.parameters ?? {},
-            isTargeted: true,
+            untargetedKeys: [],
             preloadedProjectParameters: null,
         });
     }
@@ -1863,7 +1863,7 @@ export class EmbedService extends BaseService {
                     ...acceptedUserParameters,
                 },
                 chartSavedValues: chart.parameters ?? {},
-                isTargeted: true,
+                untargetedKeys: [],
                 preloadedProjectParameters: null,
             });
 

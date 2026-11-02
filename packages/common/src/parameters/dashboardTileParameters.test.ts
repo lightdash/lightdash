@@ -8,6 +8,7 @@ import {
     resolveDashboardTileParameters,
     resolveFallbackParameterValues,
     type DashboardParameterStatusInputs,
+    type DashboardTileParameterState,
     type ParameterFallbackSources,
 } from './dashboardTileParameters';
 
@@ -86,7 +87,7 @@ describe('resolveDashboardTileParameters', () => {
             }),
             dashboardValues: dashboard === null ? {} : { status: dashboard },
             chartSavedValues: chartSaved === null ? {} : { status: chartSaved },
-            isTargeted: true,
+            untargetedKeys: [],
         }).status;
 
     it.each([
@@ -132,7 +133,7 @@ describe('resolveDashboardTileParameters', () => {
                     year: '2024',
                     tier: 'silver',
                 },
-                isTargeted: true,
+                untargetedKeys: [],
             }),
         ).toEqual({
             status: 'all',
@@ -150,7 +151,7 @@ describe('resolveDashboardTileParameters', () => {
                 }),
                 dashboardValues: {},
                 chartSavedValues: { status: 'Cancelled' },
-                isTargeted: true,
+                untargetedKeys: [],
             }),
         ).toEqual({ status: 'all' });
     });
@@ -164,7 +165,7 @@ describe('resolveDashboardTileParameters', () => {
                 }),
                 dashboardValues: {},
                 chartSavedValues: { status: 'Cancelled' },
-                isTargeted: true,
+                untargetedKeys: [],
             }),
         ).toEqual({ status: 'Cancelled' });
     });
@@ -178,7 +179,7 @@ describe('resolveDashboardTileParameters', () => {
                 }),
                 dashboardValues: {},
                 chartSavedValues: { status: 'Cancelled' },
-                isTargeted: true,
+                untargetedKeys: [],
             }).status,
         ).toBe('Cancelled');
     });
@@ -192,7 +193,7 @@ describe('resolveDashboardTileParameters', () => {
                 }),
                 dashboardValues: {},
                 chartSavedValues: { status: 'Cancelled' },
-                isTargeted: true,
+                untargetedKeys: [],
             }).status,
         ).toBe('view');
     });
@@ -212,7 +213,7 @@ describe('resolveDashboardTileParameters', () => {
                 }),
                 dashboardValues: {},
                 chartSavedValues: { period_to: '2025-01-01' },
-                isTargeted: true,
+                untargetedKeys: [],
             }),
         ).toEqual({ period_to: '2026-09-18' });
     });
@@ -223,7 +224,7 @@ describe('resolveDashboardTileParameters', () => {
                 fallbackSources: fallbackSources(),
                 dashboardValues: { unknown: 'x' },
                 chartSavedValues: { other: 'y' },
-                isTargeted: true,
+                untargetedKeys: [],
             }),
         ).toEqual({ unknown: 'x', other: 'y' });
     });
@@ -239,7 +240,7 @@ describe('resolveDashboardTileParameters', () => {
                 }),
                 dashboardValues: { status: 'Shipped', region: 'US' },
                 chartSavedValues: { status: 'Cancelled' },
-                isTargeted: false,
+                untargetedKeys: ['status', 'region'],
             }),
         ).toEqual({ status: 'Cancelled', region: 'EU' });
     });
@@ -255,7 +256,7 @@ describe('getDashboardTileParameterOverrides', () => {
                 },
                 dashboardValues: {},
                 chartSavedValues: { status: 'Cancelled', region: 'US' },
-                isTargeted: true,
+                untargetedKeys: [],
             }),
         ).toEqual({ region: 'US' });
     });
@@ -278,7 +279,7 @@ describe('getDashboardTileParameterSource', () => {
             definitions,
             dashboardValues: dashboard === null ? {} : { status: dashboard },
             chartSavedValues: chartSaved === null ? {} : { status: chartSaved },
-            isTargeted,
+            untargetedKeys: isTargeted ? [] : ['status'],
         });
 
     it.each([
@@ -342,7 +343,7 @@ describe('getDashboardTileParameterSource', () => {
             definitions: {},
             dashboardValues: { unknown: 'x' },
             chartSavedValues: { other: 'y' },
-            isTargeted: true,
+            untargetedKeys: [],
         };
         expect(
             getDashboardTileParameterSource({ ...inputs, key: 'unknown' }),
@@ -369,9 +370,10 @@ describe('dashboard parameter status', () => {
                 {
                     parameterReferences: ['status'],
                     chartSavedValues: { status: 'Cancelled' },
+                    dashboardValues: {},
+                    untargetedKeys: [],
                 },
             ],
-            dashboardValues: {},
             definitions,
         };
         expect(getMissingRequiredDashboardParameters(inputs)).toEqual([]);
@@ -379,8 +381,14 @@ describe('dashboard parameter status', () => {
 
     it('flags a key when a referencing tile has no value, default or chart-saved value', () => {
         const inputs: DashboardParameterStatusInputs = {
-            tiles: [{ parameterReferences: ['status'], chartSavedValues: {} }],
-            dashboardValues: {},
+            tiles: [
+                {
+                    parameterReferences: ['status'],
+                    chartSavedValues: {},
+                    dashboardValues: {},
+                    untargetedKeys: [],
+                },
+            ],
             definitions,
         };
         expect(getMissingRequiredDashboardParameters(inputs)).toEqual([
@@ -394,10 +402,16 @@ describe('dashboard parameter status', () => {
                 {
                     parameterReferences: ['currency'],
                     chartSavedValues: { currency: 'EUR' },
+                    dashboardValues: {},
+                    untargetedKeys: [],
                 },
-                { parameterReferences: ['currency'], chartSavedValues: {} },
+                {
+                    parameterReferences: ['currency'],
+                    chartSavedValues: {},
+                    dashboardValues: {},
+                    untargetedKeys: [],
+                },
             ],
-            dashboardValues: {},
             definitions,
         };
         expect(getMissingRequiredDashboardParameters(inputs)).toEqual([]);
@@ -405,8 +419,14 @@ describe('dashboard parameter status', () => {
 
     it('treats a dashboard value as resolving the key for every tile', () => {
         const inputs: DashboardParameterStatusInputs = {
-            tiles: [{ parameterReferences: ['status'], chartSavedValues: {} }],
-            dashboardValues: { status: 'Completed' },
+            tiles: [
+                {
+                    parameterReferences: ['status'],
+                    chartSavedValues: {},
+                    dashboardValues: { status: 'Completed' },
+                    untargetedKeys: [],
+                },
+            ],
             definitions,
         };
         expect(getMissingRequiredDashboardParameters(inputs)).toEqual([]);
@@ -418,13 +438,16 @@ describe('dashboard parameter status', () => {
                 {
                     parameterReferences: ['status', 'region'],
                     chartSavedValues: { status: 'Cancelled', region: 'EU' },
+                    dashboardValues: {},
+                    untargetedKeys: [],
                 },
                 {
                     parameterReferences: ['status', 'region'],
                     chartSavedValues: { status: 'Completed' },
+                    dashboardValues: {},
+                    untargetedKeys: [],
                 },
             ],
-            dashboardValues: {},
             definitions,
         };
         expect(getMissingRequiredDashboardParameters(inputs)).toEqual([
@@ -438,13 +461,16 @@ describe('dashboard parameter status', () => {
                 {
                     parameterReferences: ['status', 'date_zoom'],
                     chartSavedValues: {},
+                    dashboardValues: {},
+                    untargetedKeys: [],
                 },
                 {
                     parameterReferences: [],
                     chartSavedValues: { status: 'Cancelled' },
+                    dashboardValues: {},
+                    untargetedKeys: [],
                 },
             ],
-            dashboardValues: {},
             definitions,
         };
         expect(getMissingRequiredDashboardParameters(inputs)).toEqual([
@@ -523,7 +549,7 @@ describe("values outside a parameter's fixed options", () => {
                 }),
                 dashboardValues: { zoom: 'true' },
                 chartSavedValues: {},
-                isTargeted: true,
+                untargetedKeys: [],
             }),
         ).toEqual({ zoom: 'monthly' });
     });
@@ -533,7 +559,7 @@ describe("values outside a parameter's fixed options", () => {
             definitions,
             dashboardValues: { region: 'apac' },
             chartSavedValues: { region: 'eu' },
-            isTargeted: true,
+            untargetedKeys: [],
         };
         expect(getDashboardTileParameterOverrides(inputs)).toEqual({
             region: 'eu',
@@ -549,7 +575,7 @@ describe("values outside a parameter's fixed options", () => {
                 definitions,
                 dashboardValues: {},
                 chartSavedValues: { region: 'apac' },
-                isTargeted: false,
+                untargetedKeys: ['region'],
             }),
         ).toEqual({});
     });
@@ -569,14 +595,129 @@ describe("values outside a parameter's fixed options", () => {
         expect(
             getMissingRequiredDashboardParameters({
                 definitions,
-                dashboardValues: { region: 'apac' },
                 tiles: [
                     {
                         parameterReferences: ['region'],
                         chartSavedValues: { region: 'latam' },
+                        dashboardValues: { region: 'apac' },
+                        untargetedKeys: [],
                     },
                 ],
             }),
         ).toEqual(['region']);
+    });
+});
+
+describe('untargeted keys', () => {
+    const definitions: ParameterDefinitions = {
+        status: { label: 'Status' },
+        region: { label: 'Region' },
+    };
+
+    it('uses the chart-saved value for an untargeted key and the dashboard value for the rest', () => {
+        const inputs = {
+            definitions,
+            dashboardValues: { status: 'Shipped', region: 'US' },
+            chartSavedValues: { status: 'Cancelled', region: 'EU' },
+            untargetedKeys: ['status'],
+        };
+        expect(getDashboardTileParameterOverrides(inputs)).toEqual({
+            status: 'Cancelled',
+            region: 'US',
+        });
+        expect(
+            getDashboardTileParameterSource({ ...inputs, key: 'status' }),
+        ).toBe(DashboardTileParameterSource.CHART);
+        expect(
+            getDashboardTileParameterSource({ ...inputs, key: 'region' }),
+        ).toBe(DashboardTileParameterSource.DASHBOARD);
+    });
+
+    it.each([
+        [statusWithDefault, 'all'],
+        [statusWithoutDefault, undefined],
+    ])(
+        'falls back for an untargeted key without a chart value (definitions %o resolve %s)',
+        (exploreDefinitions, expected) => {
+            expect(
+                resolveDashboardTileParameters({
+                    fallbackSources: fallbackSources({ exploreDefinitions }),
+                    dashboardValues: { status: 'Shipped' },
+                    chartSavedValues: {},
+                    untargetedKeys: ['status'],
+                }).status,
+            ).toBe(expected);
+        },
+    );
+
+    it('flags a key resolved on one tile but missing on an untargeted tile', () => {
+        expect(
+            getMissingRequiredDashboardParameters({
+                definitions,
+                tiles: [
+                    {
+                        parameterReferences: ['status'],
+                        chartSavedValues: {},
+                        dashboardValues: { status: 'Shipped' },
+                        untargetedKeys: [],
+                    },
+                    {
+                        parameterReferences: ['status'],
+                        chartSavedValues: {},
+                        dashboardValues: { status: 'Shipped' },
+                        untargetedKeys: ['status'],
+                    },
+                ],
+            }),
+        ).toEqual(['status']);
+    });
+
+    it('does not flag an untargeted key with a definition default', () => {
+        expect(
+            getMissingRequiredDashboardParameters({
+                definitions: statusWithDefault,
+                tiles: [
+                    {
+                        parameterReferences: ['status'],
+                        chartSavedValues: {},
+                        dashboardValues: {},
+                        untargetedKeys: ['status'],
+                    },
+                ],
+            }),
+        ).toEqual([]);
+    });
+
+    it('resolves each tile with its own dashboard values', () => {
+        const tile = (status: string | null): DashboardTileParameterState => ({
+            parameterReferences: ['status'],
+            chartSavedValues: {},
+            dashboardValues: status === null ? {} : { status },
+            untargetedKeys: [],
+        });
+        expect(
+            getDashboardTileParameterOverrides({
+                ...tile('Shipped'),
+                definitions,
+            }),
+        ).toEqual({ status: 'Shipped' });
+        expect(
+            getDashboardTileParameterOverrides({
+                ...tile('Cancelled'),
+                definitions,
+            }),
+        ).toEqual({ status: 'Cancelled' });
+        expect(
+            getMissingRequiredDashboardParameters({
+                definitions,
+                tiles: [tile('Shipped'), tile('Cancelled')],
+            }),
+        ).toEqual([]);
+        expect(
+            getMissingRequiredDashboardParameters({
+                definitions,
+                tiles: [tile('Shipped'), tile(null)],
+            }),
+        ).toEqual(['status']);
     });
 });
