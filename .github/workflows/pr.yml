@@ -2,7 +2,7 @@ name: PR Checks
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch:
 
 concurrency:
@@ -290,12 +290,12 @@ jobs:
     outputs:
       # Rainbow builds a preview for same-repo PRs only; forks get no preview
       # and no E2E suites (they would have no secrets anyway).
-      preview: ${{ github.event.pull_request.head.repo.full_name == github.repository && ((steps.changes.outputs.preview == 'true' && github.event.pull_request.user.login != 'lightdash-renovate-bot[bot]' && !startsWith(github.event.pull_request.title, 'docs')) || contains(github.event.pull_request.body, 'deploy-preview') || contains(github.event.pull_request.body, 'test-all')) }}
-      frontend: ${{ steps.changes.outputs.frontend == 'true' || contains(github.event.pull_request.body, 'test-frontend') || contains(github.event.pull_request.body, 'test-all') }}
-      backend: ${{ steps.changes.outputs.backend == 'true' || contains(github.event.pull_request.body, 'test-backend') || contains(github.event.pull_request.body, 'test-all') }}
+      preview: ${{ (github.event.pull_request.draft != true || contains(github.event.pull_request.body, 'test-all')) && (github.event.pull_request.head.repo.full_name == github.repository && ((steps.changes.outputs.preview == 'true' && github.event.pull_request.user.login != 'lightdash-renovate-bot[bot]' && !startsWith(github.event.pull_request.title, 'docs')) || contains(github.event.pull_request.body, 'deploy-preview') || contains(github.event.pull_request.body, 'test-all'))) }}
+      frontend: ${{ (github.event.pull_request.draft != true || contains(github.event.pull_request.body, 'test-all')) && (steps.changes.outputs.frontend == 'true' || contains(github.event.pull_request.body, 'test-frontend') || contains(github.event.pull_request.body, 'test-all')) }}
+      backend: ${{ (github.event.pull_request.draft != true || contains(github.event.pull_request.body, 'test-all')) && (steps.changes.outputs.backend == 'true' || contains(github.event.pull_request.body, 'test-backend') || contains(github.event.pull_request.body, 'test-all')) }}
       api_schema: ${{ steps.changes.outputs.api_schema == 'true' }}
-      timezone: ${{ steps.changes.outputs.timezone == 'true' || contains(github.event.pull_request.body, 'test-timezone') || contains(github.event.pull_request.body, 'test-all') }}
-      cli: ${{ steps.changes.outputs.cli == 'true' || contains(github.event.pull_request.body, 'test-cli') || contains(github.event.pull_request.body, 'test-all') }}
+      timezone: ${{ (github.event.pull_request.draft != true || contains(github.event.pull_request.body, 'test-all')) && (steps.changes.outputs.timezone == 'true' || contains(github.event.pull_request.body, 'test-timezone') || contains(github.event.pull_request.body, 'test-all')) }}
+      cli: ${{ (github.event.pull_request.draft != true || contains(github.event.pull_request.body, 'test-all')) && (steps.changes.outputs.cli == 'true' || contains(github.event.pull_request.body, 'test-cli') || contains(github.event.pull_request.body, 'test-all')) }}
     steps:
       - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
@@ -372,6 +372,7 @@ jobs:
           script: |
             const marker = '<!-- test-selection-comment -->';
 
+            const draftSkip = ${{ github.event.pull_request.draft == true && !contains(github.event.pull_request.body, 'test-all') }};
             const tests = [
               {
                 name: 'Preview Environment',
@@ -420,7 +421,9 @@ jobs:
             }
 
             if (unselectedTests.length > 0) {
-              body += `### ⏭️ Tests skipped (no relevant file changes detected)\n`;
+              body += draftSkip
+                ? `### ⏭️ Tests skipped (draft PR: they run once it is marked ready for review)\n`
+                : `### ⏭️ Tests skipped (no relevant file changes detected)\n`;
               body += `| Test | How to trigger manually |\n|------|-------------------------|\n`;
               for (const test of unselectedTests) {
                 body += `| ${test.name} | Add \`${test.trigger}\` to PR description |\n`;
