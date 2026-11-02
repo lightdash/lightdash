@@ -7,7 +7,10 @@ import {
     type UiStringKey,
     type UUID,
 } from '@lightdash/common';
-import { type SdkFilter } from '../../features/embed/EmbedDashboard/types';
+import {
+    type EmbedChartSaveDashboard,
+    type SdkFilter,
+} from '../../features/embed/EmbedDashboard/types';
 import {
     type ChartSavedAction,
     type DispatchEmbedEvent,
@@ -73,6 +76,8 @@ export interface EmbedContext {
     // Called after a chart is created or updated from an embedded Explore. The
     // dashboard builder uses this to update its chart editor state.
     onChartSaved?: (chart: SavedChart, action: ChartSavedAction) => void;
+    // The dashboard the embedded dashboard builder saves new charts into
+    chartSaveDashboard?: EmbedChartSaveDashboard;
     // Sends an embed event to the SDK host's onEvent, or as a DOM/postMessage event
     dispatchEmbedEvent: DispatchEmbedEvent;
     isEmbedEventReady: boolean;
