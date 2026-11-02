@@ -14,7 +14,7 @@ Use the repository's mapped triage vocabulary. See `docs/agents/triage-labels.md
 
 ### Domain docs
 
-This is a multi-context repository rooted at `CONTEXT-MAP.md`. See `docs/agents/domain.md`.
+`CONTEXT-MAP.md` lists per-feature glossaries of canonical domain terms. Before writing code, docs, or UI copy for a feature area that has a glossary, read it and use its canonical terms. Details in `docs/agents/domain.md`.
 
 ## Area guides
 
@@ -55,12 +55,6 @@ The backend uses two S3 endpoint settings:
 
 When the backend creates a presigned URL for browser-direct upload, it uses `S3_PUBLIC_ENDPOINT` (falling back to `S3_ENDPOINT`) as the signing endpoint. See `parseBaseS3Config()` in `packages/backend/src/config/parseConfig.ts`.
 
-## Domain Glossaries
-
-`CONTEXT-MAP.md` lists per-feature glossaries of canonical domain terms (e.g.
-pre-aggregates). Before writing code, docs, or UI copy for a feature area that
-has a glossary, read it and use the canonical terms — never the `_Avoid_`
-aliases.
 
 ## Common Development Commands
 
