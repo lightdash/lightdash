@@ -597,7 +597,13 @@ export class ScheduledContentCoder extends BaseService {
                 | AlertAsCode
                 | GoogleSheetsSyncAsCode,
         ) => {
-            const { downloadedAt, ...rest } = scheduledContent;
+            const { downloadedAt, ...content } = scheduledContent;
+            // Files written before these settings existed omit them.
+            const rest = {
+                ...content,
+                plainTextEmail: content.plainTextEmail ?? false,
+                useCachedResults: content.useCachedResults ?? false,
+            };
             if ('targets' in rest) {
                 return {
                     ...rest,
