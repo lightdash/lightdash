@@ -8169,6 +8169,10 @@
                         },
                         "type": "array"
                     },
+                    "useCachedResults": {
+                        "type": "boolean",
+                        "description": "Optional so files written before this setting still upload."
+                    },
                     "plainTextEmail": {
                         "type": "boolean",
                         "description": "Optional so files written before plain-text mode still upload."
@@ -8479,6 +8483,10 @@
                         },
                         "type": "array"
                     },
+                    "useCachedResults": {
+                        "type": "boolean",
+                        "description": "Optional so files written before this setting still upload."
+                    },
                     "plainTextEmail": {
                         "type": "boolean",
                         "description": "Optional so files written before plain-text mode still upload."
@@ -8599,6 +8607,10 @@
                             "spreadsheetId"
                         ],
                         "type": "object"
+                    },
+                    "useCachedResults": {
+                        "type": "boolean",
+                        "description": "Optional so files written before this setting still upload."
                     },
                     "plainTextEmail": {
                         "type": "boolean",
@@ -24302,6 +24314,10 @@
                         "type": "string",
                         "nullable": true
                     },
+                    "useCachedResults": {
+                        "type": "boolean",
+                        "description": "Read query results from the results cache when a valid entry exists,\ninstead of always running a fresh warehouse query."
+                    },
                     "plainTextEmail": {
                         "type": "boolean",
                         "description": "Email targets only: send a bare text/plain email (no HTML template, no\nLightdash branding) with the file attached. Slack and webhook targets are\nunaffected."
@@ -24397,6 +24413,7 @@
                     }
                 },
                 "required": [
+                    "useCachedResults",
                     "plainTextEmail",
                     "includeLinks",
                     "enabled",
@@ -55579,6 +55596,9 @@
                     "plainTextEmail": {
                         "type": "boolean"
                     },
+                    "useCachedResults": {
+                        "type": "boolean"
+                    },
                     "format": {
                         "$ref": "#/components/schemas/SchedulerFormat"
                     },
@@ -74786,7 +74806,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.126.1",
+        "version": "3.127.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"

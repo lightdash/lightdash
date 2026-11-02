@@ -7975,6 +7975,7 @@ const models: TsoaRoute.Models = {
                     },
                     required: true,
                 },
+                useCachedResults: { dataType: 'boolean' },
                 plainTextEmail: { dataType: 'boolean' },
                 includeLinks: { dataType: 'boolean', required: true },
                 enabled: { dataType: 'boolean', required: true },
@@ -8268,6 +8269,7 @@ const models: TsoaRoute.Models = {
                     },
                     required: true,
                 },
+                useCachedResults: { dataType: 'boolean' },
                 plainTextEmail: { dataType: 'boolean' },
                 includeLinks: { dataType: 'boolean', required: true },
                 enabled: { dataType: 'boolean', required: true },
@@ -8359,6 +8361,7 @@ const models: TsoaRoute.Models = {
                     },
                     required: true,
                 },
+                useCachedResults: { dataType: 'boolean' },
                 plainTextEmail: { dataType: 'boolean' },
                 includeLinks: { dataType: 'boolean', required: true },
                 enabled: { dataType: 'boolean', required: true },
@@ -22963,6 +22966,7 @@ const models: TsoaRoute.Models = {
                         { dataType: 'enum', enums: [null] },
                     ],
                 },
+                useCachedResults: { dataType: 'boolean', required: true },
                 plainTextEmail: { dataType: 'boolean', required: true },
                 includeLinks: { dataType: 'boolean', required: true },
                 notificationFrequency: { ref: 'NotificationFrequency' },
@@ -60898,6 +60902,13 @@ const models: TsoaRoute.Models = {
                         ],
                     },
                     plainTextEmail: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'boolean' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    useCachedResults: {
                         dataType: 'union',
                         subSchemas: [
                             { dataType: 'boolean' },

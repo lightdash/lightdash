@@ -1,3 +1,10 @@
+# [3.127.0](https://github.com/lightdash/lightdash/compare/3.126.1...3.127.0) (2026-11-02)
+
+
+### Features
+
+* **scheduler:** let deliveries and syncs use cached results ([#31937](https://github.com/lightdash/lightdash/issues/31937)) ([b2a34f0](https://github.com/lightdash/lightdash/commit/b2a34f0dcae803dca04d9da1a83b04f9cb66182d))
+
 ## [3.126.1](https://github.com/lightdash/lightdash/compare/3.126.0...3.126.1) (2026-11-02)
 
 

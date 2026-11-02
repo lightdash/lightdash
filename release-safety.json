@@ -1,14 +1,27 @@
 {
   "schemaVersion": "2",
-  "version": "3.126.1",
-  "previousVersion": "3.126.0",
-  "releaseDate": "2026-11-02T16:56:35.323Z",
+  "version": "3.127.0",
+  "previousVersion": "3.126.1",
+  "releaseDate": "2026-11-02T17:33:13.417Z",
   "migrations": {
-    "present": false,
-    "count": 0,
-    "coreCount": 0,
+    "present": true,
+    "count": 1,
+    "coreCount": 1,
     "eeCount": 0,
-    "files": []
+    "files": [
+      {
+        "name": "20261102120000_add_scheduler_use_cached_results.ts",
+        "edition": "core",
+        "tables": [
+          "scheduler"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": false
+        }
+      }
+    ]
   },
   "compatibility": {
     "rollingUpdateSafe": true,
