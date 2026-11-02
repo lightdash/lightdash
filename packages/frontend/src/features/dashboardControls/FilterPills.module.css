@@ -24,8 +24,33 @@
 }
 
 /* The bar's drag: the overlay carries the copy, the source stays put */
+.barDraggable {
+    position: relative;
+}
+
 .barDraggable[data-dragging] {
     opacity: 0.3;
+}
+
+/* A pill dropped on this one lands on the side the 2px line shows, in the
+   gap, so nothing moves */
+.barDraggable[data-drop]::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    bottom: 2px;
+    width: 2px;
+    border-radius: 1px;
+    background-color: var(--mantine-color-blue-4);
+    pointer-events: none;
+}
+
+.barDraggable[data-drop='before']::after {
+    left: -4px;
+}
+
+.barDraggable[data-drop='after']::after {
+    right: -4px;
 }
 
 /* Inert while a filter is edited: the bar's group, the capsule actions and

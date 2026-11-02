@@ -12,6 +12,7 @@ import {
 import { createAction, type UnknownAction } from '@reduxjs/toolkit';
 import isEqual from 'lodash/isEqual';
 import sortBy from 'lodash/sortBy';
+import { removeSectionKeepingLines } from '../../dashboardControls/sections';
 
 /**
  * An unsaved edit of a saved setting. It applies only while the saved value
@@ -172,6 +173,10 @@ export const dashboardEditActions = {
     moveControlSection: createAction<{ id: string; overId: string }>(
         'dashboardEdit/moveControlSection',
     ),
+    /** The sections in a new order and lines (a drag or a keyboard move on the bar) */
+    arrangeControlSections: createAction<DashboardControlSection[]>(
+        'dashboardEdit/arrangeControlSections',
+    ),
     /** `undefined` removes the key: the section follows the default again */
     setControlSectionCollapsed: createAction<{
         id: string;
@@ -330,9 +335,7 @@ export const dashboardEditReducer = (
     if (dashboardEditActions.removeControlSection.match(action)) {
         return withControlSections(
             state,
-            state.controlSections.filter(
-                (section) => section.id !== action.payload,
-            ),
+            removeSectionKeepingLines(state.controlSections, action.payload),
         );
     }
     if (dashboardEditActions.setControlSectionCollapsed.match(action)) {
@@ -345,6 +348,11 @@ export const dashboardEditReducer = (
                 return collapsed === undefined ? rest : { ...rest, collapsed };
             }),
         );
+    }
+    if (dashboardEditActions.arrangeControlSections.match(action)) {
+        return action.payload === state.controlSections
+            ? state
+            : withControlSections(state, action.payload);
     }
     if (dashboardEditActions.moveControlSection.match(action)) {
         const { id, overId } = action.payload;

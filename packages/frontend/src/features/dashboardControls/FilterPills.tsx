@@ -3,6 +3,7 @@ import {
     DragOverlay,
     PointerSensor,
     useDraggable,
+    useDroppable,
     useSensor,
     useSensors,
     type DragEndEvent,
@@ -80,6 +81,29 @@ const PillDraggable: FC<{
         id,
         disabled: isDisabled,
     });
+    // On the sectioned bar a pill is also a target: a pill dropped on it
+    // takes its section and its place, landing after it when it came from
+    // before (dnd-kit's `arrayMove`), so the line shows on that side
+    const {
+        setNodeRef: setDropRef,
+        isOver,
+        active,
+        node,
+    } = useDroppable({ id, disabled: !isInBarContext });
+    const activeId = active === null ? null : String(active.id);
+    const activePill =
+        isOver && activeId !== null && activeId !== id
+            ? document.querySelector(
+                  `[data-controls-pill="${CSS.escape(activeId)}"]`,
+              )
+            : null;
+    const dropSide =
+        activePill === null || node.current === null
+            ? undefined
+            : activePill.compareDocumentPosition(node.current) &
+                Node.DOCUMENT_POSITION_FOLLOWING
+              ? 'after'
+              : 'before';
     // Only from the pill button: not its portalled editor or tooltip
     const handlePointerDown = (event: PointerEvent<HTMLElement>) => {
         if (
@@ -90,7 +114,11 @@ const PillDraggable: FC<{
     };
     return (
         <Box
-            ref={setNodeRef}
+            ref={(element: HTMLDivElement | null) => {
+                setNodeRef(element);
+                setDropRef(element);
+            }}
+            data-drop={dropSide}
             className={`${classes.pillDrag} ${
                 isInBarContext ? classes.barDraggable : dndClasses.draggable
             }`}
