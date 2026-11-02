@@ -13,7 +13,6 @@ import {
     ActionIcon,
     Box,
     Button,
-    Divider,
     Group,
     Paper,
     Stack,
@@ -44,12 +43,10 @@ import {
 import classes from '../../features/dashboardControls/FilterEditor.module.css';
 import { focusOnMount } from '../../features/dashboardControls/mappingFocus';
 import { useRefocusAfter } from '../../features/dashboardControls/nameFocus';
-import { type MoveDirection } from '../../features/dashboardControls/useControlsSidebar';
 import { ParameterInput } from '../../features/parameters/components/ParameterInput';
 import { ShadowedReservedNameWarning } from '../../features/parameters/components/ShadowedReservedNameWarning';
 import { CONTROL_STRINGS } from './controlStrings';
 import { focusInputOnMount } from './focus';
-import { MoveButtons } from './MoveButtons';
 import { NameInput } from './NameInput';
 import {
     getParameterLabel,
@@ -115,10 +112,6 @@ type Props = {
     /** Every tile on the dashboard: the M in "Sets N of M tiles", as filters. */
     totalTileCount: number;
     initialView: PopoverView;
-    /** Its neighbours on the bar, for "Move left" / "Move right". */
-    canMoveLeft: boolean;
-    canMoveRight: boolean;
-    onMove: (direction: MoveDirection) => void;
     onChange: (next: ParameterControl) => void;
     onCancel: () => void;
     onApply: () => void;
@@ -137,9 +130,6 @@ export const ParameterControlPopover: FC<Props> = ({
     isMissingRequired,
     totalTileCount,
     initialView,
-    canMoveLeft,
-    canMoveRight,
-    onMove,
     onChange,
     onCancel,
     onApply,
@@ -310,13 +300,6 @@ export const ParameterControlPopover: FC<Props> = ({
                     onChange={(sectionId) =>
                         onChange({ ...control, sectionId })
                     }
-                />
-                <Divider />
-                {/* An action for keyboard users, not a setting */}
-                <MoveButtons
-                    canMoveLeft={canMoveLeft}
-                    canMoveRight={canMoveRight}
-                    onMove={onMove}
                 />
             </Stack>
         </Stack>

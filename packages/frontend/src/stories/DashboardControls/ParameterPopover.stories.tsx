@@ -32,12 +32,9 @@ const meta: Meta<typeof StatefulParameterPopover> = {
         isMissingRequired: false,
         initialView: 'value',
         shadowedReservedNames: [],
-        canMoveLeft: true,
-        canMoveRight: false,
         onApply: fn(),
         onCancel: fn(),
         onChooseTiles: fn(),
-        onMove: fn(),
     },
 };
 
@@ -299,7 +296,7 @@ export const NoTiles: Story = {
     },
 };
 
-/** Settings is the section, then "Move left" / "Move right"; back on the value, the chip names the section and has focus. */
+/** Settings is the section only; back on the value, the chip names the section and has focus. */
 export const Settings: Story = {
     name: 'Parameter, settings',
     args: {
@@ -309,7 +306,7 @@ export const Settings: Story = {
         ),
         initialView: 'settings',
     },
-    play: async ({ canvas, canvasElement, userEvent, args }) => {
+    play: async ({ canvas, canvasElement, userEvent }) => {
         const section = canvas.getByRole('combobox', { name: 'Section' });
         await expect(section).toHaveValue('No section');
         await expect(
@@ -318,13 +315,9 @@ export const Settings: Story = {
         await expect(
             canvas.queryByRole('button', { name: 'Remove from the bar' }),
         ).toBeNull();
-        await userEvent.click(
-            canvas.getByRole('button', { name: 'Move left' }),
-        );
-        await expect(args.onMove).toHaveBeenCalledWith('left');
         await expect(
-            canvas.getByRole('button', { name: 'Move right' }),
-        ).toHaveAttribute('aria-disabled', 'true');
+            canvas.queryByRole('button', { name: 'Move left' }),
+        ).toBeNull();
 
         await userEvent.click(section);
         await userEvent.click(
@@ -342,7 +335,7 @@ export const Settings: Story = {
     },
 };
 
-/** A dashboard with no sections: Settings still opens, with "No section" and the move buttons for keyboard users. */
+/** A dashboard with no sections: Settings still opens, with the section at "No section". */
 export const NoSections: Story = {
     name: 'Parameter, no sections',
     args: {
@@ -359,12 +352,6 @@ export const NoSections: Story = {
         await expect(
             canvas.getByRole('combobox', { name: 'Section' }),
         ).toHaveValue('No section');
-        await expect(
-            canvas.getByRole('button', { name: 'Move left' }),
-        ).toBeVisible();
-        await expect(
-            canvas.getByRole('button', { name: 'Move right' }),
-        ).toBeVisible();
     },
 };
 

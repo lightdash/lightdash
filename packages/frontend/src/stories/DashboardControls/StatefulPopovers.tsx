@@ -5,17 +5,9 @@ import {
 } from '@lightdash/common';
 import { useState, type FC } from 'react';
 import {
-    selectActiveTabUuid,
-    selectControlSections,
     selectDashboardFilters,
     useDashboardSelector,
 } from '../../features/dashboard/store';
-import { getMoveNeighbours } from '../../features/dashboardControls/sections';
-import { type MoveDirection } from '../../features/dashboardControls/useControlsSidebar';
-import {
-    isFilterHiddenOnTab,
-    useFilterTabPlacement,
-} from '../../features/dashboardFilters/ActiveFilters/useFilterTabPlacement';
 import { getFilterRuleFilterType } from '../../features/dashboardFilters/FilterConfiguration/utils';
 import { FilterPopover, type FooterLayout } from './FilterPopover';
 import {
@@ -45,7 +37,6 @@ export type StatefulFilterPopoverProps = {
     onChooseTiles: () => void;
     onEditRules: () => void;
     onChangeOthers: (rules: DashboardFilterRule[]) => void;
-    onMove: (direction: MoveDirection) => void;
     /** Each edit as the draft takes it, so a play can wait for one. */
     onDraftChange: (rule: DashboardFilterRule) => void;
 };
@@ -79,9 +70,6 @@ export const StatefulFilterPopover: FC<StatefulFilterPopoverProps> = ({
     ...props
 }) => {
     const savedFilters = useDashboardSelector(selectDashboardFilters);
-    const sections = useDashboardSelector(selectControlSections);
-    const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
-    const { getTabsUsingFilter } = useFilterTabPlacement();
     const [rule, setRule] = useState(initialRule);
     const [others, setOthers] = useState<DashboardFilterRule[]>([]);
     const [isAsking, setIsAsking] = useState(initialIsAsking);
@@ -102,17 +90,6 @@ export const StatefulFilterPopover: FC<StatefulFilterPopoverProps> = ({
             filterType={getFilterRuleFilterType(field ?? undefined, [], rule)}
             totalTileCount={TOTAL_TILE_COUNT}
             filters={filters}
-            // As the shipped Settings: shown pills on the tab in view only
-            moveNeighbours={getMoveNeighbours(
-                filters,
-                rule.id,
-                sections,
-                (other) =>
-                    !isFilterHiddenOnTab(
-                        getTabsUsingFilter(other),
-                        activeTabUuid,
-                    ),
-            )}
             isAsking={isAsking}
             onChange={(next) => {
                 setRule(next);
@@ -147,12 +124,9 @@ type StatefulParameterPopoverProps = {
     isMissingRequired: boolean;
     initialView: PopoverView;
     shadowedReservedNames: string[];
-    canMoveLeft: boolean;
-    canMoveRight: boolean;
     onApply: (control: ParameterControl) => void;
     onCancel: () => void;
     onChooseTiles: () => void;
-    onMove: (direction: MoveDirection) => void;
 };
 
 export const StatefulParameterPopover: FC<StatefulParameterPopoverProps> = ({

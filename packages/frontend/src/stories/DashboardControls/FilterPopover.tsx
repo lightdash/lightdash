@@ -54,9 +54,7 @@ import {
 import classes from '../../features/dashboardControls/FilterEditor.module.css';
 import { focusOnMount } from '../../features/dashboardControls/mappingFocus';
 import { useRefocusAfter } from '../../features/dashboardControls/nameFocus';
-import { type MoveNeighbours } from '../../features/dashboardControls/sections';
 import { withFilterRuleLabel } from '../../features/dashboardControls/sidebarState';
-import { type MoveDirection } from '../../features/dashboardControls/useControlsSidebar';
 import { ViewerControls } from '../../features/dashboardControls/ViewerControls';
 import {
     getFilterRuleWithDisabledState,
@@ -72,7 +70,6 @@ import {
     focusStringValueOnMount,
     focusValueOnMount,
 } from './focus';
-import { MoveButtons } from './MoveButtons';
 import { NameInput } from './NameInput';
 import { SectionSetting } from './SectionSetting';
 import { getSettingsSummary, isMissingRequiredValue } from './settingsSummary';
@@ -105,10 +102,8 @@ type Props = {
     appliedTileCount: number;
     totalTileCount: number;
     /** Every filter as edited so far (the provider's draft), this one too:
-     * the required group, the Settings summary and the moves read it. */
+     * the required group and the Settings summary read it. */
     filters: DashboardFilters;
-    /** Its shown neighbours in that draft, for "Move left" / "Move right". */
-    moveNeighbours: MoveNeighbours;
     /** "Apply changes to {filter} first?" is waiting on an answer. */
     isAsking: boolean;
     initialView: PopoverView;
@@ -120,20 +115,18 @@ type Props = {
     onChooseTiles: () => void;
     onEditRules: () => void;
     onResolvePending: (shouldApply: boolean) => void;
-    /** The shipped Settings view's "Move left" / "Move right". */
-    onMove: (direction: MoveDirection) => void;
 };
 
 const OperatorMenu: FC<{
     rule: DashboardFilterRule;
     field: DashboardFilterableField | null;
     filterType: FilterType;
-    /** "Allow several values", where the shipped "Multiple values" shows. */
-    withSeveralValues: boolean;
+    /** "Allow multiple values", where the shipped "Multiple values" shows. */
+    withMultipleValues: boolean;
     onChange: (next: DashboardFilterRule) => void;
-}> = ({ rule, field, filterType, withSeveralValues, onChange }) => {
+}> = ({ rule, field, filterType, withMultipleValues, onChange }) => {
     const getUiString = useUiStrings();
-    const allowsSeveral = !rule.singleValue;
+    const allowsMultiple = !rule.singleValue;
     const options = useMemo(
         () =>
             getFilterOperatorOptions(
@@ -197,7 +190,7 @@ const OperatorMenu: FC<{
                         />
                     </Menu.Item>
                 ))}
-                {withSeveralValues && (
+                {withMultipleValues && (
                     <>
                         <Menu.Divider />
                         {/* A checkbox, not an item: toggling keeps the menu open */}
@@ -213,15 +206,15 @@ const OperatorMenu: FC<{
                                         fw={400}
                                         c="var(--mantine-color-text)"
                                     >
-                                        {CONTROL_STRINGS.allowSeveralValues}
+                                        {CONTROL_STRINGS.allowMultipleValues}
                                     </Text>
                                 }
                                 description={
-                                    allowsSeveral
-                                        ? CONTROL_STRINGS.severalValuesHelper
+                                    allowsMultiple
+                                        ? CONTROL_STRINGS.multipleValuesHelper
                                         : CONTROL_STRINGS.oneValueHelper
                                 }
-                                checked={allowsSeveral}
+                                checked={allowsMultiple}
                                 onChange={(event) =>
                                     onChange({
                                         ...rule,
@@ -403,7 +396,6 @@ export const FilterPopover: FC<Props> = ({
     appliedTileCount,
     totalTileCount,
     filters,
-    moveNeighbours,
     isAsking,
     initialView,
     footerLayout,
@@ -414,7 +406,6 @@ export const FilterPopover: FC<Props> = ({
     onChooseTiles,
     onEditRules,
     onResolvePending,
-    onMove,
 }) => {
     const getUiString = useUiStrings();
     const tabs = useDashboardSelector(selectDashboardTabs);
@@ -660,11 +651,6 @@ export const FilterPopover: FC<Props> = ({
                     row,
                     <Divider key={`${row.key}-divider`} />,
                 ])}
-                <MoveButtons
-                    canMoveLeft={moveNeighbours.before !== null}
-                    canMoveRight={moveNeighbours.after !== null}
-                    onMove={onMove}
-                />
                 <ViewerControls
                     rule={rule}
                     filterType={filterType}
@@ -714,7 +700,7 @@ export const FilterPopover: FC<Props> = ({
                     rule={rule}
                     field={field}
                     filterType={filterType}
-                    withSeveralValues={hasSingleValueSetting}
+                    withMultipleValues={hasSingleValueSetting}
                     onChange={edits.handleChange}
                 />
                 <Group gap={4} wrap="nowrap" ml="auto" flex="0 0 auto">

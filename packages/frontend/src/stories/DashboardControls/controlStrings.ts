@@ -23,8 +23,8 @@ export const CONTROL_STRINGS = {
     onTheBar: 'On the bar',
     noTiles: 'no tiles',
     operatorLabel: 'Operator: {operator}',
-    allowSeveralValues: 'Allow several values',
-    severalValuesHelper: 'Viewers can pick several values',
+    allowMultipleValues: 'Allow multiple values',
+    multipleValuesHelper: 'Viewers can pick multiple values',
     oneValueHelper: 'Viewers pick one value',
     sets: 'Sets {tiles}',
     // Apply's reason at no tiles: an editor can choose some, a viewer cannot

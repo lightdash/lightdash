@@ -361,9 +361,6 @@ export const rules = {
 
 export const dashboardFilters: DashboardFilters = {
     dimensions: [
-        // Only on the Orders and Finance tabs: hidden on Overview, the tab in
-        // view, so the pill after it has no shown neighbour to its left
-        rules.createdBetween,
         rules.firstName,
         rules.city,
         rules.amountBetween,

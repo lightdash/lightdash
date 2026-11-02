@@ -36,8 +36,7 @@ const dashboardContext = {
     },
     allFilterableFieldsMap: itemsMap,
     allFilterableMetricsMap: {},
-    // Which tabs a filter reaches, for the move buttons' hidden-on-tab check
-    filterableFieldsByTileUuid: availableTileFilters,
+    filterableFieldsByTileUuid: undefined,
     updateDimensionDashboardFilter: action('updateDimensionDashboardFilter'),
     updateMetricDashboardFilter: action('updateMetricDashboardFilter'),
 } as unknown as DashboardContextType;
@@ -60,7 +59,6 @@ const createStore = (sections: DashboardControlSection[]) =>
                 },
             },
             dashboardTabs: tabs,
-            dashboardTiles: tiles,
             activeTab: tabs[0],
         },
     );

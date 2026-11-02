@@ -82,7 +82,6 @@ export const AddControlFlow: FC = () => {
                     onChooseTiles={action('onChooseTiles')}
                     onEditRules={action('onEditRules')}
                     onChangeOthers={action('onChangeOthers')}
-                    onMove={action('onMove')}
                     onDraftChange={action('onDraftChange')}
                 />
             );
@@ -101,12 +100,9 @@ export const AddControlFlow: FC = () => {
                     isMissingRequired={false}
                     initialView="value"
                     shadowedReservedNames={[]}
-                    canMoveLeft
-                    canMoveRight={false}
                     onApply={action('onApply')}
                     onCancel={backToMenu}
                     onChooseTiles={action('onChooseTiles')}
-                    onMove={action('onMove')}
                 />
             );
         default:

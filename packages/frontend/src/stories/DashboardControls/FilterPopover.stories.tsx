@@ -33,7 +33,6 @@ const meta: Meta<typeof StatefulFilterPopover> = {
         onChooseTiles: fn(),
         onEditRules: fn(),
         onChangeOthers: fn(),
-        onMove: fn(),
         onDraftChange: fn(),
     },
 };
@@ -63,7 +62,7 @@ const openOperatorMenu = async (
     );
 };
 
-/** Several values with suggestions, paste detection and "Edit filter values". */
+/** Multiple values with suggestions, paste detection and "Edit filter values". */
 export const TextIsWithSuggestions: Story = {
     name: 'Text, is, with suggestions',
     args: { initialRule: rules.firstName, field: fields.firstName },
@@ -77,7 +76,7 @@ export const TextIsWithSuggestions: Story = {
     },
 };
 
-/** The operator menu: every text operator, then "Allow several values"; a pick changes the rule Apply hands on. */
+/** The operator menu: every text operator, then "Allow multiple values"; a pick changes the rule Apply hands on. */
 export const TextOperatorMenu: Story = {
     name: 'Text, operator menu',
     args: { initialRule: rules.firstName, field: fields.firstName },
@@ -91,7 +90,7 @@ export const TextOperatorMenu: Story = {
                 page.getByRole('menuitem', { name: operator }),
             ).toBeVisible();
         await expect(
-            page.getByRole('checkbox', { name: 'Allow several values' }),
+            page.getByRole('checkbox', { name: 'Allow multiple values' }),
         ).toBeChecked();
 
         await userEvent.click(
@@ -117,7 +116,7 @@ export const TextSuggestionsError: Story = {
     },
 };
 
-/** "Allow several values" off: one value; checking it keeps the menu open and the operator, and the input takes several. */
+/** "Allow multiple values" off: one value; checking it keeps the menu open and the operator, and the input takes multiple. */
 export const TextOneValueOnly: Story = {
     name: 'Text, one value only',
     args: { initialRule: rules.firstNameSingle, field: fields.firstName },
@@ -127,7 +126,7 @@ export const TextOneValueOnly: Story = {
             userEvent.click(element),
         );
         const item = page.getByRole('checkbox', {
-            name: 'Allow several values',
+            name: 'Allow multiple values',
         });
         await expect(item).not.toBeChecked();
         await expect(item).toHaveAccessibleDescription(
@@ -141,13 +140,13 @@ export const TextOneValueOnly: Story = {
         ).toBeInTheDocument();
         await expect(item).toBeChecked();
         await expect(item).toHaveAccessibleDescription(
-            'Viewers can pick several values',
+            'Viewers can pick multiple values',
         );
         await expect(
             canvas.getByRole('button', { name: /^Operator:/ }),
         ).toHaveAccessibleName('Operator: is');
 
-        // Several values now: a second pick adds to Aaron
+        // Multiple values now: a second pick adds to Aaron
         await userEvent.keyboard('{Escape}');
         const dialog = within(canvas.getByRole('dialog'));
         const valueInput = lastOf(dialog.getAllByRole('textbox'));
@@ -211,13 +210,13 @@ export const NumberIsNotBetween: Story = {
     args: { initialRule: rules.amountNotBetween, field: fields.amount },
 };
 
-/** "Allow several values" off: one number input. */
+/** "Allow multiple values" off: one number input. */
 export const NumberIsSingleValue: Story = {
     name: 'Number, is, single value',
     args: { initialRule: rules.amountSingle, field: fields.amount },
 };
 
-/** One number to compare against: no "Allow several values"; Cancel puts the value back, Apply hands the edit on. */
+/** One number to compare against: no "Allow multiple values"; Cancel puts the value back, Apply hands the edit on. */
 export const NumberIsGreaterThan: Story = {
     name: 'Number, is greater than',
     args: { initialRule: rules.amountGreater, field: fields.amount },
@@ -227,7 +226,7 @@ export const NumberIsGreaterThan: Story = {
         );
         await expect(
             onPage(canvasElement).queryByRole('checkbox', {
-                name: 'Allow several values',
+                name: 'Allow multiple values',
             }),
         ).toBeNull();
         await userEvent.keyboard('{Escape}');
@@ -273,7 +272,7 @@ export const TimestampIs: Story = {
     args: { initialRule: rules.createdAtIs, field: fields.createdAt },
 };
 
-/** One day to compare against; a date has no "Allow several values". */
+/** One day to compare against; a date has no "Allow multiple values". */
 export const DateIsAfter: Story = {
     name: 'Date, is after',
     args: { initialRule: rules.orderDateAfter, field: fields.orderDate },
@@ -283,7 +282,7 @@ export const DateIsAfter: Story = {
         );
         await expect(
             onPage(canvasElement).queryByRole('checkbox', {
-                name: 'Allow several values',
+                name: 'Allow multiple values',
             }),
         ).toBeNull();
     },
@@ -379,7 +378,7 @@ export const TimestampIsBetween: Story = {
     args: { initialRule: rules.createdBetween, field: fields.createdAt },
 };
 
-/** Yes or no, picked from a list; no "Allow several values". */
+/** Yes or no, picked from a list; no "Allow multiple values". */
 export const YesNoIs: Story = {
     name: 'Yes/no, is',
     args: { initialRule: rules.isCompleted, field: fields.isCompleted },
@@ -389,7 +388,7 @@ export const YesNoIs: Story = {
         );
         await expect(
             onPage(canvasElement).queryByRole('checkbox', {
-                name: 'Allow several values',
+                name: 'Allow multiple values',
             }),
         ).toBeNull();
     },
@@ -418,7 +417,7 @@ export const RenameThenCancel: Story = {
     },
 };
 
-/** Section, then "Move left" / "Move right" (both ends here), then the shipped Required and Lock. */
+/** Section, then the shipped Required and Lock; "Allow multiple values" lives in the operator menu. */
 export const Settings: Story = {
     name: 'Settings',
     args: {
@@ -426,23 +425,22 @@ export const Settings: Story = {
         field: fields.status,
         initialView: 'settings',
     },
-    play: async ({ canvas, userEvent, args }) => {
+    play: async ({ canvas }) => {
         await expect(
             canvas.getByRole('combobox', { name: 'Section' }),
         ).toBeVisible();
         await expect(
             canvas.queryByRole('switch', { name: 'Multiple values' }),
         ).toBeNull();
-        await expect(canvas.queryByText(/several values/i)).toBeNull();
-        // Alone in its section: both ends, focusable but inert
-        const left = canvas.getByRole('button', { name: 'Move left' });
-        await expect(left).toHaveAttribute('aria-disabled', 'true');
-        await userEvent.click(left);
-        await expect(args.onMove).not.toHaveBeenCalled();
+        await expect(canvas.queryByText(/multiple values/i)).toBeNull();
+        // Reordering is Alt+arrow on a focused pill, not a Settings action
+        await expect(
+            canvas.queryByRole('button', { name: 'Move left' }),
+        ).toBeNull();
     },
 };
 
-/** Required as one of a group, met while Customer city has a value; it can move either way on the bar. */
+/** Required as one of a group, met while Customer city has a value: Apply is open. */
 export const RequiredOneOfAGroup: Story = {
     name: 'Settings, required, one of a group',
     args: {
@@ -450,58 +448,10 @@ export const RequiredOneOfAGroup: Story = {
         field: fields.region,
         initialView: 'settings',
     },
-    play: async ({ canvas, userEvent, args }) => {
+    play: async ({ canvas }) => {
         await expect(
             canvas.getByRole('button', { name: 'Apply' }),
         ).toBeEnabled();
-        await userEvent.click(
-            canvas.getByRole('button', { name: 'Move left' }),
-        );
-        await expect(args.onMove).toHaveBeenCalledWith('left');
-    },
-};
-
-/** Its only neighbour to the left is hidden on the tab in view: "Move left" stays inert, as on the bar. */
-export const SettingsHiddenNeighbour: Story = {
-    name: 'Settings, left neighbour hidden on this tab',
-    args: {
-        initialRule: rules.firstName,
-        field: fields.firstName,
-        initialView: 'settings',
-    },
-    play: async ({ canvas, userEvent, args }) => {
-        const left = canvas.getByRole('button', { name: 'Move left' });
-        await expect(left).toHaveAttribute('aria-disabled', 'true');
-        await userEvent.click(left);
-        await expect(args.onMove).not.toHaveBeenCalled();
-        await expect(
-            canvas.getByRole('button', { name: 'Move right' }),
-        ).not.toHaveAttribute('aria-disabled');
-    },
-};
-
-/** A new section moves it among that section's pills: last of Orders, so "Move right" goes inert. */
-export const SettingsSectionThenMove: Story = {
-    name: 'Settings, a new section changes the moves',
-    args: {
-        initialRule: rules.regionInGroup,
-        field: fields.region,
-        initialView: 'settings',
-    },
-    play: async ({ canvas, canvasElement, userEvent }) => {
-        const right = canvas.getByRole('button', { name: 'Move right' });
-        await expect(right).not.toHaveAttribute('aria-disabled');
-        await userEvent.click(
-            canvas.getByRole('combobox', { name: 'Section' }),
-        );
-        await userEvent.click(
-            await onPage(canvasElement).findByRole('option', {
-                name: 'Orders',
-            }),
-        );
-        await expect(
-            canvas.getByRole('button', { name: 'Move right' }),
-        ).toHaveAttribute('aria-disabled', 'true');
     },
 };
 
@@ -637,7 +587,7 @@ export const ViewerOwnFilter: Story = {
     },
 };
 
-/** A viewer on a saved filter: the value only, no editor parts, no "Allow several values". */
+/** A viewer on a saved filter: the value only, no editor parts, no "Allow multiple values". */
 export const ViewerSavedFilter: Story = {
     name: 'Viewer, saved filter',
     args: {
@@ -653,7 +603,7 @@ export const ViewerSavedFilter: Story = {
         );
         await expect(
             onPage(canvasElement).queryByRole('checkbox', {
-                name: 'Allow several values',
+                name: 'Allow multiple values',
             }),
         ).toBeNull();
         await waitForApiIdle();
