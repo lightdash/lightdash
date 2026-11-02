@@ -1,3 +1,10 @@
+## [3.126.1](https://github.com/lightdash/lightdash/compare/3.126.0...3.126.1) (2026-11-02)
+
+
+### Bug Fixes
+
+* **filters:** align week pickers with warehouse boundaries ([#31944](https://github.com/lightdash/lightdash/issues/31944)) ([f898979](https://github.com/lightdash/lightdash/commit/f8989793146dbc21cf39b8861bea6fbcb32e4b30))
+
 # [3.126.0](https://github.com/lightdash/lightdash/compare/3.125.0...3.126.0) (2026-11-02)
 
 

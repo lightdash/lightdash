@@ -17505,6 +17505,10 @@
                 "enum": ["boolean"],
                 "type": "string"
             },
+            "WeekDay": {
+                "enum": [0, 1, 2, 3, 4, 5, 6],
+                "type": "number"
+            },
             "FieldType.DIMENSION": {
                 "enum": ["dimension"],
                 "type": "string"
@@ -17725,6 +17729,9 @@
                             "type": "string"
                         },
                         "type": "array"
+                    },
+                    "filterStartOfWeek": {
+                        "$ref": "#/components/schemas/WeekDay"
                     },
                     "group": {
                         "type": "string",
@@ -18854,6 +18861,9 @@
                             "type": "string"
                         },
                         "type": "array"
+                    },
+                    "filterStartOfWeek": {
+                        "$ref": "#/components/schemas/WeekDay"
                     },
                     "group": {
                         "type": "string",
@@ -40084,10 +40094,6 @@
                     "none"
                 ],
                 "type": "string"
-            },
-            "WeekDay": {
-                "enum": [0, 1, 2, 3, 4, 5, 6],
-                "type": "number"
             },
             "Pick_CreateSnowflakeCredentials.Exclude_keyofCreateSnowflakeCredentials.SensitiveCredentialsFieldNames__": {
                 "properties": {
@@ -74780,7 +74786,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.126.0",
+        "version": "3.126.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"

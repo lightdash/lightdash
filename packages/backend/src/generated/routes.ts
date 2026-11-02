@@ -16920,6 +16920,11 @@ const models: TsoaRoute.Models = {
         enums: ['boolean'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    WeekDay: {
+        dataType: 'refEnum',
+        enums: [0, 1, 2, 3, 4, 5, 6],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'FieldType.DIMENSION': {
         dataType: 'refEnum',
         enums: ['dimension'],
@@ -17077,6 +17082,7 @@ const models: TsoaRoute.Models = {
                 dataType: 'array',
                 array: { dataType: 'string' },
             },
+            filterStartOfWeek: { ref: 'WeekDay' },
             group: { dataType: 'string' },
             requiredAttributes: {
                 ref: 'Record_string.string-or-string-Array_',
@@ -17840,6 +17846,7 @@ const models: TsoaRoute.Models = {
                 dataType: 'array',
                 array: { dataType: 'string' },
             },
+            filterStartOfWeek: { ref: 'WeekDay' },
             group: { dataType: 'string' },
             requiredAttributes: {
                 ref: 'Record_string.string-or-string-Array_',
@@ -44825,11 +44832,6 @@ const models: TsoaRoute.Models = {
             'oauth_authorization_code',
             'none',
         ],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    WeekDay: {
-        dataType: 'refEnum',
-        enums: [0, 1, 2, 3, 4, 5, 6],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_CreateSnowflakeCredentials.Exclude_keyofCreateSnowflakeCredentials.SensitiveCredentialsFieldNames__':
