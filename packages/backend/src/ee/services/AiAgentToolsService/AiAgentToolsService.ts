@@ -5007,7 +5007,14 @@ export class AiAgentToolsService extends BaseService {
                                   )
                                 : null,
                     };
-                } catch {
+                } catch (error) {
+                    this.logger.warn(
+                        `Failed to read composer node sample for node ${
+                            status.nodeId
+                        } (query ${submission.queryUuid}): ${getErrorMessage(
+                            error,
+                        )}`,
+                    );
                     return status;
                 }
             }),
