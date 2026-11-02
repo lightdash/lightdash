@@ -131,9 +131,12 @@ export const AiGeneralSettingsPage = () => {
                 slackInstallation.slackChannelProjectMappings,
             aiThreadAccessConsent: slackInstallation.aiThreadAccessConsent,
             aiRequireOAuth: slackInstallation.aiRequireOAuth,
+            aiLinksOnly: slackInstallation.aiLinksOnly,
             aiMultiAgentChannelId: slackInstallation.aiMultiAgentChannelId,
             aiMultiAgentProjectUuids:
                 slackInstallation.aiMultiAgentProjectUuids,
+            aiMultiAgentRequireMention:
+                slackInstallation.aiMultiAgentRequireMention,
             unfurlsEnabled: slackInstallation.unfurlsEnabled,
             aiAgentsEnabled: checked,
         });
