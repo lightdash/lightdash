@@ -2,6 +2,7 @@ import {
     AthenaAuthenticationType,
     BigqueryAuthenticationType,
     DuckdbConnectionType,
+    ParameterError,
     RedshiftAuthenticationType,
     SnowflakeAuthenticationType,
     WarehouseTypes,
@@ -10,24 +11,46 @@ import {
 import * as yaml from 'js-yaml';
 import { profileFromCredentials } from '../profiles';
 import { bigqueryTarget } from './bigquery';
-import { bigqueryAdc, targetCases } from './targets.mock';
+import {
+    bigqueryAdc,
+    bigqueryOauthTarget,
+    bigqueryWif,
+    bigqueryWifFile,
+    targetCases,
+} from './targets.mock';
+
+describe('BigQuery workload identity dbt target', () => {
+    it.each([false, true])(
+        'treats federation as explicit credentials with policy %s',
+        (explicitCredentials) => {
+            expect(
+                bigqueryTarget(bigqueryWif, { explicitCredentials }),
+            ).toEqual({
+                kind: 'target',
+                target: bigqueryOauthTarget,
+                environment: {},
+                files: [bigqueryWifFile()],
+            });
+        },
+    );
+    it.each([undefined, ''])(
+        'rejects a missing provider (%s) before producing a profile',
+        (workloadIdentityProvider) => {
+            expect(() =>
+                bigqueryTarget(
+                    { ...bigqueryWif, workloadIdentityProvider },
+                    { explicitCredentials: true },
+                ),
+            ).toThrow(
+                new ParameterError(
+                    'BigQuery workload identity federation requires a workload identity provider.',
+                ),
+            );
+        },
+    );
+});
 
 describe('legacy dbt target characterisation', () => {
-    it('blocks federation until dbt support is implemented', () => {
-        expect(
-            bigqueryTarget(
-                {
-                    ...bigqueryAdc,
-                    authenticationType:
-                        BigqueryAuthenticationType.WORKLOAD_IDENTITY_FEDERATION,
-                },
-                { explicitCredentials: false },
-            ),
-        ).toEqual({
-            kind: 'none',
-            reason: 'BigQuery workload identity federation is not yet supported for dbt targets.',
-        });
-    });
     it.each(targetCases)(
         '$name preserves the complete profile and environment',
         ({ credentials, target, environment }) => {
@@ -39,7 +62,7 @@ describe('legacy dbt target characterisation', () => {
                 },
             });
             expect(actual.environment).toEqual(environment);
-            expect(actual.files).toBeUndefined();
+            expect(actual.files).toEqual([]);
         },
     );
 
@@ -61,7 +84,7 @@ describe('legacy dbt target characterisation', () => {
             profile:
                 'lightdash_profile:\n  target: compile\n  outputs:\n    compile:\n      type: bigquery\n      project: billing-project\n      dataset: analytics\n      threads: 1\n      method: oauth\n',
             environment: {},
-            files: undefined,
+            files: [],
         });
     });
 });
