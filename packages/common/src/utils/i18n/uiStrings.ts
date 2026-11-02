@@ -458,6 +458,8 @@ export const DEFAULT_UI_STRINGS = {
     'aiAgent.composer.emptyResult': 'No rows returned',
     'aiAgent.composer.view.chart': 'Chart',
     'aiAgent.composer.view.lineage': 'Lineage',
+    'aiAgent.composer.actions.quickActions': 'Quick actions',
+    'aiAgent.composer.actions.downloadResults': 'Download results',
     'aiAgent.composer.lineage.focusNode': 'Focus {node}',
     'aiAgent.composer.lineage.resize': 'Resize lineage graph and steps',
     'aiAgent.composer.nodeStatus.pending': 'Queued',

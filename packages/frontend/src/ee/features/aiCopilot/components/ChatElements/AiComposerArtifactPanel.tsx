@@ -18,15 +18,16 @@ import {
     Menu,
     SegmentedControl,
     Stack,
-    Tooltip,
 } from '@mantine/core';
 import { useDebouncedCallback, useDisclosure } from '@mantine/hooks';
-import { IconDots, IconX } from '@tabler/icons-react';
+import { IconDots, IconTableExport, IconX } from '@tabler/icons-react';
 import { clsx } from 'clsx';
 import { useMemo, useState, type FC, type RefObject } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import TruncatedText from '../../../../../components/common/TruncatedText';
+import ExportDataModal from '../../../../../components/DashboardTiles/ExportDataModal';
 import { type EChartsReact } from '../../../../../components/EChartsReactWrapper';
+import { useAbilityContext } from '../../../../../providers/Ability/useAbilityContext';
 import useApp from '../../../../../providers/App/useApp';
 import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
 import { useUiStrings } from '../../../../providers/Embed/useUiStrings';
@@ -95,6 +96,7 @@ export const AiComposerArtifactPanel: FC<Props> = ({
 }) => {
     const getUiString = useUiStrings();
     const { user } = useApp();
+    const ability = useAbilityContext();
     const isEmbed = useIsEmbedded();
     const [view, setView] = useState<ArtifactView>('chart');
     const [imageExportRef, setImageExportRef] =
@@ -102,6 +104,10 @@ export const AiComposerArtifactPanel: FC<Props> = ({
     const [
         exportImageModalOpened,
         { open: openExportImageModal, close: closeExportImageModal },
+    ] = useDisclosure(false);
+    const [
+        downloadModalOpened,
+        { open: openDownloadModal, close: closeDownloadModal },
     ] = useDisclosure(false);
     const canExportData = user.data?.ability?.can(
         'manage',
@@ -135,6 +141,10 @@ export const AiComposerArtifactPanel: FC<Props> = ({
         queryUuid,
     });
     const { columns, rows, isLoading } = useArtifactResultRows(results);
+    const columnOrder = useMemo(
+        () => columns.map((column) => column.reference),
+        [columns],
+    );
     const storedVizConfig =
         config.schemaVersion === 1 ? (config.vizConfig ?? null) : null;
     // v2 draws the presented node through the runQuery chart builders; nothing to edit.
@@ -211,6 +221,11 @@ export const AiComposerArtifactPanel: FC<Props> = ({
         !isEmbed &&
         !!canExportData &&
         !!imageExportRef;
+    const canDownloadResults = isEmbed
+        ? ability.can('view', 'EmbedCsvExport')
+        : !!canExportData;
+    // Downloads the displayed node's result as run, like an embedded classic artifact
+    const downloadQueryUuid = isResultReady ? (queryUuid ?? null) : null;
 
     const head = (
         <Box className={clsx(styles.head, styles.flushHead)}>
@@ -242,23 +257,42 @@ export const AiComposerArtifactPanel: FC<Props> = ({
                         },
                     ]}
                 />
-                {canExportImage && (
+                {(canExportImage || canDownloadResults) && (
                     <Menu withArrow position="bottom-end">
                         <Menu.Target>
-                            <Tooltip label="Quick actions">
-                                <ActionIcon
-                                    size="sm"
-                                    aria-label="Quick actions"
-                                >
-                                    <MantineIcon icon={IconDots} size="lg" />
-                                </ActionIcon>
-                            </Tooltip>
+                            <ActionIcon
+                                size="sm"
+                                aria-label={getUiString(
+                                    'aiAgent.composer.actions.quickActions',
+                                )}
+                            >
+                                <MantineIcon icon={IconDots} size="lg" />
+                            </ActionIcon>
                         </Menu.Target>
                         <Menu.Dropdown>
-                            <Menu.Label>Quick actions</Menu.Label>
-                            <AiChartImageExportMenuItem
-                                onClick={openExportImageModal}
-                            />
+                            <Menu.Label>
+                                {getUiString(
+                                    'aiAgent.composer.actions.quickActions',
+                                )}
+                            </Menu.Label>
+                            {canExportImage && (
+                                <AiChartImageExportMenuItem
+                                    onClick={openExportImageModal}
+                                />
+                            )}
+                            {canDownloadResults && (
+                                <Menu.Item
+                                    disabled={!downloadQueryUuid}
+                                    onClick={openDownloadModal}
+                                    leftSection={
+                                        <MantineIcon icon={IconTableExport} />
+                                    }
+                                >
+                                    {getUiString(
+                                        'aiAgent.composer.actions.downloadResults',
+                                    )}
+                                </Menu.Item>
+                            )}
                         </Menu.Dropdown>
                     </Menu>
                 )}
@@ -353,6 +387,18 @@ export const AiComposerArtifactPanel: FC<Props> = ({
                 opened={exportImageModalOpened}
                 onClose={closeExportImageModal}
             />
+            {downloadQueryUuid && (
+                <ExportDataModal
+                    isOpen={downloadModalOpened}
+                    onClose={closeDownloadModal}
+                    projectUuid={projectUuid}
+                    totalResults={results.totalResults}
+                    getDownloadQueryUuid={async () => downloadQueryUuid}
+                    columnOrder={columnOrder}
+                    chartName={title}
+                    hideLimitSelection
+                />
+            )}
         </Box>
     );
 };
