@@ -44,6 +44,7 @@ jobs:
             - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
               with:
                   cache: true
+                  save-cache: false
                   install: false
             - name: Install packages
               run: pnpm install --frozen-lockfile --prefer-offline --network-concurrency=16
@@ -152,6 +153,7 @@ jobs:
             - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
               with:
                   cache: true
+                  save-cache: false
                   install: false
             - name: Restore build artifacts
               uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5
