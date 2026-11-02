@@ -65,7 +65,7 @@ const getComposerNodeKindsDescription = ({
     apiConnections,
     sqlNote,
 }: ComposerQueriesDescriptionOptions & { sqlNote: string }) => `Node kinds:
-- "semanticLayer": a metric query against an explore, with optional custom metrics and period comparisons. Result columns are the requested field ids, plus a generated column per period comparison.
+- "semanticLayer": a metric query against an explore. Result columns are the requested field ids.
 - "sql": raw SQL against the project warehouse; ${sqlNote}.
 - "external": DuckDB SQL over uploaded or connected tables declared in "tables".
 - "duckdb": DuckDB SQL over other results declared in "references".${
