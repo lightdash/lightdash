@@ -10461,7 +10461,9 @@ When building an HTML/React artifact that calls MCP, load the mcp-artifact-integ
         "readOnlyHint": true,
         "title": "Run composer queries",
       },
-      "description": "Run a pipeline: one or more nodes submitted together, where duckdb and python nodes join or transform other nodes' results. A pipeline of one node runs a single semantic-layer or SQL query, and later calls can reuse its node.
+      "description": "Run a pipeline: one or more nodes submitted together, where duckdb and python nodes join or transform other nodes' results. A pipeline of one node runs a single semantic-layer or SQL query.
+
+One call returns one node's rows, so exactly one submitted node may go unread by the others: combine several results in one duckdb node (UNION ALL or JOIN), or submit them in separate calls reusing earlier nodes.
 
 Node kinds:
 - "semanticLayer": a metric query against an explore. Result columns are the requested field ids.
@@ -10474,9 +10476,9 @@ A node reads only the rows its references returned, so a referenced result that 
 
 A python node's "code" defines \`def run(inputs, params)\`, and semanticLayer "filters" are flat expression strings; each field documents its contract.
 
-Reuse earlier nodes: a result returns a sessionId once a node has finished; finished nodes are saved in it. On a follow-up, pass that sessionId and read saved nodes by node id in "references", submitting only the new nodes. Reused nodes come with everything they read and are served from cache when possible, so results come back faster. A saved node id names one node for the whole session, so give a changed node a new node id; a failed or unfinished node is not saved, so resubmit it under the same id. Omit sessionId to start a new session.
+Reuse earlier nodes: a result returns a sessionId once a node has finished; finished nodes are saved in it. On a follow-up, pass that sessionId and read saved nodes by node id in "references", submitting only the new nodes. Reused nodes bring everything they read and are served from cache when possible. A saved node id names one node for the whole session, so give a changed node a new node id; a failed or unfinished node is not saved, so resubmit it under the same id. Omit sessionId to start a new session.
 
-Returns a preview of the terminal node's rows and every node's queryUuid. The terminal node is the unique sink, or the node named in terminalNodeId. If the result is running, follow up with get_query_result on the terminal node's queryUuid; it also fetches the first page of any node's result by its queryUuid. query computes data only; it saves and charts nothing.",
+Returns the terminal node's first rows, other submitted nodes' columns and first rows, and every node's queryUuid. If the result is running, follow up with get_query_result on the terminal node's queryUuid; it also fetches the first page of any node's result by its queryUuid. query computes data only; it saves and charts nothing.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "properties": {
@@ -10927,7 +10929,7 @@ Returns a preview of the terminal node's rows and every node's queryUuid. The te
                       "type": "null",
                     },
                   ],
-                  "description": "Result columns; null until the node is done.",
+                  "description": "Result columns of the terminal node and of nodes submitted in this call; null for reused nodes and until the node is done.",
                 },
                 "limit": {
                   "description": "Row limit this node ran with. A rowCount equal to it means the node reached its limit, so more rows may exist.",
@@ -10960,6 +10962,24 @@ Returns a preview of the terminal node's rows and every node's queryUuid. The te
                     },
                   ],
                   "description": "Rows this node returned; null when its query is not ready.",
+                },
+                "sample": {
+                  "anyOf": [
+                    {
+                      "items": {
+                        "additionalProperties": {},
+                        "propertyNames": {
+                          "type": "string",
+                        },
+                        "type": "object",
+                      },
+                      "type": "array",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                  "description": "First 5 rows of a done node submitted in this call other than the terminal node; null for the terminal node and for reused, failed or unfinished nodes.",
                 },
                 "sourceType": {
                   "enum": [
@@ -10995,6 +11015,7 @@ Returns a preview of the terminal node's rows and every node's queryUuid. The te
                 "rowCount",
                 "limit",
                 "columns",
+                "sample",
                 "queryUuid",
                 "status",
                 "reachedLimit",
