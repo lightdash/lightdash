@@ -24,6 +24,8 @@ type LineageHighlightMessage = {
     queryUuid: string | null;
     /** Absent from older hosts. */
     queryId?: string | null;
+    /** Scroll the first outlined element into view. Absent from older hosts. */
+    scroll?: boolean;
 };
 
 /** At least one of the two is non-null. */
@@ -67,7 +69,10 @@ export function clearHighlight(): void {
 }
 
 /** Outlines every element stamped with either the queryUuid or the queryId. */
-export function applyHighlight(target: LineageTarget): void {
+export function applyHighlight(
+    target: LineageTarget,
+    options: { scroll: boolean } = { scroll: false },
+): void {
     clearHighlight();
     const { queryUuid, queryId } = target;
     if (!queryUuid && !queryId) return;
@@ -81,6 +86,9 @@ export function applyHighlight(target: LineageTarget): void {
         el.style.outlineOffset = HIGHLIGHT_OFFSET;
         highlighted.push(el);
     });
+    if (options.scroll && typeof highlighted[0]?.scrollIntoView === 'function') {
+        highlighted[0].scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }
 }
 
 let enabled = false;
@@ -175,11 +183,15 @@ export function mountLineage(parent: Window): void {
         } else if (data.type === 'lightdash:lineage:disable') {
             enabled = false;
         } else if (data.type === 'lightdash:lineage:highlight') {
-            const { queryUuid, queryId } = data as LineageHighlightMessage;
-            applyHighlight({
-                queryUuid: typeof queryUuid === 'string' ? queryUuid : null,
-                queryId: typeof queryId === 'string' ? queryId : null,
-            });
+            const { queryUuid, queryId, scroll } =
+                data as LineageHighlightMessage;
+            applyHighlight(
+                {
+                    queryUuid: typeof queryUuid === 'string' ? queryUuid : null,
+                    queryId: typeof queryId === 'string' ? queryId : null,
+                },
+                { scroll: scroll === true },
+            );
         }
     });
 }

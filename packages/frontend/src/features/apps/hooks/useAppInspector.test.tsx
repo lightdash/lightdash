@@ -172,6 +172,7 @@ describe('useAppInspector', () => {
         expect(inspector.iframeProps.lineageHighlight).toEqual({
             queryUuid: 'q-1',
             queryId: null,
+            scroll: false,
         });
     });
 

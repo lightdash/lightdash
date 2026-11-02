@@ -194,13 +194,15 @@ describe('lineage selection and highlight', () => {
 
     it('highlights the terminal with the author id, inner nodes by uuid only', () => {
         const composer = pipelines.find((p) => p.id === 'p1')!;
-        expect(highlightOf(composer, null)).toEqual({
+        expect(highlightOf(composer, null, { scroll: true })).toEqual({
             queryUuid: 'q-joined',
             queryId: 'revenue',
+            scroll: true,
         });
-        expect(highlightOf(composer, 'chart')).toEqual({
+        expect(highlightOf(composer, 'chart', { scroll: false })).toEqual({
             queryUuid: CHART_QUERY_UUID,
             queryId: null,
+            scroll: false,
         });
     });
 });

@@ -47,4 +47,7 @@ export type AppSdkLineageSelection = {
 // Host → iframe: outline elements bound to the queryUuid and/or queryId (union).
 export const APP_SDK_LINEAGE_HIGHLIGHT_MESSAGE = 'lightdash:lineage:highlight';
 
-export type AppSdkLineageHighlight = AppSdkLineageSelection;
+export type AppSdkLineageHighlight = AppSdkLineageSelection & {
+    /** Scroll the first outlined element into view: a click, not a hover. */
+    scroll: boolean;
+};

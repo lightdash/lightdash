@@ -440,15 +440,17 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
         // Primitives, so a re-created highlight object doesn't re-post.
         const highlightQueryUuid = lineageHighlight?.queryUuid ?? null;
         const highlightQueryId = lineageHighlight?.queryId ?? null;
+        const highlightScroll = lineageHighlight?.scroll ?? false;
         const currentHighlight = useMemo(
             () =>
                 highlightQueryUuid || highlightQueryId
                     ? {
                           queryUuid: highlightQueryUuid,
                           queryId: highlightQueryId,
+                          scroll: highlightScroll,
                       }
                     : null,
-            [highlightQueryUuid, highlightQueryId],
+            [highlightQueryUuid, highlightQueryId, highlightScroll],
         );
         useEffect(() => {
             highlightLineage(currentHighlight);

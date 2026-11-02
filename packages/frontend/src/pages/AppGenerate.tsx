@@ -1192,7 +1192,11 @@ const AppGenerate: FC = () => {
     const inspectorLineageHighlight = useMemo(
         () =>
             inspectorHighlightQueryUuid
-                ? { queryUuid: inspectorHighlightQueryUuid, queryId: null }
+                ? {
+                      queryUuid: inspectorHighlightQueryUuid,
+                      queryId: null,
+                      scroll: false,
+                  }
                 : null,
         [inspectorHighlightQueryUuid],
     );

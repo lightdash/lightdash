@@ -223,6 +223,7 @@ const terminalQueryUuidOf = (pipeline: DataAppPipeline): string | null =>
 export const highlightOf = (
     pipeline: DataAppPipeline,
     nodeId: string | null,
+    { scroll }: { scroll: boolean },
 ): AppSdkLineageHighlight => ({
     queryUuid:
         nodeId === null
@@ -232,6 +233,7 @@ export const highlightOf = (
         nodeId === null || nodeId === pipeline.terminalNodeId
             ? pipeline.queryId
             : null,
+    scroll,
 });
 
 /** Latest pipeline for an app selection: by author query id, then terminal, then any node. */

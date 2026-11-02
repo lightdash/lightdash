@@ -89,7 +89,11 @@ export const useAppLineageView = ({
 
     const hover = useCallback(
         (pipeline: DataAppPipeline | null, nodeId: string | null) =>
-            setHoverHighlight(pipeline ? highlightOf(pipeline, nodeId) : null),
+            setHoverHighlight(
+                pipeline
+                    ? highlightOf(pipeline, nodeId, { scroll: false })
+                    : null,
+            ),
         [],
     );
 
@@ -97,7 +101,7 @@ export const useAppLineageView = ({
         (pipeline: DataAppPipeline, nodeId: string | null) => {
             setView('app');
             setHoverHighlight(null);
-            setFlashHighlight(highlightOf(pipeline, nodeId));
+            setFlashHighlight(highlightOf(pipeline, nodeId, { scroll: true }));
             window.clearTimeout(flashTimer.current);
             flashTimer.current = window.setTimeout(
                 () => setFlashHighlight(null),

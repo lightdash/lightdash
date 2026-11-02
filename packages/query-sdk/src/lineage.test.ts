@@ -199,4 +199,33 @@ describe('mountLineage availability announcement', () => {
         );
         expect(document.getElementById('a')!.style.outline).not.toBe('');
     });
+
+    it('scrolls the first outlined element into view only when asked', async () => {
+        const mountLineage = await loadMountLineage();
+        document.body.innerHTML =
+            '<div data-ld-query-id="revenue" id="a"></div><div data-ld-query-id="revenue" id="b"></div>';
+        const scrollIntoView = vi.fn();
+        Element.prototype.scrollIntoView = scrollIntoView;
+        mountLineage(makeParent() as unknown as Window);
+
+        dispatchFromParent({
+            type: 'lightdash:lineage:highlight',
+            queryUuid: null,
+            queryId: 'revenue',
+        });
+        expect(scrollIntoView).not.toHaveBeenCalled();
+
+        dispatchFromParent({
+            type: 'lightdash:lineage:highlight',
+            queryUuid: null,
+            queryId: 'revenue',
+            scroll: true,
+        });
+        // Earlier tests' runtimes still listen on window; every one of them
+        // must scroll the first match and nothing else.
+        expect(scrollIntoView).toHaveBeenCalled();
+        expect(new Set(scrollIntoView.mock.instances)).toEqual(
+            new Set([document.getElementById('a')]),
+        );
+    });
 });

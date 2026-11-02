@@ -2013,6 +2013,7 @@ export function useAppSdkBridge({
                     type: APP_SDK_LINEAGE_HIGHLIGHT_MESSAGE,
                     queryUuid: highlight?.queryUuid ?? null,
                     queryId: highlight?.queryId ?? null,
+                    scroll: highlight?.scroll ?? false,
                 },
                 '*',
             );

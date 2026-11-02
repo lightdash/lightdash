@@ -184,7 +184,11 @@ export const useAppInspector = ({
     const lineageHighlight = useMemo(
         () =>
             highlightQueryUuid
-                ? { queryUuid: highlightQueryUuid, queryId: null }
+                ? {
+                      queryUuid: highlightQueryUuid,
+                      queryId: null,
+                      scroll: false,
+                  }
                 : null,
         [highlightQueryUuid],
     );
