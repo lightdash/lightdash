@@ -403,21 +403,38 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
     // writes it before the children render (nothing subscribes yet); after
     // that it lands before paint, one commit after react-query. The reducer
     // ignores unchanged payloads.
-    const providerState: DashboardProviderState = {
-        projectUuid,
-        includeUnpublishedDraft,
-        embedToken,
-        queryDashboard: dashboard,
-        isDashboardLoading,
-        dashboardError: dashboardError ?? null,
-        availableFilters,
-        isLoadingDashboardFilters,
-        isFetchingDashboardFilters,
-        dashboardCommentsCheck,
-        dashboardComments,
-        refreshDashboardVersion,
-        isRefreshingDashboardVersion,
-    };
+    const providerState = useMemo<DashboardProviderState>(
+        () => ({
+            projectUuid,
+            includeUnpublishedDraft,
+            embedToken,
+            queryDashboard: dashboard,
+            isDashboardLoading,
+            dashboardError: dashboardError ?? null,
+            availableFilters,
+            isLoadingDashboardFilters,
+            isFetchingDashboardFilters,
+            dashboardCommentsCheck,
+            dashboardComments,
+            refreshDashboardVersion,
+            isRefreshingDashboardVersion,
+        }),
+        [
+            projectUuid,
+            includeUnpublishedDraft,
+            embedToken,
+            dashboard,
+            isDashboardLoading,
+            dashboardError,
+            availableFilters,
+            isLoadingDashboardFilters,
+            isFetchingDashboardFilters,
+            dashboardCommentsCheck,
+            dashboardComments,
+            refreshDashboardVersion,
+            isRefreshingDashboardVersion,
+        ],
+    );
     const isSeeded = useRef(false);
     if (!isSeeded.current) {
         isSeeded.current = true;
@@ -425,8 +442,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
     }
     useLayoutEffect(() => {
         store.dispatch(dashboardSourceActions.sync(providerState));
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [store, ...Object.values(providerState)]);
+    }, [store, providerState]);
 
     return (
         <Provider store={store} context={DashboardStoreContext}>
