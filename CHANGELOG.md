@@ -1,3 +1,10 @@
+# [3.123.0](https://github.com/lightdash/lightdash/compare/3.122.3...3.123.0) (2026-11-02)
+
+
+### Features
+
+* **dashboards:** fit to screen view mode ([#31883](https://github.com/lightdash/lightdash/issues/31883)) ([5f0491c](https://github.com/lightdash/lightdash/commit/5f0491c2f52b49b5e6150ed0214776265c4738b2)), closes [#30213](https://github.com/lightdash/lightdash/issues/30213)
+
 ## [3.122.3](https://github.com/lightdash/lightdash/compare/3.122.2...3.122.3) (2026-11-02)
 
 
