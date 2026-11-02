@@ -1,3 +1,11 @@
+# [3.117.0](https://github.com/lightdash/lightdash/compare/3.116.0...3.117.0) (2026-11-02)
+
+
+### Features
+
+* **ai:** one unread node per composer submission, show node columns and samples ([#31853](https://github.com/lightdash/lightdash/issues/31853)) ([af70c8c](https://github.com/lightdash/lightdash/commit/af70c8c23393344e6bff24b0fe75ffc0880e2173))
+* **mcp:** composer query node samples, listing and unread-node guidance ([#31899](https://github.com/lightdash/lightdash/issues/31899)) ([b16c938](https://github.com/lightdash/lightdash/commit/b16c938cfe07afc68c2704e21d35a3115f2cc0a5))
+
 # [3.116.0](https://github.com/lightdash/lightdash/compare/3.115.0...3.116.0) (2026-10-31)
 
 
