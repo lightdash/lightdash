@@ -1,3 +1,10 @@
+## [3.118.3](https://github.com/lightdash/lightdash/compare/3.118.2...3.118.3) (2026-11-02)
+
+
+### Bug Fixes
+
+* **backend:** apply secureFetch timeout to response bodies ([#31908](https://github.com/lightdash/lightdash/issues/31908)) ([ade1826](https://github.com/lightdash/lightdash/commit/ade182653582e04c915ea1f9945d7b83b6a1aa45))
+
 ## [3.118.2](https://github.com/lightdash/lightdash/compare/3.118.1...3.118.2) (2026-11-02)
 
 
