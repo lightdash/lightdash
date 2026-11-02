@@ -36,6 +36,7 @@ import {
     IconFilter,
     IconPlus,
 } from '@tabler/icons-react';
+import isEqual from 'lodash/isEqual';
 import {
     useCallback,
     useEffect,
@@ -1120,7 +1121,7 @@ export const SectionedFilters: FC<Props> = ({
                 ? placement
                 : null;
         setSectionDrop((previous) =>
-            JSON.stringify(next) === JSON.stringify(previous) ? previous : next,
+            isEqual(next, previous) ? previous : next,
         );
     };
     const handleDragEnd = ({ active, over }: DragEndEvent) => {
