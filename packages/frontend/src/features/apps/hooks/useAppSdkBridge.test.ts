@@ -1508,6 +1508,7 @@ describe('chart-query routing', () => {
             method: 'POST',
             path: CHART_PATH,
             body: { chartUuid: CHART_UUID },
+            metadata: { label: 'Sales chart' },
         });
 
         await vi.waitFor(() => expect(events).toHaveLength(1));
@@ -1517,6 +1518,8 @@ describe('chart-query routing', () => {
             status: 'error',
             queryUuid: null,
             error: 'Chart not found',
+            label: 'Sales chart',
+            chartUuid: CHART_UUID,
         });
     });
 });
