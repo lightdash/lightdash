@@ -26,31 +26,29 @@ export const useReleaseContentAsCodeSnapshot = (
     const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
-    return useMutation<undefined, ApiError>(
-        () =>
+    return useMutation<undefined, ApiError>({
+        mutationFn: () =>
             lightdashApi<undefined>({
                 url: `/projects/${projectUuid}/code/snapshots/${contentType}/${slug}`,
                 method: 'DELETE',
                 body: undefined,
             }),
-        {
-            onSuccess: async () => {
-                await queryClient.invalidateQueries([
-                    contentType === 'chart'
-                        ? 'saved_query'
-                        : 'saved_dashboard_query',
-                ]);
-                showToastSuccess({
-                    title: 'No longer managed from the repository',
-                    subtitle: 'Saves in the app publish directly again.',
-                });
-            },
-            onError: ({ error }) => {
-                showToastApiError({
-                    title: 'Could not release this content',
-                    apiError: error,
-                });
-            },
+        onSuccess: async () => {
+            await queryClient.invalidateQueries([
+                contentType === 'chart'
+                    ? 'saved_query'
+                    : 'saved_dashboard_query',
+            ]);
+            showToastSuccess({
+                title: 'No longer managed from the repository',
+                subtitle: 'Saves in the app publish directly again.',
+            });
         },
-    );
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Could not release this content',
+                apiError: error,
+            });
+        },
+    });
 };
