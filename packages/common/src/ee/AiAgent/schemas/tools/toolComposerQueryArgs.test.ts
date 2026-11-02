@@ -594,7 +594,7 @@ describe('toolComposerQueriesArgsSchemaPersisted', () => {
                 limit: 500,
             }),
         );
-        expect(parsed.queries[0]).toMatchObject({ parameters: null });
+        expect(parsed.queries[0]).not.toHaveProperty('parameters');
     });
 
     it('parses nodes persisted with a null or missing description', () => {
@@ -631,6 +631,7 @@ describe('semanticLayer node parameters', () => {
         filters: null,
         sorts: null,
         limit: 500,
+        additionalMetrics: [],
     };
 
     it('accepts parameter values on the node', () => {

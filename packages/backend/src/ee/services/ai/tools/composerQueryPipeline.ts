@@ -28,7 +28,7 @@ import { stringify } from 'csv-stringify/sync';
 import type { ComposerNodeStatus } from '../types/aiAgentDependencies';
 import { getAppliedParameters } from '../utils/appliedParameters';
 import { validateQueryParameters } from '../utils/validators';
-import { resolveComposerQueryNode } from './composerSemanticLayerFilters';
+import { resolveComposerQueryNode } from './composerSemanticLayerNode';
 import { validateSelectOnly } from './runSql';
 
 /**
@@ -130,7 +130,7 @@ export const buildComposerQueryPipeline = ({
     queryNodes.forEach((node) => {
         if (
             node.sourceType !== QuerySourceType.SEMANTIC_LAYER ||
-            node.parameters === null
+            !node.parameters
         )
             return;
         validateQueryParameters(
