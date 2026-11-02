@@ -14,7 +14,7 @@ Use the repository's mapped triage vocabulary. See `docs/agents/triage-labels.md
 
 ### Domain docs
 
-`CONTEXT-MAP.md` lists per-feature glossaries of canonical domain terms. Before writing code, docs, or UI copy for a feature area that has a glossary, read it and use its canonical terms. Details in `docs/agents/domain.md`.
+Multi-context repo rooted at `CONTEXT-MAP.md`. Before working in a feature area, read `docs/agents/domain.md`.
 
 ## Area guides
 
