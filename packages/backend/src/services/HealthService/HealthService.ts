@@ -292,8 +292,6 @@ export class HealthService extends BaseService {
             },
             hasBrandfetch: !!this.lightdashConfig.brandfetch?.apiKey,
             hasMicrosoftTeams: this.lightdashConfig.microsoftTeams.enabled,
-            isOrganizationWarehouseCredentialsEnabled:
-                this.lightdashConfig.organizationWarehouseCredentials.enabled,
             isAthenaWarehouseIamRoleAuthEnabled:
                 this.lightdashConfig.athenaWarehouseIamRoleAuth.enabled,
             isSaveCredentialsFormEnabled:

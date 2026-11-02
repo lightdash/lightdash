@@ -55,6 +55,11 @@ import {
     describeAnalyticsDimensions,
 } from '../../../analytics/systemExplores/descriptions';
 import {
+    embedReachColumns,
+    embedReachMetrics,
+    embedReachSql,
+} from '../../../analytics/systemExplores/embedReach';
+import {
     peopleAdoptionColumns,
     peopleAdoptionMetrics,
     peopleAdoptionSql,
@@ -105,6 +110,7 @@ export const analyticsExploreNames = [
     'data_app_reach',
     'data_app_outcomes',
     'people_adoption',
+    'embed_reach',
 ] as const;
 
 /** Compile backend-owned system models without querying remote storage. */
@@ -120,6 +126,10 @@ export const createAnalyticsExplores = (): Explore[] => {
             hidden: false,
         };
         const model = {
+            embed_reach: {
+                columns: embedReachColumns,
+                metrics: embedReachMetrics,
+            },
             historical_activity: {
                 columns: historicalActivityColumns,
                 metrics: [
@@ -189,6 +199,7 @@ export const createAnalyticsExplores = (): Explore[] => {
             },
         };
         const modelDefinition =
+            name === 'embed_reach' ||
             name === 'historical_activity' ||
             name === 'semantic_usage' ||
             name === 'user_activity' ||
@@ -314,6 +325,7 @@ export const createAnalyticsExplores = (): Explore[] => {
             sqlTable:
                 (
                     {
+                        embed_reach: embedReachSql,
                         tool_activity: toolActivitySql,
                         content_reach: contentReachSql,
                         content_health: contentHealthSql,
@@ -344,6 +356,20 @@ export const createAnalyticsExplores = (): Explore[] => {
         if (table.dimensions.user_id)
             table.dimensions.user_id.label = 'User UUID';
         table.dimensions.project_id.label = 'Project UUID';
+        if (name === 'embed_reach') {
+            for (const field of [
+                'org_id',
+                'event_id',
+                'viewer_key',
+                'dashboard_key',
+            ]) {
+                table.dimensions[field].hidden = true;
+            }
+            table.dimensions.external_user_id.description =
+                'Explicit external ID supplied by the embed issuer; not a registered user or a tenant ID. Missing IDs remain null.';
+            table.dimensions.event_ts.description =
+                'Time of the successful authorized dashboard fetch. Capture begins after deployment; no historical loads are reconstructed.';
+        }
         if (name === 'query_events') {
             table.dimensions.semantic_field_references.hidden = true;
         }
@@ -444,7 +470,11 @@ export const createAnalyticsExplores = (): Explore[] => {
             name === 'semantic_usage'
         ) {
             dimensions.push('charts', 'dashboards', 'users');
-        } else if (name !== 'content_health' && name !== 'people_adoption') {
+        } else if (
+            name !== 'content_health' &&
+            name !== 'people_adoption' &&
+            name !== 'embed_reach'
+        ) {
             dimensions.push('users');
         }
         if (

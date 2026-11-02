@@ -614,6 +614,10 @@ export type AiOrgModelVisibility = Partial<
     Record<ByoAiProvider, AiOrgProviderModelVisibility>
 >;
 
+export type McpProjectAccess =
+    | { mode: 'all' }
+    | { mode: 'selected'; projectUuids: string[] };
+
 export type AiOrganizationSettings = {
     organizationUuid: string;
     aiAgentsVisible: boolean;
@@ -623,6 +627,7 @@ export type AiOrganizationSettings = {
     deepResearchRawSqlEnabled: boolean;
     // Optional for clients talking to an older server; defaults to true.
     mcpEnabled?: boolean;
+    mcpProjectAccess?: McpProjectAccess;
     mcpContentWritesEnabled: boolean;
     mcpAgentsEnabled: boolean;
     // Customer consent for data apps to call AI at runtime (analysis, insights).
@@ -667,6 +672,7 @@ export type UpdateAiOrganizationSettings = {
     deepResearchLimits?: AiDeepResearchLimits;
     deepResearchRawSqlEnabled?: boolean;
     mcpEnabled?: boolean;
+    mcpProjectAccess?: McpProjectAccess;
     mcpContentWritesEnabled?: boolean;
     mcpAgentsEnabled?: boolean;
     dataAppRuntimeAiEnabled?: boolean;

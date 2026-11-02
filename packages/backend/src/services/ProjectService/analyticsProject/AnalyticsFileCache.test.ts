@@ -97,6 +97,33 @@ describe('AnalyticsFileCache', () => {
         },
     );
 
+    it('buffers overlapping query batches with one different file', async () => {
+        const cache = new AnalyticsFileCache();
+        let finish!: () => void;
+        const waiting = new Promise<void>((resolve) => {
+            finish = resolve;
+        });
+        const send = vi.fn(async () => {
+            await waiting;
+            return response();
+        });
+        const s3 = client(send);
+        const activityKeys = Array.from(
+            { length: 8 },
+            (_, n) => `activity-${n}`,
+        );
+        const get = (file: string) =>
+            cache.get(scope, s3, 'bucket', file, 'v1', 4);
+        const peopleQuery = ['users', ...activityKeys.slice(0, 7)].map(get);
+        const activityQuery = activityKeys.map(get);
+        finish();
+        const buffers = await Promise.all([...peopleQuery, ...activityQuery]);
+        expect(buffers).toEqual(
+            Array.from({ length: 16 }, () => Buffer.from('data')),
+        );
+        expect(send).toHaveBeenCalledTimes(9);
+    });
+
     it('limits concurrent downloads globally and does not evict pending entries', async () => {
         const cache = new AnalyticsFileCache();
         let finish!: () => void;
@@ -108,14 +135,16 @@ describe('AnalyticsFileCache', () => {
             return response();
         });
         const s3 = client(send);
-        const pending = Array.from({ length: 8 }, (_, n) =>
+        const pending = Array.from({ length: 16 }, (_, n) =>
             cache.get(scope, s3, 'bucket', `${n}`, 'v1', 4),
         );
         expect(
-            await cache.get(scope, s3, 'bucket', 'ninth', 'v1', 4),
+            await cache.get(scope, s3, 'bucket', 'seventeenth', 'v1', 4),
         ).toBeUndefined();
-        expect(send).toHaveBeenCalledTimes(8);
+        expect(send).toHaveBeenCalledTimes(16);
         finish();
-        await Promise.all(pending);
+        expect(await Promise.all(pending)).toEqual(
+            Array.from({ length: 16 }, () => Buffer.from('data')),
+        );
     });
 });

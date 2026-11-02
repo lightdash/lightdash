@@ -10,16 +10,9 @@ import {
     selectDashboardTiles,
     useDashboardSelector,
 } from '../dashboard/store';
-import { useFilterableItemsMap } from '../dashboardFilters/FilterRequirements/useFilterableItemsMap';
-import {
-    getTabCounts,
-    getTabCountsForField,
-    getTilesOnTab,
-    isSqlColumnRow,
-} from './peers';
+import { getTakeableTabCounts, getTilesOnTab } from './peers';
 import classes from './TabCounts.module.css';
 import { useControlsSidebarSelector } from './useControlsSidebar';
-import { toDashboardFilterableField } from './useFilterRuleField';
 import { usePortalTargets } from './usePortalTargets';
 import { useSqlColumnsByTile } from './useSqlColumnsByTile';
 
@@ -55,27 +48,23 @@ export const TabCounts: FC<Props> = ({ hasTabSlots = false }) => {
     const getUiString = useUiStrings();
     const editingRule = useControlsSidebarSelector((c) => c.editingRule);
     const isPlaceholder = useControlsSidebarSelector((c) => c.isPlaceholder);
-    const activeFieldId = useControlsSidebarSelector((c) => c.activeFieldId);
     const isViewer = useControlsSidebarSelector((c) => c.isViewer);
+    const isMapping = useControlsSidebarSelector((c) => c.isMapping);
     const rule = editingRule;
     const dashboardTiles = useDashboardSelector(selectDashboardTiles);
     const dashboardTabs = useDashboardSelector(selectDashboardTabs);
     const fieldsByTile = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,
     );
-    // Dimensions and metrics: a filter can be on either
-    const fieldsMap = useFilterableItemsMap();
     const sqlColumnsByTile = useSqlColumnsByTile(rule);
 
     const tabUuids = useMemo(
         () => dashboardTabs.map((tab) => tab.uuid),
         [dashboardTabs],
     );
-    // An editor's tabs keep the slots at rest, so opening a filter reflows none;
-    // a viewer's get them once a field is picked
-    const isEnabled =
-        dashboardTabs.length > 0 &&
-        (!isViewer || (rule !== null && !isPlaceholder));
+    // An editor's tabs keep the slots at rest, so mapping reflows none; a
+    // viewer never maps, so never gets them
+    const isEnabled = dashboardTabs.length > 0 && !isViewer;
     // An embed editor's plain tabs have no slot: the count goes in the tab
     const isInSlot = hasTabSlots && !isViewer;
     const targets = usePortalTargets(
@@ -98,33 +87,18 @@ export const TabCounts: FC<Props> = ({ hasTabSlots = false }) => {
             );
     }, [activeTabElement]);
 
+    // The whole filter, whichever chip is hovered or selected, over the tiles
+    // that can take it: the tabs add up to the mapping row's "of m"
     const counts = useMemo(() => {
-        const tiles = dashboardTiles ?? [];
         if (rule === null) return {};
-        return activeFieldId === null
-            ? getTabCounts(
-                  rule,
-                  tiles,
-                  dashboardTabs,
-                  fieldsByTile,
-                  sqlColumnsByTile,
-              )
-            : getTabCountsForField(
-                  rule,
-                  activeFieldId,
-                  tiles,
-                  dashboardTabs,
-                  fieldsByTile,
-                  sqlColumnsByTile,
-              );
-    }, [
-        rule,
-        activeFieldId,
-        dashboardTiles,
-        dashboardTabs,
-        fieldsByTile,
-        sqlColumnsByTile,
-    ]);
+        return getTakeableTabCounts(
+            rule,
+            dashboardTiles ?? [],
+            dashboardTabs,
+            fieldsByTile,
+            sqlColumnsByTile,
+        );
+    }, [rule, dashboardTiles, dashboardTabs, fieldsByTile, sqlColumnsByTile]);
 
     // Every tile on the tab: no count is wider, so none reflows the tabs
     const reserves = useMemo(
@@ -150,25 +124,19 @@ export const TabCounts: FC<Props> = ({ hasTabSlots = false }) => {
 
     if (!isEnabled) return null;
 
-    // A SQL column goes by its own name, never by a field's
-    const subject =
-        rule === null || activeFieldId === null
-            ? getUiString('filters.rail.thisFilter')
-            : isSqlColumnRow(rule, activeFieldId)
-              ? activeFieldId
-              : (toDashboardFilterableField(fieldsMap[activeFieldId])?.label ??
-                activeFieldId);
+    const subject = getUiString('filters.rail.thisFilter');
 
     return (
         <>
             {dashboardTabs.map((tab) => {
                 const element = targets[tab.uuid];
                 if (!element) return null;
-                // No filter, or a placeholder that reaches no tile: the slot stays, empty
+                // Counts show only while tiles are chosen: the slot stays, empty
                 const count =
-                    rule === null || isPlaceholder ? null : counts[tab.uuid];
+                    rule === null || isPlaceholder || !isMapping
+                        ? null
+                        : counts[tab.uuid];
                 const isReached = !!count && count.applied > 0;
-                const isFieldActive = activeFieldId !== null;
                 const countValues = count && {
                     applied: count.applied,
                     total: count.total,
@@ -192,10 +160,8 @@ export const TabCounts: FC<Props> = ({ hasTabSlots = false }) => {
                         <Text
                             component="span"
                             fz="xs"
-                            // Tabs the active field reaches stand out
-                            c={isReached && isFieldActive ? 'blue' : 'dimmed'}
+                            c="dimmed"
                             data-reached={isReached}
-                            data-field-active={isFieldActive}
                             data-reserve={reserves[tab.uuid]}
                             data-capped={!isViewer || undefined}
                             data-controls-overlay={isInSlot || undefined}

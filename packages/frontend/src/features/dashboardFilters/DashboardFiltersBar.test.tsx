@@ -164,3 +164,35 @@ describe('DashboardFiltersBar isCompactDrawerSuppressed', () => {
         expect(drawerButton()).toHaveAttribute('aria-expanded', 'false');
     });
 });
+
+describe('DashboardFiltersBar isParametersColumn', () => {
+    beforeEach(() => {
+        compact.current = false;
+        context.current = {
+            isAddFilterDisabled: false,
+            dashboard: { projectUuid: 'project-uuid' },
+            setParameter: vi.fn(),
+            toggleParameterPin: vi.fn(),
+            setPinnedParameters: vi.fn(),
+            setIsDateZoomDisabled: vi.fn(),
+        } as unknown as DashboardContextType;
+    });
+
+    const parametersColumn = () =>
+        parameterButtons('Currency is usd')[0].closest('[class*="parameters"]');
+
+    it('keeps the parameters inline with the filters by default', () => {
+        renderBar();
+
+        expect(parametersColumn()).toBeNull();
+    });
+
+    it('wraps the parameters in their own column when set', () => {
+        renderBar({ isParametersColumn: true });
+
+        expect(parametersColumn()).toBeInTheDocument();
+        expect(parametersColumn()).toContainElement(
+            parameterButtons('Metric is count')[0],
+        );
+    });
+});

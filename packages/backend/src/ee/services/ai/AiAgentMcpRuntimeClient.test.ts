@@ -831,6 +831,99 @@ describe('MCP OAuth resource indicator', () => {
         );
     });
 
+    describe('protected resource metadata discovery', () => {
+        // The SDK's discovery is patched (patches/@modelcontextprotocol__sdk)
+        // so a server URL ending in a slash keeps it in the RFC 9728
+        // well-known path, then falls back to the slash-stripped path.
+        const prmPrefix = '/.well-known/oauth-protected-resource';
+
+        const buildDiscoveryFetch = (servedPrmPath: string) => {
+            const requestedPrmPaths: string[] = [];
+            const fetchFn = vi.fn(async (input: string | URL | Request) => {
+                const url = new URL(
+                    input instanceof Request ? input.url : String(input),
+                );
+                if (
+                    url.host === 'mcp.example.com' &&
+                    url.pathname.startsWith(prmPrefix)
+                ) {
+                    requestedPrmPaths.push(url.pathname);
+                }
+                if (
+                    url.host === 'mcp.example.com' &&
+                    url.pathname !== servedPrmPath
+                ) {
+                    return new Response('not found', { status: 404 });
+                }
+                return buildFetch('https://mcp.example.com/mcp/')(input);
+            }) as unknown as typeof fetch;
+            return { fetchFn, requestedPrmPaths };
+        };
+
+        const startAuth = async (serverUrl: string, servedPrmPath: string) => {
+            let authorizationUrl: URL | undefined;
+            const provider = buildProvider((url) => {
+                authorizationUrl = url;
+            });
+            const { fetchFn, requestedPrmPaths } =
+                buildDiscoveryFetch(servedPrmPath);
+            const result = await auth(provider, { serverUrl, fetchFn });
+            return { result, authorizationUrl, requestedPrmPaths };
+        };
+
+        it('finds metadata at the slash-preserving path for a server URL ending in a slash', async () => {
+            const { result, authorizationUrl, requestedPrmPaths } =
+                await startAuth(
+                    'https://mcp.example.com/mcp/',
+                    `${prmPrefix}/mcp/`,
+                );
+
+            expect(result).toBe('REDIRECT');
+            expect(authorizationUrl?.origin).toBe('https://auth.example.com');
+            expect(authorizationUrl?.searchParams.get('resource')).toBe(
+                'https://mcp.example.com/mcp/',
+            );
+            expect(requestedPrmPaths).toEqual([`${prmPrefix}/mcp/`]);
+        });
+
+        it('falls back to the slash-stripped path for a server URL ending in a slash', async () => {
+            const { result, requestedPrmPaths } = await startAuth(
+                'https://mcp.example.com/mcp/',
+                `${prmPrefix}/mcp`,
+            );
+
+            expect(result).toBe('REDIRECT');
+            expect(requestedPrmPaths).toEqual([
+                `${prmPrefix}/mcp/`,
+                `${prmPrefix}/mcp`,
+            ]);
+        });
+
+        it('falls back to the root path for a server URL ending in a slash', async () => {
+            const { result, requestedPrmPaths } = await startAuth(
+                'https://mcp.example.com/mcp/',
+                prmPrefix,
+            );
+
+            expect(result).toBe('REDIRECT');
+            expect(requestedPrmPaths).toEqual([
+                `${prmPrefix}/mcp/`,
+                `${prmPrefix}/mcp`,
+                prmPrefix,
+            ]);
+        });
+
+        it('keeps discovery unchanged for a server URL without a trailing slash', async () => {
+            const { result, requestedPrmPaths } = await startAuth(
+                'https://mcp.example.com/mcp',
+                prmPrefix,
+            );
+
+            expect(result).toBe('REDIRECT');
+            expect(requestedPrmPaths).toEqual([`${prmPrefix}/mcp`, prmPrefix]);
+        });
+    });
+
     it('still rejects metadata that advertises a different path', async () => {
         const onAuthorizationUrl = vi.fn();
         const provider = buildProvider(onAuthorizationUrl);

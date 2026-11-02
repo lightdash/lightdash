@@ -422,7 +422,7 @@ export const SqlEditorView: FC<
             data-tour-look="1"
             data-tour-after='[data-tour-nav="new-sql-runner"]'
             data-tour-label="Write a query, then run it"
-            data-tour-docs="explore/sql-runner.mdx#getting-started-with-the-sql-runner:p3:1"
+            data-tour-docs="explore/sql-runner.mdx#getting-started-with-the-sql-runner:p5:1"
         >
             <Editor
                 className={styles.editor}

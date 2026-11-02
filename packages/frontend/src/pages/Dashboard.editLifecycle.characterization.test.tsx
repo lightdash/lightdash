@@ -1,7 +1,9 @@
 import { Ability } from '@casl/ability';
 import {
     DashboardTileTypes,
+    FilterOperator,
     type Dashboard,
+    type DashboardFilterRule,
     type DashboardTab,
     type DashboardTile,
     type PossibleAbilities,
@@ -88,6 +90,7 @@ const server = vi.hoisted(() => ({
     patchError: undefined as unknown,
     // The dashboard controls flag's request has not answered yet
     isControlsFlagPending: false,
+    isControlsFlagOn: false,
     flagListeners: new Set<() => void>(),
 }));
 
@@ -249,9 +252,14 @@ vi.mock('../hooks/useServerOrClientFeatureFlag', async () => {
                 subscribe,
                 () => server.isControlsFlagPending,
             );
-            return featureFlagId === 'dashboard-controls' && isPending
+            if (featureFlagId !== 'dashboard-controls')
+                return { data: { enabled: false }, isInitialLoading: false };
+            return isPending
                 ? { data: undefined, isInitialLoading: true }
-                : { data: { enabled: false }, isInitialLoading: false };
+                : {
+                      data: { enabled: server.isControlsFlagOn },
+                      isInitialLoading: false,
+                  };
         },
     };
 });
@@ -383,6 +391,7 @@ beforeEach(() => {
     server.patchError = undefined;
     server.patchResponse = undefined;
     server.isControlsFlagPending = false;
+    server.isControlsFlagOn = false;
     mockedApi.mockReset();
     mockedApi.mockImplementation((async ({ url: requestUrl, method, body }) => {
         if (
@@ -713,6 +722,42 @@ describe('edit lifecycle: refetches and drafts', () => {
 });
 
 describe('dashboard controls flag', () => {
+    const required: DashboardFilterRule = {
+        id: 'required-filter',
+        label: undefined,
+        target: { fieldId: 'orders_status', tableName: 'orders' },
+        operator: FilterOperator.EQUALS,
+        values: ['completed'],
+        required: true,
+    };
+    const saveWithRequiredFilter = async () => {
+        server.dashboard = makeDashboard({
+            filters: {
+                dimensions: [required],
+                metrics: [],
+                tableCalculations: [],
+            },
+        });
+        renderDashboard(`${DASHBOARD_PATH}/edit`);
+        await waitForLoaded();
+        await click('Drag tile-1');
+        // With the flag on, Save is the edit band's
+        await click(server.isControlsFlagOn ? 'Save dashboard' : 'Save');
+        await waitFor(() => expect(patches()).toHaveLength(1));
+        return patches()[0].filters.dimensions;
+    };
+
+    it('saves a required filter with its value cleared when off', async () => {
+        expect(await saveWithRequiredFilter()).toEqual([
+            { ...required, disabled: true, values: [] },
+        ]);
+    });
+
+    it('saves a required filter with its default when on', async () => {
+        server.isControlsFlagOn = true;
+        expect(await saveWithRequiredFilter()).toEqual([required]);
+    });
+
     it('holds the page until the flag answers, so the bar never swaps', async () => {
         server.isControlsFlagPending = true;
         renderDashboard(`${DASHBOARD_PATH}/edit`);

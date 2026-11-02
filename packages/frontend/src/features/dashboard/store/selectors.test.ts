@@ -13,6 +13,7 @@ import {
     initialDashboardParametersState,
     type DashboardParametersState,
 } from './dashboardParametersReducer';
+import { initialDashboardSourceState } from './dashboardSourceReducer';
 import { initialDashboardTileStatusState } from './dashboardTileStatusReducer';
 import {
     combineDashboardFilters,
@@ -27,6 +28,7 @@ import {
 const stateWith = (
     parameters: Partial<DashboardParametersState>,
 ): DashboardStoreState => ({
+    source: initialDashboardSourceState,
     filters: initialDashboardFiltersState,
     parameters: { ...initialDashboardParametersState, ...parameters },
     dateZoom: initialDashboardDateZoomState,

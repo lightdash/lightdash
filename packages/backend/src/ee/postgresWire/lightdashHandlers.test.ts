@@ -1,5 +1,6 @@
 import { SupportedDbtAdapter, type Account } from '@lightdash/common';
 import { describe, expect, it, vi } from 'vitest';
+import type { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import type { ServiceRepository } from '../../services/ServiceRepository';
 import {
     createLightdashPgWireHandlers,
@@ -86,10 +87,16 @@ const serviceRepository = {
     getProjectService: () => ({ runExploreQuery }),
 } as unknown as ServiceRepository;
 
-const handlers = createLightdashPgWireHandlers(serviceRepository);
+const track = vi.fn();
+const analytics = { track } as unknown as LightdashAnalytics;
+
+const handlers = createLightdashPgWireHandlers(serviceRepository, analytics);
 
 const session: LightdashPgWireSession = {
-    account: { user: { email: 'alice@example.com' } } as unknown as Account,
+    account: {
+        user: { id: 'user-uuid', email: 'alice@example.com' },
+        organization: { organizationUuid: 'org-uuid' },
+    } as unknown as Account,
     projectUuid: 'project-uuid',
     databaseName: 'project-uuid',
     catalog,
@@ -98,12 +105,48 @@ const session: LightdashPgWireSession = {
         userName: 'alice@example.com',
         catalog,
     }),
+    applicationName: 'psql',
 };
 
 const EXPLORE_SQL =
     "SELECT orders_status, orders_total, orders_count FROM orders WHERE orders_status = 'completed' ORDER BY orders_total DESC LIMIT 10";
 
 describe('lightdash pgwire handlers: describe vs query', () => {
+    it('tracks explore queries and failures but not metadata statements', async () => {
+        track.mockClear();
+        await handlers.query(session, EXPLORE_SQL);
+        await handlers.query(session, 'BEGIN');
+        await expect(
+            handlers.query(session, 'SELECT nope FROM orders'),
+        ).rejects.toMatchObject({ code: '42703' });
+        expect(track).toHaveBeenCalledTimes(2);
+        expect(track).toHaveBeenNthCalledWith(1, {
+            event: 'pgwire.query_executed',
+            userId: 'user-uuid',
+            properties: {
+                organizationId: 'org-uuid',
+                projectId: 'project-uuid',
+                applicationName: 'psql',
+                statementKind: 'explore',
+                exploreName: 'orders',
+                status: 'success',
+                errorCode: null,
+                rowCount: 1,
+                durationMs: expect.any(Number),
+            },
+        });
+        expect(track).toHaveBeenNthCalledWith(
+            2,
+            expect.objectContaining({
+                properties: expect.objectContaining({
+                    statementKind: null,
+                    status: 'error',
+                    errorCode: '42703',
+                }),
+            }),
+        );
+    });
+
     it('describes an explore query from the catalog without running it', async () => {
         runExploreQuery.mockClear();
         const fields = await handlers.describe(session, EXPLORE_SQL);
@@ -364,7 +407,12 @@ describe('lightdash pgwire handlers: end to end through authenticate', () => {
             },
         },
     };
+    const isSemanticLayerPgwireEnabled = vi.fn(async () => true);
+    const getAllExploresSummary = vi.fn(async () => [{ name: 'orders' }]);
     const services = {
+        getOrganizationSettingsService: () => ({
+            isSemanticLayerPgwireEnabled,
+        }),
         getUserService: () => ({
             loginWithPersonalAccessToken: async () => ({
                 userUuid: 'user-uuid',
@@ -377,18 +425,19 @@ describe('lightdash pgwire handlers: end to end through authenticate', () => {
             }),
         }),
         getProjectService: () => ({
-            getAllExploresSummary: async () => [{ name: 'orders' }],
+            getAllExploresSummary,
             getExplore: async () => explore,
             runExploreQuery,
         }),
     } as unknown as ServiceRepository;
 
     it('builds the catalog with descriptions and hidden fields removed, then serves catalog SQL', async () => {
-        const e2e = createLightdashPgWireHandlers(services);
+        const e2e = createLightdashPgWireHandlers(services, analytics);
         const connected = await e2e.authenticate({
             user: 'alice@example.com',
             database: '11111111-1111-4111-8111-111111111111',
             password: 'ldpat_test',
+            applicationName: null,
         });
         expect(connected.catalog).toEqual([
             {
@@ -470,5 +519,97 @@ describe('lightdash pgwire handlers: end to end through authenticate', () => {
         ).toMatchObject({
             rows: [['11111111-1111-4111-8111-111111111111']],
         });
+    });
+
+    it('tracks a successful connection with the client application name', async () => {
+        track.mockClear();
+        const e2e = createLightdashPgWireHandlers(services, analytics);
+        await e2e.authenticate({
+            user: 'alice@example.com',
+            database: '11111111-1111-4111-8111-111111111111',
+            password: 'ldpat_test',
+            applicationName: 'Metabase',
+        });
+        expect(track).toHaveBeenCalledWith({
+            event: 'pgwire.connected',
+            userId: 'user-uuid',
+            properties: {
+                organizationId: 'org-uuid',
+                projectId: '11111111-1111-4111-8111-111111111111',
+                authMethod: 'personal_access_token',
+                applicationName: 'Metabase',
+                exploreCount: 1,
+            },
+        });
+    });
+
+    it('tracks why a connection was rejected', async () => {
+        track.mockClear();
+        const e2e = createLightdashPgWireHandlers(services, analytics);
+        await expect(
+            e2e.authenticate({
+                user: 'alice@example.com',
+                database: 'jaffle',
+                password: '',
+                applicationName: null,
+            }),
+        ).rejects.toMatchObject({ code: '28P01' });
+        expect(track).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                event: 'pgwire.authentication_failed',
+                properties: {
+                    organizationId: null,
+                    authMethod: null,
+                    reason: 'missing_password',
+                    applicationName: null,
+                },
+            }),
+        );
+    });
+
+    it('rejects connections when the organization has not enabled the Metric SQL API', async () => {
+        track.mockClear();
+        isSemanticLayerPgwireEnabled.mockResolvedValueOnce(false);
+        getAllExploresSummary.mockClear();
+        const e2e = createLightdashPgWireHandlers(services, analytics);
+        await expect(
+            e2e.authenticate({
+                user: 'alice@example.com',
+                database: '11111111-1111-4111-8111-111111111111',
+                password: 'ldpat_test',
+                applicationName: 'Tableau',
+            }),
+        ).rejects.toMatchObject({
+            code: '28000',
+            message: 'the Metric SQL API is not enabled for this organization',
+        });
+        expect(isSemanticLayerPgwireEnabled).toHaveBeenCalledWith('org-uuid');
+        expect(getAllExploresSummary).not.toHaveBeenCalled();
+        expect(track).toHaveBeenLastCalledWith({
+            event: 'pgwire.authentication_failed',
+            userId: 'user-uuid',
+            properties: {
+                organizationId: 'org-uuid',
+                authMethod: 'personal_access_token',
+                reason: 'disabled_for_organization',
+                applicationName: 'Tableau',
+            },
+        });
+    });
+
+    it('does not fail the connection when tracking throws', async () => {
+        const e2e = createLightdashPgWireHandlers(services, {
+            track: () => {
+                throw new Error('analytics down');
+            },
+        } as unknown as LightdashAnalytics);
+        await expect(
+            e2e.authenticate({
+                user: 'alice@example.com',
+                database: '11111111-1111-4111-8111-111111111111',
+                password: 'ldpat_test',
+                applicationName: null,
+            }),
+        ).resolves.toMatchObject({ applicationName: null });
     });
 });

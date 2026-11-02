@@ -66,6 +66,8 @@ import {
     toolClosePullRequestOutputSchema,
 } from './toolClosePullRequestArgs';
 import {
+    MCP_TOOL_QUERY_DESCRIPTION,
+    mcpQueryStructuredOutputSchema,
     TOOL_COMPOSER_QUERIES_DESCRIPTION,
     toolComposerQueriesArgsSchema,
     toolComposerQueriesOutputSchema,
@@ -729,21 +731,25 @@ export const runSqlToolDefinition: ToolDefinitionWithMcpOutput<
     },
 });
 
-export const queryToolDefinition: ToolDefinitionWithoutMcpOutput<
+export const queryToolDefinition: ToolDefinitionWithMcpOutput<
     'query',
     typeof toolComposerQueriesArgsSchema,
     typeof toolComposerQueriesArgsSchema,
-    typeof toolComposerQueriesOutputSchema
+    typeof toolComposerQueriesOutputSchema,
+    typeof mcpQueryStructuredOutputSchema
 > = defineTool({
     name: 'query',
     title: 'Run composer queries',
-    description: TOOL_COMPOSER_QUERIES_DESCRIPTION,
+    description: ({ runtime }) =>
+        runtime === 'mcp'
+            ? MCP_TOOL_QUERY_DESCRIPTION
+            : TOOL_COMPOSER_QUERIES_DESCRIPTION,
     availability: ['agent', 'mcp'],
     inputSchema: toolComposerQueriesArgsSchema,
     agent: { outputSchema: toolComposerQueriesOutputSchema },
     mcp: {
-        name: 'run_composer_queries',
         annotations: readOnlyAnnotations,
+        structuredContentSchema: mcpQueryStructuredOutputSchema,
     },
 });
 

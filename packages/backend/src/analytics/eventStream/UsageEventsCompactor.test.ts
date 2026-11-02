@@ -1,4 +1,5 @@
 import prometheus from 'prom-client';
+import type { S3Config } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import PrometheusMetrics from '../../prometheus/PrometheusMetrics';
 import { UsageProcessingMetrics } from '../../prometheus/UsageProcessingMetrics';
@@ -121,12 +122,15 @@ let listedOrgs = ['org-1'];
 
 type MetricsMock = ReturnType<typeof createMetricsMock>;
 
-const createCompactor = (metrics: MetricsMock) =>
+const createCompactor = (
+    metrics: MetricsMock,
+    storageConfig: Omit<S3Config, 'expirationTime'> = s3Config,
+) =>
     new UsageEventsCompactor({
         featureFlagModel: {
             get: async () => ({ id: 'analytics-project', enabled: true }),
         },
-        s3Config,
+        s3Config: storageConfig,
         usageDimensionsModel: {
             async *getOrganizations(organizationUuid?: string) {
                 for (const [index, id] of listedOrgs.entries()) {
@@ -430,6 +434,62 @@ describe('UsageEventsCompactor.run', () => {
             expect.stringContaining('duckdb exploded'),
         );
     });
+
+    it('retries a GCS 401 with the same inputs before deleting raw files', async () => {
+        mockListedKeys([rawKey('org-1', 'query_events', '2026-07-01')]);
+        duckdbMocks.runSqlWithMetrics
+            .mockRejectedValueOnce(
+                new Error('HTTP Error: HTTP GET error (HTTP 401 Unauthorized)'),
+            )
+            .mockImplementationOnce(async () => {
+                expect(s3Mocks.deleteObjects).not.toHaveBeenCalled();
+                expect(s3Mocks.deleteObject).not.toHaveBeenCalled();
+            });
+
+        const summary = await createCompactor(metrics, {
+            ...s3Config,
+            authMode: 'gcp_oauth',
+        }).run(NOW);
+
+        expect(summary.partitionsCompacted).toBe(1);
+        expect(summary.partitionsFailed).toBe(0);
+        expect(duckdbMocks.runSqlWithMetrics).toHaveBeenCalledTimes(2);
+        expect(duckdbMocks.runSqlWithMetrics.mock.calls[1]).toEqual(
+            duckdbMocks.runSqlWithMetrics.mock.calls[0],
+        );
+        expect(s3Mocks.putObject).toHaveBeenCalledOnce();
+        expect(s3Mocks.deleteObjects).toHaveBeenCalledOnce();
+        expect(s3Mocks.deleteObject).toHaveBeenCalledOnce();
+    });
+
+    it.each([
+        ['gcp_oauth', '(HTTP 401 Unauthorized)', 2],
+        ['gcp_oauth', '(HTTP 403 Forbidden)', 1],
+        ['gcp_oauth', 'invalid input', 1],
+        ['default', '(HTTP 401 Unauthorized)', 1],
+    ] as const)(
+        'retains raw files for %s failures: %s',
+        async (authMode, error, attempts) => {
+            mockListedKeys([rawKey('org-1', 'query_events', '2026-07-01')]);
+            duckdbMocks.runSqlWithMetrics.mockRejectedValue(new Error(error));
+
+            const summary = await createCompactor(metrics, {
+                ...s3Config,
+                authMode,
+            }).run(NOW);
+
+            expect(summary.partitionsFailed).toBe(1);
+            expect(summary.partitionsCompacted).toBe(0);
+            expect(duckdbMocks.runSqlWithMetrics).toHaveBeenCalledTimes(
+                attempts,
+            );
+            expect(s3Mocks.deleteObjects).not.toHaveBeenCalled();
+            expect(s3Mocks.deleteObject).not.toHaveBeenCalled();
+            expect(
+                metrics.setUsageEventsCompactionBacklog,
+            ).toHaveBeenCalledWith(1);
+        },
+    );
 
     it('uses GCS paths and token resolution for workload identity compaction', async () => {
         const key = rawKey('org-1', 'query_events', '2026-07-01');

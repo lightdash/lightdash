@@ -17,6 +17,7 @@ export const makeMcpServerOptions = (
         scheduledDeliveryEnabled: true,
         runSqlEnabled: false,
         runMetricQueryEnabled: false,
+        queryEnabled: false,
         filterExpressionsEnabled: false,
         documentsEnabled: false,
         dataAppBuildsEnabled: false,

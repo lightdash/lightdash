@@ -128,6 +128,7 @@ import {
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import moment from 'moment';
+import { validate as isValidUuid } from 'uuid';
 import { z } from 'zod';
 import type { AiThreadOrigin } from '../../analytics/aiUsage';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -274,7 +275,9 @@ import {
     DbAiEvalRunResultAssessment,
 } from '../database/entities/aiEvals';
 import {
+    COMPOSER_SESSION_SCOPE_TYPE,
     ComposerQueryNodesTableName,
+    ComposerSessionsTableName,
     THREAD_COMPOSER_QUERY_SCOPE_TYPE,
     threadComposerQueryScope,
     type ComposerQueryNodeScope,
@@ -10112,11 +10115,55 @@ export class AiAgentModel {
                     !isSameComposerNodeDefinition(row.definition, node)
                 ) {
                     throw new ParameterError(
-                        getComposerNodeConflictMessage(row.definition),
+                        getComposerNodeConflictMessage(
+                            row.definition,
+                            scope.scopeType === COMPOSER_SESSION_SCOPE_TYPE
+                                ? 'session'
+                                : 'thread',
+                        ),
                     );
                 }
             });
         });
+    }
+
+    async createComposerSession(owner: {
+        userUuid: string;
+        organizationUuid: string;
+        projectUuid: string;
+    }): Promise<string> {
+        const [row] = await this.database(ComposerSessionsTableName)
+            .insert({
+                user_uuid: owner.userUuid,
+                organization_uuid: owner.organizationUuid,
+                project_uuid: owner.projectUuid,
+            })
+            .returning('composer_session_uuid');
+        return row.composer_session_uuid;
+    }
+
+    /** Bumps last_used_at; false when the session is unknown or not this owner's in this project. */
+    async useComposerSession({
+        sessionUuid,
+        userUuid,
+        organizationUuid,
+        projectUuid,
+    }: {
+        sessionUuid: string;
+        userUuid: string;
+        organizationUuid: string;
+        projectUuid: string;
+    }): Promise<boolean> {
+        if (!isValidUuid(sessionUuid)) return false;
+        const updated = await this.database(ComposerSessionsTableName)
+            .where({
+                composer_session_uuid: sessionUuid,
+                user_uuid: userUuid,
+                organization_uuid: organizationUuid,
+                project_uuid: projectUuid,
+            })
+            .update({ last_used_at: this.database.fn.now() });
+        return updated > 0;
     }
 
     async findArtifactVersionsByPromptUuid(

@@ -1,5 +1,6 @@
 import {
     getDashboardFilterField,
+    getDefaultStartOfWeek,
     type DashboardFilterableField,
     type DashboardFilters,
     type DashboardTile,
@@ -7,6 +8,7 @@ import {
     type FilterRule,
     type ParametersValuesMap,
     type WeekDay,
+    type WarehouseTypes,
 } from '@lightdash/common';
 import { useCallback, type ReactNode } from 'react';
 import Context, {
@@ -20,6 +22,7 @@ type Props<T extends DefaultFieldsMap> = {
     itemsMap?: T;
     baseTable?: string;
     startOfWeek?: WeekDay;
+    warehouseType?: WarehouseTypes | null;
     dashboardFilters?: DashboardFilters;
     dashboardTiles?: DashboardTile[];
     filterableFieldsByTileUuid?: Record<string, DashboardFilterableField[]>;
@@ -35,6 +38,7 @@ const FiltersProvider = <T extends DefaultFieldsMap = DefaultFieldsMap>({
     itemsMap = {} as T,
     baseTable,
     startOfWeek,
+    warehouseType,
     dashboardFilters,
     dashboardTiles,
     filterableFieldsByTileUuid,
@@ -78,7 +82,11 @@ const FiltersProvider = <T extends DefaultFieldsMap = DefaultFieldsMap>({
             value={{
                 projectUuid,
                 itemsMap,
-                startOfWeek,
+                startOfWeek:
+                    startOfWeek ??
+                    (warehouseType
+                        ? getDefaultStartOfWeek(warehouseType)
+                        : undefined),
                 baseTable,
                 getField,
                 getAutocompleteFilterGroup: getAutocompleteFilterGroupCallback,

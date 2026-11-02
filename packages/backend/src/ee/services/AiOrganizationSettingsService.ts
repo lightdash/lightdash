@@ -4,6 +4,7 @@ import {
     AI_DEEP_RESEARCH_MAX_WORKERS,
     AiOrganizationRuntimeSettings,
     AiOrganizationSettings,
+    assertUnreachable,
     BYO_AI_PROVIDERS,
     CommercialFeatureFlags,
     ComputedAiOrganizationSettings,
@@ -28,6 +29,7 @@ import {
     type ByoAiProvider,
     type CreateAiProviderCredential,
     type DataAppAnalysisLimits,
+    type McpProjectAccess,
     type ProjectAiCredentialSelection,
     type RegisteredAccount,
     type SessionUser,
@@ -63,6 +65,7 @@ import {
     OrgAiCopilotConfigResolver,
     type ReviewJudgeAvailability,
 } from './ai/OrgAiCopilotConfigResolver';
+import { isSameMcpProjectAccess } from './McpService/mcpProjectAccess';
 
 type AvailableModelPreset = ModelPreset<SelectableModelProvider>;
 
@@ -290,6 +293,14 @@ export class AiOrganizationSettingsService extends BaseService {
         );
     }
 
+    async getMcpProjectAccess(
+        organizationUuid: string,
+    ): Promise<McpProjectAccess> {
+        return this.aiOrganizationSettingsModel.getMcpProjectAccess(
+            organizationUuid,
+        );
+    }
+
     private checkManageAiAgentAccess(user: SessionUser): void {
         if (!this.canManageAiAgent(user)) {
             throw new ForbiddenError(
@@ -499,6 +510,7 @@ export class AiOrganizationSettingsService extends BaseService {
                 deepResearchLimits: AI_DEEP_RESEARCH_DEFAULT_LIMITS,
                 deepResearchRawSqlEnabled: false,
                 mcpEnabled: true,
+                mcpProjectAccess: { mode: 'all' },
                 mcpContentWritesEnabled: true,
                 mcpAgentsEnabled: true,
                 dataAppRuntimeAiEnabled: false,
@@ -747,7 +759,45 @@ export class AiOrganizationSettingsService extends BaseService {
 
         await this.checkAiSettingsAccess(user, organizationUuid);
 
+        let { mcpProjectAccess } = aiSettingsUpdate;
+        if (mcpProjectAccess !== undefined) {
+            switch (mcpProjectAccess.mode) {
+                case 'all':
+                    mcpProjectAccess = { mode: 'all' };
+                    break;
+                case 'selected': {
+                    const projectUuids = [
+                        ...new Set(mcpProjectAccess.projectUuids),
+                    ].sort();
+                    const projects =
+                        await this.projectModel.getAllByOrganizationUuid(
+                            organizationUuid,
+                        );
+                    const organizationProjects = new Set(
+                        projects.map((project) => project.projectUuid),
+                    );
+                    if (
+                        projectUuids.some(
+                            (uuid) => !organizationProjects.has(uuid),
+                        )
+                    ) {
+                        throw new ParameterError(
+                            'Invalid MCP project selection',
+                        );
+                    }
+                    mcpProjectAccess = { mode: 'selected', projectUuids };
+                    break;
+                }
+                default:
+                    assertUnreachable(
+                        mcpProjectAccess,
+                        'Unknown MCP project access mode',
+                    );
+            }
+        }
+
         if (
+            aiSettingsUpdate.mcpProjectAccess !== undefined ||
             aiSettingsUpdate.mcpAgentsEnabled !== undefined ||
             aiSettingsUpdate.mcpContentWritesEnabled !== undefined
         ) {
@@ -757,6 +807,11 @@ export class AiOrganizationSettingsService extends BaseService {
                         organizationUuid,
                     );
                 if (
+                    (mcpProjectAccess !== undefined &&
+                        !isSameMcpProjectAccess(
+                            mcpProjectAccess,
+                            storedSettings?.mcpProjectAccess ?? { mode: 'all' },
+                        )) ||
                     (aiSettingsUpdate.mcpAgentsEnabled !== undefined &&
                         aiSettingsUpdate.mcpAgentsEnabled !==
                             (storedSettings?.mcpAgentsEnabled ?? true)) ||
@@ -988,6 +1043,7 @@ export class AiOrganizationSettingsService extends BaseService {
 
         const update = {
             ...aiSettingsUpdate,
+            ...(mcpProjectAccess !== undefined ? { mcpProjectAccess } : {}),
             ...(reconciledDefaultModelConfig !== undefined
                 ? { defaultAiAgentModelConfig: reconciledDefaultModelConfig }
                 : {}),
@@ -1002,7 +1058,10 @@ export class AiOrganizationSettingsService extends BaseService {
             organizationUuid,
             update,
         );
-        if (update.mcpEnabled !== undefined) {
+        if (
+            update.mcpEnabled !== undefined ||
+            update.mcpProjectAccess !== undefined
+        ) {
             try {
                 logAuditEvent(
                     createAuditLogEvent(
@@ -1012,7 +1071,15 @@ export class AiOrganizationSettingsService extends BaseService {
                             type: 'OrganizationSettings',
                             organizationUuid,
                             metadata: {
-                                mcpEnabled: settings.mcpEnabled,
+                                ...(update.mcpEnabled !== undefined
+                                    ? { mcpEnabled: settings.mcpEnabled }
+                                    : {}),
+                                ...(update.mcpProjectAccess !== undefined
+                                    ? {
+                                          mcpProjectAccess:
+                                              settings.mcpProjectAccess,
+                                      }
+                                    : {}),
                             },
                         },
                         {

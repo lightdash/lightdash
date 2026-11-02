@@ -21,6 +21,7 @@ import {
     extractAppSdkRouteProjectUuid,
     extractAppSdkSpaceCharts,
     extractExploreBaseTable,
+    FEATURE_NOT_ENABLED_CODE,
     isAllowedAppSdkRoute,
     parseAppSdkSpaceChartsRequest,
     resolveAppSdkSpaceUuid,
@@ -114,7 +115,7 @@ export const mapAppStateApiError = (
     if (httpStatus === 403) {
         return {
             code:
-                data.code === 'feature_not_enabled'
+                data.code === FEATURE_NOT_ENABLED_CODE
                     ? 'feature_disabled'
                     : 'forbidden',
             message,

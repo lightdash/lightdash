@@ -26,6 +26,7 @@ import { type UserWarehouseCredentialsModel } from '../../models/UserWarehouseCr
 import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import { type FeatureFlagService } from '../FeatureFlag/FeatureFlagService';
 import { type LicenseService } from '../LicenseService/LicenseService';
+import { SSH_TUNNEL_KEY_UNKNOWN_MESSAGE } from '../WarehouseClientFactory/resolvers/SshTunnelCredentialResolver';
 import { WarehouseConnectionBindingService } from '../WarehouseConnectionBindingService/WarehouseConnectionBindingService';
 import { credentialRedactionCases } from './credentialRedactionFixtures.mock';
 import { warehouseConnectionCredentials } from './warehouseConnectionFixtures.mock';
@@ -879,7 +880,7 @@ describe('preview extra connection CLI refresh', () => {
         ...credentials,
         ...tunnel,
         password: 'parent-password',
-        sshTunnelPrivateKey: 'must-not-copy-parent-private-key',
+        sshTunnelPrivateKey: 'parent-private-key',
     };
     const setupRefresh = (
         saved: CreatePostgresCredentials = { ...credentials, ...tunnel },
@@ -959,7 +960,11 @@ describe('preview extra connection CLI refresh', () => {
             );
             const stored =
                 h.model.updateExtraCredentials.mock.calls[0][2].credentials;
-            expect(stored).not.toHaveProperty('sshTunnelPrivateKey');
+            // Same parent destination and public key: destination-bound inheritance carries the parent key.
+            expect(stored).toMatchObject({
+                sshTunnelPrivateKey: 'parent-private-key',
+            });
+            expect(stored).not.toMatchObject({ password: 'parent-password' });
         },
     );
     it('preserves the preview own tunnel and explicit opt-out', async () => {
@@ -1032,3 +1037,218 @@ describe('preview extra connection CLI refresh', () => {
         expect(h.model.updateExtraCredentials).not.toHaveBeenCalled();
     });
 });
+
+describe.each([
+    {
+        name: 'Postgres',
+        warehouseType: WarehouseTypes.POSTGRES,
+        incoming: {
+            ...credentials,
+            password: 'fresh-password',
+        } as CreatePostgresCredentials | CreateRedshiftCredentials,
+    },
+    {
+        name: 'Redshift IAM',
+        warehouseType: WarehouseTypes.REDSHIFT,
+        incoming: {
+            type: WarehouseTypes.REDSHIFT,
+            host: 'redshift',
+            port: 5439,
+            dbname: 'analytics',
+            schema: 'preview',
+            user: 'developer',
+            authenticationType: RedshiftAuthenticationType.IAM,
+            region: 'eu-west-1',
+            clusterIdentifier: 'cluster',
+            accessKeyId: 'fresh-key',
+            secretAccessKey: 'fresh-secret',
+            sessionToken: 'fresh-session',
+        } as CreatePostgresCredentials | CreateRedshiftCredentials,
+    },
+])(
+    'preview extra $name connection SSH key inheritance',
+    ({ warehouseType, incoming }) => {
+        const tunnel = {
+            useSshTunnel: true,
+            sshTunnelHost: 'extra-bastion',
+            sshTunnelPort: 22,
+            sshTunnelUser: 'extra-user',
+            sshTunnelPublicKey: 'extra-public-key',
+        };
+        const upstream = { ...project, projectUuid: 'upstream' };
+        const parent = {
+            ...incoming,
+            ...tunnel,
+            password: 'parent-password',
+            accessKeyId: 'parent-key',
+            secretAccessKey: 'parent-secret',
+            sessionToken: 'parent-session',
+            sshTunnelPrivateKey: 'parent-private-key',
+        };
+        const extra = { ...connection(extraUuid, false), warehouseType };
+        const setupRefresh = (
+            saved: Record<string, unknown>,
+            parentPatch: Record<string, unknown> = {},
+        ) => {
+            const h = buildService(true);
+            let stored = saved;
+            h.projectModel.getSummary.mockResolvedValue({
+                ...summary,
+                type: ProjectType.PREVIEW,
+                upstreamProjectUuid: upstream.projectUuid,
+            });
+            h.model.get.mockResolvedValue(extra);
+            h.model.getProject.mockImplementation(async (uuid: string) =>
+                uuid === upstream.projectUuid ? upstream : project,
+            );
+            h.model.list.mockImplementation(async (p: typeof project) =>
+                p.projectUuid === upstream.projectUuid
+                    ? [
+                          {
+                              ...connection('upstream-extra', false),
+                              warehouseType,
+                          },
+                      ]
+                    : [connection(primaryUuid, true), extra],
+            );
+            h.model.getCredentials.mockImplementation(
+                async (p: typeof project) =>
+                    p.projectUuid === upstream.projectUuid
+                        ? { ...parent, ...parentPatch }
+                        : stored,
+            );
+            h.model.updateExtraCredentials.mockImplementation(
+                async (_p, _uuid, source: { credentials: typeof stored }) => {
+                    stored = source.credentials;
+                },
+            );
+            h.credentialPolicy.testWarehouseConnectionCredentialsForSave.mockImplementation(
+                async (_account, _organizationUuid, warehouseConnection) => {
+                    if (
+                        warehouseConnection.useSshTunnel === true &&
+                        !warehouseConnection.sshTunnelPrivateKey
+                    ) {
+                        throw new ParameterError(
+                            SSH_TUNNEL_KEY_UNKNOWN_MESSAGE,
+                        );
+                    }
+                    return {
+                        credentials: warehouseConnection,
+                        result: { ok: true, hops: [] },
+                    };
+                },
+            );
+            return {
+                ...h,
+                stored: () => stored,
+                refresh: (payload: Record<string, unknown> = {}) =>
+                    h.service.update(
+                        account,
+                        projectUuid,
+                        extraUuid,
+                        {
+                            warehouseConnection: {
+                                ...incoming,
+                                ...payload,
+                            } as CreatePostgresCredentials,
+                        },
+                        RequestMethod.CLI,
+                    ),
+            };
+        };
+        const expectNoParentSecrets = (value: unknown) =>
+            expect(JSON.stringify(value ?? null)).not.toMatch(
+                /parent-(password|key|secret|session)"/,
+            );
+
+        it('carries the parent key for the same destination', async () => {
+            const h = setupRefresh({ ...incoming, ...tunnel });
+            await h.refresh();
+            expect(h.stored()).toMatchObject({
+                ...tunnel,
+                sshTunnelPrivateKey: 'parent-private-key',
+            });
+            expectNoParentSecrets(h.stored());
+        });
+        it('keeps working across consecutive refreshes', async () => {
+            const h = setupRefresh({ ...incoming, ...tunnel });
+            await h.refresh();
+            await h.refresh();
+            expect(h.model.updateExtraCredentials).toHaveBeenCalledTimes(2);
+            expect(h.stored()).toMatchObject({
+                sshTunnelPrivateKey: 'parent-private-key',
+            });
+            expectNoParentSecrets(h.stored());
+        });
+        it('keeps the preview own saved private key', async () => {
+            const h = setupRefresh({
+                ...incoming,
+                ...tunnel,
+                sshTunnelPrivateKey: 'preview-private-key',
+            });
+            await h.refresh();
+            expect(h.stored()).toMatchObject({
+                sshTunnelPrivateKey: 'preview-private-key',
+            });
+        });
+        it.each([
+            ['a changed tunnel host', { sshTunnelHost: 'other-bastion' }, {}],
+            ['a changed tunnel port', { sshTunnelPort: 2222 }, {}],
+            ['a changed tunnel user', { sshTunnelUser: 'other-user' }, {}],
+            ['a changed warehouse host', {}, { host: 'moved-warehouse' }],
+            ['a changed warehouse port', {}, { port: 6543 }],
+            [
+                'a different public key',
+                { sshTunnelPublicKey: 'previous-public-key' },
+                {},
+            ],
+        ])(
+            'does not carry the parent key to %s',
+            async (_case, savedPatch, payload) => {
+                const h = setupRefresh({
+                    ...incoming,
+                    ...tunnel,
+                    ...savedPatch,
+                });
+                await expect(h.refresh(payload)).rejects.toMatchObject({
+                    statusCode: 400,
+                    message: SSH_TUNNEL_KEY_UNKNOWN_MESSAGE,
+                });
+                expect(h.model.updateExtraCredentials).not.toHaveBeenCalled();
+            },
+        );
+        it('does not carry the parent key to a preview tunnel opt-out', async () => {
+            const h = setupRefresh({
+                ...incoming,
+                ...tunnel,
+                useSshTunnel: false,
+            });
+            await h.refresh();
+            expect(h.stored()).not.toHaveProperty('sshTunnelPrivateKey');
+            expectNoParentSecrets(h.stored());
+        });
+        it('does not carry the parent key when the parent has no tunnel', async () => {
+            const h = setupRefresh(
+                { ...incoming, ...tunnel },
+                { useSshTunnel: false },
+            );
+            await expect(h.refresh()).rejects.toMatchObject({
+                statusCode: 400,
+                message: SSH_TUNNEL_KEY_UNKNOWN_MESSAGE,
+            });
+        });
+        it('does not read or carry the key of an upstream in another organisation', async () => {
+            const h = setupRefresh({ ...incoming, ...tunnel });
+            h.model.getProject.mockImplementation(async (uuid: string) =>
+                uuid === upstream.projectUuid
+                    ? { ...upstream, organizationUuid: 'other-organisation' }
+                    : project,
+            );
+            await expect(h.refresh()).rejects.toThrow();
+            expect(
+                h.credentialPolicy.testWarehouseConnectionCredentialsForSave,
+            ).not.toHaveBeenCalled();
+            expect(h.model.updateExtraCredentials).not.toHaveBeenCalled();
+        });
+    },
+);

@@ -79,3 +79,20 @@ export type ApiOrganizationBrandResponse = {
     status: 'ok';
     results: OrganizationBrand | null;
 };
+
+export const MAX_ORGANIZATION_BRAND_LOGO_BYTES = 512 * 1024;
+
+export type OrganizationBrandLogoUpload = {
+    url: string;
+    format: 'png' | 'jpeg' | 'webp' | 'gif' | 'svg';
+};
+
+export type ApiOrganizationBrandLogoUploadResponse = {
+    status: 'ok';
+    results: OrganizationBrandLogoUpload;
+};
+
+export const isSquareBrandLogo = (width: number, height: number): boolean =>
+    width > 0 &&
+    height > 0 &&
+    Math.abs(width - height) <= Math.max(width, height) * 0.01;

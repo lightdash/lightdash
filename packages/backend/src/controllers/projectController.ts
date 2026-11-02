@@ -98,6 +98,7 @@ import {
     type UpdatePreviewExpirationProjectSettings,
     type UpdatePreviewExpiresAt,
     type UpdateQueryTimezoneSettings,
+    type UpdateResultsCacheClearSchedule,
     type UpdateResultsCacheProjectSettings,
     type UpdateSchedulerSettings,
     type UUID,
@@ -1521,6 +1522,39 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
         const settings = await this.services
             .getProjectService()
             .updateProjectResultsCacheSettings(
+                toSessionUser(req.account),
+                projectUuid,
+                body,
+            );
+        return {
+            status: 'ok',
+            results: settings,
+        };
+    }
+
+    /**
+     * Set a recurring schedule that invalidates every cached query result in
+     * the project. Schedules run daily or weekly at one or more
+     * hours, on the hour, in the project's scheduler timezone. Requires project admin access.
+     * @summary Update results cache clear schedule
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Updated')
+    @Put('{projectUuid}/results-cache-config/clear-schedule')
+    @OperationId('updateProjectResultsCacheClearSchedule')
+    async updateProjectResultsCacheClearSchedule(
+        @Path() projectUuid: UUID,
+        @Body() body: UpdateResultsCacheClearSchedule,
+        @Request() req: express.Request,
+    ): Promise<ApiResultsCacheProjectSettingsResponse> {
+        assertRegisteredAccount(req.account);
+        const settings = await this.services
+            .getProjectService()
+            .updateProjectResultsCacheClearSchedule(
                 toSessionUser(req.account),
                 projectUuid,
                 body,

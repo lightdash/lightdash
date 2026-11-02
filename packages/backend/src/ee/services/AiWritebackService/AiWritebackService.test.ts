@@ -5625,6 +5625,7 @@ describe('AiWritebackService.getRunStatus', () => {
         const result = await service.getRunSnapshot(userWithOrg(true), 'run-1');
 
         expect(result).toEqual({
+            projectUuid: 'proj-1',
             status: 'agent',
             prUrl: null,
             errorMessage: null,

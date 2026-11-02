@@ -5,6 +5,7 @@ import type {
     DefaultTimeDimension,
     LightdashProjectConfig,
 } from '..';
+import { type WeekDay } from '../utils/timeFrames';
 import { type AnyType } from './any';
 import { CompileError } from './errors';
 import { type MetricFilterRule } from './filter';
@@ -805,6 +806,7 @@ export const filterStaticFilterAutocompleteValues = (
     searchFilterAutocompleteValues(values, search).map(({ value }) => value);
 
 export interface Dimension extends Field {
+    filterStartOfWeek?: WeekDay;
     fieldType: FieldType.DIMENSION;
     type: DimensionType;
     /**

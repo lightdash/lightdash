@@ -355,6 +355,7 @@ export class AnalyticsProjectService extends BaseService {
                         },
                         publicSpaceCreate: true,
                         force: true,
+                        syncEnabled: false,
                     };
                     const dashboardContent = { ...dashboard, spaceSlug };
                     // Restore the dashboard before uploading any owned charts.

@@ -2,6 +2,7 @@ import {
     type ApiError,
     type ApiResultsCacheInvalidationResponse,
     type ApiResultsCacheProjectSettingsResponse,
+    type UpdateResultsCacheClearSchedule,
     type UpdateResultsCacheProjectSettings,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -71,6 +72,47 @@ export const useUpdateResultsCacheSettings = (projectUuid: string) => {
             });
         },
     });
+};
+
+const updateResultsCacheClearSchedule = async (
+    lightdashApi: LightdashApi,
+    projectUuid: string,
+    data: UpdateResultsCacheClearSchedule,
+) =>
+    lightdashApi<ApiResultsCacheProjectSettingsResponse['results']>({
+        url: `/projects/${projectUuid}/results-cache-config/clear-schedule`,
+        method: 'PUT',
+        body: JSON.stringify(data),
+    });
+
+export const useUpdateResultsCacheClearSchedule = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
+    const queryClient = useQueryClient();
+    const { showToastApiError, showToastSuccess } = useToaster();
+
+    return useMutation<
+        ApiResultsCacheProjectSettingsResponse['results'],
+        ApiError,
+        UpdateResultsCacheClearSchedule
+    >(
+        (data) =>
+            updateResultsCacheClearSchedule(lightdashApi, projectUuid, data),
+        {
+            mutationKey: ['results_cache_clear_schedule_update', projectUuid],
+            onSuccess: async () => {
+                showToastSuccess({
+                    title: 'Clear schedule updated',
+                });
+                await queryClient.invalidateQueries(queryKey(projectUuid));
+            },
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: 'Failed to update clear schedule',
+                    apiError: error,
+                });
+            },
+        },
+    );
 };
 
 const invalidateResultsCache = async (

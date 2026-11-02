@@ -32,6 +32,7 @@ export function buildQueryArgs(options: {
     dateZoomGranularity?: DateGranularity | string;
     minimal: boolean;
     usePreAggregateCache?: boolean;
+    useCachedResults?: boolean;
     customSqlProvenanceChartUuid?: UUID;
     savedChart: Pick<SavedChartDAO, 'chartConfig' | 'pivotConfig'>;
 }): QueryResultsProps | null {
@@ -77,7 +78,8 @@ export function buildQueryArgs(options: {
         },
         ...savedChartArgs,
         dateZoomGranularity,
-        invalidateCache: savedChartArgs ? minimal : true,
+        invalidateCache:
+            !options.useCachedResults && (savedChartArgs ? minimal : true),
         usePreAggregateCache: options.usePreAggregateCache,
         customSqlProvenanceChartUuid: options.customSqlProvenanceChartUuid,
         parameters: parameters || {},

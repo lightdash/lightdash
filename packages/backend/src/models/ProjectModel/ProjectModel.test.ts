@@ -18,6 +18,7 @@ import {
     DimensionType,
     DuckdbConnectionType,
     ExploreType,
+    FeatureFlags,
     FieldType,
     MetricType,
     NotFoundError,
@@ -27,6 +28,7 @@ import {
     ServiceAccountScope,
     SpaceMemberRole,
     USER_MANAGED_EXPLORE_TYPES,
+    WarehouseConnectionError,
     WarehouseTypes,
 } from '@lightdash/common';
 import { MotherduckInstanceCache } from '@lightdash/warehouses';
@@ -115,6 +117,62 @@ describe('ProjectModel', () => {
     afterEach(() => {
         tracker.reset();
         vi.restoreAllMocks();
+    });
+    test('uses Console organization flags for BigQuery federation and rechecks changes', async () => {
+        let enabled = false;
+        tracker.on.select('feature_flags').response([
+            {
+                flag_id: FeatureFlags.BigqueryWorkloadIdentityAuth,
+                default_enabled: false,
+            },
+        ]);
+        tracker.on
+            .select('feature_flag_overrides')
+            .response((query) =>
+                query.bindings.includes('enabled-org') ? [{ enabled }] : [],
+            );
+        const productionModel = new ProjectModel({
+            database,
+            encryptionUtil: encryptionUtilMock,
+            lightdashConfig: {
+                ...lightdashConfigMock,
+                enabledFeatureFlags: new Set(),
+                disabledFeatureFlags: new Set(),
+                previewFeatureFlags: { enabled: false },
+            },
+            googleIdentityTokenSource: { getIdToken: vi.fn() },
+        });
+        const federated: CreateBigqueryCredentials = {
+            type: WarehouseTypes.BIGQUERY,
+            project: 'project',
+            dataset: 'dataset',
+            keyfileContents: {},
+            authenticationType:
+                BigqueryAuthenticationType.WORKLOAD_IDENTITY_FEDERATION,
+            workloadIdentityProvider:
+                'projects/123/locations/global/workloadIdentityPools/pool-id/providers/provider-id',
+            timeoutSeconds: undefined,
+            priority: undefined,
+            retries: undefined,
+            location: undefined,
+            maximumBytesBilled: undefined,
+        };
+        const resolve = (org = 'enabled-org') =>
+            productionModel.getWarehouseClientIdentityOptions(federated, org);
+        await expect(resolve()).rejects.toThrow(WarehouseConnectionError);
+        enabled = true;
+        await expect(resolve()).resolves.toMatchObject({
+            bigqueryExternalAccount: { type: 'external_account' },
+        });
+        await expect(resolve('other-org')).rejects.toThrow(
+            WarehouseConnectionError,
+        );
+        enabled = false;
+        await expect(resolve()).rejects.toThrow(WarehouseConnectionError);
+        enabled = true;
+        await expect(resolve()).resolves.toMatchObject({
+            bigqueryExternalAccount: { type: 'external_account' },
+        });
     });
     test('should get project with no sensitive properties', async () => {
         tracker.on
@@ -2830,6 +2888,29 @@ describe('ProjectModel', () => {
     });
 
     describe('mergeMissingWarehouseSecrets', () => {
+        test('never carries an old BigQuery key into workload identity federation', () => {
+            const federated: CreateBigqueryCredentials = {
+                type: WarehouseTypes.BIGQUERY,
+                project: 'project',
+                dataset: 'dataset',
+                authenticationType:
+                    BigqueryAuthenticationType.WORKLOAD_IDENTITY_FEDERATION,
+                keyfileContents: {},
+                timeoutSeconds: undefined,
+                priority: undefined,
+                retries: undefined,
+                location: undefined,
+                maximumBytesBilled: undefined,
+            };
+            const previous = {
+                ...federated,
+                authenticationType: BigqueryAuthenticationType.PRIVATE_KEY,
+                keyfileContents: { private_key: 'old-secret' },
+            };
+            expect(
+                ProjectModel.mergeMissingWarehouseSecrets(federated, previous),
+            ).toEqual(federated);
+        });
         test('should merge secrets when key is missing', async () => {
             const result = ProjectModel.mergeMissingWarehouseSecrets(
                 IncompletePostgresCredentialsWithoutSecrets as CreatePostgresCredentials,

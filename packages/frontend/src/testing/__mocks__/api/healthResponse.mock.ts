@@ -64,6 +64,7 @@ export default function mockHealthResponse(
         dashboard: {
             maxTilesPerTab: 50,
             maxTabsPerDashboard: 20,
+            maxConcurrentTileQueries: null,
             disableSentryTracking: false,
         },
         pivotTable: {
@@ -126,7 +127,6 @@ export default function mockHealthResponse(
             overrideColorPaletteName: undefined,
         },
         hasBrandfetch: false,
-        isOrganizationWarehouseCredentialsEnabled: false,
         isAthenaWarehouseIamRoleAuthEnabled: false,
         isSaveCredentialsFormEnabled: false,
         isCustomRolesEnabled: false,

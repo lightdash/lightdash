@@ -17,7 +17,7 @@ import {
 import { Box } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
-import { type ComponentProps, type ReactNode } from 'react';
+import { useEffect, type ComponentProps, type ReactNode } from 'react';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { sharedLightdashApi } from '../../../../../api';
 import type * as QueryResultsHooks from '../../../../../hooks/useQueryResults';
@@ -38,6 +38,7 @@ const mocks = vi.hoisted(() => ({
     rows: vi.fn(),
     retry: vi.fn(),
     saveVizConfig: vi.fn(),
+    chartEchartsRefSetter: vi.fn(),
 }));
 vi.mock('../../../../../api');
 vi.mock('../../../../../hooks/useServerOrClientFeatureFlag', () => ({
@@ -79,7 +80,8 @@ vi.mock('../../hooks/useCanViewAiAgentSql', () => ({
 vi.mock('../../../../../hooks/useCompiledSql', () => ({
     useCompiledSqlFromMetricQuery: () => ({ data: undefined }),
 }));
-vi.mock('../../../../../hooks/useQueryResults', () => ({
+vi.mock('../../../../../hooks/useQueryResults', async (original) => ({
+    ...(await original<typeof QueryResultsHooks>()),
     useInfiniteQueryResults: mocks.rows,
 }));
 vi.mock('../../../../../hooks/health/useHealth', () => ({
@@ -110,24 +112,34 @@ vi.mock('../../../../../hooks/appearance/useProjectColorPalette', () => ({
 }));
 // The headers the Lightdash table would draw.
 vi.mock('./AiComposerRunQueryChart', () => ({
-    AiComposerRunQueryChart: ({ chart }: { chart: ComposerRunQueryChart }) => (
-        <table>
-            <thead>
-                <tr>
-                    {[
-                        ...chart.metricQuery.dimensions,
-                        ...chart.metricQuery.metrics,
-                    ].map((fieldId) => (
-                        <th key={fieldId}>
-                            {getItemLabelWithoutTableName(
-                                chart.fields[fieldId],
-                            )}
-                        </th>
-                    ))}
-                </tr>
-            </thead>
-        </table>
-    ),
+    AiComposerRunQueryChart: ({
+        chart,
+        setEchartsRef,
+    }: {
+        chart: ComposerRunQueryChart;
+        setEchartsRef?: (ref: { current: null }) => void;
+    }) => {
+        mocks.chartEchartsRefSetter(setEchartsRef);
+        useEffect(() => setEchartsRef?.({ current: null }), [setEchartsRef]);
+        return (
+            <table>
+                <thead>
+                    <tr>
+                        {[
+                            ...chart.metricQuery.dimensions,
+                            ...chart.metricQuery.metrics,
+                        ].map((fieldId) => (
+                            <th key={fieldId}>
+                                {getItemLabelWithoutTableName(
+                                    chart.fields[fieldId],
+                                )}
+                            </th>
+                        ))}
+                    </tr>
+                </thead>
+            </table>
+        );
+    },
 }));
 vi.mock('./AiVisualizationRenderer', () => ({
     AiVisualizationRenderer: ({
@@ -472,6 +484,135 @@ describe('composer artifact', () => {
             cellOf('joined').getByText('Orders with amounts'),
         ).toBeInTheDocument();
         expect(screen.queryByText('joined')).not.toBeInTheDocument();
+    });
+
+    describe('image export', () => {
+        const barConfig: AiComposerChartArtifactConfig = {
+            ...composerConfig,
+            schemaVersion: 2,
+            vizConfig: {
+                type: 'bar',
+                x: 'status',
+                y: ['n'],
+                groupBy: null,
+                stack: null,
+                horizontal: null,
+                y2: null,
+                labels: null,
+            },
+        };
+        const statusCounts = {
+            ...resultsOf(
+                {
+                    status: { reference: 'status', type: 'string' },
+                    n: { reference: 'n', type: 'number' },
+                },
+                [{ status: 'completed', n: 3 }],
+            ),
+            totalResults: 1,
+        };
+        const canExport = {
+            user: {
+                abilityRules: [
+                    {
+                        action: 'manage' as const,
+                        subject: 'ExportCsv' as const,
+                    },
+                ],
+            },
+        };
+        const renderChart = (
+            appMocks?: typeof canExport,
+            chartConfig: AiComposerChartArtifactConfig = barConfig,
+        ) => {
+            mocks.artifact.mockReturnValue({
+                data: {
+                    artifactType: 'chart',
+                    title: 'Orders vs amounts',
+                    chartConfig,
+                },
+                isLoading: false,
+                error: null,
+                refetch: mocks.retry,
+            });
+            mocks.query.mockReturnValue(composerRun);
+            mocks.rows.mockReturnValue(statusCounts);
+            return renderWithProviders(
+                <AiArtifactPanel artifact={artifact} />,
+                appMocks,
+            );
+        };
+
+        it('offers export image in the quick actions menu', async () => {
+            renderChart(canExport);
+            fireEvent.click(
+                await screen.findByRole('button', { name: 'Quick actions' }),
+            );
+            expect(
+                await screen.findByRole('menuitem', { name: 'Export image' }),
+            ).toBeInTheDocument();
+        });
+
+        it('hides it for a chart type that does not export as an image', async () => {
+            renderChart(canExport, {
+                ...barConfig,
+                vizConfig: {
+                    type: 'big_number',
+                    x: null,
+                    y: ['n'],
+                    groupBy: null,
+                    stack: null,
+                    horizontal: null,
+                    y2: null,
+                    labels: null,
+                },
+            });
+            await screen.findByRole('table');
+            expect(mocks.chartEchartsRefSetter).toHaveBeenLastCalledWith(
+                undefined,
+            );
+        });
+
+        it('hides it without export permission', async () => {
+            renderChart();
+            await screen.findByRole('columnheader', { name: 'Status' });
+            expect(
+                screen.queryByRole('button', { name: 'Quick actions' }),
+            ).not.toBeInTheDocument();
+        });
+
+        it('downloads the displayed node result as run from the same menu', async () => {
+            mockedLightdashApi.mockImplementation((async ({
+                url,
+            }: {
+                url: string;
+            }) =>
+                url.endsWith('/schedule-download')
+                    ? { jobId: 'job' }
+                    : undefined) as unknown as typeof sharedLightdashApi);
+            renderChart(canExport, composerConfig);
+            fireEvent.click(
+                await screen.findByRole('button', { name: 'Quick actions' }),
+            );
+            expect(
+                screen.queryByRole('menuitem', { name: 'Export image' }),
+            ).not.toBeInTheDocument();
+            fireEvent.click(
+                await screen.findByRole('menuitem', {
+                    name: 'Download results',
+                }),
+            );
+            fireEvent.click(
+                await screen.findByRole('button', { name: 'Download' }),
+            );
+            await waitFor(() =>
+                expect(mockedLightdashApi).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        url: '/projects/project/query/query/schedule-download',
+                    }),
+                ),
+            );
+        });
     });
 
     it('falls back to node ids when titles are missing', () => {

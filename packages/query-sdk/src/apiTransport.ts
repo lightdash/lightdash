@@ -33,6 +33,7 @@ import type {
     QueryDefinition,
     QueryResult,
     Row,
+    SavedChartVisualization,
     Transport,
     UnderlyingDataOptions,
     UnderlyingDataResult,
@@ -1380,9 +1381,11 @@ export function createApiTransport(
                 buildChartBody(),
                 metadata,
             );
-            const { queryUuid, fields, metricQuery } =
+            const { queryUuid, fields, metricQuery, chartVisualization } =
                 execResult as AsyncQueryResponse & {
                     metricQuery?: ChartResponseMetricQuery;
+                    // Absent on hosts that predate the field.
+                    chartVisualization?: SavedChartVisualization;
                 };
 
             const { firstReadyPage, apiRows } = await pollQueryRows(
@@ -1528,6 +1531,7 @@ export function createApiTransport(
                 getUnderlyingData,
                 downloadUnderlyingData,
                 downloadResults,
+                ...(chartVisualization ? { chartVisualization } : {}),
             };
         },
 
@@ -1553,12 +1557,15 @@ export function createApiTransport(
 
         async aiPrompt(request: AiPromptRequest): Promise<AiPromptResult> {
             const { appUuid, prompt, sources, focus } = request;
-            const { text } = await fetchFn<{ text: string }>(
+            const { text, promptId } = await fetchFn<{
+                text: string;
+                promptId?: string;
+            }>(
                 'POST',
                 `/api/v2/projects/${config.projectUuid}/apps/${appUuid}/analysis/prompt`,
                 { prompt, sources, ...(focus ? { focus } : {}) },
             );
-            return { text };
+            return { text, promptId: promptId ?? null };
         },
 
         // Needs an app to attribute state to; the dev transport only has one

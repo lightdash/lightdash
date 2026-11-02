@@ -144,9 +144,6 @@
     font-size: var(--mantine-font-size-xs);
     font-weight: 500;
     white-space: nowrap;
-    transition:
-        border-color 0.12s ease-in-out,
-        color 0.12s ease-in-out;
 }
 
 .newSectionGhost:hover {
@@ -277,66 +274,4 @@
 .actions {
     position: relative;
     flex: 0 0 auto;
-}
-
-/* Expanded, the pills arrive one after the other, up to eight */
-.pillsEnter {
-    --controls-ease-arrive: cubic-bezier(0.22, 1, 0.36, 1);
-    --controls-duration-arrive: 0.28s;
-}
-
-.pillsEnter > * {
-    /* `backwards`: no transform stays on the wrapper, so a dragged pill
-       still rises above its neighbours */
-    animation: pillEnter var(--controls-duration-arrive)
-        var(--controls-ease-arrive) backwards;
-}
-
-.pillsEnter > :nth-child(2) {
-    animation-delay: 20ms;
-}
-
-.pillsEnter > :nth-child(3) {
-    animation-delay: 40ms;
-}
-
-.pillsEnter > :nth-child(4) {
-    animation-delay: 60ms;
-}
-
-.pillsEnter > :nth-child(5) {
-    animation-delay: 80ms;
-}
-
-.pillsEnter > :nth-child(6) {
-    animation-delay: 100ms;
-}
-
-.pillsEnter > :nth-child(7) {
-    animation-delay: 120ms;
-}
-
-.pillsEnter > :nth-child(n + 8) {
-    animation-delay: 140ms;
-}
-
-@keyframes pillEnter {
-    from {
-        opacity: 0;
-        transform: translateX(-6px);
-    }
-    to {
-        opacity: 1;
-        transform: translateX(0);
-    }
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .pillsEnter > * {
-        animation: none;
-    }
-
-    .newSectionGhost {
-        transition: none;
-    }
 }

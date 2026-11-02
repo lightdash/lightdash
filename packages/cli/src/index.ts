@@ -1911,9 +1911,7 @@ program
 
 program
     .command('generate-exposures')
-    .description(
-        '[Experimental command] Generates a .yml file for Lightdash exposures',
-    )
+    .description('Generates a YAML file for Lightdash exposures')
     .addHelpText(
         'after',
         `

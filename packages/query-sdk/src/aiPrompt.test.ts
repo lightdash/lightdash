@@ -62,7 +62,7 @@ describe('api transport aiPrompt', () => {
                 sources: [{ queryUuid: 'q1', label: null }],
                 focus: null,
             }),
-        ).resolves.toEqual({ text: 'answer' });
+        ).resolves.toEqual({ text: 'answer', promptId: null });
         expect(calls).toEqual([
             [
                 'POST',

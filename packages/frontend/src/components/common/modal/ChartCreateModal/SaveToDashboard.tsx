@@ -5,6 +5,7 @@ import {
     type CreateDashboardChartTile,
     type CreateSavedChartVersion,
     type DashboardTile,
+    type SavedChart,
 } from '@lightdash/common';
 import { Button, Group, Stack, Text, Textarea, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
@@ -13,6 +14,7 @@ import { useCallback, useEffect, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
 import { z } from 'zod';
+import useIsEmbedded from '../../../../ee/providers/Embed/useIsEmbedded';
 import {
     appendNewTilesToBottom,
     useDashboardQuery,
@@ -21,10 +23,7 @@ import useDashboardStorage from '../../../../hooks/dashboard/useDashboardStorage
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { useOptionalProjectRoute } from '../../../../hooks/useProjectRoute';
 import { useCreateMutation } from '../../../../hooks/useSavedQuery';
-import {
-    useIsModalHosted,
-    useModalHostedChartSaved,
-} from '../../../../providers/Explorer/useIsModalHosted';
+import { useIsModalHosted } from '../../../../providers/Explorer/useIsModalHosted';
 import classes from './ChartCreateModal.module.css';
 import { DEFAULT_CHART_METADATA, type ChartMetadata } from './types';
 
@@ -33,6 +32,7 @@ type Props = {
     dashboardUuid: string | null;
     savedData: CreateSavedChartVersion;
     projectUuid?: string;
+    onConfirm: (savedChart: SavedChart) => void;
     onClose: () => void;
     defaults?: ChartMetadata;
     /** Chart-level palette chosen before the first save. */
@@ -53,6 +53,7 @@ export const SaveToDashboard: FC<Props> = ({
     dashboardName,
     dashboardUuid,
     projectUuid,
+    onConfirm,
     onClose,
     defaults = DEFAULT_CHART_METADATA,
     colorPaletteUuid,
@@ -66,8 +67,13 @@ export const SaveToDashboard: FC<Props> = ({
     });
     const { getEditingDashboardInfo } = useDashboardStorage();
     const editingDashboardInfo = getEditingDashboardInfo();
+    // A modal or embed host stages the tile itself, so the dashboard is only
+    // needed to navigate back to it.
+    const isModalHosted = useIsModalHosted();
+    const isEmbedded = useIsEmbedded();
+    const isHosted = isModalHosted || isEmbedded;
     const { data: selectedDashboard } = useDashboardQuery({
-        uuidOrSlug: dashboardUuid || undefined,
+        uuidOrSlug: isHosted ? undefined : dashboardUuid || undefined,
         projectUuid,
     });
     useEffect(() => {
@@ -93,8 +99,6 @@ export const SaveToDashboard: FC<Props> = ({
 
     const { showToastSuccess } = useToaster();
     const navigate = useNavigate();
-    const isModalHosted = useIsModalHosted();
-    const onModalHostChartSaved = useModalHostedChartSaved();
 
     const { mutateAsync: createChart } = useCreateMutation({
         redirectOnSuccess: false,
@@ -137,9 +141,9 @@ export const SaveToDashboard: FC<Props> = ({
                 },
                 ...getDefaultChartTileSize(savedData.chartConfig?.type),
             };
-            // Modal-hosted: delegate to host, skip dashboard storage and navigation.
-            if (isModalHosted) {
-                onModalHostChartSaved?.(chart);
+            // Hosted: delegate to host, skip dashboard storage and navigation.
+            if (isHosted) {
+                onConfirm(chart);
                 showToastSuccess({
                     title: `Success! ${values.name} was added to ${dashboardName}`,
                 });
@@ -184,8 +188,8 @@ export const SaveToDashboard: FC<Props> = ({
             dashboardName,
             selectedDashboard?.tiles,
             selectedDashboard?.slug,
-            isModalHosted,
-            onModalHostChartSaved,
+            isHosted,
+            onConfirm,
             onClose,
         ],
     );

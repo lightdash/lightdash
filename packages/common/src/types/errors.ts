@@ -66,10 +66,12 @@ export class ForbiddenError extends LightdashError {
     }
 }
 
+export const FEATURE_NOT_ENABLED_CODE = 'feature_not_enabled';
+
 export class FeatureNotEnabledError extends ForbiddenError {
     constructor(featureFlagId: string) {
         super('This feature is not enabled for your organisation.', {
-            code: 'feature_not_enabled',
+            code: FEATURE_NOT_ENABLED_CODE,
             featureFlagId,
         });
         this.name = 'FeatureNotEnabledError';

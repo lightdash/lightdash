@@ -1,14 +1,17 @@
 import {
+    assertUnreachable,
     createDashboardFilterRuleFromField,
     createDashboardFilterRuleFromSqlColumn,
     FilterOperator,
     isMetric,
     type Dashboard,
+    type DashboardControlSection,
     type DashboardFilterableField,
     type DashboardFilterRule,
     type DashboardFilters,
     type ResultColumn,
 } from '@lightdash/common';
+import { VisuallyHidden } from '@mantine/core';
 import isEqual from 'lodash/isEqual';
 import omit from 'lodash/omit';
 import omitBy from 'lodash/omitBy';
@@ -46,6 +49,11 @@ import {
     useDashboardSelector,
     useDashboardTemporaryFilters,
 } from '../dashboard/store';
+import { moveFilterRule } from '../dashboardFilters/ActiveFilters/filterOrder';
+import {
+    isFilterHiddenOnTab,
+    useFilterTabPlacement,
+} from '../dashboardFilters/ActiveFilters/useFilterTabPlacement';
 import {
     getFilterRuleWithDisabledState,
     isLockedRequiredMissingValue,
@@ -54,18 +62,18 @@ import { getLinkKey } from './linkCandidates';
 import {
     getFieldCount,
     getFilterFields,
-    getFilterRows,
-    getTileField,
+    getChipFieldId,
+    getFilterChips,
     isSqlColumnRow,
     removeField,
-    setTileField,
     withoutDefaultTileTargets,
+    type FieldsMap,
 } from './peers';
 import {
     RailContractClasses,
     type RailContractClassNames,
 } from './railContractClasses';
-import { countFilters } from './sections';
+import { countFilters, getMoveNeighbours } from './sections';
 import {
     canKeepFilterRule,
     findFilterRule,
@@ -74,10 +82,10 @@ import {
     isDefaultValueIncomplete,
     isFilterRuleDirty,
     PLACEHOLDER_TARGET,
+    applyDraft,
     removeFilterRule,
     replaceFilterRule,
-    restoreFilterRule,
-    restoreFilterRules,
+    withSectionOf,
     type ControlsSidebarSnapshot,
 } from './sidebarState';
 import {
@@ -85,16 +93,19 @@ import {
     type FieldApply,
     useControlsSidebarSelector,
     type ControlsSidebarContextValue,
-    type ControlsSidebarSection,
+    type MoveDirection,
 } from './useControlsSidebar';
 import { useEditorDismiss } from './useEditorDismiss';
+import { useFilterFieldsMap } from './useFilterFieldsMap';
 
 // The bar's "Add", and the pills, which carry their filter id
 const ADD_SELECTOR =
     '[data-filter-actions] > button[data-dashboard-filter-control]';
 // `FilterPill` sets it
 const PILL_ATTRIBUTE = 'data-controls-pill';
-// The rail footer's Apply (or Create)
+// A section's "+" (`SectionedFilters`)
+const SECTION_ADD_ATTRIBUTE = 'data-section-add';
+// The editor's Apply (or Create), the prompt's while it asks
 const APPLY_SELECTOR = '[data-controls-apply]';
 
 const findPill = (filterId: string): HTMLElement | null =>
@@ -102,24 +113,45 @@ const findPill = (filterId: string): HTMLElement | null =>
         (element) => element.getAttribute(PILL_ATTRIBUTE) === filterId,
     ) ?? null;
 
+// What follows once the prompt is answered: the pill clicked, or a new
+// filter (in a section, or null)
+type Pending =
+    | { kind: 'open'; filterId: string }
+    | { kind: 'new'; sectionId: string | null };
+
 // A pending pill whose rule is gone is no question any more
-const getPendingId = ({
-    pendingFilterId,
-    dashboardFilters,
-}: {
-    pendingFilterId: string | null;
-    dashboardFilters: DashboardFilters;
-}): string | null =>
-    pendingFilterId !== null &&
-    findFilterRule(dashboardFilters, pendingFilterId) !== null
-        ? pendingFilterId
+const getPending = ({
+    pending,
+    savedFilters,
+    temporaryFilters,
+}: Pick<
+    Latest,
+    'pending' | 'savedFilters' | 'temporaryFilters'
+>): Pending | null =>
+    pending === null ||
+    pending.kind !== 'open' ||
+    findFilterRule(savedFilters, pending.filterId) !== null ||
+    findFilterRule(temporaryFilters, pending.filterId) !== null
+        ? pending
         : null;
 
 const focusApply = () =>
     document.querySelector<HTMLElement>(APPLY_SELECTOR)?.focus();
 
-// The filter whose pill takes focus back, null for "Add"
-type FocusTarget = { filterId: string | null };
+// Apply, else the editor's first enabled control
+const focusInEditor = () =>
+    (
+        document.querySelector<HTMLElement>(
+            `${APPLY_SELECTOR}:not(:disabled)`,
+        ) ??
+        document.querySelector<HTMLElement>(
+            '[data-controls-editor] [role="dialog"] input:not(:disabled), [data-controls-editor] [role="dialog"] button:not(:disabled)',
+        )
+    )?.focus();
+
+// The filter whose pill takes focus back, else the "+" of the section a new
+// filter was in, else "Add"
+type FocusTarget = { filterId: string | null; sectionId: string | null };
 
 // Focus is a DOM matter: it moves once the editor has left the page. The bar
 // reads the context through selectors, which update after the provider's own
@@ -135,15 +167,25 @@ const FocusReturn: FC<{ target: RefObject<FocusTarget | null> }> = ({
         // A pill disabled by a refetch cannot take it
         const pill =
             current.filterId === null ? null : findPill(current.filterId);
+        const sectionAdd =
+            current.sectionId === null
+                ? null
+                : document.querySelector<HTMLElement>(
+                      `[${SECTION_ADD_ATTRIBUTE}="${current.sectionId}"]`,
+                  );
         (pill !== null && !pill.hasAttribute('disabled')
             ? pill
-            : document.querySelector<HTMLElement>(ADD_SELECTOR)
+            : (sectionAdd ?? document.querySelector<HTMLElement>(ADD_SELECTOR))
         )?.focus();
     }, [isSidebarOpen, target]);
     return null;
 };
 
 type FilterGroup = 'dimensions' | 'metrics';
+
+// Which of the dashboard's filters an edit is on: an editor's and a viewer's
+// saved ones are 'saved', a viewer's own are 'temporary'
+type FilterSet = 'saved' | 'temporary';
 
 const NO_FIELD_IDS: string[] = [];
 
@@ -153,6 +195,7 @@ type SidebarState = {
     // The mode the edit was started in: it keeps writing that mode's filters
     // until the mode change has closed it
     isViewer: boolean;
+    filterSet: FilterSet;
     snapshot: ControlsSidebarSnapshot;
     // Where the control sat before its last field was removed, else null
     emptiedAt: {
@@ -163,7 +206,14 @@ type SidebarState = {
     } | null;
     // Other filters the editor itself wrote since this control was opened
     touchedFilterIds: string[];
+    // While tiles are chosen: the rule as it was when mapping started
+    mappingStart: DashboardFilterRule | null;
 };
+
+// As the shipped popover's Tiles tab: an editor's filters and a viewer's own,
+// never a viewer's saved filter
+const canChooseTiles = (state: SidebarState): boolean =>
+    !state.isViewer || state.filterSet === 'temporary';
 
 // What Apply or Cancel would decide: a new filter with no field yet has
 // nothing to lose, and a section move is applied at once, so it is no edit
@@ -212,15 +262,23 @@ const createPlaceholder = (
 // written eagerly so two calls in one event (commit a label, then close) agree.
 type Latest = {
     state: SidebarState | null;
-    // A pill clicked while the edit had unapplied changes, until answered
-    pendingFilterId: string | null;
+    // Asked while the edit had unapplied changes, until answered
+    pending: Pending | null;
     placeholder: DashboardFilterRule | null;
-    // The filters the editor writes: the dashboard's in edit mode, the
-    // viewer's own temporary ones in view mode
-    dashboardFilters: DashboardFilters;
-    // The other set, which shipped code writes: the temporary filters in edit
-    // mode, the saved ones in view mode
-    otherFilters: DashboardFilters;
+    // The edit's copy of its filter set: every editor write lands here, and
+    // only Apply takes it to the dashboard. Null while nothing is edited
+    draft: DashboardFilters | null;
+    savedFilters: DashboardFilters;
+    // A viewer's own filters, as the store holds them
+    temporaryFilters: DashboardFilters;
+    // The temporary filters shipped code reads
+    dashboardTemporaryFilters: DashboardFilters;
+    setSavedFilters: Dispatch<SetStateAction<DashboardFilters>>;
+    setTemporaryFilters: Dispatch<SetStateAction<DashboardFilters>>;
+    // A viewer's saved filter is written as the shipped popover writes it,
+    // so the URL carries the change
+    updateDimensionDashboardFilter: DashboardContextType['updateDimensionDashboardFilter'];
+    updateMetricDashboardFilter: DashboardContextType['updateMetricDashboardFilter'];
     // The edit's mode, else the page's
     isViewer: boolean;
     // The page's mode, which a new edit starts in
@@ -228,10 +286,14 @@ type Latest = {
     isEmbedded: boolean;
     haveFiltersChanged: boolean;
     filterableFieldsByTileUuid: DashboardContextType['filterableFieldsByTileUuid'];
+    filterFieldsMap: FieldsMap;
     dashboardTiles: Dashboard['tiles'] | undefined;
     controlSectionIds: string[];
+    controlSections: DashboardControlSection[];
+    getTabsUsingFilter: ReturnType<
+        typeof useFilterTabPlacement
+    >['getTabsUsingFilter'];
     highlightedFieldId: string | null;
-    setDashboardFilters: Dispatch<SetStateAction<DashboardFilters>>;
     setHaveFiltersChanged: Dispatch<SetStateAction<boolean>>;
     track: TrackingContextType['track'];
     dashboardUuid: string | undefined;
@@ -239,6 +301,49 @@ type Latest = {
     waiting: Waiting | null;
     activeTabUuid: string | undefined;
 };
+
+// Where the edit's filters come from
+type FilterSources = Pick<
+    Latest,
+    'state' | 'isPageViewer' | 'draft' | 'savedFilters' | 'temporaryFilters'
+>;
+
+const getFilterSet = ({ state, isPageViewer }: FilterSources): FilterSet =>
+    state?.filterSet ?? (isPageViewer ? 'temporary' : 'saved');
+
+// The edit's filters as the dashboard holds them now
+const getStoreFilters = (current: FilterSources): DashboardFilters =>
+    getFilterSet(current) === 'temporary'
+        ? current.temporaryFilters
+        : current.savedFilters;
+
+// What the editor sees and writes: its draft while a filter is open
+const getFilters = (current: FilterSources): DashboardFilters =>
+    current.draft ?? getStoreFilters(current);
+
+// The other set, which shipped code writes
+const getOtherFilters = (current: Latest): DashboardFilters =>
+    getFilterSet(current) === 'temporary'
+        ? current.savedFilters
+        : current.dashboardTemporaryFilters;
+
+// The field id the clicked chip filters by on the rule, else null
+const getClickedFieldId = (
+    current: Latest,
+    rule: DashboardFilterRule | null,
+): string | null =>
+    current.highlightedFieldId === null || rule === null
+        ? current.highlightedFieldId
+        : getChipFieldId(
+              getFilterChips(
+                  rule,
+                  current.dashboardTiles,
+                  current.filterableFieldsByTileUuid,
+                  current.filterFieldsMap,
+              ),
+              current.highlightedFieldId,
+              current.filterableFieldsByTileUuid,
+          );
 
 // Fields of the filter on no tile yet, keyed by filter so a stale entry
 // never leaks into another filter
@@ -268,22 +373,25 @@ const isUndoLive = (
     (undo.acrossTabs || undo.tabUuid === activeTabUuid) &&
     !isFilterRuleDirty(undo.written, filters, undo.filterId, toSaved);
 
-const getEditingRule = ({
-    state,
-    placeholder,
-    dashboardFilters,
-}: Pick<
-    Latest,
-    'state' | 'placeholder' | 'dashboardFilters'
->): DashboardFilterRule | null => {
+const getEditingRule = (
+    current: FilterSources & Pick<Latest, 'placeholder'>,
+): DashboardFilterRule | null => {
+    const { state, placeholder } = current;
     if (state === null) return null;
-    return placeholder ?? findFilterRule(dashboardFilters, state.filterId);
+    if (placeholder !== null) return placeholder;
+    // A filter taken off the dashboard from outside ends its edit
+    if (
+        !state.isNew &&
+        findFilterRule(getStoreFilters(current), state.filterId) === null
+    )
+        return null;
+    return findFilterRule(getFilters(current), state.filterId);
 };
 
 // What every controls event carries
-const getEventBase = ({ dashboardUuid, dashboardFilters }: Latest) => ({
-    dashboardUuid,
-    filtersCount: countFilters(dashboardFilters),
+const getEventBase = (current: Latest) => ({
+    dashboardUuid: current.dashboardUuid,
+    filtersCount: countFilters(getFilters(current)),
 });
 
 // Operator, values and tile targets come from the field or SQL column;
@@ -342,7 +450,7 @@ type ProviderProps = PropsWithChildren<{
     canAddFilters?: boolean;
     /** The dashboard's mode where no route says it, as in an embed (default: the route's). */
     isEditMode?: boolean;
-    /** An embed's public class names on the rail (default none). */
+    /** An embed's public class names on the editor (default none). */
     contractClasses?: RailContractClassNames | null;
 }>;
 
@@ -352,7 +460,7 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
     contractClasses = null,
     children,
 }) => {
-    // A mode change closes the edit as Done does; in the app the header guard
+    // A mode change closes the edit as Apply does; in the app the header guard
     // closes it before the dashboard's own Save or Cancel.
     // Outside edit mode the editor is a viewer's: it writes temporary filters
     const { mode } = useParams<{ mode?: string }>();
@@ -365,6 +473,12 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
     const setTemporaryFilters = useDashboardContext(
         (c) => c.setDashboardTemporaryFilters,
     );
+    const updateDimensionDashboardFilter = useDashboardContext(
+        (c) => c.updateDimensionDashboardFilter,
+    );
+    const updateMetricDashboardFilter = useDashboardContext(
+        (c) => c.updateMetricDashboardFilter,
+    );
     const dashboardTemporaryFilters = useDashboardTemporaryFilters();
     const haveFiltersChanged = useDashboardSelector(selectHaveFiltersChanged);
     const setHaveFiltersChanged = useDashboardContext(
@@ -373,10 +487,12 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
     const filterableFieldsByTileUuid = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,
     );
+    const filterFieldsMap = useFilterFieldsMap();
     const savedTiles = useDashboardContext((c) => c.dashboard?.tiles);
     const dashboardTiles = useDashboardSelector(selectDashboardTiles);
     const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
     const controlSections = useDashboardSelector(selectControlSections);
+    const { getTabsUsingFilter } = useFilterTabPlacement();
     const controlSectionIds = useMemo(
         () => controlSections.map((section) => section.id),
         [controlSections],
@@ -390,20 +506,12 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
     // where the mode has changed and before the change has closed it
     const isEditViewer = state?.isViewer ?? isViewer;
     const isOtherModeEdit = state !== null && state.isViewer !== isViewer;
-    const dashboardFilters = isEditViewer ? rawTemporaryFilters : savedFilters;
-    const setDashboardFilters = isEditViewer
-        ? setTemporaryFilters
-        : setSavedFilters;
-    const otherFilters = isEditViewer
-        ? savedFilters
-        : dashboardTemporaryFilters;
-    const [pendingFilterId, setPendingFilterId] = useState<string | null>(null);
+    const [draft, setDraft] = useState<DashboardFilters | null>(null);
+    const [pending, setPending] = useState<Pending | null>(null);
     // Lives here, never in the dashboard filters, until it gets a mapping
     const [placeholder, setPlaceholder] = useState<DashboardFilterRule | null>(
         null,
     );
-    const [activeSection, setActiveSection] =
-        useState<ControlsSidebarSection | null>(null);
     const [highlightedFieldId, setHighlightedFieldId] = useState<string | null>(
         null,
     );
@@ -415,19 +523,27 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
 
     const rendered: Latest = {
         state,
-        pendingFilterId,
+        pending,
         placeholder,
-        dashboardFilters,
-        otherFilters,
+        draft,
+        savedFilters,
+        temporaryFilters: rawTemporaryFilters,
+        dashboardTemporaryFilters,
+        setSavedFilters,
+        setTemporaryFilters,
+        updateDimensionDashboardFilter,
+        updateMetricDashboardFilter,
         isViewer: isEditViewer,
         isPageViewer: isViewer,
         isEmbedded,
         haveFiltersChanged,
         filterableFieldsByTileUuid,
+        filterFieldsMap,
         dashboardTiles,
         controlSectionIds,
+        controlSections,
+        getTabsUsingFilter,
         highlightedFieldId,
-        setDashboardFilters,
         setHaveFiltersChanged,
         track,
         dashboardUuid,
@@ -439,6 +555,7 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
     useLayoutEffect(() => {
         latest.current = rendered;
     });
+    const dashboardFilters = getFilters(rendered);
     const toSavedRule = useCallback(
         (rule: DashboardFilterRule) =>
             withoutDefaultTileTargets(
@@ -460,15 +577,25 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         [],
     );
 
-    const writeFilters = useCallback(
+    // Straight to the dashboard: Apply, a removal, a section move
+    const writeStore = useCallback(
         (update: (filters: DashboardFilters) => DashboardFilters) => {
-            latest.current.dashboardFilters = update(
-                latest.current.dashboardFilters,
-            );
-            latest.current.setDashboardFilters(update);
+            const current = latest.current;
+            if (getFilterSet(current) === 'temporary') {
+                current.temporaryFilters = update(current.temporaryFilters);
+                current.setTemporaryFilters(update);
+            } else {
+                current.savedFilters = update(current.savedFilters);
+                current.setSavedFilters(update);
+            }
         },
         [],
     );
+
+    const writeDraft = useCallback((next: DashboardFilters | null) => {
+        latest.current.draft = next;
+        setDraft(next);
+    }, []);
 
     // What the editor may lower again: only a flag it raised itself, with the
     // other filters as they were (shipped code raises it for those too)
@@ -476,11 +603,26 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
     const writeFiltersChanged = useCallback((changed: boolean) => {
         const current = latest.current;
         if (changed && !current.haveFiltersChanged && current.state !== null) {
-            ownRaise.current = { otherFilters: current.otherFilters };
+            ownRaise.current = { otherFilters: getOtherFilters(current) };
         }
         current.haveFiltersChanged = changed;
         current.setHaveFiltersChanged(changed);
     }, []);
+
+    // The editor's writes: to the draft while a filter is open, else (a link
+    // prompt's) to the dashboard at once
+    const writeFilters = useCallback(
+        (update: (filters: DashboardFilters) => DashboardFilters) => {
+            const { draft: editDraft } = latest.current;
+            if (editDraft === null) {
+                writeStore(update);
+                writeFiltersChanged(true);
+                return;
+            }
+            writeDraft(update(editDraft));
+        },
+        [writeStore, writeDraft, writeFiltersChanged],
+    );
 
     // Once the editor is done: changed when the filters differ from the
     // snapshot; unchanged only when the flag was the editor's own to lower
@@ -496,7 +638,7 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
             if (
                 haveFiltersChangedSince(
                     snapshot,
-                    current.dashboardFilters,
+                    getStoreFilters(current),
                     toSaved,
                 )
             ) {
@@ -505,7 +647,7 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
             }
             if (
                 ownRaise.current !== null &&
-                isEqual(ownRaise.current.otherFilters, current.otherFilters)
+                isEqual(ownRaise.current.otherFilters, getOtherFilters(current))
             ) {
                 writeFiltersChanged(false);
             }
@@ -523,9 +665,9 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         setState(next);
     }, []);
 
-    const writePending = useCallback((next: string | null) => {
-        latest.current.pendingFilterId = next;
-        setPendingFilterId(next);
+    const writePending = useCallback((next: Pending | null) => {
+        latest.current.pending = next;
+        setPending(next);
     }, []);
 
     const writeUndo = useCallback((next: ApplyUndo | null) => {
@@ -533,17 +675,17 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         setUndo(next);
     }, []);
 
-    // Ends the edit, which closes the rail
+    // Ends the edit, which closes the editor; the draft goes with it
     const reset = useCallback(() => {
         writeUndo(null);
         writeState(null);
+        writeDraft(null);
         writePending(null);
         writePlaceholder(null);
-        setActiveSection(null);
         setHighlightedFieldId(null);
         setHoveredFieldId(null);
         setWaiting(null);
-    }, [writeState, writePending, writePlaceholder, writeUndo]);
+    }, [writeState, writeDraft, writePending, writePlaceholder, writeUndo]);
 
     // Unclicks the field and drops its hover, so the tiles go back at once
     const clearHighlightedField = useCallback(() => {
@@ -564,38 +706,58 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         // A control with no field yet was never on the bar
         focusReturn.current = {
             filterId: rule === null ? (editingState?.filterId ?? null) : null,
+            sectionId: editingState?.isNew
+                ? (getEditingRule(latest.current)?.sectionId ?? null)
+                : null,
         };
     }, []);
 
-    // Opening another filter keeps the current edits (they only live in the
-    // dashboard draft until Save) and starts a fresh snapshot for the new one.
+    // A filter opens on a draft of its set, taken from the dashboard as it is
     const openExisting = useCallback(
         (filterId: string) => {
             const current = latest.current;
             if (current.state?.filterId === filterId) return;
-            // Only a filter of this mode: a viewer's saved ones keep the
-            // bar's popover, and a pill removed meanwhile opens nothing
-            if (findFilterRule(current.dashboardFilters, filterId) === null)
-                return;
+            const ownSet: FilterSet = current.isPageViewer
+                ? 'temporary'
+                : 'saved';
+            const ownFilters =
+                ownSet === 'temporary'
+                    ? current.temporaryFilters
+                    : current.savedFilters;
+            // A viewer's saved filter too; a pill removed meanwhile opens nothing
+            const filterSet: FilterSet | null =
+                findFilterRule(ownFilters, filterId) !== null
+                    ? ownSet
+                    : current.isPageViewer &&
+                        findFilterRule(current.savedFilters, filterId) !== null
+                      ? 'saved'
+                      : null;
+            if (filterSet === null) return;
+            const filters =
+                filterSet === 'temporary'
+                    ? current.temporaryFilters
+                    : current.savedFilters;
             writeUndo(null);
             focusReturn.current = null;
             ownRaise.current = null;
             writePending(null);
             writePlaceholder(null);
-            setActiveSection(null);
             setHighlightedFieldId(null);
             setHoveredFieldId(null);
             setWaiting(null);
+            writeDraft(filters);
             writeState({
                 filterId,
                 isNew: false,
                 isViewer: current.isPageViewer,
+                filterSet,
                 emptiedAt: null,
                 snapshot: {
-                    dashboardFilters: current.dashboardFilters,
+                    dashboardFilters: filters,
                     haveFiltersChanged: current.haveFiltersChanged,
                 },
                 touchedFilterIds: [],
+                mappingStart: null,
             });
             if (!current.isPageViewer) {
                 current.track({
@@ -608,7 +770,7 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
                 });
             }
         },
-        [writeState, writePending, writePlaceholder, writeUndo],
+        [writeState, writeDraft, writePending, writePlaceholder, writeUndo],
     );
 
     const openPlaceholder = useCallback(
@@ -620,20 +782,23 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
             ownRaise.current = null;
             writePending(null);
             writePlaceholder(rule);
-            setActiveSection(null);
             setHighlightedFieldId(null);
             setHoveredFieldId(null);
             setWaiting(null);
+            const filters = getStoreFilters(current);
+            writeDraft(filters);
             writeState({
                 filterId: rule.id,
                 isNew: true,
                 isViewer: current.isPageViewer,
+                filterSet: current.isPageViewer ? 'temporary' : 'saved',
                 emptiedAt: null,
                 snapshot: {
-                    dashboardFilters: current.dashboardFilters,
+                    dashboardFilters: filters,
                     haveFiltersChanged: current.haveFiltersChanged,
                 },
                 touchedFilterIds: [],
+                mappingStart: null,
             });
             if (!current.isPageViewer) {
                 current.track({
@@ -649,7 +814,7 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
                 });
             }
         },
-        [writeState, writePending, writePlaceholder, writeUndo],
+        [writeState, writeDraft, writePending, writePlaceholder, writeUndo],
     );
 
     // A control that lost its last field goes back where it was. A section
@@ -674,13 +839,12 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
                     ...filters[group].slice(index),
                 ],
             }));
-            writeFiltersChanged(true);
             writePlaceholder(null);
             if (editingState !== null && emptiedAt !== null) {
                 writeState({ ...editingState, emptiedAt: null });
             }
         },
-        [writeFilters, writeFiltersChanged, writePlaceholder, writeState],
+        [writeFilters, writePlaceholder, writeState],
     );
 
     const addFirstField = useCallback(
@@ -726,35 +890,6 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         [writeFirstRule],
     );
 
-    const addFirstFieldOnTile = useCallback(
-        (field: DashboardFilterableField, tileUuid: string) => {
-            const current = latest.current;
-            if (current.placeholder === null) return;
-            const fieldsByTile = current.filterableFieldsByTileUuid;
-            // What each tile offers is not known: leaving them out would be blind
-            if (fieldsByTile === undefined) return;
-            const base = getFirstFieldRule(
-                current.placeholder,
-                field,
-                fieldsByTile,
-                current.isViewer,
-            );
-            // Every tile the rule would filter is left out, except the clicked
-            // one, which is put on the field when the default does not do it
-            const rule = (current.dashboardTiles ?? []).reduce(
-                (next, tile) =>
-                    tile.uuid === tileUuid
-                        ? setTileField(next, tile, base.target, fieldsByTile)
-                        : getTileField(next, tile, fieldsByTile) === null
-                          ? next
-                          : setTileField(next, tile, null, fieldsByTile),
-                base,
-            );
-            writeFirstRule(rule, isMetric(field) ? 'metrics' : 'dimensions');
-        },
-        [writeFirstRule],
-    );
-
     const updateFilter = useCallback(
         (next: DashboardFilterRule) => {
             // Any write ends the undo of the last "Apply to all"
@@ -770,7 +905,7 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
             const tiles = current.dashboardTiles;
             const fieldsByTile = current.filterableFieldsByTileUuid;
             const firstFieldId = next.target.fieldId;
-            const previous = findFilterRule(current.dashboardFilters, next.id);
+            const previous = findFilterRule(getFilters(current), next.id);
             // The first field leaves when this write takes its last tile,
             // unless it is the filter's only field
             const isFirstFieldGone =
@@ -787,7 +922,10 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
             const rule = isFirstFieldGone
                 ? removeField(next, firstFieldId, tiles, fieldsByTile)
                 : next;
-            if (isFirstFieldGone && current.highlightedFieldId === firstFieldId)
+            if (
+                isFirstFieldGone &&
+                getClickedFieldId(current, previous) === firstFieldId
+            )
                 clearHighlightedField();
             // A field on a tile no longer waits, so losing that tile drops it
             const fields = new Set(getFilterFields(rule, tiles));
@@ -825,10 +963,27 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
                 });
             }
             writeFilters((filters) => replaceFilterRule(filters, rule));
-            writeFiltersChanged(true);
+            // A section move is no edit: it reaches the dashboard at once
+            if (
+                current.draft !== null &&
+                previous !== null &&
+                previous.sectionId !== rule.sectionId
+            ) {
+                const stored = findFilterRule(
+                    getStoreFilters(current),
+                    rule.id,
+                );
+                if (stored !== null) {
+                    writeStore((filters) =>
+                        replaceFilterRule(filters, withSectionOf(stored, rule)),
+                    );
+                    writeFiltersChanged(true);
+                }
+            }
         },
         [
             writeFilters,
+            writeStore,
             writeFiltersChanged,
             writePlaceholder,
             writeUndo,
@@ -848,14 +1003,14 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
                 previous === null
             )
                 return;
-            const before = current.dashboardFilters;
+            const before = getFilters(current);
             const waitingFieldIds =
                 current.waiting?.filterId === filterId
                     ? current.waiting.fieldIds
                     : [];
             const isClicked = current.highlightedFieldId === apply.fieldId;
             updateFilter(next);
-            const written = latest.current.dashboardFilters;
+            const written = getFilters(latest.current);
             // Still clicked: a field the write promoted away is unclicked
             if (
                 !isClicked ||
@@ -883,7 +1038,7 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
             !isUndoLive(
                 applied,
                 current.state?.filterId,
-                current.dashboardFilters,
+                getFilters(current),
                 current.activeTabUuid,
                 toSavedNow,
             )
@@ -912,22 +1067,22 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
             const current = latest.current;
             if (current.state === null || current.placeholder !== null) return;
             const { filterId } = current.state;
-            const rule = findFilterRule(current.dashboardFilters, filterId);
+            const filters = getFilters(current);
+            const rule = findFilterRule(filters, filterId);
             if (rule === null) return;
-            const group: FilterGroup = current.dashboardFilters.metrics.some(
+            const group: FilterGroup = filters.metrics.some(
                 (metric) => metric.id === filterId,
             )
                 ? 'metrics'
                 : 'dimensions';
-            const index = current.dashboardFilters[group].findIndex(
+            const index = filters[group].findIndex(
                 (candidate) => candidate.id === filterId,
             );
             writeState({
                 ...current.state,
                 emptiedAt: { group, index, fieldLabel },
             });
-            writeFilters((filters) => removeFilterRule(filters, filterId));
-            writeFiltersChanged(true);
+            writeFilters((next) => removeFilterRule(next, filterId));
             writePlaceholder({
                 ...createPlaceholder(filterId),
                 label: rule.label,
@@ -936,13 +1091,12 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
                 requiredGroupId: rule.requiredGroupId,
                 sectionId: rule.sectionId,
             });
-            setActiveSection(null);
             current.highlightedFieldId = null;
             setHighlightedFieldId(null);
             setHoveredFieldId(null);
             setWaiting(null);
         },
-        [writeState, writeFilters, writeFiltersChanged, writePlaceholder],
+        [writeState, writeFilters, writePlaceholder],
     );
 
     // The editor's writes to filters other than the edited one (a required
@@ -969,16 +1123,20 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
                 dimensions: swap(filters.dimensions),
                 metrics: swap(filters.metrics),
             }));
-            writeFiltersChanged(true);
         },
-        [writeState, writeFilters, writeFiltersChanged, writeUndo],
+        [writeState, writeFilters, writeUndo],
     );
 
     const addWaitingField = useCallback((fieldId: string) => {
         if (latest.current.state === null) return;
         const { filterId } = latest.current.state;
         // A stale click on this field would show it clicked again once it waits
-        if (latest.current.highlightedFieldId === fieldId) {
+        if (
+            getClickedFieldId(
+                latest.current,
+                getEditingRule(latest.current),
+            ) === fieldId
+        ) {
             latest.current.highlightedFieldId = null;
             setHighlightedFieldId(null);
         }
@@ -1011,6 +1169,48 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         [writeUndo],
     );
 
+    // Choose tiles: the popover gives way to the mapping row; its writes land
+    // in the same draft
+    const startMapping = useCallback(() => {
+        const current = latest.current;
+        const rule = getEditingRule(current);
+        if (
+            current.state === null ||
+            !canChooseTiles(current.state) ||
+            current.placeholder !== null ||
+            rule === null
+        )
+            return;
+        writeUndo(null);
+        current.highlightedFieldId = null;
+        setHighlightedFieldId(null);
+        setHoveredFieldId(null);
+        writeState({ ...current.state, mappingStart: rule });
+    }, [writeState, writeUndo]);
+
+    // The mapping row's back arrow: the popover returns, the tiles chosen stay
+    // in the draft for its Apply or Cancel
+    const endMapping = useCallback(() => {
+        const current = latest.current;
+        if (current.state === null || current.state.mappingStart === null)
+            return;
+        writeUndo(null);
+        current.highlightedFieldId = null;
+        setHighlightedFieldId(null);
+        setHoveredFieldId(null);
+        setWaiting(null);
+        writeState({ ...current.state, mappingStart: null });
+    }, [writeState, writeUndo]);
+
+    // The mapping row's Cancel: tiles go back to where mapping found them and
+    // the popover returns. The value cannot change while mapping
+    const cancelMapping = useCallback(() => {
+        const start = latest.current.state?.mappingStart ?? null;
+        if (start === null) return;
+        writeFilters((filters) => replaceFilterRule(filters, start));
+        endMapping();
+    }, [writeFilters, endMapping]);
+
     // The context's `isDirty`, read from `latest`
     const hasUnappliedChanges = useCallback(() => {
         const current = latest.current;
@@ -1020,7 +1220,7 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         return isEditUnapplied(
             editingState,
             editingPlaceholder !== null,
-            current.dashboardFilters,
+            getFilters(current),
             toSavedNow,
         );
     }, [toSavedNow]);
@@ -1047,23 +1247,17 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         [hasUnappliedChanges],
     );
 
-    // The edited rule goes and the editor's writes to other rules are undone;
-    // what was written from outside the editor stays, and keeps it changed
+    // The edited rule leaves the dashboard; the draft, with the editor's
+    // writes to other rules, goes with the edit
     const removeEdited = useCallback(() => {
         const { state: editingState } = latest.current;
         if (editingState === null) return;
         rememberFocusReturn();
-        const { snapshot, filterId, touchedFilterIds } = editingState;
-        writeFilters((filters) =>
-            restoreFilterRules(
-                removeFilterRule(filters, filterId),
-                snapshot.dashboardFilters,
-                touchedFilterIds,
-            ),
-        );
+        const { snapshot, filterId } = editingState;
+        writeStore((filters) => removeFilterRule(filters, filterId));
         settleFiltersChanged(snapshot);
         reset();
-    }, [writeFilters, settleFiltersChanged, reset, rememberFocusReturn]);
+    }, [writeStore, settleFiltersChanged, reset, rememberFocusReturn]);
 
     // The pill's X; on the edited filter it ends the edit as well
     const removeFilterById = useCallback(
@@ -1073,51 +1267,30 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
                 removeEdited();
                 return;
             }
-            writeFilters((filters) => removeFilterRule(filters, filterId));
+            const { draft: editDraft } = latest.current;
+            if (editDraft !== null)
+                writeDraft(removeFilterRule(editDraft, filterId));
+            writeStore((filters) => removeFilterRule(filters, filterId));
             writeFiltersChanged(true);
         },
-        [removeEdited, writeFilters, writeFiltersChanged, trackClosed],
+        [
+            removeEdited,
+            writeDraft,
+            writeStore,
+            writeFiltersChanged,
+            trackClosed,
+        ],
     );
 
-    // The edited rule goes back to its snapshot, or out when it was new, and
-    // so do the other rules the editor wrote; outside writes are left alone
+    // Cancel: the draft is dropped. Nothing of it reached the dashboard; a
+    // section move did, and stays
     const discard = useCallback(() => {
         const { state: editingState } = latest.current;
         if (editingState === null) return;
         rememberFocusReturn();
-        const { snapshot, filterId, touchedFilterIds, emptiedAt } =
-            editingState;
-        const { placeholder: emptied } = latest.current;
-        const saved = findFilterRule(snapshot.dashboardFilters, filterId);
-        // An emptied filter goes back where it was emptied, in the section
-        // it is in now, so the restore keeps both
-        const withEmptiedBack = (filters: DashboardFilters) => {
-            if (emptiedAt === null || emptied === null || saved === null)
-                return filters;
-            const list = filters[emptiedAt.group];
-            return {
-                ...filters,
-                [emptiedAt.group]: [
-                    ...list.slice(0, emptiedAt.index),
-                    { ...saved, sectionId: emptied.sectionId },
-                    ...list.slice(emptiedAt.index),
-                ],
-            };
-        };
-        writeFilters((filters) =>
-            restoreFilterRules(
-                restoreFilterRule(
-                    withEmptiedBack(filters),
-                    snapshot.dashboardFilters,
-                    filterId,
-                ),
-                snapshot.dashboardFilters,
-                touchedFilterIds,
-            ),
-        );
-        settleFiltersChanged(snapshot);
+        settleFiltersChanged(editingState.snapshot);
         reset();
-    }, [writeFilters, settleFiltersChanged, reset, rememberFocusReturn]);
+    }, [settleFiltersChanged, reset, rememberFocusReturn]);
 
     const isPlaceholder =
         state !== null && placeholder !== null && !isOtherModeEdit;
@@ -1146,9 +1319,20 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
                 : getEditingRule({
                       state,
                       placeholder,
-                      dashboardFilters,
+                      draft,
+                      isPageViewer: isViewer,
+                      savedFilters,
+                      temporaryFilters: rawTemporaryFilters,
                   }),
-        [isOtherModeEdit, state, placeholder, dashboardFilters],
+        [
+            isOtherModeEdit,
+            state,
+            placeholder,
+            draft,
+            isViewer,
+            savedFilters,
+            rawTemporaryFilters,
+        ],
     );
 
     const waitingFieldIds = useMemo(() => {
@@ -1162,7 +1346,51 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         return waiting.fieldIds.filter((fieldId) => !current.has(fieldId));
     }, [state, waiting, editingRule, dashboardTiles]);
 
-    // Apply: keeps the edits, which already live in the dashboard draft
+    // The draft reaches the dashboard: a viewer's saved filter through the
+    // shipped write (the URL override), else onto the edit's filter set
+    const commitDraft = useCallback(
+        (rule: DashboardFilterRule) => {
+            const current = latest.current;
+            const { state: editingState, draft: editDraft } = current;
+            if (editingState === null || editDraft === null) return;
+            if (editingState.isViewer && editingState.filterSet === 'saved') {
+                const group: FilterGroup = current.savedFilters.metrics.some(
+                    (metric) => metric.id === rule.id,
+                )
+                    ? 'metrics'
+                    : 'dimensions';
+                const index = current.savedFilters[group].findIndex(
+                    (saved) => saved.id === rule.id,
+                );
+                if (index === -1) return;
+                (group === 'metrics'
+                    ? current.updateMetricDashboardFilter
+                    : current.updateDimensionDashboardFilter)(
+                    rule,
+                    index,
+                    false,
+                    false,
+                );
+                current.savedFilters = replaceFilterRule(
+                    current.savedFilters,
+                    rule,
+                );
+                return;
+            }
+            const written = replaceFilterRule(editDraft, rule);
+            writeStore((filters) =>
+                applyDraft(
+                    filters,
+                    written,
+                    editingState.filterId,
+                    editingState.touchedFilterIds,
+                ),
+            );
+        },
+        [writeStore],
+    );
+
+    // Apply: the draft reaches the dashboard, once, and the edit ends
     const close = useCallback(() => {
         const current = latest.current;
         if (current.state === null) return;
@@ -1194,11 +1422,11 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
                 },
             });
         }
-        if (isDefaultValueIncomplete(rule)) {
-            writeFilters((filters) =>
-                replaceFilterRule(filters, { ...rule, disabled: true }),
-            );
-        }
+        const kept = isDefaultValueIncomplete(rule)
+            ? { ...rule, disabled: true }
+            : rule;
+        // A clean edit writes nothing, so no tile reruns
+        if (kept !== rule || hasUnappliedChanges()) commitDraft(kept);
         // An edit that was undone by hand leaves the dashboard unchanged
         settleFiltersChanged(snapshot);
         reset();
@@ -1206,7 +1434,8 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         discard,
         removeEdited,
         reset,
-        writeFilters,
+        commitDraft,
+        hasUnappliedChanges,
         settleFiltersChanged,
         rememberFocusReturn,
     ]);
@@ -1226,9 +1455,9 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         if (!isEditMode) setDismissedLinks([]);
     }, [isEditMode, close, trackClosed]);
 
-    // Whatever is being edited is applied first. A new control with no field
-    // yet stays as it is, label included; asked for from a section, it moves
-    // there instead
+    // A clean edit is applied first, a dirty one asks as a pill switch does.
+    // A new control with no field yet stays as it is, label included; asked
+    // for from a section, it moves there instead
     const openNew = useCallback(
         (sectionId?: string) => {
             const { state: editingState, placeholder: editingPlaceholder } =
@@ -1238,23 +1467,39 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
                     writePlaceholder({ ...editingPlaceholder, sectionId });
                 return;
             }
+            // A stale edit, its rule taken away from outside, just closes
+            if (
+                getEditingRule(latest.current) !== null &&
+                hasUnappliedChanges()
+            ) {
+                writePending({ kind: 'new', sectionId: sectionId ?? null });
+                focusApply();
+                return;
+            }
             trackClosed('switch');
             close();
             openPlaceholder(sectionId);
         },
-        [close, openPlaceholder, writePlaceholder, trackClosed],
+        [
+            close,
+            hasUnappliedChanges,
+            openPlaceholder,
+            writePending,
+            writePlaceholder,
+            trackClosed,
+        ],
     );
 
     // A pill: with nothing edited it opens. On the edited filter it closes a
     // clean edit and hands focus to Apply otherwise; another filter switches
-    // a clean edit, else the footer asks first
+    // a clean edit, else the editor asks first
     const open = useCallback(
         (filterId: string) => {
             const current = latest.current;
             if (current.state !== null && getEditingRule(current) !== null) {
                 const isOwn = current.state.filterId === filterId;
                 if (hasUnappliedChanges()) {
-                    if (!isOwn) writePending(filterId);
+                    if (!isOwn) writePending({ kind: 'open', filterId });
                     focusApply();
                     return;
                 }
@@ -1270,12 +1515,21 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         [close, hasUnappliedChanges, openExisting, writePending, trackClosed],
     );
 
-    // The footer's answer to a pending pill: Apply or Discard the edit, then
-    // open the filter that was clicked
+    // A click outside cancels, unapplied changes and all, so what was clicked
+    // acts at once. Mapping is left only by its own Cancel or Apply
+    const requestClose = useCallback(() => {
+        if (latest.current.state === null) return;
+        if (latest.current.state.mappingStart !== null) return;
+        trackClosed('cancel');
+        discard();
+    }, [discard, trackClosed]);
+
+    // The prompt's answer: Apply or Discard the edit, then open the filter
+    // that was clicked, if one was
     const resolvePending = useCallback(
         (isApply: boolean) => {
             const current = latest.current;
-            const next = getPendingId(current);
+            const next = getPending(current);
             if (next === null) return;
             if (current.state?.isViewer === false) {
                 current.track({
@@ -1289,15 +1543,40 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
             trackClosed('switch');
             if (isApply) close();
             else discard();
-            openExisting(next);
+            switch (next.kind) {
+                case 'open':
+                    openExisting(next.filterId);
+                    break;
+                case 'new':
+                    openPlaceholder(next.sectionId ?? undefined);
+                    break;
+                default:
+                    assertUnreachable(next, 'Unknown pending step');
+            }
         },
-        [close, discard, openExisting, trackClosed],
+        [close, discard, openExisting, openPlaceholder, trackClosed],
     );
 
-    // Escape: a pending question is withdrawn, else the edit is cancelled
+    // Escape: a pending question is withdrawn, else the edit is cancelled.
+    // In mapping it only goes back to the popover while nothing changed:
+    // the row's Cancel is the one way to drop tile changes
     const dismiss = useCallback(() => {
         const current = latest.current;
-        if (getPendingId(current) === null) {
+        const start = current.state?.mappingStart ?? null;
+        if (start !== null) {
+            const filters = getFilters(current);
+            if (
+                !isFilterRuleDirty(
+                    replaceFilterRule(filters, start),
+                    filters,
+                    start.id,
+                    toSavedNow,
+                )
+            )
+                cancelMapping();
+            return;
+        }
+        if (getPending(current) === null) {
             trackClosed('cancel');
             discard();
             return;
@@ -1309,10 +1588,67 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
             });
         }
         writePending(null);
-        focusApply();
-    }, [discard, writePending, trackClosed]);
+        // Once the question has left: it held the focus
+        setTimeout(focusInEditor);
+    }, [discard, writePending, trackClosed, cancelMapping, toSavedNow]);
 
-    // The rail's Apply and Cancel, tracked; the provider's own ways out
+    // A move along the bar is no edit, as a section move: it reaches the
+    // dashboard at once, and a focused pill keeps the focus
+    // A count keys the text, so the same move twice is announced twice
+    const [moveAnnouncement, setMoveAnnouncement] = useState({
+        text: '',
+        count: 0,
+    });
+    const moveFilter = useCallback(
+        (filterId: string, direction: MoveDirection) => {
+            const current = latest.current;
+            const filters = getStoreFilters(current);
+            const neighbours = getMoveNeighbours(
+                filters,
+                filterId,
+                current.controlSections,
+                (rule) =>
+                    !isFilterHiddenOnTab(
+                        current.getTabsUsingFilter(rule),
+                        current.activeTabUuid,
+                    ),
+            );
+            const overId =
+                direction === 'left' ? neighbours.before : neighbours.after;
+            if (overId === null) return;
+            const group: FilterGroup = filters.metrics.some(
+                (rule) => rule.id === filterId,
+            )
+                ? 'metrics'
+                : 'dimensions';
+            const ids = filters[group].map((rule) => rule.id);
+            const from = ids.indexOf(filterId);
+            const to = ids.indexOf(overId);
+            if (from === -1 || to === -1 || from === to) return;
+            const nameOf = (index: number) => {
+                const rule = filters[group][index];
+                return (
+                    rule.label ||
+                    latest.current.filterFieldsMap[rule.target.fieldId]
+                        ?.label ||
+                    rule.target.fieldId
+                );
+            };
+            const pill = findPill(filterId);
+            const hadFocus = pill !== null && document.activeElement === pill;
+            writeStore((next) => moveFilterRule(next, group, filterId, overId));
+            writeFiltersChanged(true);
+            setMoveAnnouncement(({ count }) => ({
+                text: `${nameOf(from)} moved ${to < from ? 'before' : 'after'} ${nameOf(to)}`,
+                count: count + 1,
+            }));
+            // Once the bar has redrawn: a moved node loses focus
+            if (hadFocus) setTimeout(() => findPill(filterId)?.focus());
+        },
+        [writeStore, writeFiltersChanged],
+    );
+
+    // The editor's Apply and Cancel, tracked; the provider's own ways out
     // call `close` and `discard` and track their own outcome
     const apply = useCallback(() => {
         trackClosed('apply');
@@ -1326,10 +1662,18 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
     // Derived, not reset: a rule that left the dashboard filters closes the
     // sidebar, and the next open or Add starts over
     const isSidebarOpen = state !== null && editingRule !== null;
-    const pendingRule = useMemo(() => {
-        const id = getPendingId({ pendingFilterId, dashboardFilters });
-        return id === null ? null : findFilterRule(dashboardFilters, id);
-    }, [pendingFilterId, dashboardFilters]);
+    const isMapping =
+        state !== null &&
+        state.mappingStart !== null &&
+        isSidebarOpen &&
+        !isPlaceholder;
+    const isAsking =
+        isSidebarOpen &&
+        getPending({
+            pending,
+            savedFilters,
+            temporaryFilters: rawTemporaryFilters,
+        }) !== null;
 
     // Derived: only while Undo can still take it back
     const fieldUndo = useMemo(
@@ -1355,30 +1699,42 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
     // The clicked field, while it is one: a row of the filter, a waiting
     // field, or the field of a live undo. A clear that took it off its last
     // tile leaves it clicked only as long as that undo
-    const clickedFieldId = useMemo(
-        () =>
-            highlightedFieldId !== null &&
-            editingRule !== null &&
-            (getFilterRows(editingRule, dashboardTiles).includes(
-                highlightedFieldId,
-            ) ||
-                waitingFieldIds.includes(highlightedFieldId) ||
-                fieldUndo?.fieldId === highlightedFieldId)
-                ? highlightedFieldId
-                : null,
-        [
-            highlightedFieldId,
+    const clickedFieldId = useMemo(() => {
+        if (highlightedFieldId === null || editingRule === null) return null;
+        const chips = getFilterChips(
             editingRule,
             dashboardTiles,
-            waitingFieldIds,
-            fieldUndo,
-        ],
-    );
+            filterableFieldsByTileUuid,
+            filterFieldsMap,
+        );
+        return chips.some((chip) => chip.key === highlightedFieldId) ||
+            waitingFieldIds.includes(
+                getChipFieldId(
+                    chips,
+                    highlightedFieldId,
+                    filterableFieldsByTileUuid,
+                ),
+            ) ||
+            fieldUndo?.fieldId === highlightedFieldId
+            ? highlightedFieldId
+            : null;
+    }, [
+        highlightedFieldId,
+        editingRule,
+        dashboardTiles,
+        filterableFieldsByTileUuid,
+        filterFieldsMap,
+        waitingFieldIds,
+        fieldUndo,
+    ]);
     useEditorDismiss({
         isOpen: isSidebarOpen,
         isFieldClicked: clickedFieldId !== null,
+        isAsking,
+        isPristineNew: isPlaceholder && state?.isNew === true,
         clearField: clearHighlightedField,
         dismiss,
+        dismissOutside: requestClose,
     });
 
     // Its own memo so a hover does not hand selectors a new object
@@ -1397,19 +1753,23 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
             emptiedFieldLabel: state?.emptiedAt?.fieldLabel ?? null,
             isPlaceholder,
             editingRule,
+            editorFilters: dashboardFilters,
             isSidebarOpen,
-            pendingRule,
+            isMapping,
+            canChooseTiles: state !== null && canChooseTiles(state),
+            startMapping,
+            cancelMapping,
+            endMapping,
+            isAsking,
             resolvePending,
+            moveFilter,
             newTileUuids,
             dismissedLinks,
             dismissLink,
-            activeSection,
-            setActiveSection,
             open,
             openNew,
             addFirstField,
             addFirstSqlColumn,
-            addFirstFieldOnTile,
             removeLastField,
             waitingFieldIds,
             addWaitingField,
@@ -1444,17 +1804,20 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
             isViewer,
             canAddFilters,
             isSidebarOpen,
-            pendingRule,
+            isMapping,
+            startMapping,
+            cancelMapping,
+            endMapping,
+            isAsking,
             resolvePending,
+            moveFilter,
             editing,
             isPlaceholder,
             editingRule,
-            activeSection,
             open,
             openNew,
             addFirstField,
             addFirstSqlColumn,
-            addFirstFieldOnTile,
             removeLastField,
             waitingFieldIds,
             addWaitingField,
@@ -1485,6 +1848,14 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
                 {children}
             </RailContractClasses.Provider>
             <FocusReturn target={focusReturn} />
+            {/* Moves happen in edit mode only */}
+            {isEditMode && (
+                <VisuallyHidden role="status">
+                    <span key={moveAnnouncement.count}>
+                        {moveAnnouncement.text}
+                    </span>
+                </VisuallyHidden>
+            )}
         </ControlsSidebarContext.Provider>
     );
 };

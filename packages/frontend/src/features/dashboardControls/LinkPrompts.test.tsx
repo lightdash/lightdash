@@ -254,10 +254,6 @@ describe('LinkPrompts', () => {
         expect(applyButton(added.uuid)).toHaveAccessibleName(
             'Apply 1 filter to Title tile-added',
         );
-        expect(container(added.uuid).firstElementChild).toHaveAttribute(
-            'data-wave',
-            '0',
-        );
 
         await userEvent.click(applyButton(added.uuid));
 

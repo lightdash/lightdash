@@ -520,6 +520,27 @@ describe('semanticLayer node filters', () => {
             ).success,
         ).toBe(false);
     });
+
+    it('defaults omitted optional fields to null', () => {
+        const { sorts, ...node } = semanticArgs({
+            dimensions: 'orders_customer_name equals=Alice',
+        }).queries[0];
+        const parsed = toolComposerQueriesArgsSchema.parse({ queries: [node] });
+        expect(parsed).toMatchObject({
+            title: null,
+            description: null,
+            terminalNodeId: null,
+            queries: [
+                {
+                    filters: {
+                        dimensions: 'orders_customer_name equals=Alice',
+                        metrics: null,
+                    },
+                    sorts: null,
+                },
+            ],
+        });
+    });
 });
 
 describe('toolComposerQueriesArgsSchemaPersisted', () => {
@@ -594,7 +615,7 @@ describe('toolComposerQueriesArgsSchemaPersisted', () => {
                 limit: 500,
             }),
         );
-        expect(parsed.queries[0]).toMatchObject({ parameters: null });
+        expect(parsed.queries[0]).not.toHaveProperty('parameters');
     });
 
     it('parses nodes persisted with a null or missing description', () => {
@@ -631,6 +652,7 @@ describe('semanticLayer node parameters', () => {
         filters: null,
         sorts: null,
         limit: 500,
+        additionalMetrics: [],
     };
 
     it('accepts parameter values on the node', () => {

@@ -144,6 +144,7 @@ export class ScheduledContentCoder extends BaseService {
             enabled: scheduler.enabled,
             includeLinks: scheduler.includeLinks,
             plainTextEmail: scheduler.plainTextEmail,
+            useCachedResults: scheduler.useCachedResults,
             targets,
             downloadedAt: new Date(),
         };
@@ -214,6 +215,7 @@ export class ScheduledContentCoder extends BaseService {
             enabled: scheduler.enabled,
             includeLinks: scheduler.includeLinks,
             plainTextEmail: scheduler.plainTextEmail,
+            useCachedResults: scheduler.useCachedResults,
             destination: {
                 spreadsheetId: scheduler.options.gdriveId,
                 spreadsheetName: scheduler.options.gdriveName,
@@ -468,6 +470,7 @@ export class ScheduledContentCoder extends BaseService {
             enabled: scheduler.enabled,
             includeLinks: scheduler.includeLinks,
             plainTextEmail: scheduler.plainTextEmail,
+            useCachedResults: scheduler.useCachedResults,
             targets,
             resource: { type: 'chart', slug: chart.slug },
             thresholds: scheduler.thresholds,
@@ -594,7 +597,13 @@ export class ScheduledContentCoder extends BaseService {
                 | AlertAsCode
                 | GoogleSheetsSyncAsCode,
         ) => {
-            const { downloadedAt, ...rest } = scheduledContent;
+            const { downloadedAt, ...content } = scheduledContent;
+            // Files written before these settings existed omit them.
+            const rest = {
+                ...content,
+                plainTextEmail: content.plainTextEmail ?? false,
+                useCachedResults: content.useCachedResults ?? false,
+            };
             if ('targets' in rest) {
                 return {
                     ...rest,
@@ -802,6 +811,7 @@ export class ScheduledContentCoder extends BaseService {
             enabled: delivery.enabled,
             includeLinks: delivery.includeLinks,
             plainTextEmail: delivery.plainTextEmail ?? false,
+            useCachedResults: delivery.useCachedResults ?? false,
             targets,
             appUuid: null,
             appName: null,

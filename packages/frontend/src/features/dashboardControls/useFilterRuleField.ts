@@ -10,7 +10,7 @@ import { useMemo } from 'react';
 import { useDashboardFilterField } from '../dashboardFilters/FilterRequirements/useDashboardFilterField';
 
 // A dashboard only ever lists dimensions and metrics
-export const toDashboardFilterableField = (
+const toDashboardFilterableField = (
     item: FilterableItem | undefined,
 ): DashboardFilterableField | null => {
     if (item === undefined) return null;

@@ -175,6 +175,7 @@ describe('FeatureFlagModel', () => {
         FeatureFlags.DbtPartialParse,
         FeatureFlags.AgentIdentity,
         FeatureFlags.PeerDbtSources,
+        FeatureFlags.BigqueryWorkloadIdentityAuth,
     ])('%s production rollout', (featureFlagId) => {
         const config = {
             previewFeatureFlags: { enabled: false },

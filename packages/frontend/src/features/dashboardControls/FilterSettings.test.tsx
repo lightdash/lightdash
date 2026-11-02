@@ -6,9 +6,10 @@ import {
     MetricType,
     type DashboardFilterableField,
     type DashboardFilterRule,
+    type DashboardFilters,
 } from '@lightdash/common';
 import { fireEvent, screen } from '@testing-library/react';
-import { type ReactElement } from 'react';
+import { useState, type ReactElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { type SqlChartTileMetadata } from '../../providers/Dashboard/types';
 import { createDashboardTestStore } from '../../testing/dashboardStore';
@@ -16,13 +17,16 @@ import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProv
 import { renderWithProviders as renderWithAppProviders } from '../../testing/testUtils';
 import { FilterBarPopoversProvider } from '../dashboardFilters/FilterRequirements/FilterBarPopoversProvider';
 import { useFilterBarPopovers } from '../dashboardFilters/FilterRequirements/useFilterBarPopovers';
-import { FilterSettings } from './FilterSettings';
+import { FilterSettings, type EditorView } from './FilterSettings';
 
-// No filters and no parameter values in the dashboard store
+// No parameter values in the dashboard store, and no filters unless a test
+// gives them
+let storeFilters: DashboardFilters | undefined;
 const renderWithProviders = (ui: ReactElement) =>
     renderWithAppProviders(
         <DashboardStoreTestProvider
             store={createDashboardTestStore({
+                ...(storeFilters && { dashboardFilters: storeFilters }),
                 parameterValues: {},
                 sqlChartTilesMetadata: mockTileStatus.current
                     .sqlChartTilesMetadata as Record<
@@ -60,12 +64,25 @@ vi.mock('./FilterValueSettings', () => ({
     FilterValueSettings: ({
         filterType,
         field,
+        filterRule,
     }: {
         filterType: FilterType;
         field: DashboardFilterableField | null;
+        filterRule: DashboardFilterRule;
     }) => (
         <div data-testid="value-settings">
             {`${filterType} for ${field?.label ?? 'no field'}`}
+            <input aria-label="Operator" />
+            {/* Stands in for a value input that cannot take focus */}
+            {/* A list value input carries aria-haspopup and opens on focus */}
+            <input
+                aria-label="Value"
+                disabled={!!filterRule.disabled}
+                aria-haspopup={
+                    filterRule.operator === 'include' ? 'listbox' : undefined
+                }
+                onFocus={() => mockListOpens()}
+            />
         </div>
     ),
 }));
@@ -95,13 +112,12 @@ vi.mock('./ViewerControls', () => ({
     ),
 }));
 const close = vi.hoisted(() => vi.fn());
+const mockListOpens = vi.hoisted(() => vi.fn());
+const startMapping = vi.hoisted(() => vi.fn());
 const updateOtherFilters = vi.hoisted(() => vi.fn());
-const setActiveSection = vi.hoisted(() => vi.fn());
-const mockSection = vi.hoisted(() => ({
-    current: null as 'tiles' | 'rules' | null,
-}));
+const moveFilter = vi.hoisted(() => vi.fn());
 const mockViewer = vi.hoisted(() => ({
-    current: { isViewer: false },
+    current: { isViewer: false, canChooseTiles: true },
 }));
 const otherRules = vi.hoisted(
     () => [{ id: 'filter-2' }] as DashboardFilterRule[],
@@ -113,8 +129,9 @@ vi.mock('./useControlsSidebar', () => ({
         selector({
             close,
             updateOtherFilters,
-            activeSection: mockSection.current,
-            setActiveSection,
+            startMapping,
+            moveFilter,
+            isNew: false,
             ...mockViewer.current,
         }),
 }));
@@ -155,20 +172,36 @@ const sqlTarget = (fallbackType?: DimensionType) => ({
     fallbackType,
 });
 
-const renderSettings = (
-    filterRule: DashboardFilterRule,
-    field: DashboardFilterableField | null,
-) =>
-    renderWithProviders(
+// The editor holds the view; here, a stand-in that does the same
+const Settings = ({
+    rule: filterRule,
+    field,
+}: {
+    rule: DashboardFilterRule;
+    field: DashboardFilterableField | null;
+}) => {
+    const [view, setView] = useState<EditorView>('value');
+    return (
         <FilterSettings
             rule={filterRule}
             field={field}
             onChange={vi.fn()}
-            sectionSelect={null}
-            tiles={<div data-testid="tiles-panel" />}
-            tilesSummary="3 tiles · 1 field"
-        />,
+            view={view}
+            onViewChange={setView}
+            appliedTileCount={3}
+            title={<div data-testid="title" />}
+            sectionSelect={<div data-testid="section-select" />}
+        />
     );
+};
+
+const renderSettings = (
+    filterRule: DashboardFilterRule,
+    field: DashboardFilterableField | null,
+) => renderWithProviders(<Settings rule={filterRule} field={field} />);
+
+const openSettings = () =>
+    fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
 
 const RulesState = () => (
     <div data-testid="rules-state">
@@ -179,12 +212,13 @@ const RulesState = () => (
 describe('FilterSettings', () => {
     beforeEach(() => {
         useProject.mockClear();
+        storeFilters = undefined;
+        moveFilter.mockClear();
         mockEmbedded.current = false;
         close.mockClear();
         updateOtherFilters.mockClear();
-        setActiveSection.mockClear();
-        mockSection.current = 'rules';
-        mockViewer.current = { isViewer: false };
+        mockViewer.current = { isViewer: false, canChooseTiles: true };
+        startMapping.mockClear();
         mockTileStatus.current = { sqlChartTilesMetadata: {} };
         mockDashboardContext.current = {
             allFilterableFieldsMap: {},
@@ -193,9 +227,6 @@ describe('FilterSettings', () => {
             activeTab: undefined,
         };
     });
-
-    const disclosure = (name: string) =>
-        screen.getByRole('button', { name: new RegExp(`^${name}`) });
 
     it("uses the type of the filter's field, dimension or metric", () => {
         const { unmount } = renderSettings(
@@ -271,62 +302,84 @@ describe('FilterSettings', () => {
         expect(screen.getByTestId('value-settings')).toHaveTextContent(
             `${FilterType.STRING} for no field`,
         );
+        openSettings();
         expect(screen.getByTestId('viewer-controls')).toBeInTheDocument();
     });
 
-    it('shows the value first, then Tiles and Rules as one-line summaries', () => {
-        mockSection.current = null;
+    it('shows the value, then where it applies and Settings as quiet rows', () => {
         renderSettings(
             rule({ fieldId: 'orders_amount', tableName: 'orders' }),
             amount,
         );
 
         expect(screen.getByTestId('value-settings')).toBeVisible();
-        expect(disclosure('Tiles')).toHaveTextContent('Tiles3 tiles · 1 field');
-        expect(disclosure('Tiles')).toHaveAttribute('aria-expanded', 'false');
-        expect(disclosure('Rules')).toHaveTextContent('RulesNone');
-        expect(disclosure('Rules')).toHaveAttribute('aria-expanded', 'false');
-        expect(screen.queryByTestId('tiles-panel')).not.toBeInTheDocument();
+        expect(screen.getByText('Applies to 3 tiles')).toBeInTheDocument();
+        // Mapping is entered on purpose, from this row only
+        const chooseTiles = screen.getByRole('button', {
+            name: 'Choose tiles',
+        });
+        expect(chooseTiles).toBeEnabled();
+        expect(startMapping).not.toHaveBeenCalled();
+        fireEvent.click(chooseTiles);
+        expect(startMapping).toHaveBeenCalledTimes(1);
+        expect(
+            screen.getByRole('button', { name: 'Settings' }),
+        ).toBeInTheDocument();
         expect(screen.queryByTestId('viewer-controls')).not.toBeInTheDocument();
+        // The name is the value view's title
+        expect(screen.getByTestId('title')).toBeInTheDocument();
     });
 
-    it('opens one section at a time, and closes the open one on a second click', () => {
-        mockSection.current = 'tiles';
+    it('focuses the value input after the operator when the value shows', () => {
         renderSettings(
             rule({ fieldId: 'orders_amount', tableName: 'orders' }),
             amount,
         );
-
-        expect(screen.getByTestId('tiles-panel')).toBeVisible();
-        expect(screen.queryByTestId('viewer-controls')).not.toBeInTheDocument();
-        fireEvent.click(disclosure('Rules'));
-        expect(setActiveSection).toHaveBeenLastCalledWith('rules');
-        fireEvent.click(disclosure('Tiles'));
-        expect(setActiveSection).toHaveBeenLastCalledWith(null);
+        expect(screen.getByLabelText('Value')).toHaveFocus();
     });
 
-    it('summarises the lock and the requirement under Rules', () => {
-        mockSection.current = null;
-        const { unmount } = renderSettings(
-            {
-                ...rule({ fieldId: 'orders_amount', tableName: 'orders' }),
-                lockedTabUuids: ['dashboard-1'],
-                required: true,
-            },
-            amount,
-        );
-        expect(disclosure('Rules')).toHaveTextContent('RulesLocked · Required');
-        expect(screen.getByText('Required')).toHaveClass(/required/);
-        unmount();
-
+    it('never focuses a value input that opens its list on focus, so the list cannot cover the footer', () => {
+        mockListOpens.mockClear();
         renderSettings(
             {
                 ...rule({ fieldId: 'orders_amount', tableName: 'orders' }),
-                required: true,
+                operator: FilterOperator.INCLUDE,
             },
             amount,
         );
-        expect(disclosure('Rules')).toHaveTextContent('RulesRequired');
+        expect(screen.getByLabelText('Value')).not.toHaveFocus();
+        expect(mockListOpens).not.toHaveBeenCalled();
+        expect(screen.getByLabelText('Operator')).toHaveFocus();
+    });
+
+    it('falls back to the first enabled input when the value input cannot take focus', () => {
+        renderSettings(
+            {
+                ...rule({ fieldId: 'orders_amount', tableName: 'orders' }),
+                disabled: true,
+            },
+            amount,
+        );
+        expect(screen.getByLabelText('Operator')).toHaveFocus();
+    });
+
+    it('switches to Settings in place, and its back arrow returns to the value', () => {
+        renderSettings(
+            rule({ fieldId: 'orders_amount', tableName: 'orders' }),
+            amount,
+        );
+        openSettings();
+
+        expect(screen.getByText('Settings')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Back' })).toHaveFocus();
+        expect(screen.queryByTestId('title')).not.toBeInTheDocument();
+        expect(screen.getByTestId('section-select')).toBeInTheDocument();
+        expect(screen.getByTestId('viewer-controls')).toBeInTheDocument();
+        expect(screen.queryByTestId('value-settings')).not.toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+        expect(screen.getByTestId('value-settings')).toBeVisible();
+        expect(screen.getByLabelText('Value')).toHaveFocus();
     });
 
     it('gives the viewer controls the type and field the value settings get', () => {
@@ -334,6 +387,7 @@ describe('FilterSettings', () => {
             rule({ fieldId: 'orders_amount', tableName: 'orders' }),
             amount,
         );
+        openSettings();
         expect(screen.getByTestId('viewer-controls')).toHaveTextContent(
             `${FilterType.NUMBER} for Amount`,
         );
@@ -342,21 +396,18 @@ describe('FilterSettings', () => {
     it('closes the editor, then opens the filter rules of the bar', () => {
         renderWithProviders(
             <FilterBarPopoversProvider>
-                <FilterSettings
+                <Settings
                     rule={rule({
                         fieldId: 'orders_amount',
                         tableName: 'orders',
                     })}
                     field={amount}
-                    onChange={vi.fn()}
-                    sectionSelect={null}
-                    tiles={null}
-                    tilesSummary=""
                 />
                 <RulesState />
             </FilterBarPopoversProvider>,
         );
         expect(screen.getByTestId('rules-state')).toHaveTextContent('closed');
+        openSettings();
 
         fireEvent.click(screen.getByRole('button', { name: 'edit rules' }));
 
@@ -369,6 +420,7 @@ describe('FilterSettings', () => {
             rule({ fieldId: 'orders_amount', tableName: 'orders' }),
             amount,
         );
+        openSettings();
 
         fireEvent.click(screen.getByRole('button', { name: 'change others' }));
 
@@ -380,25 +432,58 @@ describe('FilterSettings', () => {
             rule({ fieldId: 'orders_amount', tableName: 'orders' }),
             amount,
         );
+        openSettings();
         expect(
             screen.queryByRole('button', { name: 'edit rules' }),
         ).not.toBeInTheDocument();
     });
 
-    it("gives a viewer's own filter the value and Tiles, never Rules", () => {
-        mockSection.current = null;
-        mockViewer.current = { isViewer: true };
+    it("gives a viewer's own filter the tiles row, as the shipped Tiles tab, and no Settings", () => {
+        mockViewer.current = { isViewer: true, canChooseTiles: true };
+        renderSettings(
+            rule({ fieldId: 'orders_amount', tableName: 'orders' }),
+            amount,
+        );
+        expect(screen.getByText('Applies to 3 tiles')).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Choose tiles' }));
+        expect(startMapping).toHaveBeenCalledTimes(1);
+        expect(
+            screen.queryByRole('button', { name: 'Settings' }),
+        ).not.toBeInTheDocument();
+    });
+
+    it("gives a viewer's saved filter the value alone: no rows, no Settings", () => {
+        mockViewer.current = { isViewer: true, canChooseTiles: false };
         renderSettings(
             rule({ fieldId: 'orders_amount', tableName: 'orders' }),
             amount,
         );
         expect(screen.getByTestId('value-settings')).toBeVisible();
+        expect(screen.queryByText(/Applies to/)).not.toBeInTheDocument();
         expect(
-            screen.getByText('Added by you · only in this view and its link'),
-        ).toBeInTheDocument();
-        expect(disclosure('Tiles')).toBeInTheDocument();
-        expect(
-            screen.queryByRole('button', { name: /^Rules/ }),
+            screen.queryByRole('button', { name: 'Settings' }),
         ).not.toBeInTheDocument();
+    });
+
+    it('moves the pill left or right on the bar, an end staying focusable', () => {
+        const first = rule({ fieldId: 'orders_amount', tableName: 'orders' });
+        storeFilters = {
+            dimensions: [first, { ...first, id: 'filter-2' }],
+            metrics: [],
+            tableCalculations: [],
+        };
+        renderSettings(first, amount);
+        openSettings();
+
+        const left = screen.getByRole('button', { name: 'Move left' });
+        expect(left).toHaveAttribute('aria-disabled', 'true');
+        expect(left).toBeEnabled();
+        fireEvent.click(left);
+        expect(moveFilter).not.toHaveBeenCalled();
+
+        const right = screen.getByRole('button', { name: 'Move right' });
+        expect(right).not.toHaveAttribute('aria-disabled');
+        fireEvent.click(right);
+        expect(moveFilter).toHaveBeenCalledWith('filter-1', 'right');
     });
 });

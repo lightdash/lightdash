@@ -8,6 +8,7 @@ describe('isAiAccessQueryContext', () => {
         QueryExecutionContext.MCP_RUN_METRIC_QUERY,
         QueryExecutionContext.MCP_RUN_SQL,
         QueryExecutionContext.MCP_SEARCH_FIELD_VALUES,
+        QueryExecutionContext.MCP_QUERY,
     ])('recognizes %s as AI access', (context) => {
         expect(isAiAccessQueryContext(context)).toBe(true);
     });

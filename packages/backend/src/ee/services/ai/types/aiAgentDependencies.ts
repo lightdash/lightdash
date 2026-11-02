@@ -766,6 +766,8 @@ export type ComposerNodeStatus = {
     rowCount: number | null;
     /** Result columns; null until the node's query is ready. */
     columns: ResultColumns | null;
+    /** First rows of a node asked to be sampled; null otherwise or when the read fails. */
+    sample: Record<string, AnyType>[] | null;
 };
 
 /** Every submitted node's status, read once after the terminal node settles. */
@@ -799,8 +801,26 @@ export type ComposerRunOutcome =
 export type RunComposerQueriesFn = (args: {
     queries: SourceQuery[];
     terminalNodeId: string;
+    /** Nodes whose node sample is read through the terminal rows' reader once the terminal settles. */
+    sampleNodeIds: string[];
     onNodeStatus?: (update: ComposerNodeStatusUpdate) => void;
 }) => Promise<ComposerRunOutcome>;
+
+/** Terminal still running at the deadline; statuses are read once then. */
+export type ComposerRunningOutcome = {
+    status: 'running';
+    submissions: SourceQuerySubmission[];
+    nodeStatuses: ComposerNodeStatus[];
+};
+
+/** RunComposerQueriesFn that returns running once deadlineMs passes instead of failing. */
+export type RunComposerQueriesUntilDeadlineFn = (args: {
+    queries: SourceQuery[];
+    terminalNodeId: string;
+    /** Ready nodes to read a node sample of, also when the terminal is still running. */
+    sampleNodeIds: string[];
+    deadlineMs: number;
+}) => Promise<ComposerRunOutcome | ComposerRunningOutcome>;
 
 export type ListWarehouseTablesFn = (
     context?: QueryExecutionContext,

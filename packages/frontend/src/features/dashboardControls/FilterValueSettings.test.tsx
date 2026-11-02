@@ -5,10 +5,9 @@ import {
     type DashboardFilterRule,
 } from '@lightdash/common';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../testing/testUtils';
-import classes from './ControlSidebar.module.css';
+import classes from './FilterEditor.module.css';
 import { FilterValueSettings } from './FilterValueSettings';
 
 // Stands in for the value input, with one way to empty it
@@ -16,16 +15,32 @@ vi.mock('../../components/common/Filters/FilterInputs', () => ({
     default: ({
         rule,
         onChange,
+        popoverProps,
     }: {
         rule: DashboardFilterRule;
         onChange: (next: DashboardFilterRule) => void;
+        popoverProps?: {
+            closeListOnPick?: boolean;
+            openListOnFocus?: boolean;
+        };
     }) => (
-        <div data-testid="value-input">
+        <div
+            data-testid="value-input"
+            data-disabled={String(!!rule.disabled)}
+            data-close-list-on-pick={String(!!popoverProps?.closeListOnPick)}
+            data-open-list-on-focus={String(popoverProps?.openListOnFocus)}
+        >
             <button
                 type="button"
                 onClick={() => onChange({ ...rule, values: [] })}
             >
                 Empty the input
+            </button>
+            <button
+                type="button"
+                onClick={() => onChange({ ...rule, values: ['shipped'] })}
+            >
+                Fill the input
             </button>
         </div>
     ),
@@ -34,7 +49,6 @@ vi.mock('../../components/common/Filters/FilterInputs', () => ({
 const LOCKED_REQUIRED = 'A locked, required filter must have a value';
 
 const ANY_VALUE = 'any value';
-const HINT = 'Set a value, or the default stays off.';
 
 const makeRule = (
     overrides: Partial<DashboardFilterRule>,
@@ -128,7 +142,7 @@ describe('FilterValueSettings', () => {
         expect(
             screen.queryByRole('switch', { name: /Required/ }),
         ).not.toBeInTheDocument();
-        expect(screen.getAllByRole('switch')).toHaveLength(1);
+        expect(screen.queryAllByRole('switch')).toHaveLength(0);
     });
 
     const chooseOperator = (name: string) => {
@@ -137,83 +151,58 @@ describe('FilterValueSettings', () => {
     };
 
     describe('default value', () => {
-        it('has the shipped switch under the value, with no heading', () => {
-            renderSettings(makeRule({ values: ['done'] }));
+        const SWITCH = { name: 'Provide default value' };
 
-            expect(screen.queryByText('Default value')).not.toBeInTheDocument();
-            expect(screen.queryByText('Preview value')).not.toBeInTheDocument();
+        it('has no default switch: the value input is always there, enabled', () => {
+            renderSettings(makeRule({ values: ['done'] }));
             expect(
-                screen.getByText('Provide default value'),
-            ).toBeInTheDocument();
-            expect(
-                screen.getByRole('switch', { name: 'Provide default value' }),
-            ).toBeChecked();
+                screen.queryByRole('switch', SWITCH),
+            ).not.toBeInTheDocument();
+            expect(screen.getByTestId('value-input')).toHaveAttribute(
+                'data-disabled',
+                'false',
+            );
         });
 
-        it('shows the shipped any value input while the default is off', () => {
+        it('shows the value input enabled on a rule that is any value', () => {
             renderSettings(makeRule({ disabled: true }));
 
             expect(
-                screen.getByRole('switch', { name: 'Provide default value' }),
-            ).not.toBeChecked();
-            const anyValue = screen.getByPlaceholderText(ANY_VALUE);
-            expect(anyValue).toBeDisabled();
-            expect(screen.queryByTestId('value-input')).not.toBeInTheDocument();
-        });
-
-        it('has no any value input for an operator that takes no value', () => {
-            renderSettings(
-                makeRule({ disabled: true, operator: FilterOperator.NULL }),
-            );
+                screen.queryByRole('switch', SWITCH),
+            ).not.toBeInTheDocument();
             expect(
                 screen.queryByPlaceholderText(ANY_VALUE),
             ).not.toBeInTheDocument();
+            expect(screen.getByTestId('value-input')).toHaveAttribute(
+                'data-disabled',
+                'false',
+            );
+            expect(
+                screen.queryByText('Set a value, or the default stays off.'),
+            ).not.toBeInTheDocument();
         });
 
-        it('enables the rule when the default is turned on', async () => {
-            const user = userEvent.setup();
+        it('puts a typed value in effect, and an emptied one back to any value', () => {
             const rule = makeRule({ disabled: true });
             const onChange = renderSettings(rule);
 
-            await user.click(
-                screen.getByRole('switch', { name: 'Provide default value' }),
+            fireEvent.click(
+                screen.getByRole('button', { name: 'Fill the input' }),
             );
+            expect(onChange).toHaveBeenLastCalledWith({
+                ...rule,
+                values: ['shipped'],
+                disabled: false,
+            });
 
-            expect(onChange).toHaveBeenCalledWith({ ...rule, disabled: false });
-        });
-
-        it('clears the values when the default is turned off', async () => {
-            const user = userEvent.setup();
-            const rule = makeRule({ values: ['done'] });
-            const onChange = renderSettings(rule);
-
-            await user.click(
-                screen.getByRole('switch', { name: 'Provide default value' }),
+            fireEvent.click(
+                screen.getByRole('button', { name: 'Empty the input' }),
             );
-
-            expect(onChange).toHaveBeenCalledWith(
-                expect.objectContaining({ disabled: true, values: [] }),
-            );
-        });
-
-        it('shows the operator and the value input while the default is on', () => {
-            renderSettings(makeRule({ values: ['done'] }));
-
-            expect(screen.getByRole('combobox')).toBeInTheDocument();
-            expect(screen.getByTestId('value-input')).toBeInTheDocument();
-            expect(
-                screen.queryByPlaceholderText(ANY_VALUE),
-            ).not.toBeInTheDocument();
-        });
-
-        it('says the default is left off while it has no value', () => {
-            renderSettings(makeRule({}));
-            expect(screen.getByText(HINT)).toBeInTheDocument();
-        });
-
-        it('keeps the hint away from a rule that has a value', () => {
-            renderSettings(makeRule({ values: ['done'] }));
-            expect(screen.queryByText(HINT)).not.toBeInTheDocument();
+            expect(onChange).toHaveBeenLastCalledWith({
+                ...rule,
+                values: [],
+                disabled: true,
+            });
         });
     });
 
@@ -354,14 +343,15 @@ describe('FilterValueSettings', () => {
             );
         });
 
-        it('keeps the default on when it changes with a value set', () => {
+        it('reads any value once a change empties the value, as the shipped form does', () => {
             const onChange = renderSettings(makeRule({ values: ['done'] }));
             chooseOperator('includes');
 
             expect(onChange).toHaveBeenCalledWith(
                 expect.objectContaining({
                     operator: FilterOperator.INCLUDE,
-                    disabled: false,
+                    values: [],
+                    disabled: true,
                 }),
             );
         });
@@ -458,14 +448,42 @@ describe('FilterValueSettings', () => {
         });
     });
 
+    it('closes a value list once a value is picked, so it never covers Apply', () => {
+        renderSettings(makeRule({}));
+        expect(screen.getByTestId('value-input')).toHaveAttribute(
+            'data-close-list-on-pick',
+            'true',
+        );
+    });
+
+    it('keeps a value list shut on focus, so it never covers Apply', () => {
+        renderSettings(makeRule({}));
+        expect(screen.getByTestId('value-input')).toHaveAttribute(
+            'data-open-list-on-focus',
+            'false',
+        );
+    });
+
+    it('keeps the list prop off date inputs, whose popover would put it on the page', () => {
+        renderSettings(makeRule({}), FilterType.DATE);
+        expect(screen.getByTestId('value-input')).toHaveAttribute(
+            'data-close-list-on-pick',
+            'false',
+        );
+        expect(screen.getByTestId('value-input')).toHaveAttribute(
+            'data-open-list-on-focus',
+            'undefined',
+        );
+    });
+
     describe('required filter', () => {
-        it('has no switch, and notes that its value is temporary', () => {
+        it('has no switch, and no note that its value is dropped on save', () => {
             renderSettings(makeRule({ required: true, values: ['done'] }));
 
             expect(
                 screen.queryByRole('switch', { name: 'Provide default value' }),
             ).not.toBeInTheDocument();
-            expect(screen.getByText(REQUIRED_NOTE)).toBeInTheDocument();
+            expect(screen.queryByText(REQUIRED_NOTE)).not.toBeInTheDocument();
         });
 
         it('shows the operator and the value input with no value set', () => {

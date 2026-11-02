@@ -541,7 +541,22 @@ export class UsageEventsCompactor extends S3BaseClient {
             });
         } catch (error) {
             if (!UsageEventsCompactor.isMissingObject(error)) throw error;
-            await duckdb.runSqlWithMetrics(sql);
+            try {
+                await duckdb.runSqlWithMetrics(sql);
+            } catch (queryError) {
+                if (
+                    this.s3Config.authMode !== 'gcp_oauth' ||
+                    !getErrorMessage(queryError).includes(
+                        '(HTTP 401 Unauthorized)',
+                    )
+                )
+                    throw queryError;
+                // A new isolated session resolves credentials again after mid-query expiry.
+                Logger.warn(
+                    'Usage events compaction: retrying partition after GCS HTTP 401',
+                );
+                await duckdb.runSqlWithMetrics(sql);
+            }
         }
         await this.deleteRawKeys(keys);
         await this.s3!.deleteObject({ Bucket: this.bucket, Key: checkpoint });

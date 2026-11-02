@@ -368,6 +368,7 @@ describe('defineTool', () => {
             'list_data_app_connections',
             'list_data_app_themes',
             'list_skills',
+            'query',
             'read_skill',
             'read_skill_resource',
             'render_chart',

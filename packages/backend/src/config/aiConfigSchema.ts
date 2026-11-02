@@ -160,6 +160,7 @@ export const aiCopilotConfigSchema = z
                         baseUrl: z.string().optional(),
                         claudeCodeSkipAuth: z.boolean().optional(),
                         inferenceProfilePrefix: z.string().optional(),
+                        maxOutputTokens: z.number().int().positive().optional(),
                         modelName: z
                             .string()
                             .default(DEFAULT_BEDROCK_MODEL_NAME),
@@ -178,6 +179,7 @@ export const aiCopilotConfigSchema = z
                         baseUrl: z.string().optional(),
                         claudeCodeSkipAuth: z.boolean().optional(),
                         inferenceProfilePrefix: z.string().optional(),
+                        maxOutputTokens: z.number().int().positive().optional(),
                         modelName: z
                             .string()
                             .default(DEFAULT_BEDROCK_MODEL_NAME),
@@ -194,6 +196,7 @@ export const aiCopilotConfigSchema = z
                         baseUrl: z.string().optional(),
                         claudeCodeSkipAuth: z.boolean().optional(),
                         inferenceProfilePrefix: z.string().optional(),
+                        maxOutputTokens: z.number().int().positive().optional(),
                         modelName: z
                             .string()
                             .default(DEFAULT_BEDROCK_MODEL_NAME),

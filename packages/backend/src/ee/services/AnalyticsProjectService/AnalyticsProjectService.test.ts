@@ -543,6 +543,7 @@ describe('AnalyticsProjectService', () => {
                 },
                 publicSpaceCreate: true,
                 force: true,
+                syncEnabled: false,
             };
             for (const chart of charts) {
                 expect(upsertChart).toHaveBeenCalledWith(

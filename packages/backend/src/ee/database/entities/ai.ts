@@ -682,6 +682,7 @@ export type DbAiOrganizationSettings = {
     deep_research_limits: AiDeepResearchLimits;
     deep_research_raw_sql_enabled: boolean;
     mcp_enabled: boolean;
+    mcp_project_access_mode: 'all' | 'selected';
     mcp_content_writes_enabled: boolean;
     mcp_agents_enabled: boolean;
     data_app_runtime_ai_enabled: boolean;
@@ -712,6 +713,7 @@ export type AiOrganizationSettingsTable = Knex.CompositeTableType<
                 | 'deep_research_limits'
                 | 'deep_research_raw_sql_enabled'
                 | 'mcp_enabled'
+                | 'mcp_project_access_mode'
                 | 'mcp_content_writes_enabled'
                 | 'mcp_agents_enabled'
                 | 'data_app_runtime_ai_enabled'
@@ -736,6 +738,7 @@ export type AiOrganizationSettingsTable = Knex.CompositeTableType<
             | 'deep_research_limits'
             | 'deep_research_raw_sql_enabled'
             | 'mcp_enabled'
+            | 'mcp_project_access_mode'
             | 'mcp_content_writes_enabled'
             | 'mcp_agents_enabled'
             | 'data_app_runtime_ai_enabled'
@@ -837,4 +840,16 @@ export type AiSqlApprovalTable = Knex.CompositeTableType<
     Pick<DbAiSqlApproval, 'tool_call_id' | 'decision'> &
         Partial<Pick<DbAiSqlApproval, 'decided_by_user_uuid'>>,
     never
+>;
+
+export const AiOrganizationMcpProjectsTableName =
+    'ai_organization_mcp_projects';
+export type DbAiOrganizationMcpProject = {
+    organization_uuid: string;
+    project_uuid: string;
+    created_at: Date;
+};
+export type AiOrganizationMcpProjectsTable = Knex.CompositeTableType<
+    DbAiOrganizationMcpProject,
+    Omit<DbAiOrganizationMcpProject, 'created_at'>
 >;

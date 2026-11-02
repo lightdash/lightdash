@@ -136,6 +136,7 @@ it('covers the tools registered by the real MCP service across feature variants'
                     scheduledDeliveryEnabled: enabled,
                     runSqlEnabled: enabled,
                     runMetricQueryEnabled: enabled,
+                    queryEnabled: enabled,
                     filterExpressionsEnabled: enabled,
                     documentsEnabled: enabled,
                     dataAppBuildsEnabled: enabled,
@@ -158,7 +159,7 @@ it('covers the tools registered by the real MCP service across feature variants'
         Object.keys(MCP_TOOL_CAPABILITIES).filter(
             (name) => !registeredMcpTools.includes(name),
         ),
-    ).toEqual(['run_composer_queries']);
+    ).toEqual([]);
 });
 
 const collectLiteralToolKeys = (node: ts.Node): string[] => {
