@@ -1,4 +1,5 @@
 import { createSelector, type Store } from '@reduxjs/toolkit';
+import { createStructuredSelector } from 'reselect';
 import { type DashboardStoreState } from '.';
 import { type DashboardContextType } from '../../../providers/Dashboard/types';
 import { createDashboardContextActions } from './contextActions';
@@ -19,11 +20,32 @@ import {
     selectIsDashboardLoading,
     selectIsFetchingDashboardFilters,
     selectIsLoadingDashboardFilters,
-    selectIsRefreshingDashboardVersion,
     selectProjectUuid,
     selectRefreshDashboardVersion,
     selectTemporaryFilterLocks,
 } from './dashboardSourceSelectors';
+
+const selectContextValues = createStructuredSelector({
+    projectUuid: selectProjectUuid,
+    includeUnpublishedDraft: selectIncludeUnpublishedDraft,
+    isDashboardLoading: selectIsDashboardLoading,
+    dashboard: selectDashboard,
+    dashboardError: selectDashboardError,
+    allFilterableFieldsMap: selectAllFilterableFieldsMap,
+    allFilterableMetricsMap: selectAllFilterableMetricsMap,
+    hiddenFilterableFieldIds: selectHiddenFilterableFieldIds,
+    allFilterableFields: selectAllFilterableFields,
+    allFilterableMetrics: selectAllFilterableMetrics,
+    isLoadingDashboardFilters: selectIsLoadingDashboardFilters,
+    isFetchingDashboardFilters: selectIsFetchingDashboardFilters,
+    filterableFieldsByTileUuid: selectFilterableFieldsByTileUuid,
+    temporaryFilterLocks: selectTemporaryFilterLocks,
+    hasTilesThatSupportFilters: selectHasTilesThatSupportFilters,
+    dashboardCommentsCheck: selectDashboardCommentsCheck,
+    dashboardComments: selectDashboardComments,
+    hasTileComments: selectHasTileComments,
+    refreshDashboardVersion: selectRefreshDashboardVersion,
+});
 
 type DashboardContextView = (
     state: DashboardStoreState,
@@ -43,72 +65,8 @@ export const getDashboardContextView = (
     if (cached) return cached;
     const actions = createDashboardContextActions(store);
     const view = createSelector(
-        [
-            selectProjectUuid,
-            selectIncludeUnpublishedDraft,
-            selectIsDashboardLoading,
-            selectDashboard,
-            selectDashboardError,
-            selectAllFilterableFieldsMap,
-            selectAllFilterableMetricsMap,
-            selectHiddenFilterableFieldIds,
-            selectAllFilterableFields,
-            selectAllFilterableMetrics,
-            selectIsLoadingDashboardFilters,
-            selectIsFetchingDashboardFilters,
-            selectFilterableFieldsByTileUuid,
-            selectTemporaryFilterLocks,
-            selectHasTilesThatSupportFilters,
-            selectDashboardCommentsCheck,
-            selectDashboardComments,
-            selectHasTileComments,
-            selectRefreshDashboardVersion,
-            selectIsRefreshingDashboardVersion,
-        ],
-        (
-            projectUuid,
-            includeUnpublishedDraft,
-            isDashboardLoading,
-            dashboard,
-            dashboardError,
-            allFilterableFieldsMap,
-            allFilterableMetricsMap,
-            hiddenFilterableFieldIds,
-            allFilterableFields,
-            allFilterableMetrics,
-            isLoadingDashboardFilters,
-            isFetchingDashboardFilters,
-            filterableFieldsByTileUuid,
-            temporaryFilterLocks,
-            hasTilesThatSupportFilters,
-            dashboardCommentsCheck,
-            dashboardComments,
-            hasTileComments,
-            refreshDashboardVersion,
-            isRefreshingDashboardVersion,
-        ): DashboardContextType => ({
-            ...actions,
-            projectUuid,
-            includeUnpublishedDraft,
-            isDashboardLoading,
-            dashboard,
-            dashboardError,
-            allFilterableFieldsMap,
-            allFilterableMetricsMap,
-            hiddenFilterableFieldIds,
-            allFilterableFields,
-            allFilterableMetrics,
-            isLoadingDashboardFilters,
-            isFetchingDashboardFilters,
-            filterableFieldsByTileUuid,
-            temporaryFilterLocks,
-            hasTilesThatSupportFilters,
-            dashboardCommentsCheck,
-            dashboardComments,
-            hasTileComments,
-            refreshDashboardVersion,
-            isRefreshingDashboardVersion,
-        }),
+        [selectContextValues],
+        (values): DashboardContextType => ({ ...actions, ...values }),
     );
     views.set(store, view);
     return view;

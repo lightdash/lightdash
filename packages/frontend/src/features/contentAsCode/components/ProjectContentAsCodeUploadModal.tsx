@@ -5,12 +5,19 @@ import {
     type ApiError,
 } from '@lightdash/common';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { lazy, Suspense, useCallback, useRef, type FC } from 'react';
+import {
+    lazy,
+    Suspense,
+    useCallback,
+    useContext,
+    useRef,
+    type FC,
+} from 'react';
 import { invalidateContent } from '../../../hooks/useContent';
 import { useOptionalProjectRoute } from '../../../hooks/useProjectRoute';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
-import { useOptionalDashboardContext } from '../../../providers/Dashboard/useDashboardContext';
 import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
+import { DashboardStoreContext } from '../../dashboard/store/context';
 import { type ImportDocument, type UploadContent } from '../importContent';
 import { uploadContentAsCode } from '../uploadContent';
 
@@ -38,9 +45,8 @@ const ProjectContentAsCodeUploadModal: FC<Props> = ({
     const { data: spaces } = useSpaceSummaries(projectUuid, true, {
         enabled: opened,
     });
-    const refreshDashboardVersion = useOptionalDashboardContext(
-        (context) => context.refreshDashboardVersion,
-    );
+    // Set when the modal opens from a dashboard
+    const dashboardStore = useContext(DashboardStoreContext)?.store;
     const attemptedUpload = useRef(false);
     const advisory = useQuery<
         ApiContentAsCodeUploadAdvisoryResponse['results'],
@@ -125,11 +131,11 @@ const ProjectContentAsCodeUploadModal: FC<Props> = ({
         if (!attemptedUpload.current) return;
         // Refresh local dashboard tiles/tabs before invalidating the saved version.
         // Do this after the batch so a current-resource update cannot interrupt uploads.
-        void (refreshDashboardVersion?.() ?? Promise.resolve()).then(
-            refreshQueries,
-            refreshQueries,
-        );
-    }, [onClose, refreshDashboardVersion, refreshQueries]);
+        void (
+            dashboardStore?.getState().source.refreshDashboardVersion() ??
+            Promise.resolve()
+        ).then(refreshQueries, refreshQueries);
+    }, [onClose, dashboardStore, refreshQueries]);
 
     return (
         <Suspense fallback={null}>

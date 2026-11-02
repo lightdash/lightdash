@@ -1,4 +1,4 @@
-import { useContext, useRef, useSyncExternalStore } from 'react';
+import { useContext, useRef } from 'react';
 import {
     DashboardStoreContext,
     getDashboardContextView,
@@ -51,21 +51,5 @@ function useDashboardContext<Selected>(
         return selector(lastMerged.current.merged);
     });
 }
-
-const subscribeToNothing = () => () => {};
-
-/** Like `useDashboardContext`, but `undefined` outside a dashboard; ignores the filter-field override */
-export const useOptionalDashboardContext = <Selected>(
-    selector: (value: DashboardContextType) => Selected,
-): Selected | undefined => {
-    const store = useContext(DashboardStoreContext)?.store;
-    return useSyncExternalStore(
-        store ? store.subscribe : subscribeToNothing,
-        () =>
-            store
-                ? selector(getDashboardContextView(store)(store.getState()))
-                : undefined,
-    );
-};
 
 export default useDashboardContext;

@@ -42,9 +42,6 @@ export const selectDashboardComments = (state: DashboardStoreState) =>
     state.source.dashboardComments;
 export const selectRefreshDashboardVersion = (state: DashboardStoreState) =>
     state.source.refreshDashboardVersion;
-export const selectIsRefreshingDashboardVersion = (
-    state: DashboardStoreState,
-) => state.source.isRefreshingDashboardVersion;
 
 export const selectAllFilterableFields = (state: DashboardStoreState) =>
     state.source.availableFilters?.allFilterableFields;

@@ -27,7 +27,6 @@ export type DashboardProviderState = {
         | undefined;
     dashboardComments: ReturnType<typeof useGetComments>['data'];
     refreshDashboardVersion: () => Promise<void>;
-    isRefreshingDashboardVersion: boolean;
 };
 
 export type DashboardSourceState = DashboardProviderState & {
@@ -47,7 +46,6 @@ export const initialDashboardProviderState: DashboardProviderState = {
     dashboardCommentsCheck: undefined,
     dashboardComments: undefined,
     refreshDashboardVersion: async () => {},
-    isRefreshingDashboardVersion: false,
 };
 
 export const initialDashboardSourceState: DashboardSourceState = {

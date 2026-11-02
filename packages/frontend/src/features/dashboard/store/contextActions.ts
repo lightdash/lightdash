@@ -89,7 +89,7 @@ export const createDashboardContextActions = (
                 isTemporary,
                 isInEditMode,
                 isFilterSaved: (saved || []).some(({ id }) => id === filter.id),
-                originalFilter: savedFilters()?.[category][index],
+                originalFilter: saved?.[index],
                 category,
             }),
         );

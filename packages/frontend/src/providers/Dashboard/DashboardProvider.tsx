@@ -187,10 +187,10 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
     // so they set the dashboard on the store instead
     const embedDashboard = useStoreValue(store, selectEmbedDashboard);
     const dashboardUuid = (dashboard ?? embedDashboard)?.uuid;
-    const {
-        mutateAsync: versionRefresh,
-        isLoading: isRefreshingDashboardVersion,
-    } = useDashboardVersionRefresh(dashboardUuid, projectUuid);
+    const { mutateAsync: versionRefresh } = useDashboardVersionRefresh(
+        dashboardUuid,
+        projectUuid,
+    );
 
     // Config-derived state must read from whichever holds the dashboard.
     const currentDashboardConfig = (dashboard ?? embedDashboard)?.config;
@@ -427,7 +427,6 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
             dashboardCommentsCheck,
             dashboardComments,
             refreshDashboardVersion,
-            isRefreshingDashboardVersion,
         }),
         [
             projectUuid,
@@ -442,7 +441,6 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
             dashboardCommentsCheck,
             dashboardComments,
             refreshDashboardVersion,
-            isRefreshingDashboardVersion,
         ],
     );
     useLayoutEffect(() => {
