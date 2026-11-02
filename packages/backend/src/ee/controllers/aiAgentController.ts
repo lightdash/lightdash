@@ -183,7 +183,7 @@ export class AiAgentController extends BaseController {
     ): Promise<Readable> {
         assertRegisteredAccount(req.account);
         const image = await this.getAiAgentService().renderSlackChartImage(
-            toSessionUser(req.account),
+            req.account,
             projectUuid,
             body,
         );

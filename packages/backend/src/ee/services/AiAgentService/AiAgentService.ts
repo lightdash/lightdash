@@ -233,6 +233,7 @@ import {
     type ToolComposerQueriesSuccessMetadata,
     type ToolGenerateDataAppTerminalResult,
     type ToolRunQueryArgsTransformed,
+    type UUID,
     type VerifiedContentListItem,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
@@ -2486,17 +2487,18 @@ export class AiAgentService extends BaseService {
 
     /** Debug harness: draws caller-provided rows exactly as the Slack composer chart image. */
     public async renderSlackChartImage(
-        user: SessionUser,
-        projectUuid: string,
+        account: RegisteredAccount,
+        projectUuid: UUID,
         { title, columns, rows, vizConfig }: ApiAiAgentSlackChartImageRequest,
     ): Promise<Buffer> {
-        if (!(await this.getIsCopilotEnabled(user))) {
+        if (!(await this.getIsCopilotEnabled(toSessionUser(account)))) {
             throw new ForbiddenError('Copilot is not enabled');
         }
         const project = await this.projectModel.getSummary(projectUuid);
         if (
-            project.organizationUuid !== user.organizationUuid ||
-            this.createAuditedAbility(user).cannot(
+            project.organizationUuid !==
+                account.organization.organizationUuid ||
+            this.createAuditedAbility(account).cannot(
                 'manage',
                 subject('AiAgent', {
                     organizationUuid: project.organizationUuid,
