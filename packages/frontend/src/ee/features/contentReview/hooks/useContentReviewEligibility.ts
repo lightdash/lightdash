@@ -2,7 +2,12 @@ import {
     type ContentReviewContentType,
     type ContentReviewRequest,
 } from '@lightdash/common';
-import { usePersonalSpace } from '../../../../hooks/useSpaces';
+import { useMemo } from 'react';
+import {
+    usePersonalSpace,
+    useSpaceSummaries,
+} from '../../../../hooks/useSpaces';
+import { getSpaceTreeUuids } from '../utils';
 import { useContentReviewAvailability } from './useContentReviewAvailability';
 import { usePendingContentReviewRequest } from './useContentReviewRequests';
 
@@ -13,8 +18,8 @@ type ContentReviewEligibility = {
     canRequest: boolean;
 };
 
-// Only content in the viewer's own personal space can be submitted, and
-// only once at a time
+// Only content in the viewer's own personal space, or a space nested under
+// it, can be submitted, and only once at a time
 export const useContentReviewEligibility = ({
     projectUuid,
     contentType,
@@ -30,8 +35,18 @@ export const useContentReviewEligibility = ({
     const { data: personalSpace } = usePersonalSpace(projectUuid, {
         enabled: isAvailable,
     });
-    const isPersonalContent =
-        !!personalSpace && !!spaceUuid && personalSpace.uuid === spaceUuid;
+    const { data: spaces } = useSpaceSummaries(projectUuid, true, {
+        enabled:
+            !!personalSpace && !!spaceUuid && spaceUuid !== personalSpace.uuid,
+    });
+    const personalSpaceUuids = useMemo(
+        () =>
+            personalSpace
+                ? getSpaceTreeUuids(spaces ?? [], [personalSpace.uuid])
+                : new Set<string>(),
+        [personalSpace, spaces],
+    );
+    const isPersonalContent = !!spaceUuid && personalSpaceUuids.has(spaceUuid);
     const pending = usePendingContentReviewRequest(
         projectUuid,
         contentType,
