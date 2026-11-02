@@ -348,9 +348,11 @@ export const REST_OPERATION_CAPABILITIES = {
     'AiAgentController.listMcpServers': [AgentCapability.ReadDiscover],
     'AiAgentController.listProjectThreads': [AgentCapability.ReadDiscover],
     'AiAgentController.pinAgentThread': [AgentCapability.ContentWrite],
+    'AiAgentController.previewVisualizeSlackChart': [
+        AgentCapability.Administration,
+    ],
     'AiAgentController.refreshMcpServerTools': [AgentCapability.Administration],
     'AiAgentController.renameMcpServer': [AgentCapability.Administration],
-    'AiAgentController.renderSlackChartImage': [AgentCapability.Administration],
     'AiAgentController.restoreAgentThreadDataAppVersion': [
         AgentCapability.ContentWrite,
     ],

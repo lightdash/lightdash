@@ -1310,7 +1310,7 @@ export type ApiUpdateComposerVizConfigRequest = {
 };
 
 /** Rows and a visualize-tool viz config to draw as the Slack chart image; vizConfig is parsed server-side. */
-export type ApiAiAgentSlackChartImageRequest = {
+export type ApiAiAgentVisualizeSlackPreviewRequest = {
     title: string;
     columns: ResultColumn[];
     rows: Record<string, unknown>[];

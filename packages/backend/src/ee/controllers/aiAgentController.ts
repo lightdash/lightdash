@@ -24,7 +24,6 @@ import {
     ApiAiAgentModelOptionsResponse,
     ApiAiAgentProjectThreadSummaryListResponse,
     ApiAiAgentResponse,
-    ApiAiAgentSlackChartImageRequest,
     ApiAiAgentSqlApprovalRequest,
     ApiAiAgentSqlApprovalResponse,
     ApiAiAgentSummaryResponse,
@@ -49,6 +48,7 @@ import {
     ApiAiAgentThreadWorkstreamsResponse,
     ApiAiAgentVerifiedArtifactsResponse,
     ApiAiAgentVerifiedQuestionsResponse,
+    ApiAiAgentVisualizeSlackPreviewRequest,
     ApiAiMcpGithubAvailabilityResponse,
     ApiAiMcpOAuthCredentialRequest,
     ApiAiMcpServerListResponse,
@@ -170,19 +170,19 @@ export class AiAgentController extends BaseController {
 
     /**
      * Draw rows with a visualize-tool viz config as the Slack chart image, for debugging the Slack renderer.
-     * @summary Render Slack chart image
+     * @summary Preview visualize Slack chart
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Post('/slack-chart-image')
-    @OperationId('renderSlackChartImage')
-    async renderSlackChartImage(
+    @Post('/visualize/slack-preview')
+    @OperationId('previewVisualizeSlackChart')
+    async previewVisualizeSlackChart(
         @Request() req: express.Request,
         @Path() projectUuid: UUID,
-        @Body() body: ApiAiAgentSlackChartImageRequest,
+        @Body() body: ApiAiAgentVisualizeSlackPreviewRequest,
     ): Promise<Readable> {
         assertRegisteredAccount(req.account);
-        const image = await this.getAiAgentService().renderSlackChartImage(
+        const image = await this.getAiAgentService().previewVisualizeSlackChart(
             req.account,
             projectUuid,
             body,

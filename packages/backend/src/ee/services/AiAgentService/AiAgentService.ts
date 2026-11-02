@@ -60,7 +60,6 @@ import {
     AnyType,
     ApiAiAgentArtifactVizQuery,
     ApiAiAgentComposerArtifactChartStage,
-    ApiAiAgentSlackChartImageRequest,
     ApiAiAgentThreadCreateRequest,
     ApiAiAgentThreadDataAppRestoreRequest,
     ApiAiAgentThreadDataAppRestoreResponse,
@@ -68,6 +67,7 @@ import {
     ApiAiAgentThreadMessageCreateResponse,
     ApiAiAgentThreadMessageVizQuery,
     ApiAiAgentThreadShareResponse,
+    ApiAiAgentVisualizeSlackPreviewRequest,
     ApiAiMcpOAuthCredentialRequest,
     ApiAppendEvaluationRequest,
     ApiCreateAiAgent,
@@ -2486,10 +2486,15 @@ export class AiAgentService extends BaseService {
     }
 
     /** Debug harness: draws caller-provided rows exactly as the Slack composer chart image. */
-    public async renderSlackChartImage(
+    public async previewVisualizeSlackChart(
         account: RegisteredAccount,
         projectUuid: UUID,
-        { title, columns, rows, vizConfig }: ApiAiAgentSlackChartImageRequest,
+        {
+            title,
+            columns,
+            rows,
+            vizConfig,
+        }: ApiAiAgentVisualizeSlackPreviewRequest,
     ): Promise<Buffer> {
         if (!(await this.getIsCopilotEnabled(toSessionUser(account)))) {
             throw new ForbiddenError('Copilot is not enabled');

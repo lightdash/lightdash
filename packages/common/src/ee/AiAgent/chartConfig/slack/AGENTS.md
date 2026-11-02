@@ -10,11 +10,11 @@ Pipeline for a composer `visualize` chart:
 
 ## Reproduce a Slack chart without Slack
 
-`POST /api/v1/projects/{projectUuid}/aiAgents/slack-chart-image` runs that pipeline on rows you send and returns the PNG. It needs Copilot enabled and `manage` on `AiAgent` in the project (admins). `vizConfig` is the `visualize` tool's built-in viz config; custom chart types render through the headless browser and are out of its reach.
+`POST /api/v1/projects/{projectUuid}/aiAgents/visualize/slack-preview` runs that pipeline on rows you send and returns the PNG. It needs Copilot enabled and `manage` on `AiAgent` in the project (admins). `vizConfig` is the `visualize` tool's viz config, of a type Slack posts as an image: `bar`, `line`, `area`, `scatter`, `pie` or `funnel`. Slack sends `table` as CSV and `big_number` as text, and draws `custom` types in the headless browser, so those return 400.
 
 ```bash
 curl -b cookies -H 'Content-Type: application/json' -o chart.png \
-  "$SITE_URL/api/v1/projects/$PROJECT_UUID/aiAgents/slack-chart-image" \
+  "$SITE_URL/api/v1/projects/$PROJECT_UUID/aiAgents/visualize/slack-preview" \
   --data '{
     "title": "Orders by status",
     "columns": [
