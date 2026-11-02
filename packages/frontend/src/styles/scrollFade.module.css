@@ -30,6 +30,9 @@
         animation:
             fadeTop linear both,
             fadeBottom linear both;
+        /* The shorthand resets duration to 0s, which pins both fades to an
+           end state instead of tracking scroll. */
+        animation-duration: auto;
         animation-timeline: scroll(self);
         animation-range:
             0px var(--scroll-fade-size),
