@@ -292,6 +292,8 @@ export type Dashboard = {
     projectType?: ProjectType;
     organizationUuid: string;
     projectUuid: string;
+    /** The repo owns this dashboard: UI saves become drafts until written back */
+    managedFromRepository?: boolean;
     /** Set when the viewer has an unpublished draft applied on top */
     hasUnpublishedChanges?: boolean;
     /** For reviewers: open drafts by other users awaiting review */

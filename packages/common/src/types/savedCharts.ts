@@ -1003,6 +1003,8 @@ export type SavedChart = {
     /** Unique identifier slug for this chart */
     slug: string;
     verification: ContentVerificationInfo | null;
+    /** The repo owns this chart: UI saves become drafts until written back. */
+    managedFromRepository?: boolean;
     /** The caller's unpublished content-as-code draft is applied. */
     hasUnpublishedChanges?: boolean;
     /** Open drafts from other authors visible to content-as-code reviewers. */

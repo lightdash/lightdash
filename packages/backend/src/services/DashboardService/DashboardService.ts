@@ -2138,13 +2138,16 @@ export class DashboardService
 
     private async applyOpenDraftOverlay(
         user: SessionUser,
-        dashboard: Dashboard,
+        publishedDashboard: Dashboard,
     ): Promise<Dashboard> {
         try {
-            const settings = await this.contentAsCodeProjectSettingsModel.get(
-                dashboard.projectUuid,
-            );
-            if (!settings?.syncEnabled) return dashboard;
+            if ((await this.resolveDraftBase(publishedDashboard)) === null) {
+                return publishedDashboard;
+            }
+            const dashboard: Dashboard = {
+                ...publishedDashboard,
+                managedFromRepository: true,
+            };
             const draft = await this.contentDraftModel.findOpenDraft(
                 dashboard.projectUuid,
                 'dashboard',
@@ -2219,7 +2222,7 @@ export class DashboardService
             return dashboardForViewer;
         } catch (error) {
             this.logger.warn('Draft overlay failed', error);
-            return dashboard;
+            return publishedDashboard;
         }
     }
 

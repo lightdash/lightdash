@@ -1,6 +1,7 @@
 import {
     isAppVersionInProgress,
     type AppVersionStatus,
+    type ContentAsCodeReleasableType,
 } from '@lightdash/common';
 import {
     Anchor,
@@ -31,6 +32,7 @@ import {
 import dayjs from 'dayjs';
 import { type FC } from 'react';
 import { Link } from 'react-router';
+import ManagedFromRepositoryRow from '../../../features/contentAsCode/components/ManagedFromRepositoryRow';
 import { useOptionalProjectRoute } from '../../../hooks/useProjectRoute';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
 import MantineIcon from '../MantineIcon';
@@ -52,6 +54,8 @@ export type ResourceInfoPopupProps = {
     title?: string;
     description?: string;
     slug?: string;
+    /** Set when the repo owns this content; names the type the release targets */
+    managedFromRepository?: ContentAsCodeReleasableType;
     updatedAt?: Date | string | null;
     spaceName?: string;
     spaceUuid?: string | null;
@@ -87,6 +91,7 @@ export const ResourceInfoPopupContent: FC<ResourceInfoPopupProps> = ({
     title,
     description,
     slug,
+    managedFromRepository,
     updatedAt,
     spaceName,
     spaceUuid,
@@ -238,6 +243,14 @@ export const ResourceInfoPopupContent: FC<ResourceInfoPopupProps> = ({
                             )}
                         </CopyButton>
                     </InfoRow>
+                )}
+
+                {slug && managedFromRepository && (
+                    <ManagedFromRepositoryRow
+                        projectUuid={projectUuid}
+                        contentType={managedFromRepository}
+                        slug={slug}
+                    />
                 )}
             </Stack>
         </Stack>

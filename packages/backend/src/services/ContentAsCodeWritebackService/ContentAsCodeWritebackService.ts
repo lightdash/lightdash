@@ -24,6 +24,7 @@ import {
     type ChartAsCode,
     type ContentAsCodeFileClassification,
     type ContentAsCodePullSummary,
+    type ContentAsCodeReleasableType,
     type ContentAsCodeSnapshotPrune,
     type ContentAsCodeSnapshotPruneResult,
     type ContentAsCodeUploadAdvisory,
@@ -460,6 +461,32 @@ export class ContentAsCodeWritebackService extends BaseService {
             );
         }
         return { charts, sqlCharts, dashboards };
+    }
+
+    // A manager hands one item back to the UI: the snapshot goes, open drafts
+    // are dismissed so authors reach the existing dismissed-draft path.
+    async releaseSnapshot(
+        user: SessionUser,
+        projectUuid: string,
+        contentType: ContentAsCodeReleasableType,
+        slug: string,
+    ): Promise<void> {
+        await this.assertCanManageContentAsCode(user, projectUuid);
+        await this.contentAsCodeSnapshotModel.delete(
+            projectUuid,
+            contentType === 'chart'
+                ? ContentAsCodeType.CHART
+                : ContentAsCodeType.DASHBOARD,
+            slug,
+        );
+        await this.contentDraftModel.dismissOpenBySlugs(
+            projectUuid,
+            contentType,
+            [slug],
+        );
+        this.logger.info(
+            `Released content-as-code snapshot for ${contentType} "${slug}" in project ${projectUuid}`,
+        );
     }
 
     // Write-back visibility is a dev/admin surface (the sync panel), never

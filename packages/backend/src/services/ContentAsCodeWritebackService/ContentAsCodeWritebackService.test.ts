@@ -145,6 +145,7 @@ const buildService = (overrides: Overrides = {}) => {
                     : { snapshotHash: 'abc' },
             ),
         pruneMissingFromDirectory: vi.fn().mockResolvedValue([]),
+        delete: vi.fn().mockResolvedValue(undefined),
     };
     const contentAsCodeWritebackModel = {
         findLive: vi.fn(
@@ -1521,6 +1522,44 @@ describe('ContentAsCodeWritebackService', () => {
                     tiles: 'mine',
                 }),
             ).rejects.toThrow(ForbiddenError);
+        });
+    });
+
+    describe('releaseSnapshot', () => {
+        it('deletes the snapshot and dismisses open drafts for that slug', async () => {
+            const { service, contentAsCodeSnapshotModel, contentDraftModel } =
+                buildService();
+
+            await service.releaseSnapshot(
+                user,
+                'project-uuid',
+                'dashboard',
+                'weekly-kpis',
+            );
+
+            expect(contentAsCodeSnapshotModel.delete).toHaveBeenCalledWith(
+                'project-uuid',
+                'dashboard',
+                'weekly-kpis',
+            );
+            expect(contentDraftModel.dismissOpenBySlugs).toHaveBeenCalledWith(
+                'project-uuid',
+                'dashboard',
+                ['weekly-kpis'],
+            );
+        });
+
+        it('refuses users who cannot manage content as code', async () => {
+            const { service, contentAsCodeSnapshotModel } = buildService();
+            const viewer = {
+                ...user,
+                ability: new Ability<PossibleAbilities>([]),
+            } as unknown as SessionUser;
+
+            await expect(
+                service.releaseSnapshot(viewer, 'project-uuid', 'chart', 'x'),
+            ).rejects.toThrow(ForbiddenError);
+            expect(contentAsCodeSnapshotModel.delete).not.toHaveBeenCalled();
         });
     });
 

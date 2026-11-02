@@ -205,6 +205,8 @@ export type ApiContentAsCodeSnapshotPruneResponse = {
     results: ContentAsCodeSnapshotPruneResult;
 };
 
+export type ContentAsCodeReleasableType = 'chart' | 'dashboard';
+
 export type ContentAsCodePullFailure = {
     file: string;
     message: string;

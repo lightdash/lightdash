@@ -510,6 +510,29 @@ describe('SavedChartService chart drafts', () => {
         );
     });
 
+    it('flags Git-managed charts so the UI can explain why saves draft', async () => {
+        const { service } = buildService();
+
+        const result = await service['applyOpenDraftOverlay'](editor, {
+            ...chart,
+            ...spaceContext,
+        } as AnyType);
+
+        expect(result.managedFromRepository).toBe(true);
+        expect(result.hasUnpublishedChanges).toBeUndefined();
+    });
+
+    it('leaves UI-only charts unflagged', async () => {
+        const { service } = buildService({ snapshot: undefined });
+
+        const result = await service['applyOpenDraftOverlay'](editor, {
+            ...chart,
+            ...spaceContext,
+        } as AnyType);
+
+        expect(result.managedFromRepository).toBeUndefined();
+    });
+
     it('serves published content when a stored chart draft is invalid', async () => {
         const { service } = buildService({
             draft: {
