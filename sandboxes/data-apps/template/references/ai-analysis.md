@@ -234,6 +234,76 @@ function RevenueTakeaway() {
 - Trigger `ask` from a user action, or at most once per loaded view. Never on a timer, never per row. Prompts are rate limited per viewer.
 - Prompts are capped at 2000 characters; write them as instructions to an analyst, and name the audience and the length you want.
 
+## Saved commentary shared between viewers (`useSharedAiCommentary`)
+
+> Use this when the user wants generated commentary to be **saved** — "save the summary for the team", "everyone should see the same commentary", "let people edit the AI text", "keep the narrative with this view". It needs BOTH AI analysis and saved app state available (see the prompt's availability lines); without either, fall back to `useAiPrompt` (no saving) or plain `useSharedAppState` (no generation).
+
+`useAiPrompt` answers one viewer once; `useSharedAiCommentary` keys the answer to the current selection and stores it in shared app state, so the first viewer generates it, later viewers of the same selection read the saved text, and anyone may edit it. The edited text is what later viewers see.
+
+```tsx
+import {
+    commentarySelectionKey,
+    useLightdash,
+    useSharedAiCommentary,
+} from '@lightdash/query-sdk';
+
+function RegionCommentary({ region, period }: { region: string; period: string }) {
+    const revenue = useLightdash(revenueQuery);
+    const c = useSharedAiCommentary({
+        // Same selection => same saved commentary, for every viewer.
+        selectionKey: commentarySelectionKey('region', region, 'period', period),
+        prompt: `In three sentences, what should a sales lead know about ${region} revenue for ${period}?`,
+        sources: [{ result: revenue, label: 'Revenue' }],
+    });
+    const [draft, setDraft] = useState<string | null>(null);
+
+    if (c.meta.loading || revenue.loading) return null;
+    return (
+        <section>
+            {c.commentary ? (
+                draft === null ? (
+                    <>
+                        <p>{c.commentary.text}</p>
+                        <footer className="text-xs text-muted-foreground">
+                            {c.commentary.edited
+                                ? `Edited by ${c.meta.updatedBy?.name ?? 'a viewer'}`
+                                : 'AI-generated'}
+                        </footer>
+                        <button onClick={() => setDraft(c.commentary!.text)}>Edit</button>
+                        {c.canGenerate && (
+                            <button disabled={c.generating} onClick={() => c.generate()}>
+                                Regenerate
+                            </button>
+                        )}
+                    </>
+                ) : (
+                    <>
+                        <textarea value={draft} onChange={(e) => setDraft(e.target.value)} />
+                        <button onClick={() => { c.saveEdit(draft); setDraft(null); }}>Save</button>
+                        <button onClick={() => setDraft(null)}>Cancel</button>
+                    </>
+                )
+            ) : (
+                c.canGenerate && (
+                    <button disabled={c.generating} onClick={() => c.generate()}>
+                        {c.generating ? 'Generating…' : 'Generate commentary'}
+                    </button>
+                )
+            )}
+        </section>
+    );
+}
+```
+
+Rules:
+
+- **`selectionKey` names the selection, not the data**: build it with `commentarySelectionKey(...)` from the filter values, segment ids or tab names that define what the viewer is looking at. Never include row values or timestamps. One key per distinct selection; shared app state allows 200 keys per app, so key on controls with bounded choices (a region picker, a period), not free-text search terms.
+- `prompt`, `sources` and `focus` work exactly as in `useAiPrompt`; the generated text is saved with the prompt and a `promptId` for provenance, `edited: false`.
+- Generation replaces any saved text (the Regenerate case) — trigger it from a click, never on load. Reading saved commentary is free and works even when `canGenerate` is false, so always render saved text regardless.
+- Label the text "AI-generated" until `commentary.edited` is true; then show who edited it from `meta.updatedBy`.
+- The saved text is visible to **every** viewer of the app, including viewers whose data permissions would show them different rows. That is the point of the feature — it behaves like a comment — but do not build it over data some viewers must not see described in words.
+- Storage errors surface on `meta.error`; generation errors on `error`. Handle both like any other state.
+
 ## What the app must not do
 
 - Do not send rows or field values anywhere. The hooks expose results; Lightdash already has the data.
