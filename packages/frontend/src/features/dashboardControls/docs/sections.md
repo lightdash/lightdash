@@ -90,8 +90,9 @@ _group_ (that is `requiredGroupId`).
   announces the move in the provider's status region (edit mode only; a
   counter key re-announces the same text). An end stays focusable
   (`data-disabled`).
-- Saved pills (`PillDraggable`) are also droppables on the sectioned bar.
-  `data-drop` draws a 2px line on the side where the pill lands.
+- Each saved pill's `DroppableArea` is its target, on both bars. Its 2px
+  line takes the side from the kind's filter order (where `arrayMove` lands
+  the pill), and shows none for a pill of the other kind or a capsule.
 - Targets: every saved pill, each capsule, the first button
   (`UNSECTIONED_TARGET_ID`), "New section" (`NEW_SECTION_TARGET_ID`) and the
   bar's empty space (`BAR_SPACE_TARGET_ID`), which also catches a pointer on

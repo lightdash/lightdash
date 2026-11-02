@@ -2,9 +2,7 @@ import {
     DndContext,
     DragOverlay,
     PointerSensor,
-    useDndContext,
     useDraggable,
-    useDroppable,
     useSensor,
     useSensors,
     type DragEndEvent,
@@ -82,26 +80,6 @@ const PillDraggable: FC<{
         id,
         disabled: isDisabled,
     });
-    // On the sectioned bar a pill is also a target: a pill dropped on it
-    // takes its section and its place, landing after it when it came from
-    // before (dnd-kit's `arrayMove`), so the line shows on that side
-    const {
-        setNodeRef: setDropRef,
-        isOver,
-        node,
-    } = useDroppable({ id, disabled: !isInBarContext });
-    // The dragged pill's node, as dnd-kit registered it
-    const { activeNode } = useDndContext();
-    const dropSide =
-        !isOver ||
-        activeNode === null ||
-        node.current === null ||
-        activeNode === node.current
-            ? undefined
-            : activeNode.compareDocumentPosition(node.current) &
-                Node.DOCUMENT_POSITION_FOLLOWING
-              ? 'after'
-              : 'before';
     // Only from the pill button: not its portalled editor or tooltip
     const handlePointerDown = (event: PointerEvent<HTMLElement>) => {
         if (
@@ -112,11 +90,7 @@ const PillDraggable: FC<{
     };
     return (
         <Box
-            ref={(element: HTMLDivElement | null) => {
-                setNodeRef(element);
-                setDropRef(element);
-            }}
-            data-drop={dropSide}
+            ref={setNodeRef}
             className={`${classes.pillDrag} ${
                 isInBarContext ? classes.barDraggable : dndClasses.draggable
             }`}

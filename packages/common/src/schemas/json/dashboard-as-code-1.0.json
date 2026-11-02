@@ -483,6 +483,10 @@
                     "description": "uuid, stable across dashboard versions",
                     "type": "string"
                 },
+                "inline": {
+                    "description": "Sits on the bar line of the section before it; absent, starts a line of its own",
+                    "type": "boolean"
+                },
                 "name": {
                     "type": "string"
                 }
