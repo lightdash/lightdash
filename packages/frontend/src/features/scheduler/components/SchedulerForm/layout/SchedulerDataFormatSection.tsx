@@ -1,4 +1,5 @@
 import {
+    FeatureFlags,
     isAppScheduler,
     isChartScheduler,
     isDashboardScheduler,
@@ -25,6 +26,7 @@ import {
     MultiSelect,
     SegmentedControl,
     Stack,
+    Switch,
     Table,
     Text,
     Tooltip,
@@ -33,6 +35,7 @@ import isEqual from 'lodash/isEqual';
 import { useMemo, type FC } from 'react';
 import useHealth from '../../../../../hooks/health/useHealth';
 import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
+import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import { CsvFormattingOptions } from '../../CsvFormattingOptions';
 import { Limit, Values } from '../../types';
 import { SchedulerFormChartFilterOverridesTab } from '../SchedulerFormChartFilterOverridesTab';
@@ -102,6 +105,10 @@ export const SchedulerDataFormatSection: FC<Props> = ({
     filtersWithUnmetRequirements,
 }) => {
     const form = useSchedulerFormContext();
+    const { data: resultsCacheFlag } = useServerFeatureFlag(
+        FeatureFlags.ResultsCacheEnabled,
+    );
+    const isResultsCacheEnabled = resultsCacheFlag?.enabled ?? false;
     const health = useHealth();
     const projectUuid = useProjectUuid();
     const isImageDisabled = !health.data?.hasHeadlessBrowser;
@@ -506,6 +513,37 @@ export const SchedulerDataFormatSection: FC<Props> = ({
                             }}
                         />
                     </Stack>
+                </>
+            )}
+
+            {!isApp && isResultsCacheEnabled && (
+                <>
+                    <Divider />
+                    <Group
+                        justify="space-between"
+                        wrap="nowrap"
+                        align="flex-start"
+                    >
+                        <Stack gap={2}>
+                            <Text fw={500} fz="sm">
+                                Use cached results when available
+                            </Text>
+                            <Text fz="xs" c="dimmed">
+                                Reuses unexpired results instead of querying
+                                your warehouse on every run.
+                            </Text>
+                        </Stack>
+                        <Switch
+                            aria-label="Use cached results when available"
+                            checked={form.values.useCachedResults}
+                            onChange={(event) =>
+                                form.setFieldValue(
+                                    'useCachedResults',
+                                    event.currentTarget.checked,
+                                )
+                            }
+                        />
+                    </Group>
                 </>
             )}
         </Stack>

@@ -90,6 +90,7 @@ const scheduler: SchedulerAndTargets = {
     enabled: true,
     includeLinks: true,
     plainTextEmail: false,
+    useCachedResults: false,
     targets: [
         {
             schedulerEmailTargetUuid: 'email-target-uuid',
@@ -112,6 +113,7 @@ const delivery: ScheduledDeliveryAsCode = {
     enabled: true,
     includeLinks: true,
     plainTextEmail: false,
+    useCachedResults: false,
     targets: [{ type: 'email', recipient: 'data@example.com' }],
     resource: { type: 'chart', slug: 'orders' },
     format: SchedulerFormat.CSV,
@@ -151,6 +153,7 @@ const alert: AlertAsCode = {
     enabled: true,
     includeLinks: true,
     plainTextEmail: false,
+    useCachedResults: false,
     targets: [{ type: 'email', recipient: 'data@example.com' }],
     resource: { type: 'chart', slug: 'orders' },
     thresholds: [
@@ -181,6 +184,7 @@ const googleSheetsScheduler: SchedulerAndTargets = {
     },
     includeLinks: false,
     plainTextEmail: false,
+    useCachedResults: false,
     targets: [],
 };
 
@@ -195,6 +199,7 @@ const googleSheetsSync: GoogleSheetsSyncAsCode = {
     enabled: true,
     includeLinks: false,
     plainTextEmail: false,
+    useCachedResults: false,
     destination: {
         spreadsheetId: 'spreadsheet-id',
         spreadsheetName: 'Orders',
