@@ -1109,6 +1109,17 @@ export type ApiExecuteAsyncMetricQueryResults =
         warnings: QueryWarning[];
     };
 
+/** How a saved chart is drawn, as stored on the chart. */
+export type SavedChartVisualization = Pick<
+    SavedChart,
+    'chartConfig' | 'pivotConfig' | 'tableConfig'
+>;
+
+export type ApiExecuteAsyncSavedChartQueryResults =
+    ApiExecuteAsyncMetricQueryResults & {
+        chartVisualization: SavedChartVisualization;
+    };
+
 type ApiExecuteAsyncMergeQueryMetadata = {
     parameterReferences: string[];
     fieldOrigins: MergeFieldOrigins;
@@ -1668,6 +1679,7 @@ type ApiResults =
     | ApiScanQuerySourceSchemaResults
     | ApiExecuteAsyncDashboardSqlChartQueryResults
     | ApiExecuteAsyncMetricQueryResults
+    | ApiExecuteAsyncSavedChartQueryResults
     | ApiQueryHistoryListResponse['results']
     | ApiExecuteAsyncDashboardChartQueryResults
     | ApiGetAsyncQueryResults

@@ -210,6 +210,23 @@ export type QueryResult = {
     downloadResults?: (
         options?: DownloadResultsOptions,
     ) => Promise<DownloadResultsResult>;
+    /**
+     * How the saved chart is drawn, as stored in Lightdash. Only set on
+     * `savedChart(...)` results, and absent on hosts that predate it.
+     */
+    chartVisualization?: SavedChartVisualization;
+};
+
+/**
+ * A saved chart's stored visualization settings, passed through raw.
+ * Structural copy of `@lightdash/common`'s `SavedChartVisualization`; the
+ * shape of `chartConfig.config` depends on `chartConfig.type` (e.g. `cartesian`
+ * carries `layout.xField` / `layout.yField` and `eChartsConfig.series`).
+ */
+export type SavedChartVisualization = {
+    chartConfig: { type: string; config?: Record<string, unknown> };
+    pivotConfig?: { columns: string[]; rows?: string[] };
+    tableConfig: { columnOrder: string[] };
 };
 
 export type DownloadResultsFileType = 'csv' | 'xlsx';

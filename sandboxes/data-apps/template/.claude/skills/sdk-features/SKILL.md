@@ -213,7 +213,11 @@ order, `sortBy` describes result ordering, `totalColumnCount` exposes truncation
   the viewer can see in that space, resolved at runtime with the viewer's own
   permissions (an inaccessible space answers like a missing one: `space: null`,
   no charts). Each entry carries `{ uuid, name, description, chartKind, slug,
-  updatedAt }`; pass `chart.uuid` to `savedChart(...)` to render one. Use it
+  updatedAt }`; pass `chart.uuid` to `savedChart(...)` to render one. Its
+  `useLightdash` result carries `chartVisualization` (the stored
+  `chartConfig` / `pivotConfig` / `tableConfig`, or null on older hosts):
+  read axes and series from it when present, else fall back to `chartKind`
+  plus the columns. Use it
   for galleries that must pick up newly saved charts without a rebuild; keep
   explicit `savedChart('<uuid>')` references for charts the app lays out by
   hand. Render a friendly empty state for `charts.length === 0` and hide the
