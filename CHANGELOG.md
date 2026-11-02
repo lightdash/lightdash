@@ -1,3 +1,11 @@
+## [3.120.1](https://github.com/lightdash/lightdash/compare/3.120.0...3.120.1) (2026-11-02)
+
+
+### Bug Fixes
+
+* **filters:** resolve DST fold datetimes independently of the current date ([#31913](https://github.com/lightdash/lightdash/issues/31913)) ([1935af4](https://github.com/lightdash/lightdash/commit/1935af412db0762b75708315e5842113c91b3680))
+* **frontend:** stop scroll fade masking top of settings nav at rest ([#31916](https://github.com/lightdash/lightdash/issues/31916)) ([8987808](https://github.com/lightdash/lightdash/commit/89878084d02e3d98be4013d0e8e4bdb4806525e9))
+
 # [3.120.0](https://github.com/lightdash/lightdash/compare/3.119.0...3.120.0) (2026-11-02)
 
 
