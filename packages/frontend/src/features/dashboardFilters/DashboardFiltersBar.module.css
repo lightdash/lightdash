@@ -4,6 +4,12 @@
     width: 100%;
 }
 
+.parameters {
+    flex: 0 1 auto;
+    max-width: 50%;
+    min-width: 0;
+}
+
 .drawerContent {
     composes: scrollContent from '../../components/common/SidebarDrawer.module.css';
 }

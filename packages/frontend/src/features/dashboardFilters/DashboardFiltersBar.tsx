@@ -132,6 +132,17 @@ export const DashboardFiltersBar: FC<Props> = ({
 
     const renderFilters = !isAddFilterDisabled || isEditMode || hasFilters;
 
+    // A swapped-in filter area spans several lines: the parameters wrap in
+    // their own column beside it, not under it
+    const wrapParameters = (node: ReactNode) =>
+        filterArea ? (
+            <Group className={classes.parameters} gap="xs">
+                {node}
+            </Group>
+        ) : (
+            node
+        );
+
     const content = (
         <div className={classes.content}>
             <Group
@@ -196,29 +207,35 @@ export const DashboardFiltersBar: FC<Props> = ({
                                         <Divider orientation="vertical" />
                                     )}
 
-                                    <Parameters
-                                        isEditMode={isEditMode}
-                                        parameterValues={parameterValues}
-                                        onParameterChange={onParameterChange}
-                                        onClearAll={onParameterClearAll}
-                                        parameters={parameters}
-                                        shadowedReservedNames={
-                                            shadowedReservedNames
-                                        }
-                                        isLoading={isParameterLoading}
-                                        missingRequiredParameters={
-                                            missingRequiredParameters
-                                        }
-                                        pinnedParameters={pinnedParameters}
-                                        onParameterPin={onParameterPin}
-                                        parameterOrder={parameterOrder}
-                                        onParameterReorder={onParameterReorder}
-                                        separator={
-                                            compact
-                                                ? undefined
-                                                : parametersSeparator
-                                        }
-                                    />
+                                    {wrapParameters(
+                                        <Parameters
+                                            isEditMode={isEditMode}
+                                            parameterValues={parameterValues}
+                                            onParameterChange={
+                                                onParameterChange
+                                            }
+                                            onClearAll={onParameterClearAll}
+                                            parameters={parameters}
+                                            shadowedReservedNames={
+                                                shadowedReservedNames
+                                            }
+                                            isLoading={isParameterLoading}
+                                            missingRequiredParameters={
+                                                missingRequiredParameters
+                                            }
+                                            pinnedParameters={pinnedParameters}
+                                            onParameterPin={onParameterPin}
+                                            parameterOrder={parameterOrder}
+                                            onParameterReorder={
+                                                onParameterReorder
+                                            }
+                                            separator={
+                                                compact
+                                                    ? undefined
+                                                    : parametersSeparator
+                                            }
+                                        />,
+                                    )}
                                 </>
                             )}
                         </Group>
