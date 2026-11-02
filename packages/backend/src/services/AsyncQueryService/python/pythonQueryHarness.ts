@@ -267,6 +267,7 @@ import time
 STARTED = time.perf_counter()
 
 import importlib.util
+import inspect
 import json
 import math
 import re
@@ -376,11 +377,15 @@ def main():
     if not callable(run):
         fail("Python code must define run(inputs, params)")
 
+    arity = len(inspect.signature(run).parameters)
+    if arity == 0 or arity > 2:
+        fail("run() must take (inputs, params) or (inputs)")
+
     timed("loadCodeMs", started)
 
     started = time.perf_counter()
     try:
-        result = run(inputs, meta.get("params", {}))
+        result = run(inputs) if arity == 1 else run(inputs, meta.get("params", {}))
     except Exception:
         fail("run() raised:\\n" + traceback.format_exc())
     timed("runMs", started)

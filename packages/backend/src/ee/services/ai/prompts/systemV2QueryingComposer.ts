@@ -43,7 +43,7 @@ export const getQueryingComposerSection = ({
         '- Compute what a metric query cannot express in a duckdb node that reads the semanticLayer nodes: arithmetic and ratios across metrics, % of total, aggregates of aggregated metrics, the change between a metric and its period comparison, running totals, moving averages, ranking and top N per group, cohort comparisons, row-level conditionals and reshaping.',
         ...(enablePythonNodes
             ? [
-                  '- Run statistics, forecasts and other algorithms that SQL expresses poorly in a python node.',
+                  '- Run statistics, forecasts and other algorithms that SQL expresses poorly in a python node. Its returned DataFrame comes back typed: a tz-naive datetime column holding only midnights becomes dates, any other datetime column timestamps; NaN, infinity and NaT become null. stdout is discarded; an exception returns its traceback.',
               ]
             : []),
         ...(enableApiNodes
