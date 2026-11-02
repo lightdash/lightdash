@@ -6,6 +6,7 @@ import {
     supportsSingleValue,
     type DashboardFilterableField,
     type DashboardFilterRule,
+    type DashboardFilters,
     type FilterRule,
 } from '@lightdash/common';
 import {
@@ -14,13 +15,11 @@ import {
     Button,
     Divider,
     Group,
+    Checkbox,
     Menu,
     Paper,
-    Select,
     Stack,
-    Switch,
     Text,
-    TextInput,
     Title,
     Tooltip,
 } from '@mantine/core';
@@ -30,25 +29,13 @@ import {
     IconChevronDown,
     IconChevronRight,
     IconLayoutGrid,
-    IconLayoutList,
-    IconListCheck,
     IconPencil,
     IconSettings,
     IconSql,
-    IconTable,
     IconX,
-    type Icon,
 } from '@tabler/icons-react';
 import omit from 'lodash/omit';
-import {
-    useCallback,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
-    type FC,
-    type ReactNode,
-} from 'react';
+import { useEffect, useMemo, useRef, useState, type FC } from 'react';
 import FieldIcon from '../../components/common/Filters/FieldIcon';
 import FilterInputComponent from '../../components/common/Filters/FilterInputs';
 import FilterOperatorOption from '../../components/common/Filters/FilterOperatorOption';
@@ -57,7 +44,6 @@ import TruncatedText from '../../components/common/TruncatedText';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import {
     selectControlSections,
-    selectDashboardFilters,
     selectDashboardTabs,
     useDashboardSelector,
 } from '../../features/dashboard/store';
@@ -67,11 +53,10 @@ import {
 } from '../../features/dashboardControls/fieldLabels';
 import classes from '../../features/dashboardControls/FilterEditor.module.css';
 import { focusOnMount } from '../../features/dashboardControls/mappingFocus';
-import {
-    useRefocusAfter,
-    type NameExit,
-} from '../../features/dashboardControls/nameFocus';
+import { useRefocusAfter } from '../../features/dashboardControls/nameFocus';
+import { type MoveNeighbours } from '../../features/dashboardControls/sections';
 import { withFilterRuleLabel } from '../../features/dashboardControls/sidebarState';
+import { type MoveDirection } from '../../features/dashboardControls/useControlsSidebar';
 import { ViewerControls } from '../../features/dashboardControls/ViewerControls';
 import {
     getFilterRuleWithDisabledState,
@@ -80,16 +65,22 @@ import {
     isLockedRequiredMissingValue,
 } from '../../features/dashboardFilters/FilterConfiguration/utils';
 import { LD_FIELD_COLORS } from '../../theme/fieldColors';
-import { getControlTypeOption, type ControlType } from './controlTypes';
-import sentenceClasses from './FilterPopoverSentence.module.css';
+import { CONTROL_STRINGS } from './controlStrings';
+import sentenceClasses from './FilterPopover.module.css';
+import {
+    focusAnswerOnMount,
+    focusStringValueOnMount,
+    focusValueOnMount,
+} from './focus';
+import { MoveButtons } from './MoveButtons';
+import { NameInput } from './NameInput';
+import { SectionSetting } from './SectionSetting';
 import { getSettingsSummary, isMissingRequiredValue } from './settingsSummary';
-
-export type PopoverView = 'value' | 'settings';
+import { useSettingsChipFocus } from './useSettingsChipFocus';
+import { type PopoverView } from './views';
 
 /** The chips on the actions row, or on a quiet row of their own above it. */
 export type FooterLayout = 'inline' | 'row';
-
-const NO_SECTION = 'none';
 
 // From `FilterValueSettings.tsx` (not exported)
 const getInputs = (root: HTMLElement | null): HTMLInputElement[] => [
@@ -99,57 +90,10 @@ const getInputs = (root: HTMLElement | null): HTMLInputElement[] => [
 const isValueless = (operator: FilterRule['operator']) =>
     operator === FilterOperator.NULL || operator === FilterOperator.NOT_NULL;
 
-// From `FilterSettings.tsx` (not exported): the first value input, else the
-// first enabled control. The shipped one skips its operator select, an input;
-// here the operator is a button, so the value input is the first input
-const focusValueOnMount = (node: HTMLElement | null) => {
-    // A new control opens naming: its name input keeps focus
-    if (node?.querySelector('[data-controls-label]')) return;
-    const inputs = [
-        ...(node?.querySelectorAll<HTMLInputElement>(
-            'input:not([type="hidden"])',
-        ) ?? []),
-    ];
-    // A typed input that owns a list opens it on focus, over the footer: it
-    // waits for a click, typing or ArrowDown, and the operator takes focus
-    const input =
-        inputs.find(
-            (candidate) =>
-                !candidate.disabled &&
-                (candidate.readOnly ||
-                    candidate.closest('[aria-haspopup]') === null),
-        ) ?? node?.querySelector<HTMLElement>('button:not(:disabled)');
-    input?.setAttribute('data-autofocus', '');
-    input?.focus({ preventScroll: true });
-};
-
-// From `FilterEditor.tsx` (not exported): Apply, else Discard
-const focusAnswerOnMount = (node: HTMLElement | null) => {
-    const buttons = [
-        ...(node?.querySelectorAll<HTMLButtonElement>('button') ?? []),
-    ];
-    (
-        buttons.find(
-            (button) =>
-                !button.disabled && button.dataset.controlsApply !== undefined,
-        ) ?? buttons[0]
-    )?.focus({ preventScroll: true });
-};
-
-// Display only: the menu keeps "is" and "is not"
-const getOperatorText = (rule: DashboardFilterRule, label: string) => {
-    if ((rule.values?.length ?? 0) < 2) return label;
-    if (rule.operator === FilterOperator.EQUALS) return 'is any of';
-    if (rule.operator === FilterOperator.NOT_EQUALS) return 'is not any of';
-    return label;
-};
-
 type Props = {
     rule: DashboardFilterRule;
-    /** Null for a SQL column filter, or a control not yet on a tile. */
+    /** Null for a SQL column filter. */
     field: DashboardFilterableField | null;
-    /** A control started from a type, not a field; null for a field's. */
-    controlType: ControlType | null;
     filterType: FilterType;
     isViewer: boolean;
     /** A viewer's own filter: not saved for everyone. */
@@ -160,6 +104,11 @@ type Props = {
     canManageExplore: boolean;
     appliedTileCount: number;
     totalTileCount: number;
+    /** Every filter as edited so far (the provider's draft), this one too:
+     * the required group, the Settings summary and the moves read it. */
+    filters: DashboardFilters;
+    /** Its shown neighbours in that draft, for "Move left" / "Move right". */
+    moveNeighbours: MoveNeighbours;
     /** "Apply changes to {filter} first?" is waiting on an answer. */
     isAsking: boolean;
     initialView: PopoverView;
@@ -171,65 +120,20 @@ type Props = {
     onChooseTiles: () => void;
     onEditRules: () => void;
     onResolvePending: (shouldApply: boolean) => void;
-};
-
-// The editor's name, and its rename: blur and Enter commit, Escape reverts
-const NameInput: FC<{
-    initial: string;
-    placeholder: string;
-    onCommit: (text: string) => void;
-    onDone: (how: NameExit) => void;
-}> = ({ initial, placeholder, onCommit, onDone }) => {
-    const [draft, setDraft] = useState(initial);
-    const isDone = useRef(false);
-    const finish = (text: string, how: NameExit) => {
-        if (isDone.current) return;
-        isDone.current = true;
-        onCommit(text);
-        onDone(how);
-    };
-    return (
-        <TextInput
-            aria-label="Name"
-            data-controls-label
-            size="xs"
-            flex={1}
-            miw={0}
-            placeholder={placeholder}
-            data-own-escape
-            autoFocus
-            value={draft}
-            onFocus={(event) => event.currentTarget.select()}
-            onChange={(event) => setDraft(event.currentTarget.value)}
-            onBlur={(event) =>
-                finish(
-                    draft,
-                    event.relatedTarget instanceof HTMLElement &&
-                        event.relatedTarget !== document.body
-                        ? 'elsewhere'
-                        : 'pointer',
-                )
-            }
-            onKeyDown={(event) => {
-                if (event.key === 'Enter') {
-                    event.preventDefault();
-                    finish(draft, 'keyboard');
-                } else if (event.key === 'Escape') {
-                    event.preventDefault();
-                    finish(initial, 'keyboard');
-                }
-            }}
-        />
-    );
+    /** The shipped Settings view's "Move left" / "Move right". */
+    onMove: (direction: MoveDirection) => void;
 };
 
 const OperatorMenu: FC<{
     rule: DashboardFilterRule;
     field: DashboardFilterableField | null;
     filterType: FilterType;
+    /** "Allow several values", where the shipped "Multiple values" shows. */
+    withSeveralValues: boolean;
     onChange: (next: DashboardFilterRule) => void;
-}> = ({ rule, field, filterType, onChange }) => {
+}> = ({ rule, field, filterType, withSeveralValues, onChange }) => {
     const getUiString = useUiStrings();
+    const allowsSeveral = !rule.singleValue;
     const options = useMemo(
         () =>
             getFilterOperatorOptions(
@@ -239,11 +143,9 @@ const OperatorMenu: FC<{
             ),
         [filterType, field, getUiString],
     );
-    const text = getOperatorText(
-        rule,
+    const text =
         options.find((option) => option.value === rule.operator)?.label ??
-            rule.operator,
-    );
+        rule.operator;
     return (
         <Menu position="bottom-start">
             <Menu.Target>
@@ -252,7 +154,10 @@ const OperatorMenu: FC<{
                     size="compact-xs"
                     flex="0 0 auto"
                     mih={24}
-                    aria-label={`Operator: ${text}`}
+                    aria-label={interpolateUiString(
+                        CONTROL_STRINGS.operatorLabel,
+                        { operator: text },
+                    )}
                     rightSection={
                         <MantineIcon
                             icon={IconChevronDown}
@@ -292,68 +197,61 @@ const OperatorMenu: FC<{
                         />
                     </Menu.Item>
                 ))}
+                {withSeveralValues && (
+                    <>
+                        <Menu.Divider />
+                        {/* A checkbox, not an item: toggling keeps the menu open */}
+                        <Box px="sm" py="xs">
+                            <Checkbox
+                                size="xs"
+                                // The theme dims checkbox labels; this one reads
+                                // as a menu item, so it takes the items' text
+                                label={
+                                    <Text
+                                        span
+                                        fz="sm"
+                                        fw={400}
+                                        c="var(--mantine-color-text)"
+                                    >
+                                        {CONTROL_STRINGS.allowSeveralValues}
+                                    </Text>
+                                }
+                                description={
+                                    allowsSeveral
+                                        ? CONTROL_STRINGS.severalValuesHelper
+                                        : CONTROL_STRINGS.oneValueHelper
+                                }
+                                checked={allowsSeveral}
+                                onChange={(event) =>
+                                    onChange({
+                                        ...rule,
+                                        singleValue:
+                                            !event.currentTarget.checked,
+                                    })
+                                }
+                            />
+                        </Box>
+                    </>
+                )}
             </Menu.Dropdown>
         </Menu>
     );
 };
 
-// A Settings row, as `ViewerControls` draws Required and Lock
-const SettingRow: FC<{
-    icon: Icon;
-    label: string;
-    control: ReactNode;
-    description: string | null;
-}> = ({ icon, label, control, description }) => (
-    <Stack gap={6}>
-        <Group justify="space-between" wrap="nowrap">
-            <Group gap={6} wrap="nowrap">
-                <MantineIcon icon={icon} size="sm" color="ldGray.6" />
-                <Text size="xs" fw={600}>
-                    {label}
-                </Text>
-            </Group>
-            {control}
-        </Group>
-        {description !== null && (
-            <Text size="xs" c="dimmed">
-                {description}
-            </Text>
-        )}
-    </Stack>
-);
-
-// The shipped picker, with the editor's value rules from `FilterValueSettings`
-// and the viewer's clear X from `FilterValueSection`
-const ValueBody: FC<{
-    rule: DashboardFilterRule;
-    field: DashboardFilterableField | null;
-    filterType: FilterType;
-    isViewer: boolean;
-    isCreatingNew: boolean;
-    canManageExplore: boolean;
-    /** Where a control's values come from, under the value. */
-    caption: ReactNode;
-    onChange: (next: DashboardFilterRule) => void;
-}> = ({
-    rule,
-    field,
-    filterType,
-    isViewer,
-    isCreatingNew,
-    canManageExplore,
-    caption,
-    onChange,
-}) => {
-    const getUiString = useUiStrings();
+// Every edit, the operator's included, as the shipped `FilterValueSettings`
+// writes it: an editor's rule is off while it has no value, a viewer's is on,
+// and an edit that would empty a locked, required filter is refused
+const useRuleEdits = (
+    rule: DashboardFilterRule,
+    isViewer: boolean,
+    onChange: (next: DashboardFilterRule) => void,
+) => {
     const root = useRef<HTMLDivElement>(null);
     // Counts the refused edits: the form is remounted on each one, so its
     // inputs show the value the rule kept and not the one that was refused
     const [refusals, setRefusals] = useState(0);
     const [wasRefused, setWasRefused] = useState(false);
     const refocusIndex = useRef(-1);
-    const isLockedAndRequired =
-        !!rule.lockedTabUuids?.length && !!rule.required;
-    const hasRequirement = !!rule.required || !!rule.requiredGroupId;
     const handleChange = (next: DashboardFilterRule) => {
         const written = isViewer
             ? getFilterRuleWithDisabledState(next, false)
@@ -383,6 +281,33 @@ const ValueBody: FC<{
         if (!input.readOnly) input.select();
     }, [refusals]);
 
+    return { root, refusals, wasRefused, handleChange };
+};
+
+// The shipped picker, with the viewer's clear X from `FilterValueSection`
+const ValueBody: FC<{
+    rule: DashboardFilterRule;
+    field: DashboardFilterableField | null;
+    filterType: FilterType;
+    isViewer: boolean;
+    isCreatingNew: boolean;
+    canManageExplore: boolean;
+    edits: ReturnType<typeof useRuleEdits>;
+}> = ({
+    rule,
+    field,
+    filterType,
+    isViewer,
+    isCreatingNew,
+    canManageExplore,
+    edits,
+}) => {
+    const getUiString = useUiStrings();
+    const { root, refusals, wasRefused, handleChange } = edits;
+    const isLockedAndRequired =
+        !!rule.lockedTabUuids?.length && !!rule.required;
+    const hasRequirement = !!rule.required || !!rule.requiredGroupId;
+
     const valueCount = rule.values?.length ?? 0;
     return (
         <Stack ref={root} gap="xs" className={classes.content}>
@@ -408,8 +333,12 @@ const ValueBody: FC<{
                                 : rule
                         }
                         popoverProps={
+                            // As the shipped `isListClosedOnPick`
                             filterType === FilterType.STRING
-                                ? { closeListOnPick: true }
+                                ? {
+                                      closeListOnPick: true,
+                                      openListOnFocus: false,
+                                  }
                                 : undefined
                         }
                         onChange={handleChange}
@@ -448,7 +377,6 @@ const ValueBody: FC<{
                     </Tooltip>
                 )}
             </Group>
-            {caption}
             {isLockedAndRequired && (
                 <Text
                     key={wasRefused ? refusals : 'at-rest'}
@@ -464,10 +392,9 @@ const ValueBody: FC<{
     );
 };
 
-export const FilterPopoverSentence: FC<Props> = ({
+export const FilterPopover: FC<Props> = ({
     rule,
     field,
-    controlType,
     filterType,
     isViewer,
     isOwnFilter,
@@ -475,6 +402,8 @@ export const FilterPopoverSentence: FC<Props> = ({
     canManageExplore,
     appliedTileCount,
     totalTileCount,
+    filters,
+    moveNeighbours,
     isAsking,
     initialView,
     footerLayout,
@@ -485,45 +414,35 @@ export const FilterPopoverSentence: FC<Props> = ({
     onChooseTiles,
     onEditRules,
     onResolvePending,
+    onMove,
 }) => {
     const getUiString = useUiStrings();
-    const dashboardFilters = useDashboardSelector(selectDashboardFilters);
     const tabs = useDashboardSelector(selectDashboardTabs);
     const sections = useDashboardSelector(selectControlSections);
     const [view, setView] = useState<PopoverView>(initialView);
-    const typeOption =
-        controlType === null ? null : getControlTypeOption(controlType);
-    // A new control opens with its name to fill in
-    const [isRenaming, setIsRenaming] = useState(
-        () => typeOption !== null && rule.label === undefined,
-    );
+    const [isRenaming, setIsRenaming] = useState(false);
     const [hadLabelKey] = useState(() => 'label' in rule);
     const { ref: pencilRef, exit } = useRefocusAfter(isRenaming);
-    // Back from Settings hands focus to the chip that opened it
-    const isBackFromSettings = useRef(false);
-    const focusValueView = useCallback((node: HTMLElement | null) => {
-        if (!isBackFromSettings.current) focusValueOnMount(node);
-    }, []);
-    const focusSettingsChip = useCallback((node: HTMLElement | null) => {
-        if (node === null || !isBackFromSettings.current) return;
-        isBackFromSettings.current = false;
-        node.focus({ preventScroll: true });
-    }, []);
+    const { focusValueView, focusSettingsChip, markBackFromSettings } =
+        // As the shipped editor: a text value's list stays shut on focus
+        useSettingsChipFocus(
+            filterType === FilterType.STRING
+                ? focusStringValueOnMount
+                : focusValueOnMount,
+        );
+    const edits = useRuleEdits(rule, isViewer, onChange);
 
     const fieldName =
         field?.label ?? (rule.target.isSqlColumn ? rule.target.fieldId : null);
     const name =
-        rule.label ??
-        typeOption?.newName ??
-        fieldName ??
-        getUiString('filters.rail.filterName');
+        rule.label ?? fieldName ?? getUiString('filters.rail.filterName');
     const canChooseTiles = !isViewer || isOwnFilter;
     const hasSingleValueSetting =
         !isViewer && supportsSingleValue(filterType, rule.operator);
 
     const applyBlockedReason = isViewer
         ? null
-        : isMissingRequiredValue(rule, dashboardFilters)
+        : isMissingRequiredValue(rule, filters)
           ? getUiString('filters.config.applyRequiredTooltip')
           : appliedTileCount === 0
             ? getUiString('filters.notAppliedToAnyTiles')
@@ -536,7 +455,7 @@ export const FilterPopoverSentence: FC<Props> = ({
     );
     const tileCount =
         appliedTileCount === 0
-            ? 'no tiles'
+            ? CONTROL_STRINGS.noTiles
             : appliedTileCount === totalTileCount
               ? formatTileCount(getUiString, totalTileCount)
               : `${tilesOf.count} ${tilesOf.noun}`;
@@ -546,13 +465,9 @@ export const FilterPopoverSentence: FC<Props> = ({
     );
     const settingsSummary = getSettingsSummary({
         rule,
-        filters: dashboardFilters,
+        filters,
         tabs,
         sections,
-        singleValue:
-            hasSingleValueSetting && rule.singleValue
-                ? getUiString('filters.inputs.singleValue')
-                : null,
         getRuleName: (other) => other.label ?? other.target.fieldId,
     });
     const isRow = footerLayout === 'row';
@@ -698,71 +613,18 @@ export const FilterPopoverSentence: FC<Props> = ({
         </Group>
     );
 
-    const sectionValue = sections.some(({ id }) => id === rule.sectionId)
-        ? (rule.sectionId ?? NO_SECTION)
-        : NO_SECTION;
     const settingRows = [
         sections.length > 0 && (
-            <SettingRow
+            <SectionSetting
                 key="section"
-                icon={IconLayoutList}
-                label="Section"
-                description={null}
-                control={
-                    <Select
-                        size="xs"
-                        w={160}
-                        aria-label="Section"
-                        allowDeselect={false}
-                        data={[
-                            { value: NO_SECTION, label: 'No section' },
-                            ...sections.map((section) => ({
-                                value: section.id,
-                                label:
-                                    section.name ||
-                                    getUiString('filters.rail.untitledSection'),
-                            })),
-                        ]}
-                        value={sectionValue}
-                        onChange={(next) => {
-                            if (next === null) return;
-                            onChange(
-                                next === NO_SECTION
-                                    ? (omit(
-                                          rule,
-                                          'sectionId',
-                                      ) as DashboardFilterRule)
-                                    : { ...rule, sectionId: next },
-                            );
-                        }}
-                    />
-                }
-            />
-        ),
-        hasSingleValueSetting && (
-            <SettingRow
-                key="multiple"
-                icon={IconListCheck}
-                label={getUiString('filters.inputs.multipleValues')}
-                description={
-                    rule.singleValue
-                        ? 'Prevent selection of multiple values'
-                        : 'Allow selection of multiple values'
-                }
-                control={
-                    <Switch
-                        size="xs"
-                        aria-label={getUiString(
-                            'filters.inputs.multipleValues',
-                        )}
-                        checked={!rule.singleValue}
-                        onChange={(event) =>
-                            onChange({
-                                ...rule,
-                                singleValue: !event.currentTarget.checked,
-                            })
-                        }
-                    />
+                sections={sections}
+                sectionId={rule.sectionId ?? null}
+                onChange={(sectionId) =>
+                    onChange(
+                        sectionId === null
+                            ? (omit(rule, 'sectionId') as DashboardFilterRule)
+                            : { ...rule, sectionId },
+                    )
                 }
             />
         ),
@@ -777,7 +639,7 @@ export const FilterPopoverSentence: FC<Props> = ({
                         aria-label="Back"
                         ref={focusOnMount}
                         onClick={() => {
-                            isBackFromSettings.current = true;
+                            markBackFromSettings();
                             setView('value');
                         }}
                     >
@@ -798,6 +660,11 @@ export const FilterPopoverSentence: FC<Props> = ({
                     row,
                     <Divider key={`${row.key}-divider`} />,
                 ])}
+                <MoveButtons
+                    canMoveLeft={moveNeighbours.before !== null}
+                    canMoveRight={moveNeighbours.after !== null}
+                    onMove={onMove}
+                />
                 <ViewerControls
                     rule={rule}
                     filterType={filterType}
@@ -813,13 +680,7 @@ export const FilterPopoverSentence: FC<Props> = ({
     const valueView = (
         <Box ref={focusValueView}>
             <Group gap="xs" wrap="nowrap" px="md" pt="sm">
-                {typeOption !== null ? (
-                    <MantineIcon
-                        icon={typeOption.icon}
-                        size="lg"
-                        color={LD_FIELD_COLORS.dimension.color}
-                    />
-                ) : field ? (
+                {field ? (
                     <FieldIcon item={field} />
                 ) : (
                     <MantineIcon
@@ -832,11 +693,7 @@ export const FilterPopoverSentence: FC<Props> = ({
                     <NameInput
                         initial={rule.label ?? ''}
                         placeholder={
-                            typeOption !== null
-                                ? 'Name this control'
-                                : field
-                                  ? `Label for ${field.label}`
-                                  : 'Filter label'
+                            field ? `Label for ${field.label}` : 'Filter label'
                         }
                         onCommit={(text) =>
                             onChange(
@@ -857,7 +714,8 @@ export const FilterPopoverSentence: FC<Props> = ({
                     rule={rule}
                     field={field}
                     filterType={filterType}
-                    onChange={onChange}
+                    withSeveralValues={hasSingleValueSetting}
+                    onChange={edits.handleChange}
                 />
                 <Group gap={4} wrap="nowrap" ml="auto" flex="0 0 auto">
                     {!isViewer && !isRenaming && (
@@ -886,26 +744,7 @@ export const FilterPopoverSentence: FC<Props> = ({
                     isViewer={isViewer}
                     isCreatingNew={isCreatingNew}
                     canManageExplore={canManageExplore}
-                    caption={
-                        typeOption === null ? null : field ? (
-                            <Group gap={4} wrap="nowrap">
-                                <MantineIcon
-                                    icon={IconTable}
-                                    size={14}
-                                    color="dimmed"
-                                />
-                                <Text fz="xs" c="dimmed" truncate>
-                                    {`Values from ${field.tableLabel} · ${field.label}`}
-                                </Text>
-                            </Group>
-                        ) : filterType === FilterType.STRING ? (
-                            <Text fz="xs" c="dimmed">
-                                Suggestions appear once the control applies to a
-                                tile
-                            </Text>
-                        ) : null
-                    }
-                    onChange={onChange}
+                    edits={edits}
                 />
             )}
         </Box>

@@ -26,13 +26,3 @@
 .form > :global(.mantine-Group-root) > :global(.mantine-Group-root) {
     flex-wrap: wrap;
 }
-
-/* The add-control menu: the field list sits in the menu's flow, above the
-   types, rather than floating over them */
-.inlineList :global(.mantine-Combobox-dropdown) {
-    position: static !important;
-    width: auto !important;
-    margin-top: var(--mantine-spacing-xs);
-    border: 0;
-    box-shadow: none;
-}

@@ -1,3 +1,5 @@
+import { type DashboardControlSection, type WeekDay } from '@lightdash/common';
+import { Box } from '@mantine/core';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { useState, type FC, type PropsWithChildren } from 'react';
 import { MemoryRouter } from 'react-router';
@@ -14,13 +16,15 @@ import {
 } from '../../testing/dashboardStore';
 import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
 import {
+    availableTileFilters,
     DASHBOARD_UUID,
     dashboardFilters,
     itemsMap,
+    parameterValues,
     PROJECT_UUID,
-    sections,
     storyLightdashApi,
     tabs,
+    tiles,
 } from './fixtures';
 
 // Only what the Settings view's shipped `ViewerControls` and
@@ -32,7 +36,8 @@ const dashboardContext = {
     },
     allFilterableFieldsMap: itemsMap,
     allFilterableMetricsMap: {},
-    filterableFieldsByTileUuid: undefined,
+    // Which tabs a filter reaches, for the move buttons' hidden-on-tab check
+    filterableFieldsByTileUuid: availableTileFilters,
     updateDimensionDashboardFilter: action('updateDimensionDashboardFilter'),
     updateMetricDashboardFilter: action('updateMetricDashboardFilter'),
 } as unknown as DashboardContextType;
@@ -44,7 +49,7 @@ const tracking = {
     identify: action('identify'),
 };
 
-const createStore = () =>
+const createStore = (sections: DashboardControlSection[]) =>
     seedDashboardEditState(
         createDashboardTestStore({ dashboardFilters, isEditMode: true }),
         {
@@ -55,18 +60,29 @@ const createStore = () =>
                 },
             },
             dashboardTabs: tabs,
+            dashboardTiles: tiles,
             activeTab: tabs[0],
         },
     );
 
-// Everything the shipped pickers and settings need, answered offline
-export const FilterPopoverStoryProviders: FC<PropsWithChildren> = ({
+type FrameProps = PropsWithChildren<{
+    /** The project's week start; null for the date pickers' default. */
+    startOfWeek: WeekDay | null;
+    /** The dashboard's control sections. */
+    sections: DashboardControlSection[];
+}>;
+
+// Everything the shipped pickers and settings need, answered offline, fed
+// as the shipped editor's `FilterSettings` feeds `FiltersProvider`
+const DashboardControlsProviders: FC<FrameProps> = ({
+    startOfWeek,
+    sections,
     children,
 }) => {
     const [queryClient] = useState(() =>
         createQueryClient({ queries: { retry: false } }),
     );
-    const [store] = useState(createStore);
+    const [store] = useState(() => createStore(sections));
     return (
         <MemoryRouter>
             <QueryClientProvider client={queryClient}>
@@ -77,7 +93,14 @@ export const FilterPopoverStoryProviders: FC<PropsWithChildren> = ({
                                 <FiltersProvider
                                     projectUuid={PROJECT_UUID}
                                     itemsMap={itemsMap}
+                                    startOfWeek={startOfWeek ?? undefined}
                                     dashboardFilters={dashboardFilters}
+                                    dashboardTiles={tiles}
+                                    filterableFieldsByTileUuid={
+                                        availableTileFilters
+                                    }
+                                    activeTabUuid={tabs[0]?.uuid}
+                                    parameterValues={parameterValues}
                                 >
                                     {children}
                                 </FiltersProvider>
@@ -89,3 +112,10 @@ export const FilterPopoverStoryProviders: FC<PropsWithChildren> = ({
         </MemoryRouter>
     );
 };
+
+/** The providers and the page margin every prototype story sits in. */
+export const StoryFrame: FC<FrameProps> = ({ children, ...props }) => (
+    <DashboardControlsProviders {...props}>
+        <Box p="xl">{children}</Box>
+    </DashboardControlsProviders>
+);

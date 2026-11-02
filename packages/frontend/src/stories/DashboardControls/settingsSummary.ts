@@ -38,21 +38,18 @@ const allRules = (filters: DashboardFilters) => [
     ...filters.metrics,
 ];
 
-/** Section, single value, required and lock, joined; null when none is set. */
+/** Section, required and lock, joined; null when none is set. */
 export const getSettingsSummary = ({
     rule,
     filters,
     tabs,
     sections,
-    singleValue,
     getRuleName,
 }: {
     rule: DashboardFilterRule;
     filters: DashboardFilters;
     tabs: DashboardTab[];
     sections: DashboardControlSection[];
-    /** "Single value" when the filter takes one value. */
-    singleValue: string | null;
     getRuleName: (other: DashboardFilterRule) => string;
 }): string | null => {
     const section = sections.find(({ id }) => id === rule.sectionId);
@@ -66,7 +63,6 @@ export const getSettingsSummary = ({
     const lockedTabUuids = rule.lockedTabUuids ?? [];
     const parts = [
         section ? section.name : null,
-        singleValue,
         getRequiredSummary(
             !!rule.required || !!rule.requiredGroupId,
             alternatives.map(getRuleName),
