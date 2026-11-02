@@ -34,3 +34,17 @@ export const APP_SDK_MANIFEST_MESSAGE = 'lightdash:sdk:manifest';
 
 // Iframe → host: a chart type painted the last pushed viz context.
 export const APP_SDK_VIZ_RENDERED_MESSAGE = 'lightdash:sdk:viz-rendered';
+
+// Iframe → host: the viewer picked a query-bound element in inspect-data mode.
+// SDKs that know author query ids send `queryId`; older ones only `queryUuid`.
+export const APP_SDK_LINEAGE_SELECTED_MESSAGE = 'lightdash:lineage:selected';
+
+export type AppSdkLineageSelection = {
+    queryUuid: string | null;
+    queryId: string | null;
+};
+
+// Host → iframe: outline elements bound to the queryUuid and/or queryId (union).
+export const APP_SDK_LINEAGE_HIGHLIGHT_MESSAGE = 'lightdash:lineage:highlight';
+
+export type AppSdkLineageHighlight = AppSdkLineageSelection;

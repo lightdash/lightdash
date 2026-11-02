@@ -3,6 +3,9 @@ import {
     extractAppSdkSpaceCharts,
     extractExploreBaseTable,
     isAllowedAppSdkRoute,
+    isAppSdkComposerRoute,
+    parseAppSdkComposerMetadata,
+    parseAppSdkComposerRequest,
     parseAppSdkExploreBaseTableRequest,
     parseAppSdkSpaceChartsRequest,
     resolveAppSdkSpaceUuid,
@@ -132,5 +135,152 @@ describe('space-charts virtual route', () => {
         });
         expect(extractAppSdkSpaceCharts({ results: { uuid: 'u' } })).toBe(null);
         expect(extractAppSdkSpaceCharts(null)).toBe(null);
+    });
+});
+
+describe('composer routes', () => {
+    const P = '/api/v2/projects/p-1';
+    const CHART_QUERY_UUID = '3f1c2a7e-9b4d-4c1a-8e2f-0a1b2c3d4e5f';
+    const orders = {
+        sourceType: 'semanticLayer',
+        nodeId: 'orders',
+        title: 'Orders',
+        exploreName: 'orders',
+        dimensions: ['orders_status'],
+        metrics: ['orders_count'],
+    };
+    const joined = {
+        sourceType: 'duckdb',
+        nodeId: 'joined',
+        sql: 'SELECT * FROM o JOIN c USING (status)',
+        references: { o: 'orders', c: CHART_QUERY_UUID },
+    };
+
+    it('allowlists submission and batch status, with a query string', () => {
+        expect(isAllowedAppSdkRoute('POST', `${P}/query-sources/queries`)).toBe(
+            true,
+        );
+        expect(
+            isAllowedAppSdkRoute(
+                'GET',
+                `${P}/query-sources/queries/status?queryUuids=a,b`,
+            ),
+        ).toBe(true);
+        expect(isAllowedAppSdkRoute('GET', `${P}/query-sources/queries`)).toBe(
+            false,
+        );
+        expect(isAllowedAppSdkRoute('POST', `${P}/query-sources/schema`)).toBe(
+            false,
+        );
+        expect(
+            isAppSdkComposerRoute('post', `${P}/query-sources/queries`),
+        ).toBe(true);
+    });
+
+    it('accepts semantic, duckdb and python nodes with map references', () => {
+        const python = {
+            sourceType: 'python',
+            nodeId: 'scored',
+            code: 'def run(inputs, params): return inputs["j"]',
+            references: { j: 'joined' },
+        };
+        expect(
+            parseAppSdkComposerRequest({
+                queries: [orders, joined, python],
+                parameters: { region: 'EU' },
+            }),
+        ).toEqual({
+            ok: true,
+            queries: [orders, joined, python],
+            parameters: { region: 'EU' },
+        });
+    });
+
+    it.each([
+        ['a non-object body', null],
+        ['an empty submission', { queries: [] }],
+        [
+            'too many nodes',
+            {
+                queries: Array.from({ length: 26 }, (_, i) => ({
+                    ...orders,
+                    nodeId: `n${i}`,
+                })),
+            },
+        ],
+        [
+            'a sql node',
+            {
+                queries: [
+                    { sourceType: 'sql', nodeId: 'raw', sql: 'select 1' },
+                ],
+            },
+        ],
+        [
+            'an external node',
+            {
+                queries: [
+                    {
+                        sourceType: 'external',
+                        nodeId: 'x',
+                        sql: '',
+                        tables: [],
+                    },
+                ],
+            },
+        ],
+        ['a missing nodeId', { queries: [{ ...orders, nodeId: undefined }] }],
+        ['an invalid nodeId', { queries: [{ ...orders, nodeId: '1-bad' }] }],
+        ['duplicate nodeIds', { queries: [orders, orders] }],
+        [
+            'array-form references',
+            { queries: [orders, { ...joined, references: ['orders'] }] },
+        ],
+        [
+            'a reference to an unknown node',
+            { queries: [orders, { ...joined, references: { o: 'missing' } }] },
+        ],
+        ['a non-string title', { queries: [{ ...orders, title: 7 }] }],
+        ['non-object parameters', { queries: [orders], parameters: 'x' }],
+    ])('rejects %s', (_, body) => {
+        expect(parseAppSdkComposerRequest(body).ok).toBe(false);
+    });
+
+    it('parses composer metadata and drops malformed saved-chart nodes', () => {
+        expect(
+            parseAppSdkComposerMetadata({
+                kind: 'composer',
+                queryId: 'revenue',
+                label: 'Revenue',
+                description: null,
+                terminalNodeId: 'joined',
+                savedChartNodes: [
+                    {
+                        nodeId: 'c',
+                        chartUuid: 'chart-1',
+                        queryUuid: CHART_QUERY_UUID,
+                        title: 'Chart',
+                        description: null,
+                    },
+                    { nodeId: 'broken' },
+                ],
+            }),
+        ).toEqual({
+            kind: 'composer',
+            queryId: 'revenue',
+            label: 'Revenue',
+            description: null,
+            terminalNodeId: 'joined',
+            savedChartNodes: [
+                {
+                    nodeId: 'c',
+                    chartUuid: 'chart-1',
+                    queryUuid: CHART_QUERY_UUID,
+                    title: 'Chart',
+                    description: null,
+                },
+            ],
+        });
+        expect(parseAppSdkComposerMetadata({ label: 'x' })).toBe(null);
     });
 });
