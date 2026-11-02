@@ -208,6 +208,14 @@ order, `sortBy` describes result ordering, `totalColumnCount` exposes truncation
   plain text. `result` is the object `useLightdash` returns (keep a reference
   to it even when destructuring), never a rebuilt `{ data, columns }`. Hide the control when `available` is false; trigger from a user
   action. Full contract in `/app/references/ai-analysis.md`.
+- `shared-ai-commentary`: `useSharedAiCommentary({ selectionKey, prompt,
+  sources, focus? })` saves a generated answer in shared app state keyed to
+  the current selection: the first viewer generates, later viewers of the
+  same selection read the saved text, anyone may edit it (`saveEdit`), and
+  the edited version is what others see. Build `selectionKey` with
+  `commentarySelectionKey(...)` from bounded controls (filters, tabs), never
+  row data. Needs both AI and saved app state available. See "Saved
+  commentary shared between viewers" in `/app/references/ai-analysis.md`.
 - `space-charts`: `useSpaceCharts('<space slug or uuid>')` returns
   `{ available, space, charts, loading, error, refresh }` — the saved charts
   the viewer can see in that space, resolved at runtime with the viewer's own

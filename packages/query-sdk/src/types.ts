@@ -565,7 +565,11 @@ export type AiPromptRequest = {
     focus: Record<string, string> | null;
 };
 
-export type AiPromptResult = { text: string };
+export type AiPromptResult = {
+    text: string;
+    /** Server id of the stored prompt run, when the host returns one. */
+    promptId?: string | null;
+};
 
 export type Transport = {
     executeQuery: (query: QueryDefinition) => Promise<QueryResult>;

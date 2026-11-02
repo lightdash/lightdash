@@ -184,6 +184,17 @@ export type {
 export { useAiPrompt } from './aiPrompt';
 export type { AiPrompt, AiPromptOptions, AiPromptSource } from './aiPrompt';
 
+// Saved AI commentary shared between viewers, keyed by selection (data apps)
+export {
+    commentarySelectionKey,
+    useSharedAiCommentary,
+} from './sharedAiCommentary';
+export type {
+    SharedAiCommentary,
+    SharedAiCommentaryOptions,
+    SharedAiCommentaryValue,
+} from './sharedAiCommentary';
+
 // List the saved charts the viewer can see in a space (data apps)
 export { useSpaceCharts } from './spaceCharts';
 export type { SpaceCharts } from './spaceCharts';

@@ -1557,12 +1557,15 @@ export function createApiTransport(
 
         async aiPrompt(request: AiPromptRequest): Promise<AiPromptResult> {
             const { appUuid, prompt, sources, focus } = request;
-            const { text } = await fetchFn<{ text: string }>(
+            const { text, promptId } = await fetchFn<{
+                text: string;
+                promptId?: string;
+            }>(
                 'POST',
                 `/api/v2/projects/${config.projectUuid}/apps/${appUuid}/analysis/prompt`,
                 { prompt, sources, ...(focus ? { focus } : {}) },
             );
-            return { text };
+            return { text, promptId: promptId ?? null };
         },
 
         // Needs an app to attribute state to; the dev transport only has one
