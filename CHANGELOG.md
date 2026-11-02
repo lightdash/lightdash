@@ -1,3 +1,10 @@
+# [3.119.0](https://github.com/lightdash/lightdash/compare/3.118.3...3.119.0) (2026-11-02)
+
+
+### Features
+
+* **ai:** require an [@mention](https://github.com/mention) in the Slack multi-agent channel (opt-in) ([#31907](https://github.com/lightdash/lightdash/issues/31907)) ([a885ab6](https://github.com/lightdash/lightdash/commit/a885ab65d9997b3b5ff100c00265a7b9d916a7bf))
+
 ## [3.118.3](https://github.com/lightdash/lightdash/compare/3.118.2...3.118.3) (2026-11-02)
 
 

@@ -61854,6 +61854,7 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 aiAgentsEnabled: { dataType: 'boolean' },
                 unfurlsEnabled: { dataType: 'boolean' },
+                aiMultiAgentRequireMention: { dataType: 'boolean' },
                 aiMultiAgentProjectUuids: {
                     dataType: 'union',
                     subSchemas: [
@@ -61943,6 +61944,7 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 aiAgentsEnabled: { dataType: 'boolean' },
                 unfurlsEnabled: { dataType: 'boolean' },
+                aiMultiAgentRequireMention: { dataType: 'boolean' },
                 aiMultiAgentProjectUuids: {
                     dataType: 'union',
                     subSchemas: [

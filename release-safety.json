@@ -1,14 +1,27 @@
 {
   "schemaVersion": "2",
-  "version": "3.118.3",
-  "previousVersion": "3.118.2",
-  "releaseDate": "2026-11-02T10:47:14.576Z",
+  "version": "3.119.0",
+  "previousVersion": "3.118.3",
+  "releaseDate": "2026-11-02T10:59:40.501Z",
   "migrations": {
-    "present": false,
-    "count": 0,
-    "coreCount": 0,
+    "present": true,
+    "count": 1,
+    "coreCount": 1,
     "eeCount": 0,
-    "files": []
+    "files": [
+      {
+        "name": "20261102100000_slack_setting_ai_multi_agent_require_mention.ts",
+        "edition": "core",
+        "tables": [
+          "slack_auth_tokens"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": false
+        }
+      }
+    ]
   },
   "compatibility": {
     "rollingUpdateSafe": true,
