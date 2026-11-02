@@ -52,12 +52,10 @@ export const createDashboardStore = (preloadedState: DashboardStoreState) =>
         },
         preloadedState,
         middleware: (getDefaultMiddleware) =>
-            // Filter values can hold Date objects from the date inputs, and
-            // `source` holds whole react-query results the dev-only
-            // immutability check would deep-walk on every action
+            // Filter values can hold Date objects; `source` holds react-query results
             getDefaultMiddleware({
                 serializableCheck: false,
-                immutableCheck: false,
+                immutableCheck: { ignoredPaths: ['source'] },
             }),
     });
 
@@ -79,7 +77,27 @@ export {
     getSavedDateZoomSettings,
 } from './dashboardEditReducer';
 export type { DashboardEditState } from './dashboardEditReducer';
-export * from './dashboardEditSelectors';
+export {
+    selectActiveTab,
+    selectActiveTabUuid,
+    selectControlSections,
+    selectDashboardCustomMetrics,
+    selectDashboardTabs,
+    selectDashboardTiles,
+    selectDateZoomGranularities,
+    selectDefaultDateZoomGranularity,
+    selectHasDefaultDateZoomGranularityChanged,
+    selectHaveControlSectionsChanged,
+    selectHaveCustomMetricsChanged,
+    selectHaveDateZoomGranularitiesChanged,
+    selectHaveTabsChanged,
+    selectHaveTilesChanged,
+    selectIsAddFilterDisabled,
+    selectIsDateZoomDisabled,
+    selectSavedChartUuidsAndTileUuids,
+    selectSavedChartUuidsAndTileUuidsKey,
+    selectTileUuidsKey,
+} from './dashboardEditSelectors';
 export * from './editHooks';
 export { dashboardChartSortActions } from './dashboardChartSortReducer';
 export {
@@ -90,7 +108,11 @@ export type {
     DashboardProviderState,
     DashboardSourceState,
 } from './dashboardSourceReducer';
-export * from './dashboardSourceSelectors';
+export {
+    getFilterableFieldsByTileUuid,
+    getTemporaryFilterLocks,
+    selectEmbedDashboard,
+} from './dashboardSourceSelectors';
 export { getDashboardContextView } from './contextView';
 export * from './hooks';
 export { hasSavedFiltersOverrides } from './savedFilterOverrides';

@@ -17,9 +17,9 @@ export const selectProjectUuid = (state: DashboardStoreState) =>
     state.source.projectUuid;
 export const selectIncludeUnpublishedDraft = (state: DashboardStoreState) =>
     state.source.includeUnpublishedDraft;
-export const selectEmbedToken = (state: DashboardStoreState) =>
+const selectEmbedToken = (state: DashboardStoreState) =>
     state.source.embedToken;
-export const selectQueryDashboard = (state: DashboardStoreState) =>
+const selectQueryDashboard = (state: DashboardStoreState) =>
     state.source.queryDashboard;
 export const selectEmbedDashboard = (state: DashboardStoreState) =>
     state.source.embedDashboard;
@@ -30,7 +30,7 @@ export const selectIsDashboardLoading = (state: DashboardStoreState) =>
     state.source.isDashboardLoading;
 export const selectDashboardError = (state: DashboardStoreState) =>
     state.source.dashboardError;
-export const selectAvailableFilters = (state: DashboardStoreState) =>
+const selectAvailableFilters = (state: DashboardStoreState) =>
     state.source.availableFilters;
 export const selectIsLoadingDashboardFilters = (state: DashboardStoreState) =>
     state.source.isLoadingDashboardFilters;
