@@ -8,7 +8,6 @@ import { type Block, type KnownBlock } from '@slack/web-api';
 export const SLACK_TABLE_MAX_ROWS = 200;
 const SLACK_TABLE_MAX_COLUMNS = 20;
 const SLACK_TABLE_MESSAGE_CHARACTER_BUDGET = 20_000;
-const PREVIEW_NOTE_SUFFIX = '_preview_note';
 
 export type SlackTableQueryResults = {
     rows: Record<string, unknown>[];
@@ -220,7 +219,7 @@ export const getSlackTableBlocks = (
         if (notes.length > 0) {
             blocks.push({
                 type: 'context',
-                block_id: `${preview.blockId}${PREVIEW_NOTE_SUFFIX}`,
+                block_id: `${preview.blockId}_preview_note`,
                 elements: [{ type: 'plain_text', text: notes.join(' ') }],
             });
         }
@@ -233,34 +232,20 @@ export const getSlackTableBlocks = (
     });
 };
 
-const isSlackDataTableBlock = (
-    block: Block | KnownBlock,
-): block is SlackDataTableBlock => block.type === 'data_table';
-
-/** Swaps native tables for a thread-link note; null when there are none. */
-export const replaceSlackDataTablesWithLinks = (
-    blocks: (Block | KnownBlock)[],
-): (Block | KnownBlock)[] | null => {
-    const tableIds = new Set(
-        blocks.filter(isSlackDataTableBlock).map((block) => block.block_id),
+/** Slack rejects native tables sharing a message with markdown or rich_text blocks. */
+export const splitSlackTableMessage = (
+    trailingBlocks: (Block | KnownBlock)[],
+): {
+    withAnswer: (Block | KnownBlock)[];
+    tableMessage: (Block | KnownBlock)[] | null;
+} => {
+    const tableStart = trailingBlocks.findIndex(
+        (block) => block.type === 'data_table',
     );
-    if (tableIds.size === 0) return null;
-    return blocks.flatMap((block): (Block | KnownBlock)[] => {
-        if (isSlackDataTableBlock(block)) {
-            return [
-                {
-                    type: 'section',
-                    block_id: `${block.block_id}_link`,
-                    text: {
-                        type: 'plain_text',
-                        text: `${block.caption}\nToo large to show with this answer. Open the agent thread to see this table.`,
-                    },
-                },
-            ];
-        }
-        const isTableNote =
-            block.block_id?.endsWith(PREVIEW_NOTE_SUFFIX) === true &&
-            tableIds.has(block.block_id.slice(0, -PREVIEW_NOTE_SUFFIX.length));
-        return isTableNote ? [] : [block];
-    });
+    return tableStart === -1
+        ? { withAnswer: trailingBlocks, tableMessage: null }
+        : {
+              withAnswer: trailingBlocks.slice(0, tableStart),
+              tableMessage: trailingBlocks.slice(tableStart),
+          };
 };

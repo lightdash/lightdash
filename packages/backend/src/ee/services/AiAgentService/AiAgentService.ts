@@ -646,7 +646,7 @@ import { getSlackBigNumbers } from '../ai/utils/slackBigNumbers';
 import { getSlackSelectedCardArtifacts } from '../ai/utils/slackChartSelection';
 import {
     getSlackTableBlocks,
-    replaceSlackDataTablesWithLinks,
+    splitSlackTableMessage,
     type SlackTableQueryResults,
 } from '../ai/utils/slackTableBlocks';
 import { getSlackTablePreviews } from '../ai/utils/slackTablePreviews';
@@ -18620,22 +18620,46 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         };
     }
 
-    // Native tables are the bulkiest blocks; drop them before giving up on the answer.
-    private static async sendSlackBlocksWithTableFallback<T>(
-        blocks: (Block | KnownBlock)[],
-        send: (blocks: (Block | KnownBlock)[]) => Promise<T>,
-    ): Promise<T> {
-        try {
-            return await send(blocks);
-        } catch (error) {
-            const withoutTables = replaceSlackDataTablesWithLinks(blocks);
-            if (withoutTables === null || !isSlackMessageTooLongError(error))
-                throw error;
-            Logger.warn(
-                'Slack answer too long; retrying without inline tables',
-            );
-            return send(withoutTables);
-        }
+    // Always ≥1 message so the stream closes. Cards, feedback and any truncation
+    // notice ride on the last answer message; native tables post on their own.
+    private static getSlackAnswerMessages({
+        slackResponse,
+        trailingBlocks,
+        threadUrl,
+    }: {
+        slackResponse: string | null;
+        trailingBlocks: (Block | KnownBlock)[];
+        threadUrl: string;
+    }): (Block | KnownBlock)[][] {
+        const { withAnswer, tableMessage } =
+            splitSlackTableMessage(trailingBlocks);
+        const { messages, truncated } =
+            slackResponse === null
+                ? { messages: [], truncated: false }
+                : splitMarkdownIntoMessages(
+                      slackResponse,
+                      undefined,
+                      withAnswer.length + 1,
+                  );
+        const answerMessages = messages.length > 0 ? messages : [[]];
+        const lastIndex = answerMessages.length - 1;
+        const composed = [
+            ...answerMessages.slice(0, lastIndex),
+            [
+                ...answerMessages[lastIndex],
+                ...withAnswer,
+                ...(truncated
+                    ? [
+                          AiAgentService.slackLinkSection(
+                              ':scroll: This answer was too long to show in full here.',
+                              threadUrl,
+                          ),
+                      ]
+                    : []),
+            ],
+            ...(tableMessage ? [tableMessage] : []),
+        ].filter((blocks) => blocks.length > 0);
+        return composed.length > 0 ? composed : [[]];
     }
 
     private static readonly SLACK_PROMPT_RETRY_ACTION_ID = 'ai_prompt_retry';
@@ -18702,30 +18726,13 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         accessRefusalState: SlackAiAccessRefusalState;
         deliveryGuard: AgentDeliveryGuard;
     }): Promise<void> {
-        const { messages: answerMessages, truncated } =
-            accessRefusalState.selected !== null
-                ? { messages: [], truncated: false }
-                : splitMarkdownIntoMessages(
-                      slackResponse,
-                      undefined,
-                      trailingBlocks.length + 1,
-                  );
-        // Always ≥1 message so the stream closes and trailing cards attach.
-        const messages = answerMessages.length > 0 ? answerMessages : [[]];
         const threadUrl = this.getAgentThreadUrl(slackPrompt, agentUuid);
-
-        // Cards + feedback + any truncation notice ride on the last message only.
-        const lastExtraBlocks: (Block | KnownBlock)[] = [
-            ...trailingBlocks,
-            ...(truncated
-                ? [
-                      AiAgentService.slackLinkSection(
-                          ':scroll: This answer was too long to show in full here.',
-                          threadUrl,
-                      ),
-                  ]
-                : []),
-        ];
+        const messages = AiAgentService.getSlackAnswerMessages({
+            slackResponse:
+                accessRefusalState.selected === null ? slackResponse : null,
+            trailingBlocks,
+            threadUrl,
+        });
         const linkFallbackBlocks: (Block | KnownBlock)[] = [
             ...(accessRefusalState.selected === null
                 ? [
@@ -18747,20 +18754,20 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         const isLast = (index: number) => index === messages.length - 1;
 
         try {
-            await AiAgentService.sendSlackBlocksWithTableFallback(
-                [...messages[0], ...(isLast(0) ? lastExtraBlocks : [])],
-                async (blocks) => {
-                    if (accessRefusalState.selected === null)
-                        await deliveryGuard.assert();
-                    return this.slackClient.stopAgentStream({
-                        organizationUuid: slackPrompt.organizationUuid,
-                        channelId: slackPrompt.slackChannelId,
-                        threadTs,
-                        messageTs: streamTs,
-                        chunks: [{ type: 'blocks', blocks }],
-                    });
-                },
-            );
+            if (accessRefusalState.selected === null)
+                await deliveryGuard.assert();
+            await this.slackClient.stopAgentStream({
+                organizationUuid: slackPrompt.organizationUuid,
+                channelId: slackPrompt.slackChannelId,
+                threadTs,
+                messageTs: streamTs,
+                chunks: [
+                    {
+                        type: 'blocks',
+                        blocks: messages[0],
+                    },
+                ],
+            });
             if (isLast(0)) {
                 accessRefusalState.markDelivered();
             }
@@ -18789,25 +18796,19 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         for (let index = 1; index < messages.length; index += 1) {
             try {
                 // eslint-disable-next-line no-await-in-loop
-                await AiAgentService.sendSlackBlocksWithTableFallback(
-                    [
-                        ...messages[index],
-                        ...(isLast(index) ? lastExtraBlocks : []),
-                    ],
-                    async (blocks) => {
-                        if (accessRefusalState.selected === null)
-                            await deliveryGuard.assert();
-                        return this.slackClient.postMessage({
-                            organizationUuid: slackPrompt.organizationUuid,
-                            channel: slackPrompt.slackChannelId,
-                            thread_ts: threadTs,
-                            text: notificationText,
-                            blocks,
-                            unfurl_links: false,
-                            ...(agentName ? { username: agentName } : {}),
-                        });
-                    },
-                );
+                await (async () => {
+                    if (accessRefusalState.selected === null)
+                        await deliveryGuard.assert();
+                    return this.slackClient.postMessage({
+                        organizationUuid: slackPrompt.organizationUuid,
+                        channel: slackPrompt.slackChannelId,
+                        thread_ts: threadTs,
+                        text: notificationText,
+                        blocks: messages[index],
+                        unfurl_links: false,
+                        ...(agentName ? { username: agentName } : {}),
+                    });
+                })();
                 if (isLast(index)) {
                     accessRefusalState.markDelivered();
                 }
@@ -18866,30 +18867,13 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         accessRefusalState: SlackAiAccessRefusalState;
         deliveryGuard: AgentDeliveryGuard;
     }): Promise<void> {
-        const { messages: answerMessages, truncated } =
-            accessRefusalState.selected !== null
-                ? { messages: [], truncated: false }
-                : splitMarkdownIntoMessages(
-                      slackResponse,
-                      undefined,
-                      trailingBlocks.length + 1,
-                  );
-        // Always ≥1 message so trailing cards attach even to an empty answer.
-        const messages = answerMessages.length > 0 ? answerMessages : [[]];
         const threadUrl = this.getAgentThreadUrl(slackPrompt, agentUuid);
-
-        // Cards + feedback + any truncation notice ride on the last message only.
-        const lastExtraBlocks: (Block | KnownBlock)[] = [
-            ...trailingBlocks,
-            ...(truncated
-                ? [
-                      AiAgentService.slackLinkSection(
-                          ':scroll: This answer was too long to show in full here.',
-                          threadUrl,
-                      ),
-                  ]
-                : []),
-        ];
+        const messages = AiAgentService.getSlackAnswerMessages({
+            slackResponse:
+                accessRefusalState.selected === null ? slackResponse : null,
+            trailingBlocks,
+            threadUrl,
+        });
         const linkFallbackBlocks: (Block | KnownBlock)[] = [
             ...(accessRefusalState.selected === null
                 ? [
@@ -18913,27 +18897,20 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         let firstMessageTs: string | undefined;
         for (let index = 0; index < messages.length; index += 1) {
             try {
-                const posted =
-                    // eslint-disable-next-line no-await-in-loop
-                    await AiAgentService.sendSlackBlocksWithTableFallback(
-                        [
-                            ...messages[index],
-                            ...(isLast(index) ? lastExtraBlocks : []),
-                        ],
-                        async (blocks) => {
-                            if (accessRefusalState.selected === null)
-                                await deliveryGuard.assert();
-                            return this.slackClient.postMessage({
-                                organizationUuid: slackPrompt.organizationUuid,
-                                channel: slackPrompt.slackChannelId,
-                                thread_ts: threadTs,
-                                text: notificationText,
-                                blocks,
-                                unfurl_links: false,
-                                ...(agentName ? { username: agentName } : {}),
-                            });
-                        },
-                    );
+                // eslint-disable-next-line no-await-in-loop
+                const posted = await (async () => {
+                    if (accessRefusalState.selected === null)
+                        await deliveryGuard.assert();
+                    return this.slackClient.postMessage({
+                        organizationUuid: slackPrompt.organizationUuid,
+                        channel: slackPrompt.slackChannelId,
+                        thread_ts: threadTs,
+                        text: notificationText,
+                        blocks: messages[index],
+                        unfurl_links: false,
+                        ...(agentName ? { username: agentName } : {}),
+                    });
+                })();
                 if (isLast(index)) {
                     accessRefusalState.markDelivered();
                 }

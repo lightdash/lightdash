@@ -1296,9 +1296,10 @@ describe.each([false, true])(
         });
 
         it.each([false, true])(
-            'keeps the answer and cards without tables when Slack rejects the size (card: %s)',
+            'posts native tables apart from the markdown answer (card: %s)',
             async (card) => {
                 const h = setup({ card, refusals: [] });
+                const citation = { type: 'rich_text', elements: [] };
                 const table = getSlackTableBlocks([
                     {
                         blockId: 'table-1',
@@ -1310,26 +1311,32 @@ describe.each([false, true])(
                     },
                 ]);
                 const chartCard = { type: 'card', block_id: 'chart-1' };
-                h.finalBlocks.mockResolvedValue([...table, chartCard]);
-                const delivery = card ? h.stopAgentStream : h.postMessage;
-                delivery.mockRejectedValueOnce({
-                    data: { error: 'msg_blocks_too_long' },
-                });
+                h.finalBlocks.mockResolvedValue([
+                    citation,
+                    ...table,
+                    chartCard,
+                ]);
 
                 await h.service.replyToSlackPrompt('prompt-1');
 
-                expect(delivery).toHaveBeenCalledTimes(2);
-                expect(h.getDeliveredBlocks().slice(-4)).toEqual([
-                    { type: 'markdown', text: 'Answer' },
-                    {
-                        type: 'section',
-                        block_id: 'table-1_link',
-                        text: {
-                            type: 'plain_text',
-                            text: 'Preview: Usage\nToo large to show with this answer. Open the agent thread to see this table.',
-                        },
-                    },
-                    table[1],
+                const answer = card
+                    ? h.stopAgentStream.mock.calls[0][0].chunks
+                    : h.postMessage.mock.calls[0][0].blocks;
+                expect(answer).toEqual(
+                    card
+                        ? [
+                              {
+                                  type: 'blocks',
+                                  blocks: [
+                                      { type: 'markdown', text: 'Answer' },
+                                      citation,
+                                  ],
+                              },
+                          ]
+                        : [{ type: 'markdown', text: 'Answer' }, citation],
+                );
+                expect(h.postMessage.mock.calls.at(-1)?.[0].blocks).toEqual([
+                    ...table,
                     chartCard,
                 ]);
             },

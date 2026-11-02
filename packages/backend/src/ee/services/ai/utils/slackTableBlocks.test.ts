@@ -8,8 +8,8 @@ import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import {
     getSlackTableBlocks,
-    replaceSlackDataTablesWithLinks,
     SLACK_TABLE_MAX_ROWS,
+    splitSlackTableMessage,
     type SlackTablePreview,
 } from './slackTableBlocks';
 
@@ -273,40 +273,30 @@ describe('getSlackTableBlocks', () => {
     });
 });
 
-describe('replaceSlackDataTablesWithLinks', () => {
-    it('swaps native tables for their caption and keeps other blocks', () => {
-        const answer = { type: 'section', text: { type: 'mrkdwn', text: 'A' } };
-        const blocks = [
-            answer,
-            ...getSlackTableBlocks([
-                preview(
-                    Array.from({ length: 300 }, () => ({
-                        month: 'x',
-                        revenue: 1,
-                    })),
-                ),
-            ]),
-        ];
-
-        expect(replaceSlackDataTablesWithLinks(blocks)).toEqual([
-            answer,
-            {
-                type: 'section',
-                block_id: 'table-1_link',
-                text: {
-                    type: 'plain_text',
-                    text: 'Preview: Monthly revenue\nToo large to show with this answer. Open the agent thread to see this table.',
-                },
-            },
-            blocks[3],
+describe('splitSlackTableMessage', () => {
+    it('moves native tables and everything after them into their own message', () => {
+        const citation = { type: 'rich_text', elements: [] };
+        const unavailable = getSlackTableBlocks([
+            preview([], { blockId: 'table-0', status: 'unavailable' }),
         ]);
+        const tables = getSlackTableBlocks([
+            preview([{ month: 'September', revenue: 1200 }]),
+        ]);
+        const card = { type: 'carousel', elements: [] };
+
+        expect(
+            splitSlackTableMessage([citation, ...unavailable, ...tables, card]),
+        ).toEqual({
+            withAnswer: [citation, ...unavailable],
+            tableMessage: [...tables, card],
+        });
     });
 
-    it('returns null when there is no native table', () => {
-        expect(
-            replaceSlackDataTablesWithLinks([
-                { type: 'section', text: { type: 'mrkdwn', text: 'A' } },
-            ]),
-        ).toBeNull();
+    it('keeps every block with the answer when there is no native table', () => {
+        const blocks = [{ type: 'carousel', elements: [] }];
+        expect(splitSlackTableMessage(blocks)).toEqual({
+            withAnswer: blocks,
+            tableMessage: null,
+        });
     });
 });
