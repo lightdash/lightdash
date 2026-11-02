@@ -81,6 +81,7 @@ export enum BigqueryAuthenticationType {
     SSO = 'sso',
     PRIVATE_KEY = 'private_key',
     ADC = 'adc', // Application Default Credentials
+    WORKLOAD_IDENTITY_FEDERATION = 'workload_identity_federation',
 }
 export type BigqueryMaximumBytesBilledByRole = {
     [role in ProjectMemberRole]?: number;
@@ -94,6 +95,8 @@ export type CreateBigqueryCredentials = {
     timeoutSeconds: number | undefined;
     priority: 'interactive' | 'batch' | undefined;
     authenticationType?: BigqueryAuthenticationType;
+    workloadIdentityProvider?: string;
+    workloadIdentityAudience?: string;
     // Index signature (not Record) so tsoa generates additionalProperties and
     // intersection-body validation preserves the keyfile fields.
     keyfileContents: { [key: string]: string }; // used for both sso and private key
@@ -163,6 +166,18 @@ export const usesAwsWebIdentity = (
 ) =>
     credentials?.type === WarehouseTypes.ATHENA &&
     credentials.authenticationType === AthenaAuthenticationType.WEB_IDENTITY;
+
+export const usesBigqueryWorkloadIdentity = (
+    credentials:
+        | { type: WarehouseTypes; authenticationType?: string }
+        | undefined,
+): credentials is {
+    type: WarehouseTypes.BIGQUERY;
+    authenticationType: BigqueryAuthenticationType.WORKLOAD_IDENTITY_FEDERATION;
+} =>
+    credentials?.type === WarehouseTypes.BIGQUERY &&
+    credentials.authenticationType ===
+        BigqueryAuthenticationType.WORKLOAD_IDENTITY_FEDERATION;
 
 export type CreateDatabricksCredentials = {
     type: WarehouseTypes.DATABRICKS;
@@ -468,12 +483,24 @@ export type DuckdbCredentials =
 /**
  * Normalize legacy credential values at decrypt time so callers receive a
  * valid discriminated union without requiring data migrations.
+ * Also normalize omitted values before validating and saving credentials.
  */
 export const normalizeWarehouseCredentials = <
     T extends CreateWarehouseCredentials,
 >(
     credentials: T,
 ): T => {
+    if (usesBigqueryWorkloadIdentity(credentials)) {
+        return {
+            ...credentials,
+            keyfileContents: credentials.keyfileContents || {},
+            workloadIdentityAudience:
+                credentials.workloadIdentityAudience === ''
+                    ? undefined
+                    : credentials.workloadIdentityAudience,
+        };
+    }
+
     if (
         credentials.type === WarehouseTypes.DUCKDB &&
         (credentials as { connectionType?: DuckdbConnectionType })

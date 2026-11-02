@@ -301,6 +301,11 @@ export enum FeatureFlags {
      */
     AthenaWebIdentityAuth = 'athena-web-identity-auth',
     /**
+     * Organization-scoped, off by default: BigQuery workload identity federation.
+     * Only enable on instances whose pods run as their own Google service account.
+     */
+    BigqueryWorkloadIdentityAuth = 'bigquery-workload-identity-auth',
+    /**
      * Organization-scoped: org admins can bring their own AI provider keys,
      * restrict model visibility, and route those keys through a custom base
      * URL (an OpenAI/Anthropic/Gemini-compatible gateway). Off by default;

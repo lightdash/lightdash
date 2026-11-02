@@ -92,6 +92,11 @@ export const bigqueryTarget = (
             // application default credentials (ADC) to authenticate
             bqResult.target.method = 'oauth';
             return bqResult;
+        case BigqueryAuthenticationType.WORKLOAD_IDENTITY_FEDERATION:
+            return {
+                kind: 'none',
+                reason: 'BigQuery workload identity federation is not yet supported for dbt targets.',
+            };
         default:
             const { authenticationType } = credentials;
             return assertUnreachable(

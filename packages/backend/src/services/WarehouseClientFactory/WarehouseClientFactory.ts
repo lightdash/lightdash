@@ -15,6 +15,7 @@ import {
     UnexpectedServerError,
     UserWarehouseCredentialPurpose,
     usesAwsWebIdentity,
+    usesBigqueryWorkloadIdentity,
     WarehouseTypes,
     type AiExecutionPlan,
     type CreateDatabricksCredentials,
@@ -1080,15 +1081,37 @@ export class WarehouseClientFactory {
                     ? undefined
                     : this.warehouseClients[cacheKey]
             ) as (typeof this.warehouseClients)[string] | undefined;
-            if (
+            const reusableClient =
                 existingClient &&
                 deepEqual(existingClient.credentials, warehouseSshCredentials)
-            ) {
+                    ? existingClient
+                    : undefined;
+            const needsIdentityOptions =
+                usesBigqueryWorkloadIdentity(warehouseSshCredentials) ||
+                (!reusableClient &&
+                    usesAwsWebIdentity(warehouseSshCredentials));
+            let identityOptions: WarehouseClientOptions = {};
+            if (needsIdentityOptions) {
+                constructingClient = usesAwsWebIdentity(
+                    warehouseSshCredentials,
+                );
+                const identityOrganizationUuid =
+                    projectUuid === null
+                        ? (organizationUuid ?? undefined)
+                        : (await this.projectModel.getSummary(projectUuid))
+                              .organizationUuid;
+                identityOptions =
+                    await this.projectModel.getWarehouseClientIdentityOptions(
+                        warehouseSshCredentials,
+                        identityOrganizationUuid,
+                    );
+            }
+            if (reusableClient) {
                 return {
                     warehouseClient: this.withSharedSignInAttribution(
                         projectUuid,
                         credentials,
-                        existingClient,
+                        reusableClient,
                         aiPlan,
                         refusalScope,
                     ),
@@ -1172,15 +1195,6 @@ export class WarehouseClientFactory {
                         emptyAllowlistEnablesAllProjects));
 
             constructingClient = true;
-            const identityOptions = usesAwsWebIdentity(credentialsWithOverrides)
-                ? await this.projectModel.getWarehouseClientIdentityOptions(
-                      credentialsWithOverrides,
-                      projectUuid === null
-                          ? (organizationUuid ?? undefined)
-                          : (await this.projectModel.getSummary(projectUuid))
-                                .organizationUuid,
-                  )
-                : {};
             const clientOptions: WarehouseClientOptions = {
                 agentSession,
                 enableInstanceCache,

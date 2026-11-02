@@ -1,6 +1,9 @@
 import { getErrorMessage, WarehouseConnectionError } from '@lightdash/common';
+import { z } from 'zod';
 import Logger from '../../logging/logger';
-import { AWS_WEB_IDENTITY_MESSAGES } from './messages';
+
+export const GOOGLE_IDENTITY_TOKEN_UNAVAILABLE =
+    "The server couldn't get its Google identity token. Try again, or contact support.";
 
 /** Issues Google-signed ID tokens for this Lightdash instance's identity. */
 export interface GoogleIdentityTokenSource {
@@ -28,7 +31,7 @@ export class GcpMetadataIdentityTokenSource implements GoogleIdentityTokenSource
                 `Could not reach the GCP metadata server for an identity token: ${getErrorMessage(e)}`,
             );
             throw new WarehouseConnectionError(
-                AWS_WEB_IDENTITY_MESSAGES.tokenUnavailable,
+                GOOGLE_IDENTITY_TOKEN_UNAVAILABLE,
             );
         }
         if (!response.ok) {
@@ -36,7 +39,7 @@ export class GcpMetadataIdentityTokenSource implements GoogleIdentityTokenSource
                 `The GCP metadata server returned ${response.status} for an identity token`,
             );
             throw new WarehouseConnectionError(
-                AWS_WEB_IDENTITY_MESSAGES.tokenUnavailable,
+                GOOGLE_IDENTITY_TOKEN_UNAVAILABLE,
             );
         }
         return response.text();
@@ -46,14 +49,27 @@ export class GcpMetadataIdentityTokenSource implements GoogleIdentityTokenSource
 export const defaultGoogleIdentityTokenSource =
     new GcpMetadataIdentityTokenSource();
 
-/** Reads the `sub` claim of a Google ID token without verifying it. */
-export const getIdTokenSubject = (token: string): string | undefined => {
+const idTokenClaims = z.object({
+    sub: z.string().optional(),
+    exp: z.number().finite().optional(),
+});
+
+const getIdTokenClaims = (token: string) => {
     try {
-        const payload = JSON.parse(
-            Buffer.from(token.split('.')[1] ?? '', 'base64url').toString(),
+        return idTokenClaims.parse(
+            JSON.parse(
+                Buffer.from(token.split('.')[1] ?? '', 'base64url').toString(),
+            ),
         );
-        return typeof payload.sub === 'string' ? payload.sub : undefined;
     } catch {
         return undefined;
     }
 };
+
+/** Reads the `sub` claim of a Google ID token without verifying it. */
+export const getIdTokenSubject = (token: string): string | undefined =>
+    getIdTokenClaims(token)?.sub;
+
+/** Reads expiry for caching; the token exchange verifies the token. */
+export const getIdTokenExpiry = (token: string): number | undefined =>
+    getIdTokenClaims(token)?.exp;

@@ -220,6 +220,7 @@ export {
     DbtProjectType,
     DbtVersionOptionLatest,
     usesAwsWebIdentity,
+    usesBigqueryWorkloadIdentity,
     DefaultSupportedDbtVersion,
     DuckdbConnectionType,
     DucklakeCatalogType,
@@ -407,6 +408,7 @@ export * from './utils/api';
 export { default as assertUnreachable } from './utils/assertUnreachable';
 export * from './utils/bigNumber';
 export * from './utils/awsWebIdentity';
+export * from './utils/bigqueryWorkloadIdentity';
 export * from './utils/bigqueryKeyfile';
 export * from './utils/charts';
 export * from './utils/cellUrls';
