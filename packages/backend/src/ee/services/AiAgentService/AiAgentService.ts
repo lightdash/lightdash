@@ -646,6 +646,7 @@ import { getSlackBigNumbers } from '../ai/utils/slackBigNumbers';
 import { getSlackSelectedCardArtifacts } from '../ai/utils/slackChartSelection';
 import {
     getSlackTableBlocks,
+    replaceSlackDataTablesWithLinks,
     type SlackTableQueryResults,
 } from '../ai/utils/slackTableBlocks';
 import { getSlackTablePreviews } from '../ai/utils/slackTablePreviews';
@@ -18619,6 +18620,21 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         };
     }
 
+    // Native tables are the bulkiest blocks; drop them before giving up on the answer.
+    private static async sendSlackBlocksWithTableFallback<T>(
+        blocks: (Block | KnownBlock)[],
+        send: (blocks: (Block | KnownBlock)[]) => Promise<T>,
+    ): Promise<T> {
+        try {
+            return await send(blocks);
+        } catch (error) {
+            const withoutTables = replaceSlackDataTablesWithLinks(blocks);
+            if (withoutTables === null || !isSlackMessageTooLongError(error))
+                throw error;
+            return send(withoutTables);
+        }
+    }
+
     private static readonly SLACK_PROMPT_RETRY_ACTION_ID = 'ai_prompt_retry';
 
     // Generation failures already store their error; this covers failures
@@ -18728,23 +18744,20 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         const isLast = (index: number) => index === messages.length - 1;
 
         try {
-            if (accessRefusalState.selected === null)
-                await deliveryGuard.assert();
-            await this.slackClient.stopAgentStream({
-                organizationUuid: slackPrompt.organizationUuid,
-                channelId: slackPrompt.slackChannelId,
-                threadTs,
-                messageTs: streamTs,
-                chunks: [
-                    {
-                        type: 'blocks',
-                        blocks: [
-                            ...messages[0],
-                            ...(isLast(0) ? lastExtraBlocks : []),
-                        ],
-                    },
-                ],
-            });
+            await AiAgentService.sendSlackBlocksWithTableFallback(
+                [...messages[0], ...(isLast(0) ? lastExtraBlocks : [])],
+                async (blocks) => {
+                    if (accessRefusalState.selected === null)
+                        await deliveryGuard.assert();
+                    return this.slackClient.stopAgentStream({
+                        organizationUuid: slackPrompt.organizationUuid,
+                        channelId: slackPrompt.slackChannelId,
+                        threadTs,
+                        messageTs: streamTs,
+                        chunks: [{ type: 'blocks', blocks }],
+                    });
+                },
+            );
             if (isLast(0)) {
                 accessRefusalState.markDelivered();
             }
@@ -18773,22 +18786,25 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         for (let index = 1; index < messages.length; index += 1) {
             try {
                 // eslint-disable-next-line no-await-in-loop
-                await (async () => {
-                    if (accessRefusalState.selected === null)
-                        await deliveryGuard.assert();
-                    return this.slackClient.postMessage({
-                        organizationUuid: slackPrompt.organizationUuid,
-                        channel: slackPrompt.slackChannelId,
-                        thread_ts: threadTs,
-                        text: notificationText,
-                        blocks: [
-                            ...messages[index],
-                            ...(isLast(index) ? lastExtraBlocks : []),
-                        ],
-                        unfurl_links: false,
-                        ...(agentName ? { username: agentName } : {}),
-                    });
-                })();
+                await AiAgentService.sendSlackBlocksWithTableFallback(
+                    [
+                        ...messages[index],
+                        ...(isLast(index) ? lastExtraBlocks : []),
+                    ],
+                    async (blocks) => {
+                        if (accessRefusalState.selected === null)
+                            await deliveryGuard.assert();
+                        return this.slackClient.postMessage({
+                            organizationUuid: slackPrompt.organizationUuid,
+                            channel: slackPrompt.slackChannelId,
+                            thread_ts: threadTs,
+                            text: notificationText,
+                            blocks,
+                            unfurl_links: false,
+                            ...(agentName ? { username: agentName } : {}),
+                        });
+                    },
+                );
                 if (isLast(index)) {
                     accessRefusalState.markDelivered();
                 }
@@ -18894,23 +18910,27 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         let firstMessageTs: string | undefined;
         for (let index = 0; index < messages.length; index += 1) {
             try {
-                // eslint-disable-next-line no-await-in-loop
-                const posted = await (async () => {
-                    if (accessRefusalState.selected === null)
-                        await deliveryGuard.assert();
-                    return this.slackClient.postMessage({
-                        organizationUuid: slackPrompt.organizationUuid,
-                        channel: slackPrompt.slackChannelId,
-                        thread_ts: threadTs,
-                        text: notificationText,
-                        blocks: [
+                const posted =
+                    // eslint-disable-next-line no-await-in-loop
+                    await AiAgentService.sendSlackBlocksWithTableFallback(
+                        [
                             ...messages[index],
                             ...(isLast(index) ? lastExtraBlocks : []),
                         ],
-                        unfurl_links: false,
-                        ...(agentName ? { username: agentName } : {}),
-                    });
-                })();
+                        async (blocks) => {
+                            if (accessRefusalState.selected === null)
+                                await deliveryGuard.assert();
+                            return this.slackClient.postMessage({
+                                organizationUuid: slackPrompt.organizationUuid,
+                                channel: slackPrompt.slackChannelId,
+                                thread_ts: threadTs,
+                                text: notificationText,
+                                blocks,
+                                unfurl_links: false,
+                                ...(agentName ? { username: agentName } : {}),
+                            });
+                        },
+                    );
                 if (isLast(index)) {
                     accessRefusalState.markDelivered();
                 }

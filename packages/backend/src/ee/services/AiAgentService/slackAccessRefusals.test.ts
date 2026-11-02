@@ -12,6 +12,10 @@ import Logger from '../../../logging/logger';
 import { AiAgentModel } from '../../models/AiAgentModel';
 import { getAiAccessRefusalBlocks } from '../ai/utils/getSlackBlocks';
 import { getSlackArtifactCardBlockId } from '../ai/utils/slackArtifactImages';
+import {
+    getSlackTableBlocks,
+    replaceSlackDataTablesWithLinks,
+} from '../ai/utils/slackTableBlocks';
 import { AiAgentService } from './AiAgentService';
 
 const retryBlock = {
@@ -1293,5 +1297,38 @@ describe.each([false, true])(
                 },
             );
         });
+
+        it.each([false, true])(
+            'keeps the answer and cards without tables when Slack rejects the size (card: %s)',
+            async (card) => {
+                const h = setup({ card, refusals: [] });
+                const table = getSlackTableBlocks([
+                    {
+                        blockId: 'table-1',
+                        title: 'Usage',
+                        url: siteUrl,
+                        status: 'ready',
+                        queryResults: { rows: [{ users: 'x' }], fields: {} },
+                        truncated: false,
+                    },
+                ]);
+                const chartCard = { type: 'card', block_id: 'chart-1' };
+                h.finalBlocks.mockResolvedValue([...table, chartCard]);
+                const delivery = card ? h.stopAgentStream : h.postMessage;
+                delivery.mockRejectedValueOnce({
+                    data: { error: 'msg_blocks_too_long' },
+                });
+
+                await h.service.replyToSlackPrompt('prompt-1');
+
+                expect(delivery).toHaveBeenCalledTimes(2);
+                expect(h.getDeliveredBlocks().slice(-4)).toEqual([
+                    { type: 'markdown', text: 'Answer' },
+                    replaceSlackDataTablesWithLinks(table)?.[0],
+                    table[1],
+                    chartCard,
+                ]);
+            },
+        );
     },
 );

@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import {
     getSlackTableBlocks,
+    replaceSlackDataTablesWithLinks,
     SLACK_TABLE_MAX_ROWS,
     type SlackTablePreview,
 } from './slackTableBlocks';
@@ -269,5 +270,43 @@ describe('getSlackTableBlocks', () => {
             text: { text: expect.stringContaining('No complete row fits') },
             accessory: { text: { text: 'Open agent thread' } },
         });
+    });
+});
+
+describe('replaceSlackDataTablesWithLinks', () => {
+    it('swaps native tables for their caption and keeps other blocks', () => {
+        const answer = { type: 'section', text: { type: 'mrkdwn', text: 'A' } };
+        const blocks = [
+            answer,
+            ...getSlackTableBlocks([
+                preview(
+                    Array.from({ length: 300 }, () => ({
+                        month: 'x',
+                        revenue: 1,
+                    })),
+                ),
+            ]),
+        ];
+
+        expect(replaceSlackDataTablesWithLinks(blocks)).toEqual([
+            answer,
+            {
+                type: 'section',
+                block_id: 'table-1_link',
+                text: {
+                    type: 'plain_text',
+                    text: 'Preview: Monthly revenue\nThis table is too large to show here. Open the agent thread to see it.',
+                },
+            },
+            blocks[3],
+        ]);
+    });
+
+    it('returns null when there is no native table', () => {
+        expect(
+            replaceSlackDataTablesWithLinks([
+                { type: 'section', text: { type: 'mrkdwn', text: 'A' } },
+            ]),
+        ).toBeNull();
     });
 });

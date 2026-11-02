@@ -231,3 +231,35 @@ export const getSlackTableBlocks = (
         return blocks;
     });
 };
+
+const isSlackDataTableBlock = (
+    block: Block | KnownBlock,
+): block is SlackDataTableBlock => block.type === 'data_table';
+
+/** Swaps native tables for a thread-link note; null when there are none. */
+export const replaceSlackDataTablesWithLinks = (
+    blocks: (Block | KnownBlock)[],
+): (Block | KnownBlock)[] | null => {
+    const tableIds = new Set(
+        blocks.filter(isSlackDataTableBlock).map((block) => block.block_id),
+    );
+    if (tableIds.size === 0) return null;
+    return blocks.flatMap((block): (Block | KnownBlock)[] => {
+        if (isSlackDataTableBlock(block)) {
+            return [
+                {
+                    type: 'section',
+                    block_id: `${block.block_id}_link`,
+                    text: {
+                        type: 'plain_text',
+                        text: `${block.caption}\nThis table is too large to show here. Open the agent thread to see it.`,
+                    },
+                },
+            ];
+        }
+        const noteFor = block.block_id?.replace(/_preview_note$/, '');
+        return noteFor !== block.block_id && tableIds.has(noteFor)
+            ? []
+            : [block];
+    });
+};
