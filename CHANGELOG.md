@@ -1,3 +1,10 @@
+## [3.118.1](https://github.com/lightdash/lightdash/compare/3.118.0...3.118.1) (2026-11-02)
+
+
+### Bug Fixes
+
+* **embed:** save charts created in embedded dashboards to the dashboard ([#31882](https://github.com/lightdash/lightdash/issues/31882)) ([f11793b](https://github.com/lightdash/lightdash/commit/f11793be38706ef66828bc6b86fbe1bf76859874))
+
 # [3.118.0](https://github.com/lightdash/lightdash/compare/3.117.0...3.118.0) (2026-11-02)
 
 
