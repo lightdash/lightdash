@@ -1,3 +1,11 @@
+## [3.122.1](https://github.com/lightdash/lightdash/compare/3.122.0...3.122.1) (2026-11-02)
+
+
+### Bug Fixes
+
+* **ai-agent:** accept omitted optional fields in query and visualize tools ([#31922](https://github.com/lightdash/lightdash/issues/31922)) ([cea6f43](https://github.com/lightdash/lightdash/commit/cea6f43a45626c8d1ae493e77989c2f4f18786eb))
+* **ai-agent:** guide composer to AS-alias and quote keywords in DuckDB SQL ([#31924](https://github.com/lightdash/lightdash/issues/31924)) ([e0d8625](https://github.com/lightdash/lightdash/commit/e0d8625ace7df84cfc72ff4715478bfee4d9eece))
+
 # [3.122.0](https://github.com/lightdash/lightdash/compare/3.121.1...3.122.0) (2026-11-02)
 
 
