@@ -142,6 +142,9 @@ const queryEvent = (
 ): QueryEvent => ({
     timestamp: Date.now(),
     label: null,
+    queryId: null,
+    description: null,
+    chartUuid: null,
     exploreName: 'orders',
     dimensions: [],
     metrics: [],

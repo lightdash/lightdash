@@ -35,3 +35,8 @@
     position: relative;
     overflow: hidden;
 }
+
+/* Lineage covers the app; the iframe stays mounted so its state survives. */
+.previewBody[data-lineage-open] iframe {
+    visibility: hidden;
+}

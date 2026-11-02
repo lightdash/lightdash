@@ -15,7 +15,15 @@ import {
     type NodeTypes,
 } from '@xyflow/react';
 import { clsx } from 'clsx';
-import { useEffect, useMemo, useRef, useState, type FC } from 'react';
+import {
+    useEffect,
+    useImperativeHandle,
+    useMemo,
+    useRef,
+    useState,
+    type FC,
+    type Ref,
+} from 'react';
 import '@xyflow/react/dist/style.css';
 import DefaultEdge from '../../../../../../components/common/ReactFlow/DefaultEdge';
 import reactFlowStyles from '../../../../../../components/common/ReactFlow/reactFlow.module.css';
@@ -232,7 +240,11 @@ type Props = Pick<
     | 'renderNodeResult'
     | 'chatNodeIds'
     | 'onAddToChat'
+    | 'canViewSql'
+    | 'renderNodeActions'
+    | 'onNodeHover'
 > & {
+    ref?: Ref<PipelineNotebookHandle>;
     queries: SourceQuery[];
     terminalNodeId: string;
 };
@@ -240,9 +252,11 @@ type Props = Pick<
 // The lineage graph on top, one notebook cell per node below; clicking a
 // graph node focuses its cell.
 export const AiComposerLineage: FC<Props> = ({
+    ref,
     queries,
     terminalNodeId,
     nodeStatuses,
+    onNodeHover,
     ...notebookProps
 }) => {
     const layers = useMemo(
@@ -251,6 +265,11 @@ export const AiComposerLineage: FC<Props> = ({
     );
     const getUiString = useUiStrings();
     const notebookRef = useRef<PipelineNotebookHandle>(null);
+    useImperativeHandle(ref, () => ({
+        focusNode: (nodeId) => notebookRef.current?.focusNode(nodeId),
+        showLineage: (nodeId) => notebookRef.current?.showLineage(nodeId),
+        hideLineage: () => notebookRef.current?.hideLineage(),
+    }));
 
     return (
         <ResizableSplitter
@@ -267,11 +286,14 @@ export const AiComposerLineage: FC<Props> = ({
                             onFocusNode={(nodeId) =>
                                 notebookRef.current?.focusNode(nodeId)
                             }
-                            onHoverNode={(nodeId) =>
-                                nodeId
-                                    ? notebookRef.current?.showLineage(nodeId)
-                                    : notebookRef.current?.hideLineage()
-                            }
+                            onHoverNode={(nodeId) => {
+                                onNodeHover?.(nodeId);
+                                if (nodeId) {
+                                    notebookRef.current?.showLineage(nodeId);
+                                } else {
+                                    notebookRef.current?.hideLineage();
+                                }
+                            }}
                         />
                     </ReactFlowProvider>
                 )}
@@ -282,6 +304,7 @@ export const AiComposerLineage: FC<Props> = ({
                         ref={notebookRef}
                         nodes={layers.flatMap((layer) => layer.nodes)}
                         nodeStatuses={nodeStatuses}
+                        onNodeHover={onNodeHover}
                         {...notebookProps}
                     />
                 </Box>

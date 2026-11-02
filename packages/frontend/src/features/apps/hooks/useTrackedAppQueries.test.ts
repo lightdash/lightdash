@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import type { QueryEvent } from './useAppSdkBridge';
+import type { PipelineEvent, QueryEvent } from './useAppSdkBridge';
 import {
     countReadyQueriesSinceBoundary,
     useTrackedAppQueries,
@@ -16,6 +16,9 @@ function baseEvent(
     return {
         timestamp: Date.now(),
         label: null,
+        queryId: null,
+        description: null,
+        chartUuid: null,
         exploreName: '',
         dimensions: [],
         metrics: [],
@@ -591,5 +594,57 @@ describe('countReadyQueriesSinceBoundary', () => {
 
     it('never goes negative', () => {
         expect(countReadyQueriesSinceBoundary([readyQuery('a')], 5)).toBe(0);
+    });
+});
+
+describe('useTrackedAppQueries pipelines', () => {
+    const pipeline = (
+        overrides: Partial<PipelineEvent> &
+            Pick<PipelineEvent, 'id' | 'status'>,
+    ): PipelineEvent => ({
+        timestamp: 1,
+        queryId: 'revenue',
+        label: null,
+        description: null,
+        terminalNodeId: 'joined',
+        queries: [],
+        savedChartNodes: [],
+        nodeQueryUuids: {},
+        error: null,
+        durationMs: null,
+        ...overrides,
+    });
+
+    it('upserts snapshots, never un-terminals, and shares the reset/interrupt lifecycle', () => {
+        const { result } = renderHook(() => useTrackedAppQueries());
+        const status = () => result.current.pipelines.map((p) => p.status);
+
+        act(() => {
+            result.current.handlePipelineEvent(
+                pipeline({ id: 'p1', status: 'pending' }),
+            );
+            result.current.handlePipelineEvent(
+                pipeline({ id: 'p1', status: 'ready' }),
+            );
+            result.current.handlePipelineEvent(
+                pipeline({ id: 'p1', status: 'running' }),
+            );
+            result.current.handlePipelineEvent(
+                pipeline({ id: 'p2', status: 'running' }),
+            );
+        });
+        expect(status()).toEqual(['ready', 'running']);
+
+        act(() => result.current.interruptInFlightQueries());
+        expect(status()).toEqual(['ready', 'error']);
+
+        act(() => {
+            result.current.resetQueries();
+            // A late terminal from before the reset is dropped.
+            result.current.handlePipelineEvent(
+                pipeline({ id: 'p1', status: 'ready' }),
+            );
+        });
+        expect(result.current.pipelines).toEqual([]);
     });
 });

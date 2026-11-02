@@ -1,0 +1,53 @@
+.root {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    display: flex;
+    background: var(--mantine-color-body);
+}
+
+.rail {
+    width: 280px;
+    flex: 0 0 auto;
+    min-height: 0;
+    border-right: 1px solid var(--mantine-color-default-border);
+}
+
+.railTitle {
+    padding: var(--mantine-spacing-sm) var(--mantine-spacing-md) 0;
+    text-transform: uppercase;
+}
+
+.railItem {
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+    border-radius: var(--mantine-radius-md);
+}
+
+.railItem:hover {
+    background: var(--mantine-color-default-hover);
+}
+
+.railItem[data-selected] {
+    background: var(--mantine-color-default-hover);
+}
+
+.railStatus {
+    padding-top: 2px;
+}
+
+.main {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+}
+
+.mainHeader {
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-md);
+    border-bottom: 1px solid var(--mantine-color-default-border);
+}
+
+.graph {
+    flex: 1;
+    min-height: 0;
+    position: relative;
+}
