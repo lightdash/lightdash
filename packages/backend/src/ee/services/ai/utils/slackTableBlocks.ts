@@ -8,6 +8,7 @@ import { type Block, type KnownBlock } from '@slack/web-api';
 export const SLACK_TABLE_MAX_ROWS = 200;
 const SLACK_TABLE_MAX_COLUMNS = 20;
 const SLACK_TABLE_MESSAGE_CHARACTER_BUDGET = 20_000;
+const PREVIEW_NOTE_SUFFIX = '_preview_note';
 
 export type SlackTableQueryResults = {
     rows: Record<string, unknown>[];
@@ -219,7 +220,7 @@ export const getSlackTableBlocks = (
         if (notes.length > 0) {
             blocks.push({
                 type: 'context',
-                block_id: `${preview.blockId}_preview_note`,
+                block_id: `${preview.blockId}${PREVIEW_NOTE_SUFFIX}`,
                 elements: [{ type: 'plain_text', text: notes.join(' ') }],
             });
         }
@@ -252,14 +253,14 @@ export const replaceSlackDataTablesWithLinks = (
                     block_id: `${block.block_id}_link`,
                     text: {
                         type: 'plain_text',
-                        text: `${block.caption}\nThis table is too large to show here. Open the agent thread to see it.`,
+                        text: `${block.caption}\nToo large to show with this answer. Open the agent thread to see this table.`,
                     },
                 },
             ];
         }
-        const noteFor = block.block_id?.replace(/_preview_note$/, '');
-        return noteFor !== block.block_id && tableIds.has(noteFor)
-            ? []
-            : [block];
+        const isTableNote =
+            block.block_id?.endsWith(PREVIEW_NOTE_SUFFIX) === true &&
+            tableIds.has(block.block_id.slice(0, -PREVIEW_NOTE_SUFFIX.length));
+        return isTableNote ? [] : [block];
     });
 };

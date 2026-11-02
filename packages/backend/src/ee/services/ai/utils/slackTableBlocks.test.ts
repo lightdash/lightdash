@@ -295,7 +295,7 @@ describe('replaceSlackDataTablesWithLinks', () => {
                 block_id: 'table-1_link',
                 text: {
                     type: 'plain_text',
-                    text: 'Preview: Monthly revenue\nThis table is too large to show here. Open the agent thread to see it.',
+                    text: 'Preview: Monthly revenue\nToo large to show with this answer. Open the agent thread to see this table.',
                 },
             },
             blocks[3],

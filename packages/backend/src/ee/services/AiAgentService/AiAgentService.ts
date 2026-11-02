@@ -18631,6 +18631,9 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
             const withoutTables = replaceSlackDataTablesWithLinks(blocks);
             if (withoutTables === null || !isSlackMessageTooLongError(error))
                 throw error;
+            Logger.warn(
+                'Slack answer too long; retrying without inline tables',
+            );
             return send(withoutTables);
         }
     }

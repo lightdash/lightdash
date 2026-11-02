@@ -12,10 +12,7 @@ import Logger from '../../../logging/logger';
 import { AiAgentModel } from '../../models/AiAgentModel';
 import { getAiAccessRefusalBlocks } from '../ai/utils/getSlackBlocks';
 import { getSlackArtifactCardBlockId } from '../ai/utils/slackArtifactImages';
-import {
-    getSlackTableBlocks,
-    replaceSlackDataTablesWithLinks,
-} from '../ai/utils/slackTableBlocks';
+import { getSlackTableBlocks } from '../ai/utils/slackTableBlocks';
 import { AiAgentService } from './AiAgentService';
 
 const retryBlock = {
@@ -1324,7 +1321,14 @@ describe.each([false, true])(
                 expect(delivery).toHaveBeenCalledTimes(2);
                 expect(h.getDeliveredBlocks().slice(-4)).toEqual([
                     { type: 'markdown', text: 'Answer' },
-                    replaceSlackDataTablesWithLinks(table)?.[0],
+                    {
+                        type: 'section',
+                        block_id: 'table-1_link',
+                        text: {
+                            type: 'plain_text',
+                            text: 'Preview: Usage\nToo large to show with this answer. Open the agent thread to see this table.',
+                        },
+                    },
                     table[1],
                     chartCard,
                 ]);
