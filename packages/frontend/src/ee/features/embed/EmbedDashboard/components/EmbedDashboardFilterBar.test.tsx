@@ -8,8 +8,6 @@ import {
 import { screen, within } from '@testing-library/react';
 import { type ReactElement, type ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import DashboardContext from '../../../../../providers/Dashboard/context';
-import { type DashboardContextType } from '../../../../../providers/Dashboard/types';
 import {
     createDashboardTestStore,
     seedDashboardEditState,
@@ -44,17 +42,17 @@ vi.mock('../../../../../features/dashboardControls/AddControl', () => ({
         </button>
     ),
 }));
-// Reads the context the bar provides, as the real pills do: skeletons on a first load
+// Reads the override the bar provides over the context, as the real pills do: skeletons on a first load
 vi.mock('../../../../../features/dashboardControls/FilterPills', async () => {
-    const { useContextSelector } = await import('use-context-selector');
-    const { default: DashboardContext } =
-        await import('../../../../../providers/Dashboard/context');
+    const { useContext } = await import('react');
+    const { FilterFieldsOverrideContext } =
+        await import('../../../../../providers/Dashboard/filterFieldsOverride');
     return {
         FilterPills: ({ triggerClassName }: { triggerClassName?: string }) => {
-            const isFirstLoad = useContextSelector(
-                DashboardContext,
-                (c) => c?.isLoadingDashboardFilters === true,
-            );
+            const override = useContext(FilterFieldsOverrideContext);
+            const isFirstLoad =
+                (override ?? mockDashboardContext.current)
+                    .isLoadingDashboardFilters === true;
             return (
                 <div
                     data-testid="rail-pills"
@@ -141,20 +139,15 @@ const barElement = (
         },
     }),
 ): ReactElement => (
-    // The page's provider, which the bar's filter area reads below it
-    <DashboardContext.Provider
-        value={mockDashboardContext.current as unknown as DashboardContextType}
-    >
-        {/* One saved filter, so the bar has something to show */}
-        <DashboardStoreTestProvider store={store}>
-            <EmbedDashboardFilterBar
-                dashboard={dashboard(canAddFilters)}
-                shouldShowFilters
-                activeTiles={[]}
-                isControlsEnabled={isControlsEnabled}
-            />
-        </DashboardStoreTestProvider>
-    </DashboardContext.Provider>
+    // One saved filter, so the bar has something to show
+    <DashboardStoreTestProvider store={store}>
+        <EmbedDashboardFilterBar
+            dashboard={dashboard(canAddFilters)}
+            shouldShowFilters
+            activeTiles={[]}
+            isControlsEnabled={isControlsEnabled}
+        />
+    </DashboardStoreTestProvider>
 );
 
 const renderBar = (canAddFilters: boolean, isControlsEnabled: boolean) =>
