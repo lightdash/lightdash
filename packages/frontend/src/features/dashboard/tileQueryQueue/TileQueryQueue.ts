@@ -1,15 +1,18 @@
+type ReleaseSlot = () => void;
+
 type Waiter = {
     tileUuid: string;
-    grant: () => void;
+    grant: (release: ReleaseSlot) => void;
 };
 
 /**
- * Caps how many dashboard tiles run a query at once. A tile holds its slot
- * until it releases it, so the cap covers the whole query lifecycle, not just
- * the request that starts it. Waiting tiles that are on screen go first.
+ * Caps how many tile query executions run at once. Each execution holds its
+ * own slot until it releases it, so a tile that starts a new query (say, after
+ * a filter change) waits like any other while its previous one still runs.
+ * Waiting tiles that are on screen go first.
  */
 export class TileQueryQueue {
-    private readonly running = new Set<string>();
+    private running = 0;
 
     private readonly visible = new Set<string>();
 
@@ -17,21 +20,25 @@ export class TileQueryQueue {
 
     constructor(private readonly maxConcurrent: number) {}
 
-    acquire(tileUuid: string, signal: AbortSignal | undefined): Promise<void> {
-        if (this.running.has(tileUuid)) {
-            return Promise.resolve();
-        }
-
+    /** Resolves with the slot's release once the tile may start a query. */
+    acquire(
+        tileUuid: string,
+        signal: AbortSignal | undefined,
+    ): Promise<ReleaseSlot> {
         return new Promise((resolve, reject) => {
+            if (signal?.aborted) {
+                reject(signal.reason);
+                return;
+            }
             const abort = () => {
                 this.waiting = this.waiting.filter((w) => w !== waiter);
                 reject(signal?.reason);
             };
             const waiter: Waiter = {
                 tileUuid,
-                grant: () => {
+                grant: (release) => {
                     signal?.removeEventListener('abort', abort);
-                    resolve();
+                    resolve(release);
                 },
             };
 
@@ -39,12 +46,6 @@ export class TileQueryQueue {
             this.waiting = [...this.waiting, waiter];
             this.startWaiting();
         });
-    }
-
-    release(tileUuid: string): void {
-        if (this.running.delete(tileUuid)) {
-            this.startWaiting();
-        }
     }
 
     setVisible(tileUuid: string, isVisible: boolean): void {
@@ -56,12 +57,14 @@ export class TileQueryQueue {
     }
 
     private startWaiting(): void {
-        while (this.running.size < this.maxConcurrent) {
+        while (this.running < this.maxConcurrent) {
             const next = this.nextWaiter();
             if (!next) {
                 return;
             }
-            this.start(next.tileUuid);
+            this.waiting = this.waiting.filter((w) => w !== next);
+            this.running += 1;
+            next.grant(this.createRelease());
         }
     }
 
@@ -72,10 +75,15 @@ export class TileQueryQueue {
         );
     }
 
-    private start(tileUuid: string): void {
-        const granted = this.waiting.filter((w) => w.tileUuid === tileUuid);
-        this.waiting = this.waiting.filter((w) => w.tileUuid !== tileUuid);
-        this.running.add(tileUuid);
-        granted.forEach((w) => w.grant());
+    private createRelease(): ReleaseSlot {
+        let isReleased = false;
+        return () => {
+            if (isReleased) {
+                return;
+            }
+            isReleased = true;
+            this.running -= 1;
+            this.startWaiting();
+        };
     }
 }

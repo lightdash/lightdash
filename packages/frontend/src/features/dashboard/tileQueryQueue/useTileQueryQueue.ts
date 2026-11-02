@@ -8,26 +8,9 @@ export const TileQueryQueueContext = createContext<TileQueryQueue | null>(null);
 
 export const useTileQueryQueue = () => useContext(TileQueryQueueContext);
 
-/**
- * Releases the tile's query slot once it stops loading or unmounts, and keeps
- * the queue told whether the tile is on screen.
- */
-export const useTileQueryQueueSlot = (tileUuid: string, isLoading: boolean) => {
+/** Keeps the queue told whether the tile is on screen. */
+export const useTileQueryQueueVisibility = (tileUuid: string) => {
     const queue = useTileQueryQueue();
-
-    useEffect(() => {
-        if (!queue || isLoading) {
-            return;
-        }
-        queue.release(tileUuid);
-    }, [queue, tileUuid, isLoading]);
-
-    useEffect(() => {
-        if (!queue) {
-            return;
-        }
-        return () => queue.release(tileUuid);
-    }, [queue, tileUuid]);
 
     useEffect(() => {
         if (!queue) {

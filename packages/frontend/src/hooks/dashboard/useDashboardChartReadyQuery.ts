@@ -28,6 +28,7 @@ import {
     useDashboardSelector,
 } from '../../features/dashboard/store';
 import { useTileQueryQueue } from '../../features/dashboard/tileQueryQueue/useTileQueryQueue';
+import { waitForQueryToFinish } from '../../features/dashboard/tileQueryQueue/waitForQueryToFinish';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../../providers/Dashboard/useDashboardTileStatusContext';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
@@ -328,11 +329,11 @@ export const useDashboardChartReadyQuery = (
             if (!chartQuery.data || !explore) {
                 throw new Error('Chart or explore is undefined');
             }
-            if (tileQueryQueue) {
-                // Read the signal only here: reading it opts the query into
-                // cancellation, which uncapped dashboards don't need.
-                await tileQueryQueue.acquire(tileUuid, queryContext.signal);
-            }
+            // Read the signal only here: reading it opts the query into
+            // cancellation, which uncapped dashboards don't need.
+            const releaseSlot = tileQueryQueue
+                ? await tileQueryQueue.acquire(tileUuid, queryContext.signal)
+                : undefined;
 
             const requestedContext =
                 contextOverride || context || QueryExecutionContext.DASHBOARD;
@@ -344,12 +345,11 @@ export const useDashboardChartReadyQuery = (
                 requestedContext === QueryExecutionContext.EMBED;
 
             const dateZoom = tileDateZoom;
+            const { projectUuid } = chartQuery.data;
 
-            const executeQueryResponse = isEmbedContext
-                ? await postEmbedDashboardTileQuery(
-                      lightdashApi,
-                      chartQuery.data.projectUuid,
-                      {
+            const executeTileQuery = () =>
+                isEmbedContext
+                    ? postEmbedDashboardTileQuery(lightdashApi, projectUuid, {
                           tileUuid,
                           dashboardFilters: timezoneFixFilters,
                           dashboardSorts,
@@ -358,27 +358,43 @@ export const useDashboardChartReadyQuery = (
                           parameters: parameterValues,
                           pivotResults: true,
                           timezone: sessionTimezone ?? undefined,
-                      },
-                  )
-                : await executeAsyncDashboardChartQuery(
-                      lightdashApi,
-                      chartQuery.data.projectUuid,
-                      {
-                          context: effectiveContext,
-                          tileUuid,
-                          chartUuid: chartUuid!,
-                          dashboardUuid: dashboardUuid!,
-                          dashboardFilters: timezoneFixFilters,
-                          dashboardSorts,
-                          dateZoom,
-                          invalidateCache,
-                          parameters: parameterValues,
-                          pivotResults: true,
-                          ...(includeUnpublishedDraft && {
-                              includeUnpublishedDraft: true,
-                          }),
-                      },
-                  );
+                      })
+                    : executeAsyncDashboardChartQuery(
+                          lightdashApi,
+                          projectUuid,
+                          {
+                              context: effectiveContext,
+                              tileUuid,
+                              chartUuid: chartUuid!,
+                              dashboardUuid: dashboardUuid!,
+                              dashboardFilters: timezoneFixFilters,
+                              dashboardSorts,
+                              dateZoom,
+                              invalidateCache,
+                              parameters: parameterValues,
+                              pivotResults: true,
+                              ...(includeUnpublishedDraft && {
+                                  includeUnpublishedDraft: true,
+                              }),
+                          },
+                      );
+
+            const executeQueryResponse = await executeTileQuery().catch(
+                (error: unknown) => {
+                    releaseSlot?.();
+                    throw error;
+                },
+            );
+            if (releaseSlot) {
+                // The query keeps running on the backend after this request
+                // returns, and after the tile moves on to newer filters, so the
+                // slot lasts until the query itself finishes.
+                void waitForQueryToFinish(
+                    lightdashApi,
+                    projectUuid,
+                    executeQueryResponse.queryUuid,
+                ).then(releaseSlot);
+            }
 
             return {
                 chart: chartQuery.data,
