@@ -30744,6 +30744,31 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "ApiAiAgentVisualizeSlackPreviewRequest": {
+                "properties": {
+                    "vizConfig": {
+                        "$ref": "#/components/schemas/Record_string.unknown_"
+                    },
+                    "rows": {
+                        "items": {
+                            "$ref": "#/components/schemas/Record_string.unknown_"
+                        },
+                        "type": "array"
+                    },
+                    "columns": {
+                        "items": {
+                            "$ref": "#/components/schemas/ResultColumn"
+                        },
+                        "type": "array"
+                    },
+                    "title": {
+                        "type": "string"
+                    }
+                },
+                "required": ["vizConfig", "rows", "columns", "title"],
+                "type": "object",
+                "description": "Rows and a visualize-tool viz config to draw as the Slack chart image; vizConfig is parsed server-side."
+            },
             "AiAgentUserPreferences": {
                 "properties": {
                     "defaultAgentUuid": {
@@ -74631,7 +74656,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.121.1",
+        "version": "3.122.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -84024,6 +84049,57 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/ApiCreateAiAgent"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/aiAgents/visualize/slack-preview": {
+            "post": {
+                "operationId": "previewVisualizeSlackChart",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "string",
+                                    "format": "byte"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Draw rows with a visualize-tool viz config as the Slack chart image, for debugging the Slack renderer.",
+                "summary": "Preview visualize Slack chart",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiAiAgentVisualizeSlackPreviewRequest"
                             }
                         }
                     }

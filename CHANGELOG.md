@@ -1,3 +1,15 @@
+# [3.122.0](https://github.com/lightdash/lightdash/compare/3.121.1...3.122.0) (2026-11-02)
+
+
+### Bug Fixes
+
+* **ai:** Slack chart images pivot the secondary axis per group ([#31920](https://github.com/lightdash/lightdash/issues/31920)) ([bc12482](https://github.com/lightdash/lightdash/commit/bc1248265a8ec35889eead49b549a94c39bc07c5))
+
+
+### Features
+
+* **ai-agents:** download results from composer artifacts ([#31921](https://github.com/lightdash/lightdash/issues/31921)) ([dba2686](https://github.com/lightdash/lightdash/commit/dba2686d63ac32d7faac96bcf21b1c3b6a5457e8))
+
 ## [3.121.1](https://github.com/lightdash/lightdash/compare/3.121.0...3.121.1) (2026-11-02)
 
 
