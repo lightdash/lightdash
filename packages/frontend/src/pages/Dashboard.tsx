@@ -108,6 +108,7 @@ import { isEditBandShown } from '../features/dashboardControls/editBand';
 import { getDimensionFiltersToSave } from '../features/dashboardFilters/FilterConfiguration/utils';
 import { FilterBarPopoversProvider } from '../features/dashboardFilters/FilterRequirements/FilterBarPopoversProvider';
 import DashboardTabs from '../features/dashboardTabs';
+import { useFitToScreen } from '../features/dashboardTabs/useFitToScreen';
 import { isLeavingTrainingCopy } from '../features/scopeTours/trainingCopy';
 import {
     appendNewTilesToBottom,
@@ -141,6 +142,7 @@ import '../styles/react-grid.css';
 
 /** Dashboard URL param naming the chart open in the in-dashboard editor. */
 const EDIT_CHART_SEARCH_PARAM = 'editChart';
+const FIT_TO_SCREEN_SEARCH_PARAM = 'fit';
 
 const Dashboard: FC = () => {
     const authoringEnabled = useContentAuthoringEnabled();
@@ -1059,6 +1061,32 @@ const Dashboard: FC = () => {
     const chartVersionParam = searchParams.get(
         CREATE_SAVED_CHART_VERSION_SEARCH_PARAM,
     );
+
+    // A viewer-side layout option, kept in the url so a fitted link can be shared
+    const isFitToScreen =
+        searchParams.get(FIT_TO_SCREEN_SEARCH_PARAM) === 'true';
+    const handleToggleFitToScreen = useCallback(() => {
+        setSearchParams(
+            (params) => {
+                if (isFitToScreen) {
+                    params.delete(FIT_TO_SCREEN_SEARCH_PARAM);
+                } else {
+                    params.set(FIT_TO_SCREEN_SEARCH_PARAM, 'true');
+                }
+                return params;
+            },
+            { replace: true },
+        );
+    }, [isFitToScreen, setSearchParams]);
+    const [gridElement, setGridElement] = useState<HTMLDivElement | null>(null);
+    const fitToScreen = useFitToScreen({
+        isFitToScreen,
+        isEditMode,
+        gridElement,
+        tiles: dashboardTiles,
+        tabs: dashboardTabs,
+        activeTabUuid: activeTab?.uuid,
+    });
     const chartFromUrl = useSavedQuery({
         uuidOrSlug:
             isChartEditorEnabled &&
@@ -1410,6 +1438,9 @@ const Dashboard: FC = () => {
         dashboardTiles,
         isFullScreenFeatureEnabled,
         onToggleFullscreen: handleToggleFullscreen,
+        isFitToScreen,
+        isFitToScreenAvailable: fitToScreen.isAvailable,
+        onToggleFitToScreen: handleToggleFitToScreen,
         hasDashboardChanged,
         onAddTiles: handleAddTiles,
         onNewChart:
@@ -1659,6 +1690,8 @@ const Dashboard: FC = () => {
                                 handleEditTile={stableEditTile}
                                 setGridWidth={setGridWidth}
                                 setAddingTab={setAddingTab}
+                                fitToScreenRowHeight={fitToScreen.rowHeight}
+                                gridContainerRef={setGridElement}
                                 onNewChart={
                                     isChartEditorEnabled && isEditMode
                                         ? handleOpenNewChart
