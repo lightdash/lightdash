@@ -54,7 +54,7 @@ function useDashboardContext<Selected>(
 
 const subscribeToNothing = () => () => {};
 
-/** Like `useDashboardContext`, but `undefined` outside a dashboard */
+/** Like `useDashboardContext`, but `undefined` outside a dashboard; ignores the filter-field override */
 export const useOptionalDashboardContext = <Selected>(
     selector: (value: DashboardContextType) => Selected,
 ): Selected | undefined => {

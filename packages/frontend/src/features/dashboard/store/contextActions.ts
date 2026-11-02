@@ -48,7 +48,6 @@ import { dashboardSourceActions } from './dashboardSourceReducer';
 import {
     selectDashboard,
     selectEmbedDashboard,
-    selectQueryDashboard,
 } from './dashboardSourceSelectors';
 import {
     selectDashboardFilters,
@@ -82,10 +81,7 @@ export const createDashboardContextActions = (
         isTemporary: boolean,
         isInEditMode: boolean,
     ) => {
-        const state = getState();
-        const saved =
-            selectQueryDashboard(state)?.filters?.[category] ||
-            selectEmbedDashboard(state)?.filters?.[category];
+        const saved = savedFilters()?.[category];
         dispatch(
             dashboardFiltersActions.updateFilter({
                 filter,
@@ -171,9 +167,7 @@ export const createDashboardContextActions = (
         setIsAddFilterDisabled: (value: SetStateAction<boolean>) =>
             dispatch(
                 dashboardEditActions.setIsAddFilterDisabled(
-                    resolve(value, () =>
-                        selectIsAddFilterDisabled(getState()),
-                    ),
+                    resolve(value, () => selectIsAddFilterDisabled(getState())),
                 ),
             ),
         setRequiredFiltersNote: (value: SetStateAction<string | undefined>) =>
@@ -214,9 +208,7 @@ export const createDashboardContextActions = (
                     saved: savedDateZoomSettings().dateZoomGranularities,
                 }),
             ),
-        setHaveDateZoomGranularitiesChanged: (
-            value: SetStateAction<boolean>,
-        ) =>
+        setHaveDateZoomGranularitiesChanged: (value: SetStateAction<boolean>) =>
             dispatch(
                 dashboardEditActions.setHaveDateZoomGranularitiesChanged(
                     resolve(value, () =>
@@ -245,15 +237,12 @@ export const createDashboardContextActions = (
             ),
         // Resets saved filters, temporary filters and the URL overrides of saved filters
         resetDashboardFilters: () => {
-            const state = getState();
-            const embedDashboard = selectEmbedDashboard(state);
-            const filters =
-                selectQueryDashboard(state)?.filters ??
-                embedDashboard?.filters ??
-                emptyDashboardFilters;
             dispatch(
                 dashboardFiltersActions.resetFilters(
-                    applyEmbedFilterInteractivity(filters, embedDashboard),
+                    applyEmbedFilterInteractivity(
+                        savedFilters() ?? emptyDashboardFilters,
+                        selectEmbedDashboard(getState()),
+                    ),
                 ),
             );
         },
@@ -293,7 +282,14 @@ export const createDashboardContextActions = (
             index: number,
             isTemporary: boolean,
             isInEditMode: boolean,
-        ) => updateFilter('dimensions', filter, index, isTemporary, isInEditMode),
+        ) =>
+            updateFilter(
+                'dimensions',
+                filter,
+                index,
+                isTemporary,
+                isInEditMode,
+            ),
         removeDimensionDashboardFilter: (index: number, isTemporary: boolean) =>
             dispatch(
                 dashboardFiltersActions.removeFilter({
@@ -430,7 +426,3 @@ export const createDashboardContextActions = (
             ),
     };
 };
-
-export type DashboardContextActions = ReturnType<
-    typeof createDashboardContextActions
->;

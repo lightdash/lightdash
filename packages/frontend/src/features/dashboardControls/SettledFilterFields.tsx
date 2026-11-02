@@ -11,22 +11,38 @@ import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 export const SettledFilterFields: FC<{ children: ReactNode }> = ({
     children,
 }) => {
-    const context = useDashboardContext((c) => c);
+    const isReloading = useDashboardContext((c) => c.isLoadingDashboardFilters);
+    const filterableFieldsByTileUuid = useDashboardContext(
+        (c) => c.filterableFieldsByTileUuid,
+    );
+    const allFilterableFields = useDashboardContext(
+        (c) => c.allFilterableFields,
+    );
+    const allFilterableMetrics = useDashboardContext(
+        (c) => c.allFilterableMetrics,
+    );
+    const allFilterableFieldsMap = useDashboardContext(
+        (c) => c.allFilterableFieldsMap,
+    );
+    const allFilterableMetricsMap = useDashboardContext(
+        (c) => c.allFilterableMetricsMap,
+    );
+    const hiddenFilterableFieldIds = useDashboardContext(
+        (c) => c.hiddenFilterableFieldIds,
+    );
     const [settled, setSettled] = useState<FilterFields | null>(null);
-    const isReloading = context.isLoadingDashboardFilters;
     if (
         !isReloading &&
-        context.filterableFieldsByTileUuid !== undefined &&
-        context.filterableFieldsByTileUuid !==
-            settled?.filterableFieldsByTileUuid
+        filterableFieldsByTileUuid !== undefined &&
+        filterableFieldsByTileUuid !== settled?.filterableFieldsByTileUuid
     ) {
         setSettled({
-            filterableFieldsByTileUuid: context.filterableFieldsByTileUuid,
-            allFilterableFields: context.allFilterableFields,
-            allFilterableMetrics: context.allFilterableMetrics,
-            allFilterableFieldsMap: context.allFilterableFieldsMap,
-            allFilterableMetricsMap: context.allFilterableMetricsMap,
-            hiddenFilterableFieldIds: context.hiddenFilterableFieldIds,
+            filterableFieldsByTileUuid,
+            allFilterableFields,
+            allFilterableMetrics,
+            allFilterableFieldsMap,
+            allFilterableMetricsMap,
+            hiddenFilterableFieldIds,
         });
     }
     const override = useMemo(

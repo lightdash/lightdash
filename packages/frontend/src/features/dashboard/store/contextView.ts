@@ -25,7 +25,7 @@ import {
     selectTemporaryFilterLocks,
 } from './dashboardSourceSelectors';
 
-export type DashboardContextView = (
+type DashboardContextView = (
     state: DashboardStoreState,
 ) => DashboardContextType;
 

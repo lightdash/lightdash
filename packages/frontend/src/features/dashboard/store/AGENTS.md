@@ -11,7 +11,8 @@ parameters, runtime date zoom, tile status, viewer chart sort and edit state.
 - **The dashboard context is a view of the store.** `useDashboardContext(selector)`
   reads `getDashboardContextView(store)`, a memoised object of the `source`
   selectors plus the setters from `contextActions.ts`; it re-renders only when
-  the selected value changes. There is no React context behind it. New code
+  the selected value changes. No dashboard-wide React context is left; only the
+  `SettledFilterFields` override below. New code
   reads with `useDashboardSelector` and a selector, and dispatches actions.
 - **`source` mirrors the provider.** The dashboard query, the project, the
   available filters, comments and the version refresh land in `source` through
@@ -38,7 +39,7 @@ parameters, runtime date zoom, tile status, viewer chart sort and edit state.
 - **Plain reducers, not `createSlice`.** Immer would deep-freeze the react-query
   dashboard objects passed in. `buildInitialState.test.ts` pins that nothing is
   frozen.
-- **Lock-aware derived values need context.** Temporary filters are stripped of
+- **Read lock-aware filters through the hooks.** Temporary filters are stripped of
   rules locked on the active tab; read them through `useDashboardTemporaryFilters`,
   `useDashboardAllFilters` or `useHasDashboardTemporaryFilters`, never
   `selectRawTemporaryFilters` in UI.

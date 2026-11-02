@@ -26,8 +26,6 @@ export const selectEmbedDashboard = (state: DashboardStoreState) =>
 /** The dashboard from the query, or the one an embed set */
 export const selectDashboard = (state: DashboardStoreState) =>
     state.source.queryDashboard ?? state.source.embedDashboard;
-export const selectDashboardConfig = (state: DashboardStoreState) =>
-    selectDashboard(state)?.config;
 export const selectIsDashboardLoading = (state: DashboardStoreState) =>
     state.source.isDashboardLoading;
 export const selectDashboardError = (state: DashboardStoreState) =>

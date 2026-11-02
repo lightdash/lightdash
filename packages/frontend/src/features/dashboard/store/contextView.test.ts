@@ -1,6 +1,11 @@
-import { type Dashboard } from '@lightdash/common';
+import {
+    DashboardTileTypes,
+    type Dashboard,
+    type DashboardTile,
+} from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
+    dashboardEditActions,
     dashboardFiltersActions,
     dashboardSourceActions,
     getDashboardContextView,
@@ -34,6 +39,21 @@ const makeDashboard = (uuid: string): Dashboard => ({
 });
 
 const dashboard = makeDashboard('dashboard-uuid');
+
+const chartTile = (uuid: string, x: number): DashboardTile => ({
+    uuid,
+    tabUuid: undefined,
+    type: DashboardTileTypes.SAVED_CHART,
+    x,
+    y: 0,
+    w: 6,
+    h: 3,
+    properties: {
+        savedChartUuid: `chart-${uuid}`,
+        title: uuid,
+        belongsToDashboard: false,
+    },
+});
 
 describe('dashboard context view', () => {
     it('keeps the same object until a value it exposes changes', () => {
@@ -79,5 +99,29 @@ describe('dashboard context view', () => {
             }),
         );
         expect(view(store.getState()).dashboard).toBe(dashboard);
+    });
+
+    it('keeps the filterable fields when a tile only moves', () => {
+        const store = createDashboardTestStore();
+        const view = getDashboardContextView(store);
+        store.dispatch(dashboardEditActions.setTiles([chartTile('a', 0)]));
+        store.dispatch(
+            dashboardSourceActions.sync({
+                ...initialDashboardProviderState,
+                queryDashboard: dashboard,
+                availableFilters: {
+                    allFilterableFields: [],
+                    allFilterableMetrics: [],
+                    savedQueryFilters: {},
+                    savedQueryMetricFilters: {},
+                    hiddenFilterableFieldIds: [],
+                },
+            }),
+        );
+        const before = view(store.getState()).filterableFieldsByTileUuid;
+        expect(before).toBeDefined();
+
+        store.dispatch(dashboardEditActions.setTiles([chartTile('a', 6)]));
+        expect(view(store.getState()).filterableFieldsByTileUuid).toBe(before);
     });
 });
