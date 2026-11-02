@@ -10,6 +10,7 @@ import {
     useCanManageContentAsCode,
     useReleaseContentAsCodeSnapshot,
 } from '../hooks/useReleaseContentAsCodeSnapshot';
+import styles from './ManagedFromRepositoryRow.module.css';
 
 type Props = {
     projectUuid: string | undefined;
@@ -44,8 +45,7 @@ const ManagedFromRepositoryRow: FC<Props> = ({
                     fz="xs"
                     c="dimmed"
                     ff="monospace"
-                    truncate="start"
-                    title={source.filePath}
+                    className={styles.filePath}
                 >
                     {source.filePath}
                 </Text>
