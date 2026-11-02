@@ -1,3 +1,10 @@
+# [3.126.0](https://github.com/lightdash/lightdash/compare/3.125.0...3.126.0) (2026-11-02)
+
+
+### Features
+
+* **data-apps:** shared AI commentary saved per selection ([#31945](https://github.com/lightdash/lightdash/issues/31945)) ([c48156a](https://github.com/lightdash/lightdash/commit/c48156a8a04fe804b9c0aa6866686beffc4b04ab))
+
 # [3.125.0](https://github.com/lightdash/lightdash/compare/3.124.0...3.125.0) (2026-11-02)
 
 
