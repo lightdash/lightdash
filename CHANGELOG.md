@@ -1,3 +1,10 @@
+# [3.120.0](https://github.com/lightdash/lightdash/compare/3.119.0...3.120.0) (2026-11-02)
+
+
+### Features
+
+* **results-cache:** let admins schedule cache clears ([#31912](https://github.com/lightdash/lightdash/issues/31912)) ([10460e2](https://github.com/lightdash/lightdash/commit/10460e24f16561b51028239244a851f81fa4e268))
+
 # [3.119.0](https://github.com/lightdash/lightdash/compare/3.118.3...3.119.0) (2026-11-02)
 
 
