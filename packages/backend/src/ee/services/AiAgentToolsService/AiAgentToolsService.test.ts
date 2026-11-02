@@ -10,6 +10,7 @@ import {
     ChartType,
     COMPOSER_QUERY_PREVIEW_ROW_LIMIT,
     ContentType,
+    CustomDimensionType,
     DATA_APP_VIZ_TEMPLATE,
     DimensionType,
     Explore,
@@ -844,6 +845,71 @@ describe('AiAgentToolsService', () => {
                 href: `/projects/${projectUuid}/spaces/child-space-uuid`,
             },
         ]);
+    });
+
+    it('accepts a custom SQL dimension defined in the same query', async () => {
+        const executeMetricQueryAndGetResults = vi.fn().mockResolvedValue({
+            queryUuid: 'result',
+            rows: [],
+            fields: {},
+            cacheMetadata: { cacheHit: false },
+        });
+        const service = makeService({
+            explores: {
+                orders: makeExplore({
+                    name: 'orders',
+                    metrics: {
+                        count: {
+                            fieldType: FieldType.METRIC,
+                            name: 'count',
+                            table: 'orders',
+                        },
+                    },
+                }),
+            },
+            asyncQueryService: { executeMetricQueryAndGetResults },
+        });
+        const runtime = service.createRuntime(
+            makeRuntimeContext({ source: 'ai_agent' }),
+        );
+        const metricQuery = {
+            exploreName: 'orders',
+            dimensions: ['container_type'],
+            metrics: ['orders_count'],
+            filters: {},
+            sorts: [],
+            limit: 500,
+            tableCalculations: [],
+            additionalMetrics: [],
+            customMetrics: null,
+            customDimensions: [
+                {
+                    id: 'container_type',
+                    name: 'container_type',
+                    table: 'orders',
+                    type: CustomDimensionType.SQL as const,
+                    sql: "${orders.custom_fields} ->> 'containertype'",
+                    dimensionType: DimensionType.STRING,
+                },
+            ],
+        };
+
+        await runtime.runAsyncQuery(metricQuery);
+
+        expect(executeMetricQueryAndGetResults).toHaveBeenCalledWith(
+            expect.objectContaining({
+                metricQuery: expect.objectContaining({
+                    customDimensions: metricQuery.customDimensions,
+                }),
+            }),
+            expect.anything(),
+        );
+        await expect(
+            runtime.runAsyncQuery({
+                ...metricQuery,
+                dimensions: ['orders_missing'],
+            }),
+        ).rejects.toThrow('Field not found: orders_missing');
     });
 
     it('blocks unbounded dimension-only scans before warehouse execution', async () => {

@@ -4286,6 +4286,7 @@ export class AiAgentToolsService extends BaseService {
                     (metricQuery.additionalMetrics ?? []) as Parameters<
                         typeof getItemMap
                     >[1],
+                    metricQuery.customDimensions ?? [],
                 );
 
                 const isUnboundedDimensionScan =
@@ -5883,8 +5884,14 @@ export class AiAgentToolsService extends BaseService {
         explore: Explore,
         fieldIds: string[],
         additionalMetrics: Parameters<typeof getItemMap>[1] = [],
+        customDimensions: Parameters<typeof getItemMap>[3] = [],
     ) {
-        const itemMap = getItemMap(explore, additionalMetrics);
+        const itemMap = getItemMap(
+            explore,
+            additionalMetrics,
+            [],
+            customDimensions,
+        );
         fieldIds.forEach((fieldId) => {
             if (!itemMap[fieldId]) {
                 throw new NotFoundError(`Field not found: ${fieldId}`);
