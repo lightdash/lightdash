@@ -30229,6 +30229,100 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "Pick_SavedChart.chartConfig-or-pivotConfig-or-tableConfig_": {
+                "properties": {
+                    "chartConfig": {
+                        "$ref": "#/components/schemas/ChartConfig",
+                        "description": "Visualization configuration for the chart"
+                    },
+                    "pivotConfig": {
+                        "properties": {
+                            "rows": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "columns": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["columns"],
+                        "type": "object",
+                        "description": "Pivot table configuration"
+                    },
+                    "tableConfig": {
+                        "properties": {
+                            "columnOrder": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["columnOrder"],
+                        "type": "object",
+                        "description": "Table view configuration"
+                    }
+                },
+                "required": ["chartConfig", "tableConfig"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "SavedChartVisualization": {
+                "$ref": "#/components/schemas/Pick_SavedChart.chartConfig-or-pivotConfig-or-tableConfig_",
+                "description": "How a saved chart is drawn, as stored on the chart."
+            },
+            "ApiExecuteAsyncSavedChartQueryResults": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ApiExecuteAsyncQueryResultsCommon"
+                    },
+                    {
+                        "properties": {
+                            "chartVisualization": {
+                                "$ref": "#/components/schemas/SavedChartVisualization"
+                            },
+                            "warnings": {
+                                "items": {
+                                    "$ref": "#/components/schemas/QueryWarning"
+                                },
+                                "type": "array"
+                            },
+                            "fields": {
+                                "$ref": "#/components/schemas/ItemsMap"
+                            },
+                            "metricQuery": {
+                                "$ref": "#/components/schemas/MetricQuery"
+                            }
+                        },
+                        "required": [
+                            "chartVisualization",
+                            "warnings",
+                            "fields",
+                            "metricQuery"
+                        ],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiSuccess_ApiExecuteAsyncSavedChartQueryResults_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ApiExecuteAsyncSavedChartQueryResults"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "ApiSuccess_ApiExecuteAsyncDashboardChartQueryResults_": {
                 "properties": {
                     "results": {
@@ -74656,7 +74750,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.123.0",
+        "version": "3.124.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -83400,7 +83494,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ApiSuccess_ApiExecuteAsyncMetricQueryResults_"
+                                    "$ref": "#/components/schemas/ApiSuccess_ApiExecuteAsyncSavedChartQueryResults_"
                                 }
                             }
                         }

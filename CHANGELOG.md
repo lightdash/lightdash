@@ -1,3 +1,11 @@
+# [3.124.0](https://github.com/lightdash/lightdash/compare/3.123.0...3.124.0) (2026-11-02)
+
+
+### Features
+
+* **dashboard:** cap concurrent tile queries per viewer ([#31914](https://github.com/lightdash/lightdash/issues/31914)) ([307cf07](https://github.com/lightdash/lightdash/commit/307cf0723b1c75b021a2af804399617a19430fd0))
+* **data-apps:** return a saved chart's visualization config at runtime ([#31934](https://github.com/lightdash/lightdash/issues/31934)) ([f288419](https://github.com/lightdash/lightdash/commit/f288419b6c6710c19949cc514aaa1ff7ec5330df))
+
 # [3.123.0](https://github.com/lightdash/lightdash/compare/3.122.3...3.123.0) (2026-11-02)
 
 
