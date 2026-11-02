@@ -38,6 +38,7 @@ const mocks = vi.hoisted(() => ({
     rows: vi.fn(),
     retry: vi.fn(),
     saveVizConfig: vi.fn(),
+    chartEchartsRefSetter: vi.fn(),
 }));
 vi.mock('../../../../../api');
 vi.mock('../../../../../hooks/useServerOrClientFeatureFlag', () => ({
@@ -117,6 +118,7 @@ vi.mock('./AiComposerRunQueryChart', () => ({
         chart: ComposerRunQueryChart;
         setEchartsRef?: (ref: { current: null }) => void;
     }) => {
+        mocks.chartEchartsRefSetter(setEchartsRef);
         useEffect(() => setEchartsRef?.({ current: null }), [setEchartsRef]);
         return (
             <table>
@@ -515,12 +517,15 @@ describe('composer artifact', () => {
                 ],
             },
         };
-        const renderBar = (appMocks?: typeof canExport) => {
+        const renderChart = (
+            appMocks?: typeof canExport,
+            chartConfig: AiComposerChartArtifactConfig = barConfig,
+        ) => {
             mocks.artifact.mockReturnValue({
                 data: {
                     artifactType: 'chart',
                     title: 'Orders vs amounts',
-                    chartConfig: barConfig,
+                    chartConfig,
                 },
                 isLoading: false,
                 error: null,
@@ -535,7 +540,7 @@ describe('composer artifact', () => {
         };
 
         it('offers export image in the quick actions menu', async () => {
-            renderBar(canExport);
+            renderChart(canExport);
             fireEvent.click(
                 await screen.findByRole('button', { name: 'Quick actions' }),
             );
@@ -544,8 +549,28 @@ describe('composer artifact', () => {
             ).toBeInTheDocument();
         });
 
+        it('hides it for a chart type that does not export as an image', async () => {
+            renderChart(canExport, {
+                ...barConfig,
+                vizConfig: {
+                    type: 'big_number',
+                    x: null,
+                    y: ['n'],
+                    groupBy: null,
+                    stack: null,
+                    horizontal: null,
+                    y2: null,
+                    labels: null,
+                },
+            });
+            await screen.findByRole('table');
+            expect(mocks.chartEchartsRefSetter).toHaveBeenLastCalledWith(
+                undefined,
+            );
+        });
+
         it('hides it without export permission', async () => {
-            renderBar();
+            renderChart();
             await screen.findByRole('columnheader', { name: 'Status' });
             expect(
                 screen.queryByRole('button', { name: 'Quick actions' }),

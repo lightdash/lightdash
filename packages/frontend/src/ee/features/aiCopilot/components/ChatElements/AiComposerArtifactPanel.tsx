@@ -18,6 +18,7 @@ import {
     Menu,
     SegmentedControl,
     Stack,
+    Tooltip,
 } from '@mantine/core';
 import { useDebouncedCallback, useDisclosure } from '@mantine/hooks';
 import { IconDots, IconX } from '@tabler/icons-react';
@@ -109,9 +110,6 @@ export const AiComposerArtifactPanel: FC<Props> = ({
             projectUuid,
         }),
     );
-    // The ref is only set for chart types that export as an image.
-    const canExportImage =
-        view === 'chart' && !isEmbed && !!canExportData && !!imageExportRef;
     const nodeQueryUuids = run?.nodeQueryUuids ?? null;
     const displayableNodeIds = useMemo(
         () => new Set(Object.keys(nodeQueryUuids ?? {})),
@@ -200,6 +198,20 @@ export const AiComposerArtifactPanel: FC<Props> = ({
     const fieldsDisabledReason = isWritable ? null : READ_ONLY_REASON;
     const [isChartOpen, setIsChartOpen] = useState(false);
 
+    const isRunQueryChart =
+        source.kind === 'artifact' &&
+        !!runQueryVizConfig &&
+        !!queryUuid &&
+        !runError &&
+        !results.error;
+    // The ref is only set for chart types that export as an image.
+    const canExportImage =
+        view === 'chart' &&
+        isRunQueryChart &&
+        !isEmbed &&
+        !!canExportData &&
+        !!imageExportRef;
+
     const head = (
         <Box className={clsx(styles.head, styles.flushHead)}>
             <Stack gap={0} flex={1} miw={0}>
@@ -233,13 +245,14 @@ export const AiComposerArtifactPanel: FC<Props> = ({
                 {canExportImage && (
                     <Menu withArrow position="bottom-end">
                         <Menu.Target>
-                            <ActionIcon
-                                size="sm"
-                                color="ldGray.9"
-                                aria-label="Quick actions"
-                            >
-                                <MantineIcon icon={IconDots} size="lg" />
-                            </ActionIcon>
+                            <Tooltip label="Quick actions">
+                                <ActionIcon
+                                    size="sm"
+                                    aria-label="Quick actions"
+                                >
+                                    <MantineIcon icon={IconDots} size="lg" />
+                                </ActionIcon>
+                            </Tooltip>
                         </Menu.Target>
                         <Menu.Dropdown>
                             <Menu.Label>Quick actions</Menu.Label>
@@ -258,35 +271,30 @@ export const AiComposerArtifactPanel: FC<Props> = ({
         </Box>
     );
 
-    const visualization =
-        source.kind === 'artifact' &&
-        runQueryVizConfig &&
-        queryUuid &&
-        !runError &&
-        !results.error ? (
-            <AiComposerRunQueryVisualization
-                projectUuid={projectUuid}
-                agentUuid={agentUuid}
-                artifactUuid={source.artifactUuid}
-                versionUuid={source.versionUuid}
-                nodeResults={results}
-                chartStage={run?.chartStage ?? null}
-                vizConfig={runQueryVizConfig}
-                metadata={metadata}
-                headerContent={null}
-                setImageExportRef={setImageExportRef}
-            />
-        ) : (
-            <AiComposerArtifactVisualization
-                projectUuid={projectUuid}
-                results={results}
-                queryUuid={queryUuid ?? null}
-                runError={runError}
-                onRerun={onRerun}
-                vizConfig={value}
-                headerContent={null}
-            />
-        );
+    const visualization = isRunQueryChart ? (
+        <AiComposerRunQueryVisualization
+            projectUuid={projectUuid}
+            agentUuid={agentUuid}
+            artifactUuid={source.artifactUuid}
+            versionUuid={source.versionUuid}
+            nodeResults={results}
+            chartStage={run?.chartStage ?? null}
+            vizConfig={runQueryVizConfig}
+            metadata={metadata}
+            headerContent={null}
+            setImageExportRef={setImageExportRef}
+        />
+    ) : (
+        <AiComposerArtifactVisualization
+            projectUuid={projectUuid}
+            results={results}
+            queryUuid={queryUuid ?? null}
+            runError={runError}
+            onRerun={onRerun}
+            vizConfig={value}
+            headerContent={null}
+        />
+    );
 
     const lineage = (
         <AiComposerLineage
