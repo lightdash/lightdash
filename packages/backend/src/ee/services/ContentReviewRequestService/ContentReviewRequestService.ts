@@ -86,6 +86,11 @@ type ContentReviewRequestServiceArguments = {
 
 type ProjectContext = { organizationUuid: string; projectUuid: string };
 
+type MoveSet = {
+    items: ContentReviewMovedItem[];
+    sourceSpaceUuids: string[];
+};
+
 const SIMILAR_CANDIDATE_LIMIT = 20;
 const SIMILAR_RESULT_LIMIT = 5;
 const VERIFIED_SCORE_BOOST = 2;
@@ -305,29 +310,31 @@ export class ContentReviewRequestService extends BaseService {
         contentType: ContentReviewContentType;
         contentUuid: string;
         sourceSpaceUuid: string;
-    }): Promise<ContentReviewMovedItem[]> {
+    }): Promise<MoveSet> {
         const primary = await this.getContentLocation(
             request.contentType,
             request.contentUuid,
         );
-        const items: ContentReviewMovedItem[] = [
-            {
-                contentType: request.contentType,
-                contentUuid: primary.uuid,
-                name: primary.name,
-            },
-        ];
+        const primaryItem: ContentReviewMovedItem = {
+            contentType: request.contentType,
+            contentUuid: primary.uuid,
+            name: primary.name,
+        };
         if (request.contentType !== ContentReviewContentType.DASHBOARD) {
-            return items;
+            return {
+                items: [primaryItem],
+                sourceSpaceUuids:
+                    primary.spaceUuid === null ? [] : [primary.spaceUuid],
+            };
         }
-        const [dashboard, sourceSpaceUuids] = await Promise.all([
+        const [dashboard, sourceTreeUuids] = await Promise.all([
             this.dashboardModel.getByIdOrSlug(request.contentUuid),
             this.getSpaceTreeUuids(request.sourceSpaceUuid),
         ]);
         const isInSourceSpaceTree = (chart: ContentReviewContentLocation) =>
             !chart.deleted &&
             chart.spaceUuid !== null &&
-            sourceSpaceUuids.has(chart.spaceUuid);
+            sourceTreeUuids.has(chart.spaceUuid);
         const tileChartUuids = [
             ...new Set(
                 dashboard.tiles
@@ -339,17 +346,11 @@ export class ContentReviewRequestService extends BaseService {
                     ),
             ),
         ];
-        const charts =
+        const charts = (
             await this.contentReviewRequestModel.findChartLocations(
                 tileChartUuids,
-            );
-        charts.filter(isInSourceSpaceTree).forEach((chart) => {
-            items.push({
-                contentType: ContentReviewContentType.CHART,
-                contentUuid: chart.uuid,
-                name: chart.name,
-            });
-        });
+            )
+        ).filter(isInSourceSpaceTree);
         // SQL runner tiles travel with the dashboard the same way
         const tileSqlChartUuids = [
             ...new Set(
@@ -362,18 +363,31 @@ export class ContentReviewRequestService extends BaseService {
                     ),
             ),
         ];
-        const sqlCharts =
+        const sqlCharts = (
             await this.contentReviewRequestModel.findSqlChartLocations(
                 tileSqlChartUuids,
-            );
-        sqlCharts.filter(isInSourceSpaceTree).forEach((chart) => {
-            items.push({
-                contentType: ContentReviewContentType.SQL_CHART,
+            )
+        ).filter(isInSourceSpaceTree);
+        const toMovedItem =
+            (contentType: ContentReviewContentType) =>
+            (chart: ContentReviewContentLocation): ContentReviewMovedItem => ({
+                contentType,
                 contentUuid: chart.uuid,
                 name: chart.name,
             });
-        });
-        return items;
+        return {
+            items: [
+                primaryItem,
+                ...charts.map(toMovedItem(ContentReviewContentType.CHART)),
+                ...sqlCharts.map(
+                    toMovedItem(ContentReviewContentType.SQL_CHART),
+                ),
+            ],
+            sourceSpaceUuids: [primary, ...charts, ...sqlCharts].flatMap(
+                (location) =>
+                    location.spaceUuid === null ? [] : [location.spaceUuid],
+            ),
+        };
     }
 
     private async isReviewerGroupMember(
@@ -679,7 +693,7 @@ export class ContentReviewRequestService extends BaseService {
         const moveSet =
             request.status === ContentReviewRequestStatus.PENDING &&
             item.content !== null
-                ? await this.computeMoveSet(request)
+                ? (await this.computeMoveSet(request)).items
                 : request.movedContent;
         return {
             ...item,
@@ -722,17 +736,6 @@ export class ContentReviewRequestService extends BaseService {
                 'Only content in your personal space can be submitted for review',
             );
         }
-        // A nested space can stop inheriting from the personal space, so
-        // owning the personal space doesn't imply access to its content
-        if (
-            !(await this.spacePermissionService.can(
-                'view',
-                user,
-                content.spaceUuid,
-            ))
-        ) {
-            throw new ForbiddenError('You do not have access to this content');
-        }
         // Documents are feature-flagged; this also checks the requester's access
         if (body.contentType === ContentReviewContentType.DOCUMENT) {
             await this.documentService.get(
@@ -763,11 +766,25 @@ export class ContentReviewRequestService extends BaseService {
             );
         }
 
-        const moveSet = await this.computeMoveSet({
+        const { items: moveSet, sourceSpaceUuids } = await this.computeMoveSet({
             contentType: body.contentType,
             contentUuid: body.contentUuid,
             sourceSpaceUuid: personalSpace.uuid,
         });
+        // Approval moves without re-checking source access, so only content
+        // the requester could move themselves may be submitted. Nested spaces
+        // can stop inheriting from the personal space, so owning it isn't enough.
+        if (
+            !(await this.spacePermissionService.can(
+                'update',
+                user,
+                sourceSpaceUuids,
+            ))
+        ) {
+            throw new ForbiddenError(
+                'You can only request a review for content you can edit',
+            );
+        }
         const pendingByType = await Promise.all(
             Object.values(ContentReviewContentType).map((contentType) =>
                 this.contentReviewRequestModel.findPendingByContentUuids(
@@ -1058,7 +1075,7 @@ export class ContentReviewRequestService extends BaseService {
             throw new ConflictError('The target space no longer exists');
         }
 
-        const moveSet = await this.computeMoveSet(request);
+        const { items: moveSet } = await this.computeMoveSet(request);
         // Access was checked above against the target; the per-type move
         // would otherwise fail on the personal source space
         const approved = await this.contentReviewRequestModel.transaction(

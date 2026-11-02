@@ -449,7 +449,7 @@ describe('ContentReviewRequestService', () => {
             );
         });
 
-        test('rejects nested content the requester cannot view', async () => {
+        test('rejects nested content the requester cannot edit', async () => {
             const {
                 service,
                 contentReviewRequestModel,
@@ -461,15 +461,72 @@ describe('ContentReviewRequestService', () => {
             ]);
             spacePermissionService.can.mockImplementation(
                 async (
-                    _action: string,
+                    action: string,
                     _user: SessionUser,
-                    spaceUuid: string,
-                ) => spaceUuid !== NESTED_PERSONAL_SPACE,
+                    spaceUuids: string | string[],
+                ) =>
+                    action !== 'update' ||
+                    ![spaceUuids].flat().includes(NESTED_PERSONAL_SPACE),
             );
 
             await expect(
                 service.submit(requester, PROJECT, submitBody),
-            ).rejects.toThrow('You do not have access to this content');
+            ).rejects.toThrow('content you can edit');
+            expect(directAccessModel.upsertAccess).not.toHaveBeenCalled();
+            expect(contentReviewRequestModel.create).not.toHaveBeenCalled();
+        });
+
+        test('rejects a dashboard whose tile chart sits in a space the requester cannot edit', async () => {
+            const {
+                service,
+                contentReviewRequestModel,
+                spacePermissionService,
+                directAccessModel,
+            } = buildService();
+            const DASHBOARD = 'dashboard-uuid';
+            contentReviewRequestModel.findDashboardLocations.mockResolvedValue([
+                {
+                    uuid: DASHBOARD,
+                    name: 'Ops board',
+                    slug: 'ops-board',
+                    spaceUuid: PERSONAL_SPACE,
+                    dashboardUuid: null,
+                    deleted: false,
+                },
+            ]);
+            contentReviewRequestModel.findChartLocations.mockResolvedValue([
+                { ...chartLocation, spaceUuid: NESTED_PERSONAL_SPACE },
+            ]);
+            dashboardModelMock.getByIdOrSlug.mockResolvedValue({
+                tiles: [
+                    {
+                        type: DashboardTileTypes.SAVED_CHART,
+                        properties: { savedChartUuid: CHART },
+                    },
+                ],
+            });
+            spacePermissionService.can.mockImplementation(
+                async (
+                    action: string,
+                    _user: SessionUser,
+                    spaceUuids: string | string[],
+                ) =>
+                    action !== 'update' ||
+                    ![spaceUuids].flat().includes(NESTED_PERSONAL_SPACE),
+            );
+
+            await expect(
+                service.submit(requester, PROJECT, {
+                    ...submitBody,
+                    contentType: ContentReviewContentType.DASHBOARD,
+                    contentUuid: DASHBOARD,
+                }),
+            ).rejects.toThrow('content you can edit');
+            expect(spacePermissionService.can).toHaveBeenCalledWith(
+                'update',
+                requester,
+                [PERSONAL_SPACE, NESTED_PERSONAL_SPACE],
+            );
             expect(directAccessModel.upsertAccess).not.toHaveBeenCalled();
         });
 
