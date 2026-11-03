@@ -2,6 +2,7 @@ import {
     FeatureFlags,
     DbtProjectType,
     DbtProjectTypeLabels,
+    hasSemanticLayerExplore,
     ProjectType,
     type AgentOnboardingRun,
     type HealthState,
@@ -19,6 +20,7 @@ import {
 } from '../../../../components/ProjectConnection/ProjectConnectFlow/utils';
 import { useOrganization } from '../../../../hooks/organization/useOrganization';
 import { useGetSlack } from '../../../../hooks/slack/useSlack';
+import { useExplores } from '../../../../hooks/useExplores';
 import { useProject } from '../../../../hooks/useProject';
 import { useProjects } from '../../../../hooks/useProjects';
 import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
@@ -67,7 +69,7 @@ const integrationFlags = (health: HealthState | undefined) => ({
 
 type DbtConnection = Project['dbtConnection'] | undefined;
 
-const hasSemanticLayer = (dbtConnection: DbtConnection): boolean =>
+const hasDbtConnection = (dbtConnection: DbtConnection): boolean =>
     !!dbtConnection && dbtConnection.type !== DbtProjectType.NONE;
 
 export type ActionStatus = {
@@ -136,16 +138,18 @@ const semanticLayerUrl = (
 const semanticLayerStatus = ({
     projectUuid,
     dbtConnection,
+    hasSemanticLayer,
     activeAgentRun,
     hasAgentSemanticLayerEntry,
 }: {
     projectUuid: string | null;
     dbtConnection: DbtConnection;
+    hasSemanticLayer: boolean;
     activeAgentRun: AgentOnboardingRun | null;
     hasAgentSemanticLayerEntry: boolean;
 }): ActionStatus => ({
     isVisible: !!projectUuid,
-    isComplete: hasSemanticLayer(dbtConnection),
+    isComplete: hasSemanticLayer,
     annotation: dbtConnection ? DbtProjectTypeLabels[dbtConnection.type] : null,
     doneIcon: null,
     url: semanticLayerUrl(
@@ -186,7 +190,7 @@ const sourceControlStatus = ({
     isComplete:
         isGithubConnected ||
         isGitlabConnected ||
-        hasSemanticLayer(dbtConnection),
+        hasDbtConnection(dbtConnection),
     annotation: sourceControlAnnotation(
         isGithubConnected,
         isGitlabConnected,
@@ -222,6 +226,7 @@ const useActionStatuses = (
     const organizationQuery = useOrganization();
     const projectQuery = useProject(projectUuid ?? undefined);
     const projectsQuery = useProjects();
+    const exploresQuery = useExplores(projectUuid ?? undefined);
     const githubConfigQuery = useGithubConfig();
     const slackQuery = useGetSlack();
     const newOnboardingFlag = useServerFeatureFlag(FeatureFlags.NewOnboarding);
@@ -257,6 +262,7 @@ const useActionStatuses = (
             [true, health],
             [true, organizationQuery],
             [!!projectUuid, projectQuery],
+            [!!projectUuid, exploresQuery],
             [true, projectsQuery],
             [gate(isHealthSettled, hasGithub), githubConfigQuery],
             [gate(isHealthSettled, hasGitlab), gitlabQuery],
@@ -285,6 +291,9 @@ const useActionStatuses = (
             'add-semantic-layer': semanticLayerStatus({
                 projectUuid,
                 dbtConnection,
+                hasSemanticLayer: hasSemanticLayerExplore(
+                    exploresQuery.data ?? [],
+                ),
                 activeAgentRun,
                 hasAgentSemanticLayerEntry,
             }),

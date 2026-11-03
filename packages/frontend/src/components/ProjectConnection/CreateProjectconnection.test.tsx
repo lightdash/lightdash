@@ -200,9 +200,7 @@ describe('CreateProjectConnection in-flight job recovery', () => {
         expect(
             await screen.findByText('Creating your project'),
         ).toBeInTheDocument();
-        expect(screen.getByText('Testing adaptor')).toBeInTheDocument();
-        expect(screen.getByText('Creating project')).toBeInTheDocument();
-        expect(screen.getByText('0/2 steps complete')).toBeInTheDocument();
+        expect(screen.getByText('Testing the connection')).toBeInTheDocument();
 
         expect(screen.queryByLabelText(/^Host/)).not.toBeInTheDocument();
         expect(

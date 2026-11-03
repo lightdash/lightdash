@@ -21,6 +21,7 @@ import { useNavigate } from 'react-router';
 import { useLocalStorage } from 'react-use';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
+import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useContentAuthoringEnabled } from '../../../hooks/useContentAuthoringEnabled';
 import { Can } from '../../../providers/Ability';
 import classes from './adminHomepageControls.module.css';
@@ -33,6 +34,7 @@ import {
 import { PresetCard } from './TryNewHomepagePromo';
 
 const DEFAULT_NOTICE_STORAGE_KEY = 'homepage-v2-default-notice-closed';
+const NEW_ORG_WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
 
 type Props = {
     projectUuid: string;
@@ -61,8 +63,17 @@ const OpeningMenu: FC<{
         DEFAULT_NOTICE_STORAGE_KEY,
         false,
     );
+    // A brand-new org never saw the classic homepage, so there is nothing to announce
+    const { data: organization } = useOrganization();
+    const isNewOrg =
+        !!organization?.createdAt &&
+        Date.now() - new Date(organization.createdAt).getTime() <
+            NEW_ORG_WINDOW_MS;
     const showNotice =
-        !noticeClosed && !!settings.data?.enabled && current === null;
+        !noticeClosed &&
+        !isNewOrg &&
+        !!settings.data?.enabled &&
+        current === null;
     const closeNotice = () => setNoticeClosed(true);
 
     const choose = (value: HomepageOpening | null) =>

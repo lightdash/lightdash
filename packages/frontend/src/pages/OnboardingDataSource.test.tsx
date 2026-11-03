@@ -1,5 +1,6 @@
 import { FeatureFlags, type HealthState } from '@lightdash/common';
 import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
@@ -65,28 +66,19 @@ describe('OnboardingDataSource', () => {
         } as ReturnType<typeof useServerFeatureFlag>);
     });
 
-    it('advertises google sign-in for BigQuery when google auth is configured', async () => {
-        renderDataSourcePicker(true);
-
-        expect(
-            await screen.findByText('Sign in with Google to connect'),
-        ).toBeInTheDocument();
-        expect(
-            screen.queryByText('Connect with a service account'),
-        ).not.toBeInTheDocument();
-        expect(screen.getByText('Connect with SSO')).toBeInTheDocument();
-    });
-
-    it('advertises a service account for BigQuery when google auth is not configured', async () => {
+    it('shows the popular warehouses first and reveals the rest on request', async () => {
         renderDataSourcePicker(false);
 
+        expect(await screen.findByText('BigQuery')).toBeInTheDocument();
+        expect(screen.getByText('PostgreSQL')).toBeInTheDocument();
+        expect(screen.queryByText('Redshift')).not.toBeInTheDocument();
+
+        await userEvent.click(screen.getByText('Show all warehouses'));
+
+        expect(screen.getByText('Redshift')).toBeInTheDocument();
         expect(
-            await screen.findByText('Connect with a service account'),
-        ).toBeInTheDocument();
-        expect(
-            screen.queryByText('Sign in with Google to connect'),
+            screen.queryByText('Show all warehouses'),
         ).not.toBeInTheDocument();
-        expect(screen.getByText('Connect with SSO')).toBeInTheDocument();
     });
 
     it('sends a user who cannot create a project to the no access page', async () => {

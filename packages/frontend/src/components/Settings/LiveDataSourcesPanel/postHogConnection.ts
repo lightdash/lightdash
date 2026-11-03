@@ -78,17 +78,29 @@ export const usePostHogConnectionForm = (
         },
     });
 
+/** The page a sign-in comes back to once the provider redirects. */
+export type LiveSourceReturnTo = 'settings' | 'onboarding';
+
+export const setLiveSourceReturnTo = (
+    params: URLSearchParams,
+    returnTo: LiveSourceReturnTo,
+) => {
+    if (returnTo === 'onboarding') params.set('returnTo', returnTo);
+};
+
 /** Opens PostHog's consent screen; reconnecting keeps the source's uuid. */
 export const getPostHogSignInUrl = (
     projectUuid: string,
     values: Pick<PostHogConnectionValues, 'name' | 'region'>,
     connectionUuid: string | null,
+    returnTo: LiveSourceReturnTo,
 ) => {
     const params = new URLSearchParams({
         region: values.region,
         name: values.name.trim(),
     });
     if (connectionUuid) params.set('connectionUuid', connectionUuid);
+    setLiveSourceReturnTo(params, returnTo);
     return `/api/v1/ee/projects/${projectUuid}/live-sources/posthog/oauth/start?${params.toString()}`;
 };
 

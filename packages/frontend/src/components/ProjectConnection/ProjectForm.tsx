@@ -40,7 +40,7 @@ export const ProjectForm: FC<Props> = ({
     return (
         <Stack gap="xl">
             {showGeneralSettings && (
-                <SettingsGridCard>
+                <SettingsGridCard data-connection-card>
                     <div>
                         <Title order={5}>General settings</Title>
                     </div>
@@ -57,7 +57,10 @@ export const ProjectForm: FC<Props> = ({
                 </SettingsGridCard>
             )}
 
-            <SettingsGridCard p={warehouseOnly ? 'xl' : 'md'}>
+            <SettingsGridCard
+                p={warehouseOnly ? 'xl' : 'md'}
+                data-connection-card
+            >
                 <div>
                     {warehouse && getWarehouseIcon(warehouse)}
                     <Flex align="center" gap={2}>

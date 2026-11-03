@@ -3,6 +3,7 @@ import {
     ForbiddenError,
     type ApiErrorPayload,
     type ApiExternalConnectionApiUsageResponse,
+    type ApiExternalConnectionSchemaResponse,
     type ApiListExternalConnectionLinkedAppsResponse,
     type ApiListExternalConnectionSamplesResponse,
     type ApiProposeExternalConnectionConfigRequest,
@@ -136,6 +137,31 @@ export class ExternalConnectionController extends BaseController {
             results: await this.getService().getApiSourceUsage(
                 req.account,
                 projectUuid,
+            ),
+        };
+    }
+
+    /**
+     * What the live source's last schema scan found, such as PostHog event names; null when it was never scanned
+     * @summary Get live source schema
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('external-connections/{connectionUuid}/schema')
+    @OperationId('getExternalConnectionSchema')
+    async getExternalConnectionSchema(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() connectionUuid: string,
+    ): Promise<ApiExternalConnectionSchemaResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getService().getApiSourceSchema(
+                req.account,
+                projectUuid,
+                connectionUuid,
             ),
         };
     }

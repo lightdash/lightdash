@@ -782,6 +782,8 @@ export type ProjectServiceArguments = {
         user: SessionUser;
         projectUuid: string;
         projectType: ProjectType;
+        dbtProjectType: DbtProjectType;
+        method: RequestMethod;
         provisioningSource?: InternalProvisioningSource;
     }) => Promise<void>;
     provisionPlaygroundProject?: (args: {
@@ -1437,14 +1439,51 @@ export class ProjectService
         }
     }
 
+    // Lets SQL Runner and agent suggestions read the table list without a live warehouse call
+    private async scheduleWarehouseTablesCacheWarmUp(
+        user: SessionUser,
+        projectUuid: string,
+        projectType: ProjectType,
+        provisioningSource: InternalProvisioningSource | undefined,
+    ): Promise<void> {
+        const { organizationUuid } = user;
+        if (
+            !organizationUuid ||
+            projectType === ProjectType.PREVIEW ||
+            provisioningSource !== undefined
+        ) {
+            return;
+        }
+        try {
+            if ((await this.getOnboardingFlow(user)) !== 'new') return;
+            await this.schedulerClient.warmWarehouseTablesCache({
+                organizationUuid,
+                projectUuid,
+                userUuid: user.userUuid,
+            });
+        } catch (error) {
+            this.logger.warn(
+                `Failed to schedule warehouse tables cache warm-up for project ${projectUuid}: ${getErrorMessage(error)}`,
+            );
+        }
+    }
+
     private async runPostProjectCreationProvisioning(
         user: SessionUser,
         projectUuid: string,
         projectType: ProjectType,
+        dbtProjectType: DbtProjectType,
+        method: RequestMethod,
         provisioningSource?: InternalProvisioningSource,
     ): Promise<void> {
         if (provisioningSource === 'analytics') return;
         await this.provisionDefaultAiAgent(
+            user,
+            projectUuid,
+            projectType,
+            provisioningSource,
+        );
+        await this.scheduleWarehouseTablesCacheWarmUp(
             user,
             projectUuid,
             projectType,
@@ -1456,6 +1495,8 @@ export class ProjectService
                 user,
                 projectUuid,
                 projectType,
+                dbtProjectType,
+                method,
                 provisioningSource,
             });
         } catch (error) {
@@ -5373,6 +5414,8 @@ export class ProjectService
             user,
             projectUuid,
             createProject.type,
+            createProject.dbtConnection.type,
+            method,
             internalProvisioning?.source,
         );
 
@@ -6046,6 +6089,8 @@ export class ProjectService
                 user,
                 projectUuid,
                 createProject.type,
+                createProject.dbtConnection.type,
+                method,
             );
 
             return { projectUuid };

@@ -1,4 +1,5 @@
 import type { StorybookConfig } from '@storybook/react-vite';
+import { feedbackPlugin } from './feedbackPlugin';
 
 const config: StorybookConfig = {
     stories: ['../src/**/*.mdx', '../src/**/*.stories.@(js|jsx|mjs|ts|tsx)'],
@@ -11,5 +12,9 @@ const config: StorybookConfig = {
     typescript: {
         reactDocgen: false,
     },
+    viteFinal: async (viteConfig) => ({
+        ...viteConfig,
+        plugins: [...(viteConfig.plugins ?? []), feedbackPlugin()],
+    }),
 };
 export default config;

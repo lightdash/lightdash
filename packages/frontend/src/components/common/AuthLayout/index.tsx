@@ -12,6 +12,7 @@ import {
 import LightdashLogo from '../../LightdashLogo/LightdashLogo';
 import PageSpinner from '../../PageSpinner';
 import { DocumentTitle } from '../DocumentTitle';
+import OnboardingLayout from '../OnboardingLayout';
 import classes from './AuthLayout.module.css';
 import { AuthPanelContext } from './AuthPanelContext';
 import CustomerLogos from './CustomerLogos';
@@ -37,6 +38,7 @@ const lightCellsByProgress = (panel: HTMLElement, progress: number) => {
 };
 
 type Props = {
+    centered?: boolean;
     /** Document title, matching what each page passed to `Page` before. */
     pageTitle: string;
     /** Split-layout heading. Omitted when the page renders its own heading. */
@@ -55,6 +57,7 @@ type Props = {
 
 const AuthLayout: FC<PropsWithChildren<Props>> = ({
     pageTitle,
+    centered = false,
     title,
     subtitle,
     legacyTitle,
@@ -130,6 +133,24 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
         return <PageSpinner />;
     }
 
+    if (isNewLayout && centered) {
+        return (
+            <OnboardingLayout withAccountSwitch={false} cardId={cardId}>
+                <DocumentTitle title={pageTitle} />
+                <Stack gap="lg">
+                    {title && (
+                        <Stack gap="xs">
+                            <Title order={1}>{title}</Title>
+                            {subtitle && <Text c="dimmed">{subtitle}</Text>}
+                        </Stack>
+                    )}
+                    {children}
+                    {footer}
+                </Stack>
+            </OnboardingLayout>
+        );
+    }
+
     if (!isNewLayout) {
         return (
             <>
@@ -165,28 +186,6 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
 
             <Box className={classes.root}>
                 <Box
-                    ref={brandPanelRef}
-                    className={classes.brandPanel}
-                    data-stage="idle"
-                >
-                    <LightdashWordmark className={classes.brandWordmark} />
-
-                    <Stack gap="lg" className={classes.brandIntro}>
-                        <Title order={1} className={classes.headline}>
-                            Analytics at the speed of code.
-                        </Title>
-                        <Text className={classes.subcopy}>
-                            The only open-source, AI-native BI platform that
-                            lets AI build, refactor, and ship analytics in
-                            minutes.
-                        </Text>
-                        {withCustomerLogos && <CustomerLogos />}
-                    </Stack>
-
-                    <ListeningBlocks />
-                </Box>
-
-                <Box
                     className={classes.formPanel}
                     onFocusCapture={handleFormFocus}
                     onInputCapture={handleFormInput}
@@ -208,6 +207,27 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
                         {children}
                         {footer}
                     </Stack>
+                </Box>
+                <Box
+                    ref={brandPanelRef}
+                    className={classes.brandPanel}
+                    data-stage="idle"
+                >
+                    <LightdashWordmark className={classes.brandWordmark} />
+
+                    <Stack gap="lg" className={classes.brandIntro}>
+                        <Title order={1} className={classes.headline}>
+                            Analytics at the speed of code.
+                        </Title>
+                        <Text className={classes.subcopy}>
+                            The only open-source, AI-native BI platform that
+                            lets AI build, refactor, and ship analytics in
+                            minutes.
+                        </Text>
+                        {withCustomerLogos && <CustomerLogos />}
+                    </Stack>
+
+                    <ListeningBlocks />
                 </Box>
             </Box>
         </AuthPanelContext.Provider>

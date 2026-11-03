@@ -14,21 +14,19 @@ import { DEFAULT_GREETING_SUBTITLE, getGreeting } from '../greeting';
 import layout from '../homepageLayout.module.css';
 import { useHomepageAiState } from '../hooks/useHomepageAiState';
 import { useHomepageConfigFacts } from '../hooks/useHomepageConfigFacts';
+import { HomepageTour } from '../onboarding';
 import classes from './blockStyles.module.css';
 import { GreetingHero } from './GreetingHero';
 import { getDefaultQuickActions } from './quickActionDefaults';
 import { QuickActionCards } from './QuickActionsBlock';
-import {
-    RecommendedActionsChecklist,
-    RecommendedActionsChecklistPlaceholder,
-} from './RecommendedActionsChecklist';
+import { SetupGuide } from './setupGuide/SetupGuide';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
 import { useRecommendedActions } from './useRecommendedActions';
 
 // The day-0 hero, as a reusable unit: greeting + the real agent chat
 // composer with live suggestions. Shared between DayOneHomepage (always
 // greets) and this block (greeting is a per-homepage toggle). The setup
-// checklist replaces the suggestion chips when enabled.
+// guide replaces the suggestion chips when enabled.
 export const AskAiHero: FC<{
     projectUuid: string;
     showGreeting: boolean;
@@ -44,9 +42,8 @@ export const AskAiHero: FC<{
 }) => {
     const { user } = useApp();
     const actions = useRecommendedActions(projectUuid);
-    // One answer for the whole hero: the greeting's wording and whether there
-    // is a checklist at all come from the same statuses, so they arrive
-    // together or not at all. The composer holds its own slot from the first
+    // The greeting's wording comes from the same statuses the setup guide
+    // holds on, so neither reveals before the other. The composer holds its own slot from the first
     // render — gating its mount here would stop it fetching until the reveal
     // and land it a beat late.
     const isReady = !actions.isLoading;
@@ -64,19 +61,17 @@ export const AskAiHero: FC<{
                 ) : (
                     <Skeleton h={34} w={320} radius="sm" />
                 ))}
-            <Box w="100%">
+            <Box w="100%" data-tour="home-ask">
                 <DayOneAskInput projectUuid={projectUuid} preview={preview} />
             </Box>
-            {showRecommendedActions &&
-                (isReady ? (
-                    actions.hasPendingActions && (
-                        <RecommendedActionsChecklist actions={actions} />
-                    )
-                ) : (
-                    <RecommendedActionsChecklistPlaceholder
-                        actionCount={actions.visibleActions.length}
-                    />
-                ))}
+            {showRecommendedActions && (
+                <Box w="100%" data-tour="home-setup">
+                    <SetupGuide projectUuid={projectUuid} actions={actions} />
+                </Box>
+            )}
+            {!preview && (
+                <HomepageTour ready={isReady && isWarehouseConnected} />
+            )}
         </Stack>
     );
 };

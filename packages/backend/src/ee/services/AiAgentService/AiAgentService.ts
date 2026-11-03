@@ -784,6 +784,7 @@ type StaticToolCall = {
 // The fast edit reply waits this long for a one-number result before sending without it.
 const SINGLE_VALUE_TIMEOUT_MS = 3_000;
 const COMPOSER_RUN_SETTLE_TIMEOUT_MS = 3 * 60_000;
+const COMPOSER_TOP_EVENTS = 30;
 
 type ChartIntentApplication =
     | {
@@ -980,7 +981,7 @@ type AiAgentServiceDependencies = {
     querySourceService: Pick<QuerySourceService, 'submitQueries'>;
     externalConnectionService: Pick<
         ExternalConnectionService,
-        'listApiSourceConnections'
+        'listApiSourceConnectionsWithSchema'
     >;
     queryHistoryModel: Pick<QueryHistoryModel, 'pollForQueryCompletion'>;
     catalogService: CatalogService;
@@ -3914,22 +3915,29 @@ export class AiAgentService extends BaseService {
                     user,
                     featureFlagId: FeatureFlags.AgentIdentity,
                 });
-            const catalog = await agentExecutionContext.run(
-                createAgentExecutionContext({
-                    account: fromSession(user),
-                    surface: AgentActorSurface.IN_APP_AGENT,
-                    clientId: AGENT_CLIENT_IDS[AgentActorSurface.IN_APP_AGENT],
-                    agentUuid,
-                    agentIdentityEnabled,
-                }),
-                () =>
-                    this.projectService.getWarehouseTables(
-                        user,
-                        projectUuid,
-                        QueryExecutionContext.AI,
-                        QuerySurface.APP,
-                    ),
-            );
+            // Without agent identity the agent uses the project's credentials, so the cached catalog matches
+            const catalog = agentIdentityEnabled
+                ? await agentExecutionContext.run(
+                      createAgentExecutionContext({
+                          account: fromSession(user),
+                          surface: AgentActorSurface.IN_APP_AGENT,
+                          clientId:
+                              AGENT_CLIENT_IDS[AgentActorSurface.IN_APP_AGENT],
+                          agentUuid,
+                          agentIdentityEnabled,
+                      }),
+                      () =>
+                          this.projectService.getWarehouseTables(
+                              user,
+                              projectUuid,
+                              QueryExecutionContext.AI,
+                              QuerySurface.APP,
+                          ),
+                  )
+                : await this.projectService.getWarehouseTables(
+                      user,
+                      projectUuid,
+                  );
             const tables: string[] = [];
             for (const [database, schemas] of Object.entries(catalog)) {
                 for (const [schema, schemaTables] of Object.entries(schemas)) {
@@ -11751,19 +11759,28 @@ export class AiAgentService extends BaseService {
             featureFlagId: FeatureFlags.ApiQuerySources,
         });
         if (!enabled) return [];
-        const connections =
-            await this.externalConnectionService.listApiSourceConnections(
+        const sources =
+            await this.externalConnectionService.listApiSourceConnectionsWithSchema(
                 fromSession(user),
                 projectUuid,
             );
-        return connections.flatMap(
-            ({ externalConnectionUuid, name, apiSource }) =>
+        return sources.flatMap(
+            ({
+                connection: { externalConnectionUuid, name, apiSource },
+                scan,
+            }) =>
                 apiSource
                     ? [
                           {
                               connectionUuid: externalConnectionUuid,
                               name,
                               connector: apiSource.connector,
+                              topEvents:
+                                  scan?.status === 'ready'
+                                      ? scan.events
+                                            .slice(0, COMPOSER_TOP_EVENTS)
+                                            .map(({ name: event }) => event)
+                                      : null,
                           },
                       ]
                     : [],

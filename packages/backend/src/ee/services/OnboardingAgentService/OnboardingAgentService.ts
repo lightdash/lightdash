@@ -428,6 +428,23 @@ export class OnboardingAgentService extends BaseService {
         }
     }
 
+    getMissingInfrastructure(): string | null {
+        try {
+            this.getSandboxTemplateRef();
+            const { sandboxProvider, e2bApiKey } =
+                this.lightdashConfig.appRuntime;
+            if (sandboxProvider === 'e2b' && !e2bApiKey) {
+                throw new MissingConfigError('E2B API key is not configured');
+            }
+            resolveSandboxAnthropicConfig(this.lightdashConfig);
+            this.fileStore.assertConfigured();
+            return null;
+        } catch (error) {
+            if (error instanceof MissingConfigError) return error.message;
+            throw error;
+        }
+    }
+
     private getSandboxFacingSiteUrl(): string {
         if (this.lightdashConfig.appRuntime.sandboxProvider !== 'docker') {
             return this.lightdashConfig.siteUrl;
@@ -1013,6 +1030,9 @@ export class OnboardingAgentService extends BaseService {
                 });
             const handoff = this.buildHandoff(assistantText, sensitiveValues());
             if (!hasCompleteOnboardingOutput(files) || !handoff.dashboardUrl) {
+                this.logger.warn(
+                    `OnboardingAgent: incomplete output (${files.length} files, ${usage?.numTurns ?? 0} turns), last message: ${assistantText.slice(-600)}`,
+                );
                 throw new UnexpectedServerError(
                     'The onboarding agent stopped before generating all required project files. Please try again.',
                 );

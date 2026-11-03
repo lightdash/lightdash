@@ -161,8 +161,11 @@ export enum FeatureFlags {
     OrganizationTrialBlock = 'organization-trial-block',
 
     /**
-     * Show the coding-agent project onboarding flow. This gates only the UI;
-     * the CLI, APIs, and installed skills remain available independently.
+     * Show the coding-agent project onboarding flow. With NewOnboarding, it
+     * also auto-starts an onboarding run when a dbt-less warehouse project is
+     * created from the web app and the sandbox, Anthropic key and S3 are
+     * configured. The CLI, APIs, and installed skills remain available
+     * independently.
      */
     CodingAgentOnboarding = 'coding-agent-onboarding',
 

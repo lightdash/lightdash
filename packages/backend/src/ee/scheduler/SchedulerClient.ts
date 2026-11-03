@@ -24,6 +24,7 @@ import {
     MobilePushLiveActivityJobPayload,
     MobilePushLiveActivityStartJobPayload,
     PublishAnnouncementPayload,
+    ScanApiSourceSchemaJobPayload,
     SlackPromptJobPayload,
 } from '@lightdash/common';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
@@ -442,6 +443,20 @@ export class CommercialSchedulerClient extends SchedulerClient {
                 runAt: options.runAt ?? new Date(),
                 maxAttempts: 5,
                 jobKey: `external-source-ingest:${payload.attemptUuid}`,
+            },
+        );
+        return { jobId };
+    }
+
+    async scanApiSourceSchema(payload: ScanApiSourceSchemaJobPayload) {
+        const graphileClient = await this.graphileUtils;
+        const { id: jobId } = await graphileClient.addJob(
+            EE_SCHEDULER_TASKS.SCAN_API_SOURCE_SCHEMA,
+            payload,
+            {
+                runAt: new Date(),
+                maxAttempts: 1,
+                jobKey: `api-source-schema:${payload.externalConnectionUuid}`,
             },
         );
         return { jobId };

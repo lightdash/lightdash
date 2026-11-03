@@ -37,10 +37,10 @@ import {
 } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { z } from 'zod';
-import AboutFooter from '../components/AboutFooter';
 import Callout from '../components/common/Callout';
 import { DocumentTitle } from '../components/common/DocumentTitle';
 import MantineIcon from '../components/common/MantineIcon';
+import OnboardingLayout from '../components/common/OnboardingLayout';
 import PageSpinner from '../components/PageSpinner';
 import {
     getPlaygroundSetupFailure,
@@ -363,7 +363,7 @@ const OnboardingInviteExpert: FC = () => {
     // submitting would only produce a raw 403.
     if (!canInviteUsers) {
         return (
-            <Box className={classes.page}>
+            <OnboardingLayout>
                 <DocumentTitle title="Invite an expert" />
                 <Box className={classes.column}>
                     <Stack align="center" gap="md" maw={420} mx="auto">
@@ -389,13 +389,12 @@ const OnboardingInviteExpert: FC = () => {
                         </Button>
                     </Stack>
                 </Box>
-                <AboutFooter />
-            </Box>
+            </OnboardingLayout>
         );
     }
 
     return (
-        <Box className={classes.page}>
+        <OnboardingLayout>
             <DocumentTitle title="Invite an expert" />
             <Box className={classes.column}>
                 <Stack align="center" gap="xs">
@@ -449,8 +448,7 @@ const OnboardingInviteExpert: FC = () => {
                     {backLabel}
                 </Button>
             </Box>
-            <AboutFooter />
-        </Box>
+        </OnboardingLayout>
     );
 };
 

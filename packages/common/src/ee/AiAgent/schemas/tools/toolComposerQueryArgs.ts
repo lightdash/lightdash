@@ -53,6 +53,8 @@ export type ComposerApiConnection = {
     connectionUuid: string;
     name: string;
     connector: ApiConnectorType;
+    /** Busiest event names from the connection's last schema scan; null when not scanned. */
+    topEvents: string[] | null;
 };
 
 type ComposerQueriesDescriptionOptions = {
@@ -81,8 +83,14 @@ const getComposerNodeKindsDescription = ({
         ? `
 - "api": a query sent live to an external API through a project connection, such as HogQL to PostHog, a Search Analytics request to Google Search Console or a report request to Google Analytics 4. It reads no other results; join its rows with a duckdb node. Set "connectionUuid" to one of: ${apiConnections
               .map(
-                  ({ connectionUuid, name, connector }) =>
-                      `"${connectionUuid}" (${name}, ${connector})`,
+                  ({ connectionUuid, name, connector, topEvents }) =>
+                      `"${connectionUuid}" (${name}, ${connector}${
+                          topEvents && topEvents.length > 0
+                              ? `; busiest events: ${topEvents
+                                    .map((event) => JSON.stringify(event))
+                                    .join(', ')}`
+                              : ''
+                      })`,
               )
               .join(', ')}.`
         : ''

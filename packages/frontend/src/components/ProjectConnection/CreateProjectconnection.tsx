@@ -7,7 +7,7 @@ import {
     WarehouseTypes,
     type CreateWarehouseCredentials,
 } from '@lightdash/common';
-import { Button, Group, Loader } from '@mantine/core';
+import { Button, Group } from '@mantine/core';
 import {
     useCallback,
     useEffect,
@@ -15,6 +15,7 @@ import {
     useRef,
     useState,
     type FC,
+    type ReactNode,
 } from 'react';
 import { useLocation } from 'react-router';
 import {
@@ -26,12 +27,15 @@ import useActiveJob from '../../providers/ActiveJob/useActiveJob';
 import useApp from '../../providers/App/useApp';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
+import { withViewTransition } from '../common/viewTransition';
+import { ConnectionFormSkeleton } from './ConnectionFormSkeleton';
 import classes from './CreateProjectconnection.module.css';
 import CreateProjectJobProgress from './CreateProjectJobProgress';
 import { dbtDefaults, noneDefaultValues } from './DbtForms/defaultValues';
 import { dbtFormValidators } from './DbtForms/validators';
 import { FormContainer } from './FormContainer';
 import { FormProvider, useForm } from './formContext';
+import { getWarehouseLabel } from './ProjectConnectFlow/utils';
 import { ProjectForm } from './ProjectForm';
 import { ProjectFormProvider } from './ProjectFormProvider';
 import { type ProjectConnectionForm } from './types';
@@ -47,6 +51,8 @@ interface CreateProjectConnectionProps {
     successRedirect?: (projectUuid: string) => string;
     /** Fire a confetti burst when the connection is saved successfully. */
     celebrateOnSuccess?: boolean;
+    footerStart?: ReactNode;
+    alwaysShowProjectName?: boolean;
 }
 
 const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
@@ -55,6 +61,8 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
     warehouseOnly = false,
     successRedirect,
     celebrateOnSuccess = false,
+    footerStart = null,
+    alwaysShowProjectName = false,
 }) => {
     const { pathname } = useLocation();
     const onboardingFlow = pathname.startsWith('/onboarding/')
@@ -104,6 +112,7 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
     // The first project is named after the organization; every later one
     // needs its own name, otherwise its slug becomes "<org>-2", "<org>-3".
     const asksForProjectName = !isCreatingFirstProject;
+    const showsProjectName = asksForProjectName || alwaysShowProjectName;
     const form = useForm({
         initialValues: {
             name: asksForProjectName ? '' : user.data?.organizationName || '',
@@ -118,7 +127,7 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
         },
         validate: {
             name: (value) =>
-                asksForProjectName && value.trim() === ''
+                showsProjectName && value.trim() === ''
                     ? 'Project name is required'
                     : null,
             warehouse: createWarehouseValueValidators[warehouseType],
@@ -184,6 +193,8 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
         createProjectJobId,
         successRedirect,
         celebrateOnSuccess,
+        // Let the inline success state register before the next step slides in
+        successHoldMs: warehouseOnly ? 900 : 0,
         submitButtonRef,
     });
 
@@ -238,22 +249,53 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
         [isSaving, createProjectJobId, hasThisJobFailed],
     );
 
-    const thisJob =
+    const latestJob =
         createProjectJobId &&
         createProjectJobId === activeJob?.jobUuid &&
         isCreateProjectJob(activeJob)
             ? activeJob
             : undefined;
 
-    const hideForm = !!thisJob && thisJob.jobStatus !== JobStatusType.ERROR;
+    // Swap form and progress card inside a view transition so the card morphs instead of snapping
+    const [shown, setShown] = useState<{
+        jobUuid: string;
+        hidesForm: boolean;
+    } | null>(null);
+    const latestJobUuid = latestJob?.jobUuid;
+    const latestHidesForm =
+        !!latestJob && latestJob.jobStatus !== JobStatusType.ERROR;
+    useEffect(() => {
+        if (
+            !latestJobUuid ||
+            (shown?.jobUuid === latestJobUuid &&
+                shown.hidesForm === latestHidesForm)
+        ) {
+            return;
+        }
+        withViewTransition(() =>
+            setShown({ jobUuid: latestJobUuid, hidesForm: latestHidesForm }),
+        );
+    }, [latestJobUuid, latestHidesForm, shown]);
+    const thisJob =
+        latestJob?.jobUuid === shown?.jobUuid ? latestJob : undefined;
+
+    const hideForm = !!thisJob && !!shown?.hidesForm;
 
     if (isCheckingInFlightJob) {
-        return (
-            <Group justify="center" p="xl">
-                <Loader color="gray" />
-            </Group>
-        );
+        return <ConnectionFormSkeleton />;
     }
+
+    const submitButton = (
+        <Button
+            ref={submitButtonRef}
+            className={classes.submitButton}
+            type="submit"
+            loading={isSavingProject}
+            disabled={!form.isValid()}
+        >
+            {warehouseOnly ? 'Test & save' : 'Test & deploy project'}
+        </Button>
+    );
 
     return (
         <FormProvider form={form}>
@@ -263,12 +305,21 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
             >
                 <FormContainer>
                     <ProjectFormProvider>
-                        {thisJob && <CreateProjectJobProgress job={thisJob} />}
+                        {thisJob && (
+                            <CreateProjectJobProgress
+                                job={thisJob}
+                                warehouseLabel={
+                                    selectedWarehouse
+                                        ? getWarehouseLabel(selectedWarehouse)
+                                        : null
+                                }
+                            />
+                        )}
 
                         {!hideForm && (
                             <>
                                 <ProjectForm
-                                    showGeneralSettings={asksForProjectName}
+                                    showGeneralSettings={showsProjectName}
                                     disabled={isSavingProject}
                                     defaultType={
                                         health.data?.defaultProject?.type
@@ -276,17 +327,17 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                                     warehouseOnly={warehouseOnly}
                                 />
 
-                                <Button
-                                    ref={submitButtonRef}
-                                    className={classes.submitButton}
-                                    type="submit"
-                                    loading={isSavingProject}
-                                    disabled={!form.isValid()}
-                                >
-                                    {warehouseOnly
-                                        ? 'Test & save'
-                                        : 'Test & deploy project'}
-                                </Button>
+                                {footerStart ? (
+                                    <Group
+                                        justify="space-between"
+                                        data-form-footer
+                                    >
+                                        {footerStart}
+                                        {submitButton}
+                                    </Group>
+                                ) : (
+                                    submitButton
+                                )}
                             </>
                         )}
                     </ProjectFormProvider>

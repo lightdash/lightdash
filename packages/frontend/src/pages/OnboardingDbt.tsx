@@ -1,4 +1,8 @@
-import { DbtProjectType, type OrganizationProject } from '@lightdash/common';
+import {
+    DbtProjectType,
+    hasSemanticLayerExplore,
+    type OrganizationProject,
+} from '@lightdash/common';
 import {
     Anchor,
     Box,
@@ -19,18 +23,20 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState, type FC } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router';
-import AboutFooter from '../components/AboutFooter';
 import CodeBlock from '../components/common/CodeBlock/CodeBlock';
 import { DocumentTitle } from '../components/common/DocumentTitle';
 import MantineIcon from '../components/common/MantineIcon';
+import OnboardingLayout from '../components/common/OnboardingLayout';
 import useToaster from '../hooks/toaster/useToaster';
 import { useActiveProjectUuid } from '../hooks/useActiveProject';
+import { useExplores } from '../hooks/useExplores';
 import { useOnboardingPageGuard } from '../hooks/useOnboardingPageGuard';
 import { useProject } from '../hooks/useProject';
 import { useProjects } from '../hooks/useProjects';
 import useApp from '../providers/App/useApp';
 import useTracking from '../providers/Tracking/useTracking';
 import { EventName } from '../types/Events';
+import { isPlaygroundProvisioningSource } from '../utils/playgroundProject';
 import classes from './OnboardingDbt.module.css';
 
 const DOCS_URL =
@@ -144,6 +150,12 @@ const useDbtSetupDetection = (isEnabled: boolean) => {
 
     const { data: projects } = useProjects(pollOptions);
     const { data: project } = useProject(activeProjectUuid, pollOptions);
+    const { data: explores } = useExplores(
+        activeProjectUuid,
+        false,
+        false,
+        pollOptions,
+    );
 
     const baselineProjectUuids = useRef<string[] | null>(null);
     const [isDetected, setIsDetected] = useState(false);
@@ -171,7 +183,18 @@ const useDbtSetupDetection = (isEnabled: boolean) => {
         }
     }, [project]);
 
-    return { isDetected, activeProjectUuid };
+    useEffect(() => {
+        if (explores && hasSemanticLayerExplore(explores)) {
+            setIsDetected(true);
+        }
+    }, [explores]);
+
+    const deployTargetUuid =
+        project && !isPlaygroundProvisioningSource(project.provisioningSource)
+            ? project.projectUuid
+            : null;
+
+    return { isDetected, deployTargetUuid };
 };
 
 const DbtCliWaiting: FC = () => {
@@ -185,7 +208,7 @@ const DbtCliWaiting: FC = () => {
     const siteUrl = health.data?.siteUrl ?? '';
     const version = health.data?.version ?? '';
 
-    const { isDetected } = useDbtSetupDetection(true);
+    const { isDetected, deployTargetUuid } = useDbtSetupDetection(true);
     const hasCompletedRef = useRef(false);
 
     useEffect(() => {
@@ -272,7 +295,11 @@ const DbtCliWaiting: FC = () => {
             title: 'Deploy your dbt project',
             content: (
                 <CodeBlock
-                    code="lightdash deploy --create"
+                    code={
+                        deployTargetUuid
+                            ? `lightdash deploy --project ${deployTargetUuid}`
+                            : 'lightdash deploy --create'
+                    }
                     language="bash"
                     onCopy={handleCopy}
                 />
@@ -320,15 +347,14 @@ const OnboardingDbtContent: FC = () => {
     }
 
     return (
-        <Box className={classes.page}>
+        <OnboardingLayout>
             <DocumentTitle title="Set up your dbt" />
             {method === CLI_ROUTE_PARAM ? (
                 <DbtCliWaiting />
             ) : (
                 <DbtMethodPicker />
             )}
-            <AboutFooter />
-        </Box>
+        </OnboardingLayout>
     );
 };
 

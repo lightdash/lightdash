@@ -1,0 +1,82 @@
+.tile {
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-sm);
+    padding: 10px var(--mantine-spacing-sm);
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-md);
+    transition: border-color 100ms ease;
+}
+
+.tile:hover:not(:disabled) {
+    border-color: var(--mantine-color-ldGray-4);
+}
+
+.tile:disabled {
+    cursor: progress;
+}
+
+.tileLabel {
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.shortcut {
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-sm);
+    padding: var(--mantine-spacing-sm);
+    border-radius: var(--mantine-radius-md);
+    background: var(--ld-color-page);
+    transition: background-color 100ms ease;
+}
+
+.shortcut:hover:not(:disabled) {
+    background: var(--mantine-color-ldGray-1);
+}
+
+.shortcut:disabled {
+    cursor: progress;
+}
+
+.shortcutIcon {
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--mantine-radius-sm);
+    background: var(--mantine-color-body);
+    border: 1px solid var(--mantine-color-default-border);
+}
+
+.shortcutText {
+    flex: 1;
+    min-width: 0;
+}
+
+.tileLogo {
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-sm);
+    background: var(--mantine-color-body);
+}
+
+.tileLogo :global(.mantine-Avatar-root) {
+    width: 18px;
+    min-width: 18px;
+    height: 18px;
+    border-radius: 0;
+    background: transparent;
+}
+
+.tileLogo :global(.mantine-Avatar-image) {
+    object-fit: contain;
+}

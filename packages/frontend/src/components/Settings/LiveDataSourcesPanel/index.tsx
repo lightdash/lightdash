@@ -23,15 +23,13 @@ import {
     IconRefresh,
     IconTrash,
 } from '@tabler/icons-react';
-import { useEffect, useState, type FC } from 'react';
-import { useSearchParams } from 'react-router';
+import { useState, type FC } from 'react';
 import { useExternalConnectionApiUsage } from '../../../features/externalConnections/hooks/useExternalConnectionApiUsage';
 import { useExternalConnections } from '../../../features/externalConnections/hooks/useExternalConnections';
 import { getLiveSource } from '../../../features/externalConnections/liveSources/liveSourceCatalog';
 import { LiveSourceIcon } from '../../../features/externalConnections/liveSources/LiveSourceIcon';
 import useHealth from '../../../hooks/health/useHealth';
 import tableStyles from '../../../hooks/styles/tableStyles.module.css';
-import useToaster from '../../../hooks/toaster/useToaster';
 import { formatDuration } from '../../../utils/formatters';
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsCard } from '../../common/Settings/SettingsCard';
@@ -44,6 +42,7 @@ import { GoogleConnectionModal } from './GoogleConnectionModal';
 import { GoogleSourcePickerModal } from './GoogleSourcePickerModal';
 import { getPostHogSignInUrl, toPostHogFormValues } from './postHogConnection';
 import { PostHogConnectionModal } from './PostHogConnectionModal';
+import { useLiveSourceSignInResult } from './useLiveSourceSignInResult';
 
 type Props = {
     projectUuid: string;
@@ -168,32 +167,8 @@ const LiveDataSourcesPanel: FC<Props> = ({ projectUuid }) => {
     const { data: health } = useHealth();
     const canSignIn = health?.hasPostHogOAuth ?? false;
     const canUseGoogle = health?.hasGoogleLiveSources ?? false;
-    const { showToastSuccess, showToastError } = useToaster();
-
-    // Sign-in callbacks land here with their outcome.
-    const [searchParams, setSearchParams] = useSearchParams();
-    const isPickingGoogleSource =
-        searchParams.get('pickGoogleSource') === 'true';
-    const closeGoogleSourcePicker = () => {
-        searchParams.delete('pickGoogleSource');
-        setSearchParams(searchParams, { replace: true });
-    };
-    useEffect(() => {
-        const connected = searchParams.get('connected');
-        const signInError = searchParams.get('signInError');
-        if (!connected && !signInError) return;
-        if (signInError) {
-            showToastError({
-                title: 'Could not connect the source',
-                subtitle: signInError,
-            });
-        } else {
-            showToastSuccess({ title: 'Source connected' });
-        }
-        searchParams.delete('connected');
-        searchParams.delete('signInError');
-        setSearchParams(searchParams, { replace: true });
-    }, [searchParams, setSearchParams, showToastError, showToastSuccess]);
+    const { isPickingGoogleSource, closeGoogleSourcePicker } =
+        useLiveSourceSignInResult();
     const sources = (connections ?? [])
         .filter((connection) => connection.kind === 'live_source')
         .sort(byIntegrationThenName);
@@ -220,6 +195,7 @@ const LiveDataSourcesPanel: FC<Props> = ({ projectUuid }) => {
                               connector,
                               connection.name,
                               connection.externalConnectionUuid,
+                              'settings',
                           ),
                       )
                 : null;
@@ -231,6 +207,7 @@ const LiveDataSourcesPanel: FC<Props> = ({ projectUuid }) => {
                           projectUuid,
                           toPostHogFormValues(connection, canSignIn),
                           connection.externalConnectionUuid,
+                          'settings',
                       ),
                   )
             : null;

@@ -938,6 +938,33 @@ type OrganizationBrandDetectedEvent = {
     };
 };
 
+export type OnboardingScreen =
+    | 'organization'
+    | 'about_you'
+    | 'meet_aurora'
+    | 'choose_source'
+    | 'warehouse_form'
+    | 'tools'
+    | 'team'
+    | 'done';
+
+type OnboardingScreenViewedEvent = {
+    name: EventName.ONBOARDING_SCREEN_VIEWED;
+    properties: {
+        screen: OnboardingScreen;
+        variant: string;
+        secondsOnPreviousScreen: number | null;
+    };
+};
+
+type OnboardingStepSkippedEvent = {
+    name: EventName.ONBOARDING_STEP_SKIPPED;
+    properties: {
+        screen: OnboardingScreen;
+        variant: string;
+    };
+};
+
 type OnboardingWarehouseSelectedEvent = {
     name: EventName.ONBOARDING_WAREHOUSE_SELECTED;
     properties: {
@@ -1326,6 +1353,8 @@ export type EventData =
     | OrganizationSetupStepCompletedEvent
     | OrganizationBrandDetectedEvent
     | OnboardingWarehouseSelectedEvent
+    | OnboardingScreenViewedEvent
+    | OnboardingStepSkippedEvent
     | BigquerySsoSigninCompletedEvent
     | SnowflakeCliSsoCommandCopiedEvent
     | SnowflakeCliSsoConnectCompletedEvent

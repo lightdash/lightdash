@@ -65,9 +65,9 @@ import { BigQueryDefaultValues } from './defaultValues';
 
 const bigQuerySchemaDescription = (
     <p>
-        This is the name of your dbt dataset: the dataset in your warehouse
-        where the output of your dbt models is written to. If you're not sure
-        what this is, check out the
+        The name of your dbt dataset: the dataset in your warehouse where the
+        output of your dbt models is written to. If you're not sure what this
+        is, check out the
         <b> dataset </b>
         value{' '}
         <Anchor
@@ -514,7 +514,7 @@ const BigQueryForm: FC<{
                                                 href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#project"
                                                 rel="noreferrer"
                                             >
-                                                This is the GCP project ID
+                                                The GCP project ID
                                             </Anchor>
                                             .
                                         </p>
@@ -610,7 +610,7 @@ const BigQueryForm: FC<{
                                                 href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#project"
                                                 rel="noreferrer"
                                             >
-                                                This is the GCP project ID
+                                                The GCP project ID
                                             </Anchor>
                                             .
                                         </p>
@@ -697,8 +697,7 @@ const BigQueryForm: FC<{
                                     }
                                     description={
                                         <p>
-                                            This is the JSON key file. You can
-                                            see{' '}
+                                            The JSON key file. You can see{' '}
                                             <Anchor
                                                 inherit
                                                 target="_blank"

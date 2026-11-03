@@ -20,6 +20,7 @@ import {
     WarehouseConnectionError,
     type Account,
     type ApiSaveExternalConnectionSampleRequest,
+    type ApiSourceSchemaScan,
     type CreateExternalConnection,
     type ExternalConnection,
     type ExternalConnectionApiUsage,
@@ -34,6 +35,7 @@ import {
     type ExternalFetchResponse,
     type GoogleLiveSourceChoice,
     type GoogleLiveSourcePendingChoice,
+    type QuerySourceSchemaTable,
     type RegisteredAccount,
     type UpdateExternalConnection,
 } from '@lightdash/common';
@@ -55,6 +57,11 @@ import type {
 import { Ga4Connector } from '../../../services/QuerySourceService/api/google/Ga4Connector';
 import { SearchConsoleConnector } from '../../../services/QuerySourceService/api/google/SearchConsoleConnector';
 import { PostHogConnector } from '../../../services/QuerySourceService/api/posthog/PostHogConnector';
+import {
+    scanPostHogSchema,
+    toFailedScan,
+    toPostHogSchemaTable,
+} from '../../../services/QuerySourceService/api/posthog/postHogSchemaScan';
 import type { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
 import {
     normalizeCredentialUrlHref,
@@ -67,6 +74,7 @@ import {
     type AllowedPrivateHostCidrs,
 } from '../../../utils/secureFetch/secureFetch';
 import { type ExternalConnectionModel } from '../../models/ExternalConnectionModel';
+import { type CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
 import { generateExternalConnectionConfigProposal } from '../ai/agents/externalConnectionConfigGenerator';
 import { getModel } from '../ai/models';
 import { type GeneratorModelOptions } from '../ai/models/types';
@@ -140,11 +148,19 @@ type ExternalConnectionServiceArguments = {
     oauthAuthorizationCodeTokenClient: OAuthAuthorizationCodeTokenClient;
     orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
     featureFlagModel: FeatureFlagModel;
+    schedulerClient: Pick<CommercialSchedulerClient, 'scanApiSourceSchema'>;
     encryptionUtil: Pick<EncryptionUtil, 'encrypt' | 'decrypt'>;
     lightdashConfig: Pick<LightdashConfig, 'siteUrl' | 'liveSources' | 'auth'>;
 };
 
 export type PostHogRegion = keyof typeof POSTHOG_REGION_ORIGINS;
+
+/** The page a live-source sign-in returns to; a closed set, so it cannot redirect off-site. */
+export type LiveSourceReturnTo = 'settings' | 'onboarding';
+
+export const parseLiveSourceReturnTo = (
+    value: string | undefined,
+): LiveSourceReturnTo => (value === 'onboarding' ? 'onboarding' : 'settings');
 
 /** What the sign-in callback needs from the request that started it. */
 export type PostHogOAuthSession = {
@@ -217,6 +233,8 @@ export class ExternalConnectionService extends BaseService {
 
     private readonly featureFlagModel: FeatureFlagModel;
 
+    private readonly schedulerClient: ExternalConnectionServiceArguments['schedulerClient'];
+
     private static readonly DEFAULT_RATE_LIMIT_PER_MINUTE = 60;
 
     private static readonly MAX_PROPOSAL_DESCRIPTION_CHARS = 2_000;
@@ -242,6 +260,7 @@ export class ExternalConnectionService extends BaseService {
         });
         this.orgAiCopilotConfigResolver = args.orgAiCopilotConfigResolver;
         this.featureFlagModel = args.featureFlagModel;
+        this.schedulerClient = args.schedulerClient;
     }
 
     private async assertLiveSourcesEnabled(
@@ -409,6 +428,7 @@ export class ExternalConnectionService extends BaseService {
                 authType: connection.type,
             },
         });
+        await this.scheduleApiSourceSchemaScan(account, connection);
         return connection;
     }
 
@@ -762,6 +782,12 @@ export class ExternalConnectionService extends BaseService {
                 ...ExternalConnectionService.kindProperties(updated),
             },
         });
+        if (
+            data.secret !== undefined ||
+            !isEqual(updated.apiSource, existing.apiSource)
+        ) {
+            await this.scheduleApiSourceSchemaScan(account, updated);
+        }
         return updated;
     }
 
@@ -1153,6 +1179,112 @@ export class ExternalConnectionService extends BaseService {
         };
     }
 
+    /** Queues a schema scan for a PostHog source; a failure to queue never fails the save. */
+    private async scheduleApiSourceSchemaScan(
+        account: RegisteredAccount,
+        connection: ExternalConnection,
+    ): Promise<void> {
+        if (connection.apiSource?.connector !== ApiConnectorType.POSTHOG) {
+            return;
+        }
+        try {
+            await this.externalConnectionModel.setApiSourceSchema(
+                connection.externalConnectionUuid,
+                { status: 'pending', requestedAt: new Date() },
+            );
+            await this.schedulerClient.scanApiSourceSchema({
+                organizationUuid: connection.organizationUuid,
+                projectUuid: connection.projectUuid,
+                userUuid: account.user.id,
+                externalConnectionUuid: connection.externalConnectionUuid,
+            });
+        } catch (error) {
+            this.logger.error(
+                `Failed to queue a schema scan for connection ${connection.externalConnectionUuid}: ${getErrorMessage(error)}`,
+            );
+        }
+    }
+
+    /** Runs a queued schema scan and stores what it found, or why it failed. */
+    async scanApiSourceSchema(
+        account: RegisteredAccount,
+        projectUuid: string,
+        connectionUuid: string,
+    ): Promise<ApiSourceSchemaScan> {
+        let scan: ApiSourceSchemaScan;
+        try {
+            scan = await scanPostHogSchema(() =>
+                this.getApiConnector(account, projectUuid, connectionUuid),
+            );
+        } catch (error) {
+            scan = toFailedScan(error);
+        }
+        await this.externalConnectionModel.setApiSourceSchema(
+            connectionUuid,
+            scan,
+        );
+        return scan;
+    }
+
+    async getApiSourceSchema(
+        account: RegisteredAccount,
+        projectUuid: string,
+        connectionUuid: string,
+    ): Promise<ApiSourceSchemaScan | null> {
+        await this.assertLiveSourcesEnabled(account);
+        await this.getViewableConnection(account, projectUuid, connectionUuid);
+        const scans = await this.externalConnectionModel.getApiSourceSchemas([
+            connectionUuid,
+        ]);
+        return scans.get(connectionUuid) ?? null;
+    }
+
+    /** Live sources the account may query, each with its last schema scan. */
+    async listApiSourceConnectionsWithSchema(
+        account: RegisteredAccount,
+        projectUuid: string,
+    ): Promise<
+        { connection: ExternalConnection; scan: ApiSourceSchemaScan | null }[]
+    > {
+        const connections = await this.listApiSourceConnections(
+            account,
+            projectUuid,
+        );
+        const scans = await this.externalConnectionModel.getApiSourceSchemas(
+            connections.map(
+                ({ externalConnectionUuid }) => externalConnectionUuid,
+            ),
+        );
+        return connections.map((connection) => ({
+            connection,
+            scan: scans.get(connection.externalConnectionUuid) ?? null,
+        }));
+    }
+
+    async listApiSourceSchemaTables(
+        account: RegisteredAccount,
+        projectUuid: string,
+    ): Promise<QuerySourceSchemaTable[]> {
+        const sources = await this.listApiSourceConnectionsWithSchema(
+            account,
+            projectUuid,
+        );
+        return sources.flatMap(({ connection, scan }) =>
+            scan?.status === 'ready' &&
+            connection.apiSource?.connector === ApiConnectorType.POSTHOG
+                ? [
+                      toPostHogSchemaTable(
+                          {
+                              connectionUuid: connection.externalConnectionUuid,
+                              name: connection.name,
+                          },
+                          scan,
+                      ),
+                  ]
+                : [],
+        );
+    }
+
     private static isPostHogRegion(region: string): region is PostHogRegion {
         return Object.hasOwn(POSTHOG_REGION_ORIGINS, region);
     }
@@ -1185,16 +1317,19 @@ export class ExternalConnectionService extends BaseService {
         return getPostHogClientMetadata(this.lightdashConfig.siteUrl);
     }
 
-    /** Where the sign-in callback lands, with its outcome for the settings page to show. */
+    /** Where the sign-in callback lands, with its outcome for that page to show. */
     getLiveDataSourcesUrl(
         projectUuid: string,
         result:
             | { connectionUuid: string }
             | { error: string }
             | { pickGoogleSource: true },
+        returnTo: LiveSourceReturnTo = 'settings',
     ): string {
         const url = new URL(
-            `/generalSettings/projectManagement/${projectUuid}/liveDataSources`,
+            returnTo === 'onboarding'
+                ? `/onboarding/tools/${projectUuid}`
+                : `/generalSettings/projectManagement/${projectUuid}/liveDataSources`,
             this.lightdashConfig.siteUrl,
         );
         if ('error' in result) {
@@ -1402,6 +1537,7 @@ export class ExternalConnectionService extends BaseService {
                     ...ExternalConnectionService.kindProperties(updated),
                 },
             });
+            await this.scheduleApiSourceSchemaScan(account, updated);
             return updated;
         }
 
@@ -1422,6 +1558,7 @@ export class ExternalConnectionService extends BaseService {
                 authType: connection.type,
             },
         });
+        await this.scheduleApiSourceSchemaScan(account, connection);
         return connection;
     }
 

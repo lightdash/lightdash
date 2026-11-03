@@ -289,19 +289,6 @@ const composerPlaceholder = (selection: ComposerSelection): string =>
         ? `Ask ${selection.name}…`
         : 'Ask anything about your data…';
 
-// The composer's footprint on a surface that is still deciding whether it can
-// show a composer at all. Lives here so the reserved height is stated once,
-// next to the composer it stands in for.
-export const DayOneAskInputPlaceholder: FC<
-    Pick<Props, 'projectUuid' | 'hideSuggestions'>
-> = ({ projectUuid, hideSuggestions }) => (
-    <div className={classes.composer}>
-        <Skeleton className={inputHoldClass(projectUuid)} radius="lg" />
-        {!projectUuid && <Skeleton h={17} w={260} mt={10} mx="auto" />}
-        {!hideSuggestions && <div className={classes.pillRow} />}
-    </div>
-);
-
 // The chips come from an LLM generation, so on a cold view they land a second
 // or two after the composer. The row reserves one chip-line of height while
 // loading so their arrival never shoves the greeting/composer up; the chips
@@ -315,7 +302,7 @@ const SuggestionPills: FC<{
 }> = ({ chips, loading, onPick }) => {
     if (!loading && chips.length === 0) return null;
     return (
-        <div className={classes.pillRow}>
+        <div className={classes.pillRow} data-tour="home-suggestions">
             {chips.map((chip, index) => (
                 <button
                     key={chip.label}

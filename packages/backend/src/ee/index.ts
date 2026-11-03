@@ -126,6 +126,7 @@ import { ManagedAgentService } from './services/ManagedAgentService/ManagedAgent
 import { McpService } from './services/McpService/McpService';
 import { MobilePushNotificationReconciler } from './services/MobilePushNotificationService/MobilePushNotificationReconciler';
 import { MobilePushNotificationService } from './services/MobilePushNotificationService/MobilePushNotificationService';
+import { autoStartOnboardingAgentRun } from './services/OnboardingAgentService/autoStartOnboardingAgentRun';
 import { OnboardingAgentService } from './services/OnboardingAgentService/OnboardingAgentService';
 import { OrganizationWarehouseCredentialsService } from './services/OrganizationWarehouseCredentialsService';
 import { ProjectContextService } from './services/ProjectContextService/ProjectContextService';
@@ -569,6 +570,13 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                                     account,
                                     projectUuid,
                                     connectionUuid,
+                                ),
+                        listSchemaTables: (account, projectUuid) =>
+                            repository
+                                .getExternalConnectionService<ExternalConnectionService>()
+                                .listApiSourceSchemaTables(
+                                    account,
+                                    projectUuid,
                                 ),
                     }),
                 );
@@ -1145,6 +1153,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 context,
                 repository,
                 utils,
+                clients,
             }) =>
                 new ExternalConnectionService({
                     allowedPrivateHostCidrs:
@@ -1155,6 +1164,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getExternalConnectionModel(),
                     appModel: models.getAppModel(),
                     featureFlagModel: models.getFeatureFlagModel(),
+                    schedulerClient:
+                        clients.getSchedulerClient() as CommercialSchedulerClient,
                     encryptionUtil: utils.getEncryptionUtil(),
                     appGenerateService:
                         repository.getAppGenerateService<AppGenerateService>(),
@@ -1339,24 +1350,43 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                             .getCustomSqlProvenance(args),
                     getAiAgentService: () =>
                         repository.getAiAgentService<AiAgentService>(),
-                    onProjectCreated: ({
+                    onProjectCreated: async ({
                         user,
                         projectUuid,
                         projectType,
+                        dbtProjectType,
+                        method,
                         provisioningSource,
-                    }) =>
-                        provisionOnboardingHomepage({
-                            user,
-                            projectUuid,
-                            projectType,
-                            provisioningSource,
-                            featureFlagService:
-                                repository.getFeatureFlagService(),
-                            projectModel: models.getProjectModel(),
-                            projectHomepageModel:
-                                models.getProjectHomepageModel<ProjectHomepageModel>(),
-                            analytics: context.lightdashAnalytics,
-                        }),
+                    }) => {
+                        await Promise.all([
+                            provisionOnboardingHomepage({
+                                user,
+                                projectUuid,
+                                projectType,
+                                provisioningSource,
+                                featureFlagService:
+                                    repository.getFeatureFlagService(),
+                                projectModel: models.getProjectModel(),
+                                projectHomepageModel:
+                                    models.getProjectHomepageModel<ProjectHomepageModel>(),
+                                analytics: context.lightdashAnalytics,
+                            }),
+                            autoStartOnboardingAgentRun({
+                                user,
+                                projectUuid,
+                                projectType,
+                                dbtProjectType,
+                                method,
+                                provisioningSource,
+                                featureFlagService:
+                                    repository.getFeatureFlagService(),
+                                projectModel: models.getProjectModel(),
+                                onboardingAgentService:
+                                    repository.getOnboardingAgentService<OnboardingAgentService>(),
+                                analytics: context.lightdashAnalytics,
+                            }),
+                        ]);
+                    },
                     provisionPlaygroundProject: ({
                         user,
                         projectService,
@@ -1935,6 +1965,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     context.serviceRepository.getProjectHomepageService<ProjectHomepageService>(),
                 externalSourceService:
                     context.serviceRepository.getExternalSourceService<ExternalSourceService>(),
+                externalConnectionService:
+                    context.serviceRepository.getExternalConnectionService<ExternalConnectionService>(),
                 aiThreadFileService:
                     context.serviceRepository.getAiThreadFileService<AiThreadFileService>(),
                 mobilePushNotificationService:

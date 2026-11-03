@@ -193,6 +193,7 @@ const postHogConnection: ComposerApiConnection = {
     connectionUuid: '22222222-2222-4222-8222-222222222222',
     name: 'Product analytics',
     connector: ApiConnectorType.POSTHOG,
+    topEvents: null,
 };
 
 const apiNode: ComposerNode = {

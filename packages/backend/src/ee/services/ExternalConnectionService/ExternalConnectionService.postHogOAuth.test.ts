@@ -8,7 +8,10 @@ import {
 import { createHash } from 'node:crypto';
 import { buildAccount } from '../../../auth/account/account.mock';
 import * as secureFetchModule from '../../../utils/secureFetch/secureFetch';
-import { ExternalConnectionService } from './ExternalConnectionService';
+import {
+    ExternalConnectionService,
+    parseLiveSourceReturnTo,
+} from './ExternalConnectionService';
 import { OAuthAuthorizationCodeTokenClient } from './OAuthAuthorizationCodeTokenClient';
 
 vi.mock('../../../utils/secureFetch/secureFetch', async (importOriginal) => {
@@ -157,6 +160,27 @@ beforeEach(() => {
 });
 
 describe('PostHog sign-in', () => {
+    it('returns to onboarding only when asked, and to settings for anything else', () => {
+        const { service } = buildService();
+        const result = { connectionUuid: 'conn-1' };
+        expect(
+            service.getLiveDataSourcesUrl(
+                'proj-1',
+                result,
+                parseLiveSourceReturnTo('onboarding'),
+            ),
+        ).toBe(`${SITE_URL}/onboarding/tools/proj-1?connected=conn-1`);
+        expect(
+            service.getLiveDataSourcesUrl(
+                'proj-1',
+                result,
+                parseLiveSourceReturnTo('https://evil.example.com'),
+            ),
+        ).toBe(
+            `${SITE_URL}/generalSettings/projectManagement/proj-1/liveDataSources?connected=conn-1`,
+        );
+    });
+
     it('is unavailable until the server has a client ID', async () => {
         const { service } = buildService({ clientId: null });
         await expect(

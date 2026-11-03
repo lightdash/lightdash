@@ -83,12 +83,18 @@ const buildService = ({
         releaseApiSourceCallLease: vi.fn().mockResolvedValue(undefined),
         insertApiSourceCall: vi.fn().mockResolvedValue(undefined),
         getApiSourceUsage: vi.fn().mockResolvedValue([]),
+        setApiSourceSchema: vi.fn().mockResolvedValue(undefined),
+        getApiSourceSchemas: vi.fn().mockResolvedValue(new Map()),
     };
     const analytics = { track: vi.fn() };
+    const schedulerClient = {
+        scanApiSourceSchema: vi.fn().mockResolvedValue({ jobId: 'job-1' }),
+    };
     const service = new ExternalConnectionService({
         allowedPrivateHostCidrs: {},
         externalConnectionModel,
         analytics,
+        schedulerClient,
         featureFlagModel: {
             get: vi.fn().mockResolvedValue({ enabled: liveSourcesEnabled }),
         },
@@ -97,8 +103,24 @@ const buildService = ({
         service as unknown as { createAuditedAbility: () => unknown },
         'createAuditedAbility',
     ).mockReturnValue({ can: () => canView, cannot: () => !canView });
-    return { service, externalConnectionModel, analytics };
+    return { service, externalConnectionModel, analytics, schedulerClient };
 };
+
+const postHogQueryResponse = (
+    columns: [string, string][],
+    results: unknown[][],
+) => ({
+    status: 200,
+    contentType: 'application/json',
+    headers: {},
+    bodyText: JSON.stringify({
+        columns: columns.map(([name]) => name),
+        types: columns,
+        results,
+        error: null,
+    }),
+    truncated: false,
+});
 
 beforeEach(() => {
     mockSecureFetch.mockReset();
@@ -305,6 +327,120 @@ describe('ExternalConnectionService api sources', () => {
     });
 });
 
+describe('ExternalConnectionService api source schema scans', () => {
+    it('scans events and property keys in two calls and stores the result', async () => {
+        mockSecureFetch
+            .mockResolvedValueOnce(
+                postHogQueryResponse(
+                    [
+                        ['event_name', 'String'],
+                        ['event_count', 'UInt64'],
+                    ],
+                    [
+                        ['$pageview', 1200],
+                        ['signed_up', 40],
+                    ],
+                ),
+            )
+            .mockResolvedValueOnce(
+                postHogQueryResponse(
+                    [
+                        ['property_key', 'String'],
+                        ['occurrences', 'UInt64'],
+                    ],
+                    [['$browser', 900]],
+                ),
+            );
+        const { service, externalConnectionModel } = buildService();
+
+        const scan = await service.scanApiSourceSchema(
+            account,
+            'proj-1',
+            'conn-1',
+        );
+
+        expect(scan).toMatchObject({
+            status: 'ready',
+            events: [
+                { name: '$pageview', count: 1200 },
+                { name: 'signed_up', count: 40 },
+            ],
+            eventsTruncated: false,
+            propertyKeys: ['$browser'],
+        });
+        expect(mockSecureFetch).toHaveBeenCalledTimes(2);
+        expect(
+            externalConnectionModel.tryCountApiSourceCall,
+        ).toHaveBeenCalled();
+        expect(externalConnectionModel.setApiSourceSchema).toHaveBeenCalledWith(
+            'conn-1',
+            scan,
+        );
+    });
+
+    it('stores a failed scan when PostHog refuses the key', async () => {
+        mockSecureFetch.mockResolvedValueOnce({
+            status: 401,
+            contentType: 'application/json',
+            headers: {},
+            bodyText: JSON.stringify({ detail: 'Invalid key' }),
+            truncated: false,
+        });
+        const { service, externalConnectionModel } = buildService();
+
+        const scan = await service.scanApiSourceSchema(
+            account,
+            'proj-1',
+            'conn-1',
+        );
+
+        expect(scan).toMatchObject({ status: 'failed' });
+        expect(externalConnectionModel.setApiSourceSchema).toHaveBeenCalledWith(
+            'conn-1',
+            scan,
+        );
+    });
+
+    it('lists ready scans as schema tables', async () => {
+        const { service, externalConnectionModel } = buildService({
+            connections: [
+                posthogConnection(),
+                posthogConnection({ externalConnectionUuid: 'conn-2' }),
+            ],
+        });
+        externalConnectionModel.getApiSourceSchemas.mockResolvedValue(
+            new Map([
+                [
+                    'conn-1',
+                    {
+                        status: 'ready',
+                        scannedAt: new Date(),
+                        windowDays: 30,
+                        events: [{ name: '$pageview', count: 3 }],
+                        eventsTruncated: false,
+                        propertyKeys: null,
+                    },
+                ],
+                ['conn-2', { status: 'pending', requestedAt: new Date() }],
+            ]),
+        );
+
+        const tables = await service.listApiSourceSchemaTables(
+            account,
+            'proj-1',
+        );
+
+        expect(tables.map(({ reference }) => reference)).toEqual(['conn-1']);
+    });
+
+    it('refuses the schema while live sources are off', async () => {
+        const { service } = buildService({ liveSourcesEnabled: false });
+        await expect(
+            service.getApiSourceSchema(account, 'proj-1', 'conn-1'),
+        ).rejects.toThrow(ForbiddenError);
+    });
+});
+
 describe('ExternalConnectionService live source writes', () => {
     const postHogCreate: CreateExternalConnection = {
         name: 'PostHog',
@@ -319,6 +455,23 @@ describe('ExternalConnectionService live source writes', () => {
             projectId: '303731',
         },
     };
+
+    it('queues a schema scan when a PostHog source is created', async () => {
+        const { service, externalConnectionModel, schedulerClient } =
+            buildService();
+        await service.create(account, 'proj-1', postHogCreate);
+
+        expect(externalConnectionModel.setApiSourceSchema).toHaveBeenCalledWith(
+            'conn-1',
+            expect.objectContaining({ status: 'pending' }),
+        );
+        expect(schedulerClient.scanApiSourceSchema).toHaveBeenCalledWith({
+            organizationUuid: 'org-1',
+            projectUuid: 'proj-1',
+            userUuid: account.user.id,
+            externalConnectionUuid: 'conn-1',
+        });
+    });
 
     it('tracks a live source by kind and connector', async () => {
         const { service, analytics } = buildService();

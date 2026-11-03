@@ -22,7 +22,7 @@ export const ClickhouseSchemaInput: FC<{
         <TextInput
             name="warehouse.schema"
             label="Schema"
-            description={description ?? 'This is the schema name.'}
+            description={description}
             required
             {...form.getInputProps('warehouse.schema')}
             disabled={disabled}
@@ -49,7 +49,6 @@ const ClickhouseForm: FC<{
                 <TextInput
                     name="warehouse.host"
                     label="Host"
-                    description="This is the host where the database is running."
                     required
                     {...form.getInputProps('warehouse.host')}
                     disabled={disabled}
@@ -58,7 +57,6 @@ const ClickhouseForm: FC<{
                 <TextInput
                     name="warehouse.user"
                     label="User"
-                    description="This is the database user name."
                     required={requireSecrets}
                     {...form.getInputProps('warehouse.user')}
                     placeholder={
@@ -71,7 +69,6 @@ const ClickhouseForm: FC<{
                 <PasswordInput
                     name="warehouse.password"
                     label="Password"
-                    description="This is the database user password."
                     required={requireSecrets}
                     placeholder={
                         disabled || !requireSecrets
@@ -102,7 +99,6 @@ const ClickhouseForm: FC<{
                             {...form.getInputProps('warehouse.port')}
                             defaultValue={ClickhouseDefaultValues.port}
                             label="Port"
-                            description="This is the port where the database is running."
                             required
                             disabled={disabled}
                         />

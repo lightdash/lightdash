@@ -1,0 +1,13 @@
+.panel {
+    position: fixed;
+    bottom: var(--mantine-spacing-md);
+    left: 50%;
+    z-index: 200;
+    transform: translateX(-50%);
+    padding: 6px 10px;
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-lg);
+    background: var(--mantine-color-body);
+    box-shadow: 0 12px 32px -12px rgb(0 0 0 / 0.25);
+    view-transition-name: onboarding-control-panel;
+}

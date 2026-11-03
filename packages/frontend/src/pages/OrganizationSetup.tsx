@@ -1,30 +1,33 @@
+import { subject } from '@casl/ability';
 import {
     CompleteUserSchema,
     describeInvalidOrganizationName,
     FeatureFlags,
     getEmailDomain,
     LightdashMode,
+    ProjectType,
     sanitizeOrganizationName,
     suggestOrganizationName,
     validateOrganizationEmailDomains,
     type HealthState,
     type OrganizationBrandColor,
-    type OrganizationBrandLogo,
 } from '@lightdash/common';
 import {
     Box,
+    ActionIcon,
+    Tooltip,
     Button,
     Checkbox,
     Divider,
     Group,
     Select,
     Stack,
-    Collapse,
     Text,
     TextInput,
     Title,
 } from '@mantine/core';
 import { useForm, type FormErrors } from '@mantine/form';
+import { IconInfoCircle } from '@tabler/icons-react';
 import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import {
     type ChangeEventHandler,
@@ -34,12 +37,19 @@ import {
     useRef,
     useState,
 } from 'react';
-import { Navigate, useNavigate, useSearchParams } from 'react-router';
-import AboutFooter from '../components/AboutFooter';
-import Callout from '../components/common/Callout';
+import { Navigate, useSearchParams } from 'react-router';
 import { DocumentTitle } from '../components/common/DocumentTitle';
+import MantineIcon from '../components/common/MantineIcon';
+import OnboardingLayout from '../components/common/OnboardingLayout';
+import { useOnboardingVariant } from '../components/common/onboardingVariant';
+import {
+    useOnboardingNavigate,
+    withViewTransition,
+} from '../components/common/viewTransition';
 import PageSpinner from '../components/PageSpinner';
 import { jobTitles } from '../components/UserCompletionModal/jobTitles';
+import { BrandPreview } from '../components/UserSettings/AppearanceSettingsPanel/BrandPreview';
+import { useHomepageBuilderFlag } from '../ee/features/homepageBuilder/hooks/useProjectHomepage';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import {
     useDetectOrganizationBrand,
@@ -51,9 +61,9 @@ import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import useApp from '../providers/App/useApp';
 import useTracking from '../providers/Tracking/useTracking';
 import { EventName } from '../types/Events';
+import { getNoProjectPath } from '../utils/noProjectPath';
 import { inferOrganizationName } from '../utils/organizationName';
 import classes from './OrganizationSetup.module.css';
-import { OrganizationSetupPreview } from './OrganizationSetupPreview';
 
 const PRESET_COLORS = ['#4c6ef5', '#7950f2', '#40c057', '#f59f00', '#fa5252'];
 const DEFAULT_COLOR = PRESET_COLORS[0];
@@ -86,12 +96,6 @@ const brandColorsSorted = (colors: OrganizationBrandColor[]): string[] => {
 
 const buildSwatches = (brandColors: string[]): string[] =>
     dedupeColors([...brandColors, ...PRESET_COLORS]).slice(0, MAX_SWATCHES);
-
-const pickTileLogo = (logos: OrganizationBrandLogo[]): string | null => {
-    const dark = logos.find((logo) => logo.theme === 'dark');
-    const neutral = logos.find((logo) => logo.theme === null);
-    return dark?.url ?? neutral?.url ?? logos[0]?.url ?? null;
-};
 
 const buildBrandColors = (
     selectedColor: string,
@@ -248,28 +252,15 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
         ? brandColorsSorted(detectedBrand.colors)
         : [];
     const swatches = buildSwatches(detectedColors);
-    const detectedLogoUrl = detectedBrand
-        ? pickTileLogo(detectedBrand.logos)
-        : null;
     const selectedColor = canUseBranding
         ? form.values.selectedColor
         : DEFAULT_COLOR;
 
-    const previewColors = buildBrandColors(
-        selectedColor,
-        detectedBrand?.colors ?? [],
-    );
-    const titleFont =
-        detectedBrand?.fonts.find((font) => font.type === 'title') ?? null;
-    const bodyFont =
-        detectedBrand?.fonts.find((font) => font.type === 'body') ?? null;
-
     const showWorkspaceStep = canEnterOrganizationName;
-    const totalSteps = showWorkspaceStep ? 2 : 1;
     const [step, setStep] = useState(1);
 
     const isWorkspaceStep = showWorkspaceStep && step === 1;
-    const stepLabel = isWorkspaceStep ? 'Set up your workspace' : 'About you';
+    const [variant] = useOnboardingVariant();
     const displayStep = showWorkspaceStep ? step : 1;
 
     const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -282,14 +273,14 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                 name: EventName.ORGANIZATION_SETUP_STEP_COMPLETED,
                 properties: { step: 'workspace' },
             });
-            setStep(2);
+            withViewTransition(() => setStep(2));
             return;
         }
 
         const result = form.validate();
         if (result.hasErrors) {
             if (showWorkspaceStep && 'organizationName' in result.errors) {
-                setStep(1);
+                withViewTransition(() => setStep(1));
             }
             return;
         }
@@ -366,34 +357,61 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
         }
     };
 
-    const logoTileInitial = (form.values.organizationName || '?')
-        .charAt(0)
-        .toUpperCase();
+    const brandPreview = (
+        <Box component="section" aria-label="Brand preview">
+            <BrandPreview
+                compact
+                name={form.values.organizationName || null}
+                logos={detectedBrand?.logos ?? []}
+                colors={buildBrandColors(
+                    selectedColor,
+                    detectedBrand?.colors ?? [],
+                )}
+                titleFont={
+                    detectedBrand?.fonts.find(
+                        (font) => font.type === 'title',
+                    ) ?? null
+                }
+                bodyFont={
+                    detectedBrand?.fonts.find((font) => font.type === 'body') ??
+                    null
+                }
+            />
+            <Text size="xs" c="dimmed" mt="xs">
+                {detectedBrand
+                    ? `Colors from ${detectedBrand.domain} on sample data`
+                    : 'Preview with sample data'}
+            </Text>
+        </Box>
+    );
 
     return (
-        <Box className={classes.page}>
+        <OnboardingLayout
+            screen={isWorkspaceStep ? 'organization' : 'about_you'}
+            aside={variant === 'c' ? brandPreview : null}
+            progress={{
+                currentStep: displayStep,
+                steps: showWorkspaceStep
+                    ? ['Organization', 'About you']
+                    : ['About you'],
+            }}
+        >
             <DocumentTitle title="Set up your organization" />
 
             <Box className={classes.body}>
                 <Box className={classes.leftPane}>
                     <form onSubmit={handleSubmit} noValidate>
                         {isWorkspaceStep ? (
-                            <Stack gap="lg">
+                            <Stack key="workspace" gap="lg">
                                 <Stack gap="xs">
-                                    <Text size="sm" c="dimmed">
-                                        Step {displayStep} of {totalSteps} ·{' '}
-                                        {stepLabel}
-                                    </Text>
                                     <Title
                                         order={1}
-                                        fz={44}
                                         className={classes.heading}
                                     >
                                         Name your organization
                                     </Title>
-                                    <Text c="dimmed" size="lg">
-                                        This is how your team and your agent
-                                        will refer to your workspace.
+                                    <Text c="dimmed" size="sm">
+                                        Use your company or team name.
                                     </Text>
                                 </Stack>
 
@@ -404,38 +422,45 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                                     required
                                     {...organizationNameInputProps}
                                     onChange={handleOrganizationNameChange}
-                                    error={hasNameError}
+                                    error={
+                                        nameMessage ? (
+                                            <Box component="span" role="alert">
+                                                <Text span inherit>
+                                                    {nameMessage.title}
+                                                </Text>
+                                                {form.values.organizationName.trim() && (
+                                                    <>
+                                                        <Text span inherit>
+                                                            {' '}
+                                                        </Text>
+                                                        <Text span inherit>
+                                                            {nameMessage.body}
+                                                        </Text>
+                                                    </>
+                                                )}
+                                            </Box>
+                                        ) : null
+                                    }
                                 />
 
-                                <Collapse
-                                    expanded={hasNameError}
-                                    transitionDuration={200}
-                                >
-                                    {hasNameError && nameMessage && (
-                                        <Callout
-                                            variant="danger"
-                                            title={nameMessage.title}
-                                        >
-                                            <Text size="sm">
-                                                {nameMessage.body}
-                                            </Text>
-                                            {nameSuggestion && (
-                                                <Group mt="xs">
-                                                    <Button
-                                                        variant="default"
-                                                        size="compact-sm"
-                                                        type="button"
-                                                        onClick={
-                                                            applyNameSuggestion
-                                                        }
-                                                    >
-                                                        {`Use "${nameSuggestion}"`}
-                                                    </Button>
-                                                </Group>
-                                            )}
-                                        </Callout>
-                                    )}
-                                </Collapse>
+                                {hasNameError && nameSuggestion && (
+                                    <Button
+                                        variant="subtle"
+                                        size="compact-sm"
+                                        type="button"
+                                        onClick={applyNameSuggestion}
+                                    >{`Use "${nameSuggestion}"`}</Button>
+                                )}
+
+                                {canEnableEmailDomainAccess && (
+                                    <Checkbox
+                                        label={`Teammates who sign up with @${emailDomain} join this organization as viewers`}
+                                        {...form.getInputProps(
+                                            'enableEmailDomainAccess',
+                                            { type: 'checkbox' },
+                                        )}
+                                    />
+                                )}
 
                                 {canUseBranding && (
                                     <>
@@ -444,56 +469,27 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                                         <Stack gap="md">
                                             <Group gap="sm">
                                                 <Text fw={600}>Brand</Text>
-                                                <Text
-                                                    size="xs"
-                                                    c="dimmed"
-                                                    className={
-                                                        classes.optionalPill
-                                                    }
+                                                <Tooltip
+                                                    label="Optional. Choose a brand color now, or change it later in Appearance settings."
+                                                    multiline
+                                                    maw={280}
                                                 >
-                                                    Optional · you can change
-                                                    this later
-                                                </Text>
+                                                    <ActionIcon
+                                                        aria-label="About brand customization"
+                                                        size="sm"
+                                                    >
+                                                        <MantineIcon
+                                                            icon={
+                                                                IconInfoCircle
+                                                            }
+                                                            size={16}
+                                                        />
+                                                    </ActionIcon>
+                                                </Tooltip>
                                             </Group>
 
                                             <Stack gap="xs">
-                                                <Text size="sm" fw={500}>
-                                                    Theme color
-                                                </Text>
                                                 <Group gap="lg" align="center">
-                                                    <Box
-                                                        className={
-                                                            classes.logoTile
-                                                        }
-                                                        bg={
-                                                            detectedLogoUrl
-                                                                ? 'var(--mantine-color-ldGray-0)'
-                                                                : selectedColor
-                                                        }
-                                                    >
-                                                        {detectedLogoUrl ? (
-                                                            <img
-                                                                src={
-                                                                    detectedLogoUrl
-                                                                }
-                                                                alt=""
-                                                                className={
-                                                                    classes.logoTileImage
-                                                                }
-                                                            />
-                                                        ) : (
-                                                            <Text
-                                                                fw={600}
-                                                                fz="xl"
-                                                                c="white"
-                                                            >
-                                                                {
-                                                                    logoTileInitial
-                                                                }
-                                                            </Text>
-                                                        )}
-                                                    </Box>
-
                                                     <Box
                                                         className={
                                                             classes.swatchRow
@@ -525,6 +521,7 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                                                     </Box>
                                                 </Group>
                                             </Stack>
+                                            {variant !== 'c' && brandPreview}
                                         </Stack>
                                     </>
                                 )}
@@ -533,6 +530,7 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                                     <Button
                                         type="submit"
                                         size="md"
+                                        fullWidth
                                         disabled={
                                             !form.values.organizationName.trim()
                                         }
@@ -542,21 +540,16 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                                 </Group>
                             </Stack>
                         ) : (
-                            <Stack gap="lg">
+                            <Stack key="about-you" gap="lg">
                                 <Stack gap="xs">
-                                    <Text size="sm" c="dimmed">
-                                        Step {displayStep} of {totalSteps} ·{' '}
-                                        {stepLabel}
-                                    </Text>
                                     <Title
                                         order={1}
-                                        fz={44}
                                         className={classes.heading}
                                     >
                                         Tell us about you
                                     </Title>
-                                    <Text c="dimmed" size="lg">
-                                        This helps us tailor Lightdash for you.
+                                    <Text c="dimmed" size="sm">
+                                        This helps us set things up for you.
                                     </Text>
                                 </Stack>
 
@@ -582,16 +575,6 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                                 )}
 
                                 <Stack gap="xs">
-                                    {canEnableEmailDomainAccess && (
-                                        <Checkbox
-                                            label={`Allow users with @${emailDomain} to join the organization as a viewer`}
-                                            {...form.getInputProps(
-                                                'enableEmailDomainAccess',
-                                                { type: 'checkbox' },
-                                            )}
-                                        />
-                                    )}
-
                                     <Checkbox
                                         label="Keep me updated on new Lightdash features"
                                         {...form.getInputProps(
@@ -612,13 +595,19 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                                     )}
                                 </Stack>
 
-                                <Group>
+                                <Group justify="flex-end">
                                     {showWorkspaceStep && (
                                         <Button
                                             variant="subtle"
                                             color="gray"
                                             size="md"
-                                            onClick={() => setStep(1)}
+                                            onClick={(event) => {
+                                                // Stops the click activating the Continue submit that replaces this button
+                                                event.preventDefault();
+                                                withViewTransition(() =>
+                                                    setStep(1),
+                                                );
+                                            }}
                                         >
                                             Back
                                         </Button>
@@ -636,33 +625,14 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                         )}
                     </form>
                 </Box>
-
-                <Box className={classes.rightPane}>
-                    <OrganizationSetupPreview
-                        caption={
-                            canUseBranding
-                                ? 'A preview of Lightdash, themed to your brand.'
-                                : 'A preview of Lightdash.'
-                        }
-                        name={form.values.organizationName || null}
-                        logos={detectedBrand?.logos ?? []}
-                        colors={previewColors}
-                        titleFont={titleFont}
-                        bodyFont={bodyFont}
-                        detectedDomain={detectedBrand?.domain ?? null}
-                        detectedLogoUrl={detectedLogoUrl}
-                    />
-                </Box>
             </Box>
-
-            <AboutFooter />
-        </Box>
+        </OnboardingLayout>
     );
 };
 
 const OrganizationSetup: FC = () => {
     const { health, user } = useApp();
-    const navigate = useNavigate();
+    const onboardingNavigate = useOnboardingNavigate();
     const [searchParams] = useSearchParams();
     const redirectParam = searchParams.get('redirect');
     const redirectTo =
@@ -676,8 +646,28 @@ const OrganizationSetup: FC = () => {
     const organization = useOrganization({
         enabled: !!user.data?.organizationUuid,
     });
+    const homepageBuilderFlag = useHomepageBuilderFlag();
+    const canCreateProject =
+        user.data?.ability.can(
+            'create',
+            subject('Project', {
+                organizationUuid: user.data.organizationUuid,
+                type: ProjectType.DEFAULT,
+            }),
+        ) ?? false;
+    // Landing on the final page keeps the view transition from snapshotting a redirect
+    const landingPath =
+        redirectTo === '/' &&
+        organization.data?.needsProject &&
+        canCreateProject
+            ? getNoProjectPath({
+                  isNewOnboardingEnabled:
+                      orgSetupPageFlag.data?.enabled ?? false,
+                  isHomepageBuilderEnabled: homepageBuilderFlag.isEnabled,
+              })
+            : redirectTo;
     const completeMutation = useUserCompleteMutation({
-        onSuccess: () => void navigate(redirectTo),
+        onSuccess: () => onboardingNavigate(landingPath),
     });
     const isCompletingSetup =
         completeMutation.isLoading || completeMutation.isSuccess;

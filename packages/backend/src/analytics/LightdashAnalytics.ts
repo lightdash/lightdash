@@ -1434,6 +1434,32 @@ type OnboardingHomepageFailedEvent = BaseTrack & {
     };
 };
 
+export type OnboardingAgentAutoStartSkippedReason =
+    | 'coding_agent_onboarding_disabled'
+    | 'infrastructure_missing'
+    | 'not_authorized'
+    | 'not_first_project';
+
+type OnboardingAgentAutoStartSkippedEvent = BaseTrack & {
+    event: 'onboarding_agent.auto_start_skipped';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        reason: OnboardingAgentAutoStartSkippedReason;
+    };
+};
+
+type OnboardingAgentAutoStartedEvent = BaseTrack & {
+    event: 'onboarding_agent.auto_started';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        agentOnboardingRunId: string;
+    };
+};
+
 export type CodingAgentOnboardingEnablement =
     | EnsureOrganizationOverrideOutcome
     | 'failed';
@@ -4917,6 +4943,8 @@ type TypedEvent =
     | OnboardingHomepageProvisionedEvent
     | OnboardingHomepageSkippedEvent
     | OnboardingHomepageFailedEvent
+    | OnboardingAgentAutoStartSkippedEvent
+    | OnboardingAgentAutoStartedEvent
     | OrganizationHomepageSettingsUpdatedEvent
     | HomepagePublishedEvent
     | PlaygroundProjectProvisionedEvent

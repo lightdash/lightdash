@@ -98,7 +98,10 @@ export const MainNavBarContent: FC<Props> = ({
 
                 {!isLoadingActiveProject && activeProjectUuid && (
                     <>
-                        <NavGroup className={classes.buttonGroup}>
+                        <NavGroup
+                            className={classes.buttonGroup}
+                            data-tour="nav-workspace"
+                        >
                             {compact && (
                                 <>
                                     <Button

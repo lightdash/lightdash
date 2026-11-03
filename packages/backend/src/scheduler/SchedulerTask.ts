@@ -7007,6 +7007,35 @@ export default class SchedulerTask {
         };
     }
 
+    protected async warmWarehouseTablesCache(
+        jobId: string,
+        scheduledTime: Date,
+        payload: TraceTaskBase,
+    ) {
+        await this.logWrapper(
+            {
+                task: SCHEDULER_TASKS.WARM_WAREHOUSE_TABLES_CACHE,
+                jobId,
+                scheduledTime,
+                details: {
+                    userUuid: payload.userUuid,
+                    projectUuid: payload.projectUuid,
+                    organizationUuid: payload.organizationUuid,
+                    createdByUserUuid: payload.userUuid,
+                },
+            },
+            async () => {
+                const user = await this.userService.getSessionByUserUuid(
+                    payload.userUuid,
+                );
+                await this.projectService.populateWarehouseTablesCache(
+                    user,
+                    payload.projectUuid,
+                );
+            },
+        );
+    }
+
     protected async backfillDefaultUserSpaces(
         jobId: string,
         scheduledTime: Date,

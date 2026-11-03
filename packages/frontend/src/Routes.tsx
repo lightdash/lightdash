@@ -6,7 +6,6 @@ import AppRoute from './components/AppRoute';
 import ProjectLayout from './components/common/ProjectLayout';
 import ForbiddenPanel from './components/ForbiddenPanel';
 import JobDetailsDrawer from './components/JobDetailsDrawer';
-import NavBar from './components/NavBar';
 import { NavBarLayout } from './components/NavBarLayout';
 import PrivateRoute from './components/PrivateRoute';
 import ProjectRoute from './components/ProjectRoute';
@@ -67,12 +66,9 @@ const PUBLIC_ROUTES: RouteObject[] = [
             );
             return {
                 Component: () => (
-                    <>
-                        <NavBar />
-                        <TrackPage name={PageName.ORGANIZATION_SETUP}>
-                            <OrganizationSetup />
-                        </TrackPage>
-                    </>
+                    <TrackPage name={PageName.ORGANIZATION_SETUP}>
+                        <OrganizationSetup />
+                    </TrackPage>
                 ),
             };
         },
@@ -945,7 +941,6 @@ const PRIVATE_ROUTES: RouteObject[] = [
                 element: <Navigate to="/generalSettings/roadmap" replace />,
             },
             {
-                element: <NavBarLayout />,
                 children: [
                     {
                         path: '/get-started',
@@ -979,6 +974,23 @@ const PRIVATE_ROUTES: RouteObject[] = [
                                         name={PageName.ONBOARDING_DATA_SOURCE}
                                     >
                                         <OnboardingDataSource />
+                                    </TrackPage>
+                                ),
+                            };
+                        },
+                    },
+                    {
+                        path: '/onboarding/tools/:projectUuid',
+                        handle: { hideAILauncher: true },
+                        lazy: async () => {
+                            const OnboardingTools = await loadLazyRouteDefault(
+                                './pages/OnboardingTools',
+                                () => import('./pages/OnboardingTools'),
+                            );
+                            return {
+                                Component: () => (
+                                    <TrackPage name={PageName.ONBOARDING_TOOLS}>
+                                        <OnboardingTools />
                                     </TrackPage>
                                 ),
                             };
@@ -1022,6 +1034,11 @@ const PRIVATE_ROUTES: RouteObject[] = [
                             };
                         },
                     },
+                ],
+            },
+            {
+                element: <NavBarLayout />,
+                children: [
                     {
                         path: '/createProject/:method?',
                         lazy: async () => {

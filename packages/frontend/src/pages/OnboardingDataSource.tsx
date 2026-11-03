@@ -1,231 +1,96 @@
 import { subject } from '@casl/ability';
 import { ProjectType, WarehouseTypes } from '@lightdash/common';
-import {
-    Box,
-    Group,
-    Paper,
-    SimpleGrid,
-    Stack,
-    Text,
-    Title,
-} from '@mantine/core';
+import { Box, Button, Group, Stack, Text, Title } from '@mantine/core';
 import { type FC } from 'react';
-import { Navigate, useNavigate, useParams } from 'react-router';
-import AboutFooter from '../components/AboutFooter';
+import {
+    Navigate,
+    useLocation,
+    useParams,
+    useSearchParams,
+} from 'react-router';
 import { DocumentTitle } from '../components/common/DocumentTitle';
 import ErrorState from '../components/common/ErrorState';
-import PageSpinner from '../components/PageSpinner';
-import ConnectManuallyStep2 from '../components/ProjectConnection/ProjectConnectFlow/ConnectManually/ConnectManuallyStep2';
-import InviteExpertFooter from '../components/ProjectConnection/ProjectConnectFlow/InviteExpertFooter';
+import OnboardingLayout from '../components/common/OnboardingLayout';
+import { ONBOARDING_DATA_STEPS } from '../components/common/onboardingSteps';
 import {
-    OtherWarehouse,
-    type SelectedWarehouse,
-} from '../components/ProjectConnection/ProjectConnectFlow/types';
+    useOnboardingVariant,
+    useStepCopy,
+} from '../components/common/onboardingVariant';
+import { StepVisual } from '../components/common/OnboardingVisuals';
+import { useOnboardingNavigate } from '../components/common/viewTransition';
+import { CreateProjectConnection } from '../components/ProjectConnection';
+import { ConnectionFormSkeleton } from '../components/ProjectConnection/ConnectionFormSkeleton';
+import { DataSourceChooser } from '../components/ProjectConnection/ProjectConnectFlow/DataSourceChooser';
 import UnsupportedWarehouse from '../components/ProjectConnection/ProjectConnectFlow/UnsupportedWarehouse';
 import {
     getWarehouseIcon,
-    WarehouseTypeLabels,
+    getWarehouseLabel,
+    OTHER_ROUTE_PARAM,
 } from '../components/ProjectConnection/ProjectConnectFlow/utils';
 import { ProjectFormProvider } from '../components/ProjectConnection/ProjectFormProvider';
+import { MeetAurora } from '../ee/features/agentOnboarding/MeetAurora';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import { useOnboardingPageGuard } from '../hooks/useOnboardingPageGuard';
-import useApp from '../providers/App/useApp';
-import useTracking from '../providers/Tracking/useTracking';
-import { EventName } from '../types/Events';
+import { useProjects } from '../hooks/useProjects';
+import { isPlaygroundProvisioningSource } from '../utils/playgroundProject';
 import classes from './OnboardingDataSource.module.css';
-
-const WAREHOUSE_ORDER = [
-    WarehouseTypes.BIGQUERY,
-    WarehouseTypes.SNOWFLAKE,
-    WarehouseTypes.DATABRICKS,
-    WarehouseTypes.POSTGRES,
-    WarehouseTypes.REDSHIFT,
-    WarehouseTypes.CLICKHOUSE,
-    WarehouseTypes.ATHENA,
-    WarehouseTypes.TRINO,
-    WarehouseTypes.DUCKDB,
-    OtherWarehouse.Other,
-];
-
-const orderedWarehouses = WAREHOUSE_ORDER.map((key) =>
-    WarehouseTypeLabels.find((warehouse) => warehouse.key === key),
-).filter((warehouse) => warehouse !== undefined);
-
-const POPULAR_WAREHOUSES: { key: WarehouseTypes; subtitle: string }[] = [
-    {
-        key: WarehouseTypes.BIGQUERY,
-        subtitle: 'Sign in with Google to connect',
-    },
-    {
-        key: WarehouseTypes.SNOWFLAKE,
-        subtitle: 'Connect with SSO',
-    },
-];
-
-const popularKeys = new Set<SelectedWarehouse>(
-    POPULAR_WAREHOUSES.map((warehouse) => warehouse.key),
-);
-
-const BIGQUERY_SERVICE_ACCOUNT_SUBTITLE = 'Connect with a service account';
-
-const getPopularWarehouses = (isGoogleSsoAvailable: boolean) =>
-    POPULAR_WAREHOUSES.map(({ key, subtitle }) => {
-        const label = WarehouseTypeLabels.find(
-            (warehouse) => warehouse.key === key,
-        )?.label;
-        if (!label) {
-            return undefined;
-        }
-        return {
-            key,
-            label,
-            subtitle:
-                key === WarehouseTypes.BIGQUERY && !isGoogleSsoAvailable
-                    ? BIGQUERY_SERVICE_ACCOUNT_SUBTITLE
-                    : subtitle,
-        };
-    }).filter((warehouse) => warehouse !== undefined);
-
-const allWarehouses = orderedWarehouses.filter(
-    (warehouse) => !popularKeys.has(warehouse.key),
-);
-
-const OTHER_ROUTE_PARAM = 'other';
 
 const isWarehouseType = (value: string): value is WarehouseTypes =>
     Object.values(WarehouseTypes).includes(value as WarehouseTypes);
 
-const getWarehouseRoute = (key: SelectedWarehouse) =>
-    `/onboarding/data-source/${
-        key === OtherWarehouse.Other ? OTHER_ROUTE_PARAM : key
-    }`;
-
-const SectionHeader: FC<{ title: string; hint?: string }> = ({
-    title,
-    hint,
-}) => (
-    <Group justify="space-between" align="baseline">
-        <Text size="xs" fw={600} c="dimmed" tt="uppercase" lts={0.5}>
-            {title}
-        </Text>
-        {hint && (
-            <Text size="sm" c="dimmed">
-                {hint}
-            </Text>
-        )}
-    </Group>
-);
+// Back returns to whichever chooser opened the form, falling back on a fresh tab
+const useBackToChooser = () => {
+    const onboardingNavigate = useOnboardingNavigate();
+    const location = useLocation();
+    return () => {
+        if (location.key === 'default') {
+            onboardingNavigate('/onboarding/data-source');
+            return;
+        }
+        onboardingNavigate(-1);
+    };
+};
 
 const DataSourcePicker: FC = () => {
-    const navigate = useNavigate();
-    const { track } = useTracking();
-    const { health } = useApp();
-    const { data: organization } = useOrganization();
-    const popularWarehouses = getPopularWarehouses(
-        health.data?.auth.google.enabled ?? false,
-    );
-
-    const handleSelect = (
-        key: SelectedWarehouse,
-        tier: 'popular' | 'all' | 'other',
-    ) => {
-        track({
-            name: EventName.ONBOARDING_WAREHOUSE_SELECTED,
-            properties: {
-                organizationId: organization?.organizationUuid ?? null,
-                warehouse: String(key),
-                tier,
-                onboardingFlow: 'new',
-            },
-        });
-        void navigate(getWarehouseRoute(key));
-    };
-
+    const copy = useStepCopy('warehouse');
     return (
-        <Box className={classes.column}>
-            <Stack align="center" gap="xs">
-                <Title order={1} ta="center">
-                    Add a data source
-                </Title>
-                <Text size="md" c="dimmed" ta="center">
-                    Connect your warehouse so your agents can query your data.
+        <Stack gap="lg">
+            <Stack gap="xs">
+                <Title order={1}>{copy.title}</Title>
+                <Text c="dimmed" size="sm">
+                    {copy.subtitle}
                 </Text>
             </Stack>
-
-            <Stack gap="md">
-                <SectionHeader title="Most popular" />
-                <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
-                    {popularWarehouses.map((warehouse) => (
-                        <Paper
-                            component="button"
-                            type="button"
-                            key={warehouse.key}
-                            radius="md"
-                            className={`${classes.heroCard} ${classes.warehouseCardEnabled}`}
-                            onClick={() =>
-                                handleSelect(warehouse.key, 'popular')
-                            }
-                        >
-                            <Box>{getWarehouseIcon(warehouse.key, 48)}</Box>
-                            <Stack gap={2}>
-                                <Text className={classes.heroName}>
-                                    {warehouse.label}
-                                </Text>
-                                <Text size="sm" c="dimmed">
-                                    {warehouse.subtitle}
-                                </Text>
-                            </Stack>
-                        </Paper>
-                    ))}
-                </SimpleGrid>
-            </Stack>
-
-            <Stack gap="md">
-                <SectionHeader title="All warehouses" />
-                <SimpleGrid cols={{ base: 2, sm: 3, md: 4 }} spacing="md">
-                    {allWarehouses.map((warehouse) => (
-                        <Paper
-                            component="button"
-                            type="button"
-                            key={warehouse.key}
-                            radius="md"
-                            className={`${classes.warehouseCard} ${classes.warehouseCardEnabled}`}
-                            onClick={() =>
-                                handleSelect(
-                                    warehouse.key,
-                                    warehouse.key === OtherWarehouse.Other
-                                        ? 'other'
-                                        : 'all',
-                                )
-                            }
-                        >
-                            <Box>{getWarehouseIcon(warehouse.key, 40)}</Box>
-                            <Text className={classes.warehouseLabel}>
-                                {warehouse.label}
-                            </Text>
-                        </Paper>
-                    ))}
-                </SimpleGrid>
-            </Stack>
-
-            <InviteExpertFooter />
-        </Box>
+            <DataSourceChooser />
+        </Stack>
     );
 };
 
 const WarehouseConnect: FC<{ selectedWarehouse: WarehouseTypes }> = ({
     selectedWarehouse,
 }) => {
-    const navigate = useNavigate();
+    const goBack = useBackToChooser();
+    const [searchParams] = useSearchParams();
+    const then = searchParams.get('then');
     const {
         isInitialLoading: isLoadingOrganization,
         data: organization,
         error: organizationError,
     } = useOrganization();
 
-    if (isLoadingOrganization) {
-        return <PageSpinner />;
+    const { data: projects, isInitialLoading: isLoadingProjects } =
+        useProjects();
+
+    if (isLoadingOrganization || isLoadingProjects) {
+        return <ConnectionFormSkeleton />;
     }
+
+    // Sample data is a project too, but connecting a warehouse is still the first real one
+    const hasRealProject = (projects ?? []).some(
+        ({ type, provisioningSource }) =>
+            type === ProjectType.DEFAULT &&
+            !isPlaygroundProvisioningSource(provisioningSource),
+    );
 
     if (organizationError || !organization) {
         return <ErrorState error={organizationError?.error} />;
@@ -233,36 +98,60 @@ const WarehouseConnect: FC<{ selectedWarehouse: WarehouseTypes }> = ({
 
     return (
         <Box className={classes.connectColumn}>
-            <ProjectFormProvider>
-                <ConnectManuallyStep2
-                    isCreatingFirstProject={!!organization.needsProject}
-                    selectedWarehouse={selectedWarehouse}
-                    warehouseOnly
-                    onBack={() => void navigate('/onboarding/data-source')}
-                    successRedirect={(projectUuid) =>
-                        `/projects/${projectUuid}/home`
-                    }
-                    celebrateOnSuccess
-                />
-            </ProjectFormProvider>
+            <Stack gap="lg">
+                <Group gap="sm" wrap="nowrap">
+                    <Box className={classes.logo}>
+                        {getWarehouseIcon(selectedWarehouse, 'sm')}
+                    </Box>
+                    <Title order={2}>
+                        Create a {getWarehouseLabel(selectedWarehouse)}{' '}
+                        connection
+                    </Title>
+                </Group>
+                <ProjectFormProvider>
+                    <CreateProjectConnection
+                        isCreatingFirstProject={!hasRealProject}
+                        selectedWarehouse={selectedWarehouse}
+                        warehouseOnly
+                        alwaysShowProjectName
+                        successRedirect={(projectUuid) =>
+                            `/onboarding/tools/${projectUuid}${
+                                then
+                                    ? `?connect=${encodeURIComponent(then)}`
+                                    : ''
+                            }`
+                        }
+                        footerStart={
+                            <Button
+                                variant="transparent"
+                                color="gray"
+                                px={0}
+                                onClick={goBack}
+                            >
+                                Back
+                            </Button>
+                        }
+                    />
+                </ProjectFormProvider>
+            </Stack>
         </Box>
     );
 };
 
 const OtherWarehouseConnect: FC = () => {
-    const navigate = useNavigate();
+    const goBack = useBackToChooser();
 
     return (
         <Box className={classes.connectColumn}>
-            <UnsupportedWarehouse
-                onBack={() => void navigate('/onboarding/data-source')}
-            />
+            <UnsupportedWarehouse onBack={goBack} />
         </Box>
     );
 };
 
 const OnboardingDataSourceContent: FC = () => {
     const { warehouse } = useParams<{ warehouse?: string }>();
+    const [searchParams] = useSearchParams();
+    const [variant] = useOnboardingVariant();
 
     const selectedWarehouse =
         warehouse && isWarehouseType(warehouse) ? warehouse : undefined;
@@ -271,8 +160,26 @@ const OnboardingDataSourceContent: FC = () => {
         return <Navigate to="/onboarding/data-source" replace />;
     }
 
+    if (!warehouse && variant === 'b' && searchParams.get('intro') !== 'done') {
+        return (
+            <OnboardingLayout
+                screen="meet_aurora"
+                journey={{ currentStep: 1, steps: ONBOARDING_DATA_STEPS }}
+                aside={<StepVisual step="welcome" />}
+            >
+                <DocumentTitle title="Meet Aurora" />
+                <MeetAurora />
+            </OnboardingLayout>
+        );
+    }
+
     return (
-        <Box className={classes.page}>
+        <OnboardingLayout
+            screen={warehouse ? 'warehouse_form' : 'choose_source'}
+            journey={{ currentStep: 1, steps: ONBOARDING_DATA_STEPS }}
+            stackDepth={warehouse ? 1 : 0}
+            aside={<StepVisual step="warehouse" />}
+        >
             <DocumentTitle title="Add a data source" />
             {selectedWarehouse ? (
                 <WarehouseConnect selectedWarehouse={selectedWarehouse} />
@@ -281,9 +188,7 @@ const OnboardingDataSourceContent: FC = () => {
             ) : (
                 <DataSourcePicker />
             )}
-
-            <AboutFooter />
-        </Box>
+        </OnboardingLayout>
     );
 };
 

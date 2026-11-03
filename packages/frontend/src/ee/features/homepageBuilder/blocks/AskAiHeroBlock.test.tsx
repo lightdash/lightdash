@@ -42,11 +42,8 @@ vi.mock('./useRecommendedActions', () => ({
     }),
 }));
 
-vi.mock('./RecommendedActionsChecklist', () => ({
-    RecommendedActionsChecklist: () => <div data-testid="setup-checklist" />,
-    RecommendedActionsChecklistPlaceholder: () => (
-        <div data-testid="setup-checklist-hold" />
-    ),
+vi.mock('./setupGuide/SetupGuide', () => ({
+    SetupGuide: () => <div data-testid="setup-guide" />,
 }));
 
 const block: HomepageAskAiHeroBlock = {
@@ -159,9 +156,8 @@ describe('AskAiHeroBlockView', () => {
         expect(screen.getByTestId('ask-input')).toBeInTheDocument();
     });
 
-    it('holds the heading and the checklist on the same answer', () => {
+    it('holds the heading while the setup guide holds itself', () => {
         state.isLoading = true;
-        state.hasPendingActions = false;
 
         wrap(
             <AskAiHeroBlockView
@@ -172,16 +168,13 @@ describe('AskAiHeroBlockView', () => {
         );
 
         expect(screen.queryByRole('heading')).toBeNull();
-        expect(screen.getByTestId('setup-checklist-hold')).toBeInTheDocument();
-        expect(screen.queryByTestId('setup-checklist')).toBeNull();
+        expect(screen.getByTestId('setup-guide')).toBeInTheDocument();
         // The composer keeps fetching behind its own hold rather than waiting
         // for the reveal to start
         expect(screen.getByTestId('ask-input')).toBeInTheDocument();
     });
 
-    it('reveals the heading and the checklist together', () => {
-        state.hasPendingActions = true;
-
+    it('reveals the heading alongside the setup guide', () => {
         wrap(
             <AskAiHeroBlockView
                 itemSpan={null}
@@ -191,8 +184,19 @@ describe('AskAiHeroBlockView', () => {
         );
 
         expect(screen.getByRole('heading')).toBeInTheDocument();
-        expect(screen.getByTestId('setup-checklist')).toBeInTheDocument();
-        expect(screen.queryByTestId('setup-checklist-hold')).toBeNull();
+        expect(screen.getByTestId('setup-guide')).toBeInTheDocument();
+    });
+
+    it('leaves the setup guide out when the block hides it', () => {
+        wrap(
+            <AskAiHeroBlockView
+                itemSpan={null}
+                block={block}
+                projectUuid="p1"
+            />,
+        );
+
+        expect(screen.queryByTestId('setup-guide')).toBeNull();
     });
 });
 

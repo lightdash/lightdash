@@ -34,7 +34,7 @@ export const PostgresSchemaInput: FC<{
         <TextInput
             name="warehouse.schema"
             label="Schema"
-            description={description ?? 'This is the schema name.'}
+            description={description}
             required
             {...form.getInputProps('warehouse.schema')}
             disabled={disabled}
@@ -89,7 +89,6 @@ const PostgresForm: FC<{
             <Stack mt="xs">
                 <TextInput
                     label="Host"
-                    description="This is the host where the database is running."
                     required
                     name="warehouse.host"
                     {...form.getInputProps('warehouse.host')}
@@ -98,7 +97,6 @@ const PostgresForm: FC<{
                 />
                 <TextInput
                     label="User"
-                    description="This is the database user name."
                     required={requireSecrets}
                     name="warehouse.user"
                     {...form.getInputProps('warehouse.user')}
@@ -111,7 +109,6 @@ const PostgresForm: FC<{
                 />
                 <PasswordInput
                     label="Password"
-                    description="This is the database user password."
                     required={requireSecrets}
                     name="warehouse.password"
                     placeholder={
@@ -124,7 +121,6 @@ const PostgresForm: FC<{
                 />
                 <TextInput
                     label="DB name"
-                    description="This is the database name."
                     required
                     name="warehouse.dbname"
                     {...form.getInputProps('warehouse.dbname')}
@@ -159,7 +155,6 @@ const PostgresForm: FC<{
                             {...form.getInputProps('warehouse.port')}
                             defaultValue={PostgresDefaultValues.port}
                             label="Port"
-                            description="This is the port where the database is running."
                             required
                             disabled={disabled}
                         />

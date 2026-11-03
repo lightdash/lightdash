@@ -6,12 +6,13 @@ import {
     IconMail,
 } from '@tabler/icons-react';
 import { useCallback, useEffect, type FC } from 'react';
-import { Navigate, useNavigate, useSearchParams } from 'react-router';
+import { Navigate, useSearchParams } from 'react-router';
 import { useIntercom } from 'react-use-intercom';
 import AuthLayout from '../components/common/AuthLayout';
 import { useAuthLayoutVariant } from '../components/common/AuthLayout/useAuthLayoutVariant';
 import MantineIcon from '../components/common/MantineIcon';
 import MantineModal from '../components/common/MantineModal';
+import { useOnboardingNavigate } from '../components/common/viewTransition';
 import PageSpinner from '../components/PageSpinner';
 import VerifyEmailForm from '../components/RegisterForms/VerifyEmailForm';
 import { useEmailStatus } from '../hooks/useEmailVerification';
@@ -68,7 +69,7 @@ const VerifyEmailPage: FC = () => {
             window.location.href = '/register';
         },
     });
-    const navigate = useNavigate();
+    const onboardingNavigate = useOnboardingNavigate();
     const [searchParams] = useSearchParams();
     const redirectParam = searchParams.get('redirect');
     const redirectTo =
@@ -81,11 +82,11 @@ const VerifyEmailPage: FC = () => {
 
     const continueAfterVerification = useCallback(() => {
         if (redirectTo === null) {
-            void navigate('/');
+            onboardingNavigate('/');
             return;
         }
         window.location.href = redirectTo;
-    }, [navigate, redirectTo]);
+    }, [onboardingNavigate, redirectTo]);
 
     useEffect(() => {
         if (isVerifiedEmailOnlySignup && redirectTo !== null) {
@@ -111,6 +112,7 @@ const VerifyEmailPage: FC = () => {
 
     return (
         <AuthLayout
+            centered
             pageTitle="Verify your email"
             title="Check your inbox"
             subtitle={

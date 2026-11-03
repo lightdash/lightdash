@@ -718,6 +718,10 @@ export type IngestExternalSourceJobPayload = TraceTaskBase & {
     sourceUuid: string;
 };
 
+export type ScanApiSourceSchemaJobPayload = TraceTaskBase & {
+    externalConnectionUuid: string;
+};
+
 export type ManagedAgentHeartbeatTriggeredBy = 'cron' | 'manual' | 'on_enable';
 
 export type ManagedAgentHeartbeatPayload = TraceTaskBase & {

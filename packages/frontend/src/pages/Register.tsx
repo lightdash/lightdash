@@ -229,6 +229,7 @@ const Register: FC = () => {
     );
     return (
         <AuthLayout
+            centered
             pageTitle="Register"
             title="Create an account"
             subtitle="Start building analytics in minutes."

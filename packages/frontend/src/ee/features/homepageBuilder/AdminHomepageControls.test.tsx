@@ -23,6 +23,10 @@ const { authoringEnabled, settings, mutate } = vi.hoisted(() => ({
     },
 }));
 
+vi.mock('../../../hooks/organization/useOrganization', () => ({
+    useOrganization: () => ({ data: undefined }),
+}));
+
 vi.mock('../../../hooks/useContentAuthoringEnabled', () => ({
     useContentAuthoringEnabled: () => authoringEnabled.current,
 }));

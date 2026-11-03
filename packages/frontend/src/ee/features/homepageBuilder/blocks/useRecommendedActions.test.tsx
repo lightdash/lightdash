@@ -1,8 +1,10 @@
 import {
     DbtProjectType,
     DbtProjectTypeLabels,
+    ExploreType,
     FeatureFlags,
     ProjectType,
+    type ApiExploresResults,
     type HomepageRecommendedActionKey,
     type OrganizationProject,
 } from '@lightdash/common';
@@ -11,6 +13,7 @@ import { useGithubConfig } from '../../../../components/common/GithubIntegration
 import { useGitlabRepositories } from '../../../../components/common/GitlabIntegration/hooks/useGitlabIntegration';
 import { useOrganization } from '../../../../hooks/organization/useOrganization';
 import { useGetSlack } from '../../../../hooks/slack/useSlack';
+import { useExplores } from '../../../../hooks/useExplores';
 import { useProject } from '../../../../hooks/useProject';
 import { useProjects } from '../../../../hooks/useProjects';
 import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
@@ -27,6 +30,7 @@ vi.mock(
 );
 vi.mock('../../../../hooks/organization/useOrganization');
 vi.mock('../../../../hooks/slack/useSlack');
+vi.mock('../../../../hooks/useExplores');
 vi.mock('../../../../hooks/useProject');
 vi.mock('../../../../hooks/useProjects');
 vi.mock('../../../../providers/App/useApp');
@@ -105,6 +109,9 @@ describe('useRecommendedActions', () => {
         );
         vi.mocked(useProjects).mockReturnValue(
             settled([]) as unknown as ReturnType<typeof useProjects>,
+        );
+        vi.mocked(useExplores).mockReturnValue(
+            settled([]) as unknown as ReturnType<typeof useExplores>,
         );
         vi.mocked(useGithubConfig).mockReturnValue(
             settled(undefined) as ReturnType<typeof useGithubConfig>,
@@ -354,6 +361,71 @@ describe('useRecommendedActions', () => {
             expect(
                 result.current.statuses['connect-warehouse'].isComplete,
             ).toBe(true);
+        });
+    });
+
+    describe('add-semantic-layer completion', () => {
+        const mockExplores = (explores: ApiExploresResults) =>
+            vi
+                .mocked(useExplores)
+                .mockReturnValue(
+                    settled(explores) as unknown as ReturnType<
+                        typeof useExplores
+                    >,
+                );
+
+        it('completes once a dbt-less project has deployed explores', () => {
+            vi.mocked(useProject).mockReturnValue({
+                data: { dbtConnection: { type: DbtProjectType.NONE } },
+            } as unknown as ReturnType<typeof useProject>);
+            mockExplores([
+                {
+                    name: 'orders',
+                    label: 'Orders',
+                    tags: [],
+                    groupLabel: undefined,
+                    type: ExploreType.DEFAULT,
+                },
+            ] as unknown as ApiExploresResults);
+
+            const { result } = renderHook(() =>
+                useRecommendedActions('project-uuid'),
+            );
+
+            expect(
+                result.current.statuses['add-semantic-layer'].isComplete,
+            ).toBe(true);
+        });
+
+        it('ignores uploaded, virtual and errored explores', () => {
+            mockExplores([
+                {
+                    name: 'csv',
+                    label: 'Csv',
+                    tags: [],
+                    type: ExploreType.EXTERNAL_SOURCE,
+                },
+                {
+                    name: 'virtual',
+                    label: 'Virtual',
+                    tags: [],
+                    type: ExploreType.VIRTUAL,
+                },
+                {
+                    name: 'broken',
+                    label: 'Broken',
+                    tags: [],
+                    errors: [{ type: 'NoDimensionsError', message: 'x' }],
+                },
+            ] as unknown as ApiExploresResults);
+
+            const { result } = renderHook(() =>
+                useRecommendedActions('project-uuid'),
+            );
+
+            expect(
+                result.current.statuses['add-semantic-layer'].isComplete,
+            ).toBe(false);
         });
     });
 

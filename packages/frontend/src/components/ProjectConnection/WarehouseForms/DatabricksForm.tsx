@@ -372,7 +372,6 @@ const DatabricksForm: FC<{
                     name="warehouse.catalog"
                     {...form.getInputProps('warehouse.catalog')}
                     label="Catalog name"
-                    description="This is the catalog name."
                     required
                     disabled={disabled}
                 />

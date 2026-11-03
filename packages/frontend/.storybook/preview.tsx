@@ -10,6 +10,7 @@ import { IconMoon, IconSun } from '@tabler/icons-react';
 import React from 'react';
 import { useAppColorScheme } from '../src/providers/ColorSchemeContext';
 import MantineProvider from '../src/providers/MantineProvider';
+import { FeedbackOverlay } from './FeedbackOverlay';
 
 // Theme toggle button component
 const ThemeToggle = () => {
@@ -55,5 +56,19 @@ const ThemeWrapper = (props: { children: React.ReactNode }) => {
 };
 
 export const decorators = [
-    (renderStory: Function) => <ThemeWrapper>{renderStory()}</ThemeWrapper>,
+    (
+        renderStory: Function,
+        context: { id: string; title: string; name: string },
+    ) => (
+        <ThemeWrapper>
+            {renderStory()}
+            <FeedbackOverlay
+                story={{
+                    id: context.id,
+                    title: context.title,
+                    name: context.name,
+                }}
+            />
+        </ThemeWrapper>
+    ),
 ];

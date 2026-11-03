@@ -695,6 +695,7 @@ const schedulerClient = {
     backfillDefaultUserSpaces: vi.fn(async () => ({
         jobId: 'backfill-job-1',
     })),
+    warmWarehouseTablesCache: vi.fn(async () => ({ jobId: 'warm-job-1' })),
     createProjectWithCompile:
         vi.fn<SchedulerClient['createProjectWithCompile']>(),
     hasCreateProjectWithCompileJob: vi.fn<
@@ -4693,6 +4694,65 @@ describe('ProjectService', () => {
             );
             expect(
                 projectModel.getWarehouseClientFromCredentials,
+            ).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('warehouse tables cache warm-up', () => {
+        const creationUser: SessionUser = {
+            ...user,
+            ability: new Ability<PossibleAbilities>([
+                { subject: 'Project', action: ['create'] },
+            ]),
+            organizationUuid: projectWithSensitiveFields.organizationUuid,
+            organizationName: 'Organization',
+            organizationCreatedAt: new Date(),
+        };
+
+        const createProject = async (newOnboardingEnabled: boolean) => {
+            const warmService = getMockedProjectService(
+                lightdashConfigWithGoogleOAuthMock,
+            );
+            vi.mocked(warmService.featureFlagModel.get).mockImplementation(
+                async ({ featureFlagId }) => ({
+                    id: featureFlagId,
+                    enabled:
+                        featureFlagId === FeatureFlags.NewOnboarding &&
+                        newOnboardingEnabled,
+                }),
+            );
+            projectModel.createWithOptionalCredentials.mockResolvedValueOnce(
+                'warm-project-uuid',
+            );
+            await warmService.createWithoutCompile(
+                creationUser,
+                {
+                    name: 'Project',
+                    type: ProjectType.DEFAULT,
+                    dbtConnection: { type: DbtProjectType.NONE },
+                    dbtVersion: projectWithSensitiveFields.dbtVersion,
+                },
+                RequestMethod.WEB_APP,
+            );
+        };
+
+        test('schedules the warm-up under the new onboarding flow', async () => {
+            schedulerClient.warmWarehouseTablesCache.mockClear();
+            await createProject(true);
+            expect(
+                schedulerClient.warmWarehouseTablesCache,
+            ).toHaveBeenCalledWith({
+                organizationUuid: creationUser.organizationUuid,
+                projectUuid: 'warm-project-uuid',
+                userUuid: creationUser.userUuid,
+            });
+        });
+
+        test('does not schedule the warm-up under the legacy flow', async () => {
+            schedulerClient.warmWarehouseTablesCache.mockClear();
+            await createProject(false);
+            expect(
+                schedulerClient.warmWarehouseTablesCache,
             ).not.toHaveBeenCalled();
         });
     });

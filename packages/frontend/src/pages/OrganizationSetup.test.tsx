@@ -190,7 +190,6 @@ describe('OrganizationSetup', () => {
 
         const nameInput = await screen.findByPlaceholderText('Acme Analytics');
         expect(screen.getByText('Brand')).toBeInTheDocument();
-        expect(screen.getByText('Revenue overview')).toBeInTheDocument();
         await user.clear(nameInput);
         await user.type(nameInput, 'test organization');
         await user.click(
@@ -370,7 +369,7 @@ describe('OrganizationSetup', () => {
         expect(completionRequestCount).toBe(0);
     });
 
-    it('names the offending character in a danger callout when the field loses focus', async () => {
+    it('shows an inline name error when the field loses focus', async () => {
         const user = userEvent.setup();
 
         const nameInput = await renderNameStep();
@@ -380,6 +379,9 @@ describe('OrganizationSetup', () => {
         expect(alert).toHaveTextContent(PERIOD_TITLE);
         expect(alert).toHaveTextContent(RULE_BODY);
         expect(nameInput).toHaveAttribute('aria-invalid', 'true');
+        expect(nameInput).toHaveAccessibleDescription(
+            `${PERIOD_TITLE} ${RULE_BODY}`,
+        );
         expect(screen.getAllByText(PERIOD_TITLE)).toHaveLength(1);
         expect(screen.getAllByText(RULE_BODY)).toHaveLength(1);
     });
@@ -410,7 +412,7 @@ describe('OrganizationSetup', () => {
         ).toBeInTheDocument();
     });
 
-    it('titles the callout plainly when several kinds of character fail', async () => {
+    it('describes the inline error plainly when several kinds of character fail', async () => {
         const user = userEvent.setup();
 
         const nameInput = await renderNameStep();
@@ -434,7 +436,7 @@ describe('OrganizationSetup', () => {
         ).not.toBeInTheDocument();
     });
 
-    it('clears the callout as soon as the typed value becomes valid', async () => {
+    it('clears the inline error as soon as the typed value becomes valid', async () => {
         const user = userEvent.setup();
 
         const nameInput = await renderNameStep();
@@ -537,10 +539,6 @@ describe('OrganizationSetup', () => {
             expect(
                 screen.queryByRole('button', { name: /Select theme color/ }),
             ).not.toBeInTheDocument();
-            expect(screen.getByText('Revenue overview')).toBeInTheDocument();
-            expect(
-                screen.getByText('A preview of Lightdash.'),
-            ).toBeInTheDocument();
             await user.click(
                 await screen.findByRole('button', { name: 'Continue' }),
             );
@@ -600,7 +598,13 @@ describe('OrganizationSetup', () => {
         await user.type(referralInput, 'a podcast');
 
         releaseBrand();
-        await screen.findByText('lightdash.com');
+        await user.click(screen.getByRole('button', { name: 'Back' }));
+        await waitFor(() =>
+            expect(screen.getByPlaceholderText('Acme Analytics')).toHaveValue(
+                'Acme Inc',
+            ),
+        );
+        await user.click(screen.getByRole('button', { name: 'Continue' }));
 
         const scope = nock(BASE_API_URL)
             .patch('/api/v1/user/me/complete', (body) => {
@@ -619,6 +623,28 @@ describe('OrganizationSetup', () => {
         expect(
             screen.queryByPlaceholderText('Acme Analytics'),
         ).not.toBeInTheDocument();
+    });
+
+    it('renders Back as a separate button from the workspace submit button', async () => {
+        const user = userEvent.setup();
+        const nameInput = await renderNameStep();
+        await user.clear(nameInput);
+        await user.type(nameInput, 'Acme');
+
+        const continueButton = screen.getByRole('button', {
+            name: 'Continue',
+        });
+        await user.click(continueButton);
+        await screen.findByPlaceholderText('Select your role');
+
+        const backButton = screen.getByRole('button', { name: 'Back' });
+        expect(backButton).not.toBe(continueButton);
+        expect(backButton).toHaveAttribute('type', 'button');
+
+        await user.click(backButton);
+        expect(
+            await screen.findByPlaceholderText('Acme Analytics'),
+        ).toHaveValue('Acme');
     });
 
     it('completes setup with a sanitized punctuated brand name', async () => {
@@ -693,7 +719,6 @@ describe('OrganizationSetup', () => {
         });
 
         const nameInput = await screen.findByPlaceholderText('Acme Analytics');
-        await screen.findByText('lightdash.com');
         await waitFor(() => expect(nameInput).toHaveValue('Lightdash'));
     });
 

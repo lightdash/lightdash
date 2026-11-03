@@ -1,0 +1,252 @@
+import { Box, Button, Paper } from '@mantine/core';
+import { useQueryClient } from '@tanstack/react-query';
+import {
+    useEffect,
+    useLayoutEffect,
+    useRef,
+    useState,
+    type FC,
+    type PropsWithChildren,
+    type ReactNode,
+} from 'react';
+import { useNavigate } from 'react-router';
+import useLogoutMutation from '../../hooks/user/useUserLogoutMutation';
+import { type OnboardingScreen } from '../../providers/Tracking/types';
+import useTracking from '../../providers/Tracking/useTracking';
+import { EventName } from '../../types/Events';
+import LightdashWordmark from './AuthLayout/LightdashWordmark';
+import OnboardingControlPanel from './OnboardingControlPanel';
+import classes from './OnboardingLayout.module.css';
+import { useOnboardingVariant } from './onboardingVariant';
+import { StepVisual } from './OnboardingVisuals';
+import { PixelField } from './PixelField';
+
+const SwitchAccountButton: FC = () => {
+    const navigate = useNavigate();
+    const queryClient = useQueryClient();
+    const logout = useLogoutMutation({
+        onSuccess: () => {
+            queryClient.clear();
+            void navigate('/login', { replace: true });
+        },
+    });
+    return (
+        <Button
+            variant="subtle"
+            color="gray"
+            size="compact-xs"
+            fw={400}
+            loading={logout.isLoading}
+            onClick={() => logout.mutate()}
+        >
+            Use another account
+        </Button>
+    );
+};
+
+type Steps = { currentStep: number; steps: string[] };
+
+const JourneySteps: FC<Steps> = ({ currentStep, steps }) => (
+    <Box
+        component="ol"
+        className={classes.journeyBar}
+        aria-label={`Step ${currentStep} of ${steps.length}: ${steps[currentStep - 1]}`}
+    >
+        {steps.map((label, index) => (
+            <Box
+                component="li"
+                key={label}
+                className={classes.journeySegment}
+                data-state={
+                    index + 1 < currentStep || currentStep === steps.length
+                        ? 'done'
+                        : index + 1 === currentStep
+                          ? 'current'
+                          : 'todo'
+                }
+            />
+        ))}
+    </Box>
+);
+
+// Each step page mounts its own layout, so the last depth outlives them to pick a direction
+let lastStackDepth = 0;
+
+const useStackDirection = (stackDepth: number) => {
+    const [direction] = useState(() =>
+        stackDepth > lastStackDepth
+            ? 'forward'
+            : stackDepth < lastStackDepth
+              ? 'back'
+              : 'none',
+    );
+    // View transition pseudo-elements live on the root, so the direction goes there
+    useLayoutEffect(() => {
+        document.documentElement.dataset.onboardingDirection = direction;
+    }, [direction]);
+    useEffect(() => {
+        lastStackDepth = stackDepth;
+    }, [stackDepth]);
+};
+
+// Module scope so time on a screen survives the page swap to the next one
+let lastScreenViewedAt: number | null = null;
+
+const useTrackScreen = (screen: OnboardingScreen | null) => {
+    const track = useTracking({ failSilently: true })?.track;
+    const [variant] = useOnboardingVariant();
+    const trackedScreen = useRef<OnboardingScreen | null>(null);
+    useEffect(() => {
+        if (!screen || !track || trackedScreen.current === screen) return;
+        trackedScreen.current = screen;
+        const now = Date.now();
+        track({
+            name: EventName.ONBOARDING_SCREEN_VIEWED,
+            properties: {
+                screen,
+                variant,
+                secondsOnPreviousScreen:
+                    lastScreenViewedAt === null
+                        ? null
+                        : Math.round((now - lastScreenViewedAt) / 1000),
+            },
+        });
+        lastScreenViewedAt = now;
+    }, [screen, track, variant]);
+};
+
+type Props = PropsWithChildren<{
+    screen?: OnboardingScreen | null;
+    size?: 'compact' | 'standard' | 'wide';
+    withAccountSwitch?: boolean;
+    progress?: Steps | null;
+    journey?: Steps | null;
+    cardId?: string;
+    aside?: ReactNode;
+    stackDepth?: number;
+    celebrate?: boolean;
+    centered?: boolean;
+}>;
+
+const OnboardingLayout: FC<Props> = ({
+    children,
+    screen = null,
+    size = 'standard',
+    withAccountSwitch = true,
+    progress = null,
+    journey = null,
+    cardId,
+    aside: asideProp = null,
+    stackDepth = 0,
+    celebrate = false,
+    centered = false,
+}) => {
+    useStackDirection(stackDepth);
+    useTrackScreen(screen);
+    const [variant] = useOnboardingVariant();
+    const aside =
+        asideProp ??
+        (variant === 'c' && !centered ? <StepVisual step="welcome" /> : null);
+    const controlPanel = import.meta.env.DEV && <OnboardingControlPanel />;
+
+    if (variant === 'c' && !centered) {
+        return (
+            <Box component="main" className={classes.splitRoot}>
+                <Box className={classes.splitForm} data-onboarding-card>
+                    <Box id={cardId} className={classes.splitContent}>
+                        <LightdashWordmark className={classes.wordmark} />
+                        {journey && <JourneySteps {...journey} />}
+                        {children}
+                        {withAccountSwitch && (
+                            <Box className={classes.accountSwitch}>
+                                <SwitchAccountButton />
+                            </Box>
+                        )}
+                    </Box>
+                </Box>
+                <Box className={classes.splitVisual}>
+                    <PixelField celebrate={celebrate} />
+                    <Box className={classes.splitVisualInner}>{aside}</Box>
+                </Box>
+                {controlPanel}
+            </Box>
+        );
+    }
+
+    return (
+        <Box component="main" className={classes.page}>
+            <Box
+                className={classes.content}
+                data-size={aside ? 'split' : size}
+                data-journey={journey !== null}
+            >
+                {journey && <JourneySteps {...journey} />}
+                <Box
+                    key={stackDepth}
+                    className={classes.stack}
+                    data-depth={Math.min(stackDepth, 1)}
+                >
+                    {stackDepth >= 1 && (
+                        <Box className={classes.ghost} aria-hidden />
+                    )}
+                    <Paper
+                        id={cardId}
+                        className={classes.card}
+                        data-onboarding-card
+                        data-split={!!aside}
+                    >
+                        <Box className={classes.main}>
+                            <Box
+                                className={classes.header}
+                                data-with-progress={progress !== null}
+                            >
+                                <LightdashWordmark
+                                    className={classes.wordmark}
+                                />
+                                {progress && (
+                                    <Box
+                                        component="ol"
+                                        className={classes.progress}
+                                        aria-label="Setup progress"
+                                    >
+                                        {progress.steps.map((label, index) => (
+                                            <Box
+                                                component="li"
+                                                key={label}
+                                                className={classes.indicator}
+                                                aria-current={
+                                                    index + 1 ===
+                                                    progress.currentStep
+                                                        ? 'step'
+                                                        : undefined
+                                                }
+                                                aria-label={`${label}, step ${index + 1} of ${progress.steps.length}`}
+                                            />
+                                        ))}
+                                    </Box>
+                                )}
+                            </Box>
+                            {children}
+                        </Box>
+                        {aside && (
+                            <Box className={classes.aside}>
+                                <PixelField celebrate={celebrate} />
+                                <Box className={classes.asideInner}>
+                                    {aside}
+                                </Box>
+                            </Box>
+                        )}
+                    </Paper>
+                </Box>
+                {withAccountSwitch && (
+                    <Box className={classes.accountSwitch}>
+                        <SwitchAccountButton />
+                    </Box>
+                )}
+            </Box>
+            {controlPanel}
+        </Box>
+    );
+};
+
+export default OnboardingLayout;

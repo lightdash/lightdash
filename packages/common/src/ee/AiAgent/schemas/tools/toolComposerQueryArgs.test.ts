@@ -18,6 +18,7 @@ const postHogConnection: ComposerApiConnection = {
     connectionUuid: '22222222-2222-4222-8222-222222222222',
     name: 'Product analytics',
     connector: ApiConnectorType.POSTHOG,
+    topEvents: null,
 };
 
 describe('toolComposerQueriesArgsSchema node titles', () => {
@@ -254,6 +255,26 @@ describe('python composer nodes', () => {
                 apiConnections: [],
             }),
         ).toContain('"python"');
+    });
+
+    it("lists a connection's scanned events", () => {
+        const description = getToolComposerQueriesDescription({
+            enablePythonNodes: false,
+            apiConnections: [
+                { ...postHogConnection, topEvents: ['$pageview', 'signed_up'] },
+            ],
+        });
+        expect(description).toContain(
+            `"${postHogConnection.connectionUuid}" (Product analytics, posthog; busiest events: "$pageview", "signed_up")`,
+        );
+        expect(
+            getToolComposerQueriesDescription({
+                enablePythonNodes: false,
+                apiConnections: [postHogConnection],
+            }),
+        ).toContain(
+            `"${postHogConnection.connectionUuid}" (Product analytics, posthog)`,
+        );
     });
 
     it('converts to a python source query', () => {
