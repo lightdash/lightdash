@@ -57,7 +57,8 @@ charts remain available. Sync does not refresh inventory data or alter capture,
 history or compaction.
 
 Project creation, automatic content updates and **Sync content** in organization
-analytics settings all install the current definitions: system explores first, then managed charts and dashboards.
+analytics settings all install the current definitions: system explores first,
+then managed charts and dashboards.
 This makes newly shipped explores, dimensions and metrics available in existing
 analytics projects without recreating the project. After creation, settings stays open and shows dashboard
 shortcuts and the **Explore** button; it does not redirect automatically. Sync calls
@@ -97,7 +98,8 @@ moving or overwriting those charts. Resolve that conflict before retrying.
 
 Sync overwrites the managed dashboard's name, description, layout, filters,
 and sample chart definitions using the existing versioned models. Existing UUIDs
-and slugs remain unchanged. Built-in dashboards are managed and automatically receive shipped updates.
+and slugs remain unchanged. Built-in dashboards are managed and automatically
+receive shipped updates.
 Customizations to them are replaced on update: duplicate a dashboard first to
 keep your own version. Other dashboards and their charts are untouched. Removed chart
 definitions are no longer included in the dashboard layout; their saved rows and
@@ -190,7 +192,7 @@ latency; missing cache flags remain unknown. This dashboard does not infer tenan
 from user attributes, reconcile invoices or provide a complete embed dependency
 inventory. Absence of observed usage is not evidence that content is safe to delete.
 
-## Future work
+## Version tracking
 
 The installed definition hash includes models, chart definitions and dashboard
 layouts, so formula and label changes are detected even when field and chart
