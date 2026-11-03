@@ -151,9 +151,11 @@ node:
 
 ![Agent thread Lineage tab](images/funnel-node-spike/agent-thread-lineage.png)
 
-The cell with its results open:
+The cell with its results open: the strip from live rows, then the raw rows.
 
 ![Funnel cell with results in the product](images/funnel-node-spike/agent-lineage-cell-results.png)
+
+![Agent thread Lineage tab with results](images/funnel-node-spike/agent-thread-lineage-results.png)
 
 Seen in the run and fixed or noted:
 
