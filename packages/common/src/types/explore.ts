@@ -1,3 +1,4 @@
+import { type ApiSourceExplore } from './apiSourceExplore';
 import {
     type DbtModelJoinType,
     type FieldSetDefinition,
@@ -63,6 +64,7 @@ export enum ExploreType {
     DEFAULT = 'default',
     PRE_AGGREGATE = 'pre_aggregate',
     EXTERNAL_SOURCE = 'external_source',
+    API_SOURCE = 'api_source',
 }
 
 /**
@@ -72,6 +74,7 @@ export enum ExploreType {
 export const USER_MANAGED_EXPLORE_TYPES = [
     ExploreType.VIRTUAL,
     ExploreType.EXTERNAL_SOURCE,
+    ExploreType.API_SOURCE,
 ] as const;
 
 export const isUserManagedExplore = (explore: {
@@ -165,6 +168,8 @@ export type Explore = {
     preAggregateSource?: PreAggregateSource;
     /** Present ⇒ generated from an external source table (CSV upload, Google Sheet). */
     externalSource?: ExternalSourceRef;
+    /** Present ⇒ queried live through a live data source's API. */
+    apiSource?: ApiSourceExplore;
     /**
      * Non-fatal compilation or validation warnings (e.g. fields that failed to
      * compile, warehouse-rejected column references). The explore is still usable.
