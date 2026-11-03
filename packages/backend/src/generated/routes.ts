@@ -18219,7 +18219,13 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ExploreType: {
         dataType: 'refEnum',
-        enums: ['virtual', 'default', 'pre_aggregate', 'external_source'],
+        enums: [
+            'virtual',
+            'default',
+            'pre_aggregate',
+            'external_source',
+            'api_source',
+        ],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     CustomMetaValue: {
@@ -18523,6 +18529,119 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiSourceFieldRule: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                filterOperators: {
+                    dataType: 'array',
+                    array: { dataType: 'refEnum', ref: 'FilterOperator' },
+                    required: true,
+                },
+                apiName: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Record_FieldId.ApiSourceFieldRule_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            additionalProperties: { ref: 'ApiSourceFieldRule' },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiSourceIncompatibility: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                reason: { dataType: 'string', required: true },
+                with: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'FieldId' },
+                    required: true,
+                },
+                fields: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'FieldId' },
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiSourceExplore: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                incompatible: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'ApiSourceIncompatibility',
+                    },
+                    required: true,
+                },
+                fields: {
+                    ref: 'Record_FieldId.ApiSourceFieldRule_',
+                    required: true,
+                },
+                dateRange: {
+                    dataType: 'union',
+                    subSchemas: [
+                        {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                defaultDays: {
+                                    dataType: 'double',
+                                    required: true,
+                                },
+                                fieldId: { ref: 'FieldId', required: true },
+                            },
+                        },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                maxMetrics: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                maxDimensions: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                filterGroups: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        nested: { dataType: 'boolean', required: true },
+                        or: { dataType: 'boolean', required: true },
+                    },
+                    required: true,
+                },
+                baseVersion: { dataType: 'double', required: true },
+                integration: { ref: 'ApiConnectorType', required: true },
+                connectionUuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     Explore: {
         dataType: 'refAlias',
         type: {
@@ -18532,6 +18651,7 @@ const models: TsoaRoute.Models = {
                     dataType: 'array',
                     array: { dataType: 'refAlias', ref: 'InlineError' },
                 },
+                apiSource: { ref: 'ApiSourceExplore' },
                 externalSource: { ref: 'ExternalSourceRef' },
                 preAggregateSource: { ref: 'PreAggregateSource' },
                 preAggregates: {
@@ -62727,6 +62847,7 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['cleanAiDeepResearchReports'] },
                 { dataType: 'enum', enums: ['cleanAiAgentThreads'] },
                 { dataType: 'enum', enums: ['cleanScimRequestLogs'] },
+                { dataType: 'enum', enums: ['cleanAppStateHistory'] },
                 { dataType: 'enum', enums: ['publishAnnouncement'] },
                 { dataType: 'enum', enums: ['sweepDueAnnouncements'] },
                 { dataType: 'enum', enums: ['sendAiCreditAllowanceAlerts'] },
@@ -67207,6 +67328,13 @@ const models: TsoaRoute.Models = {
                     dataType: 'union',
                     subSchemas: [
                         { ref: 'ExternalSourceRef' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                apiSource: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'ApiSourceExplore' },
                         { dataType: 'undefined' },
                     ],
                 },
@@ -72064,6 +72192,13 @@ const models: TsoaRoute.Models = {
                         { dataType: 'undefined' },
                     ],
                 },
+                apiSource: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'ApiSourceExplore' },
+                        { dataType: 'undefined' },
+                    ],
+                },
                 spotlight: {
                     dataType: 'union',
                     subSchemas: [
@@ -72260,6 +72395,13 @@ const models: TsoaRoute.Models = {
             type: {
                 dataType: 'union',
                 subSchemas: [{ ref: 'ExploreType' }, { dataType: 'undefined' }],
+            },
+            apiSource: {
+                dataType: 'union',
+                subSchemas: [
+                    { ref: 'ApiSourceExplore' },
+                    { dataType: 'undefined' },
+                ],
             },
             spotlight: {
                 dataType: 'union',

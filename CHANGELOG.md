@@ -1,3 +1,11 @@
+# [3.138.0](https://github.com/lightdash/lightdash/compare/3.137.1...3.138.0) (2026-11-03)
+
+
+### Features
+
+* **common:** add live data source explores and their query validator ([#32008](https://github.com/lightdash/lightdash/issues/32008)) ([9ff24ef](https://github.com/lightdash/lightdash/commit/9ff24efd64daa5f4c3c261e303b9eefd7e2b5738)), closes [#31592](https://github.com/lightdash/lightdash/issues/31592) [#31593](https://github.com/lightdash/lightdash/issues/31593) [#31760](https://github.com/lightdash/lightdash/issues/31760) [#31761](https://github.com/lightdash/lightdash/issues/31761)
+* **data-apps:** age-based retention for shared app state history ([#32013](https://github.com/lightdash/lightdash/issues/32013)) ([3236dbd](https://github.com/lightdash/lightdash/commit/3236dbdedc7c4ff48aa091f896b23f67e3cb685c))
+
 ## [3.137.1](https://github.com/lightdash/lightdash/compare/3.137.0...3.137.1) (2026-11-03)
 
 

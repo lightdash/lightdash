@@ -19305,7 +19305,8 @@
                     "virtual",
                     "default",
                     "pre_aggregate",
-                    "external_source"
+                    "external_source",
+                    "api_source"
                 ],
                 "type": "string"
             },
@@ -19538,6 +19539,128 @@
                 "type": "object",
                 "description": "Back-reference stamped on explores generated from an external source table.\nThe source type is denormalized so the sidebar can pick an icon without\nfetching the source list."
             },
+            "ApiSourceFieldRule": {
+                "properties": {
+                    "filterOperators": {
+                        "items": {
+                            "$ref": "#/components/schemas/FilterOperator"
+                        },
+                        "type": "array",
+                        "description": "Empty when the API can't filter on the field."
+                    },
+                    "apiName": {
+                        "type": "string",
+                        "description": "The API's own name for the field, e.g. GA4 `sessionDefaultChannelGroup`."
+                    }
+                },
+                "required": ["filterOperators", "apiName"],
+                "type": "object",
+                "description": "What the API can do with one field of a live data source explore."
+            },
+            "Record_FieldId.ApiSourceFieldRule_": {
+                "properties": {},
+                "additionalProperties": {
+                    "$ref": "#/components/schemas/ApiSourceFieldRule"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "ApiSourceIncompatibility": {
+                "properties": {
+                    "reason": {
+                        "type": "string"
+                    },
+                    "with": {
+                        "items": {
+                            "$ref": "#/components/schemas/FieldId"
+                        },
+                        "type": "array"
+                    },
+                    "fields": {
+                        "items": {
+                            "$ref": "#/components/schemas/FieldId"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["reason", "with", "fields"],
+                "type": "object",
+                "description": "Fields the API refuses to return in the same query."
+            },
+            "ApiSourceExplore": {
+                "properties": {
+                    "incompatible": {
+                        "items": {
+                            "$ref": "#/components/schemas/ApiSourceIncompatibility"
+                        },
+                        "type": "array"
+                    },
+                    "fields": {
+                        "$ref": "#/components/schemas/Record_FieldId.ApiSourceFieldRule_"
+                    },
+                    "dateRange": {
+                        "properties": {
+                            "defaultDays": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "fieldId": {
+                                "$ref": "#/components/schemas/FieldId"
+                            }
+                        },
+                        "required": ["defaultDays", "fieldId"],
+                        "type": "object",
+                        "nullable": true,
+                        "description": "The API needs a date range; queries without a filter on `fieldId` use the last `defaultDays`."
+                    },
+                    "maxMetrics": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "maxDimensions": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "filterGroups": {
+                        "properties": {
+                            "nested": {
+                                "type": "boolean"
+                            },
+                            "or": {
+                                "type": "boolean"
+                            }
+                        },
+                        "required": ["nested", "or"],
+                        "type": "object"
+                    },
+                    "baseVersion": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Version of the integration's semantic layer that built the explore."
+                    },
+                    "integration": {
+                        "$ref": "#/components/schemas/ApiConnectorType"
+                    },
+                    "connectionUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "incompatible",
+                    "fields",
+                    "dateRange",
+                    "maxMetrics",
+                    "maxDimensions",
+                    "filterGroups",
+                    "baseVersion",
+                    "integration",
+                    "connectionUuid"
+                ],
+                "type": "object",
+                "description": "Present on every `ExploreType.API_SOURCE` explore: which live data source it\nreads and the rules a metric query must follow to compile into one API call."
+            },
             "Explore": {
                 "properties": {
                     "warnings": {
@@ -19546,6 +19669,10 @@
                         },
                         "type": "array",
                         "description": "Non-fatal compilation or validation warnings (e.g. fields that failed to\ncompile, warehouse-rejected column references). The explore is still usable."
+                    },
+                    "apiSource": {
+                        "$ref": "#/components/schemas/ApiSourceExplore",
+                        "description": "Present ⇒ queried live through a live data source's API."
                     },
                     "externalSource": {
                         "$ref": "#/components/schemas/ExternalSourceRef",
@@ -57166,6 +57293,7 @@
                     "cleanAiDeepResearchReports",
                     "cleanAiAgentThreads",
                     "cleanScimRequestLogs",
+                    "cleanAppStateHistory",
                     "publishAnnouncement",
                     "sweepDueAnnouncements",
                     "sendAiCreditAllowanceAlerts",
@@ -61785,6 +61913,10 @@
                     "externalSource": {
                         "$ref": "#/components/schemas/ExternalSourceRef",
                         "description": "Present ⇒ generated from an external source table (CSV upload, Google Sheet)."
+                    },
+                    "apiSource": {
+                        "$ref": "#/components/schemas/ApiSourceExplore",
+                        "description": "Present ⇒ queried live through a live data source's API."
                     },
                     "warnings": {
                         "items": {
@@ -66610,6 +66742,10 @@
                     "type": {
                         "$ref": "#/components/schemas/ExploreType"
                     },
+                    "apiSource": {
+                        "$ref": "#/components/schemas/ApiSourceExplore",
+                        "description": "Present ⇒ queried live through a live data source's API."
+                    },
                     "spotlight": {
                         "properties": {
                             "owner": {
@@ -66752,6 +66888,10 @@
                     },
                     "type": {
                         "$ref": "#/components/schemas/ExploreType"
+                    },
+                    "apiSource": {
+                        "$ref": "#/components/schemas/ApiSourceExplore",
+                        "description": "Present ⇒ queried live through a live data source's API."
                     },
                     "spotlight": {
                         "properties": {
@@ -75002,7 +75142,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.137.1",
+        "version": "3.138.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
