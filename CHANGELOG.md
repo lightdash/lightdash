@@ -1,3 +1,10 @@
+## [3.131.1](https://github.com/lightdash/lightdash/compare/3.131.0...3.131.1) (2026-11-03)
+
+
+### Bug Fixes
+
+* AI agent reads saved table list when running as the person ([#31975](https://github.com/lightdash/lightdash/issues/31975)) ([8ec8f24](https://github.com/lightdash/lightdash/commit/8ec8f2470d3f4c8f84168e3a8cec584f108d8259))
+
 # [3.131.0](https://github.com/lightdash/lightdash/compare/3.130.1...3.131.0) (2026-11-03)
 
 
