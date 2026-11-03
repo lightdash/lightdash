@@ -1,4 +1,4 @@
-import { isEqual } from 'lodash';
+import isEqual from 'lodash/isEqual';
 import { validate as isUuid } from 'uuid';
 import type { DocumentChartContent, DocumentContent } from '../types/document';
 import { ParameterError } from '../types/errors';

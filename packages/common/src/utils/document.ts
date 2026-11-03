@@ -1,5 +1,5 @@
 import Ajv, { type ValidateFunction } from 'ajv';
-import { isEqual } from 'lodash';
+import isEqual from 'lodash/isEqual';
 import { validate as isUuid } from 'uuid';
 import chartAsCodeSchema from '../schemas/json/chart-as-code-1.0.json';
 import type { UuidOrSlug } from '../types/api/uuid';

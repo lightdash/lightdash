@@ -19,6 +19,18 @@
                 "caughtErrors": "none"
             }
         ],
+        "no-restricted-imports": [
+            "error",
+            {
+                "paths": [
+                    {
+                        "name": "lodash",
+                        "message": "Import per method (lodash/isEqual) so the frontend and SDK don't bundle all of lodash.",
+                        "allowTypeImports": true
+                    }
+                ]
+            }
+        ],
         "no-case-declarations": "off",
         "no-template-curly-in-string": "off",
         "@typescript-eslint/no-unsafe-member-access": "error",

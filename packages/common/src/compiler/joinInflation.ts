@@ -1,4 +1,4 @@
-import { intersection } from 'lodash';
+import intersection from 'lodash/intersection';
 import { CompileError } from '../types/errors';
 import {
     InlineErrorType,
