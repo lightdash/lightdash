@@ -22,7 +22,7 @@ import {
     type FilterRule,
     type ResultColumn,
 } from '@lightdash/common';
-import { isEqual } from 'es-toolkit/compat';
+import { isEqual } from 'es-toolkit';
 import { produce } from 'immer';
 
 /**

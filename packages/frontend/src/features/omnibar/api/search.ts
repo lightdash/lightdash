@@ -1,5 +1,5 @@
 import { type SearchFilters, type SearchResults } from '@lightdash/common';
-import { isNil, omitBy } from 'es-toolkit/compat';
+import { isNil, omitBy } from 'es-toolkit';
 import { type LightdashApi } from '../../../api';
 
 export const getSearchResults = async (
@@ -16,7 +16,7 @@ export const getSearchResults = async (
         filters?: SearchFilters;
     },
 ) => {
-    const sanitisedFilters = omitBy(filters, isNil);
+    const sanitisedFilters = filters ? omitBy(filters, isNil) : {};
     const params = new URLSearchParams({
         ...Object.fromEntries(
             Object.entries(sanitisedFilters).map(([key, value]) => [

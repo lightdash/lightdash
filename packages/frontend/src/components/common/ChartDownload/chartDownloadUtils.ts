@@ -1,5 +1,5 @@
 import { ChartType, type ParametersValuesMap } from '@lightdash/common';
-import { isEqual } from 'es-toolkit/compat';
+import { isEqual } from 'es-toolkit';
 import JsPDF from 'jspdf';
 
 const FILE_NAME = 'lightdash_chart';

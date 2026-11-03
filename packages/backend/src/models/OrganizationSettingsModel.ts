@@ -2,7 +2,7 @@ import {
     OrganizationSettings,
     UpdateOrganizationSettings,
 } from '@lightdash/common';
-import { isUndefined, omitBy } from 'es-toolkit/compat';
+import { isUndefined, omitBy } from 'es-toolkit';
 import { Knex } from 'knex';
 import {
     DbOrganizationSettingsColumns,

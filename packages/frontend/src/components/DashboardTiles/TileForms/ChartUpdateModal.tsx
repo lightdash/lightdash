@@ -9,7 +9,7 @@ import { ActionIcon, Button, Flex, Loader, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconEye, IconEyeOff, IconPencil } from '@tabler/icons-react';
-import { uniqBy } from 'es-toolkit/compat';
+import { uniqBy } from 'es-toolkit';
 import { useEffect, useRef, useState } from 'react';
 import { useChartSummariesV2 } from '../../../hooks/useChartSummariesV2';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
@@ -79,7 +79,7 @@ const ChartUpdateModal = ({
         const allPages = chartPages?.pages.map((p) => p.data).flat() ?? [];
 
         setSavedQueries((previousState) =>
-            uniqBy([...previousState, ...allPages], 'uuid'),
+            uniqBy([...previousState, ...allPages], (item) => item.uuid),
         );
     }, [chartPages?.pages]);
 

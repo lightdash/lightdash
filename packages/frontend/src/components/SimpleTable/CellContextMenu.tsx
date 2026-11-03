@@ -11,7 +11,7 @@ import {
 import { Menu } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconCopy, IconStack } from '@tabler/icons-react';
-import { mapValues } from 'es-toolkit/compat';
+import { mapValues } from 'es-toolkit';
 import { useCallback, useMemo, type FC } from 'react';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useProjectUuid } from '../../hooks/useProjectUuid';

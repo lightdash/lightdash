@@ -24,7 +24,7 @@ import {
     type SchedulerPdfOptions,
 } from '@lightdash/common';
 import { createFormContext } from '@mantine/form';
-import { intersection } from 'es-toolkit/compat';
+import { intersection, uniq } from 'es-toolkit';
 import { Limit, Values } from '../types';
 
 export interface SchedulerFormValues {
@@ -132,9 +132,11 @@ export const getSelectedTabsForDashboardScheduler = (
                 ? // null means "all tabs" - preserve that, otherwise filter out deleted tabs
                   schedulerData.selectedTabs === null
                     ? null
-                    : intersection(
-                          schedulerData.selectedTabs,
-                          dashboard?.tabs.map((tab) => tab.uuid),
+                    : uniq(
+                          intersection(
+                              schedulerData.selectedTabs ?? [],
+                              dashboard?.tabs.map((tab) => tab.uuid) ?? [],
+                          ),
                       )
                 : null,
         }

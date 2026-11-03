@@ -1,4 +1,4 @@
-import { isEqual } from 'es-toolkit/compat';
+import { isEqual } from 'es-toolkit';
 import { validate as isUuid } from 'uuid';
 import type { DocumentChartContent, DocumentContent } from '../types/document';
 import { ParameterError } from '../types/errors';

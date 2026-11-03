@@ -2,7 +2,7 @@ import { Draggable } from '@hello-pangea/dnd';
 import { isField, isTableCalculation } from '@lightdash/common';
 import { Tooltip } from '@mantine/core';
 import { flexRender } from '@tanstack/react-table';
-import { isEqual } from 'es-toolkit/compat';
+import { isEqual } from 'es-toolkit';
 import React, { useEffect, type FC } from 'react';
 import { ROW_NUMBER_COLUMN_ID } from '../constants';
 import { getGroupedDimensionColumnIds } from '../getGroupedDimensionColumnIds';

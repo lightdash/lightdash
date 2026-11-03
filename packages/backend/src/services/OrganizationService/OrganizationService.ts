@@ -39,7 +39,7 @@ import {
     validateOrganizationNameOrThrow,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
-import { groupBy } from 'es-toolkit/compat';
+import { groupBy } from 'es-toolkit';
 import {
     LightdashAnalytics,
     OnboardingFlow,
@@ -875,7 +875,10 @@ export class OrganizationService extends BaseService {
             organizationUuid: user.organizationUuid,
             groupUuids: allowedGroups.map((group) => group.uuid),
         });
-        const groupMembersMap = groupBy(groupMembers, 'groupUuid');
+        const groupMembersMap = groupBy(
+            groupMembers,
+            (member) => member.groupUuid,
+        );
 
         return {
             pagination,

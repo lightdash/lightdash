@@ -1,4 +1,3 @@
-import { last } from 'es-toolkit/compat';
 import { LightdashParameters } from '../compiler/parameters';
 import type { ReadyQueryResultsPage } from '../index';
 import { UnexpectedIndexError } from '../types/errors';
@@ -181,7 +180,7 @@ const combinedRetrofit = (
     parameters?: ParametersValuesMap,
 ) => {
     const indexValues = data.indexValues.length ? data.indexValues : [[]];
-    const baseIdInfo = last(data.headerValues);
+    const baseIdInfo = data.headerValues.at(-1);
     if (data.headerValues[0] === undefined) {
         throw new UnexpectedIndexError(
             'combinedRetrofit: Cannot get header values',
@@ -207,7 +206,7 @@ const combinedRetrofit = (
         total: unknown,
         rowIndex: number,
     ): ResultValue | null => {
-        const value = last(data.indexValues[rowIndex]);
+        const value = data.indexValues[rowIndex]?.at(-1);
         if (!value || !value.fieldId) throw new Error('Invalid pivot data');
         if (total === null || total === undefined) return null;
 
@@ -278,7 +277,7 @@ const combinedRetrofit = (
             (total, colIndex) => {
                 const baseId = `row-total-${colIndex}`;
                 const id = baseId;
-                const underlyingData = last(data.rowTotalFields)?.[colIndex];
+                const underlyingData = data.rowTotalFields?.at(-1)?.[colIndex];
 
                 const value = data.pivotConfig.metricsAsRows
                     ? getMetricAsRowTotalValueFromAxis(total, rowIndex)
@@ -1598,7 +1597,7 @@ export const pivotResultsAsData = ({
     const hasIndex = pivotedResults.indexValues.length > 0;
     const dataRows = pivotedResults.retrofitData.allCombinedData.map(
         (row, rowIndex) => {
-            const metricLabel = last(pivotedResults.indexValues[rowIndex]);
+            const metricLabel = pivotedResults.indexValues[rowIndex]?.at(-1);
             const metricAsRowItemId =
                 pivotConfig.metricsAsRows && metricLabel?.type === 'label'
                     ? metricLabel.fieldId
@@ -1637,8 +1636,8 @@ export const pivotResultsAsData = ({
     ).map((totalRow, totalRowIndex) => {
         const totalFieldsRow =
             pivotedResults.columnTotalFields?.[totalRowIndex] ?? [];
-        const lastTotalField = last(totalFieldsRow);
-        const lastHeaderRow = last(pivotedResults.headerValues) ?? [];
+        const lastTotalField = totalFieldsRow.at(-1);
+        const lastHeaderRow = pivotedResults.headerValues.at(-1) ?? [];
 
         const labelCells: PivotResultsDataCell[] = totalFieldsRow.map(
             (totalField) => {
@@ -1690,7 +1689,7 @@ export const pivotResultsAsData = ({
             },
         );
 
-        const totalFields = last(pivotedResults.rowTotalFields) ?? [];
+        const totalFields = pivotedResults.rowTotalFields?.at(-1) ?? [];
         const rowTotalCells: PivotResultsDataCell[] =
             pivotConfig.rowTotals && pivotedResults.rowTotalFields?.[0]
                 ? pivotedResults.rowTotalFields[0].map((_, totalColIndex) => {

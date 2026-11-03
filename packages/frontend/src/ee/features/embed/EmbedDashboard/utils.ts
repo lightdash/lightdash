@@ -7,7 +7,7 @@ import {
     type FilterOperator,
     type SavedChartsInfoForDashboardAvailableFilters,
 } from '@lightdash/common';
-import { isEqual } from 'es-toolkit/compat';
+import { isEqual } from 'es-toolkit';
 import { v4 as uuidv4 } from 'uuid';
 import { type SdkFilter } from './types';
 

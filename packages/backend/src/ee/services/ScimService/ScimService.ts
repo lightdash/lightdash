@@ -37,7 +37,7 @@ import {
     ScimUserRole,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
-import { groupBy } from 'es-toolkit/compat';
+import { groupBy } from 'es-toolkit';
 import {
     InvalidScimPatch,
     ScimResource as PatchLibScimResource,
@@ -1458,7 +1458,10 @@ export class ScimService extends BaseService {
                     organizationUuid,
                     groupUuids: groups.map((group) => group.uuid),
                 });
-            const groupMembersMap = groupBy(groupMembers, 'groupUuid');
+            const groupMembersMap = groupBy(
+                groupMembers,
+                (member) => member.groupUuid,
+            );
 
             // Map groups to SCIM format
             const scimGroups = groups.map((group) =>

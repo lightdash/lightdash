@@ -8,7 +8,7 @@ import {
 } from '@lightdash/common';
 import { Box, List, Tooltip } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
-import { isEqual } from 'es-toolkit/compat';
+import { isEqual } from 'es-toolkit';
 import { useMemo, type FC } from 'react';
 import { type InfiniteQueryResults } from '../../../hooks/useQueryResults';
 import MantineIcon from '../../common/MantineIcon';

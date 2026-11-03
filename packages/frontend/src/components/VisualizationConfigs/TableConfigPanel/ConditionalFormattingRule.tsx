@@ -22,7 +22,7 @@ import {
     Select,
     Tooltip,
 } from '@mantine/core';
-import { differenceBy } from 'es-toolkit/compat';
+import { differenceBy } from 'es-toolkit';
 import { useCallback, useMemo, type FC } from 'react';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import FieldSelect from '../../common/FieldSelect';
@@ -124,7 +124,11 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
                     FilterOperator.NOT_IN_BETWEEN,
                 ]);
 
-                return differenceBy(options, ignoredOperators, 'value');
+                return differenceBy(
+                    options,
+                    ignoredOperators,
+                    (item) => item.value,
+                );
             }
 
             return options;
@@ -145,7 +149,11 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
                     FilterOperator.NOT_NULL,
                 ]);
 
-                return differenceBy(options, ignoredOperators, 'value');
+                return differenceBy(
+                    options,
+                    ignoredOperators,
+                    (item) => item.value,
+                );
             }
 
             return options;

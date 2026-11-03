@@ -12,7 +12,7 @@ import {
     type ResultColumn,
 } from '@lightdash/common';
 import { VisuallyHidden } from '@mantine/core';
-import { isEqual, omit, omitBy } from 'es-toolkit/compat';
+import { isEqual, omit, omitBy } from 'es-toolkit';
 import {
     useCallback,
     useEffect,
@@ -224,7 +224,7 @@ const isEditUnapplied = (
     if (isPlaceholder) return !state.isNew;
     const { snapshot, filterId, touchedFilterIds } = state;
     const toEdited = (rule: DashboardFilterRule) =>
-        omit(toSaved(rule), 'sectionId');
+        omit(toSaved(rule), ['sectionId']);
     return (
         isFilterRuleDirty(
             snapshot.dashboardFilters,
@@ -824,7 +824,7 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
             const rule =
                 adopted.sectionId !== undefined &&
                 !sectionIds.includes(adopted.sectionId)
-                    ? omit(adopted, 'sectionId')
+                    ? omit(adopted, ['sectionId'])
                     : adopted;
             const emptiedAt = editingState?.emptiedAt ?? null;
             const index =

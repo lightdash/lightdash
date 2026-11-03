@@ -5,7 +5,7 @@ import {
     type CapturedQuery,
     type DeliveryCaptureManifest,
 } from '@lightdash/common';
-import { isPlainObject } from 'es-toolkit/compat';
+import { isPlainObject } from 'es-toolkit';
 import { sha256Hex } from './sha256';
 import { stableStringify, stripCaptureBodyFields } from './stableStringify';
 

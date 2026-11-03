@@ -18,7 +18,7 @@ import {
 } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconUsers } from '@tabler/icons-react';
-import { uniq, uniqBy } from 'es-toolkit/compat';
+import { uniq, uniqBy } from 'es-toolkit';
 import {
     useCallback,
     useEffect,
@@ -129,7 +129,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
             infiniteOrganizationUsers?.pages.map((p) => p.data).flat() ?? [];
 
         setAllSearchedOrganizationUsers((previousState) =>
-            uniqBy([...previousState, ...allPages], 'userUuid'),
+            uniqBy([...previousState, ...allPages], (item) => item.userUuid),
         );
     }, [infiniteOrganizationUsers?.pages]);
 
@@ -143,7 +143,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
             infiniteOrganizationGroups?.pages.map((p) => p.data).flat() ?? [];
 
         setAllSearchedGroups((previousState) =>
-            uniqBy([...previousState, ...allPages], 'uuid'),
+            uniqBy([...previousState, ...allPages], (item) => item.uuid),
         );
     }, [infiniteOrganizationGroups?.pages]);
 

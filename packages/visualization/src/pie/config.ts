@@ -24,7 +24,7 @@ import {
     type TableCalculation,
     type TableCalculationMetadata,
 } from '@lightdash/common';
-import { isEmpty, omitBy, pick, pickBy } from 'es-toolkit/compat';
+import { pick } from 'es-toolkit';
 import { type VisualizationResults } from '../types';
 
 /** One slice of the pie: the rows of a group aggregated into a single value. */
@@ -296,13 +296,15 @@ export const buildValidPieConfig = ({
     showPercentage,
     valueLabelColor,
     groupLabelOverrides: pick(groupLabelOverrides, groupLabels),
-    groupColorOverrides: pickBy(
-        pick(groupColorOverrides, groupLabels),
-        isHexCodeColor,
+    groupColorOverrides: Object.fromEntries(
+        Object.entries(pick(groupColorOverrides, groupLabels)).filter(
+            ([, color]) => isHexCodeColor(color),
+        ),
     ),
-    groupValueOptionOverrides: omitBy(
-        pick(groupValueOptionOverrides, groupLabels),
-        isEmpty,
+    groupValueOptionOverrides: Object.fromEntries(
+        Object.entries(pick(groupValueOptionOverrides, groupLabels)).filter(
+            ([, options]) => Object.keys(options).length > 0,
+        ),
     ),
     groupSortOverrides: groupSortOverrides.filter((label) =>
         groupLabels.includes(label),

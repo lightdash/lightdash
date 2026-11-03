@@ -1,5 +1,5 @@
 import { type SqlRunnerWarehouseConnection } from '@lightdash/common';
-import { isEqual } from 'es-toolkit/compat';
+import { isEqual } from 'es-toolkit';
 import {
     useEffect,
     useMemo,

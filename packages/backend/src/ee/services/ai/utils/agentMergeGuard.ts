@@ -8,7 +8,7 @@ import {
     type DocumentCharts,
     type SemanticChartAsCode,
 } from '@lightdash/common';
-import { isEqual, omit } from 'es-toolkit/compat';
+import { isEqual, omit } from 'es-toolkit';
 import {
     normalizeFilterIds,
     stripFilterIds,
@@ -31,7 +31,9 @@ type FormatOverrides = Record<string, object> | undefined;
 // Overrides only carry formatOptions today; any other key stays compared.
 const withoutFormatting = (overrides: FormatOverrides): FormatOverrides => {
     const kept = Object.entries(overrides ?? {}).flatMap(([fieldId, value]) => {
-        const rest = omit(value, 'formatOptions');
+        const rest = Object.fromEntries(
+            Object.entries(value).filter(([key]) => key !== 'formatOptions'),
+        );
         return Object.keys(rest).length > 0 ? [[fieldId, rest]] : [];
     });
     return kept.length > 0 ? Object.fromEntries(kept) : undefined;
@@ -56,7 +58,10 @@ const chartInputs = (
     chart: ChartAsCode | SemanticChartAsCode,
     merge: unknown,
 ) => ({
-    ...omit(chart, [...PRESENTATION_FIELDS, 'merge']),
+    ...omit(chart as Record<string, unknown>, [
+        ...PRESENTATION_FIELDS,
+        'merge',
+    ]),
     metricQuery: queryInputs(chart.metricQuery),
     merge,
 });

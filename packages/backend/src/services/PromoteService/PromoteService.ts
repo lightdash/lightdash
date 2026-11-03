@@ -38,7 +38,7 @@ import {
     type UUID,
     type UuidOrSlug,
 } from '@lightdash/common';
-import { isEqual } from 'es-toolkit/compat';
+import { isEqual } from 'es-toolkit';
 import { validate as isValidUuid } from 'uuid';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { toSessionUser } from '../../auth/account/account';

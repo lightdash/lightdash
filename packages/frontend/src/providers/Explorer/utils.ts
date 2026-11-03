@@ -5,7 +5,7 @@ import {
     type Series,
     type TableChart,
 } from '@lightdash/common';
-import { omit } from 'es-toolkit/compat';
+import { omit } from 'es-toolkit';
 import { EMPTY_CARTESIAN_CHART_CONFIG } from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import { type ConfigCacheMap } from './types';
 

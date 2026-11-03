@@ -1,4 +1,4 @@
-import { cloneDeep } from 'es-toolkit/compat';
+import { cloneDeep } from 'es-toolkit';
 import { DimensionType } from './field';
 import {
     applyDimensionOverrides,

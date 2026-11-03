@@ -1,4 +1,4 @@
-import { merge } from 'es-toolkit/compat';
+import { merge } from 'es-toolkit';
 import { promises as fs } from 'fs';
 import * as yaml from 'js-yaml';
 import * as os from 'os';
@@ -235,7 +235,7 @@ export const setAnswer = async (answer: Config['answers']) => {
     const config = await getRawConfig();
     await setConfig({
         ...config,
-        answers: merge(config.answers, answer),
+        answers: merge(config.answers ?? {}, answer ?? {}),
     });
 };
 

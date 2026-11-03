@@ -16,7 +16,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconArrowLeft, IconPlus } from '@tabler/icons-react';
-import { uniqBy } from 'es-toolkit/compat';
+import { uniqBy } from 'es-toolkit';
 import { useLayoutEffect, useMemo, useRef, useState, type FC } from 'react';
 import FieldIcon from '../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../components/common/MantineIcon';

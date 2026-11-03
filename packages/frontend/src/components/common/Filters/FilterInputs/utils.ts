@@ -5,7 +5,7 @@ import {
     type BaseFilterRule,
     type DashboardFilterableField,
 } from '@lightdash/common';
-import { isEmpty, uniq } from 'es-toolkit/compat';
+import { uniq } from 'es-toolkit';
 
 export {
     getConditionalRuleLabel,
@@ -23,7 +23,7 @@ export const getFilterRuleTables = (
     if (
         isDashboardFilterRule(filterRule) &&
         filterRule.tileTargets &&
-        !isEmpty(filterRule.tileTargets)
+        Object.keys(filterRule.tileTargets).length > 0
     ) {
         return Object.entries(filterRule.tileTargets).reduce<string[]>(
             (tables, [tileUuid, tileTarget]) => {

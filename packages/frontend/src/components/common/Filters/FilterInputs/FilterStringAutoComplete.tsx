@@ -28,7 +28,7 @@ import {
     IconPlus,
     IconRefresh,
 } from '@tabler/icons-react';
-import { uniq } from 'es-toolkit/compat';
+import { uniq } from 'es-toolkit';
 import {
     useCallback,
     useEffect,

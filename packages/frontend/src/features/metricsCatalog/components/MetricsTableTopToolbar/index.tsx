@@ -47,7 +47,7 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import { clsx } from 'clsx';
-import { isEqual } from 'es-toolkit/compat';
+import { isEqual } from 'es-toolkit';
 import { memo, useCallback, useMemo, useState, type FC } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { useDebounce } from 'react-use';

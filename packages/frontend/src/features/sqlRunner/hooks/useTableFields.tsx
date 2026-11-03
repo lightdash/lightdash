@@ -4,7 +4,6 @@ import {
     type WarehouseTableSchema,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
-import { isEmpty } from 'es-toolkit/compat';
 import Fuse from 'fuse.js';
 import { type LightdashApi } from '../../../api';
 import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
@@ -68,7 +67,7 @@ export const useTableFields = ({
         retry: false,
         enabled: !!tableName,
         select(data) {
-            if (!data || isEmpty(data)) return;
+            if (!data || Object.keys(data).length === 0) return;
 
             const fields = Object.entries(data)
                 .map<WarehouseTableField>(([name, type]) => ({ name, type }))

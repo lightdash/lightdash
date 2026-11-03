@@ -1,10 +1,4 @@
-import {
-    concat,
-    flatMap,
-    intersection,
-    mapValues,
-    pickBy,
-} from 'es-toolkit/compat';
+import { intersection, mapValues, pickBy } from 'es-toolkit';
 
 type FilterableTable = {
     dimensions: Record<string, { tags?: string[] }>;
@@ -26,19 +20,19 @@ function hasFieldMatchingTags<T extends FilterableTable>(
     availableTags: string[],
 ) {
     return matcher(
-        concat(
-            flatMap(table.metrics, (m) => m.tags ?? []),
-            flatMap(table.dimensions, (d) => d.tags ?? []),
-        ),
+        [
+            ...Object.values(table.metrics),
+            ...Object.values(table.dimensions),
+        ].flatMap((field) => field.tags ?? []),
         availableTags,
     );
 }
 
 function hasTableAnyFieldTags<T extends FilterableTable>(table: T) {
-    const allFields = concat(
-        Object.values(table.metrics),
-        Object.values(table.dimensions),
-    );
+    const allFields = [
+        ...Object.values(table.metrics),
+        ...Object.values(table.dimensions),
+    ];
     return allFields.some((field) => field.tags !== undefined);
 }
 

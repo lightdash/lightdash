@@ -9,7 +9,7 @@ import {
     type ItemsMap,
     type MetricWithAssociatedTimeDimension,
 } from '@lightdash/common';
-import { mapValues } from 'es-toolkit/compat';
+import { mapValues } from 'es-toolkit';
 
 export const redactFieldSql = <T extends Field>(field: T): T => ({
     ...field,

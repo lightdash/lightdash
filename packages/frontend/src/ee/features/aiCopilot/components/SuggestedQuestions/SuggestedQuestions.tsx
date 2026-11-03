@@ -1,5 +1,5 @@
 import { SimpleGrid, Stack, Text } from '@mantine/core';
-import { shuffle } from 'es-toolkit/compat';
+import { shuffle } from 'es-toolkit';
 import { useMemo, type FC } from 'react';
 import { PolymorphicPaperButton } from '../../../../../components/common/PolymorphicPaperButton';
 import { getLeastSimilar } from './getLeastSimilar';

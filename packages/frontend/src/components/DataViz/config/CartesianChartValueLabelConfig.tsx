@@ -9,7 +9,7 @@ import {
     IconEyeOff,
     IconLayoutAlignCenter,
 } from '@tabler/icons-react';
-import { capitalize } from 'es-toolkit/compat';
+import { capitalize } from 'es-toolkit';
 import { forwardRef, type ComponentPropsWithoutRef, type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
 import ColorSelector from '../../VisualizationConfigs/ColorSelector';

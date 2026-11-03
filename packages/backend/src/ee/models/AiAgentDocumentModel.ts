@@ -8,7 +8,7 @@ import {
     NotFoundError,
     ProjectType,
 } from '@lightdash/common';
-import { omit } from 'es-toolkit/compat';
+import { omit } from 'es-toolkit';
 import { Knex } from 'knex';
 import { ProjectTableName } from '../../database/entities/projects';
 import {
@@ -40,7 +40,7 @@ const mapRowToDocument = (row: DbDocumentWithAccess): AiAgentDocument => ({
 });
 
 const mapRowToSummary = (row: DbDocumentWithAccess): AiAgentDocumentSummary => {
-    const data = omit(mapRowToDocument(row), 'storageKey');
+    const data = omit(mapRowToDocument(row), ['storageKey']);
     return data;
 };
 

@@ -46,7 +46,7 @@ import {
     IconSearch,
     IconX,
 } from '@tabler/icons-react';
-import { uniqBy } from 'es-toolkit/compat';
+import { uniqBy } from 'es-toolkit';
 import {
     useCallback,
     useMemo,
@@ -336,7 +336,11 @@ const QueryPickerView: FC<{
     );
 
     const allCharts = useMemo(
-        () => uniqBy(chartPages?.pages.flatMap((p) => p.data) ?? [], 'uuid'),
+        () =>
+            uniqBy(
+                chartPages?.pages.flatMap((p) => p.data) ?? [],
+                (item) => item.uuid,
+            ),
         [chartPages?.pages],
     );
 
@@ -806,7 +810,7 @@ const DashboardPickerView: FC<{
         () =>
             uniqBy(
                 dashboardPages?.pages.flatMap((page) => page.data) ?? [],
-                'uuid',
+                (item) => item.uuid,
             ),
         [dashboardPages?.pages],
     );

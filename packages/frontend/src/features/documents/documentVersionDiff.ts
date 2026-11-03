@@ -7,7 +7,7 @@ import {
     type DocumentExploreChartContent,
     type DocumentSqlChart,
 } from '@lightdash/common';
-import { isEqual } from 'es-toolkit/compat';
+import { isEqual } from 'es-toolkit';
 
 export type DocumentLineChange = {
     type: 'unchanged' | 'added' | 'removed';

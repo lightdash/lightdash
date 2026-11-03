@@ -27,7 +27,7 @@ import {
     type ReferenceLineField,
 } from '@lightdash/visualization/editor';
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
-import { isEqual } from 'es-toolkit/compat';
+import { isEqual } from 'es-toolkit';
 import { editorCaseReducers } from './editorSlice';
 
 type Layout = Partial<CartesianChart['layout']>;

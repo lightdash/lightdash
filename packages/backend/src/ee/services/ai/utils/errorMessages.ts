@@ -1,6 +1,6 @@
 import { AiCreditsPausedError, MissingConfigError } from '@lightdash/common';
 import { APICallError, RetryError, type FinishReason } from 'ai';
-import { get, isPlainObject } from 'es-toolkit/compat';
+import { isPlainObject } from 'es-toolkit';
 import type { AiKeyManagement } from '../../../../analytics/aiUsage';
 import type { AiDecisionClient } from '../decisions/AiDecisionClient';
 import {
@@ -88,12 +88,7 @@ const isProviderBillingError = (error: unknown): boolean => {
     const data = isPlainObject(apiCallError.data)
         ? apiCallError.data
         : undefined;
-    return [
-        get(data, 'type'),
-        get(data, 'code'),
-        get(data, 'error.type'),
-        get(data, 'error.code'),
-    ].some(
+    return [data?.type, data?.code, data?.error?.type, data?.error?.code].some(
         (code) =>
             typeof code === 'string' && PROVIDER_BILLING_ERROR_CODES.has(code),
     );

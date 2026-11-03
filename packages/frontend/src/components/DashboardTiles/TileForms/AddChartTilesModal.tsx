@@ -20,7 +20,7 @@ import {
 import { useForm } from '@mantine/form';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconChartAreaLine } from '@tabler/icons-react';
-import { uniqBy } from 'es-toolkit/compat';
+import { uniqBy } from 'es-toolkit';
 import React, {
     useEffect,
     useLayoutEffect,
@@ -109,7 +109,7 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose, spaceUuids }) => {
         const allPages = chartPages?.pages.map((p) => p.data).flat() ?? [];
 
         setSavedQueries((previousState) =>
-            uniqBy([...previousState, ...allPages], 'uuid'),
+            uniqBy([...previousState, ...allPages], (item) => item.uuid),
         );
     }, [chartPages?.pages]);
 

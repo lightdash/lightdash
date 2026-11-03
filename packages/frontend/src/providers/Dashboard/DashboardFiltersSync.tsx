@@ -9,7 +9,7 @@ import {
     type InteractivityOptions,
     type SavedChartsInfoForDashboardAvailableFilters,
 } from '@lightdash/common';
-import { clone, isEqual } from 'es-toolkit/compat';
+import { clone, isEqual } from 'es-toolkit';
 import { useCallback, useEffect, useMemo, useRef, type FC } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { useDeepCompareEffect } from 'react-use';

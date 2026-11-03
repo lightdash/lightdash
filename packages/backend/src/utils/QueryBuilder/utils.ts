@@ -50,7 +50,6 @@ import {
     type FindTablesWithMetricInflationArgs,
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
-import { isArray } from 'es-toolkit/compat';
 import { hasUserAttribute } from '../../services/UserAttributesService/UserAttributeUtils';
 
 export {
@@ -267,7 +266,7 @@ export const replaceLightdashValues = (
             }
 
             const isEmptyArray =
-                isArray(attributeValues) && attributeValues.length === 0;
+                Array.isArray(attributeValues) && attributeValues.length === 0;
             const isEmptyString =
                 typeof attributeValues === 'string' &&
                 attributeValues.length === 0;
@@ -286,7 +285,7 @@ export const replaceLightdashValues = (
             const escape = escapeString ?? ((value: string) => value);
 
             let valueString: string;
-            if (isArray(attributeValues)) {
+            if (Array.isArray(attributeValues)) {
                 valueString = attributeValues
                     .map((attributeValue) =>
                         typeof attributeValue === 'number'

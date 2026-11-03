@@ -1,4 +1,4 @@
-import { camelCase, flow, upperFirst } from 'es-toolkit/compat';
+import { camelCase, flow, upperFirst } from 'es-toolkit';
 import { ProjectType } from '../types/projects';
 import type { RoleLevel } from '../types/roles';
 import {

@@ -1,5 +1,5 @@
-import { merge } from 'es-toolkit/compat';
 import { type DbtManifest } from '../types/dbt';
+import { mergeDbtMeta } from '../utils/dbt';
 
 const MODEL_FIELDS = [
     'unique_id',
@@ -65,7 +65,10 @@ const projectMeta = (
     ) {
         return undefined;
     }
-    return merge({}, source.meta, config?.meta);
+    return mergeDbtMeta(
+        source.meta as Record<string, unknown> | undefined,
+        config?.meta as Record<string, unknown> | undefined,
+    );
 };
 
 const projectModelNode = (

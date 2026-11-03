@@ -6,7 +6,7 @@ import {
     type ParameterValue,
 } from '@lightdash/common';
 import { createAction, type UnknownAction } from '@reduxjs/toolkit';
-import { isEqual } from 'es-toolkit/compat';
+import { isEqual } from 'es-toolkit';
 import { reconcileDashboardParameters } from '../../../providers/Dashboard/dashboardParametersUrl';
 
 export type DashboardParametersState = {

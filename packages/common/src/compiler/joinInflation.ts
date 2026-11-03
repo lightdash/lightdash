@@ -1,4 +1,4 @@
-import { intersection } from 'es-toolkit/compat';
+import { intersection } from 'es-toolkit';
 import { CompileError } from '../types/errors';
 import {
     InlineErrorType,

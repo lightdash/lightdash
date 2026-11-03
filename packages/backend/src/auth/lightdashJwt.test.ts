@@ -5,7 +5,7 @@ import {
     ForbiddenError,
     ParameterError,
 } from '@lightdash/common';
-import { merge } from 'es-toolkit/compat';
+import { toMerged } from 'es-toolkit';
 import jwt from 'jsonwebtoken';
 import { lightdashConfig } from '../config/lightdashConfig';
 import Logger from '../logging/logger';
@@ -51,7 +51,7 @@ describe('JwtUtil', () => {
         contentOverrides: Partial<CreateEmbedJwt['content']>,
     ) =>
         encodeLightdashJwt(
-            merge({}, mockJwtData, { content: contentOverrides }),
+            toMerged(mockJwtData, { content: contentOverrides }),
             encodedSecret,
             '1h',
         );

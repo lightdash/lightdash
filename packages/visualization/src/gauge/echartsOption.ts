@@ -7,7 +7,6 @@ import {
     type GaugeSection,
 } from '@lightdash/common';
 import { type EChartsOption, type GaugeSeriesOption } from 'echarts';
-import { toNumber } from 'es-toolkit/compat';
 import { sanitizeEchartsFontFamily } from '../fonts';
 import { type VisualizationTheme } from '../theme';
 import { type VisualizationContextInput } from '../types';
@@ -176,14 +175,14 @@ export const buildGaugeEchartsOption = ({
         const granularityMap = getGranularityMapFromItems(itemsMap);
 
         const rawValue = firstRow[selectedField];
-        const numericValue = toNumber(rawValue?.value.raw);
+        const numericValue = Number(rawValue?.value.raw);
 
         // Get dynamic max value from metric if configured
         let effectiveMax = max;
         if (maxFieldId) {
             const maxFieldValue = firstRow[maxFieldId];
             if (maxFieldValue) {
-                const maxFromMetric = toNumber(maxFieldValue.value.raw);
+                const maxFromMetric = Number(maxFieldValue.value.raw);
                 if (!isNaN(maxFromMetric) && maxFromMetric > 0) {
                     effectiveMax = maxFromMetric;
                 }
@@ -208,7 +207,7 @@ export const buildGaugeEchartsOption = ({
             if (section.minFieldId) {
                 const minFieldValue = firstRow[section.minFieldId];
                 if (minFieldValue) {
-                    const minFromMetric = toNumber(minFieldValue.value.raw);
+                    const minFromMetric = Number(minFieldValue.value.raw);
                     if (!isNaN(minFromMetric)) {
                         effectiveSectionMin = minFromMetric;
                     }
@@ -219,7 +218,7 @@ export const buildGaugeEchartsOption = ({
             if (section.maxFieldId) {
                 const maxFieldValue = firstRow[section.maxFieldId];
                 if (maxFieldValue) {
-                    const maxFromMetric = toNumber(maxFieldValue.value.raw);
+                    const maxFromMetric = Number(maxFieldValue.value.raw);
                     if (!isNaN(maxFromMetric) && maxFromMetric > 0) {
                         effectiveSectionMax = maxFromMetric;
                     }
@@ -375,7 +374,7 @@ export const buildGaugeEchartsOption = ({
 
                     if (showPercentage) {
                         const percentageValue = `${(
-                            ((toNumber(value) - min) / (effectiveMax - min)) *
+                            ((Number(value) - min) / (effectiveMax - min)) *
                             100
                         ).toFixed(0)}%`;
                         const customPercentageLabel =

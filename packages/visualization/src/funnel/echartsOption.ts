@@ -17,7 +17,6 @@ import {
     type TableCalculation,
 } from '@lightdash/common';
 import { type EChartsOption, type FunnelSeriesOption } from 'echarts';
-import { round } from 'es-toolkit/compat';
 import { sanitizeEchartsFontFamily } from '../fonts';
 import { type VisualizationTheme } from '../theme';
 import { type VisualizationContextInput } from '../types';
@@ -45,6 +44,17 @@ export const getFunnelSeriesSort = (
     }
 };
 
+// Shifts the decimal point on the number's text, like lodash, so 73.225 rounds to 73.23 rather than 73.22.
+const shiftDecimal = (value: number, places: number) => {
+    const [mantissa, exponent = '0'] = `${value}`.split('e');
+    return Number(`${mantissa}e${Number(exponent) + places}`);
+};
+
+const roundPercent = (value: number) =>
+    Number.isFinite(value)
+        ? shiftDecimal(Math.round(shiftDecimal(value, 2)), -2)
+        : Math.round(value);
+
 const getValueAndPercentage = ({
     field,
     value,
@@ -66,7 +76,7 @@ const getValueAndPercentage = ({
         timezone,
     );
 
-    const percentOfMax = round((Number(value) / maxValue) * 100, 2);
+    const percentOfMax = roundPercent((Number(value) / maxValue) * 100);
     return { formattedValue, percentOfMax };
 };
 

@@ -1,6 +1,5 @@
 import { type ApiError } from '@lightdash/common';
 import { useQueries } from '@tanstack/react-query';
-import { isEmpty } from 'es-toolkit/compat';
 import { useMemo } from 'react';
 import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import {
@@ -89,7 +88,7 @@ export const useMultipleTableFields = (tableReferences: TableReference[]) => {
                 .filter((result) => result.isSuccess && result.data)
                 .flatMap((result, index) => {
                     const data = result.data;
-                    if (!data || isEmpty(data)) return [];
+                    if (!data || Object.keys(data).length === 0) return [];
 
                     // Get the corresponding query meta data
                     const queryMeta = queries[index]?.meta;

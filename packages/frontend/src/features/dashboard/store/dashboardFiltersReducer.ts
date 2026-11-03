@@ -5,7 +5,7 @@ import {
     type DashboardFilters,
 } from '@lightdash/common';
 import { createAction, type UnknownAction } from '@reduxjs/toolkit';
-import { isEqual } from 'es-toolkit/compat';
+import { isEqual } from 'es-toolkit';
 import { hasSavedFilterValueChanged } from '../../dashboardFilters/FilterConfiguration/utils';
 import {
     addSavedFilterOverride,

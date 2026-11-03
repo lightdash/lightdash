@@ -11,7 +11,7 @@ import {
     type Explore,
     type ExploreError,
 } from '@lightdash/common';
-import { chunk } from 'es-toolkit/compat';
+import { chunk } from 'es-toolkit';
 import { type Knex } from 'knex';
 import { createHash } from 'node:crypto';
 import {

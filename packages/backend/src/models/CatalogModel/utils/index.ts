@@ -19,7 +19,7 @@ import {
     type ExploreError,
     type Metric,
 } from '@lightdash/common';
-import { uniq } from 'es-toolkit/compat';
+import { uniq } from 'es-toolkit';
 import {
     DbCatalogIn,
     type DbCatalog,

@@ -1,4 +1,4 @@
-import { isPlainObject } from 'es-toolkit/compat';
+import { isPlainObject } from 'es-toolkit';
 
 /** Cap on distinct captured queries per delivery; overflow beyond this is dropped and counted. */
 export const MAX_DELIVERY_QUERIES = 50;

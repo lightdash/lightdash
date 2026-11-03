@@ -28,7 +28,7 @@ import {
     VIZ_DEFAULT_AGGREGATION,
     type Account,
 } from '@lightdash/common';
-import { uniq } from 'es-toolkit/compat';
+import { uniq } from 'es-toolkit';
 import { Knex } from 'knex';
 import {
     CreateSqlChartVersionEvent,

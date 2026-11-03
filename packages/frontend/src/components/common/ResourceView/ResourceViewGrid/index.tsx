@@ -26,7 +26,7 @@ import {
 import { Box, SimpleGrid, Stack, Text } from '@mantine/core';
 import { mergeRefs, useHover } from '@mantine/hooks';
 import { IconGripVertical } from '@tabler/icons-react';
-import { orderBy } from 'es-toolkit/compat';
+import { orderBy } from 'es-toolkit';
 import { produce } from 'immer';
 import {
     useCallback,
@@ -302,7 +302,7 @@ const ResourceViewGrid: FC<ResourceViewGridProps> = ({
                 );
                 const orderedItems = orderBy(
                     filteredItems,
-                    ['data.pinnedListOrder'],
+                    [(item) => item.data.pinnedListOrder],
                     ['asc'],
                 );
                 return {

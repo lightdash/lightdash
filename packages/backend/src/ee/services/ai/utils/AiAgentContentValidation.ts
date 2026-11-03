@@ -8,7 +8,7 @@ import {
 } from '@lightdash/common';
 import Ajv, { type ErrorObject, type ValidateFunction } from 'ajv';
 import addFormats from 'ajv-formats';
-import { compact, get, set, uniq } from 'es-toolkit/compat';
+import { compact, isPlainObject, uniq } from 'es-toolkit';
 
 export type AiAgentValidatedContentType = 'dashboard' | 'chart' | 'sql_chart';
 
@@ -272,11 +272,18 @@ export class AiAgentContentValidation {
         }
 
         for (const path of this.timestampFields[type]) {
-            const pathSegments = path.split('/').filter(Boolean);
-            const value = get(cloned, pathSegments);
-
-            if (value instanceof Date) {
-                set(cloned, pathSegments, value.toISOString());
+            const segments = path.split('/').filter(Boolean);
+            const key = segments.pop();
+            const parent = segments.reduce<unknown>(
+                (node, segment) =>
+                    isPlainObject(node) ? node[segment] : undefined,
+                cloned,
+            );
+            if (key && isPlainObject(parent)) {
+                const value: unknown = parent[key];
+                if (value instanceof Date) {
+                    parent[key] = value.toISOString();
+                }
             }
         }
 

@@ -26,7 +26,7 @@ import {
     ThresholdOperator,
     WindowFunctionType,
 } from '@lightdash/common';
-import { cloneDeep } from 'es-toolkit/compat';
+import { cloneDeep } from 'es-toolkit';
 import {
     createRenameFactory,
     getNameChanges,

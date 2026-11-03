@@ -3,7 +3,7 @@ import {
     type ParametersValuesMap,
     type QueryHistory,
 } from '@lightdash/common';
-import { isEqual } from 'es-toolkit/compat';
+import { isEqual } from 'es-toolkit';
 
 // Reuse is an explicit presentation-only request, after normal compilation and authorization.
 export const canReuseQueryResult = (

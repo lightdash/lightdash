@@ -10,7 +10,7 @@ import {
     Popover,
     useMantineTheme,
 } from '@mantine/core';
-import { differenceBy, filter, includes } from 'es-toolkit/compat';
+import { differenceBy } from 'es-toolkit';
 import {
     memo,
     useCallback,
@@ -176,13 +176,12 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
         // Returns categories whose names match the search term (case insensitive)
         const filteredExistingCategories = useMemo(
             () =>
-                filter(
-                    metricCategories,
+                metricCategories.filter(
                     (category) =>
-                        includes(
-                            category.name.toLowerCase(),
-                            search.toLowerCase(),
-                        ) && isCategoryDefinedInUI(category),
+                        category.name
+                            .toLowerCase()
+                            .includes(search.toLowerCase()) &&
+                        isCategoryDefinedInUI(category),
                 ),
             [metricCategories, search],
         );
@@ -192,13 +191,16 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
         // 2. Filter remaining categories to match search term (case insensitive)
         const filteredAvailableCategories = useMemo(
             () =>
-                filter(
-                    differenceBy(tags, metricCategories, 'tagUuid'),
+                differenceBy(
+                    tags ?? [],
+                    metricCategories,
+                    (category) => category.tagUuid,
+                ).filter(
                     (category) =>
-                        includes(
-                            category.name.toLowerCase(),
-                            search.toLowerCase(),
-                        ) && isCategoryDefinedInUI(category),
+                        category.name
+                            .toLowerCase()
+                            .includes(search.toLowerCase()) &&
+                        isCategoryDefinedInUI(category),
                 ),
             [tags, search, metricCategories],
         );

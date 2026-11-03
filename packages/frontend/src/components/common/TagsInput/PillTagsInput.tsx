@@ -6,7 +6,7 @@ import {
     type MantineSize,
 } from '@mantine/core';
 import { useUncontrolled } from '@mantine/hooks';
-import { uniq } from 'es-toolkit/compat';
+import { uniq } from 'es-toolkit';
 import {
     Fragment,
     type FC,

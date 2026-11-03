@@ -14,7 +14,7 @@ import {
     UserAttributeAsCode,
     validateEmail,
 } from '@lightdash/common';
-import { isEqual } from 'es-toolkit/compat';
+import { isEqual } from 'es-toolkit';
 import {
     LightdashAnalytics,
     UserAttributeCreateAndUpdateEvent,

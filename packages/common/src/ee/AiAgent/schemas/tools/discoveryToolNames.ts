@@ -1,4 +1,4 @@
-import { snakeCase } from 'es-toolkit/compat';
+import { snakeCase } from 'es-toolkit';
 import { type ToolRuntime } from '../defineTool';
 import { type ToolName } from '../visualizations';
 

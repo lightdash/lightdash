@@ -1,7 +1,7 @@
 import { FeatureFlags } from '@lightdash/common';
 import { Box, Button } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { isEqual } from 'es-toolkit/compat';
+import { isEqual } from 'es-toolkit';
 import {
     lazy,
     memo,

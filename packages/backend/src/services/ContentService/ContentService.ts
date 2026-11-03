@@ -23,7 +23,7 @@ import {
     SpaceContentBase,
     SummaryContent,
 } from '@lightdash/common';
-import { intersection } from 'es-toolkit/compat';
+import { intersection, uniq } from 'es-toolkit';
 import { Knex } from 'knex';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { fromSession } from '../../auth/account';
@@ -160,7 +160,7 @@ export class ContentService extends BaseService {
             .filter((_, index) => projectAccessResults[index])
             .map((project) => project.projectUuid);
         let allowedProjectUuids = filters.projectUuids
-            ? intersection(filters.projectUuids, projectUuids)
+            ? uniq(intersection(filters.projectUuids, projectUuids))
             : projectUuids; // todo: move this filter to project model query
 
         // The vizs-only listing skips space scoping entirely, so gate it on

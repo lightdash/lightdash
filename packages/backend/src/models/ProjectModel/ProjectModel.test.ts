@@ -32,7 +32,7 @@ import {
     WarehouseTypes,
 } from '@lightdash/common';
 import { MotherduckInstanceCache } from '@lightdash/warehouses';
-import { isEqual } from 'es-toolkit/compat';
+import { isEqual } from 'es-toolkit';
 import knex from 'knex';
 import { getTracker, MockClient, RawQuery, Tracker } from 'knex-mock-client';
 import { FunctionQueryMatcher } from 'knex-mock-client/types/mock-client';

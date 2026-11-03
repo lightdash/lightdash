@@ -48,7 +48,7 @@ import {
     type Row,
 } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { isEqual, last } from 'es-toolkit/compat';
+import { isEqual, last } from 'es-toolkit';
 import { readableColor } from 'polished';
 import React, {
     useCallback,
@@ -817,7 +817,7 @@ const PivotTable: FC<PivotTableProps> = ({
 
     const getMetricAsRowColumnTotalValueFromAxis = useCallback(
         (total: unknown, rowIndex: number): ResultValue | null => {
-            const value = last(data.columnTotalFields?.[rowIndex]);
+            const value = data.columnTotalFields?.[rowIndex]?.at(-1);
             if (!value || !value.fieldId) throw new Error('Invalid pivot data');
 
             const item = getField(value.fieldId);
@@ -843,8 +843,8 @@ const PivotTable: FC<PivotTableProps> = ({
     const getGrandTotalValueFromAxis = useCallback(
         (total: unknown, metricIndex: number): ResultValue | null => {
             const totalField = data.pivotConfig.metricsAsRows
-                ? last(data.columnTotalFields?.[metricIndex])
-                : last(data.rowTotalFields)?.[metricIndex];
+                ? data.columnTotalFields?.[metricIndex]?.at(-1)
+                : data.rowTotalFields?.at(-1)?.[metricIndex];
             if (!totalField?.fieldId) return null;
             if (total === null || total === undefined) return null;
 

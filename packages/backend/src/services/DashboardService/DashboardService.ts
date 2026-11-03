@@ -73,7 +73,7 @@ import {
     type UuidOrSlug,
 } from '@lightdash/common';
 import cronstrue from 'cronstrue';
-import { uniq } from 'es-toolkit/compat';
+import { uniq } from 'es-toolkit';
 import { type Knex } from 'knex';
 import pLimit from 'p-limit';
 import { v4 as uuidv4 } from 'uuid';

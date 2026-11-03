@@ -18,7 +18,6 @@ import { useDebouncedValue, useHover } from '@mantine/hooks';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import dayjs from 'dayjs';
-import { isEmpty } from 'es-toolkit/compat';
 import { memo, useCallback, useMemo, useRef, useState, type FC } from 'react';
 import { CopyActionIcon } from '../../../components/common/CopyActionIcon';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -483,7 +482,7 @@ export const Tables: FC<{ onRefresh: () => void }> = ({ onRefresh }) => {
         | { hasSeveralDatabases: boolean; tablesBySchema: SchemaTables[] }
         | undefined
     >(() => {
-        if (!data || isEmpty(data)) return undefined;
+        if (!data || Object.keys(data).length === 0) return undefined;
         const tablesBySchema = Object.entries(data).flatMap(
             ([database, schemas]) =>
                 Object.entries(schemas).map(([schema, tables]) => ({

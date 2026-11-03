@@ -1,4 +1,4 @@
-import { attempt, isError } from 'es-toolkit/compat';
+import { attempt, isError } from 'es-toolkit';
 import type { ExplorePostProcessor } from '../compiler/translator';
 import { InlineErrorType, type ExploreError } from '../types/explore';
 import { parseDbtPreAggregates } from './definition';
@@ -13,13 +13,11 @@ export const preAggregatePostProcessor: ExplorePostProcessor = (
     compiledExplores,
     { model, meta },
 ) => {
-    const parsedPreAggregates = attempt(
-        parseDbtPreAggregates,
-        meta.pre_aggregates,
-        model.name,
+    const [error, parsedPreAggregates] = attempt(() =>
+        parseDbtPreAggregates(meta.pre_aggregates, model.name),
     );
 
-    if (isError(parsedPreAggregates)) {
+    if (parsedPreAggregates === null) {
         return compiledExplores.map(
             (explore) =>
                 ({
@@ -33,7 +31,7 @@ export const preAggregatePostProcessor: ExplorePostProcessor = (
                         {
                             type: InlineErrorType.METADATA_PARSE_ERROR,
                             message:
-                                parsedPreAggregates.message ||
+                                (isError(error) && error.message) ||
                                 `Could not parse pre-aggregates for model "${model.name}"`,
                         },
                     ],

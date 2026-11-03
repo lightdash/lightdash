@@ -96,7 +96,7 @@ import {
     type UserWarehouseCredentialsWithAgentStatus,
 } from '@lightdash/common';
 import { randomInt } from 'crypto';
-import { uniq } from 'es-toolkit/compat';
+import { uniq } from 'es-toolkit';
 import { nanoid } from 'nanoid';
 import refresh from 'passport-oauth2-refresh';
 import {

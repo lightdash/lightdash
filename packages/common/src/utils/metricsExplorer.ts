@@ -1,7 +1,7 @@
 import dayjs from 'dayjs';
 import isoWeek from 'dayjs/plugin/isoWeek';
 import weekOfYear from 'dayjs/plugin/weekOfYear';
-import { groupBy, mapKeys } from 'es-toolkit/compat';
+import { groupBy, mapKeys } from 'es-toolkit';
 import { v4 as uuidv4 } from 'uuid';
 import { castDateLiteral } from '../compiler/filtersCompiler';
 import { type AnyType } from '../types/any';

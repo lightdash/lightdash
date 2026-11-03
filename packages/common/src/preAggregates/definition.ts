@@ -1,10 +1,4 @@
-import {
-    castArray,
-    isEmpty,
-    isPlainObject,
-    isString,
-    keys,
-} from 'es-toolkit/compat';
+import { isPlainObject, isString } from 'es-toolkit';
 import type { DbtPreAggregateDef } from '../types/dbt';
 import { ParseError } from '../types/errors';
 import { parseFilters } from '../types/filterGrammar';
@@ -130,7 +124,7 @@ const parseMaterializationRoleAttributes = (
     modelName: string,
     preAggregateName: string,
 ): UserAttributeValueMap => {
-    if (!isPlainObject(value) || isEmpty(value)) {
+    if (!isPlainObject(value) || Object.keys(value).length === 0) {
         throw new ParseError(
             `Pre-aggregate "${preAggregateName}" in model "${modelName}" has invalid "materialization_role.attributes". Expected a non-empty object.`,
         );
@@ -140,9 +134,11 @@ const parseMaterializationRoleAttributes = (
 
     return Object.entries(attributes).reduce<UserAttributeValueMap>(
         (acc, [attributeName, attributeValue]) => {
-            const attributeValues = castArray(attributeValue);
+            const attributeValues = Array.isArray(attributeValue)
+                ? attributeValue
+                : [attributeValue];
 
-            if (!isEmpty(attributeValues) && attributeValues.every(isString)) {
+            if (attributeValues.length > 0 && attributeValues.every(isString)) {
                 acc[attributeName] = attributeValues;
                 return acc;
             }
@@ -171,8 +167,8 @@ const parseMaterializationRole = (
             DbtPreAggregateDef['materialization_role']
         >;
 
-    const unknownIntrinsicFields = keys(unknownFields);
-    if (!isEmpty(unknownIntrinsicFields)) {
+    const unknownIntrinsicFields = Object.keys(unknownFields);
+    if (unknownIntrinsicFields.length > 0) {
         throw new ParseError(
             `Pre-aggregate "${preAggregateName}" in model "${modelName}" has unsupported "materialization_role" fields: ${unknownIntrinsicFields.join(
                 ', ',

@@ -5,7 +5,7 @@ import {
     isNumericItem,
 } from '@lightdash/common';
 import { createSelector } from '@reduxjs/toolkit';
-import { isEqual, pickBy } from 'es-toolkit/compat';
+import { isEqual } from 'es-toolkit';
 import { type VisualizationStoreState } from '.';
 import { type VisualizationInputs } from './inputs';
 
@@ -62,6 +62,10 @@ export const selectNumericMetricsAndTableCalculations = createSelector(
     [inputsItemsMap],
     (itemsMap) => ({
         ...getMetricsFromItemsMap(itemsMap ?? {}, isNumericItem),
-        ...pickBy(getTableCalculationsFromItemsMap(itemsMap), isNumericItem),
+        ...Object.fromEntries(
+            Object.entries(getTableCalculationsFromItemsMap(itemsMap)).filter(
+                ([, item]) => isNumericItem(item),
+            ),
+        ),
     }),
 );

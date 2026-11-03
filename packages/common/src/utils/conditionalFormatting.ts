@@ -1,4 +1,3 @@
-import { findLast } from 'es-toolkit/compat';
 import { v4 as uuidv4 } from 'uuid';
 import type {
     ConditionalFormattingRowFields,
@@ -572,7 +571,7 @@ export const getConditionalFormattingConfig = ({
     )
         return undefined;
 
-    return findLast(conditionalFormattings, (config) => {
+    return conditionalFormattings.findLast((config) => {
         if (
             applyTo !== undefined &&
             (config.applyTo ?? ConditionalFormattingColorApplyTo.CELL) !==

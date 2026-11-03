@@ -14,7 +14,7 @@ import {
     type RegisteredAccount,
     type UpdateExternalConnection,
 } from '@lightdash/common';
-import { isEqual } from 'es-toolkit/compat';
+import { isEqual } from 'es-toolkit';
 import { type LightdashConfig } from '../../../config/parseConfig';
 import { BaseService } from '../../../services/BaseService';
 import { paginateAsCode } from '../../../services/CoderService/pagination';

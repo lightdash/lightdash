@@ -19,7 +19,7 @@ import {
     VirtualViewAsCode,
     type WarehouseConnection,
 } from '@lightdash/common';
-import { isEqual } from 'es-toolkit/compat';
+import { isEqual } from 'es-toolkit';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { type WarehouseConnectionModel } from '../../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import { BaseService } from '../../BaseService';

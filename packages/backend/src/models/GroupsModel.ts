@@ -18,7 +18,7 @@ import {
     type KnexPaginateArgs,
     type KnexPaginatedData,
 } from '@lightdash/common';
-import { difference, differenceBy, uniq } from 'es-toolkit/compat';
+import { difference, differenceBy, uniq } from 'es-toolkit';
 import { Knex } from 'knex';
 import { DatabaseError } from 'pg';
 import { DbEmail, EmailTableName } from '../database/entities/emails';
@@ -566,12 +566,12 @@ export class GroupsModel {
                 const membersToAdd = differenceBy(
                     update.members,
                     existingGroup.members,
-                    'userUuid',
+                    (member) => member.userUuid,
                 );
                 const membersToRemove = differenceBy(
                     existingGroup.members,
                     update.members || [],
-                    'userUuid',
+                    (member) => member.userUuid,
                 );
                 if (membersToAdd.length > 0) {
                     const newMembers = await trx

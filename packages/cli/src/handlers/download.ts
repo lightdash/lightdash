@@ -62,7 +62,7 @@ import {
     type LightdashProjectConfig,
     type SpaceAsCode,
 } from '@lightdash/common';
-import { groupBy } from 'es-toolkit/compat';
+import { groupBy } from 'es-toolkit';
 import { Dirent, promises as fs, type Stats } from 'fs';
 import inquirer from 'inquirer';
 import * as yaml from 'js-yaml';
@@ -3699,9 +3699,8 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
                     'dashboardSlug' in item &&
                     (item as unknown as ChartAsCode).dashboardSlug,
             );
-            const groupedByDashboard = groupBy(
-                chartsWithDashboard,
-                (item) => (item as unknown as ChartAsCode).dashboardSlug,
+            const groupedByDashboard = groupBy(chartsWithDashboard, (item) =>
+                String((item as unknown as ChartAsCode).dashboardSlug),
             );
             Object.values(groupedByDashboard).forEach((dashboardItems) => {
                 // If no item for this dashboardSlug was already picked as a
