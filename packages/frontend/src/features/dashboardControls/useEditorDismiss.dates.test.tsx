@@ -3,9 +3,12 @@ import {
     FieldType,
     FilterOperator,
     FilterType,
+    MetricType,
     TimeFrames,
     type DateFilterRule,
     type FilterableDimension,
+    type FilterableItem,
+    type Metric,
 } from '@lightdash/common';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -39,9 +42,20 @@ const dimension = (
 const dateField = dimension(DimensionType.DATE);
 const weekField = dimension(DimensionType.DATE, TimeFrames.WEEK);
 const timestampField = dimension(DimensionType.TIMESTAMP);
+// A metric filter on a date-typed metric renders the same date inputs
+const dateMetric: Metric = {
+    fieldType: FieldType.METRIC,
+    type: MetricType.DATE,
+    name: 'latest_order_date',
+    label: 'Latest order date',
+    table: 'orders',
+    tableLabel: 'Orders',
+    sql: 'MAX(${TABLE}.order_date)',
+    hidden: false,
+};
 
 type Props = {
-    field: FilterableDimension;
+    field: FilterableItem;
     initialRule: DateFilterRule;
     onChange: (rule: DateFilterRule) => void;
     onDismissOutside: () => void;
@@ -95,7 +109,7 @@ const Editor: FC<Props> = ({
     );
 };
 
-const renderEditor = (field: FilterableDimension, rule: DateFilterRule) => {
+const renderEditor = (field: FilterableItem, rule: DateFilterRule) => {
     const onChange = vi.fn<(rule: DateFilterRule) => void>();
     const onDismissOutside = vi.fn();
     const onDismiss = vi.fn();
@@ -195,6 +209,19 @@ describe('date filter calendar inside the dashboard filter editor', () => {
             expect(lastValues()).toStrictEqual(['2026-01-18']);
             expectEditorOpen(onDismissOutside);
         });
+
+        it('on a date metric: sets the clicked day and keeps the editor open', async () => {
+            const user = userEvent.setup();
+            const { onDismissOutside, lastValues } = renderEditor(
+                dateMetric,
+                makeRule(operator, ['2026-01-15']),
+            );
+
+            await pickDay(user, valueInputs()[0], '20 January 2026');
+
+            expect(lastValues()).toStrictEqual(['2026-01-20']);
+            expectEditorOpen(onDismissOutside);
+        });
     });
 
     it('"is between" on a date field: sets both clicked days and keeps the editor open', async () => {
@@ -265,6 +292,12 @@ describe('date filter calendar inside the dashboard filter editor', () => {
             '"is after" on a week field',
             weekField,
             FilterOperator.GREATER_THAN,
+            0,
+        ],
+        [
+            '"is before" on a date metric',
+            dateMetric,
+            FilterOperator.LESS_THAN,
             0,
         ],
         [
