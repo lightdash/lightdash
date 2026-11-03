@@ -1,14 +1,21 @@
 # Automatic analytics content updates
 
-After compaction finishes, the ordinary worker queues analytics content reconciliation.
-A separate worker uses the existing managed-organization iterator to enqueue one
-sync job per organization, then calls the existing analytics status and sync methods.
+After compaction finishes, the scheduler queues analytics content reconciliation
+as a separate background job. It uses the existing managed-organization iterator,
+restricted to organizations with an analytics project, to enqueue one sync job per
+organization, then calls the existing analytics status and sync methods.
 The manual **Sync content** button remains available.
 
-Run the dedicated worker with `SCHEDULER_INCLUDE_TASKS=reconcileAnalyticsContent,syncAnalyticsContent`,
-`SCHEDULER_CONCURRENCY=1` and `PGMAXCONNECTIONS=3`. These tasks are excluded from
-ordinary worker defaults. Deploy application support first, then enable the Helm
-`analyticsContentWorker` with the same image. Without it, sync jobs stay queued.
+The existing scheduler includes `reconcileAnalyticsContent` and `syncAnalyticsContent`
+by default; no extra worker deployment is required. Deployments with an explicit
+`SCHEDULER_INCLUDE_TASKS` allowlist must include these tasks. They can be disabled
+with `SCHEDULER_EXCLUDE_TASKS`, or assigned to a separate worker using the existing
+include/exclude configuration.
+
+Sync jobs use low priority, per-organization deduplication and a shared queue that
+serializes installations. Compaction only enqueues reconciliation and releases its
+own queue; it does not wait for content installation. These jobs share scheduler
+capacity and occupy a worker slot while running.
 
 The worker uses a current active organization administrator and the existing
 permission checks; content versions are attributed to that administrator.

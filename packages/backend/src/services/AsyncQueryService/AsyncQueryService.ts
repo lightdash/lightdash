@@ -130,6 +130,7 @@ import {
     WarehouseClient,
     WarehouseConnectionError,
     WarehouseQueryError,
+    WarehouseQueryTimeoutError,
     WarehouseTypes,
     withAgentMarkerTag,
     type AgentIdentityClaim,
@@ -535,6 +536,15 @@ type ExecuteMergeQueryInternalArgs = Omit<
         | { type: 'chart'; chart: MergeQueryChart }
         | { type: 'resolved'; configuration: PivotConfiguration };
 };
+
+// Read-only tile queries that are safe to retry when they stall
+const STALL_RECOVERABLE_QUERY_CONTEXTS: ReadonlySet<QueryExecutionContext> =
+    new Set([
+        QueryExecutionContext.DASHBOARD,
+        QueryExecutionContext.AUTOREFRESHED_DASHBOARD,
+        QueryExecutionContext.EMBED,
+        QueryExecutionContext.CHART,
+    ]);
 
 export const QUEUED_QUERY_EXPIRED_MESSAGE =
     'Your query expired while waiting in the queue. Please try again.';
@@ -3821,6 +3831,7 @@ export class AsyncQueryService extends ProjectService {
         usedParameters,
         dataTimezone,
         displayTimezone,
+        recoverStalledQuery,
     }: {
         warehouseClient: WarehouseClient;
         query: string;
@@ -3831,6 +3842,7 @@ export class AsyncQueryService extends ProjectService {
         usedParameters?: ParametersValuesMap | null;
         dataTimezone?: string;
         displayTimezone: string | null;
+        recoverStalledQuery: boolean;
     }): Promise<{
         columns: ResultColumns;
         /** Pre-pivot columns, so pivoted queries keep a record of the
@@ -4094,6 +4106,7 @@ export class AsyncQueryService extends ProjectService {
                         sql: query,
                         tags: queryTags,
                         timezone: dataTimezone,
+                        recoverStalledQuery,
                     },
                     transformRows,
                 ),
@@ -5209,6 +5222,16 @@ export class AsyncQueryService extends ProjectService {
             const resolvedDataTimezone = isTimezoneSupportEnabled
                 ? warehouseClient.credentials.dataTimezone
                 : undefined;
+            const recoverStalledQuery =
+                credentialsType === WarehouseTypes.REDSHIFT &&
+                STALL_RECOVERABLE_QUERY_CONTEXTS.has(queryTags.query_context) &&
+                (
+                    await this.featureFlagModel.get({
+                        featureFlagId:
+                            FeatureFlags.RedshiftStalledQueryRecovery,
+                        user: { userUuid, organizationUuid },
+                    })
+                ).enabled;
 
             const t0 = Date.now();
 
@@ -5342,6 +5365,7 @@ export class AsyncQueryService extends ProjectService {
                                 usedParameters,
                                 dataTimezone: resolvedDataTimezone,
                                 displayTimezone,
+                                recoverStalledQuery,
                             });
                         setPhaseTimingAttributes(
                             span,
@@ -5670,6 +5694,10 @@ export class AsyncQueryService extends ProjectService {
                     warehouseType: warehouseCredentialsType,
                     errorName: e instanceof Error ? e.name : undefined,
                     errorCode: (e as { code?: string })?.code,
+                    warehouseTimeout:
+                        e instanceof WarehouseQueryTimeoutError
+                            ? e.data
+                            : undefined,
                     // Surface every queryTag (chart_uuid, dashboard_uuid,
                     // saved_sql_uuid, scheduler_uuid, scheduler_name, job_id,
                     // explore_name, query_context, …) onto the error log so a
@@ -14974,6 +15002,10 @@ export class AsyncQueryService extends ProjectService {
                             ),
                             errorName: e instanceof Error ? e.name : undefined,
                             errorCode: (e as { code?: string })?.code,
+                            warehouseTimeout:
+                                e instanceof WarehouseQueryTimeoutError
+                                    ? e.data
+                                    : undefined,
                             errorMessage: getErrorMessage(e),
                             ...queryTags,
                         });

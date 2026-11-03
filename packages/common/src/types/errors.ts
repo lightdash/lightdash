@@ -10,6 +10,7 @@ import {
 import { type AnyType } from './any';
 import { type DbtLog } from './job';
 import type { SharedSignInExpiry } from './sharedSignIn';
+import type { WarehousePhaseTimings, WarehouseQueryPhase } from './warehouse';
 
 type LightdashErrorData = {
     /**
@@ -484,6 +485,25 @@ export class WarehouseQueryError extends LightdashError {
             statusCode: 400,
             data,
         });
+    }
+}
+
+export type WarehouseQueryTimeoutDetails = {
+    step: WarehouseQueryPhase;
+    stepElapsedMs: number;
+    completedStepTimingsMs: WarehousePhaseTimings;
+    rowsFetched: number;
+    backendPid: number | null;
+};
+
+/**
+ * The client gave up because the warehouse never reported back, as opposed
+ * to the warehouse cancelling the query itself.
+ */
+export class WarehouseQueryTimeoutError extends WarehouseQueryError {
+    constructor(message: string, details: WarehouseQueryTimeoutDetails) {
+        super(message, details);
+        this.name = 'WarehouseQueryTimeoutError';
     }
 }
 

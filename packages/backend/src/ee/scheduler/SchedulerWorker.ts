@@ -657,6 +657,50 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                     },
                 );
             },
+            [EE_SCHEDULER_TASKS.DATA_APP_INSTRUCTION_INVESTIGATE]: async (
+                payload,
+                helpers,
+            ) => {
+                // The timeout must stop the agent, not just report it.
+                const abort = new AbortController();
+                await tryJobOrTimeout(
+                    SchedulerClient.processJob(
+                        EE_SCHEDULER_TASKS.DATA_APP_INSTRUCTION_INVESTIGATE,
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                        async () => {
+                            await this.dataAppAnalysisService.runInstructionInvestigation(
+                                payload,
+                                helpers.job.id,
+                                helpers.job.run_at,
+                                abort.signal,
+                            );
+                        },
+                    ),
+                    helpers.job,
+                    DATA_APP_INVESTIGATE_TIMEOUT_MS,
+                    async (job, e) => {
+                        abort.abort();
+                        await this.dataAppAnalysisService.trackInstructionInvestigationTimeout(
+                            payload,
+                            DATA_APP_INVESTIGATE_TIMEOUT_MS,
+                        );
+                        await this.schedulerService.logSchedulerJob({
+                            task: EE_SCHEDULER_TASKS.DATA_APP_INSTRUCTION_INVESTIGATE,
+                            jobId: job.id,
+                            scheduledTime: job.run_at,
+                            status: SchedulerJobStatus.ERROR,
+                            details: {
+                                error: getErrorMessage(e),
+                                projectUuid: payload.projectUuid,
+                                organizationUuid: payload.organizationUuid,
+                                createdByUserUuid: payload.userUuid,
+                            },
+                        });
+                    },
+                );
+            },
             [EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_REMEDIATION_RUN]: async (
                 payload,
                 helpers,

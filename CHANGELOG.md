@@ -1,3 +1,50 @@
+# [3.137.0](https://github.com/lightdash/lightdash/compare/3.136.2...3.137.0) (2026-11-03)
+
+
+### Bug Fixes
+
+* improve input handling in rename service ([#32014](https://github.com/lightdash/lightdash/issues/32014)) ([a66d6ab](https://github.com/lightdash/lightdash/commit/a66d6ab9e648776b5fa44f98bfb17e276ad7d0f3))
+
+
+### Features
+
+* **warehouses:** log the step that hung on a client query timeout ([#31992](https://github.com/lightdash/lightdash/issues/31992)) ([65d7dca](https://github.com/lightdash/lightdash/commit/65d7dca0e5f6356d8e7a971df90e49b8a97a2b1b))
+
+## [3.136.2](https://github.com/lightdash/lightdash/compare/3.136.1...3.136.2) (2026-11-03)
+
+
+### Bug Fixes
+
+* recover chart metadata snapshots after query timeout ([#32006](https://github.com/lightdash/lightdash/issues/32006)) ([dddadee](https://github.com/lightdash/lightdash/commit/dddadee6a3b442ad785afd8c689b22436b509bd0))
+
+## [3.136.1](https://github.com/lightdash/lightdash/compare/3.136.0...3.136.1) (2026-11-03)
+
+
+### Bug Fixes
+
+* **redshift:** detect and recover stalled warehouse queries ([#32003](https://github.com/lightdash/lightdash/issues/32003)) ([92fd14d](https://github.com/lightdash/lightdash/commit/92fd14d852f1ea55796818abc73c700db23a0e46))
+
+# [3.136.0](https://github.com/lightdash/lightdash/compare/3.135.2...3.136.0) (2026-11-03)
+
+
+### Bug Fixes
+
+* **ai-agents:** stop service account actors renaming themselves via updateUserName ([#32004](https://github.com/lightdash/lightdash/issues/32004)) ([4deb068](https://github.com/lightdash/lightdash/commit/4deb068b8bc300747ec2b7bf32c8e7bd0bc1d47b))
+* **ai:** explicitly disable thinking on adaptive models when reasoning is off ([#32005](https://github.com/lightdash/lightdash/issues/32005)) ([30019b0](https://github.com/lightdash/lightdash/commit/30019b0bd496e5f01f104dacae3ec8e9dabc7462))
+* run analytics content sync on the existing scheduler ([#31997](https://github.com/lightdash/lightdash/issues/31997)) ([52e353c](https://github.com/lightdash/lightdash/commit/52e353cb6559f23eef6856ec0700d228641567f0))
+
+
+### Features
+
+* **data-apps:** agent investigations of app-authored instructions ([#32000](https://github.com/lightdash/lightdash/issues/32000)) ([e2c9d0b](https://github.com/lightdash/lightdash/commit/e2c9d0b91304b420cebf64510826f27282ab0dde))
+
+## [3.135.2](https://github.com/lightdash/lightdash/compare/3.135.1...3.135.2) (2026-11-03)
+
+
+### Bug Fixes
+
+* **clickhouse:** keep primary key pruning for week dimensions with a start of week ([#31995](https://github.com/lightdash/lightdash/issues/31995)) ([2e9375d](https://github.com/lightdash/lightdash/commit/2e9375d0bb986c32291a4d635d44ea283887cd8e)), closes [#31994](https://github.com/lightdash/lightdash/issues/31994)
+
 ## [3.135.1](https://github.com/lightdash/lightdash/compare/3.135.0...3.135.1) (2026-11-03)
 
 

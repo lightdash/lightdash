@@ -22,6 +22,7 @@ Users describe features by what they see in the Lightdash editor. Translate:
 | drill down, click into a chart | `drill-down` | app code opt-in |
 | drill into a viz data point (reusable visualization) | `viz-drill-down` | app code opt-in |
 | "ask the AI", one-line takeaway, explain this row | `ai-prompt` | app code opt-in |
+| "investigate this", act on a recommendation, agent digs beyond the page | `instruction-investigations` | app code opt-in |
 | "share this view", URL that restores state | `url-state` | app code opt-in |
 | "remember my filters", "keep my inputs", shared comments/targets/notes, "who changed this" | `app-state` | app code opt-in — only when the host has it enabled |
 | Google Sheets export | `gsheet-export` | app code opt-in |
@@ -208,6 +209,17 @@ order, `sortBy` describes result ordering, `totalColumnCount` exposes truncation
   plain text. `result` is the object `useLightdash` returns (keep a reference
   to it even when destructuring), never a rebuilt `{ data, columns }`. Hide the control when `available` is false; trigger from a user
   action. Full contract in `/app/references/ai-analysis.md`.
+- `instruction-investigations`: `useInvestigation()` returns `{ available,
+  investigate, status, explanation, partial, error, canContinue,
+  continueInAskAi }`; `investigate({ instruction, sources: [{ result, label }] })`
+  sends an author-written brief to the AI agent, which starts from those
+  loaded results and may run further read-only semantic-layer queries beyond
+  the page. One hook instance per control; the explanation is Markdown and
+  the run takes up to a couple of minutes, so show a running state. Hide the
+  control when `available` is false; trigger from a user action. Use it for
+  "investigate why" actions; keep `ai-prompt` for answers over loaded rows
+  only. Full contract in "Agent investigations on demand" in
+  `/app/references/ai-analysis.md`.
 - `shared-ai-commentary`: `useSharedAiCommentary({ selectionKey, prompt,
   sources, focus? })` saves a generated answer in shared app state keyed to
   the current selection: the first viewer generates, later viewers of the

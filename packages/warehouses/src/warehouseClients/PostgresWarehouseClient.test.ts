@@ -2,6 +2,7 @@ import {
     RedshiftAuthenticationType,
     WarehouseDatabaseListingNotSupportedError,
     WarehouseQueryError,
+    WarehouseQueryTimeoutError,
     WarehouseTableType,
     WarehouseTypes,
     type CreateRedshiftCredentials,
@@ -527,7 +528,11 @@ describe('PostgresWarehouseClient statement timeout', () => {
         (pg.Pool as unknown as Mock).mockImplementationOnce(function () {
             return {
                 connect: vi.fn((callback) => {
-                    callback(null, { query: queryMock, on: vi.fn() }, vi.fn());
+                    callback(
+                        null,
+                        { query: queryMock, on: vi.fn(), processID: 4242 },
+                        vi.fn(),
+                    );
                 }),
                 end: vi.fn(async () => undefined),
                 on: vi.fn(),
@@ -679,6 +684,106 @@ describe('PostgresWarehouseClient statement timeout', () => {
             // 9-minute statement_timeout + 30s client buffer = 570s
             vi.advanceTimersByTimeAsync(570 * 1000 + 1000),
         ]);
+    });
+
+    describe('when the warehouse never reports back', () => {
+        const silentSession = () => new Promise<never>(() => {});
+        const respondingSession = () =>
+            Promise.resolve({ rows: [], fields: [] });
+        const streamWithRows = (rowCount: number) => {
+            const stream = new PassThrough({ objectMode: true });
+            Array.from({ length: rowCount }).forEach(() =>
+                stream.write({ row: expectedRow, fields: queryColumnsMock }),
+            );
+            return stream;
+        };
+
+        it.each([
+            {
+                step: 'session',
+                query: (arg: unknown) =>
+                    typeof arg === 'string'
+                        ? silentSession()
+                        : streamWithRows(0),
+                completedSteps: ['connect'],
+                rowsFetched: 0,
+            },
+            {
+                step: 'query',
+                query: (arg: unknown) =>
+                    typeof arg === 'string'
+                        ? respondingSession()
+                        : streamWithRows(0),
+                completedSteps: ['connect', 'session'],
+                rowsFetched: 0,
+            },
+            {
+                step: 'fetch',
+                query: (arg: unknown) =>
+                    typeof arg === 'string'
+                        ? respondingSession()
+                        : streamWithRows(1),
+                completedSteps: ['connect', 'session', 'query'],
+                rowsFetched: 1,
+            },
+        ])(
+            'names the $step step as the one that hung',
+            async ({ step, query, completedSteps, rowsFetched }) => {
+                vi.useFakeTimers();
+                const warn = vi
+                    .spyOn(console, 'warn')
+                    .mockImplementation(() => undefined);
+                onTestFinished(() => warn.mockRestore());
+                mockPoolWithQuery(vi.fn(query));
+                const warehouse = new PostgresWarehouseClient(credentials);
+
+                const [error] = await Promise.all([
+                    warehouse
+                        .runQuery('select 1', { project_uuid: 'project-1' })
+                        .catch((e: unknown) => e),
+                    vi.advanceTimersByTimeAsync(570 * 1000 + 1000),
+                ]);
+
+                expect(error).toBeInstanceOf(WarehouseQueryTimeoutError);
+                expect(error).toBeInstanceOf(WarehouseQueryError);
+                expect(error).toMatchObject({
+                    name: 'WarehouseQueryTimeoutError',
+                    message: 'Query timed out after 570s',
+                    data: { step, rowsFetched, backendPid: 4242 },
+                });
+                expect(
+                    Object.keys(
+                        (error as WarehouseQueryTimeoutError).data
+                            .completedStepTimingsMs,
+                    ),
+                ).toEqual(completedSteps);
+                expect(warn).toHaveBeenCalledWith(
+                    expect.stringContaining(`step=${step} step_elapsed=`),
+                );
+                expect(warn).toHaveBeenCalledWith(
+                    expect.stringContaining(
+                        `rows=${rowsFetched} backend_pid=4242 project_uuid=project-1`,
+                    ),
+                );
+            },
+        );
+
+        it('still reports every phase once for a query that completes', async () => {
+            mockPoolWithQuery(respondingQueryMock());
+            const warehouse = new PostgresWarehouseClient(credentials);
+
+            const { phaseTimings } = await warehouse.executeAsyncQuery(
+                { sql: 'select 1', tags: {} },
+                async () => undefined,
+            );
+
+            expect(Object.keys(phaseTimings).sort()).toEqual([
+                'connect',
+                'fetch',
+                'query',
+                'session',
+            ]);
+        });
     });
 });
 

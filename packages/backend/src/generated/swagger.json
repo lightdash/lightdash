@@ -22119,6 +22119,94 @@
                 "required": ["agentUuid", "anomalyId"],
                 "type": "object"
             },
+            "ApiDataAppInstructionInvestigateResponse": {
+                "$ref": "#/components/schemas/ApiSuccess__jobId-string__"
+            },
+            "DataAppInstructionInvestigateRequest": {
+                "properties": {
+                    "agentUuid": {
+                        "type": "string"
+                    },
+                    "sources": {
+                        "items": {
+                            "$ref": "#/components/schemas/DataAppAnalysisSource"
+                        },
+                        "type": "array"
+                    },
+                    "instruction": {
+                        "type": "string"
+                    }
+                },
+                "required": ["agentUuid", "sources", "instruction"],
+                "type": "object",
+                "description": "An app-authored investigation: a written instruction (e.g. a recommendation\npill) the agent follows using the named sources as its starting data. Unlike\nanomaly investigations nothing anchors it to a stored detection; the viewer\ngates, budgets and read-only tool set are the same."
+            },
+            "DataAppInstructionInvestigateResult": {
+                "properties": {
+                    "partial": {
+                        "type": "boolean"
+                    },
+                    "queriesRun": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "threadUuid": {
+                        "type": "string"
+                    },
+                    "agentUuid": {
+                        "type": "string"
+                    },
+                    "instruction": {
+                        "type": "string"
+                    },
+                    "explanation": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "partial",
+                    "queriesRun",
+                    "threadUuid",
+                    "agentUuid",
+                    "instruction",
+                    "explanation"
+                ],
+                "type": "object"
+            },
+            "DataAppInstructionInvestigation": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/DataAppInstructionInvestigateResult"
+                    },
+                    {
+                        "properties": {
+                            "generatedAt": {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            "sources": {
+                                "items": {
+                                    "$ref": "#/components/schemas/DataAppAnalysisSource"
+                                },
+                                "type": "array"
+                            },
+                            "target": {
+                                "$ref": "#/components/schemas/AnalysisTargetRef"
+                            },
+                            "investigationId": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "generatedAt",
+                            "sources",
+                            "target",
+                            "investigationId"
+                        ],
+                        "type": "object"
+                    }
+                ]
+            },
             "DataAppAnalysisRecord": {
                 "anyOf": [
                     {
@@ -22154,6 +22242,24 @@
                             },
                             {
                                 "$ref": "#/components/schemas/DataAppInvestigation"
+                            }
+                        ]
+                    },
+                    {
+                        "allOf": [
+                            {
+                                "properties": {
+                                    "operation": {
+                                        "type": "string",
+                                        "enum": ["investigate_instruction"],
+                                        "nullable": false
+                                    }
+                                },
+                                "required": ["operation"],
+                                "type": "object"
+                            },
+                            {
+                                "$ref": "#/components/schemas/DataAppInstructionInvestigation"
                             }
                         ]
                     },
@@ -57043,6 +57149,7 @@
                     "aiWritebackPipeline",
                     "aiDeepResearch",
                     "dataAppInvestigate",
+                    "dataAppInstructionInvestigate",
                     "agentOnboardingRun",
                     "aiAgentEditDbtProjectPipeline",
                     "sweepStaleAppLocks",
@@ -74895,7 +75002,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.135.1",
+        "version": "3.137.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"

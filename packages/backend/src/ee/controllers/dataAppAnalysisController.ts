@@ -3,10 +3,12 @@ import {
     type ApiDataAppAnalysisLookupResponse,
     type ApiDataAppAnalysisResponse,
     type ApiDataAppDetectResponse,
+    type ApiDataAppInstructionInvestigateResponse,
     type ApiDataAppInvestigateResponse,
     type ApiDataAppPromptResponse,
     type ApiErrorPayload,
     type DataAppDetectRequest,
+    type DataAppInstructionInvestigateRequest,
     type DataAppInvestigateRequest,
     type DataAppLookupRequest,
     type DataAppPromptRequest,
@@ -166,6 +168,42 @@ export class DataAppAnalysisController extends BaseController {
             projectUuid,
             { kind: 'app', appUuid },
             analysisId,
+            body,
+        );
+        return { status: 'ok', results };
+    }
+
+    /**
+     * Queue an agent investigation of an app-authored instruction over the
+     * viewer's own query results. Poll
+     * `GET /api/v1/schedulers/job/{jobId}/status`; the completed job's
+     * details carry `investigationId`, readable via the analysis route.
+     * @summary Investigate an app-authored instruction
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'DataAppAnalysisController.investigateInstruction',
+        ),
+    ])
+    @SuccessResponse('202', 'Accepted')
+    @Post('/investigate-instruction')
+    @OperationId('investigateDataAppInstruction')
+    async investigateInstruction(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() appUuid: string,
+        @Body() body: DataAppInstructionInvestigateRequest,
+    ): Promise<ApiDataAppInstructionInvestigateResponse> {
+        if (!req.account) {
+            throw new ForbiddenError('Account is required');
+        }
+        this.setStatus(202);
+        const results = await this.getService().investigateInstruction(
+            req.account,
+            projectUuid,
+            { kind: 'app', appUuid },
             body,
         );
         return { status: 'ok', results };

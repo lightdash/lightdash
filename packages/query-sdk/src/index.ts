@@ -213,5 +213,13 @@ export type {
     ViewInsightsOptions,
 } from './insights';
 
+// Agent investigations of author-written instructions (data apps)
+export { useInvestigation } from './insights';
+export type {
+    Investigation,
+    InvestigationOptions,
+    InvestigationSource,
+} from './insights';
+
 export { createGradientColorScale } from './gradientColorScale';
 export type { VizGradientValue } from './gradient';

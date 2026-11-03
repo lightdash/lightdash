@@ -234,6 +234,59 @@ function RevenueTakeaway() {
 - Trigger `ask` from a user action, or at most once per loaded view. Never on a timer, never per row. Prompts are rate limited per viewer.
 - Prompts are capped at 2000 characters; write them as instructions to an analyst, and name the audience and the length you want.
 
+## Agent investigations on demand (`useInvestigation`)
+
+> Use this when the user wants a button or pill that sends a written instruction to the AI **agent** so it can dig into the question using other data in Lightdash — "investigate what drove this", "act on this recommendation", "analyse the drivers" — with the findings shown inside the app. `useAiPrompt` only sees rows the app already loaded; `useInvestigation` runs the same agent as an anomaly Investigate, which can query other explores (read-only) to test drivers.
+
+```tsx
+import { useInvestigation, useLightdash } from '@lightdash/query-sdk';
+
+function DriverPill({ recommendation }: { recommendation: string }) {
+    // Keep the hook result itself: `sources` needs the object useLightdash
+    // returns, not a rebuilt { data, columns, ... }.
+    const revenue = useLightdash(revenueByMonth);
+    const investigation = useInvestigation();
+
+    if (!investigation.available || revenue.loading) return null;
+
+    return (
+        <div>
+            <button
+                disabled={investigation.status === 'running'}
+                onClick={() =>
+                    investigation.investigate({
+                        instruction: recommendation,
+                        sources: [{ result: revenue, label: 'Revenue by month' }],
+                    })
+                }
+            >
+                {investigation.status === 'running'
+                    ? 'Investigating…'
+                    : 'Investigate'}
+            </button>
+            {investigation.explanation && (
+                <Markdown>{investigation.explanation}</Markdown>
+            )}
+            {investigation.partial && (
+                <p>Stopped at the query budget; findings may be incomplete.</p>
+            )}
+            {investigation.error && <p role="alert">{investigation.error}</p>}
+            {investigation.canContinue && (
+                <button onClick={investigation.continueInAskAi}>
+                    Continue in Ask AI
+                </button>
+            )}
+        </div>
+    );
+}
+```
+
+- One `useInvestigation()` per control; a re-run replaces that control's result. Several pills mean several hook instances.
+- `sources` work exactly as in `useAiPrompt`: pass the object `useLightdash` returns, with an optional `label` the agent sees as the section title. The agent starts from these rows and may run further read-only semantic-layer queries under the viewer's own access.
+- The run takes up to a couple of minutes and the explanation is **Markdown** (the anomaly `InvestigationCard`'s rendering is a good model). Show a clear running state.
+- `available` is false outside a Lightdash host, when the organisation has AI off for data apps, on hosts that predate the capability, or while the viewer has no agent to run with. Hide the control; do not fall back to `useAiPrompt` silently for "investigate" asks — tell the user the host can't run investigations.
+- Trigger `investigate` only from a viewer's click; runs share the organisation's investigation rate limits and daily caps. Instructions are capped at 2000 characters; write them as a brief to an analyst.
+
 ## Saved commentary shared between viewers (`useSharedAiCommentary`)
 
 > Use this when the user wants generated commentary to be **saved** — "save the summary for the team", "everyone should see the same commentary", "let people edit the AI text", "keep the narrative with this view". It needs BOTH AI analysis and saved app state available (see the prompt's availability lines); without either, fall back to `useAiPrompt` (no saving) or plain `useSharedAppState` (no generation).

@@ -2461,7 +2461,11 @@ export type DataAppAnalysisCompletedEvent = BaseTrack & {
         appUuid: string | null;
         dashboardUuid: string | null;
         appVersion: number | null;
-        operation: 'detect' | 'prompt' | 'investigate';
+        operation:
+            | 'detect'
+            | 'prompt'
+            | 'investigate'
+            | 'investigate_instruction';
         outcome: DataAppAnalysisOutcome;
         sourceCount: number | null;
         truncated: boolean | null;

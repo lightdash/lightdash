@@ -12231,6 +12231,146 @@ describe('AsyncQueryService', () => {
         });
     });
 
+    describe('runAsyncWarehouseQuery stalled query recovery', () => {
+        const redshiftCredentials = {
+            type: WarehouseTypes.REDSHIFT,
+            host: 'redshift.example.com',
+            user: 'analytics',
+            password: 'test-password',
+            port: 5439,
+            dbname: 'warehouse',
+            schema: 'public',
+        } satisfies CreateWarehouseCredentials;
+
+        const run = async ({
+            credentials,
+            context,
+            flagEnabled,
+        }: {
+            credentials: CreateWarehouseCredentials;
+            context: QueryExecutionContext;
+            flagEnabled: boolean;
+        }) => {
+            const getFlag = vi.fn(
+                async ({ featureFlagId }: { featureFlagId: string }) => ({
+                    id: featureFlagId,
+                    enabled:
+                        featureFlagId ===
+                            FeatureFlags.RedshiftStalledQueryRecovery &&
+                        flagEnabled,
+                }),
+            );
+            const mockProjectModel = {
+                ...projectModel,
+                ...singleRouteProjectModelMethods,
+                getWarehouseCredentialsForProject: vi.fn(() =>
+                    Promise.resolve(credentials),
+                ),
+                getWarehouseClientFromCredentials: vi.fn(() => ({
+                    ...warehouseClientMock,
+                    credentials,
+                })),
+            };
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                projectModel: mockProjectModel as unknown as ProjectModel,
+                featureFlagModel: {
+                    get: getFlag,
+                } as unknown as FeatureFlagModel,
+            });
+            service.queryHistoryModel.update = vi.fn();
+            const runQueryAndTransformRows = vi.spyOn(
+                AsyncQueryService,
+                'runQueryAndTransformRows',
+            );
+            runQueryAndTransformRows.mockClear();
+
+            await service.runAsyncWarehouseQuery({
+                userUuid: sessionAccount.user.id,
+                organizationUuid: sessionAccount.organization.organizationUuid!,
+                isPreviewProject: false,
+                isRegisteredUser: true,
+                onboardingFlow: 'legacy',
+                projectUuid,
+                query: 'SELECT * FROM orders',
+                fieldsMap: {},
+                usedParameters: null,
+                queryTags: { query_context: context },
+                warehouseCredentialsOverrides: undefined,
+                queryUuid: 'stall-query-uuid',
+                cacheKey: 'stall-cache-key',
+                pivotConfiguration: undefined,
+                originalColumns: undefined,
+                queryCreatedAt: new Date(),
+                displayTimezone: null,
+            });
+
+            expect(runQueryAndTransformRows).toHaveBeenCalledOnce();
+            return {
+                recoverStalledQuery:
+                    runQueryAndTransformRows.mock.calls[0][0]
+                        .recoverStalledQuery,
+                getFlag,
+            };
+        };
+
+        test.each([
+            QueryExecutionContext.DASHBOARD,
+            QueryExecutionContext.AUTOREFRESHED_DASHBOARD,
+            QueryExecutionContext.EMBED,
+            QueryExecutionContext.CHART,
+        ])(
+            'recovers Redshift %s queries when the flag is on',
+            async (context) => {
+                const { recoverStalledQuery } = await run({
+                    credentials: redshiftCredentials,
+                    context,
+                    flagEnabled: true,
+                });
+                expect(recoverStalledQuery).toBe(true);
+            },
+        );
+
+        test('does not recover when the flag is off', async () => {
+            const { recoverStalledQuery } = await run({
+                credentials: redshiftCredentials,
+                context: QueryExecutionContext.DASHBOARD,
+                flagEnabled: false,
+            });
+            expect(recoverStalledQuery).toBe(false);
+        });
+
+        test.each([
+            QueryExecutionContext.SQL_RUNNER,
+            QueryExecutionContext.EXPLORE,
+            QueryExecutionContext.SCHEDULED_DELIVERY,
+            QueryExecutionContext.MCP_RUN_SQL,
+        ])('does not recover %s queries', async (context) => {
+            const { recoverStalledQuery, getFlag } = await run({
+                credentials: redshiftCredentials,
+                context,
+                flagEnabled: true,
+            });
+            expect(recoverStalledQuery).toBe(false);
+            expect(getFlag).not.toHaveBeenCalledWith(
+                expect.objectContaining({
+                    featureFlagId: FeatureFlags.RedshiftStalledQueryRecovery,
+                }),
+            );
+        });
+
+        test('does not recover other warehouses', async () => {
+            const { recoverStalledQuery } = await run({
+                credentials: {
+                    ...redshiftCredentials,
+                    type: WarehouseTypes.POSTGRES,
+                },
+                context: QueryExecutionContext.DASHBOARD,
+                flagEnabled: true,
+            });
+            expect(recoverStalledQuery).toBe(false);
+        });
+    });
+
     describe('runAsyncWarehouseQuery preview sign-in retry', () => {
         const upstreamProjectUuid = 'upstream-project-uuid';
         const bigquerySso = (
@@ -15414,6 +15554,7 @@ describe('AsyncQueryService', () => {
                     },
                     itemsMap: {},
                     displayTimezone: null,
+                    recoverStalledQuery: false,
                 });
 
             // Rows pass through untransformed…

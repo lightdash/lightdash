@@ -25,7 +25,6 @@ import {
     OrganizationMemberRole,
     ParameterError,
     ParseError,
-    SCHEDULER_TASKS,
     SentryConfig,
     SNOWFLAKE_AI_CALLBACK_PATH,
     SupportedDbtVersions,
@@ -1236,11 +1235,6 @@ const validateTaskList = (tasks: string[], envVarName: string) => {
 };
 
 const parseAndSanitizeSchedulerTasks = (): Array<SchedulerTaskName> => {
-    const defaultTasks = ALL_TASK_NAMES.filter(
-        (task) =>
-            task !== SCHEDULER_TASKS.RECONCILE_ANALYTICS_CONTENT &&
-            task !== SCHEDULER_TASKS.SYNC_ANALYTICS_CONTENT,
-    );
     const includeTasks = getArrayFromCommaSeparatedList(
         'SCHEDULER_INCLUDE_TASKS',
     );
@@ -1248,9 +1242,8 @@ const parseAndSanitizeSchedulerTasks = (): Array<SchedulerTaskName> => {
         'SCHEDULER_EXCLUDE_TASKS',
     );
 
-    // Content updates run only in a worker that explicitly includes them.
     if (includeTasks.length === 0 && excludeTasks.length === 0) {
-        return defaultTasks;
+        return ALL_TASK_NAMES;
     }
 
     if (includeTasks.length > 0 && excludeTasks.length > 0) {
@@ -1278,10 +1271,12 @@ const parseAndSanitizeSchedulerTasks = (): Array<SchedulerTaskName> => {
 
     if (validIncludeTasks.length === 0 && validExcludeTasks.length > 0) {
         // Only exclude set: include all and exclude the ones from the variable
-        return defaultTasks.filter((task) => !validExcludeTasks.includes(task));
+        return ALL_TASK_NAMES.filter(
+            (task) => !validExcludeTasks.includes(task),
+        );
     }
 
-    return defaultTasks;
+    return ALL_TASK_NAMES;
 };
 
 // Default-on: streaming is disabled only when the env var is the literal 'false'
