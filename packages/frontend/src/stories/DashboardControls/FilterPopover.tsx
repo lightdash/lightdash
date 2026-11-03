@@ -431,10 +431,14 @@ export const FilterPopover: FC<Props> = ({
     const hasSingleValueSetting =
         !isViewer && supportsSingleValue(filterType, rule.operator);
 
+    // A viewer must set a required filter; an editor may leave it empty
+    // (viewers set it), unless it is locked, which no viewer could then set
     const applyBlockedReason = isViewer
-        ? null
-        : isMissingRequiredValue(rule, filters)
-          ? getUiString('filters.config.applyRequiredTooltip')
+        ? isMissingRequiredValue(rule, filters)
+            ? getUiString('filters.config.applyRequiredTooltip')
+            : null
+        : isLockedRequiredMissingValue(rule)
+          ? getUiString('filters.config.applyLockedRequiredTooltip')
           : appliedTileCount === 0
             ? getUiString('filters.notAppliedToAnyTiles')
             : null;

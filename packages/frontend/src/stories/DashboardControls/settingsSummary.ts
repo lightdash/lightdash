@@ -82,8 +82,8 @@ export const getSettingsSummary = ({
     return parts.length > 0 ? parts.join(' · ') : null;
 };
 
-// As `useApplyBlockedReason`: `required` wins over a group, and a group is met
-// by another member that filters (enabled, with a value)
+// A viewer's Apply waits on it, as `useApplyBlockedReason`: `required` wins
+// over a group, and a group is met by another member that filters
 export const isMissingRequiredValue = (
     rule: DashboardFilterRule,
     filters: DashboardFilters,

@@ -455,7 +455,7 @@ export const RequiredOneOfAGroup: Story = {
     },
 };
 
-/** Required with no value; an alternative joins it through the draft, so the summary names it. A filter that already has a value cannot be an alternative (shipped rule), so the pair stays unmet and Apply stays blocked. */
+/** Required with no value, which an editor may apply (viewers set it); an alternative joins it through the draft, so the summary names it. */
 export const SettingsRequiredWithAlternative: Story = {
     name: 'Settings, required, adding an alternative',
     args: {
@@ -467,7 +467,7 @@ export const SettingsRequiredWithAlternative: Story = {
         const page = onPage(canvasElement);
         await expect(
             canvas.getByRole('button', { name: 'Apply' }),
-        ).toBeDisabled();
+        ).toBeEnabled();
         await userEvent.click(
             canvas.getByRole('button', { name: 'Add an alternative filter' }),
         );
@@ -490,14 +490,35 @@ export const SettingsRequiredWithAlternative: Story = {
         ).toBeVisible();
         await expect(
             canvas.getByRole('button', { name: 'Apply' }),
-        ).toBeDisabled();
+        ).toBeEnabled();
     },
 };
 
-/** Locked and required with no value: Apply is blocked and says why. */
+/** Locked and required with no value: no viewer could set it, so Apply is blocked and says why. */
 export const RequiredAndLockedNoValue: Story = {
     name: 'Required and locked, no value',
     args: { initialRule: rules.statusRequiredLocked, field: fields.status },
+    play: async ({ canvas }) => {
+        await expect(
+            canvas.getByRole('button', { name: 'Apply' }),
+        ).toBeDisabled();
+        await waitForApiIdle();
+    },
+};
+
+/** A viewer cleared a required filter: Apply waits for a value. */
+export const ViewerRequiredCleared: Story = {
+    name: 'Viewer, required filter cleared',
+    args: {
+        initialRule: {
+            ...rules.statusSaved,
+            values: [],
+            disabled: false,
+            required: true,
+        },
+        field: fields.status,
+        isViewer: true,
+    },
     play: async ({ canvas }) => {
         await expect(
             canvas.getByRole('button', { name: 'Apply' }),
