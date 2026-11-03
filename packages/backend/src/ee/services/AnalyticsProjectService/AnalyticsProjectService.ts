@@ -216,26 +216,27 @@ export class AnalyticsProjectService extends BaseService {
         const chartSlugs = analyticsContentAsCode.flatMap(({ charts }) =>
             charts.map(({ slug }) => slug),
         );
-        const [models, dashboards, charts, snapshot, processing] = await Promise.all([
-            this.dependencies.projectModel.getAnalyticsModelCounts(
-                project.projectUuid,
-                analyticsExploreNames,
-            ),
-            this.dependencies.dashboardModel.find({
-                projectUuid: project.projectUuid,
-                slugs: dashboardSlugs,
-            }),
-            this.dependencies.savedChartModel.find({
-                projectUuid: project.projectUuid,
-                slugs: chartSlugs,
-            }),
-            this.dependencies.contentAsCodeSnapshotModel.get(
-                project.projectUuid,
-                ANALYTICS_BUNDLE_SNAPSHOT_TYPE,
-                bundleSnapshotSlug,
-            ),
-            this.dependencies.usageProcessingModel.find(organizationUuid),
-        ]);
+        const [models, dashboards, charts, snapshot, processing] =
+            await Promise.all([
+                this.dependencies.projectModel.getAnalyticsModelCounts(
+                    project.projectUuid,
+                    analyticsExploreNames,
+                ),
+                this.dependencies.dashboardModel.find({
+                    projectUuid: project.projectUuid,
+                    slugs: dashboardSlugs,
+                }),
+                this.dependencies.savedChartModel.find({
+                    projectUuid: project.projectUuid,
+                    slugs: chartSlugs,
+                }),
+                this.dependencies.contentAsCodeSnapshotModel.get(
+                    project.projectUuid,
+                    ANALYTICS_BUNDLE_SNAPSHOT_TYPE,
+                    bundleSnapshotSlug,
+                ),
+                this.dependencies.usageProcessingModel.find(organizationUuid),
+            ]);
         const verifications =
             await this.dependencies.contentVerificationModel.getByContentUuids(
                 ContentType.DASHBOARD,
