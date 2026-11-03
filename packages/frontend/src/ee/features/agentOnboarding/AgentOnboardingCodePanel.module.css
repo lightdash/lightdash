@@ -1,4 +1,5 @@
 .panel {
+    container-type: inline-size;
     display: flex;
     flex-direction: column;
     height: 100%;
@@ -13,31 +14,13 @@
     border-bottom: 1px solid var(--mantine-color-default-border);
 }
 
-.picker {
-    display: flex;
-    flex: 1;
-    gap: var(--mantine-spacing-xs);
-    align-items: center;
-    min-width: 0;
-    padding: 4px var(--mantine-spacing-xs);
-    border-radius: var(--mantine-radius-md);
-
-    &:hover {
-        background: var(--ld-color-page);
-    }
-
-    & > :nth-child(2) {
-        flex: 1;
-    }
-}
-
 .title {
     flex: 1;
     min-width: 0;
     padding: 4px var(--mantine-spacing-xs);
 }
 
-.pickerIcon {
+.titleIcon {
     flex: 0 0 auto;
     color: var(--mantine-color-dimmed);
 }
@@ -45,9 +28,81 @@
 .body {
     display: flex;
     flex: 1;
-    flex-direction: column;
     min-height: 0;
+}
+
+.tree {
+    flex: 0 0 auto;
+    width: rem(200px);
+    padding: 6px 4px;
     overflow: auto;
+    border-right: 1px solid var(--mantine-color-default-border);
+}
+
+.content {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
+    overflow: auto;
+    background: var(--ld-color-page);
+}
+
+@container (max-width: 520px) {
+    .body {
+        flex-direction: column;
+    }
+
+    .tree {
+        width: auto;
+        max-height: rem(180px);
+        border-right: 0;
+        border-bottom: 1px solid var(--mantine-color-default-border);
+    }
+}
+
+.treeList {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.treeRow {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    width: 100%;
+    padding: 3px 6px 3px calc(6px + var(--depth) * 12px);
+    border-radius: var(--mantine-radius-sm);
+    color: var(--mantine-color-text);
+
+    &:hover {
+        background: var(--mantine-color-default-hover);
+    }
+
+    &[data-active='true'] {
+        background: var(--mantine-color-ldGray-1);
+        font-weight: 500;
+    }
+}
+
+.treeChevron {
+    flex: 0 0 auto;
+    color: var(--mantine-color-dimmed);
+    transition: transform 120ms ease;
+
+    &[data-open='true'] {
+        transform: rotate(90deg);
+    }
+
+    &[data-hidden='true'] {
+        visibility: hidden;
+    }
+}
+
+.treeIcon {
+    flex: 0 0 auto;
+    color: var(--mantine-color-dimmed);
 }
 
 .code {
@@ -67,9 +122,4 @@
     font-family: inherit;
     font-size: var(--mantine-font-size-sm);
     background: transparent;
-}
-
-.menu {
-    max-height: rem(420px);
-    overflow-y: auto;
 }

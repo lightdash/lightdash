@@ -5,7 +5,6 @@ import {
     Center,
     CopyButton,
     Group,
-    Menu,
     Text,
     Tooltip,
     UnstyledButton,
@@ -14,17 +13,19 @@ import {
 import {
     IconChartBar,
     IconCheck,
+    IconChevronRight,
     IconCopy,
     IconFile,
+    IconFolder,
+    IconFolderOpen,
     IconLayoutDashboard,
-    IconSelector,
     IconTable,
     IconTerminal2,
     IconX,
     type Icon as TablerIcon,
 } from '@tabler/icons-react';
 import MarkdownPreview from '@uiw/react-markdown-preview';
-import { Fragment, type FC } from 'react';
+import { useMemo, useState, type FC } from 'react';
 import CodeBlock from '../../../components/common/CodeBlock/CodeBlock';
 import EmptyStateLoader from '../../../components/common/EmptyStateLoader';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -36,18 +37,13 @@ import { AgentOnboardingActivityPanel } from './AgentOnboardingActivity';
 import classes from './AgentOnboardingCodePanel.module.css';
 import { useAgentOnboardingFile } from './hooks/useAgentOnboarding';
 import {
+    buildAgentOnboardingFileTree,
     describeAgentOnboardingFile,
     type AgentOnboardingFileKind,
+    type AgentOnboardingFileTreeNode,
 } from './utils';
 
 export type CodePanelView = { kind: 'file'; path: string } | { kind: 'log' };
-
-const GROUPS: { kind: AgentOnboardingFileKind; label: string }[] = [
-    { kind: 'model', label: 'Models' },
-    { kind: 'chart', label: 'Charts' },
-    { kind: 'dashboard', label: 'Dashboards' },
-    { kind: 'other', label: 'Other files' },
-];
 
 const FileContent: FC<{ run: AgentOnboardingRun; path: string }> = ({
     run,
@@ -111,73 +107,65 @@ const KIND_ICONS: Record<AgentOnboardingFileKind, TablerIcon> = {
     other: IconFile,
 };
 
-const FilePicker: FC<{
-    run: AgentOnboardingRun;
-    path: string;
-    onChange: (path: string) => void;
-}> = ({ run, path, onChange }) => {
-    const current = describeAgentOnboardingFile(path);
-    return (
-        <Menu position="bottom-start" withinPortal>
-            <Menu.Target>
-                <UnstyledButton className={classes.picker}>
-                    <MantineIcon
-                        icon={KIND_ICONS[current.kind]}
-                        size={16}
-                        className={classes.pickerIcon}
-                    />
-                    <Box miw={0}>
-                        <Text fz="sm" fw={500} truncate>
-                            {current.label}
+const FileTree: FC<{
+    nodes: AgentOnboardingFileTreeNode[];
+    depth: number;
+    selectedPath: string | null;
+    collapsed: Set<string>;
+    onToggle: (path: string) => void;
+    onSelect: (path: string) => void;
+}> = ({ nodes, depth, selectedPath, collapsed, onToggle, onSelect }) => (
+    <Box component="ul" className={classes.treeList}>
+        {nodes.map((node) => {
+            const isFolder = node.file === null;
+            const isOpen = isFolder && !collapsed.has(node.path);
+            const icon = isFolder
+                ? isOpen
+                    ? IconFolderOpen
+                    : IconFolder
+                : KIND_ICONS[describeAgentOnboardingFile(node.path).kind];
+            return (
+                <Box component="li" key={node.path}>
+                    <UnstyledButton
+                        className={classes.treeRow}
+                        data-active={node.path === selectedPath}
+                        aria-expanded={isFolder ? isOpen : undefined}
+                        style={{ '--depth': depth }}
+                        onClick={() =>
+                            isFolder ? onToggle(node.path) : onSelect(node.path)
+                        }
+                    >
+                        <MantineIcon
+                            icon={IconChevronRight}
+                            size={12}
+                            className={classes.treeChevron}
+                            data-hidden={!isFolder}
+                            data-open={isOpen}
+                        />
+                        <MantineIcon
+                            icon={icon}
+                            size={14}
+                            className={classes.treeIcon}
+                        />
+                        <Text fz="xs" truncate title={node.name}>
+                            {node.name}
                         </Text>
-                        <Text fz={11} c="dimmed" truncate ff="monospace">
-                            {path}
-                        </Text>
-                    </Box>
-                    <MantineIcon
-                        icon={IconSelector}
-                        size={14}
-                        className={classes.pickerIcon}
-                    />
-                </UnstyledButton>
-            </Menu.Target>
-            <Menu.Dropdown className={classes.menu}>
-                {GROUPS.map(({ kind, label }) => {
-                    const files = run.files.filter(
-                        (file) =>
-                            describeAgentOnboardingFile(file.path).kind ===
-                            kind,
-                    );
-                    if (files.length === 0) return null;
-                    return (
-                        <Fragment key={kind}>
-                            <Menu.Label>{label}</Menu.Label>
-                            {files.map((file) => (
-                                <Menu.Item
-                                    key={file.path}
-                                    leftSection={
-                                        <MantineIcon icon={KIND_ICONS[kind]} />
-                                    }
-                                    rightSection={
-                                        file.path === path ? (
-                                            <MantineIcon icon={IconCheck} />
-                                        ) : null
-                                    }
-                                    onClick={() => onChange(file.path)}
-                                >
-                                    {
-                                        describeAgentOnboardingFile(file.path)
-                                            .label
-                                    }
-                                </Menu.Item>
-                            ))}
-                        </Fragment>
-                    );
-                })}
-            </Menu.Dropdown>
-        </Menu>
-    );
-};
+                    </UnstyledButton>
+                    {isOpen && (
+                        <FileTree
+                            nodes={node.children}
+                            depth={depth + 1}
+                            selectedPath={selectedPath}
+                            collapsed={collapsed}
+                            onToggle={onToggle}
+                            onSelect={onSelect}
+                        />
+                    )}
+                </Box>
+            );
+        })}
+    </Box>
+);
 
 const CopyFile: FC<{ run: AgentOnboardingRun; path: string }> = ({
     run,
@@ -207,13 +195,24 @@ const CopyFile: FC<{ run: AgentOnboardingRun; path: string }> = ({
     );
 };
 
-/** Side panel with the code a run wrote, one file at a time, or its raw log */
+/** Side panel with the files a run wrote, browsable as a tree, or its raw log */
 export const AgentOnboardingCodePanel: FC<{
     run: AgentOnboardingRun;
     view: CodePanelView;
     onChange: (view: CodePanelView) => void;
     onClose: () => void;
 }> = ({ run, view, onChange, onClose }) => {
+    const tree = useMemo(
+        () => buildAgentOnboardingFileTree(run.files),
+        [run.files],
+    );
+    const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+    const toggleFolder = (path: string) =>
+        setCollapsed((current) => {
+            const next = new Set(current);
+            if (!next.delete(path)) next.add(path);
+            return next;
+        });
     const firstPath =
         run.files.find(
             ({ path }) => describeAgentOnboardingFile(path).kind === 'model',
@@ -225,24 +224,32 @@ export const AgentOnboardingCodePanel: FC<{
     return (
         <Box className={classes.panel}>
             <Group className={classes.header} gap={4} wrap="nowrap">
-                {view.kind === 'file' ? (
-                    <FilePicker
-                        run={run}
-                        path={view.path}
-                        onChange={(path) => onChange({ kind: 'file', path })}
+                <Group gap="xs" wrap="nowrap" className={classes.title}>
+                    <MantineIcon
+                        icon={
+                            view.kind === 'file'
+                                ? KIND_ICONS[
+                                      describeAgentOnboardingFile(view.path)
+                                          .kind
+                                  ]
+                                : IconTerminal2
+                        }
+                        size={16}
+                        className={classes.titleIcon}
                     />
-                ) : (
-                    <Group gap="xs" wrap="nowrap" className={classes.title}>
-                        <MantineIcon
-                            icon={IconTerminal2}
-                            size={16}
-                            className={classes.pickerIcon}
-                        />
-                        <Text fz="sm" fw={500}>
-                            Run log
+                    <Box miw={0}>
+                        <Text fz="sm" fw={500} truncate>
+                            {view.kind === 'file'
+                                ? describeAgentOnboardingFile(view.path).label
+                                : 'Run log'}
                         </Text>
-                    </Group>
-                )}
+                        {view.kind === 'file' && (
+                            <Text fz={11} c="dimmed" ff="monospace" truncate>
+                                {view.path}
+                            </Text>
+                        )}
+                    </Box>
+                </Group>
                 {view.kind === 'file' && (
                     <CopyFile run={run} path={view.path} />
                 )}
@@ -274,14 +281,32 @@ export const AgentOnboardingCodePanel: FC<{
                 </ActionIcon>
             </Group>
             <Box className={classes.body}>
-                {view.kind === 'file' ? (
-                    <FileContent run={run} path={view.path} />
-                ) : (
-                    <AgentOnboardingActivityPanel
-                        key={run.agentOnboardingRunUuid}
-                        events={run.events}
-                    />
+                {tree.length > 0 && (
+                    <Box className={classes.tree}>
+                        <FileTree
+                            nodes={tree}
+                            depth={0}
+                            selectedPath={
+                                view.kind === 'file' ? view.path : null
+                            }
+                            collapsed={collapsed}
+                            onToggle={toggleFolder}
+                            onSelect={(path) =>
+                                onChange({ kind: 'file', path })
+                            }
+                        />
+                    </Box>
                 )}
+                <Box className={classes.content}>
+                    {view.kind === 'file' ? (
+                        <FileContent run={run} path={view.path} />
+                    ) : (
+                        <AgentOnboardingActivityPanel
+                            key={run.agentOnboardingRunUuid}
+                            events={run.events}
+                        />
+                    )}
+                </Box>
             </Box>
         </Box>
     );

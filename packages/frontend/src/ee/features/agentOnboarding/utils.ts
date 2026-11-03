@@ -292,6 +292,58 @@ export const describeAgentOnboardingFile = (
     };
 };
 
+export type AgentOnboardingFileTreeNode = {
+    name: string;
+    path: string;
+    file: AgentOnboardingFile | null;
+    children: AgentOnboardingFileTreeNode[];
+};
+
+export const buildAgentOnboardingFileTree = (
+    files: AgentOnboardingFile[],
+): AgentOnboardingFileTreeNode[] => {
+    const root: AgentOnboardingFileTreeNode[] = [];
+
+    for (const file of [...files].sort((left, right) =>
+        left.path.localeCompare(right.path),
+    )) {
+        const segments = file.path.split('/').filter(Boolean);
+        let children = root;
+        let currentPath = '';
+
+        segments.forEach((segment, index) => {
+            currentPath = currentPath ? `${currentPath}/${segment}` : segment;
+            const isFile = index === segments.length - 1;
+            let node = children.find(({ name }) => name === segment);
+            if (!node) {
+                node = {
+                    name: segment,
+                    path: currentPath,
+                    file: isFile ? file : null,
+                    children: [],
+                };
+                children.push(node);
+            } else if (isFile) {
+                node.file = file;
+            }
+            children = node.children;
+        });
+    }
+
+    const sortNodes = (
+        nodes: AgentOnboardingFileTreeNode[],
+    ): AgentOnboardingFileTreeNode[] =>
+        nodes
+            .map((node) => ({ ...node, children: sortNodes(node.children) }))
+            .sort((left, right) => {
+                if (left.file === null && right.file !== null) return -1;
+                if (left.file !== null && right.file === null) return 1;
+                return left.name.localeCompare(right.name);
+            });
+
+    return sortNodes(root);
+};
+
 export const getAgentOnboardingRunUrl = (
     runUuid: string,
     projectUuid: string,

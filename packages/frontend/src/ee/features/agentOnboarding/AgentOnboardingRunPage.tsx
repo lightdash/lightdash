@@ -58,30 +58,30 @@ import { setWatchedAgentOnboardingRun } from './watchedRunStore';
 
 const RUN_COPY: Record<
     AgentOnboardingRunStatus,
-    { elapsed: string | null; title: string; subtitle: string | null }
+    { pill: string; title: string; subtitle: string | null }
 > = {
     queued: {
-        elapsed: null,
+        pill: 'Queued',
         title: 'Getting ready to build your project',
         subtitle: 'Starting in a moment.',
     },
     running: {
-        elapsed: '',
+        pill: 'Building',
         title: 'Building your project',
         subtitle: 'Takes a few minutes. It keeps going if you leave.',
     },
     completed: {
-        elapsed: 'Built in ',
+        pill: 'Ready',
         title: 'Your project is ready',
         subtitle: null,
     },
     failed: {
-        elapsed: 'Stopped after ',
+        pill: 'Stopped',
         title: 'Setup stopped',
         subtitle: 'What was built is kept. Try again to start over.',
     },
     cancelled: {
-        elapsed: 'Cancelled after ',
+        pill: 'Cancelled',
         title: 'Setup cancelled',
         subtitle: 'What was built is kept.',
     },
@@ -94,18 +94,28 @@ const getElapsedMs = (run: AgentOnboardingRun, now: number): number | null => {
     return (Number.isFinite(endedAt) ? endedAt : now) - startedAt;
 };
 
-const RunElapsed: FC<{ run: AgentOnboardingRun; now: number }> = ({
-    run,
-    now,
-}) => {
+const RunStatusPill: FC<{
+    run: AgentOnboardingRun;
+    now: number;
+    isStopping: boolean;
+}> = ({ run, now, isStopping }) => {
     const elapsedMs = getElapsedMs(run, now);
-    const prefix = RUN_COPY[run.status].elapsed;
-    if (elapsedMs === null || prefix === null) return null;
     return (
-        <Text fz="sm" c="dimmed" className={classes.tabular}>
-            {prefix}
-            {formatStageDuration(elapsedMs)}
-        </Text>
+        <Group gap={8} wrap="nowrap" className={classes.pill}>
+            <Box
+                className={classes.statusDot}
+                data-status={run.status}
+                aria-hidden
+            />
+            <Text fz="xs" fw={500}>
+                {isStopping ? 'Stopping' : RUN_COPY[run.status].pill}
+            </Text>
+            {elapsedMs !== null && (
+                <Text fz="xs" c="dimmed" className={classes.tabular}>
+                    {formatStageDuration(elapsedMs)}
+                </Text>
+            )}
+        </Group>
     );
 };
 
@@ -324,9 +334,9 @@ const AgentOnboardingRunPage: FC = () => {
             rightSidebarTitle="Project code"
             noRightSidebarPadding
             rightSidebarWidthProps={{
-                defaultWidth: 560,
-                minWidth: 380,
-                maxWidth: 960,
+                defaultWidth: 760,
+                minWidth: 480,
+                maxWidth: 1100,
             }}
         >
             <Box className={classes.page}>
@@ -348,7 +358,11 @@ const AgentOnboardingRunPage: FC = () => {
                                 <Title order={2} className={classes.title}>
                                     {copy.title}
                                 </Title>
-                                <RunElapsed run={run} now={now} />
+                                <RunStatusPill
+                                    run={run}
+                                    now={now}
+                                    isStopping={isStopping}
+                                />
                             </Group>
                             {(isStopping || copy.subtitle) && (
                                 <Text c="dimmed" fz="sm">
