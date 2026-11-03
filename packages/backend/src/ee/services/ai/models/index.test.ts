@@ -1375,10 +1375,10 @@ describe('applyStreamingCapability', () => {
 describe('pickAmbientAnthropicPreset', () => {
     it('prefers the fast model when the key can serve it', () => {
         const preset = pickAmbientAnthropicPreset([
-            'claude-haiku-4-5-20251001',
+            'claude-haiku-5-5',
             'claude-opus-4-8',
         ]);
-        expect(preset?.modelId).toBe('claude-haiku-4-5-20251001');
+        expect(preset?.modelId).toBe('claude-haiku-5-5');
     });
 
     it('falls back to an accessible model when the key lacks the fast one', () => {
@@ -1388,7 +1388,7 @@ describe('pickAmbientAnthropicPreset', () => {
 
     it('optimistically returns the fast model when the probe failed (null)', () => {
         const preset = pickAmbientAnthropicPreset(null);
-        expect(preset?.modelId).toBe('claude-haiku-4-5-20251001');
+        expect(preset?.modelId).toBe('claude-haiku-5-5');
     });
 
     it('returns null when the key can access no shipped preset', () => {
@@ -1416,9 +1416,9 @@ describe('getFastModelForAccessibleKey', () => {
 
     it('uses the fast model when the BYO key can serve it', () => {
         const { model } = getFastModelForAccessibleKey(anthropicByoConfig, [
-            'claude-haiku-4-5-20251001',
+            'claude-haiku-5-5',
         ]);
-        expect(model.modelId).toBe('claude-haiku-4-5-20251001');
+        expect(model.modelId).toBe('claude-haiku-5-5');
     });
 
     it('falls back to an accessible model (opus 4.8) when the key lacks the fast one', () => {
@@ -1435,10 +1435,10 @@ describe('getFastModelForAccessibleKey', () => {
                 defaultProvider: 'openai',
                 byoProviders: [],
             },
-            ['claude-haiku-4-5-20251001'],
+            ['claude-haiku-5-5'],
         );
 
-        expect(model.modelId).toBe('claude-haiku-4-5-20251001');
+        expect(model.modelId).toBe('claude-haiku-5-5');
     });
 
     it('never uses the instance Anthropic key for a Google-only BYO org', () => {
@@ -1456,7 +1456,7 @@ describe('getFastModelForAccessibleKey', () => {
                     },
                 },
             },
-            ['claude-haiku-4-5-20251001'],
+            ['claude-haiku-5-5'],
         );
 
         expect(model.modelId).toBe('gemini-3.5-flash-lite');

@@ -84,7 +84,7 @@ const withKeyManagement = <P extends AiProvider>(
 // These are cheaper and faster than default models
 const FAST_MODELS = {
     openai: DEFAULT_OPENAI_FAST_MODEL_NAME,
-    anthropic: 'claude-haiku-4-5',
+    anthropic: 'claude-haiku-5-5',
     google: DEFAULT_GOOGLE_FAST_MODEL_NAME,
     bedrock: 'claude-haiku-4-5',
 } satisfies Record<ModelPresetProvider, string | undefined>;
