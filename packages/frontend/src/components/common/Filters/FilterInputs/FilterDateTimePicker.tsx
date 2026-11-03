@@ -12,7 +12,13 @@ import {
 import dayjs from 'dayjs';
 import timezone from 'dayjs/plugin/timezone';
 import utc from 'dayjs/plugin/utc';
-import { useCallback, useMemo, useState, type FC } from 'react';
+import {
+    useCallback,
+    useMemo,
+    useState,
+    type FC,
+    type KeyboardEvent,
+} from 'react';
 import { useProject } from '../../../../hooks/useProject';
 import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
 import useFiltersContext from '../useFiltersContext';
@@ -31,6 +37,23 @@ dayjs.extend(utc);
 dayjs.extend(timezone);
 
 const SUBTEXT_DATE_FORMAT = 'ddd, DD MMM YYYY HH:mm:ss';
+
+// Mantine marks only the time picker's wrapper, but Escape comes from its fields
+const timeFieldEscapeProps = {
+    'data-mantine-stop-propagation': true,
+    onKeyDownCapture: (event: KeyboardEvent<HTMLInputElement>) => {
+        if (event.key === 'Escape') event.preventDefault();
+    },
+};
+
+const withTimeFieldEscape = (
+    props: DateTimePickerProps['timePickerProps'],
+): DateTimePickerProps['timePickerProps'] => ({
+    ...props,
+    hoursInputProps: { ...props?.hoursInputProps, ...timeFieldEscapeProps },
+    minutesInputProps: { ...props?.minutesInputProps, ...timeFieldEscapeProps },
+    secondsInputProps: { ...props?.secondsInputProps, ...timeFieldEscapeProps },
+});
 
 interface Props extends Omit<
     DateTimePickerProps,
@@ -169,7 +192,9 @@ const FilterDateTimePicker: FC<Props> = ({
                             maxDate={formatBound(maxDate)}
                             value={replacementValue}
                             withSeconds={rest.withSeconds}
-                            timePickerProps={rest.timePickerProps}
+                            timePickerProps={withTimeFieldEscape(
+                                rest.timePickerProps,
+                            )}
                             submitButtonProps={{
                                 ...rest.submitButtonProps,
                                 onClick: (event) => {
@@ -204,6 +229,7 @@ const FilterDateTimePicker: FC<Props> = ({
                 valueFormat={displayFormat}
                 {...rest}
                 popoverProps={{ shadow: 'sm', ...rest.popoverProps }}
+                timePickerProps={withTimeFieldEscape(rest.timePickerProps)}
                 firstDayOfWeek={firstDayOfWeek}
                 minDate={formatBound(safeMinDate)}
                 maxDate={formatBound(safeMaxDate)}

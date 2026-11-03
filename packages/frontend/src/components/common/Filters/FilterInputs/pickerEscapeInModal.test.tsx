@@ -176,3 +176,47 @@ it("keeps Mantine's Modal open on Escape after a day is picked in the multi-date
 
     expect(onModalClose).not.toHaveBeenCalled();
 });
+
+describe.each([
+    ['MantineModal', MantineModal],
+    ["Mantine's Modal", Modal],
+])('Escape in the time field after a day is picked, inside %s', (_, Host) => {
+    it('closes the picker and leaves the modal open', async () => {
+        const user = userEvent.setup();
+        const onModalClose = vi.fn();
+        renderWithProviders(
+            <MantineProvider env="default">
+                <Host opened onClose={onModalClose} title="Delivery">
+                    <FiltersProvider itemsMap={{}}>
+                        <DateFilterInputs
+                            filterType={FilterType.DATE}
+                            field={{
+                                ...dimension(),
+                                type: DimensionType.TIMESTAMP,
+                            }}
+                            rule={rule(FilterOperator.LESS_THAN, [
+                                '2026-01-15T00:00:00Z',
+                            ])}
+                            onChange={() => {}}
+                        />
+                    </FiltersProvider>
+                </Host>
+            </MantineProvider>,
+        );
+
+        await user.click(screen.getAllByRole('button').at(-1)!);
+        await user.click(
+            await screen.findByRole('button', {
+                name: '21 January 2026',
+                hidden: true,
+            }),
+        );
+        // Mantine moves focus to the time field after a pick
+        expect(
+            document.activeElement?.closest('.mantine-TimePicker-fieldsGroup'),
+        ).not.toBeNull();
+        await user.keyboard('{Escape}');
+
+        expect(onModalClose).not.toHaveBeenCalled();
+    });
+});
