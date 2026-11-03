@@ -5164,7 +5164,8 @@ describe('ProjectService', () => {
                 expected: warehouseCatalog,
                 method: 'getAllTables' as const,
                 queryContext,
-                binding: { kind: 'connection', warehouseConnectionUuid: null },
+                // empty saved list: filled through the already-resolved connection
+                binding: null,
                 userUuid: user.userUuid,
             })),
             {
@@ -5342,6 +5343,9 @@ describe('ProjectService', () => {
                 },
             );
             Object.assign(configured.warehouseAvailableTablesModel, {
+                getTablesForProjectWarehouseCredentials: vi.fn(
+                    async () => null,
+                ),
                 createAvailableTablesForProjectWarehouseCredentials: vi.fn(
                     async () => undefined,
                 ),
@@ -5403,11 +5407,15 @@ describe('ProjectService', () => {
                     vi.mocked(SshTunnel).mock.results.at(-1)?.value.disconnect,
                 ).toHaveBeenCalledOnce();
                 expect(scoped).toHaveBeenCalledExactlyOnceWith(
-                    expect.objectContaining({
-                        kind: 'binding',
-                        projectUuid,
-                        binding: site.binding,
-                    }),
+                    expect.objectContaining(
+                        site.binding === null
+                            ? { kind: 'resolved', projectUuid }
+                            : {
+                                  kind: 'binding',
+                                  projectUuid,
+                                  binding: site.binding,
+                              },
+                    ),
                     expect.objectContaining({
                         organizationUuid: projectSummary.organizationUuid,
                         queryContext: site.queryContext,
@@ -21678,6 +21686,95 @@ describe('AI principal credential routing', () => {
             }),
         );
         expect(disconnect).toHaveBeenCalledOnce();
+    });
+
+    test.each([
+        { identity: 'flag off', aiPlan: null },
+        { identity: 'the person', aiPlan: markedPersonPlanMock },
+    ])(
+        'AI table listing reads the saved list for $identity without querying the warehouse',
+        async ({ aiPlan }) => {
+            const configured = getMockedProjectService(
+                lightdashConfigWithGoogleOAuthMock,
+            );
+            vi.mocked(
+                projectModel.getWarehouseCredentialsForProject,
+            ).mockResolvedValueOnce(credentials);
+            vi.spyOn(
+                configured.aiAccessService,
+                'resolvePlan',
+            ).mockResolvedValue(aiPlan);
+            const saved = { saved_db: { public: {} } };
+            const getTables = vi.fn().mockResolvedValue(saved);
+            Object.assign(configured.warehouseAvailableTablesModel, {
+                getTablesForProjectWarehouseCredentials: getTables,
+            });
+            const acquire = vi.spyOn(
+                configured.warehouseClientFactory,
+                'acquireUnscoped',
+            );
+            await expect(
+                configured.getWarehouseTables(
+                    user,
+                    projectUuid,
+                    QueryExecutionContext.AI,
+                ),
+            ).resolves.toEqual(saved);
+            expect(getTables).toHaveBeenCalledExactlyOnceWith(projectUuid);
+            expect(acquire).not.toHaveBeenCalled();
+        },
+    );
+
+    test('AI table listing fills an empty saved list once with an agent-tagged query', async () => {
+        const configured = getMockedProjectService(
+            lightdashConfigWithGoogleOAuthMock,
+        );
+        vi.mocked(
+            projectModel.getWarehouseCredentialsForProject,
+        ).mockResolvedValueOnce(credentials);
+        vi.spyOn(configured.aiAccessService, 'resolvePlan').mockResolvedValue(
+            markedPersonPlanMock,
+        );
+        const save = vi.fn();
+        Object.assign(configured.warehouseAvailableTablesModel, {
+            getTablesForProjectWarehouseCredentials: vi
+                .fn()
+                .mockResolvedValue({}),
+            createAvailableTablesForProjectWarehouseCredentials: save,
+        });
+        const tables = [
+            {
+                database: 'db',
+                schema: 'public',
+                table: 'orders',
+                tableType: WarehouseTableType.TABLE,
+            },
+        ];
+        const getAllTables = vi.fn().mockResolvedValue(tables);
+        vi.spyOn(
+            configured.warehouseClientFactory,
+            'acquireUnscoped',
+        ).mockResolvedValue({
+            warehouseClient: { getAllTables } as unknown as WarehouseClient,
+            sshTunnel: {
+                disconnect: vi.fn(),
+            } as unknown as SshTunnel<CreateWarehouseCredentials>,
+            tunnelConnectMs: null,
+        });
+        await expect(
+            configured.getWarehouseTables(
+                user,
+                projectUuid,
+                QueryExecutionContext.AI,
+            ),
+        ).resolves.toMatchObject({ db: { public: { orders: {} } } });
+        expect(getAllTables).toHaveBeenCalledExactlyOnceWith(
+            undefined,
+            expect.objectContaining({
+                query_context: QueryExecutionContext.AI,
+            }),
+        );
+        expect(save).toHaveBeenCalledExactlyOnceWith(projectUuid, tables);
     });
 
     test('passes the AI context to table discovery and avoids the person catalog cache', async () => {
