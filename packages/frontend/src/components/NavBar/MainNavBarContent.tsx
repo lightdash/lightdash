@@ -138,9 +138,12 @@ export const MainNavBarContent: FC<Props> = ({
                                 withLabel={compact}
                             />
                         </NavGroup>
-                        <AgentOnboardingNavIndicator
-                            projectUuid={activeProjectUuid}
-                        />
+                        {/* The centred search leaves room here only on wide screens */}
+                        <Box visibleFrom="xl">
+                            <AgentOnboardingNavIndicator
+                                projectUuid={activeProjectUuid}
+                            />
+                        </Box>
                         {!compact && (
                             <Omnibar projectUuid={activeProjectUuid} />
                         )}
@@ -152,6 +155,13 @@ export const MainNavBarContent: FC<Props> = ({
 
             <Group className={classes.rightGroup}>
                 {compact && <Text className={classes.sectionLabel}>More</Text>}
+                {!isLoadingActiveProject && activeProjectUuid && (
+                    <Box className={classes.setupIndicatorRight}>
+                        <AgentOnboardingNavIndicator
+                            projectUuid={activeProjectUuid}
+                        />
+                    </Box>
+                )}
                 <NavGroup className={classes.buttonGroup}>
                     <SettingsMenu withLabel={compact} />
 

@@ -61,7 +61,8 @@ export const AgentOnboardingNavIndicator: FC<{ projectUuid: string }> = ({
                     leftSection={<Loader size={10} color="gray" />}
                     aria-label={`Project setup: ${stageLabel}`}
                 >
-                    Setting up {activeIndex + 1}/{timings.length}
+                    <span className={classes.buttonWord}>Setting up </span>
+                    {activeIndex + 1}/{timings.length}
                 </Button>
             </Popover.Target>
             <Popover.Dropdown p={0}>

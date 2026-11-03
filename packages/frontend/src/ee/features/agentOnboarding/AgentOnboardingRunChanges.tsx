@@ -2,10 +2,16 @@ import {
     isAgentOnboardingRunTerminal,
     type AgentOnboardingRun,
 } from '@lightdash/common';
-import { Box, Stack, Text, useMantineColorScheme } from '@mantine/core';
-import { IconCheck } from '@tabler/icons-react';
+import {
+    Box,
+    Stack,
+    Text,
+    UnstyledButton,
+    useMantineColorScheme,
+} from '@mantine/core';
+import { IconCheck, IconChevronDown } from '@tabler/icons-react';
 import MarkdownPreview from '@uiw/react-markdown-preview';
-import { useMemo, type FC } from 'react';
+import { useMemo, useState, type FC } from 'react';
 import { Link } from 'react-router';
 import { AI_NAME } from '../../../components/common/aiName';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -77,9 +83,13 @@ const ChangeRow: FC<{
     waiting: string;
     isLive: boolean;
     hrefFor: ((item: string) => string) | null;
-}> = ({ label, items, waiting, isLive, hrefFor }) => {
+    // Long lists start folded behind a count, opened on demand
+    countLabel: ((count: number) => string) | null;
+}> = ({ label, items, waiting, isLive, hrefFor, countLabel }) => {
+    const [isOpen, setIsOpen] = useState(false);
     if (items.length === 0 && !isLive) return null;
     const extra = items.length - MAX_CHIPS;
+    const isFolded = countLabel !== null && !isOpen && items.length > 0;
     return (
         <Box className={classes.row}>
             <Text fz="xs" c="dimmed" className={classes.rowLabel}>
@@ -89,6 +99,15 @@ const ChangeRow: FC<{
                 <Text fz="xs" c="dimmed">
                     {waiting}
                 </Text>
+            ) : isFolded ? (
+                <UnstyledButton
+                    className={classes.fold}
+                    aria-expanded={false}
+                    onClick={() => setIsOpen(true)}
+                >
+                    {countLabel(items.length)}
+                    <MantineIcon icon={IconChevronDown} size={12} />
+                </UnstyledButton>
             ) : (
                 <Box className={classes.chips}>
                     {items.slice(0, MAX_CHIPS).map((item) =>
@@ -160,6 +179,7 @@ export const RunChanges: FC<{ run: AgentOnboardingRun }> = ({ run }) => {
                               `/projects/${run.projectUuid}/tables/${model}`
                         : null
                 }
+                countLabel={null}
             />
             <ChangeRow
                 label="Charts"
@@ -167,6 +187,9 @@ export const RunChanges: FC<{ run: AgentOnboardingRun }> = ({ run }) => {
                 waiting="Once the metrics are live"
                 isLive={isLive}
                 hrefFor={null}
+                countLabel={(count) =>
+                    count === 1 ? '1 chart' : `${count} charts`
+                }
             />
             <ChangeRow
                 label="Tables read"
@@ -174,6 +197,7 @@ export const RunChanges: FC<{ run: AgentOnboardingRun }> = ({ run }) => {
                 waiting={`${AI_NAME} starts by reading your tables`}
                 isLive={isLive}
                 hrefFor={null}
+                countLabel={null}
             />
             {summary && (
                 <Box className={classes.notes}>

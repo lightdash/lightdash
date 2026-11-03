@@ -80,3 +80,20 @@
     font-size: var(--mantine-font-size-sm);
     background: transparent;
 }
+
+.fold {
+    display: inline-flex;
+    justify-self: start;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-sm);
+    background: var(--mantine-color-body);
+    color: var(--mantine-color-text);
+    font-size: var(--mantine-font-size-xs);
+}
+
+.fold:hover {
+    border-color: var(--mantine-color-text);
+}
