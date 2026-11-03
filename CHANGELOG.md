@@ -1,3 +1,12 @@
+## [3.128.1](https://github.com/lightdash/lightdash/compare/3.128.0...3.128.1) (2026-11-03)
+
+
+### Bug Fixes
+
+* **ai-agent:** load every python datetime column tz-naive UTC ([#31935](https://github.com/lightdash/lightdash/issues/31935)) ([5270f2e](https://github.com/lightdash/lightdash/commit/5270f2eae2c5763b9d03518e71eb04fe7c038e27))
+* **ai-agent:** skeleton-first python code description, tolerant run() signature ([#31933](https://github.com/lightdash/lightdash/issues/31933)) ([3c47849](https://github.com/lightdash/lightdash/commit/3c4784977d5ed82ba2c591a05eed2a722ed25050))
+* **ai:** post Slack tables apart from the markdown answer ([#31955](https://github.com/lightdash/lightdash/issues/31955)) ([7b804ba](https://github.com/lightdash/lightdash/commit/7b804ba9b3eba303b68356fbd0fab82e70013eb4))
+
 # [3.128.0](https://github.com/lightdash/lightdash/compare/3.127.1...3.128.0) (2026-11-02)
 
 
