@@ -92,6 +92,7 @@ export const AGENT_TOOL_CAPABILITIES = {
     listDataAppThemes: [AgentCapability.ReadDiscover],
     listDataAppConnections: [AgentCapability.ReadDiscover],
     listKnowledgeDocuments: [AgentCapability.ReadDiscover],
+    listLiveSourceFields: [AgentCapability.ReadDiscover],
     listProjects: [AgentCapability.ReadDiscover],
     listWarehouseTables: [AgentCapability.RawSql],
     listWorkstreams: [AgentCapability.ReadDiscover],
@@ -874,6 +875,9 @@ export const REST_OPERATION_CAPABILITIES = {
     'ExternalConnectionController.getExternalConnectionApiUsage': [
         AgentCapability.ReadDiscover,
     ],
+    'ExternalConnectionController.getLiveSourceFields': [
+        AgentCapability.ReadDiscover,
+    ],
     'ExternalConnectionController.linkAppExternalConnection': [
         AgentCapability.Administration,
     ],
@@ -911,6 +915,9 @@ export const REST_OPERATION_CAPABILITIES = {
         AgentCapability.Administration,
     ],
     'ExternalConnectionController.updateExternalConnection': [
+        AgentCapability.Administration,
+    ],
+    'ExternalConnectionController.updateLiveSourceFields': [
         AgentCapability.Administration,
     ],
     'ExternalSourceController.commitUpload': [

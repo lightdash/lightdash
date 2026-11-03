@@ -8,8 +8,13 @@ import {
     type ExternalConnection,
 } from '@lightdash/common';
 import { buildAccount } from '../../../auth/account/account.mock';
+import {
+    type LiveSourceFieldEdits,
+    type LiveSourceFieldState,
+} from '../../../services/QuerySourceService/api/liveSourceFields';
 import { SecureFetchError } from '../../../utils/secureFetch/secureFetch';
 import * as secureFetchModule from '../../../utils/secureFetch/secureFetch';
+import { type DeletedLiveSource } from '../../models/ExternalConnectionModel';
 import { ExternalConnectionService } from './ExternalConnectionService';
 
 vi.mock('../../../utils/secureFetch/secureFetch', async (importOriginal) => {
@@ -60,11 +65,18 @@ const buildService = ({
     connections = [posthogConnection()],
     canView = true,
     liveSourcesEnabled = true,
+    deletedSources = [],
+    takenExploreNames = [],
+    hasExplores = false,
 }: {
     connections?: ExternalConnection[];
     canView?: boolean;
     liveSourcesEnabled?: boolean;
+    deletedSources?: DeletedLiveSource[];
+    takenExploreNames?: string[];
+    hasExplores?: boolean;
 } = {}) => {
+    let fieldState: LiveSourceFieldState = { lastScan: null, fields: null };
     const externalConnectionModel = {
         findByUuid: vi
             .fn()
@@ -84,14 +96,60 @@ const buildService = ({
         releaseApiSourceCallLease: vi.fn().mockResolvedValue(undefined),
         insertApiSourceCall: vi.fn().mockResolvedValue(undefined),
         getApiSourceUsage: vi.fn().mockResolvedValue([]),
+        listDeletedLiveSources: vi.fn().mockResolvedValue(deletedSources),
+        setLiveSourceName: vi
+            .fn()
+            .mockImplementation(async (_uuid: string, name: string) => name),
+        getLiveSourceFieldState: vi
+            .fn()
+            .mockImplementation(async () => fieldState),
+        saveLiveSourceScan: vi
+            .fn()
+            .mockImplementation(async (_uuid: string, lastScan) => {
+                fieldState = { ...fieldState, lastScan };
+            }),
+        initLiveSourceFieldEdits: vi
+            .fn()
+            .mockImplementation(async (_uuid: string, fields) => {
+                fieldState = {
+                    ...fieldState,
+                    fields: fieldState.fields ?? fields,
+                };
+            }),
+        updateLiveSourceFieldEdits: vi
+            .fn()
+            .mockImplementation(
+                async (
+                    _uuid: string,
+                    update: (
+                        current: LiveSourceFieldEdits,
+                    ) => LiveSourceFieldEdits,
+                ) => {
+                    fieldState = {
+                        ...fieldState,
+                        fields: update(fieldState.fields ?? {}),
+                    };
+                },
+            ),
+    };
+    const savedChartModel = {
+        getChartCountPerField: vi.fn().mockResolvedValue([]),
     };
     const analytics = { track: vi.fn() };
     const projectModel = {
         replaceApiSourceExplores: vi.fn().mockResolvedValue(undefined),
         deleteApiSourceExplores: vi.fn().mockResolvedValue(undefined),
+        findExploreNamesTakenByOthers: vi
+            .fn()
+            .mockImplementation(
+                async (_project, _connection, names: string[]) =>
+                    names.filter((name) => takenExploreNames.includes(name)),
+            ),
+        hasApiSourceExplores: vi.fn().mockResolvedValue(hasExplores),
     };
     const service = new ExternalConnectionService({
         projectModel,
+        savedChartModel,
         allowedPrivateHostCidrs: {},
         externalConnectionModel,
         analytics,
@@ -103,7 +161,13 @@ const buildService = ({
         service as unknown as { createAuditedAbility: () => unknown },
         'createAuditedAbility',
     ).mockReturnValue({ can: () => canView, cannot: () => !canView });
-    return { service, externalConnectionModel, analytics, projectModel };
+    return {
+        service,
+        externalConnectionModel,
+        analytics,
+        projectModel,
+        savedChartModel,
+    };
 };
 
 beforeEach(() => {
@@ -444,18 +508,38 @@ describe('ExternalConnectionService live source explores', () => {
         return Object.keys(explores[0].apiSource.fields);
     };
 
-    it('saves the base layer plus scanned properties when a source is created', async () => {
+    it('offers scanned properties as available, not in use, when a source is created', async () => {
         respondToScan('ok');
         const { service, projectModel } = buildService();
         await service.create(account, 'proj-1', postHogSource);
 
-        expect(savedFieldIds(projectModel)).toContain(
-            'posthog_conn1_events_property_plan',
+        const fieldIds = savedFieldIds(projectModel);
+        expect(fieldIds).toContain('product_analytics_events_event');
+        expect(fieldIds).not.toContain(
+            'product_analytics_events_property_plan',
         );
         expect(mockSecureFetch.mock.calls.map(([url]) => url)).toEqual([
             `https://eu.posthog.com${PROPERTY_DEFINITIONS}?type=event&limit=500`,
             `https://eu.posthog.com${PROPERTY_DEFINITIONS}?type=person&limit=500`,
         ]);
+        const { fields } = await service.getLiveSourceFields(
+            account,
+            'proj-1',
+            'conn-1',
+        );
+        expect(
+            fields.find((field) => field.name === 'property_plan'),
+        ).toMatchObject({ inUse: false, isBuiltIn: false });
+    });
+
+    it('keeps every scanned property in use on a source built before fields could be curated', async () => {
+        respondToScan('ok');
+        const { service, projectModel } = buildService({ hasExplores: true });
+        await service.refreshApiSourceExplores(account, 'proj-1', 'conn-1');
+
+        expect(savedFieldIds(projectModel)).toContain(
+            'posthog_conn1_events_property_plan',
+        );
     });
 
     it('saves the base layer alone when a new source cannot be scanned', async () => {
@@ -464,8 +548,10 @@ describe('ExternalConnectionService live source explores', () => {
         await service.create(account, 'proj-1', postHogSource);
 
         const fieldIds = savedFieldIds(projectModel);
-        expect(fieldIds).toContain('posthog_conn1_events_event');
-        expect(fieldIds).not.toContain('posthog_conn1_events_property_plan');
+        expect(fieldIds).toContain('product_analytics_events_event');
+        expect(fieldIds).not.toContain(
+            'product_analytics_events_property_plan',
+        );
     });
 
     it('keeps the current explores, and the edit, when an edited source cannot be scanned', async () => {
@@ -475,6 +561,220 @@ describe('ExternalConnectionService live source explores', () => {
             service.update(account, 'proj-1', 'conn-1', { name: 'Renamed' }),
         ).resolves.toMatchObject({ externalConnectionUuid: 'conn-1' });
         expect(projectModel.replaceApiSourceExplores).not.toHaveBeenCalled();
+    });
+
+    describe('field curation', () => {
+        const lastSavedFields = (
+            projectModel: ReturnType<typeof buildService>['projectModel'],
+        ) => {
+            const explores =
+                projectModel.replaceApiSourceExplores.mock.calls.at(-1)?.[2];
+            return explores?.[0].apiSource.fields ?? {};
+        };
+
+        const createScanned = async (options = {}) => {
+            respondToScan('ok');
+            const built = buildService(options);
+            await built.service.create(account, 'proj-1', postHogSource);
+            return built;
+        };
+
+        it('puts a field in use with its edits and rebuilds the explore', async () => {
+            const { service, projectModel } = await createScanned();
+            const { fields } = await service.updateLiveSourceFields(
+                account,
+                'proj-1',
+                'conn-1',
+                [
+                    {
+                        name: 'property_plan',
+                        inUse: true,
+                        label: '  Plan  ',
+                        aiHint: 'Billing plan at event time',
+                    },
+                ],
+            );
+
+            expect(
+                fields.find((field) => field.name === 'property_plan'),
+            ).toMatchObject({
+                inUse: true,
+                label: 'Plan',
+                aiHint: 'Billing plan at event time',
+                lastEdit: { userUuid: expect.any(String) },
+            });
+            expect(
+                lastSavedFields(projectModel)
+                    .product_analytics_events_property_plan,
+            ).toBeDefined();
+        });
+
+        it('stops using a field so charts and agents no longer see it', async () => {
+            const { service, projectModel } = await createScanned();
+            await service.updateLiveSourceFields(account, 'proj-1', 'conn-1', [
+                { name: 'event', inUse: false },
+            ]);
+
+            expect(Object.keys(lastSavedFields(projectModel))).not.toContain(
+                'product_analytics_events_event',
+            );
+        });
+
+        it('refuses to stop using the date every query filters by', async () => {
+            const { service } = await createScanned();
+            await expect(
+                service.updateLiveSourceFields(account, 'proj-1', 'conn-1', [
+                    { name: 'date', inUse: false },
+                ]),
+            ).rejects.toThrow(ParameterError);
+        });
+
+        it('refuses a field the source does not have', async () => {
+            const { service } = await createScanned();
+            await expect(
+                service.updateLiveSourceFields(account, 'proj-1', 'conn-1', [
+                    { name: 'property_missing', inUse: true },
+                ]),
+            ).rejects.toThrow(ParameterError);
+        });
+
+        it('refuses a group longer than the text limit', async () => {
+            const { service } = await createScanned();
+            await expect(
+                service.updateLiveSourceFields(account, 'proj-1', 'conn-1', [
+                    { name: 'property_plan', group: 'g'.repeat(2001) },
+                ]),
+            ).rejects.toThrow('over 2000 characters');
+        });
+
+        it('lets only people who manage the source edit its fields', async () => {
+            const { service } = buildService({ canView: false });
+            await expect(
+                service.updateLiveSourceFields(account, 'proj-1', 'conn-1', [
+                    { name: 'property_plan', inUse: true },
+                ]),
+            ).rejects.toThrow(ForbiddenError);
+        });
+
+        it('counts the charts using each field', async () => {
+            const { service, savedChartModel } = await createScanned();
+            savedChartModel.getChartCountPerField.mockResolvedValue([
+                { fieldId: 'product_analytics_events_event', count: 3 },
+            ]);
+            const { fields, exploreName } = await service.getLiveSourceFields(
+                account,
+                'proj-1',
+                'conn-1',
+            );
+
+            expect(exploreName).toBe('product_analytics_events');
+            expect(
+                fields.find((field) => field.name === 'event')
+                    ?.usedByChartCount,
+            ).toBe(3);
+        });
+    });
+
+    const savedExploreName = (
+        projectModel: ReturnType<typeof buildService>['projectModel'],
+    ) => projectModel.replaceApiSourceExplores.mock.calls[0][2][0].name;
+
+    it('stores the name a new source gets, so later builds reuse it', async () => {
+        respondToScan('ok');
+        const { service, externalConnectionModel } = buildService();
+        await service.create(account, 'proj-1', postHogSource);
+
+        expect(externalConnectionModel.setLiveSourceName).toHaveBeenCalledWith(
+            'conn-1',
+            'product_analytics',
+        );
+    });
+
+    it('keeps the stored name of a source', async () => {
+        respondToScan('ok');
+        const { service, projectModel } = buildService({
+            connections: [posthogConnection({ liveSourceName: 'analytics' })],
+        });
+        await service.refreshApiSourceExplores(account, 'proj-1', 'conn-1');
+
+        expect(savedExploreName(projectModel)).toBe('analytics_events');
+    });
+
+    it('keeps the id-based name of a source built before names were stored', async () => {
+        respondToScan('ok');
+        const { service, projectModel } = buildService({ hasExplores: true });
+        await service.refreshApiSourceExplores(account, 'proj-1', 'conn-1');
+
+        expect(savedExploreName(projectModel)).toBe('posthog_conn1_events');
+    });
+
+    it("gives a new source for a deleted source's project that source's name, so its charts work again", async () => {
+        respondToScan('ok');
+        const { service, projectModel } = buildService({
+            deletedSources: [
+                {
+                    externalConnectionUuid: 'old-other',
+                    origin: 'https://eu.posthog.com',
+                    apiSource: {
+                        connector: ApiConnectorType.POSTHOG,
+                        projectId: '999',
+                    },
+                    sourceName: 'other_project',
+                },
+                {
+                    externalConnectionUuid: 'old-conn',
+                    origin: 'https://eu.posthog.com',
+                    apiSource: {
+                        connector: ApiConnectorType.POSTHOG,
+                        projectId: '303731',
+                    },
+                    sourceName: 'posthog',
+                },
+            ],
+        });
+        await service.refreshApiSourceExplores(account, 'proj-1', 'conn-1');
+
+        expect(savedExploreName(projectModel)).toBe('posthog_events');
+    });
+
+    it('reuses the id-based name of a deleted source from before names were stored', async () => {
+        respondToScan('ok');
+        const { service, projectModel } = buildService({
+            deletedSources: [
+                {
+                    externalConnectionUuid:
+                        'd85fea83-0000-0000-0000-000000000000',
+                    origin: 'https://eu.posthog.com',
+                    apiSource: {
+                        connector: ApiConnectorType.POSTHOG,
+                        projectId: '303731',
+                    },
+                    sourceName: null,
+                },
+            ],
+        });
+        await service.refreshApiSourceExplores(account, 'proj-1', 'conn-1');
+
+        expect(savedExploreName(projectModel)).toBe('posthog_d85fea83_events');
+    });
+
+    it('numbers a new name another source or dbt explore already has', async () => {
+        respondToScan('ok');
+        const { service, projectModel } = buildService({
+            connections: [
+                posthogConnection(),
+                posthogConnection({
+                    externalConnectionUuid: 'conn-2',
+                    liveSourceName: 'product_analytics',
+                }),
+            ],
+            takenExploreNames: ['product_analytics_2_events'],
+        });
+        await service.refreshApiSourceExplores(account, 'proj-1', 'conn-1');
+
+        expect(savedExploreName(projectModel)).toBe(
+            'product_analytics_3_events',
+        );
     });
 
     it('reports a failed scan when an admin refreshes the explores', async () => {

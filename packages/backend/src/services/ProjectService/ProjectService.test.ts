@@ -20891,9 +20891,11 @@ describe('ProjectService.compileQueryForResponse', () => {
     describe('on a live data source explore', () => {
         const [apiExplore] = buildApiSourceExplores({
             connectionUuid: '03386598-7a51-45b2-b1f9-5ef55bd09016',
+            sourceName: 'ga4_03386598',
             name: 'Marketing site',
             apiSource: { connector: ApiConnectorType.GA4, propertyId: '123' },
-            scan: {},
+            scannedFields: [],
+            edits: {},
         });
         const liveArgs = (caller: Account) => ({
             ...compileArgs(caller),

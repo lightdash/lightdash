@@ -1857,9 +1857,11 @@ describe('AsyncQueryService', () => {
         const CONNECTION_UUID = '03386598-7a51-45b2-b1f9-5ef55bd09016';
         const [apiExplore] = buildApiSourceExplores({
             connectionUuid: CONNECTION_UUID,
+            sourceName: 'ga4_03386598',
             name: 'Marketing site',
             apiSource: { connector: ApiConnectorType.GA4, propertyId: '123' },
-            scan: {},
+            scannedFields: [],
+            edits: {},
         });
         const channel = `${apiExplore.name}_session_default_channel_group`;
         const sessions = `${apiExplore.name}_sessions`;

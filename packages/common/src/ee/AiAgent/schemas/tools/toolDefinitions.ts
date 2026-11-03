@@ -276,6 +276,11 @@ import {
     toolListWorkstreamsOutputSchema,
 } from './toolListWorkstreamsArgs';
 import {
+    TOOL_LIST_LIVE_SOURCE_FIELDS_DESCRIPTION,
+    toolListLiveSourceFieldsArgsSchema,
+    toolListLiveSourceFieldsOutputSchema,
+} from './toolLiveSourceFieldsArgs';
+import {
     TOOL_LOAD_MCP_TOOLS_DESCRIPTION,
     toolLoadMcpToolsArgsSchema,
     toolLoadMcpToolsOutputSchema,
@@ -1280,6 +1285,20 @@ export const editProjectContextToolDefinition: ToolDefinitionWithoutMcpOutput<
     agent: { outputSchema: toolEditProjectContextOutputSchema },
 });
 
+export const listLiveSourceFieldsToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'listLiveSourceFields',
+    typeof toolListLiveSourceFieldsArgsSchema,
+    typeof toolListLiveSourceFieldsArgsSchema,
+    typeof toolListLiveSourceFieldsOutputSchema
+> = defineTool({
+    name: 'listLiveSourceFields',
+    title: 'List live data source fields',
+    description: TOOL_LIST_LIVE_SOURCE_FIELDS_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: toolListLiveSourceFieldsArgsSchema,
+    agent: { outputSchema: toolListLiveSourceFieldsOutputSchema },
+});
+
 export const syncDbtProjectToolDefinition: ToolDefinitionWithoutMcpOutput<
     'syncDbtProject',
     typeof toolSyncDbtProjectArgsSchema,
@@ -1964,6 +1983,7 @@ type AgentToolDefinitionsByName = {
     listDataAppConnections: typeof listDataAppConnectionsToolDefinition;
     editDbtProject: typeof editDbtProjectToolDefinition;
     editProjectContext: typeof editProjectContextToolDefinition;
+    listLiveSourceFields: typeof listLiveSourceFieldsToolDefinition;
     syncDbtProject: typeof syncDbtProjectToolDefinition;
     exploreRepo: typeof exploreRepoToolDefinition;
     discoverRepos: typeof discoverReposToolDefinition;
@@ -2024,6 +2044,7 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     listDataAppConnections: listDataAppConnectionsToolDefinition,
     editDbtProject: editDbtProjectToolDefinition,
     editProjectContext: editProjectContextToolDefinition,
+    listLiveSourceFields: listLiveSourceFieldsToolDefinition,
     syncDbtProject: syncDbtProjectToolDefinition,
     exploreRepo: exploreRepoToolDefinition,
     discoverRepos: discoverReposToolDefinition,
@@ -2091,6 +2112,7 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     listDataAppConnectionsToolDefinition,
     editDbtProjectToolDefinition,
     editProjectContextToolDefinition,
+    listLiveSourceFieldsToolDefinition,
     syncDbtProjectToolDefinition,
     exploreRepoToolDefinition,
     discoverReposToolDefinition,

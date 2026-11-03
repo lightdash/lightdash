@@ -18,7 +18,7 @@ import {
     type AiDeepResearchWorkerTask,
     type AiDeepResearchWorkerTaskInput,
     type AiSemanticChartArtifactConfig,
-    type ComposerApiConnection,
+    type ApiConnectorType,
 } from '@lightdash/common';
 // eslint-disable-next-line import/extensions
 import { type OAuthClientProvider } from '@modelcontextprotocol/sdk/client/auth.js';
@@ -79,6 +79,7 @@ import {
     ListDataAppThemesFn,
     ListExploresFn,
     ListKnowledgeDocumentsFn,
+    ListLiveSourceFieldsFn,
     ListProjectsFn,
     ListSqlApprovalDecisionsFn,
     ListThreadComposerQueryNodesFn,
@@ -119,6 +120,13 @@ import {
 } from './aiAgentDependencies';
 
 type AnyAiModel<P = AiProvider> = P extends AiProvider ? AiModel<P> : never;
+
+/** A live data source the agent can read the fields of. */
+export type AgentLiveSource = {
+    connectionUuid: string;
+    name: string;
+    connector: ApiConnectorType;
+};
 
 export type AiAgentMcpServer = AiMcpServer & {
     resolvedCredential: AiMcpCredentialPayload | null;
@@ -302,8 +310,9 @@ export type AiAgentArgs = AnyAiModel & {
     // Whether the composer query tool is the query path: composer flags, data
     // access and the agent's enableComposerQueries opt-in.
     enableComposerQueries: boolean;
-    // Project API connections composer api nodes may query; empty disables them.
-    composerApiConnections: ComposerApiConnection[];
+    // The project's live data sources the user can view, listed in the prompt
+    // for the field tools.
+    liveSources: AgentLiveSource[];
     // Whether the user can save a generated dashboard anywhere in the project.
     // Gates generateDashboard so the agent does not build one the user is then
     // refused permission to keep.
@@ -447,6 +456,7 @@ export type AiAgentDependencies = {
     listDataAppConnections: ListDataAppConnectionsFn;
     editDbtProject: EditDbtProjectFn;
     editProjectContext: EditProjectContextFn;
+    listLiveSourceFields: ListLiveSourceFieldsFn;
     syncDbtProject: SyncDbtProjectFn;
     exploreRepo: ExploreRepoFn;
     discoverRepos: DiscoverReposFn;

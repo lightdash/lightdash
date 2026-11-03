@@ -19,6 +19,7 @@ const REFERENCE_TOOLS = new Set([
     'grepFields',
     'getMetadata',
     'searchSemanticLayer',
+    'listLiveSourceFields',
 ]);
 
 const DATA_ANSWER_TOOLS = new Set([

@@ -10,22 +10,37 @@ import {
 import {
     buildApiSourceExplores,
     compileApiSourceMetricQuery,
+    getApiSourceExploreNames,
+    getLegacyLiveSourceName,
+    getLiveSourceNameBase,
     toApiSourceResult,
+    toScannedLiveSourceFields,
+    type ApiSourceScan,
 } from './apiSourceExplores';
 import { compileSearchConsoleQuery } from './google/searchConsoleCompiler';
 import { SEARCH_CONSOLE_MAX_QUERY_ROWS } from './google/SearchConsoleConnector';
+import { getInitialLiveSourceFieldEdits } from './liveSourceFields';
 
 const CONNECTION_UUID = '03386598-7a51-45b2-b1f9-5ef55bd09016';
 
 const buildOne = (
     apiSource: Parameters<typeof buildApiSourceExplores>[0]['apiSource'],
-    scan: Parameters<typeof buildApiSourceExplores>[0]['scan'] = {},
+    scan: ApiSourceScan = {},
 ): Explore => {
+    const scannedFields = toScannedLiveSourceFields(apiSource.connector, scan);
     const [explore, ...rest] = buildApiSourceExplores({
         connectionUuid: CONNECTION_UUID,
+        sourceName: getLegacyLiveSourceName(
+            apiSource.connector,
+            CONNECTION_UUID,
+        ),
         name: 'Marketing site',
         apiSource,
-        scan,
+        scannedFields,
+        edits: getInitialLiveSourceFieldEdits({
+            scannedFields,
+            isExistingSource: true,
+        }),
     });
     expect(rest).toEqual([]);
     return explore;
@@ -54,6 +69,50 @@ const query = (
     limit: 10,
     tableCalculations: [],
     ...overrides,
+});
+
+describe('live source names', () => {
+    test('a stored source name prefixes every explore of the source', () => {
+        const [explore] = buildApiSourceExplores({
+            connectionUuid: CONNECTION_UUID,
+            sourceName: 'posthog',
+            name: 'PostHog',
+            apiSource: { connector: ApiConnectorType.POSTHOG, projectId: '42' },
+            scannedFields: [],
+            edits: {},
+        });
+        expect(explore.name).toBe('posthog_events');
+        expect(
+            getApiSourceExploreNames(ApiConnectorType.POSTHOG, 'posthog'),
+        ).toEqual(['posthog_events']);
+    });
+
+    test('a new name comes from the source name, as a lowercase identifier', () => {
+        expect(
+            getLiveSourceNameBase(ApiConnectorType.GA4, 'Google Analytics'),
+        ).toBe('google_analytics');
+        expect(
+            getLiveSourceNameBase(
+                ApiConnectorType.POSTHOG,
+                'Product analytics',
+            ),
+        ).toBe('product_analytics');
+    });
+
+    test('a name that is no identifier falls back to the integration', () => {
+        expect(
+            getLiveSourceNameBase(ApiConnectorType.POSTHOG, '2024 events'),
+        ).toBe('posthog');
+    });
+
+    test('sources from before stored names keep their id-based name', () => {
+        expect(
+            getLegacyLiveSourceName(
+                ApiConnectorType.SEARCH_CONSOLE,
+                CONNECTION_UUID,
+            ),
+        ).toBe('search_console_03386598');
+    });
 });
 
 describe('buildApiSourceExplores', () => {

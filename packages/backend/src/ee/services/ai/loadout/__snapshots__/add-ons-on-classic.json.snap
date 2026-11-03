@@ -130,6 +130,14 @@
         "addsSections": [],
         "addsSkills": []
     },
+    "liveSourceFields": {
+        "description": "List a live data source's fields, in use and available",
+        "addsTools": [
+            "listLiveSourceFields"
+        ],
+        "addsSections": [],
+        "addsSkills": []
+    },
     "readAttachments": {
         "description": "Read files attached to the thread",
         "addsTools": [

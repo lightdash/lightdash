@@ -216,7 +216,6 @@ import {
     type ApiAiAgentComposerArtifactVizQuery,
     type ApiGetAsyncQueryResults,
     type AppGeneratePipelineJobPayload,
-    type ComposerApiConnection,
     type ComposerStoredChartVizConfig,
     type DataAppVizChart,
     type DuckdbSourceQuery,
@@ -553,6 +552,7 @@ import {
 import {
     AiAgentArgs,
     AiAgentDependencies,
+    type AgentLiveSource,
     type AiAgentDeepResearchRunContext,
     type AiAgentExecutionConfig,
     type AiAgentMcpServer,
@@ -571,6 +571,7 @@ import {
     ExportCustomChartTypeImageFn,
     GetPromptFn,
     GetPullRequestDiffFn,
+    ListLiveSourceFieldsFn,
     ListWorkstreamsFn,
     ReadAttachmentsFn,
     RecordMcpToolCallFn,
@@ -981,7 +982,7 @@ type AiAgentServiceDependencies = {
     querySourceService: Pick<QuerySourceService, 'submitQueries'>;
     externalConnectionService: Pick<
         ExternalConnectionService,
-        'listApiSourceConnections'
+        'listApiSourceConnections' | 'getLiveSourceFields'
     >;
     queryHistoryModel: Pick<QueryHistoryModel, 'pollForQueryCompletion'>;
     catalogService: CatalogService;
@@ -11743,10 +11744,10 @@ export class AiAgentService extends BaseService {
     }
 
     /** The project's API connections the user may query, offered as composer api nodes. */
-    private async getComposerApiConnections(
+    private async getAgentLiveSources(
         user: SessionUser,
         projectUuid: string,
-    ): Promise<ComposerApiConnection[]> {
+    ): Promise<AgentLiveSource[]> {
         const { enabled } = await this.featureFlagService.get({
             user,
             featureFlagId: FeatureFlags.ApiQuerySources,
@@ -14681,6 +14682,13 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
 
         const discoverRepos: DiscoverReposFn = listAuthorizedRepos;
 
+        const listLiveSourceFields: ListLiveSourceFieldsFn = (connectionUuid) =>
+            this.externalConnectionService.getLiveSourceFields(
+                fromSession(user),
+                projectUuid,
+                connectionUuid,
+            );
+
         // Deterministic project_context.yml writeback (no sandbox). Only wired
         // into review-remediation work threads; the source thread is linked
         // from the PR body so a reviewer can trace the entry.
@@ -14805,6 +14813,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
             searchFieldValues: toolsRuntime.searchFieldValues,
             editDbtProject,
             editProjectContext,
+            listLiveSourceFields,
             exploreRepo,
             readAttachments,
             discoverRepos,
@@ -16877,11 +16886,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                         standardToolAllowlist !== undefined,
                     battleProfile,
                 });
-                const composerApiConnections = enableComposerQueries
-                    ? await this.getComposerApiConnections(
-                          user,
-                          prompt.projectUuid,
-                      )
+                const liveSources = hasTrustedPromptUserIdentity
+                    ? await this.getAgentLiveSources(user, prompt.projectUuid)
                     : [];
                 const { enabled: filterExpressionsEnabled } =
                     await this.featureFlagService.get({
@@ -17063,6 +17069,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     searchFieldValues,
                     editDbtProject,
                     editProjectContext,
+                    listLiveSourceFields,
                     exploreRepo,
                     readAttachments,
                     discoverRepos,
@@ -17365,7 +17372,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     repoFsSupportsCodeSearch,
                     canRunSql,
                     enableComposerQueries,
-                    composerApiConnections,
+                    liveSources,
                     canCreateDashboards,
                     canCreateScheduledDeliveries,
                     autoApproveSql:
@@ -17569,6 +17576,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     searchFieldValues,
                     editDbtProject,
                     editProjectContext,
+                    listLiveSourceFields,
                     exploreRepo,
                     readAttachments,
                     discoverRepos,
@@ -19450,6 +19458,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     return 'Saving the changes...';
                 case 'loadProjectContext':
                     return 'Reviewing the project context...';
+                case 'listLiveSourceFields':
+                    return 'Reviewing the live data source fields...';
                 case 'findContent':
                 case 'findCharts':
                 case 'findCustomChartTypes':

@@ -125,6 +125,7 @@ import { getListKnowledgeDocuments } from '../tools/listKnowledgeDocuments';
 import { getListProjects } from '../tools/listProjects';
 import { getListWarehouseTables } from '../tools/listWarehouseTables';
 import { getListWorkstreams } from '../tools/listWorkstreams';
+import { getListLiveSourceFields } from '../tools/liveSourceFields';
 import { getLoadAgentTools } from '../tools/loadAgentTools';
 import { getLoadMcpTools } from '../tools/loadMcpTools';
 import { getLoadProjectContext } from '../tools/loadProjectContext';
@@ -1939,6 +1940,10 @@ export const getAgentTools = (
             getListKnowledgeDocuments({
                 listKnowledgeDocuments: dependencies.listKnowledgeDocuments,
             }),
+        listLiveSourceFields: () =>
+            getListLiveSourceFields({
+                listLiveSourceFields: dependencies.listLiveSourceFields,
+            }),
         getKnowledgeDocumentContent: () =>
             getGetKnowledgeDocumentContent({
                 getKnowledgeDocumentContent:
@@ -2213,7 +2218,6 @@ export const getAgentTools = (
                 enableDataAccess: args.enableDataAccess,
                 canRunSql: args.canRunSql,
                 enablePythonNodes: args.enableComposerQueries,
-                apiConnections: args.composerApiConnections,
                 autoApproveSql: args.autoApproveSql,
                 autoApproveSqlUserUuid: args.autoApproveSqlUserUuid,
                 useSlackStreamCard: args.useSlackStreamCard,
@@ -2645,7 +2649,7 @@ export const getAgentMessages = (
         repoFsSupportsCodeSearch: args.repoFsSupportsCodeSearch,
         slackLinksOnly: args.slackLinksOnly,
         enableComposerPythonNodes: args.enableComposerQueries,
-        enableComposerApiNodes: args.composerApiConnections.length > 0,
+        liveSources: args.liveSources,
         unauthenticatedMcpServerNames: getUnauthenticatedMcpServerNames(
             args,
             mcpToolSetup,

@@ -16,6 +16,7 @@ export type AddOnName =
     | 'pullRequests'
     | 'repoDiscovery'
     | 'editProjectContext'
+    | 'liveSourceFields'
     | 'readAttachments'
     | 'intentRouting'
     | 'skills'
@@ -60,6 +61,7 @@ export const AGENT_TOOL_NAMES = [
     'listDataAppConnections',
     'editDbtProject',
     'editProjectContext',
+    'listLiveSourceFields',
     'syncDbtProject',
     'exploreRepo',
     'readAttachments',
@@ -140,6 +142,7 @@ export type LoadoutInput = Pick<
     | 'projectContextEnabled'
     | 'aiAgentMemoryEnabled'
     | 'requestingUser'
+    | 'liveSources'
 > & {
     /** MCP server tools this run may call, after deep research's raw SQL rule. */
     mcpToolNames: readonly string[];

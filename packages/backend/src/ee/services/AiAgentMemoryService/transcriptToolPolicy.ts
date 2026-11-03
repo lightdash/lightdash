@@ -126,6 +126,7 @@ export const DISTILL_TOOL_POLICIES = {
     // Legacy persisted tool; keep past-thread distillation bounded and quiet.
     improveContext: { result: truncate(DEFAULT_TOOL_RESULT_LIMIT) },
     editProjectContext: { result: truncate(DEFAULT_TOOL_RESULT_LIMIT) },
+    listLiveSourceFields: { result: truncate(SHORT_TOOL_RESULT_LIMIT) },
     updateUserName: { result: keep },
     submitResearchReport: { result: truncate(RESEARCH_REPORT_RESULT_LIMIT) },
     delegateResearchTask: {

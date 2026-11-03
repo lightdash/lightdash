@@ -8714,6 +8714,377 @@ Read the full text of one knowledge document or Deep Research report by its uuid
     },
   },
   {
+    "description": "List a live data source's fields: the ones in use, which its explore has, and the available ones its integration offers that the explore leaves out. Use it when a question needs a field the explore lacks, to find it among the available fields. Returns at most 50 fields; narrow a long list with search.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "connectionUuid": {
+          "description": "The live data source, by its connectionUuid from "Live data sources" in the system prompt.",
+          "type": "string",
+        },
+        "search": {
+          "description": "Words matched against each field's name, label, source and description, e.g. "plan" or "utm"; null lists every field.",
+          "type": [
+            "string",
+            "null",
+          ],
+        },
+        "status": {
+          "description": "Which fields to list: "inUse" for the explore's fields, "available" for the ones it leaves out, "all" for both.",
+          "enum": [
+            "all",
+            "inUse",
+            "available",
+          ],
+          "type": "string",
+        },
+      },
+      "required": [
+        "connectionUuid",
+        "status",
+        "search",
+      ],
+      "type": "object",
+    },
+    "name": "listLiveSourceFields",
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "metadata": {
+              "additionalProperties": false,
+              "properties": {
+                "status": {
+                  "allOf": [
+                    {
+                      "enum": [
+                        "success",
+                        "error",
+                      ],
+                      "type": "string",
+                    },
+                    {
+                      "enum": [
+                        "success",
+                      ],
+                      "type": "string",
+                    },
+                  ],
+                },
+              },
+              "required": [
+                "status",
+              ],
+              "type": "object",
+            },
+            "result": {
+              "type": "string",
+            },
+            "structuredContent": {
+              "additionalProperties": false,
+              "properties": {
+                "exploreName": {
+                  "type": "string",
+                },
+                "fields": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "aiHint": {
+                        "type": [
+                          "string",
+                          "null",
+                        ],
+                      },
+                      "description": {
+                        "type": "string",
+                      },
+                      "fieldId": {
+                        "description": "The field id a query uses once the field is in use.",
+                        "type": "string",
+                      },
+                      "group": {
+                        "type": [
+                          "string",
+                          "null",
+                        ],
+                      },
+                      "inUse": {
+                        "type": "boolean",
+                      },
+                      "isInternal": {
+                        "description": "The integration's own bookkeeping field.",
+                        "type": "boolean",
+                      },
+                      "isRequired": {
+                        "description": "Every query needs it, so it always stays in use.",
+                        "type": "boolean",
+                      },
+                      "kind": {
+                        "enum": [
+                          "dimension",
+                          "metric",
+                        ],
+                        "type": "string",
+                      },
+                      "label": {
+                        "type": "string",
+                      },
+                      "name": {
+                        "description": "The field name.",
+                        "type": "string",
+                      },
+                      "source": {
+                        "description": "What the integration calls the field.",
+                        "type": "string",
+                      },
+                      "type": {
+                        "type": "string",
+                      },
+                      "usedByChartCount": {
+                        "maximum": 9007199254740991,
+                        "minimum": -9007199254740991,
+                        "type": "integer",
+                      },
+                    },
+                    "required": [
+                      "name",
+                      "fieldId",
+                      "label",
+                      "kind",
+                      "type",
+                      "source",
+                      "description",
+                      "aiHint",
+                      "group",
+                      "inUse",
+                      "isRequired",
+                      "isInternal",
+                      "usedByChartCount",
+                    ],
+                    "type": "object",
+                  },
+                  "type": "array",
+                },
+                "matchCount": {
+                  "description": "Fields matching status and search, before the row limit.",
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer",
+                },
+              },
+              "required": [
+                "exploreName",
+                "matchCount",
+                "fields",
+              ],
+              "type": "object",
+            },
+          },
+          "required": [
+            "result",
+            "metadata",
+            "structuredContent",
+          ],
+          "type": "object",
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "metadata": {
+              "additionalProperties": false,
+              "properties": {
+                "refusal": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "action": {
+                      "type": [
+                        "string",
+                        "null",
+                      ],
+                    },
+                    "capability": {
+                      "type": [
+                        "string",
+                        "null",
+                      ],
+                    },
+                    "code": {
+                      "const": "ai_access_refused",
+                      "type": "string",
+                    },
+                    "connectUrl": {
+                      "type": [
+                        "string",
+                        "null",
+                      ],
+                    },
+                    "message": {
+                      "type": "string",
+                    },
+                    "operation": {
+                      "type": "string",
+                    },
+                    "policyLayer": {
+                      "type": "string",
+                    },
+                    "policyVersion": {
+                      "type": "number",
+                    },
+                    "projectUuid": {
+                      "type": [
+                        "string",
+                        "null",
+                      ],
+                    },
+                    "reason": {
+                      "type": "string",
+                    },
+                    "settingsUrl": {
+                      "type": [
+                        "string",
+                        "null",
+                      ],
+                    },
+                  },
+                  "required": [
+                    "code",
+                    "reason",
+                    "message",
+                    "action",
+                    "settingsUrl",
+                    "connectUrl",
+                  ],
+                  "type": "object",
+                },
+                "requiresSnowflakeReauthentication": {
+                  "const": true,
+                  "type": "boolean",
+                },
+                "status": {
+                  "allOf": [
+                    {
+                      "enum": [
+                        "success",
+                        "error",
+                      ],
+                      "type": "string",
+                    },
+                    {
+                      "enum": [
+                        "error",
+                      ],
+                      "type": "string",
+                    },
+                  ],
+                },
+              },
+              "required": [
+                "status",
+              ],
+              "type": "object",
+            },
+            "result": {
+              "type": "string",
+            },
+            "structuredContent": {
+              "additionalProperties": false,
+              "properties": {
+                "error": {
+                  "description": "Why the tool call failed; the same message as \`result\`.",
+                  "type": "string",
+                },
+                "refusal": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "action": {
+                          "type": [
+                            "string",
+                            "null",
+                          ],
+                        },
+                        "capability": {
+                          "type": [
+                            "string",
+                            "null",
+                          ],
+                        },
+                        "code": {
+                          "const": "ai_access_refused",
+                          "type": "string",
+                        },
+                        "connectUrl": {
+                          "type": [
+                            "string",
+                            "null",
+                          ],
+                        },
+                        "message": {
+                          "type": "string",
+                        },
+                        "operation": {
+                          "type": "string",
+                        },
+                        "policyLayer": {
+                          "type": "string",
+                        },
+                        "policyVersion": {
+                          "type": "number",
+                        },
+                        "projectUuid": {
+                          "type": [
+                            "string",
+                            "null",
+                          ],
+                        },
+                        "reason": {
+                          "type": "string",
+                        },
+                        "settingsUrl": {
+                          "type": [
+                            "string",
+                            "null",
+                          ],
+                        },
+                      },
+                      "required": [
+                        "code",
+                        "reason",
+                        "message",
+                        "action",
+                        "settingsUrl",
+                        "connectUrl",
+                      ],
+                      "type": "object",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
+              },
+              "required": [
+                "error",
+              ],
+              "type": "object",
+            },
+          },
+          "required": [
+            "result",
+            "metadata",
+            "structuredContent",
+          ],
+          "type": "object",
+        },
+      ],
+    },
+  },
+  {
     "description": "Tool: listKnowledgeDocuments
 
 Purpose:
@@ -25980,6 +26351,7 @@ exports[`AI agent tool contracts > matches the shared agent tool definition name
   "listDataAppConnections",
   "editDbtProject",
   "editProjectContext",
+  "listLiveSourceFields",
   "syncDbtProject",
   "exploreRepo",
   "discoverRepos",

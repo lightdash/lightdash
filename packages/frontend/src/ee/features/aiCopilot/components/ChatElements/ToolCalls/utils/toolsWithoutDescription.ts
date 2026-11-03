@@ -18,6 +18,7 @@ const TOOLS_WITHOUT_DESCRIPTION = [
     'listDataAppConnections',
     'editDbtProject',
     'editProjectContext',
+    'listLiveSourceFields',
     'editRepo',
     'updateUserName',
     'syncDbtProject',

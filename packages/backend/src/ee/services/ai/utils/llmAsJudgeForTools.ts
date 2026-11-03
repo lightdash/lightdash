@@ -69,6 +69,7 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
     listDataAppConnections: 'list_data_app_connections',
     editDbtProject: 'edit_dbt_project',
     editProjectContext: 'edit_project_context',
+    listLiveSourceFields: 'list_live_source_fields',
     editRepo: 'edit_repo',
     syncDbtProject: 'sync_dbt_project',
     exploreRepo: 'explore_repo',

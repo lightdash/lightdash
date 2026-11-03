@@ -8810,6 +8810,40 @@ export class ProjectModel {
         });
     }
 
+    /** Which of these explore names belong to something other than this live source. */
+    async findExploreNamesTakenByOthers(
+        projectUuid: string,
+        connectionUuid: string,
+        names: string[],
+    ): Promise<string[]> {
+        if (names.length === 0) {
+            return [];
+        }
+        return this.database(CachedExploreTableName)
+            .where('project_uuid', projectUuid)
+            .whereIn('name', names)
+            .whereRaw(
+                "(explore->>'type' IS DISTINCT FROM ? OR explore->'apiSource'->>'connectionUuid' IS DISTINCT FROM ?)",
+                [ExploreType.API_SOURCE, connectionUuid],
+            )
+            .pluck('name');
+    }
+
+    async hasApiSourceExplores(
+        projectUuid: string,
+        connectionUuid: string,
+    ): Promise<boolean> {
+        const row = await this.database(CachedExploreTableName)
+            .select('name')
+            .where('project_uuid', projectUuid)
+            .whereRaw("explore->>'type' = ?", [ExploreType.API_SOURCE])
+            .whereRaw("explore->'apiSource'->>'connectionUuid' = ?", [
+                connectionUuid,
+            ])
+            .first();
+        return row !== undefined;
+    }
+
     async deleteApiSourceExplores(
         projectUuid: string,
         connectionUuid: string,
