@@ -9721,7 +9721,7 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
     },
   },
   {
-    "description": "Load a skill by name. The result lists the skill's resources; load only the one you need with \`resourceName\`.",
+    "description": "Load a skill by name. The result lists the skill's resources; load only the one you need with \`resourceName\`. A skill or resource already loaded in this thread returns a pointer to the earlier result instead of a second copy.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
@@ -9898,6 +9898,32 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
                     },
                     "skill": {
                       "description": "Name of the skill the resource belongs to.",
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "kind",
+                    "skill",
+                    "resource",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "kind": {
+                      "const": "already_loaded",
+                      "type": "string",
+                    },
+                    "resource": {
+                      "description": "Resource name when a resource was requested; null for the skill itself.",
+                      "type": [
+                        "string",
+                        "null",
+                      ],
+                    },
+                    "skill": {
+                      "description": "Name of the skill.",
                       "type": "string",
                     },
                   },
