@@ -146,7 +146,7 @@ const RunActions: FC<{
             <Menu.Target>
                 <ActionIcon
                     variant="default"
-                    size="input-sm"
+                    size={32}
                     aria-label="More setup options"
                     loading={isCancelling}
                 >
@@ -193,6 +193,7 @@ const RunActions: FC<{
         return (
             <Group gap="xs" wrap="nowrap">
                 <Button
+                    size="sm"
                     component={Link}
                     to={getAgentOnboardingDashboardUrl(run.projectUuid)}
                     rightSection={<MantineIcon icon={IconArrowRight} />}
@@ -206,10 +207,11 @@ const RunActions: FC<{
 
     return (
         <Group gap="xs" wrap="nowrap">
-            <Button variant="default" onClick={onOpenProject}>
+            <Button variant="default" size="sm" onClick={onOpenProject}>
                 Open project
             </Button>
             <Button
+                size="sm"
                 leftSection={<MantineIcon icon={IconRefresh} />}
                 onClick={() => void onRetry()}
                 loading={isRetrying}
@@ -354,7 +356,7 @@ const AgentOnboardingRunPage: FC = () => {
 
                     <Box className={classes.header}>
                         <Stack gap={4} className={classes.headerText}>
-                            <Group gap="sm" wrap="wrap">
+                            <Group gap="xs" wrap="wrap">
                                 <Title order={2} className={classes.title}>
                                     {copy.title}
                                 </Title>

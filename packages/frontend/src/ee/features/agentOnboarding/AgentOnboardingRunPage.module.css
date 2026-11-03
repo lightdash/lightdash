@@ -28,15 +28,15 @@
 }
 
 .title {
-    font-size: rem(22px);
+    font-size: rem(20px);
     font-weight: 600;
     letter-spacing: -0.02em;
     line-height: 1.15;
 }
 
 .pill {
-    height: rem(24px);
-    padding: 0 rem(10px);
+    height: rem(22px);
+    padding: 0 rem(8px);
     border: 1px solid var(--mantine-color-default-border);
     border-radius: 999px;
 }
@@ -84,7 +84,7 @@
 .track {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: var(--mantine-spacing-xs);
+    gap: var(--mantine-spacing-md);
     margin: 0;
     padding: 0;
     list-style: none;
