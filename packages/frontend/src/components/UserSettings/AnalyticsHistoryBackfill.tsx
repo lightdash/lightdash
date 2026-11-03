@@ -49,8 +49,9 @@ const AnalyticsHistoryBackfill = () => {
                 )}
                 {status.data?.running && (
                     <Text fz="sm">
-                        Backfill is running in the background. You can leave
-                        this page.
+                        Backfill is running in the background. This can take a
+                        few minutes, or longer for larger histories. You can
+                        leave this page.
                     </Text>
                 )}
                 <Group>

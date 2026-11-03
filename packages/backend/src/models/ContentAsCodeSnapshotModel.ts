@@ -7,12 +7,14 @@ import { ContentAsCodeSnapshotsTableName } from '../database/entities/contentAsC
 // ride inside the agent upload, keyed by `<agent slug>/<document name>`.
 export const AI_AGENT_KNOWLEDGE_DOCUMENT_SNAPSHOT_TYPE =
     'ai_agent_knowledge_document';
+export const ANALYTICS_BUNDLE_SNAPSHOT_TYPE = 'analytics_bundle';
 
 export type ContentAsCodeSnapshotType =
     | ContentAsCodeType.CHART
     | ContentAsCodeType.SQL_CHART
     | ContentAsCodeType.DASHBOARD
-    | typeof AI_AGENT_KNOWLEDGE_DOCUMENT_SNAPSHOT_TYPE;
+    | typeof AI_AGENT_KNOWLEDGE_DOCUMENT_SNAPSHOT_TYPE
+    | typeof ANALYTICS_BUNDLE_SNAPSHOT_TYPE;
 
 export type KnowledgeDocumentSnapshotSlug = string & {
     readonly __brand: 'KnowledgeDocumentSnapshotSlug';

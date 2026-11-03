@@ -650,7 +650,7 @@ export class SchedulerWorker extends SchedulerTask {
             pollInterval: this.lightdashConfig.scheduler.pollInterval,
             maxPoolSize,
             parsedCronItems: includeCron
-                ? parseCronItems(this.getCronItems())
+                ? parseCronItems(this.getEnabledCronItems())
                 : [],
             taskList: traceTasks(this.getTaskList(), {
                 resolveOrganizationName: this.resolveOrganizationName,
@@ -979,6 +979,12 @@ export class SchedulerWorker extends SchedulerTask {
             // worker-process pg liveness is driven by a setInterval (see startPgPing);
             // managed-agent heartbeat is self-scheduling (see SchedulerClient.scheduleManagedAgentHeartbeat).
         ];
+    }
+
+    protected getEnabledCronItems(): CronItem[] {
+        return this.getCronItems().filter(({ task }) =>
+            this.enabledTasks.some((enabledTask) => enabledTask === task),
+        );
     }
 
     protected getTaskList(): Partial<TypedTaskList> {
@@ -2364,22 +2370,38 @@ export class SchedulerWorker extends SchedulerTask {
                     usageProcessingModel: this.usageProcessingModel,
                     featureFlagModel: this.featureFlagModel,
                 });
-                const summary = await compactor.run(
-                    new Date(),
-                    payload.organizationUuid || undefined,
-                );
-                Sentry.getActiveSpan()?.setAttributes({
-                    'lightdash.usage_events.partitions_discovered':
-                        summary.partitionsDiscovered,
-                    'lightdash.usage_events.partitions_compacted':
-                        summary.partitionsCompacted,
-                    'lightdash.usage_events.partitions_failed':
-                        summary.partitionsFailed,
-                    'lightdash.usage_events.partitions_skipped_unknown_stream':
-                        summary.partitionsSkippedUnknownStream,
-                    'lightdash.usage_events.raw_objects_deleted':
-                        summary.rawObjectsDeleted,
-                });
+                try {
+                    const summary = await compactor.run(
+                        new Date(),
+                        payload.organizationUuid || undefined,
+                    );
+                    Sentry.getActiveSpan()?.setAttributes({
+                        'lightdash.usage_events.partitions_discovered':
+                            summary.partitionsDiscovered,
+                        'lightdash.usage_events.partitions_compacted':
+                            summary.partitionsCompacted,
+                        'lightdash.usage_events.partitions_failed':
+                            summary.partitionsFailed,
+                        'lightdash.usage_events.partitions_skipped_unknown_stream':
+                            summary.partitionsSkippedUnknownStream,
+                        'lightdash.usage_events.raw_objects_deleted':
+                            summary.rawObjectsDeleted,
+                    });
+                } finally {
+                    try {
+                        await this.schedulerClient.scheduleAnalyticsContentReconciliation(
+                            payload.organizationUuid || null,
+                        );
+                    } catch {
+                        Logger.error(
+                            'Failed to enqueue analytics content reconciliation',
+                            {
+                                organizationUuid:
+                                    payload.organizationUuid || null,
+                            },
+                        );
+                    }
+                }
             },
             [SCHEDULER_TASKS.BACKFILL_USAGE_QUERY_HISTORY]: async (payload) => {
                 const { usageEvents } = this.lightdashConfig;

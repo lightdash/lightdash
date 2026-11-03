@@ -1,6 +1,7 @@
 import { SCHEDULER_TASKS } from '@lightdash/common';
 import { UsageEventsCompactor } from '../analytics/eventStream/UsageEventsCompactor';
 import { lightdashConfigMock } from '../config/lightdashConfig.mock';
+import Logger from '../logging/logger';
 import {
     SchedulerWorker,
     type SchedulerWorkerArguments,
@@ -32,7 +33,9 @@ describe('usage processing task scope', () => {
                     run = run;
                 } as unknown as typeof UsageEventsCompactor,
             );
+            const scheduleAnalyticsContentReconciliation = vi.fn();
             const worker = new UsageTestWorker({
+                schedulerClient: { scheduleAnalyticsContentReconciliation },
                 lightdashConfig: {
                     ...lightdashConfigMock,
                     usageEvents: {
@@ -50,6 +53,53 @@ describe('usage processing task scope', () => {
                 expect.any(Date),
                 organizationUuid,
             );
+            expect(
+                scheduleAnalyticsContentReconciliation,
+            ).toHaveBeenCalledExactlyOnceWith(organizationUuid ?? null);
+        },
+    );
+});
+
+describe('analytics content enqueue failures', () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    it.each([true, false])(
+        'preserves the compaction outcome when enqueue fails (pipeline failed=%s)',
+        async (pipelineFailed) => {
+            const failure = new Error('pipeline failed');
+            const run = pipelineFailed
+                ? vi.fn().mockRejectedValue(failure)
+                : vi.fn().mockResolvedValue({});
+            vi.mocked(UsageEventsCompactor).mockImplementation(
+                class MockUsageEventsCompactor {
+                    run = run;
+                } as unknown as typeof UsageEventsCompactor,
+            );
+            const enqueue = vi
+                .fn()
+                .mockRejectedValue(new Error('queue unavailable'));
+            vi.spyOn(Logger, 'error').mockImplementation(() => Logger);
+            const worker = new UsageTestWorker({
+                lightdashConfig: {
+                    ...lightdashConfigMock,
+                    usageEvents: {
+                        ...lightdashConfigMock.usageEvents,
+                        enabled: true,
+                        s3: { bucket: 'test' },
+                    },
+                },
+                schedulerClient: {
+                    scheduleAnalyticsContentReconciliation: enqueue,
+                },
+            } as unknown as SchedulerWorkerArguments);
+            const result = worker.getUsageTask()(
+                { organizationUuid: 'org-1' } as never,
+                {} as never,
+            );
+            if (pipelineFailed) await expect(result).rejects.toBe(failure);
+            else await expect(result).resolves.toBeUndefined();
+            expect(enqueue).toHaveBeenCalledExactlyOnceWith('org-1');
+            expect(run).toHaveBeenCalledTimes(1);
         },
     );
 });

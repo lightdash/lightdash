@@ -86,6 +86,13 @@ const LightdashAnalyticsPanel = ({
                                     ? 'Open your dedicated project to explore AI usage and query events.'
                                     : 'Create a dedicated project with built-in AI usage and query event models. No connection setup is needed.'}
                             </Text>
+                            <Text fz="sm" c="dimmed">
+                                After creation, we prepare data snapshots for
+                                your dashboards and import available history in
+                                the background. This can take a few minutes, or
+                                longer for larger histories. You can leave this
+                                page once the project has been created.
+                            </Text>
                         </Stack>
                         {createProject.isError && (
                             <Callout
