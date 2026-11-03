@@ -1,3 +1,10 @@
+## [3.142.1](https://github.com/lightdash/lightdash/compare/3.142.0...3.142.1) (2026-11-03)
+
+
+### Performance Improvements
+
+* replace lodash with es-toolkit ([#32020](https://github.com/lightdash/lightdash/issues/32020)) ([e7b814a](https://github.com/lightdash/lightdash/commit/e7b814aa9dc134a981624d1b5bb08500f7291d0c))
+
 # [3.142.0](https://github.com/lightdash/lightdash/compare/3.141.0...3.142.0) (2026-11-03)
 
 
