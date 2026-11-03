@@ -269,6 +269,29 @@ export class AgentOnboardingRunModel {
         return updated > 0;
     }
 
+    async markFailedIfIdle(
+        agentOnboardingRunUuid: string,
+        idleMs: number,
+        errorMessage: string,
+    ): Promise<boolean> {
+        const updated = await this.database<AgentOnboardingRunsTable>(
+            AgentOnboardingRunsTableName,
+        )
+            .where('agent_onboarding_run_uuid', agentOnboardingRunUuid)
+            .whereIn('status', [...AGENT_ONBOARDING_ACTIVE_STATUSES])
+            .whereRaw('updated_at < now() - ?::interval', [
+                `${idleMs} milliseconds`,
+            ])
+            .update({
+                status: 'failed',
+                error_message: errorMessage,
+                completed_at: this.database.fn.now() as unknown as Date,
+                updated_at: this.database.fn.now() as unknown as Date,
+            });
+
+        return updated > 0;
+    }
+
     async markCancelled(agentOnboardingRunUuid: string): Promise<boolean> {
         const updated = await this.database<AgentOnboardingRunsTable>(
             AgentOnboardingRunsTableName,

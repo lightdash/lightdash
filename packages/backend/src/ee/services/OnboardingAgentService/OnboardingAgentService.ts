@@ -3,6 +3,7 @@ import {
     ForbiddenError,
     getConnectionDefaults,
     getErrorMessage,
+    isAgentOnboardingRunTerminal,
     isUserWithOrg,
     MissingConfigError,
     NotFoundError,
@@ -57,6 +58,7 @@ import {
 } from '../SandboxRuntime';
 import { pollDetachedAgentRun } from './agentStreamPoller';
 import {
+    ABANDONED_RUN_IDLE_MS,
     AGENT_RUNNER_PATH,
     AGENT_RUNNER_SCRIPT,
     AGENT_STDERR_PATH,
@@ -223,11 +225,16 @@ export class OnboardingAgentService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const activeRun =
+        const existingRun =
             await this.agentOnboardingRunModel.findActiveRunForProject(
                 args.projectUuid,
             );
-        if (activeRun) return toRun(activeRun);
+        const activeRun = existingRun
+            ? await this.failIfAbandoned(existingRun)
+            : null;
+        if (activeRun && !isAgentOnboardingRunTerminal(activeRun.status)) {
+            return toRun(activeRun);
+        }
 
         const run = await this.agentOnboardingRunModel.create({
             organizationUuid,
@@ -252,16 +259,37 @@ export class OnboardingAgentService extends BaseService {
         return toRun(run);
     }
 
+    // A worker that dies mid-run (deploy, crash) leaves the run active forever and blocks new ones
+    private async failIfAbandoned(
+        run: DbAgentOnboardingRun,
+    ): Promise<DbAgentOnboardingRun> {
+        if (isAgentOnboardingRunTerminal(run.status)) return run;
+        const failed = await this.agentOnboardingRunModel.markFailedIfIdle(
+            run.agent_onboarding_run_uuid,
+            ABANDONED_RUN_IDLE_MS,
+            'The setup run stopped responding. Try again to start over.',
+        );
+        if (!failed) return run;
+        return (
+            (await this.agentOnboardingRunModel.findByUuid(
+                run.agent_onboarding_run_uuid,
+            )) ?? run
+        );
+    }
+
     async getActiveRun(
         user: SessionUser,
         projectUuid: string,
     ): Promise<AgentOnboardingRun | null> {
         await this.assertCanViewProject(user, projectUuid);
-        const run =
+        const found =
             await this.agentOnboardingRunModel.findActiveRunForProject(
                 projectUuid,
             );
-        return run ? toRun(run) : null;
+        const run = found ? await this.failIfAbandoned(found) : null;
+        return run && !isAgentOnboardingRunTerminal(run.status)
+            ? toRun(run)
+            : null;
     }
 
     async getLatestRun(
@@ -273,7 +301,7 @@ export class OnboardingAgentService extends BaseService {
             await this.agentOnboardingRunModel.findLatestRunForProject(
                 projectUuid,
             );
-        return run ? toRun(run) : null;
+        return run ? toRun(await this.failIfAbandoned(run)) : null;
     }
 
     private async findOrganizationScopedRun(
@@ -318,7 +346,13 @@ export class OnboardingAgentService extends BaseService {
         agentOnboardingRunUuid: string,
     ): Promise<AgentOnboardingRun> {
         return toRun(
-            await this.findScopedRun(user, projectUuid, agentOnboardingRunUuid),
+            await this.failIfAbandoned(
+                await this.findScopedRun(
+                    user,
+                    projectUuid,
+                    agentOnboardingRunUuid,
+                ),
+            ),
         );
     }
 

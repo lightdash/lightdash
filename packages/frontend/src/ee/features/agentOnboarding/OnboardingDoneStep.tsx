@@ -1,4 +1,7 @@
-import { type ApiConnectorType } from '@lightdash/common';
+import {
+    AGENT_ONBOARDING_STAGES,
+    type ApiConnectorType,
+} from '@lightdash/common';
 import { Box, Button, Group, Image, Stack, Text, Title } from '@mantine/core';
 import { IconArrowRight, IconCheck } from '@tabler/icons-react';
 import { Fragment, useEffect, type FC } from 'react';
@@ -110,7 +113,13 @@ export const OnboardingDoneStep: FC<{ projectUuid: string }> = ({
     useEffect(markHomepageTourSeen, []);
     const [variant] = useOnboardingVariant();
     const ask = useAskAurora(projectUuid);
-    const { isLive } = useAuroraRun(projectUuid);
+    const { run, isLive } = useAuroraRun(projectUuid);
+    // Asked before the semantic layer deploys, the agent only sees the raw sources
+    const areMetricsLive =
+        !isLive ||
+        (!!run?.stage &&
+            AGENT_ONBOARDING_STAGES.indexOf(run.stage) >
+                AGENT_ONBOARDING_STAGES.indexOf('deploying_semantic_layer'));
     const { data: project } = useProject(projectUuid);
     const { data: connections = [] } = useExternalConnections(projectUuid);
 
@@ -185,12 +194,15 @@ export const OnboardingDoneStep: FC<{ projectUuid: string }> = ({
                     <Stack gap="xs">
                         {isLive && (
                             <Text fz="sm" fw={500}>
-                                While you wait
+                                {areMetricsLive
+                                    ? 'While you wait'
+                                    : 'Ready once your metrics are live'}
                             </Text>
                         )}
                         <Button
                             size="md"
                             fullWidth
+                            disabled={!areMetricsLive}
                             onClick={() => ask(FIRST_QUESTION)}
                             rightSection={<MantineIcon icon={IconArrowRight} />}
                             className={classes.primary}
