@@ -238,6 +238,7 @@ import {
     generateUniqueProjectSlug,
     generateUniqueSlugScopedToProject,
 } from '../../utils/SlugUtils';
+import { stripSensitiveWarehouseCredentials } from '../../utils/stripSensitiveWarehouseCredentials';
 import { warehouseCredentialsEqual } from '../../utils/warehouseCredentialsEqual';
 import {
     copyWarehouseCredentialVersions,
@@ -249,7 +250,6 @@ import {
 } from '../../utils/warehouseCredentialVersion';
 import { AwsWebIdentityAudienceModel } from '../AwsWebIdentityAudienceModel';
 import { FeatureFlagModel } from '../FeatureFlagModel/FeatureFlagModel';
-import { OrganizationWarehouseCredentialsModel } from '../OrganizationWarehouseCredentialsModel';
 import { RefreshTokenSourceChangedError } from '../RefreshTokenRotation/RefreshTokenRotation';
 import { clearProjectExtraRoles } from '../roleSetUtils';
 import {
@@ -1498,8 +1498,7 @@ export class ProjectModel {
                           }
                         : {}),
                     created_by_user_uuid: userUuid,
-                    organization_warehouse_credentials_uuid:
-                        data.organizationWarehouseCredentialsUuid ?? null,
+                    organization_warehouse_credentials_uuid: null,
                     provisioning_source: provisioningSource ?? null,
                     ...(expiresAt !== undefined
                         ? { expires_at: expiresAt }
@@ -1897,8 +1896,7 @@ export class ProjectModel {
                     dbt_connection_type: data.dbtConnection.type,
                     dbt_connection: encryptedCredentials,
                     dbt_version: data.dbtVersion,
-                    organization_warehouse_credentials_uuid:
-                        data.organizationWarehouseCredentialsUuid,
+                    organization_warehouse_credentials_uuid: null,
                     project_defaults: data.projectDefaults ?? null,
                 })
                 .where('project_uuid', projectUuid)
@@ -2005,6 +2003,11 @@ export class ProjectModel {
             .forUpdate(ProjectTableName)
             .first();
         if (!project) return null;
+        if (project.organization_warehouse_credentials_uuid) {
+            throw new ParameterError(
+                'Organization warehouse credentials are no longer supported',
+            );
+        }
         const row = await trx(WarehouseCredentialTableName)
             .where('project_id', project.project_id)
             .select<{ encrypted_credentials: Buffer }[]>(
@@ -2012,13 +2015,6 @@ export class ProjectModel {
             )
             .forUpdate()
             .first();
-        if (project.organization_warehouse_credentials_uuid) {
-            return this.getOrganizationWarehouseCredentials(
-                project.organization_warehouse_credentials_uuid,
-                project.organization_uuid,
-                trx,
-            );
-        }
         return row
             ? this.decryptWarehouseCredentials(row.encrypted_credentials)
             : null;
@@ -2592,6 +2588,11 @@ export class ProjectModel {
                     );
                 }
                 const [project] = projects;
+                if (project.organization_warehouse_credentials_uuid) {
+                    throw new ParameterError(
+                        'Organization warehouse credentials are no longer supported',
+                    );
+                }
                 if (!project.dbt_connection) {
                     throw new NotFoundError(
                         'Project has no valid dbt credentials',
@@ -2631,9 +2632,7 @@ export class ProjectModel {
                     schedulerFailureContactOverride:
                         project.scheduler_failure_contact_override,
                     createdByUserUuid: project.created_by_user_uuid,
-                    organizationWarehouseCredentialsUuid:
-                        project.organization_warehouse_credentials_uuid ??
-                        undefined,
+                    organizationWarehouseCredentialsUuid: undefined,
                     hasDefaultUserSpaces: project.has_default_user_spaces,
                     projectDefaults: project.project_defaults ?? undefined,
                     colorPaletteUuid: project.color_palette_uuid ?? null,
@@ -2646,20 +2645,6 @@ export class ProjectModel {
                     ),
                 };
 
-                // If project uses organization warehouse credentials, load them
-                if (project.organization_warehouse_credentials_uuid) {
-                    const sensitiveCredentials =
-                        await this.getOrganizationWarehouseCredentials(
-                            project.organization_warehouse_credentials_uuid,
-                            project.organization_uuid,
-                        );
-                    return {
-                        ...result,
-                        warehouseConnection: sensitiveCredentials,
-                    };
-                }
-
-                // Fall back to project-level credentials
                 if (!project.warehouse_type) {
                     return result;
                 }
@@ -2848,45 +2833,6 @@ export class ProjectModel {
             }
             default:
                 return nonSensitiveCredentials;
-        }
-    }
-
-    private async getOrganizationWarehouseCredentials(
-        organizationWarehouseCredentialsUuid: string,
-        organizationUuid: string, // Extra filter value to ensure we are getting the credentials from the correct organization
-        database: Knex = this.database,
-    ): Promise<CreateWarehouseCredentials> {
-        const [orgCredentials] = await database(
-            'organization_warehouse_credentials',
-        )
-            .where(
-                'organization_warehouse_credentials_uuid',
-                organizationWarehouseCredentialsUuid,
-            )
-            .andWhere('organization_uuid', organizationUuid)
-            .select('warehouse_connection');
-
-        if (!orgCredentials) {
-            throw new NotFoundError(
-                'Organization warehouse credentials not found',
-            );
-        }
-
-        try {
-            return withWarehouseCredentialVersion(
-                normalizeWarehouseCredentials(
-                    JSON.parse(
-                        this.encryptionUtil.decrypt(
-                            orgCredentials.warehouse_connection,
-                        ),
-                    ) as CreateWarehouseCredentials,
-                ),
-                `organization:${organizationWarehouseCredentialsUuid}`,
-            );
-        } catch (e) {
-            throw new UnexpectedServerError(
-                'Failed to load organization warehouse credentials',
-            );
         }
     }
 
@@ -6089,11 +6035,6 @@ export class ProjectModel {
         return new WarehouseConnectionModel({
             database: this.database,
             encryptionUtil: this.encryptionUtil,
-            organizationWarehouseCredentialsModel:
-                new OrganizationWarehouseCredentialsModel({
-                    database: this.database,
-                    encryptionUtil: this.encryptionUtil,
-                }),
         });
     }
 
@@ -6116,9 +6057,7 @@ export class ProjectModel {
                       await model.getProject(projectUuid),
                       target.warehouseConnectionUuid,
                   );
-        return OrganizationWarehouseCredentialsModel.stripSensitiveCredentials(
-            credentials,
-        );
+        return stripSensitiveWarehouseCredentials(credentials);
     }
 
     private async getDbtSourceWarehouseConnectionUuid(
@@ -6132,9 +6071,9 @@ export class ProjectModel {
             return null;
         }
         const source = await this.database('project_dbt_sources')
-            .select<{ warehouse_connection_uuid: string | null }>(
-                'warehouse_connection_uuid',
-            )
+            .select<{
+                warehouse_connection_uuid: string | null;
+            }>('warehouse_connection_uuid')
             .where('project_uuid', projectUuid)
             .where('project_dbt_source_uuid', sourceUuid)
             .first();
@@ -6425,14 +6364,11 @@ export class ProjectModel {
                 `Cannot find any warehouse credentials for project.`,
             );
         }
+
         if (row.organization_warehouse_credentials_uuid) {
-            // If organization_warehouse_credentials_uuid is set, we overwrite the credentials with the organization credentials
-            const orgCredentials =
-                await this.getOrganizationWarehouseCredentials(
-                    row.organization_warehouse_credentials_uuid,
-                    row.organization_uuid,
-                );
-            return orgCredentials;
+            throw new ParameterError(
+                'Organization warehouse credentials are no longer supported',
+            );
         }
 
         try {
@@ -8888,7 +8824,7 @@ export class ProjectModel {
         queryTimezone: string | null;
     }> {
         const [project] = await this.database(ProjectTableName)
-            .select('organization_warehouse_credentials_uuid', 'query_timezone')
+            .select('query_timezone')
             .where('project_uuid', projectUuid);
 
         if (!project) {
@@ -8898,8 +8834,7 @@ export class ProjectModel {
         }
 
         return {
-            organizationWarehouseCredentialsUuid:
-                project.organization_warehouse_credentials_uuid,
+            organizationWarehouseCredentialsUuid: null,
             queryTimezone: project.query_timezone,
         };
     }
