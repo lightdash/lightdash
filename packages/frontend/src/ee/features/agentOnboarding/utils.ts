@@ -330,6 +330,16 @@ export const AGENT_ONBOARDING_STAGE_ACTIVE_LABELS: Record<
     ready: 'Verifying and handing off',
 };
 
+export const getActiveStageLabel = (
+    run: AgentOnboardingRun,
+    now: number,
+): string | null => {
+    const active = getAgentOnboardingProgressStageTimings(run, now).find(
+        ({ state }) => state === 'active',
+    );
+    return active ? AGENT_ONBOARDING_STAGE_ACTIVE_LABELS[active.stage] : null;
+};
+
 const humanizeSlug = (slug: string): string => {
     const words = slug.replace(/^agent-starter-/, '').replace(/[-_]+/g, ' ');
     return words.charAt(0).toUpperCase() + words.slice(1);

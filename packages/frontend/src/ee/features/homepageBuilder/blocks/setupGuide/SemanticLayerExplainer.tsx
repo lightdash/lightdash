@@ -121,16 +121,16 @@ const SLICES: Slice[] = [
     },
 ];
 
-const RevenueChart: FC<{ focus: 'metric' | 'dimension' }> = ({ focus }) => {
+const RevenueChart: FC = () => {
     const [sliceIndex, setSliceIndex] = useState(0);
     useInterval(
         () => setSliceIndex((index) => (index + 1) % SLICES.length),
         2200,
-        { autoInvoke: focus === 'dimension' },
+        { autoInvoke: true },
     );
-    const slice = focus === 'dimension' ? SLICES[sliceIndex] : SLICES[0];
+    const slice = SLICES[sliceIndex];
     return (
-        <Box className={classes.chart} data-focus={focus} aria-hidden>
+        <Box className={classes.chart} aria-hidden>
             <Group gap={6} wrap="nowrap">
                 <Text fz="xs" className={classes.chip} data-kind="metric">
                     revenue
@@ -187,16 +187,64 @@ const DefinedInCode: FC = () => (
     </Box>
 );
 
+const RENAMES = [
+    { raw: 'cust_id', label: 'Customer' },
+    { raw: 'ord_amt_usd', label: 'Amount' },
+    { raw: 'crt_ts', label: 'Order date' },
+    { raw: 'ord_sts_cd', label: 'Status' },
+];
+
+const TablesArt: FC = () => (
+    <Box className={classes.tables} aria-hidden>
+        <Box className={classes.tableCard} data-side="raw">
+            <Text fz={10} c="dimmed" mb={6}>
+                In your warehouse
+            </Text>
+            <Text fz="xs" className={classes.mono} fw={500}>
+                tbl_ord_dtl
+            </Text>
+            {RENAMES.map(({ raw }) => (
+                <Text key={raw} fz="xs" c="dimmed" className={classes.mono}>
+                    {raw}
+                </Text>
+            ))}
+        </Box>
+        <Box className={classes.arrow} />
+        <Box className={classes.tableCard} data-side="business">
+            <Text fz={10} c="dimmed" mb={6}>
+                In your semantic layer
+            </Text>
+            <Group gap={6} wrap="nowrap">
+                <MantineIcon icon={IconDatabase} size={12} />
+                <Text fz="xs" fw={600}>
+                    Orders
+                </Text>
+            </Group>
+            {RENAMES.map(({ raw, label }, index) => (
+                <Text
+                    key={raw}
+                    fz="xs"
+                    className={classes.renamed}
+                    __vars={{ '--i': String(index) }}
+                >
+                    {label}
+                </Text>
+            ))}
+        </Box>
+    </Box>
+);
+
+// Follows the docs: tables, then metrics and dimensions, then defined once
 const STEPS: { art: ReactNode; title: string; body: ReactNode }[] = [
     {
-        art: <RevenueChart focus="metric" />,
-        title: 'Metrics are the numbers',
-        body: 'A metric is a number you track, like revenue: the sum of every order amount. It is the height of each bar.',
+        art: <TablesArt />,
+        title: 'Tables become business objects',
+        body: 'Your warehouse speaks in columns like cust_id. The semantic layer turns them into things people know, like the Customer on an Order.',
     },
     {
-        art: <RevenueChart focus="dimension" />,
-        title: 'Dimensions slice them',
-        body: 'A dimension is what you group by, like month, order status or payment method. Same revenue, seen from a different angle.',
+        art: <RevenueChart />,
+        title: 'Metrics and dimensions',
+        body: 'Metrics are the numbers you track, like revenue. Dimensions are what you slice them by, like month, status or payment method. Same revenue, different angle.',
     },
     {
         art: <Diagram />,
@@ -204,10 +252,9 @@ const STEPS: { art: ReactNode; title: string; body: ReactNode }[] = [
         body: (
             <Group gap="md" wrap="nowrap" align="center">
                 <Text fz="sm" c="dimmed">
-                    Every chart, dashboard and AI answer uses the same
-                    definitions, so the same question always gets the same
-                    number. They live in code and get reviewed like any other
-                    change.
+                    Definitions live in version-controlled YAML and the SQL is
+                    written for you. Every chart, dashboard and AI answer uses
+                    them, so the same question always gets the same number.
                 </Text>
                 <DefinedInCode />
             </Group>
