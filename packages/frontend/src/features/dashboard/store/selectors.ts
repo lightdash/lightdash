@@ -138,9 +138,13 @@ export const selectDashboardParameterReferences = createSelector(
         new Set(Object.values(tileParameterReferences).flat()),
 );
 
+const selectTileQueryParameterReferences = (state: DashboardStoreState) =>
+    state.parameters.tileQueryParameterReferences;
+
 export const selectMissingRequiredParameters = createSelector(
     [
         selectTileParameterReferences,
+        selectTileQueryParameterReferences,
         selectTileChartSavedParameters,
         selectTileVirtualViewSavedParameters,
         selectAppliedParameterValues,
@@ -148,22 +152,26 @@ export const selectMissingRequiredParameters = createSelector(
     ],
     (
         tileParameterReferences,
+        tileQueryParameterReferences,
         tileChartSavedParameters,
         tileVirtualViewSavedParameters,
         appliedParameterValues,
         parameterDefinitions,
     ) =>
         getMissingRequiredDashboardParameters({
-            tiles: Object.entries(tileParameterReferences).map(
-                ([tileUuid, parameterReferences]) => ({
+            // A tile's saved values arrive when it runs; until then it can't count as missing
+            tiles: Object.entries(tileParameterReferences)
+                .filter(
+                    ([tileUuid]) => tileUuid in tileQueryParameterReferences,
+                )
+                .map(([tileUuid, parameterReferences]) => ({
                     parameterReferences,
                     chartSavedValues: tileChartSavedParameters[tileUuid] ?? {},
                     dashboardValues: appliedParameterValues,
                     untargetedKeys: [],
                     virtualViewSavedValues:
                         tileVirtualViewSavedParameters[tileUuid] ?? {},
-                }),
-            ),
+                })),
             definitions: parameterDefinitions,
         }),
 );
