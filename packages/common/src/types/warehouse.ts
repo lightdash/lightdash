@@ -730,7 +730,6 @@ export enum PartitionGranularity {
 }
 
 export type TablePartitioning = {
-    // Ingestion-time partitioned BigQuery tables use the pseudo-column `_PARTITIONTIME`.
     partitionColumn: PartitionColumn;
     granularity: PartitionGranularity | null;
     requiresPartitionFilter: boolean;

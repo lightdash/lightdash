@@ -4,7 +4,7 @@ const WAREHOUSE_HINTS: Record<WarehouseTypes, string> = {
     [WarehouseTypes.POSTGRES]:
         'PostgreSQL dialect. Use generate_series for date spines, UNNEST for arrays, regex with ~ / ~*, PERCENTILE_CONT for medians.',
     [WarehouseTypes.BIGQUERY]:
-        "BigQuery Standard SQL dialect. Backtick fully-qualified identifiers (`project.dataset.table`). Use UNNEST for arrays, GENERATE_DATE_ARRAY for date spines, APPROX_QUANTILES for percentiles, EXTRACT for date parts. BigQuery bills by partitions read, and describeWarehouseTable reports a table's partition column: describe a table before its first raw SQL query, including the warehouse table behind an explore.",
+        "BigQuery Standard SQL dialect. Backtick fully-qualified identifiers (`project.dataset.table`). Use UNNEST for arrays, GENERATE_DATE_ARRAY for date spines, APPROX_QUANTILES for percentiles, EXTRACT for date parts. describeWarehouseTable reports a table's partition column: describe a table before its first raw SQL query, including the warehouse table behind an explore.",
     [WarehouseTypes.SNOWFLAKE]:
         'Snowflake SQL dialect. Identifiers are case-folded to UPPERCASE by default; quote with double quotes if you need exact case. Use LATERAL FLATTEN for arrays, GENERATOR for date spines, PERCENTILE_CONT for medians.',
     [WarehouseTypes.REDSHIFT]:

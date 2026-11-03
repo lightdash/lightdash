@@ -452,12 +452,10 @@ export type BigqueryWarehouseClientOptions = {
     agentJobControls?: boolean;
 };
 
-const PARTITION_GRANULARITIES: Record<string, PartitionGranularity> = {
-    HOUR: PartitionGranularity.HOUR,
-    DAY: PartitionGranularity.DAY,
-    MONTH: PartitionGranularity.MONTH,
-    YEAR: PartitionGranularity.YEAR,
-};
+const isPartitionGranularity = (
+    value: string | undefined,
+): value is PartitionGranularity =>
+    Object.values<string | undefined>(PartitionGranularity).includes(value);
 
 const getTablePartitioningFromMetadata = (
     metadata: bigquery.ITable,
@@ -473,9 +471,9 @@ const getTablePartitioningFromMetadata = (
                 field: metadata.timePartitioning.field ?? '_PARTITIONTIME',
                 partitionType: PartitionType.DATE,
             },
-            granularity:
-                PARTITION_GRANULARITIES[metadata.timePartitioning.type ?? ''] ??
-                null,
+            granularity: isPartitionGranularity(metadata.timePartitioning.type)
+                ? metadata.timePartitioning.type
+                : null,
             requiresPartitionFilter,
         };
     }
