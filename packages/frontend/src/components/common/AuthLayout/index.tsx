@@ -12,7 +12,6 @@ import {
 import LightdashLogo from '../../LightdashLogo/LightdashLogo';
 import PageSpinner from '../../PageSpinner';
 import { DocumentTitle } from '../DocumentTitle';
-import OnboardingLayout from '../OnboardingLayout';
 import classes from './AuthLayout.module.css';
 import { AuthPanelContext } from './AuthPanelContext';
 import CustomerLogos from './CustomerLogos';
@@ -38,7 +37,6 @@ const lightCellsByProgress = (panel: HTMLElement, progress: number) => {
 };
 
 type Props = {
-    centered?: boolean;
     /** Document title, matching what each page passed to `Page` before. */
     pageTitle: string;
     /** Split-layout heading. Omitted when the page renders its own heading. */
@@ -57,7 +55,6 @@ type Props = {
 
 const AuthLayout: FC<PropsWithChildren<Props>> = ({
     pageTitle,
-    centered = false,
     title,
     subtitle,
     legacyTitle,
@@ -131,24 +128,6 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
 
     if (isInitialLoading) {
         return <PageSpinner />;
-    }
-
-    if (isNewLayout && centered) {
-        return (
-            <OnboardingLayout withAccountSwitch={false} cardId={cardId}>
-                <DocumentTitle title={pageTitle} />
-                <Stack gap="lg">
-                    {title && (
-                        <Stack gap="xs">
-                            <Title order={1}>{title}</Title>
-                            {subtitle && <Text c="dimmed">{subtitle}</Text>}
-                        </Stack>
-                    )}
-                    {children}
-                    {footer}
-                </Stack>
-            </OnboardingLayout>
-        );
     }
 
     if (!isNewLayout) {

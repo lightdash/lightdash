@@ -112,7 +112,6 @@ const VerifyEmailPage: FC = () => {
 
     return (
         <AuthLayout
-            centered
             pageTitle="Verify your email"
             title="Check your inbox"
             subtitle={
