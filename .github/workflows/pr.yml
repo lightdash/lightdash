@@ -159,7 +159,7 @@ jobs:
   # args are part of the Turbo hash, so shards cache independently.
   unit-tests:
     name: "Unit Tests (${{ matrix.name }})"
-    runs-on: depot-ubuntu-24.04-8
+    runs-on: depot-ubuntu-24.04-4
     env:
       TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
       TURBO_TEAM: ${{ vars.TURBO_TEAM }}
