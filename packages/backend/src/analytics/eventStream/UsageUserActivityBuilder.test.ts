@@ -16,6 +16,11 @@ vi.mock('./usageProcessingLimits', async (importOriginal) => {
     const original =
         await importOriginal<typeof import('./usageProcessingLimits')>();
     return {
+        get MAX_HISTORY_PARTITIONS_PER_RUN() {
+            return (
+                workLimit.override ?? original.MAX_HISTORY_PARTITIONS_PER_RUN
+            );
+        },
         get MAX_PARTITIONS_PER_RUN() {
             return workLimit.override ?? original.MAX_PARTITIONS_PER_RUN;
         },
@@ -234,6 +239,43 @@ describe('user activity safeguards', () => {
         }).runAll(now, [org]);
         expect(summary).toMatchObject({ published: 0, failed: 0 });
         expect(runSqlWithMetrics).not.toHaveBeenCalled();
+    });
+
+    it('includes older captured history but excludes the open UTC day during catch-up', async () => {
+        const prefix = `events/compacted/org_id=${org}/stream=query_events/`;
+        const old = `${prefix}dt=2026-01-01/part.parquet`;
+        const today = `${prefix}dt=2026-02-01/part.parquet`;
+        vi.spyOn(S3.prototype, 'listObjectsV2').mockImplementation(
+            async (input) =>
+                ({
+                    Contents:
+                        input.Prefix === prefix
+                            ? [{ Key: old }, { Key: today }]
+                            : input.Prefix === `${prefix}dt=2026-01-01/`
+                              ? [{ Key: old, ETag: 'old', Size: 1 }]
+                              : [],
+                }) as never,
+        );
+        upload.mockResolvedValue(undefined);
+        const runSqlWithMetrics = vi.fn(async (sql: string) => {
+            const output = sql.match(/TO '([^']+)' \(FORMAT/)![1];
+            await writeFile(output, 'test parquet');
+            return { queryMs: 1, bootstrapMs: 0, totalMs: 1 };
+        });
+        const summary = await new UsageUserActivityBuilder(storage, {
+            runSqlWithMetrics,
+        }).runAll(now, [org], undefined, true);
+        expect(summary).toMatchObject({ published: 1, failed: 0 });
+        expect(runSqlWithMetrics).toHaveBeenCalledExactlyOnceWith(
+            expect.stringContaining(old),
+        );
+        expect(uploadConstructor).toHaveBeenCalledWith(
+            expect.objectContaining({
+                params: expect.objectContaining({
+                    Key: expect.stringContaining('dt=2026-01-01/'),
+                }),
+            }),
+        );
     });
 
     it('does not list storage when no organizations are eligible', async () => {

@@ -26,13 +26,18 @@ describe('usage processing task scope', () => {
                 partitionsFailed: 0,
                 partitionsSkippedUnknownStream: 0,
                 rawObjectsDeleted: 0,
+                users: { limitReached: false, published: 0 },
             });
             vi.mocked(UsageEventsCompactor).mockImplementation(
                 class MockUsageEventsCompactor {
                     run = run;
                 } as unknown as typeof UsageEventsCompactor,
             );
+            const scheduleUsageEventHistory = vi.fn();
             const worker = new UsageTestWorker({
+                schedulerClient: {
+                    scheduleUsageEventHistory,
+                },
                 lightdashConfig: {
                     ...lightdashConfigMock,
                     usageEvents: {
@@ -49,6 +54,108 @@ describe('usage processing task scope', () => {
             expect(run).toHaveBeenCalledWith(
                 expect.any(Date),
                 organizationUuid,
+                false,
+            );
+            expect(scheduleUsageEventHistory).toHaveBeenCalledTimes(
+                organizationUuid ? 1 : 0,
+            );
+        },
+    );
+});
+
+describe('usage event history continuation', () => {
+    it.each([
+        {
+            includeHistory: false,
+            deferred: 0,
+            compacted: 0,
+            published: 0,
+            userLimit: false,
+            enqueue: true,
+        },
+        {
+            includeHistory: true,
+            deferred: 1,
+            compacted: 1,
+            published: 0,
+            userLimit: false,
+            enqueue: true,
+        },
+        {
+            includeHistory: true,
+            deferred: 1,
+            compacted: 0,
+            published: 0,
+            userLimit: false,
+            enqueue: false,
+        },
+        {
+            includeHistory: true,
+            deferred: 0,
+            compacted: 1,
+            published: 0,
+            userLimit: false,
+            enqueue: false,
+        },
+        {
+            includeHistory: true,
+            deferred: 0,
+            compacted: 0,
+            published: 1,
+            userLimit: true,
+            enqueue: true,
+        },
+        {
+            includeHistory: true,
+            deferred: 0,
+            compacted: 0,
+            published: 0,
+            userLimit: true,
+            enqueue: false,
+        },
+    ])(
+        'continues only after useful progress: %j',
+        async ({
+            includeHistory,
+            deferred,
+            compacted,
+            published,
+            userLimit,
+            enqueue,
+        }) => {
+            const run = vi.fn().mockResolvedValue({
+                partitionsDiscovered: compacted + deferred + 1,
+                partitionsCompacted: compacted,
+                partitionsDeferred: deferred,
+                partitionsFailed: 1,
+                users: { published, limitReached: userLimit },
+            });
+            vi.mocked(UsageEventsCompactor).mockImplementation(
+                class MockUsageEventsCompactor {
+                    run = run;
+                } as unknown as typeof UsageEventsCompactor,
+            );
+            const scheduleUsageEventHistory = vi.fn();
+            const worker = new UsageTestWorker({
+                lightdashConfig: {
+                    ...lightdashConfigMock,
+                    usageEvents: { enabled: true, s3: { bucket: 'test' } },
+                },
+                schedulerClient: {
+                    scheduleUsageEventHistory,
+                },
+            } as unknown as SchedulerWorkerArguments);
+            await worker.getUsageTask()(
+                { organizationUuid: 'org-1', includeHistory } as never,
+                {} as never,
+            );
+            expect(run).toHaveBeenCalledWith(
+                expect.any(Date),
+                'org-1',
+                includeHistory,
+            );
+            expect(scheduleUsageEventHistory).toHaveBeenCalledTimes(
+                enqueue ? 1 : 0,
             );
         },
     );

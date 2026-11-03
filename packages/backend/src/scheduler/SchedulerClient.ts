@@ -53,6 +53,7 @@ import {
     UploadMetricGsheetPayload,
     ValidateProjectPayload,
     type AgentWorkMarker,
+    type CompactUsageEventsPayload,
     type DownloadAsyncQueryResultsPayload,
     type PreAggregateSchedulerDetails,
     type SchedulerCreateProjectWithCompilePayload,
@@ -1796,6 +1797,24 @@ export class SchedulerClient {
                 jobKey: `initial-usage-processing:${payload.organizationUuid}`,
                 jobKeyMode: 'unsafe_dedupe',
                 maxAttempts: 1,
+                priority: JobPriority.LOW,
+            },
+        );
+    }
+
+    async scheduleUsageEventHistory(
+        payload: CompactUsageEventsPayload,
+    ): Promise<void> {
+        const graphileClient = await this.graphileUtils;
+        await graphileClient.addJob(
+            SCHEDULER_TASKS.COMPACT_USAGE_EVENTS,
+            { ...payload, includeHistory: true },
+            {
+                queueName: 'usage-events-compaction',
+                jobKey: `usage-event-history:${payload.organizationUuid || 'all'}`,
+                jobKeyMode: 'preserve_run_at',
+                runAt: new Date(Date.now() + 60_000),
+                maxAttempts: 3,
                 priority: JobPriority.LOW,
             },
         );

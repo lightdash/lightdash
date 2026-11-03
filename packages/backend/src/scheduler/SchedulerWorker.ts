@@ -2367,7 +2367,22 @@ export class SchedulerWorker extends SchedulerTask {
                 const summary = await compactor.run(
                     new Date(),
                     payload.organizationUuid || undefined,
+                    payload.includeHistory ?? false,
                 );
+                const hasDeferredPartitions =
+                    summary.partitionsDeferred > 0 ||
+                    summary.users.limitReached;
+                if (
+                    payload.includeHistory
+                        ? hasDeferredPartitions &&
+                          (summary.partitionsCompacted > 0 ||
+                              summary.users.published > 0)
+                        : !!payload.organizationUuid || hasDeferredPartitions
+                ) {
+                    await this.schedulerClient.scheduleUsageEventHistory(
+                        payload,
+                    );
+                }
                 Sentry.getActiveSpan()?.setAttributes({
                     'lightdash.usage_events.partitions_discovered':
                         summary.partitionsDiscovered,
