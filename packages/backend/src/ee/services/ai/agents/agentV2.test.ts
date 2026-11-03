@@ -2192,6 +2192,7 @@ describe('getAgentTools workstream tool gate', () => {
         enableAiWriteback: boolean;
         aiAgentMemoryEnabled?: boolean;
         canCreateDashboards?: boolean;
+        canCreateScheduledDeliveries?: boolean;
         canRunSql?: boolean;
         enableComposerQueries?: boolean;
         enableContentTools?: boolean;
@@ -2204,6 +2205,7 @@ describe('getAgentTools workstream tool gate', () => {
     const buildArgs = (flags: ToolFlags): AiAgentArgs =>
         ({
             canCreateDashboards: true,
+            canCreateScheduledDeliveries: true,
             agentSettings: {
                 uuid: 'agent-1',
                 name: 'test-agent',
@@ -2675,6 +2677,30 @@ describe('getAgentTools workstream tool gate', () => {
                 canCreateDashboards: true,
             }),
         ).toContain('generateDashboard');
+    });
+
+    it('withholds createScheduledDelivery from users who cannot schedule', () => {
+        const names = toolNames({
+            enableAiWriteback: false,
+            enableDataAccess: true,
+            enableContentTools: true,
+            canCreateScheduledDeliveries: false,
+        });
+
+        expect(names).not.toContain('createScheduledDelivery');
+        expect(names).toContain('createContent');
+        expect(names).toContain('editContent');
+    });
+
+    it('exposes createScheduledDelivery when the user can schedule', () => {
+        expect(
+            toolNames({
+                enableAiWriteback: false,
+                enableDataAccess: true,
+                enableContentTools: true,
+                canCreateScheduledDeliveries: true,
+            }),
+        ).toContain('createScheduledDelivery');
     });
 
     it('does not expose loadMcpTools when there are no MCP tools', () => {

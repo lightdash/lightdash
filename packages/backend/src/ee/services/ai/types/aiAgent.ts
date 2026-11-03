@@ -306,6 +306,9 @@ export type AiAgentArgs = AnyAiModel & {
     // Gates generateDashboard so the agent does not build one the user is then
     // refused permission to keep.
     canCreateDashboards: boolean;
+    // Gates createScheduledDelivery the same way, so a role without
+    // create:ScheduledDeliveries keeps content tools but loses scheduling.
+    canCreateScheduledDeliveries: boolean;
     autoApproveSql: boolean;
     autoApproveSqlUserUuid: string | null;
     // When the modern Slack streaming card is driving progress, tools render

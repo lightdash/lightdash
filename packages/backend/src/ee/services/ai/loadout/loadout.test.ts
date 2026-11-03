@@ -67,6 +67,7 @@ const fullInput: LoadoutInput = {
     enableComposerQueries: false,
     canRunSql: true,
     canCreateDashboards: true,
+    canCreateScheduledDeliveries: true,
     enableContentTools: true,
     enableDocuments: true,
     enableGenerateDataApp: true,
@@ -91,6 +92,7 @@ const minimalInput: LoadoutInput = {
     enableComposerQueries: false,
     canRunSql: false,
     canCreateDashboards: false,
+    canCreateScheduledDeliveries: false,
     enableContentTools: false,
     enableDocuments: false,
     enableGenerateDataApp: false,
@@ -226,6 +228,7 @@ describe('loadout contracts', () => {
             enableDataAccess: true,
             canRunSql: true,
             enableContentTools: true,
+            canCreateScheduledDeliveries: true,
             enableDocuments: true,
             enableGenerateDataApp: true,
         });
@@ -326,6 +329,17 @@ describe('resolveLoadout', () => {
         expect(loadout.toolNames.has('listWorkstreams')).toBe(false);
         expect(loadout.addOns.has('contentTools')).toBe(true);
         expect(loadout.addOns.has('legacyDashboards')).toBe(false);
+    });
+
+    test('scheduling needs the scheduled deliveries ability on top of content tools', () => {
+        const loadout = resolveLoadout({
+            ...fullInput,
+            canCreateScheduledDeliveries: false,
+        });
+        expect(loadout.addOns.has('contentTools')).toBe(true);
+        expect(loadout.addOns.has('scheduling')).toBe(false);
+        expect(loadout.toolNames.has('createScheduledDelivery')).toBe(false);
+        expect(loadout.promptSections.has('schedulingTools')).toBe(false);
     });
 
     test('content tools bring their skill and loadSkill', () => {

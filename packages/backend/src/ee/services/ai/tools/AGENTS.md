@@ -2,6 +2,7 @@
 
 - Before editing a tool description, read `docs/ai-agent/prompt-writing-principles.md`.
 - Agent tool names are camelCase.
+- A tool that does something a role controls must also be gated on that permission in the loadout, not only checked when it runs. See `../loadout/AGENTS.md`, "Adding a tool".
 - Keep descriptions, input schemas, and output schemas stable unless the LLM-facing contract is intentionally changing.
 - Run `pnpm -F backend test src/ee/services/ai/tools/toolContracts.snapshot.test.ts` before and after shared tool-definition refactors.
 - If an agent tool contract intentionally changes, update only the AI agent snapshot entry and mention the contract change in review.

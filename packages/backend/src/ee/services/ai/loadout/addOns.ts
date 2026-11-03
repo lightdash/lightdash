@@ -37,7 +37,8 @@ export const ADD_ONS: Record<AddOnName, AddOnDefinition> = {
     },
     scheduling: {
         description: 'Schedule deliveries of saved content',
-        when: hasContentTools,
+        when: (input) =>
+            hasContentTools(input) && input.canCreateScheduledDeliveries,
         tools: ['createScheduledDelivery'],
         section: {
             id: 'schedulingTools',
