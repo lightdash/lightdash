@@ -1,29 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "3.130.0",
-  "previousVersion": "3.129.0",
-  "releaseDate": "2026-11-03T11:14:10.998Z",
+  "version": "3.130.1",
+  "previousVersion": "3.130.0",
+  "releaseDate": "2026-11-03T11:43:27.639Z",
   "migrations": {
-    "present": true,
-    "count": 1,
-    "coreCount": 1,
+    "present": false,
+    "count": 0,
+    "coreCount": 0,
     "eeCount": 0,
-    "files": [
-      {
-        "name": "20261102120000_index_query_history_project_explore_created_at.ts",
-        "edition": "core",
-        "tables": [
-          "pg_class",
-          "pg_index",
-          "query_history"
-        ],
-        "heaviness": {
-          "locksTable": false,
-          "rewritesTable": false,
-          "scansTable": true
-        }
-      }
-    ]
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,
