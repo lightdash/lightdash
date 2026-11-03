@@ -125,7 +125,10 @@ const FilterQuarterPicker: FC<Props> = ({
                     data-autofocus={autoFocus || undefined}
                     onClick={disabled ? undefined : open}
                     onKeyDown={(event) => {
-                        if (event.key === 'Escape' && opened) close();
+                        if (event.key !== 'Escape' || !opened) return;
+                        // Consumed, so a host modal stays open
+                        event.preventDefault();
+                        close();
                     }}
                     placeholder={
                         placeholder ??

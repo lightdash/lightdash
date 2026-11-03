@@ -103,6 +103,7 @@ const FilterMultiDatePicker: FC<Props> = ({
         (event: KeyboardEvent<HTMLInputElement>) => {
             // Focus stays here, so the calendar's own Escape never fires
             if (event.key === 'Escape' && opened) {
+                event.preventDefault();
                 close();
                 return;
             }

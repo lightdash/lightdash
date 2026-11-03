@@ -20,8 +20,9 @@ const MultiValuePastePopUp: FC<PropsWithChildren<Props>> = ({
     const getUiString = useUiStrings();
     // Focus stays in the caller's input, so the dropdown's own Escape never fires
     useWindowEvent('keydown', (event) => {
-        if (opened && event.key === 'Escape' && !event.defaultPrevented)
-            onClose();
+        if (!opened || event.key !== 'Escape' || event.defaultPrevented) return;
+        event.preventDefault();
+        onClose();
     });
     const onSingleValueClick = useCallback(() => {
         onSingleValue();
