@@ -59,6 +59,41 @@ export const getAnthropicModel = (
     const reasoningStyle = preset.reasoningStyle ?? 'budget';
     const effort = options?.reasoningEffort ?? 'medium';
 
+    const thinkingProviderOptions = () => {
+        if (!reasoningEnabled) {
+            // Adaptive models think by default when the request carries no
+            // thinking config, and that thinking spends the shared max_tokens
+            // budget — short-capped calls come back truncated. Reasoning off
+            // must be an explicit opt-out, not an absent field.
+            return reasoningStyle === 'adaptive'
+                ? { thinking: { type: 'disabled' as const } }
+                : {};
+        }
+        if (reasoningStyle === 'adaptive') {
+            return {
+                // Claude Opus 4.7 (and newer adaptive-thinking models) reject
+                // `thinking.type: 'enabled'` and require
+                // `thinking.type: 'adaptive'` paired with
+                // `output_config.effort`. The `clear_thinking_20251015`
+                // context-management edit added below also requires a
+                // `thinking` field on the request, so we MUST set adaptive
+                // here — sending neither, or sending enabled, both produce a
+                // 400. @ai-sdk/anthropic exposes the adaptive variant from
+                // 3.0.62+.
+                effort,
+                thinking: { type: 'adaptive' as const },
+            };
+        }
+        return {
+            thinking: {
+                type: 'enabled' as const,
+                /** @ref https://platform.claude.com/docs/en/build-with-claude/extended-thinking#working-with-thinking-budgets */
+                budgetTokens:
+                    effort === 'xhigh' ? XHIGH_THINKING_BUDGET_TOKENS : 2048,
+            },
+        };
+    };
+
     return {
         model,
         callOptions: {
@@ -98,32 +133,7 @@ export const getAnthropicModel = (
                         ],
                     },
                 }),
-                ...(reasoningEnabled &&
-                    (reasoningStyle === 'adaptive'
-                        ? {
-                              // Claude Opus 4.7 (and newer adaptive-thinking
-                              // models) reject `thinking.type: 'enabled'` and
-                              // require `thinking.type: 'adaptive'` paired with
-                              // `output_config.effort`. The `clear_thinking_20251015`
-                              // context-management edit added above also
-                              // requires a `thinking` field on the request, so
-                              // we MUST set adaptive here — sending neither, or
-                              // sending enabled, both produce a 400.
-                              // @ai-sdk/anthropic exposes the adaptive variant
-                              // from 3.0.62+.
-                              effort,
-                              thinking: { type: 'adaptive' as const },
-                          }
-                        : {
-                              thinking: {
-                                  type: 'enabled' as const,
-                                  /** @ref https://platform.claude.com/docs/en/build-with-claude/extended-thinking#working-with-thinking-budgets */
-                                  budgetTokens:
-                                      effort === 'xhigh'
-                                          ? XHIGH_THINKING_BUDGET_TOKENS
-                                          : 2048,
-                              },
-                          })),
+                ...thinkingProviderOptions(),
             },
         },
     };

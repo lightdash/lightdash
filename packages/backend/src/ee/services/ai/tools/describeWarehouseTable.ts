@@ -4,6 +4,7 @@ import {
 } from '@lightdash/common';
 import { tool } from 'ai';
 import type { DescribeWarehouseTableFn } from '../types/aiAgentDependencies';
+import { formatPartitioning } from '../utils/partitionGuidance';
 import type {
     ExecuteStructuredToolResult,
     ExecuteToolErrorResult,
@@ -34,8 +35,13 @@ export const getDescribeWarehouseTable = ({
             database,
         }): Promise<ExecuteResult> => {
             try {
-                const { columns, resolvedSchema, resolvedDatabase } =
-                    await describeWarehouseTable({ table, schema, database });
+                const {
+                    columns,
+                    resolvedSchema,
+                    resolvedDatabase,
+                    partitioning,
+                    warehouseType,
+                } = await describeWarehouseTable({ table, schema, database });
 
                 const qualifiedName = [
                     resolvedDatabase ?? database,
@@ -52,10 +58,11 @@ export const getDescribeWarehouseTable = ({
                     {
                         qualifiedName,
                         columnCount: columns.length,
-                        columns: columns.map(({ name, type }) => ({
+                        columns: columns.map(({ name, type, nativeType }) => ({
                             name,
-                            type,
+                            type: nativeType ? `${type} (${nativeType})` : type,
                         })),
+                        partitioning,
                     };
 
                 if (structuredContent.columnCount === 0) {
@@ -66,12 +73,18 @@ export const getDescribeWarehouseTable = ({
                     };
                 }
 
-                const columnLines = structuredContent.columns
-                    .map((c) => `  - ${c.name}: ${c.type}`)
-                    .join('\n');
+                const lines = [
+                    `Columns for \`${qualifiedName}\` (${structuredContent.columnCount}):`,
+                    ...(partitioning
+                        ? [formatPartitioning(partitioning, warehouseType)]
+                        : []),
+                    ...structuredContent.columns.map(
+                        (c) => `  - ${c.name}: ${c.type}`,
+                    ),
+                ];
 
                 return {
-                    result: `Columns for \`${qualifiedName}\` (${structuredContent.columnCount}):\n${columnLines}`,
+                    result: lines.join('\n'),
                     metadata: { status: 'success' },
                     structuredContent,
                 };

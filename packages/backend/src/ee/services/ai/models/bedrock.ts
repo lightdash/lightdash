@@ -6,9 +6,9 @@ import { fromNodeProviderChain } from '@aws-sdk/credential-providers';
 import type { EmbeddingModel } from 'ai';
 import { LightdashConfig } from '../../../../config/parseConfig';
 import {
+    BEDROCK_MAX_OUTPUT_TOKENS,
     ModelPreset,
     ReasoningEffort,
-    XHIGH_MAX_OUTPUT_TOKENS,
     XHIGH_THINKING_BUDGET_TOKENS,
 } from './presets';
 import { AiModel } from './types';
@@ -85,41 +85,54 @@ export const getBedrockModel = (
     const reasoningStyle = preset.reasoningStyle ?? 'budget';
     const effort = options?.reasoningEffort ?? 'medium';
 
+    const reasoningProviderOptions = () => {
+        if (!reasoningEnabled) {
+            // Adaptive models think by default when the request carries no
+            // reasoning config, and that thinking spends the shared max_tokens
+            // budget — short-capped calls come back truncated. Reasoning off
+            // must be an explicit opt-out, not an absent field.
+            return reasoningStyle === 'adaptive'
+                ? { reasoningConfig: { type: 'disabled' as const } }
+                : {};
+        }
+        if (reasoningStyle === 'adaptive') {
+            return {
+                // Claude 4.7+ models reject `budget_tokens` and require
+                // adaptive thinking with an effort level.
+                // @ai-sdk/amazon-bedrock maps this to
+                // `thinking.type: 'adaptive'` + `output_config.effort`
+                // for Anthropic models from 4.0.148+.
+                reasoningConfig: {
+                    type: 'adaptive' as const,
+                    maxReasoningEffort: effort,
+                },
+            };
+        }
+        return {
+            reasoningConfig: {
+                type: 'enabled' as const,
+                budgetTokens:
+                    effort === 'xhigh' ? XHIGH_THINKING_BUDGET_TOKENS : 2048,
+            },
+        };
+    };
+
     return {
         model,
         callOptions: {
             ...preset.callOptions,
+            // For budget-style presets, the SDK adds the thinking budget
+            // on top of this cap.
+            maxOutputTokens:
+                config.maxOutputTokens ??
+                preset.callOptions.maxOutputTokens ??
+                BEDROCK_MAX_OUTPUT_TOKENS,
             ...(reasoningEnabled && { temperature: undefined }),
-            ...(reasoningEnabled &&
-                effort === 'xhigh' && {
-                    maxOutputTokens: XHIGH_MAX_OUTPUT_TOKENS,
-                }),
         },
         providerOptions: {
             [PROVIDER]: {
                 ...(preset.providerOptions || {}),
-                ...(reasoningEnabled &&
-                    (reasoningStyle === 'adaptive'
-                        ? {
-                              // Claude 4.7+ models reject `budget_tokens` and
-                              // require adaptive thinking with an effort level.
-                              // @ai-sdk/amazon-bedrock maps this to
-                              // `thinking.type: 'adaptive'` + `output_config.effort`
-                              // for Anthropic models from 4.0.148+.
-                              reasoningConfig: {
-                                  type: 'adaptive' as const,
-                                  maxReasoningEffort: effort,
-                              },
-                          }
-                        : {
-                              reasoningConfig: {
-                                  type: 'enabled' as const,
-                                  budgetTokens:
-                                      effort === 'xhigh'
-                                          ? XHIGH_THINKING_BUDGET_TOKENS
-                                          : 2048,
-                              },
-                          })),
+                ...reasoningProviderOptions(),
             },
         },
     };

@@ -15,6 +15,7 @@ import {
     type DataAppClaudeModel,
     type DataAppCodexModel,
     type DataAppCreationExperience,
+    type DataAppInstructionInvestigateJobPayload,
     type DataAppInvestigateJobPayload,
     type DataAppTemplate,
     type EmbedArtifactVersionJobPayload,
@@ -189,7 +190,19 @@ export type LearnSandboxCommandPayload = TraceTaskBase & {
     userUuid: string;
 };
 
+export type CompactUsageEventsPayload = TraceTaskBase & {
+    includeHistory?: boolean;
+};
+
+export type ReconcileAnalyticsContentPayload = Partial<TraceTaskBase>;
+
+export type SyncAnalyticsContentPayload = Partial<TraceTaskBase> & {
+    organizationUuid: string;
+};
+
 export const EE_SCHEDULER_TASKS = {
+    RECONCILE_ANALYTICS_CONTENT: 'reconcileAnalyticsContent',
+    SYNC_ANALYTICS_CONTENT: 'syncAnalyticsContent',
     SLACK_AI_PROMPT: 'slackAiPrompt',
     SLACK_AI_ARTIFACT_IMAGES: 'slackAiArtifactImages',
     SWEEP_SLACK_AI_ARTIFACT_IMAGES: 'sweepSlackAiArtifactImages',
@@ -211,6 +224,7 @@ export const EE_SCHEDULER_TASKS = {
     AI_WRITEBACK_PIPELINE: 'aiWritebackPipeline',
     AI_DEEP_RESEARCH: 'aiDeepResearch',
     DATA_APP_INVESTIGATE: 'dataAppInvestigate',
+    DATA_APP_INSTRUCTION_INVESTIGATE: 'dataAppInstructionInvestigate',
     AGENT_ONBOARDING_RUN: 'agentOnboardingRun',
     AI_AGENT_EDIT_DBT_PROJECT_PIPELINE: 'aiAgentEditDbtProjectPipeline',
     SWEEP_STALE_APP_LOCKS: 'sweepStaleAppLocks',
@@ -227,6 +241,7 @@ export const EE_SCHEDULER_TASKS = {
     CLEAN_AI_DEEP_RESEARCH_REPORTS: 'cleanAiDeepResearchReports',
     CLEAN_AI_AGENT_THREADS: 'cleanAiAgentThreads',
     CLEAN_SCIM_REQUEST_LOGS: 'cleanScimRequestLogs',
+    CLEAN_APP_STATE_HISTORY: 'cleanAppStateHistory',
     PUBLISH_ANNOUNCEMENT: 'publishAnnouncement',
     SWEEP_DUE_ANNOUNCEMENTS: 'sweepDueAnnouncements',
     SEND_AI_CREDIT_ALLOWANCE_ALERTS: 'sendAiCreditAllowanceAlerts',
@@ -298,6 +313,8 @@ export const ALL_TASK_NAMES: SchedulerTaskName[] =
 
 // Map each task to its payload type
 export interface TaskPayloadMap {
+    [SCHEDULER_TASKS.RECONCILE_ANALYTICS_CONTENT]: ReconcileAnalyticsContentPayload;
+    [SCHEDULER_TASKS.SYNC_ANALYTICS_CONTENT]: SyncAnalyticsContentPayload;
     [SCHEDULER_TASKS.HANDLE_SCHEDULED_DELIVERY]: ScheduledDeliveryPayload;
     // Legacy individual notification tasks (deprecated)
     [SCHEDULER_TASKS.SEND_SLACK_NOTIFICATION]: SlackNotificationPayload;
@@ -339,7 +356,7 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.MANAGED_AGENT_HEARTBEAT]: ManagedAgentHeartbeatPayload;
     [SCHEDULER_TASKS.CLEAN_EXPIRED_PREVIEWS]: TraceTaskBase;
     [SCHEDULER_TASKS.INGEST_PROJECT_CONTEXT]: TraceTaskBase;
-    [SCHEDULER_TASKS.COMPACT_USAGE_EVENTS]: TraceTaskBase;
+    [SCHEDULER_TASKS.COMPACT_USAGE_EVENTS]: CompactUsageEventsPayload;
     [SCHEDULER_TASKS.BACKFILL_USAGE_QUERY_HISTORY]: TraceTaskBase;
     [SCHEDULER_TASKS.POLL_EMAIL_WHITELABEL]: TraceTaskBase;
     [SCHEDULER_TASKS.CLEAN_WAREHOUSE_CONNECT_CODES]: TraceTaskBase;
@@ -356,6 +373,7 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.AI_AGENT_REVIEW_REMEDIATION_COMPILE]: AiAgentReviewRemediationCompileJobPayload;
     [SCHEDULER_TASKS.AI_AGENT_REVIEW_REMEDIATION_RUN]: AiAgentReviewRemediationRunJobPayload;
     [SCHEDULER_TASKS.DATA_APP_INVESTIGATE]: DataAppInvestigateJobPayload;
+    [SCHEDULER_TASKS.DATA_APP_INSTRUCTION_INVESTIGATE]: DataAppInstructionInvestigateJobPayload;
     [SCHEDULER_TASKS.SEND_REVIEW_NOTIFICATION]: SendReviewNotificationPayload;
     [SCHEDULER_TASKS.SEND_CONTENT_REVIEW_NOTIFICATION]: SendContentReviewNotificationPayload;
     [SCHEDULER_TASKS.CREATE_REVIEW_JIRA_ISSUE]: CreateReviewJiraIssuePayload;
@@ -379,6 +397,7 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.CLEAN_AI_DEEP_RESEARCH_REPORTS]: TraceTaskBase;
     [SCHEDULER_TASKS.CLEAN_AI_AGENT_THREADS]: TraceTaskBase;
     [SCHEDULER_TASKS.CLEAN_SCIM_REQUEST_LOGS]: TraceTaskBase;
+    [SCHEDULER_TASKS.CLEAN_APP_STATE_HISTORY]: TraceTaskBase;
     [SCHEDULER_TASKS.PUBLISH_ANNOUNCEMENT]: PublishAnnouncementPayload;
     [SCHEDULER_TASKS.SWEEP_DUE_ANNOUNCEMENTS]: TraceTaskBase;
     [SCHEDULER_TASKS.SEND_AI_CREDIT_ALLOWANCE_ALERTS]: TraceTaskBase;
@@ -397,6 +416,8 @@ export interface TaskPayloadMap {
 }
 
 export interface EETaskPayloadMap {
+    [EE_SCHEDULER_TASKS.RECONCILE_ANALYTICS_CONTENT]: ReconcileAnalyticsContentPayload;
+    [EE_SCHEDULER_TASKS.SYNC_ANALYTICS_CONTENT]: SyncAnalyticsContentPayload;
     [EE_SCHEDULER_TASKS.SLACK_AI_PROMPT]: SlackPromptJobPayload;
     [EE_SCHEDULER_TASKS.SLACK_AI_ARTIFACT_IMAGES]: SlackPromptJobPayload;
     [EE_SCHEDULER_TASKS.SWEEP_SLACK_AI_ARTIFACT_IMAGES]: TraceTaskBase;
@@ -407,6 +428,7 @@ export interface EETaskPayloadMap {
     [EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_REMEDIATION_COMPILE]: AiAgentReviewRemediationCompileJobPayload;
     [EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_REMEDIATION_RUN]: AiAgentReviewRemediationRunJobPayload;
     [EE_SCHEDULER_TASKS.DATA_APP_INVESTIGATE]: DataAppInvestigateJobPayload;
+    [EE_SCHEDULER_TASKS.DATA_APP_INSTRUCTION_INVESTIGATE]: DataAppInstructionInvestigateJobPayload;
     [EE_SCHEDULER_TASKS.SEND_REVIEW_NOTIFICATION]: SendReviewNotificationPayload;
     [EE_SCHEDULER_TASKS.SEND_CONTENT_REVIEW_NOTIFICATION]: SendContentReviewNotificationPayload;
     [EE_SCHEDULER_TASKS.CREATE_REVIEW_JIRA_ISSUE]: CreateReviewJiraIssuePayload;
@@ -430,6 +452,7 @@ export interface EETaskPayloadMap {
     [EE_SCHEDULER_TASKS.CLEAN_AI_DEEP_RESEARCH_REPORTS]: TraceTaskBase;
     [EE_SCHEDULER_TASKS.CLEAN_AI_AGENT_THREADS]: TraceTaskBase;
     [EE_SCHEDULER_TASKS.CLEAN_SCIM_REQUEST_LOGS]: TraceTaskBase;
+    [EE_SCHEDULER_TASKS.CLEAN_APP_STATE_HISTORY]: TraceTaskBase;
     [EE_SCHEDULER_TASKS.PUBLISH_ANNOUNCEMENT]: PublishAnnouncementPayload;
     [EE_SCHEDULER_TASKS.SWEEP_DUE_ANNOUNCEMENTS]: TraceTaskBase;
     [EE_SCHEDULER_TASKS.SEND_AI_CREDIT_ALLOWANCE_ALERTS]: TraceTaskBase;

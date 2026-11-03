@@ -5,7 +5,6 @@ import {
     type MantineTheme,
 } from '@mantine/core';
 import {
-    DASHBOARD_EDIT_BAND_HEIGHT,
     DASHBOARD_HEADER_HEIGHT,
     DASHBOARD_HEADER_ZINDEX,
     DASHBOARD_TAB_HEIGHT,
@@ -83,7 +82,6 @@ export const cssVariablesResolver: CSSVariablesResolver = (theme) => ({
         '--ld-z-tour-card': `${Z_INDEX_TOUR_CARD}`,
         '--dashboard-header-height': `${DASHBOARD_HEADER_HEIGHT}px`,
         '--dashboard-header-zindex': `${DASHBOARD_HEADER_ZINDEX}`,
-        '--dashboard-edit-band-height': `${DASHBOARD_EDIT_BAND_HEIGHT}px`,
         '--dashboard-tab-height': `${DASHBOARD_TAB_HEIGHT}px`,
         '--dashboard-tabs-zindex': `${DASHBOARD_TABS_ZINDEX}`,
         '--dashboard-tile-radius-edit': rem(DASHBOARD_TILE_RADIUS.edit),

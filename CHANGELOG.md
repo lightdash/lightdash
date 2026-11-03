@@ -1,3 +1,269 @@
+# [3.142.0](https://github.com/lightdash/lightdash/compare/3.141.0...3.142.0) (2026-11-03)
+
+
+### Features
+
+* **frontend:** show live data source explores and semantic layers ([#32012](https://github.com/lightdash/lightdash/issues/32012)) ([8e96f2b](https://github.com/lightdash/lightdash/commit/8e96f2b5f4fa59ce3dec06b7fa080da3153d0296)), closes [#32011](https://github.com/lightdash/lightdash/issues/32011)
+
+# [3.141.0](https://github.com/lightdash/lightdash/compare/3.140.0...3.141.0) (2026-11-03)
+
+
+### Features
+
+* **backend:** answer metric queries on live data source explores ([#32011](https://github.com/lightdash/lightdash/issues/32011)) ([5dbc54c](https://github.com/lightdash/lightdash/commit/5dbc54cea924701c549b80ed7006834770f4c469)), closes [#32010](https://github.com/lightdash/lightdash/issues/32010)
+
+# [3.140.0](https://github.com/lightdash/lightdash/compare/3.139.0...3.140.0) (2026-11-03)
+
+
+### Features
+
+* **backend:** compile PostHog metric queries to HogQL ([#32010](https://github.com/lightdash/lightdash/issues/32010)) ([21ecb6a](https://github.com/lightdash/lightdash/commit/21ecb6a97018095225a6ff92476d04fc620c6118)), closes [#32009](https://github.com/lightdash/lightdash/issues/32009)
+
+# [3.139.0](https://github.com/lightdash/lightdash/compare/3.138.0...3.139.0) (2026-11-03)
+
+
+### Features
+
+* **backend:** compile GA4 and Search Console metric queries ([#32009](https://github.com/lightdash/lightdash/issues/32009)) ([7948160](https://github.com/lightdash/lightdash/commit/7948160c97d109e510df76b8466059790847f65e)), closes [#32008](https://github.com/lightdash/lightdash/issues/32008)
+
+# [3.138.0](https://github.com/lightdash/lightdash/compare/3.137.1...3.138.0) (2026-11-03)
+
+
+### Features
+
+* **common:** add live data source explores and their query validator ([#32008](https://github.com/lightdash/lightdash/issues/32008)) ([9ff24ef](https://github.com/lightdash/lightdash/commit/9ff24efd64daa5f4c3c261e303b9eefd7e2b5738)), closes [#31592](https://github.com/lightdash/lightdash/issues/31592) [#31593](https://github.com/lightdash/lightdash/issues/31593) [#31760](https://github.com/lightdash/lightdash/issues/31760) [#31761](https://github.com/lightdash/lightdash/issues/31761)
+* **data-apps:** age-based retention for shared app state history ([#32013](https://github.com/lightdash/lightdash/issues/32013)) ([3236dbd](https://github.com/lightdash/lightdash/commit/3236dbdedc7c4ff48aa091f896b23f67e3cb685c))
+
+## [3.137.1](https://github.com/lightdash/lightdash/compare/3.137.0...3.137.1) (2026-11-03)
+
+
+### Bug Fixes
+
+* **homepage:** tidy the new-homepage notice preview, copy and hover ([#32018](https://github.com/lightdash/lightdash/issues/32018)) ([82328c3](https://github.com/lightdash/lightdash/commit/82328c395dccbe919b5f929bb4994d4c3afa606f))
+
+# [3.137.0](https://github.com/lightdash/lightdash/compare/3.136.2...3.137.0) (2026-11-03)
+
+
+### Bug Fixes
+
+* improve input handling in rename service ([#32014](https://github.com/lightdash/lightdash/issues/32014)) ([a66d6ab](https://github.com/lightdash/lightdash/commit/a66d6ab9e648776b5fa44f98bfb17e276ad7d0f3))
+
+
+### Features
+
+* **warehouses:** log the step that hung on a client query timeout ([#31992](https://github.com/lightdash/lightdash/issues/31992)) ([65d7dca](https://github.com/lightdash/lightdash/commit/65d7dca0e5f6356d8e7a971df90e49b8a97a2b1b))
+
+## [3.136.2](https://github.com/lightdash/lightdash/compare/3.136.1...3.136.2) (2026-11-03)
+
+
+### Bug Fixes
+
+* recover chart metadata snapshots after query timeout ([#32006](https://github.com/lightdash/lightdash/issues/32006)) ([dddadee](https://github.com/lightdash/lightdash/commit/dddadee6a3b442ad785afd8c689b22436b509bd0))
+
+## [3.136.1](https://github.com/lightdash/lightdash/compare/3.136.0...3.136.1) (2026-11-03)
+
+
+### Bug Fixes
+
+* **redshift:** detect and recover stalled warehouse queries ([#32003](https://github.com/lightdash/lightdash/issues/32003)) ([92fd14d](https://github.com/lightdash/lightdash/commit/92fd14d852f1ea55796818abc73c700db23a0e46))
+
+# [3.136.0](https://github.com/lightdash/lightdash/compare/3.135.2...3.136.0) (2026-11-03)
+
+
+### Bug Fixes
+
+* **ai-agents:** stop service account actors renaming themselves via updateUserName ([#32004](https://github.com/lightdash/lightdash/issues/32004)) ([4deb068](https://github.com/lightdash/lightdash/commit/4deb068b8bc300747ec2b7bf32c8e7bd0bc1d47b))
+* **ai:** explicitly disable thinking on adaptive models when reasoning is off ([#32005](https://github.com/lightdash/lightdash/issues/32005)) ([30019b0](https://github.com/lightdash/lightdash/commit/30019b0bd496e5f01f104dacae3ec8e9dabc7462))
+* run analytics content sync on the existing scheduler ([#31997](https://github.com/lightdash/lightdash/issues/31997)) ([52e353c](https://github.com/lightdash/lightdash/commit/52e353cb6559f23eef6856ec0700d228641567f0))
+
+
+### Features
+
+* **data-apps:** agent investigations of app-authored instructions ([#32000](https://github.com/lightdash/lightdash/issues/32000)) ([e2c9d0b](https://github.com/lightdash/lightdash/commit/e2c9d0b91304b420cebf64510826f27282ab0dde))
+
+## [3.135.2](https://github.com/lightdash/lightdash/compare/3.135.1...3.135.2) (2026-11-03)
+
+
+### Bug Fixes
+
+* **clickhouse:** keep primary key pruning for week dimensions with a start of week ([#31995](https://github.com/lightdash/lightdash/issues/31995)) ([2e9375d](https://github.com/lightdash/lightdash/commit/2e9375d0bb986c32291a4d635d44ea283887cd8e)), closes [#31994](https://github.com/lightdash/lightdash/issues/31994)
+
+## [3.135.1](https://github.com/lightdash/lightdash/compare/3.135.0...3.135.1) (2026-11-03)
+
+
+### Bug Fixes
+
+* **ai:** only offer scheduled deliveries when the user can create them ([#31984](https://github.com/lightdash/lightdash/issues/31984)) ([35dfc5b](https://github.com/lightdash/lightdash/commit/35dfc5bda58e54565bab243903be8a673eec60e8))
+
+# [3.135.0](https://github.com/lightdash/lightdash/compare/3.134.1...3.135.0) (2026-11-03)
+
+
+### Features
+
+* prepare recent analytics first and load retained event history automatically ([#31982](https://github.com/lightdash/lightdash/issues/31982)) ([7128b0e](https://github.com/lightdash/lightdash/commit/7128b0e2b5060efa38f737d9edb8f602850b766f))
+
+## [3.134.1](https://github.com/lightdash/lightdash/compare/3.134.0...3.134.1) (2026-11-03)
+
+
+### Bug Fixes
+
+* **sql-runner:** check estimate setting before column discovery ([#31996](https://github.com/lightdash/lightdash/issues/31996)) ([4c4fdb2](https://github.com/lightdash/lightdash/commit/4c4fdb28b5e9afdf4cdf34a16e07d666f887ebe8))
+
+# [3.134.0](https://github.com/lightdash/lightdash/compare/3.133.1...3.134.0) (2026-11-03)
+
+
+### Bug Fixes
+
+* **test:** drop removed organization owner from snowflake oauth test ([#31999](https://github.com/lightdash/lightdash/issues/31999)) ([9720357](https://github.com/lightdash/lightdash/commit/97203576727da082616ba6bdae022985b6748506))
+
+
+### Features
+
+* show warehouse tables and BigQuery partition columns to the AI agent ([#31988](https://github.com/lightdash/lightdash/issues/31988)) ([902c4ea](https://github.com/lightdash/lightdash/commit/902c4ea2b56484abc5e6f7917ba28d90ca71d298))
+
+## [3.133.1](https://github.com/lightdash/lightdash/compare/3.133.0...3.133.1) (2026-11-03)
+
+
+### Bug Fixes
+
+* **ai:** use claude-haiku-5-5 as anthropic fast model ([#31993](https://github.com/lightdash/lightdash/issues/31993)) ([26174dc](https://github.com/lightdash/lightdash/commit/26174dc677a2688f8e30348af9a62f4ac5be3784))
+* **auth:** fill blank profile names from Google on sign-in and linking ([#31987](https://github.com/lightdash/lightdash/issues/31987)) ([2496597](https://github.com/lightdash/lightdash/commit/2496597a2a15fde5f4ce38565806a2d779139461))
+* **bigquery:** SQL Runner lists tables from the dbt project ([#31989](https://github.com/lightdash/lightdash/issues/31989)) ([7e8a630](https://github.com/lightdash/lightdash/commit/7e8a630b123d366766104bedf1658a89cfd4494c))
+* bound retained query history imports by time window ([#31966](https://github.com/lightdash/lightdash/issues/31966)) ([d06509e](https://github.com/lightdash/lightdash/commit/d06509ea493aa83e3cdd1952f5fd99f33a82e660))
+* **dashboard-controls:** edit mode keeps the header, with an Editing badge ([#31990](https://github.com/lightdash/lightdash/issues/31990)) ([f397a2d](https://github.com/lightdash/lightdash/commit/f397a2dd60403149c69ed34046f6c9e92e39b6fe))
+* **dashboard-controls:** same Escape and press-outside rules for every filter popup ([#31976](https://github.com/lightdash/lightdash/issues/31976)) ([3cc14c8](https://github.com/lightdash/lightdash/commit/3cc14c878e2cd696ec4096c77617c3cce0b12b15))
+* keep development inspectors on localhost by default ([#31970](https://github.com/lightdash/lightdash/issues/31970)) ([0ad655e](https://github.com/lightdash/lightdash/commit/0ad655eda0f601644f3c2db66cf2fccb28035ec7))
+
+
+### Performance Improvements
+
+* simplify content health query attribution joins ([#31875](https://github.com/lightdash/lightdash/issues/31875)) ([5b35626](https://github.com/lightdash/lightdash/commit/5b35626f8579291b2331eb3fd69bd7a5de73f25d))
+* use request starts for Ask AI adoption charts ([#31903](https://github.com/lightdash/lightdash/issues/31903)) ([74ba71e](https://github.com/lightdash/lightdash/commit/74ba71ec9b3fb74d4c43852e5f8444a7f9ece98c))
+
+# [3.133.0](https://github.com/lightdash/lightdash/compare/3.132.0...3.133.0) (2026-11-03)
+
+
+### Features
+
+* follow the system colour scheme as a theme option ([#31846](https://github.com/lightdash/lightdash/issues/31846)) ([c83cf5a](https://github.com/lightdash/lightdash/commit/c83cf5a3f283ab9d65a1c451c49dc37f608074f2))
+
+# [3.132.0](https://github.com/lightdash/lightdash/compare/3.131.1...3.132.0) (2026-11-03)
+
+
+### Bug Fixes
+
+* preserve user names in organization content as code ([#31986](https://github.com/lightdash/lightdash/issues/31986)) ([6dc889e](https://github.com/lightdash/lightdash/commit/6dc889ea94338f5bd91c08e97f89b2c73d634d7a))
+
+
+### Features
+
+* automatically sync managed analytics content after compaction ([#31974](https://github.com/lightdash/lightdash/issues/31974)) ([4a7617a](https://github.com/lightdash/lightdash/commit/4a7617a7c59189e4dab17ffbf320d15c0e3029b4))
+
+## [3.131.1](https://github.com/lightdash/lightdash/compare/3.131.0...3.131.1) (2026-11-03)
+
+
+### Bug Fixes
+
+* AI agent reads saved table list when running as the person ([#31975](https://github.com/lightdash/lightdash/issues/31975)) ([8ec8f24](https://github.com/lightdash/lightdash/commit/8ec8f2470d3f4c8f84168e3a8cec584f108d8259))
+
+# [3.131.0](https://github.com/lightdash/lightdash/compare/3.130.1...3.131.0) (2026-11-03)
+
+
+### Features
+
+* **dashboard:** arrange filter sections on lines, with drag, rename … ([#31943](https://github.com/lightdash/lightdash/issues/31943)) ([43c0790](https://github.com/lightdash/lightdash/commit/43c0790add210347040f7ffa9148c009118989d1))
+
+## [3.130.1](https://github.com/lightdash/lightdash/compare/3.130.0...3.130.1) (2026-11-03)
+
+
+### Bug Fixes
+
+* show BigQuery native temporal types in agent describeWarehouseTable ([#31977](https://github.com/lightdash/lightdash/issues/31977)) ([e689669](https://github.com/lightdash/lightdash/commit/e689669b9be9ecc028e9e808ed19f94e605446e3))
+
+# [3.130.0](https://github.com/lightdash/lightdash/compare/3.129.0...3.130.0) (2026-11-03)
+
+
+### Features
+
+* **results-cache:** invalidate cached results for a list of explores ([#31946](https://github.com/lightdash/lightdash/issues/31946)) ([d5de31a](https://github.com/lightdash/lightdash/commit/d5de31ae03773842c805fd4cb3c325f786ce987c))
+
+# [3.129.0](https://github.com/lightdash/lightdash/compare/3.128.7...3.129.0) (2026-11-03)
+
+
+### Features
+
+* show organization analytics processing status ([#31851](https://github.com/lightdash/lightdash/issues/31851)) ([c73b722](https://github.com/lightdash/lightdash/commit/c73b722bf951ccacb92dc8eb5fe5c5755ccf75a1))
+
+## [3.128.7](https://github.com/lightdash/lightdash/compare/3.128.6...3.128.7) (2026-11-03)
+
+
+### Bug Fixes
+
+* **ai:** prompt personal Snowflake reauthentication in chat ([#31931](https://github.com/lightdash/lightdash/issues/31931)) ([8bc926c](https://github.com/lightdash/lightdash/commit/8bc926ccd774b8812b1291f3079631335a5ab312))
+
+## [3.128.6](https://github.com/lightdash/lightdash/compare/3.128.5...3.128.6) (2026-11-03)
+
+
+### Bug Fixes
+
+* **branding:** show the organization brand to every org member ([#31973](https://github.com/lightdash/lightdash/issues/31973)) ([e59e316](https://github.com/lightdash/lightdash/commit/e59e316d94cc77f5a98b53bb1872d1166ab68445))
+* **dashboard-controls:** keep the filter editor open when a day is picked in a date calendar ([#31972](https://github.com/lightdash/lightdash/issues/31972)) ([6af1306](https://github.com/lightdash/lightdash/commit/6af1306a5fc9430c7c11fa8830241d47ed567d3a))
+
+## [3.128.5](https://github.com/lightdash/lightdash/compare/3.128.4...3.128.5) (2026-11-03)
+
+
+### Bug Fixes
+
+* process analytics nightly only after project creation ([#31971](https://github.com/lightdash/lightdash/issues/31971)) ([8d94bc5](https://github.com/lightdash/lightdash/commit/8d94bc5ddc144eaa70c80de688f7df218dee0031))
+
+## [3.128.4](https://github.com/lightdash/lightdash/compare/3.128.3...3.128.4) (2026-11-03)
+
+
+### Bug Fixes
+
+* resolve special characters in custom tooltip references ([#31965](https://github.com/lightdash/lightdash/issues/31965)) ([ae3acf4](https://github.com/lightdash/lightdash/commit/ae3acf468a0cd46a9a86c5ba878a47a8f78ab2c6))
+
+## [3.128.3](https://github.com/lightdash/lightdash/compare/3.128.2...3.128.3) (2026-11-03)
+
+
+### Bug Fixes
+
+* skip projectless organizations in scheduled analytics processing ([#31967](https://github.com/lightdash/lightdash/issues/31967)) ([08c94c5](https://github.com/lightdash/lightdash/commit/08c94c58a6d78c9fe9bb9b90a23b5278c7052a37))
+
+## [3.128.2](https://github.com/lightdash/lightdash/compare/3.128.1...3.128.2) (2026-11-03)
+
+
+### Performance Improvements
+
+* query content inventory for creation and ownership charts ([#31898](https://github.com/lightdash/lightdash/issues/31898)) ([2c65eb6](https://github.com/lightdash/lightdash/commit/2c65eb672c054216fbf73842e75e1b2a8f1455a9))
+
+## [3.128.1](https://github.com/lightdash/lightdash/compare/3.128.0...3.128.1) (2026-11-03)
+
+
+### Bug Fixes
+
+* **ai-agent:** load every python datetime column tz-naive UTC ([#31935](https://github.com/lightdash/lightdash/issues/31935)) ([5270f2e](https://github.com/lightdash/lightdash/commit/5270f2eae2c5763b9d03518e71eb04fe7c038e27))
+* **ai-agent:** skeleton-first python code description, tolerant run() signature ([#31933](https://github.com/lightdash/lightdash/issues/31933)) ([3c47849](https://github.com/lightdash/lightdash/commit/3c4784977d5ed82ba2c591a05eed2a722ed25050))
+* **ai:** post Slack tables apart from the markdown answer ([#31955](https://github.com/lightdash/lightdash/issues/31955)) ([7b804ba](https://github.com/lightdash/lightdash/commit/7b804ba9b3eba303b68356fbd0fab82e70013eb4))
+
+# [3.128.0](https://github.com/lightdash/lightdash/compare/3.127.1...3.128.0) (2026-11-02)
+
+
+### Features
+
+* **bigquery:** add workload identity federation to the connection form ([#31959](https://github.com/lightdash/lightdash/issues/31959)) ([aae26fd](https://github.com/lightdash/lightdash/commit/aae26fd576dc332d72bd167a0e74f25787a0d2a4))
+* **bigquery:** authenticate with workload identity federation ([#31956](https://github.com/lightdash/lightdash/issues/31956)) ([c84c17d](https://github.com/lightdash/lightdash/commit/c84c17dca25b830263cd9be34deb8d6ce265c185))
+* **bigquery:** expose the instance identity for workload identity setup ([#31958](https://github.com/lightdash/lightdash/issues/31958)) ([3c7aace](https://github.com/lightdash/lightdash/commit/3c7aace820104a6ce97d6233522dfeca18c16869))
+* **bigquery:** generate dbt profiles for workload identity federation ([#31957](https://github.com/lightdash/lightdash/issues/31957)) ([abfa816](https://github.com/lightdash/lightdash/commit/abfa8163e774bff78cc7c1cf75fe9fec1ec5b6f3))
+
+## [3.127.1](https://github.com/lightdash/lightdash/compare/3.127.0...3.127.1) (2026-11-02)
+
+
+### Bug Fixes
+
+* **ai:** explicit Bedrock output cap with BEDROCK_MAX_OUTPUT_TOKENS override ([#31887](https://github.com/lightdash/lightdash/issues/31887)) ([d8b379d](https://github.com/lightdash/lightdash/commit/d8b379d88775cd156db5f3107662c31ad960dbce))
+* **ai:** report output-length finishes distinctly ([#31886](https://github.com/lightdash/lightdash/issues/31886)) ([1ca2e50](https://github.com/lightdash/lightdash/commit/1ca2e505efe40bb27f0c089eaccbaa39403480e5))
+
 # [3.127.0](https://github.com/lightdash/lightdash/compare/3.126.1...3.127.0) (2026-11-02)
 
 

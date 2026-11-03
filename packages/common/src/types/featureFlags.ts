@@ -304,6 +304,11 @@ export enum FeatureFlags {
      */
     AthenaWebIdentityAuth = 'athena-web-identity-auth',
     /**
+     * Organization-scoped, off by default: BigQuery workload identity federation.
+     * Only enable on instances whose pods run as their own Google service account.
+     */
+    BigqueryWorkloadIdentityAuth = 'bigquery-workload-identity-auth',
+    /**
      * Organization-scoped: org admins can bring their own AI provider keys,
      * restrict model visibility, and route those keys through a custom base
      * URL (an OpenAI/Anthropic/Gemini-compatible gateway). Off by default;
@@ -311,6 +316,12 @@ export enum FeatureFlags {
      * providers are used. Enable it for an org BEFORE it stores a key.
      */
     OrgAiCustomProviders = 'org-ai-custom-providers',
+    /**
+     * Organization-scoped, off by default: when a Redshift dashboard or chart
+     * query has no first row after 30s and Redshift has no record of it,
+     * cancel it and retry on a new connection.
+     */
+    RedshiftStalledQueryRecovery = 'redshift-stalled-query-recovery',
 }
 
 export type FeatureFlag = {

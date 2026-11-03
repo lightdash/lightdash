@@ -878,9 +878,10 @@ type ResultsCacheInvalidatedEvent = BaseTrack & {
     properties: {
         organizationId: string;
         projectId: string;
-        scope: 'project' | 'chart' | 'dashboard';
+        scope: 'project' | 'chart' | 'dashboard' | 'explores';
         contentUuid: string | null;
         trigger?: 'schedule';
+        exploreNames?: string[];
     };
 };
 
@@ -2486,7 +2487,11 @@ export type DataAppAnalysisCompletedEvent = BaseTrack & {
         appUuid: string | null;
         dashboardUuid: string | null;
         appVersion: number | null;
-        operation: 'detect' | 'prompt' | 'investigate';
+        operation:
+            | 'detect'
+            | 'prompt'
+            | 'investigate'
+            | 'investigate_instruction';
         outcome: DataAppAnalysisOutcome;
         sourceCount: number | null;
         truncated: boolean | null;

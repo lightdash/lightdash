@@ -67,6 +67,7 @@ const fullInput: LoadoutInput = {
     enableComposerQueries: false,
     canRunSql: true,
     canCreateDashboards: true,
+    canCreateScheduledDeliveries: true,
     enableContentTools: true,
     enableDocuments: true,
     enableGenerateDataApp: true,
@@ -77,7 +78,12 @@ const fullInput: LoadoutInput = {
     customSkills: [],
     projectContextEnabled: true,
     aiAgentMemoryEnabled: true,
-    requestingUser: { name: 'Ada', role: null, groups: [] },
+    requestingUser: {
+        name: 'Ada',
+        role: null,
+        groups: [],
+        isServiceAccount: false,
+    },
     mcpToolNames: ['mcp_linear__search_issues'],
     attachedMcpServerCount: 1,
     customChartTypeCount: 2,
@@ -91,6 +97,7 @@ const minimalInput: LoadoutInput = {
     enableComposerQueries: false,
     canRunSql: false,
     canCreateDashboards: false,
+    canCreateScheduledDeliveries: false,
     enableContentTools: false,
     enableDocuments: false,
     enableGenerateDataApp: false,
@@ -226,6 +233,7 @@ describe('loadout contracts', () => {
             enableDataAccess: true,
             canRunSql: true,
             enableContentTools: true,
+            canCreateScheduledDeliveries: true,
             enableDocuments: true,
             enableGenerateDataApp: true,
         });
@@ -326,6 +334,35 @@ describe('resolveLoadout', () => {
         expect(loadout.toolNames.has('listWorkstreams')).toBe(false);
         expect(loadout.addOns.has('contentTools')).toBe(true);
         expect(loadout.addOns.has('legacyDashboards')).toBe(false);
+    });
+
+    test('scheduling needs the scheduled deliveries ability on top of content tools', () => {
+        const loadout = resolveLoadout({
+            ...fullInput,
+            canCreateScheduledDeliveries: false,
+        });
+        expect(loadout.addOns.has('contentTools')).toBe(true);
+        expect(loadout.addOns.has('scheduling')).toBe(false);
+        expect(loadout.toolNames.has('createScheduledDelivery')).toBe(false);
+        expect(loadout.promptSections.has('schedulingTools')).toBe(false);
+    });
+
+    test('service accounts have no updateUserName or requesting user section', () => {
+        const person = resolveLoadout(fullInput);
+        expect(person.toolNames.has('updateUserName')).toBe(true);
+        expect(person.promptSections.has('requestingUser')).toBe(true);
+
+        const serviceAccount = resolveLoadout({
+            ...fullInput,
+            requestingUser: {
+                name: 'Ada',
+                role: null,
+                groups: [],
+                isServiceAccount: true,
+            },
+        });
+        expect(serviceAccount.toolNames.has('updateUserName')).toBe(false);
+        expect(serviceAccount.promptSections.has('requestingUser')).toBe(false);
     });
 
     test('content tools bring their skill and loadSkill', () => {

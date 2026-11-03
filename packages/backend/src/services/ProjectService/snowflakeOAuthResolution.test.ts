@@ -1,6 +1,5 @@
 import {
     SnowflakeAuthenticationType,
-    SnowflakeTokenError,
     WarehouseTypes,
     type CreateSnowflakeCredentials,
     type CreateWarehouseCredentials,
@@ -13,11 +12,7 @@ import {
     connectionContextFromUser,
     WarehouseCredentialKind,
 } from '../WarehouseClientFactory/ConnectionContext';
-import {
-    preparedCredentials,
-    type MaterializedCredentials,
-    type PreparedCredentials,
-} from '../WarehouseClientFactory/CredentialResolver';
+import { type MaterializedCredentials } from '../WarehouseClientFactory/CredentialResolver';
 import { ProjectService, type ProjectServiceArguments } from './ProjectService';
 import { projectWithSensitiveFields } from './ProjectService.mock';
 
@@ -33,7 +28,7 @@ const credentials: CreateSnowflakeCredentials = {
     refreshToken: 'stored-refresh',
 };
 const actor = { userUuid: 'person', organizationUuid: 'org' };
-const setup = (organizationCredentialUuid: string | null = null) => {
+const setup = () => {
     const database = {
         transaction: vi.fn(
             async (callback: (trx: Knex.Transaction) => unknown) =>
@@ -48,7 +43,6 @@ const setup = (organizationCredentialUuid: string | null = null) => {
         ...projectWithSensitiveFields,
         projectUuid: 'project',
         organizationUuid: 'org',
-        organizationWarehouseCredentialsUuid: organizationCredentialUuid,
         warehouseConnection: { ...credentials },
     };
     const projectModel = {
@@ -58,12 +52,6 @@ const setup = (organizationCredentialUuid: string | null = null) => {
             .mockResolvedValue(credentials),
         rotateRefreshToken: vi.fn().mockResolvedValue(true),
     };
-    const organizationWarehouseCredentialsModel = {
-        getByUuidWithSensitiveData: vi
-            .fn()
-            .mockResolvedValue({ organizationUuid: 'org', credentials }),
-        rotateRefreshToken: vi.fn().mockResolvedValue(true),
-    };
     const userOAuthGrantsModel = {
         getRefreshToken: vi.fn().mockResolvedValue('grant-refresh'),
     };
@@ -71,7 +59,6 @@ const setup = (organizationCredentialUuid: string | null = null) => {
         lightdashConfig: lightdashConfigMock,
         refreshTokenRotation: rotation,
         projectModel,
-        organizationWarehouseCredentialsModel,
         userOAuthGrantsModel,
         featureFlagModel: {
             get: vi.fn().mockResolvedValue({ enabled: false }),
@@ -81,11 +68,9 @@ const setup = (organizationCredentialUuid: string | null = null) => {
         _resolveWarehouseClientCredentials: (
             input: {
                 warehouseConnection: CreateSnowflakeCredentials;
-                organizationWarehouseCredentialsUuid?: string;
             },
             userUuid: string,
             organizationUuid: string,
-            rotationMode: 'persist' | 'ignore',
         ) => Promise<{ warehouseConnection: MaterializedCredentials }>;
         prepareLegacyCompileCredentials: (
             input: typeof project,
@@ -110,7 +95,6 @@ const setup = (organizationCredentialUuid: string | null = null) => {
         probe,
         project,
         projectModel,
-        organizationWarehouseCredentialsModel,
         userOAuthGrantsModel,
         exchange,
         run,
@@ -135,76 +119,12 @@ describe('ProjectService Snowflake resolver entry points', () => {
             { warehouseConnection: formCredentials },
             actor.userUuid,
             actor.organizationUuid,
-            'ignore',
         );
         expect(resolved.warehouseConnection).toMatchObject({
             refreshToken: 'grant-refresh',
             token: 'fresh-access',
         });
         expect(f.userOAuthGrantsModel.getRefreshToken).toHaveBeenCalled();
-    });
-
-    test('organisation ignore policy persists through the row lock', async () => {
-        const f = setup('org-row');
-        const result = await f.probe._resolveWarehouseClientCredentials(
-            {
-                warehouseConnection: credentials,
-                organizationWarehouseCredentialsUuid: 'org-row',
-            },
-            actor.userUuid,
-            actor.organizationUuid,
-            'ignore',
-        );
-        expect(result.warehouseConnection).toMatchObject({
-            token: 'fresh-access',
-            refreshToken: 'rotated-refresh',
-        });
-        expect(
-            (result.warehouseConnection as PreparedCredentials)[
-                preparedCredentials
-            ],
-        ).toBe(true);
-        expect(f.exchange).toHaveBeenCalledExactlyOnceWith(
-            'stored-refresh',
-            30_000,
-        );
-        expect(f.run).toHaveBeenCalledTimes(1);
-        expect(
-            f.organizationWarehouseCredentialsModel.rotateRefreshToken,
-        ).toHaveBeenCalledTimes(1);
-        expect(
-            f.organizationWarehouseCredentialsModel.rotateRefreshToken,
-        ).toHaveBeenCalledWith(
-            'org-row',
-            'stored-refresh',
-            'rotated-refresh',
-            expect.objectContaining({ raw: expect.any(Function) }),
-        );
-    });
-
-    test('legacy organisation compile writes to the correct row through the lock', async () => {
-        const f = setup('org-row');
-        const result = await f.probe.prepareLegacyCompileCredentials(
-            f.project,
-            actor,
-        );
-        expect(result).toMatchObject({
-            token: 'fresh-access',
-            refreshToken: 'rotated-refresh',
-        });
-        expect((result as PreparedCredentials)[preparedCredentials]).toBe(true);
-        expect(
-            f.organizationWarehouseCredentialsModel.rotateRefreshToken,
-        ).toHaveBeenCalledTimes(1);
-        expect(f.projectModel.rotateRefreshToken).toHaveBeenCalledTimes(0);
-        expect(
-            f.organizationWarehouseCredentialsModel.rotateRefreshToken,
-        ).toHaveBeenCalledWith(
-            'org-row',
-            'stored-refresh',
-            'rotated-refresh',
-            expect.objectContaining({ raw: expect.any(Function) }),
-        );
     });
 
     test('legacy compile retains raw exchange errors', async () => {
@@ -217,28 +137,6 @@ describe('ProjectService Snowflake resolver entry points', () => {
             f.probe.prepareLegacyCompileCredentials(f.project, actor),
         ).rejects.toBe(error);
         expect(f.projectModel.rotateRefreshToken).not.toHaveBeenCalled();
-    });
-
-    test('organisation resolution retains wrapped exchange errors', async () => {
-        const f = setup('org-row');
-        f.exchange.mockRejectedValue({
-            data: JSON.stringify({ message: 'invalid_grant' }),
-        });
-        await expect(
-            f.probe._resolveWarehouseClientCredentials(
-                {
-                    warehouseConnection: credentials,
-                    organizationWarehouseCredentialsUuid: 'org-row',
-                },
-                actor.userUuid,
-                actor.organizationUuid,
-                'persist',
-            ),
-        ).rejects.toThrow(
-            new SnowflakeTokenError(
-                'Error refreshing snowflake token: invalid_grant',
-            ),
-        );
     });
 
     test.each(['save', 'legacy compile', 'legacy token only'] as const)(
@@ -254,7 +152,6 @@ describe('ProjectService Snowflake resolver entry points', () => {
                               { warehouseConnection: credentials },
                               actor.userUuid,
                               actor.organizationUuid,
-                              'ignore',
                           )
                       ).warehouseConnection
                     : await f.probe.prepareLegacyCompileCredentials(

@@ -1,6 +1,7 @@
 import { assertUnreachable } from '@lightdash/common';
 import type { Knex } from 'knex';
 import type { UsageDimensionName } from '../analytics/eventStream/usageDimensions';
+import { isStatementTimeout } from '../database/errors';
 import {
     usageContentInventoryQuery,
     usageContentTypes,
@@ -50,6 +51,16 @@ export class UsageDimensionsModel {
                     .modify((query) => {
                         if (organizationUuid)
                             query.where('organization_uuid', organizationUuid);
+                        else
+                            query.whereExists(
+                                this.database('projects')
+                                    .select(this.database.raw('1'))
+                                    .where('provisioning_source', 'analytics')
+                                    .whereRaw('?? = ??', [
+                                        'projects.organization_id',
+                                        'organizations.organization_id',
+                                    ]),
+                            );
                     })
                     .orderBy('organization_id')
                     .limit(USAGE_DIMENSION_PAGE_SIZE),
@@ -63,8 +74,10 @@ export class UsageDimensionsModel {
     private async *readPages(
         query: Knex.QueryBuilder,
         cursorColumn: string,
+        onStatementTimeout?: () => Promise<void>,
     ): AsyncGenerator<string> {
         let cursor: string | null = null;
+        let recoverFromTimeout = onStatementTimeout;
         while (true) {
             const page = query
                 .clone()
@@ -75,8 +88,19 @@ export class UsageDimensionsModel {
                 .limit(USAGE_DIMENSION_PAGE_SIZE);
             if (cursor !== null) page.where(cursorColumn, '>', cursor);
             // Each page releases its connection before waiting on file IO.
-            // eslint-disable-next-line no-await-in-loop
-            const rows = await this.readPage<SnapshotRow>(page);
+            let rows: SnapshotRow[];
+            try {
+                // eslint-disable-next-line no-await-in-loop
+                rows = await this.readPage<SnapshotRow>(page);
+            } catch (error) {
+                if (!recoverFromTimeout || !isStatementTimeout(error))
+                    throw error;
+                // eslint-disable-next-line no-await-in-loop
+                await recoverFromTimeout();
+                recoverFromTimeout = undefined;
+                // eslint-disable-next-line no-continue
+                continue;
+            }
             if (rows.length === 0) return;
             for (const row of rows) yield `${row.json}\n`;
             cursor = rows[rows.length - 1].cursor;
@@ -241,8 +265,7 @@ export class UsageDimensionsModel {
             }
             case 'charts': {
                 const charts = this.database('saved_queries as c')
-                    // Resolve the tenant's projects once so ordered pages can
-                    // use the project index instead of scanning every tenant.
+                    // Resolve projects once per page and recheck their ownership.
                     .whereRaw('?? = ANY(ARRAY ?)', [
                         'c.project_uuid',
                         this.database('projects')
@@ -272,7 +295,20 @@ export class UsageDimensionsModel {
                             [orgUuid, this.projectUrlPrefix],
                         ),
                     );
-                yield* this.readPages(charts, 'c.saved_query_id');
+                yield* this.readPages(charts, 'c.saved_query_id', async () => {
+                    const projects = await this.readPage<{
+                        project_uuid: string;
+                    }>(
+                        this.database('projects')
+                            .select('project_uuid')
+                            .where('organization_id', orgId),
+                    );
+                    // Explicit IDs improve row estimates; keep the ownership check.
+                    charts.whereRaw('?? = ANY(?::uuid[])', [
+                        'c.project_uuid',
+                        projects.map(({ project_uuid }) => project_uuid),
+                    ]);
+                });
                 const sqlCharts = this.database('saved_sql as c')
                     .join('projects as p', 'p.project_uuid', 'c.project_uuid')
                     .leftJoin(

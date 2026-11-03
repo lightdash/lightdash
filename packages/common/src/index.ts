@@ -40,6 +40,7 @@ import { formatItemValue } from './utils/formatting';
 import { getItemId, getItemLabelWithoutTableName } from './utils/item';
 import { getOrganizationNameSchema } from './utils/organization';
 import { timeFrameConfigs } from './utils/timeFrames';
+import { validateUserName } from './utils/userName';
 import type { PivotValuesColumn } from './visualizations/types';
 
 dayjs.extend(utc);
@@ -138,6 +139,7 @@ export * from './types/api/sort';
 export * from './types/api/spotlight';
 export * from './types/api/success';
 export * from './types/api/uuid';
+export * from './types/apiSourceExplore';
 export * from './types/auth';
 export * from './types/bigQuerySSO';
 export * from './types/catalog';
@@ -220,6 +222,7 @@ export {
     DbtProjectType,
     DbtVersionOptionLatest,
     usesAwsWebIdentity,
+    usesBigqueryWorkloadIdentity,
     DefaultSupportedDbtVersion,
     DuckdbConnectionType,
     DucklakeCatalogType,
@@ -255,6 +258,7 @@ export {
     stripDucklakeNestedSensitive,
     SupportedDbtVersions,
     supportsOptionalUserCredentials,
+    USER_CREATABLE_PROJECT_TYPES,
     allowsOptionalUserCredentials,
     WAREHOUSE_TYPES_WITH_OPTIONAL_USER_CREDENTIALS,
     WarehouseTypes,
@@ -381,12 +385,14 @@ export * from './types/spotlightTableConfig';
 export * from './types/sqlRunner';
 export * from './types/SshKeyPair';
 export * from './types/awsWebIdentity';
+export * from './types/bigqueryWorkloadIdentity';
 export * from './types/sshTunnel';
 export * from './types/table';
 export * from './types/tags';
 export * from './types/timeFrames';
 export * from './types/timezone';
 export * from './types/user';
+export { validateUserName } from './utils/userName';
 export * from './types/userAvatars';
 export * from './types/userAttributes';
 export * from './types/userOnboarding';
@@ -404,9 +410,11 @@ export * from './types/yamlSchema';
 export * from './utils/accessors';
 export * from './utils/additionalMetrics';
 export * from './utils/api';
+export * from './utils/apiSourceQuery';
 export { default as assertUnreachable } from './utils/assertUnreachable';
 export * from './utils/bigNumber';
 export * from './utils/awsWebIdentity';
+export * from './utils/bigqueryWorkloadIdentity';
 export * from './utils/bigqueryKeyfile';
 export * from './utils/charts';
 export * from './utils/cellUrls';
@@ -501,8 +509,6 @@ export const validateEmail = (email: string): boolean => {
         /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
     return re.test(String(email).toLowerCase());
 };
-
-export const validateUserName = (name: string): boolean => !/[<>]/u.test(name);
 
 export const getUserNameSchema = () =>
     z.string().trim().min(1, { message: 'Required' }).refine(validateUserName, {

@@ -29,6 +29,7 @@ import { type LinearAppService } from '../../services/LinearAppService/LinearApp
 import { type AiAgentReviewClassifierModel } from '../models/AiAgentReviewClassifierModel';
 import { type AiAgentReviewNotificationModel } from '../models/AiAgentReviewNotificationModel';
 import { type AiOrganizationSettingsModel } from '../models/AiOrganizationSettingsModel';
+import { type AppStateModel } from '../models/AppStateModel';
 import { type ExternalConnectionModel } from '../models/ExternalConnectionModel';
 import { type McpToolCallModel } from '../models/McpToolCallModel';
 import { type ScimRequestLogModel } from '../models/ScimRequestLogModel';
@@ -40,6 +41,7 @@ import { AiAgentService } from '../services/AiAgentService/AiAgentService';
 import { type AiDeepResearchService } from '../services/AiDeepResearchService/AiDeepResearchService';
 import type { AiThreadFileService } from '../services/AiThreadFileService';
 import type { AiWritebackService } from '../services/AiWritebackService/AiWritebackService';
+import type { AnalyticsProjectService } from '../services/AnalyticsProjectService/AnalyticsProjectService';
 import { AppGenerateService } from '../services/AppGenerateService/AppGenerateService';
 import type { DataAppAnalysisService } from '../services/DataAppAnalysisService/DataAppAnalysisService';
 import type { EmbedService } from '../services/EmbedService/EmbedService';
@@ -122,6 +124,10 @@ export const cleanAiDeepResearchReports = async ({
 };
 
 type CommercialSchedulerWorkerArguments = SchedulerWorkerArguments & {
+    analyticsProjectService: Pick<
+        AnalyticsProjectService,
+        'reconcileContent' | 'syncContent'
+    >;
     aiAgentService: AiAgentService;
     dataAppAnalysisService: DataAppAnalysisService;
     aiAgentMemoryService: AiAgentMemoryService;
@@ -145,6 +151,7 @@ type CommercialSchedulerWorkerArguments = SchedulerWorkerArguments & {
     mcpToolCallModel: McpToolCallModel;
     externalConnectionModel: ExternalConnectionModel;
     scimRequestLogModel: ScimRequestLogModel;
+    appStateModel: AppStateModel;
     projectHomepageService: Pick<
         ProjectHomepageService,
         'publishScheduledAnnouncement' | 'sweepDueAnnouncements'
@@ -172,6 +179,8 @@ type CommercialSchedulerWorkerArguments = SchedulerWorkerArguments & {
 };
 
 export class CommercialSchedulerWorker extends SchedulerWorker {
+    protected readonly analyticsProjectService: CommercialSchedulerWorkerArguments['analyticsProjectService'];
+
     protected readonly aiAgentService: AiAgentService;
 
     protected readonly dataAppAnalysisService: DataAppAnalysisService;
@@ -218,6 +227,8 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
 
     protected readonly scimRequestLogModel: ScimRequestLogModel;
 
+    protected readonly appStateModel: AppStateModel;
+
     protected readonly projectHomepageService: CommercialSchedulerWorkerArguments['projectHomepageService'];
 
     protected readonly externalSourceService: CommercialSchedulerWorkerArguments['externalSourceService'];
@@ -242,6 +253,7 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
 
     constructor(args: CommercialSchedulerWorkerArguments) {
         super(args);
+        this.analyticsProjectService = args.analyticsProjectService;
         this.aiAgentService = args.aiAgentService;
         this.dataAppAnalysisService = args.dataAppAnalysisService;
         this.aiAgentMemoryService = args.aiAgentMemoryService;
@@ -268,6 +280,7 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
         this.mcpToolCallModel = args.mcpToolCallModel;
         this.externalConnectionModel = args.externalConnectionModel;
         this.scimRequestLogModel = args.scimRequestLogModel;
+        this.appStateModel = args.appStateModel;
         this.projectHomepageService = args.projectHomepageService;
         this.externalSourceService = args.externalSourceService;
         this.aiThreadFileService = args.aiThreadFileService;
@@ -432,6 +445,14 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                     maxAttempts: 3,
                 },
             },
+            {
+                task: EE_SCHEDULER_TASKS.CLEAN_APP_STATE_HISTORY,
+                pattern: '20 2 * * *', // 02:20 UTC daily
+                options: {
+                    backfillPeriod: 24 * 3600 * 1000, // 24 hours in ms
+                    maxAttempts: 3,
+                },
+            },
         ];
     }
 
@@ -473,6 +494,16 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
 
         return {
             ...super.getFullTaskList(),
+            [EE_SCHEDULER_TASKS.RECONCILE_ANALYTICS_CONTENT]: async (
+                payload,
+            ) => {
+                await this.analyticsProjectService.reconcileContent({
+                    organizationUuid: payload.organizationUuid ?? null,
+                });
+            },
+            [EE_SCHEDULER_TASKS.SYNC_ANALYTICS_CONTENT]: async (payload) => {
+                await this.analyticsProjectService.syncContent(payload);
+            },
             [EE_SCHEDULER_TASKS.SLACK_AI_PROMPT]: async (payload, _helpers) => {
                 await this.aiAgentService.replyToSlackPrompt(
                     payload.slackPromptUuid,
@@ -586,6 +617,36 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                     `SCIM request log cleanup completed. Records deleted: ${totalDeleted} in ${batchCount} batches`,
                 );
             },
+            [EE_SCHEDULER_TASKS.CLEAN_APP_STATE_HISTORY]: async () => {
+                const cleanupConfig =
+                    this.lightdashConfig.scheduler.appStateHistory.cleanup;
+                if (!cleanupConfig.enabled) {
+                    Logger.info('App state history cleanup job is disabled');
+                    return;
+                }
+                Logger.info('Starting app state history cleanup job');
+                const cutoffDate = new Date(
+                    Date.now() - cleanupConfig.retentionDays * 24 * 3600 * 1000,
+                );
+                const { totalDeleted, batchCount, completed } =
+                    await this.appStateModel.cleanupHistoryBatch(
+                        cutoffDate,
+                        cleanupConfig.keepVersions,
+                        {
+                            batchSize: cleanupConfig.batchSize,
+                            delayMs: cleanupConfig.delayMs,
+                            maxBatches: cleanupConfig.maxBatches,
+                        },
+                    );
+                Logger.info(
+                    `App state history cleanup completed. Records deleted: ${totalDeleted} in ${batchCount} batches`,
+                );
+                if (!completed) {
+                    Logger.warn(
+                        'App state history cleanup stopped at the batch cap; rows remain to be pruned',
+                    );
+                }
+            },
             [EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_REMEDIATION_PREVIEW]: async (
                 payload,
                 _helpers,
@@ -643,6 +704,50 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                                 createdByUserUuid: payload.userUuid,
                                 analysisId: payload.analysisId,
                                 anomalyId: payload.anomalyId,
+                            },
+                        });
+                    },
+                );
+            },
+            [EE_SCHEDULER_TASKS.DATA_APP_INSTRUCTION_INVESTIGATE]: async (
+                payload,
+                helpers,
+            ) => {
+                // The timeout must stop the agent, not just report it.
+                const abort = new AbortController();
+                await tryJobOrTimeout(
+                    SchedulerClient.processJob(
+                        EE_SCHEDULER_TASKS.DATA_APP_INSTRUCTION_INVESTIGATE,
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                        async () => {
+                            await this.dataAppAnalysisService.runInstructionInvestigation(
+                                payload,
+                                helpers.job.id,
+                                helpers.job.run_at,
+                                abort.signal,
+                            );
+                        },
+                    ),
+                    helpers.job,
+                    DATA_APP_INVESTIGATE_TIMEOUT_MS,
+                    async (job, e) => {
+                        abort.abort();
+                        await this.dataAppAnalysisService.trackInstructionInvestigationTimeout(
+                            payload,
+                            DATA_APP_INVESTIGATE_TIMEOUT_MS,
+                        );
+                        await this.schedulerService.logSchedulerJob({
+                            task: EE_SCHEDULER_TASKS.DATA_APP_INSTRUCTION_INVESTIGATE,
+                            jobId: job.id,
+                            scheduledTime: job.run_at,
+                            status: SchedulerJobStatus.ERROR,
+                            details: {
+                                error: getErrorMessage(e),
+                                projectUuid: payload.projectUuid,
+                                organizationUuid: payload.organizationUuid,
+                                createdByUserUuid: payload.userUuid,
                             },
                         });
                     },

@@ -6,12 +6,15 @@ const EDITOR_ATTRIBUTE = 'data-controls-editor';
 const OWN_ESCAPE_ATTRIBUTE = 'data-own-escape';
 
 // An open list, menu or popover owns Escape; so does a modal. A Mantine
-// combobox target is marked `data-expanded` while its list is open
+// combobox target is marked `data-expanded` while its list is open. A
+// DateInput's calendar marks only itself (`data-dates-dropdown`): its input
+// gets no roles
 const OPEN_LAYER_SELECTOR = [
     '[aria-expanded="true"][aria-haspopup]',
     '[data-expanded][aria-haspopup]',
     '[aria-expanded="true"][role="combobox"]',
     '[aria-modal="true"]',
+    '[data-dates-dropdown]',
 ].join(',');
 
 // The query devtools of a dev build always report an open panel

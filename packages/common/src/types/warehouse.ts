@@ -104,7 +104,7 @@ export type WarehouseCatalogTimestampDomains = {
 
 /**
  * WARNING: a catalog may carry reserved `__lightdash*` sidecars (timestamp
- * domains, nested columns, missing entries) alongside the database keys (their
+ * domains, nested columns, missing entries, native types) alongside the database keys (their
  * values are NOT database entries).
  * Never enumerate `Object.keys(catalog)` as database names without excluding
  * them — look entries up by name, or use the sidecar accessors below.
@@ -260,6 +260,41 @@ export const setCatalogNestedColumnShape = (
     ensureRecord(ensureRecord(ensureRecord(sidecar, database), schema), table)[
         columnPath
     ] = shape;
+};
+
+// Native types `DimensionType` collapses; see packages/warehouses/src/warehouseClients/AGENTS.md
+export const WAREHOUSE_NATIVE_TYPES_KEY = '__lightdashNativeTypes';
+
+export const getCatalogTableNativeTypes = (
+    catalog: WarehouseCatalog,
+    database: string,
+    schema: string,
+    table: string,
+): Record<string, string> => {
+    const columns = [database, schema, table].reduce<unknown>(
+        (node, key) => (isPlainRecord(node) ? node[key] : undefined),
+        catalog[WAREHOUSE_NATIVE_TYPES_KEY],
+    );
+    if (!isPlainRecord(columns)) return {};
+    return Object.fromEntries(
+        Object.entries(columns).filter(
+            (entry): entry is [string, string] => typeof entry[1] === 'string',
+        ),
+    );
+};
+
+export const setCatalogNativeType = (
+    catalog: WarehouseCatalog,
+    database: string,
+    schema: string,
+    table: string,
+    column: string,
+    nativeType: string,
+): void => {
+    const sidecar = getSidecar(catalog, WAREHOUSE_NATIVE_TYPES_KEY);
+    ensureRecord(ensureRecord(ensureRecord(sidecar, database), schema), table)[
+        column
+    ] = nativeType;
 };
 
 /**
@@ -457,6 +492,8 @@ export type WarehouseExecuteAsyncQueryArgs = {
     values?: AnyType[]; // same as queryParams but in array form
     queryParams?: Record<string, AnyType>; // same as values but in object form
     sql: string;
+    // Redshift only: retry a read-only query that stalls before it reaches the warehouse.
+    recoverStalledQuery?: boolean;
 };
 
 export type WarehouseQueryEstimate = {
@@ -574,6 +611,7 @@ export interface WarehouseClient extends WarehouseSqlBuilder {
             tags: Record<string, string>;
             timezone?: string;
             maximumBytesBilled?: number;
+            recoverStalledQuery?: boolean;
             onPhaseTiming?: (
                 phase: WarehouseQueryPhase,
                 durationMs: number,
@@ -644,6 +682,13 @@ export interface WarehouseClient extends WarehouseSqlBuilder {
         tags?: Record<string, string>,
     ): Promise<WarehouseCatalog>;
 
+    // null when the table has no partitions or the warehouse does not report them
+    getTablePartitioning(
+        tableName: string,
+        schema: string,
+        database: string,
+    ): Promise<TablePartitioning | null>;
+
     parseWarehouseCatalog(
         rows: Record<string, AnyType>[],
         mapFieldType: (type: string) => DimensionType,
@@ -678,4 +723,17 @@ export enum PartitionType {
 export type PartitionColumn = {
     partitionType: PartitionType;
     field: string;
+};
+
+export enum PartitionGranularity {
+    HOUR = 'HOUR',
+    DAY = 'DAY',
+    MONTH = 'MONTH',
+    YEAR = 'YEAR',
+}
+
+export type TablePartitioning = {
+    partitionColumn: PartitionColumn;
+    granularity: PartitionGranularity | null;
+    requiresPartitionFilter: boolean;
 };

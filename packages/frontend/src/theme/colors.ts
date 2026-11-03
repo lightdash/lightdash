@@ -1,5 +1,13 @@
 export type ColorScheme = 'light' | 'dark';
 
+/** What the viewer chose; `system` follows the OS preference. */
+export type ColorSchemePreference = ColorScheme | 'system';
+
+export const isColorSchemePreference = (
+    value: unknown,
+): value is ColorSchemePreference =>
+    value === 'light' || value === 'dark' || value === 'system';
+
 type ColorTuple = [
     string,
     string,

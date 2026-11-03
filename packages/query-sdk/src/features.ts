@@ -284,6 +284,14 @@ export const SDK_FEATURES: SdkFeature[] = [
         wiring: 'Rework the layout to the "Fitting the frame" section of the reusable-visualization skill. A chart type built on an older template first needs the frame runtime added to its own files, as described under viz-responsive-layout in the sdk-features skill: the VizFrame marker in src/main.jsx and the html[data-viz-frame] rules in src/index.css. Then size type, padding and gaps in rem or Tailwind classes instead of px, make rows of items wrap with a minimum item width that keeps values on one line (capped just under half the frame), remove any scroll regions of the chart\'s own so only the frame scrolls, and make a title or table header row sticky.',
     },
     {
+        key: 'instruction-investigations',
+        appliesTo: ['data_app'],
+        label: 'AI investigations on demand',
+        description:
+            'Let a button send an author-written brief to the AI agent, which investigates using the semantic layer beyond the data on the page and shows its findings inside the app.',
+        wiring: "Call useInvestigation() per control; on click, investigate({ instruction: '<author-written brief>', sources: [{ result, label }] }) where result is the object useLightdash returns (keep a reference to it when destructuring). Render status/explanation/partial from the hook, offer continueInAskAi() when canContinue, and hide the control when available is false. Unlike useAiPrompt the agent can query other explores, so use it for 'investigate why' actions, not row explanations.",
+    },
+    {
         key: 'field-links',
         appliesTo: ['data_app'],
         label: 'Field links',

@@ -10,6 +10,7 @@ import {
     APP_SDK_MOUNTED_QUERIES_MESSAGE,
     APP_SDK_VIZ_CONTEXT_REQUEST_MESSAGE,
     DATA_APP_ANALYSIS_INSTRUCTIONS_MAX_CHARS,
+    DATA_APP_INSTRUCTION_INVESTIGATE_MAX_CHARS,
     APP_SDK_VIZ_DRILL_DOWN_PATH,
     APP_SDK_VIZ_POINT_MENU_PATH,
     APP_SDK_VIZ_SUBTOTALS_PATH,
@@ -21,6 +22,7 @@ import {
     extractAppSdkRouteProjectUuid,
     extractAppSdkSpaceCharts,
     extractExploreBaseTable,
+    FEATURE_NOT_ENABLED_CODE,
     isAllowedAppSdkRoute,
     parseAppSdkSpaceChartsRequest,
     resolveAppSdkSpaceUuid,
@@ -114,7 +116,7 @@ export const mapAppStateApiError = (
     if (httpStatus === 403) {
         return {
             code:
-                data.code === 'feature_not_enabled'
+                data.code === FEATURE_NOT_ENABLED_CODE
                     ? 'feature_disabled'
                     : 'forbidden',
             message,
@@ -838,10 +840,14 @@ export function useAppSdkBridge({
             }
 
             if (data?.type === APP_SDK_INSIGHT_ACTION_MESSAGE) {
-                const { action, anomalyId } = data as {
-                    action?: unknown;
-                    anomalyId?: unknown;
-                };
+                const { action, anomalyId, requestId, instruction, sources } =
+                    data as {
+                        action?: unknown;
+                        anomalyId?: unknown;
+                        requestId?: unknown;
+                        instruction?: unknown;
+                        sources?: unknown;
+                    };
                 if (action === 'analyse') {
                     onInsightAction?.({ action });
                 } else if (
@@ -849,6 +855,40 @@ export function useAppSdkBridge({
                     typeof anomalyId === 'string'
                 ) {
                     onInsightAction?.({ action, anomalyId });
+                } else if (
+                    action === 'investigate-instruction' &&
+                    typeof requestId === 'string' &&
+                    typeof instruction === 'string' &&
+                    instruction.trim().length > 0 &&
+                    Array.isArray(sources) &&
+                    sources.length > 0 &&
+                    sources.every(
+                        (s): s is { queryUuid: string; label?: unknown } =>
+                            typeof (s as { queryUuid?: unknown })?.queryUuid ===
+                            'string',
+                    )
+                ) {
+                    // App code is untrusted: cap the instruction here so a
+                    // runaway string never reaches the investigation request.
+                    onInsightAction?.({
+                        action,
+                        requestId,
+                        instruction: instruction
+                            .trim()
+                            .slice(
+                                0,
+                                DATA_APP_INSTRUCTION_INVESTIGATE_MAX_CHARS,
+                            ),
+                        sources: sources.map((s) => ({
+                            queryUuid: s.queryUuid,
+                            label: typeof s.label === 'string' ? s.label : null,
+                        })),
+                    });
+                } else if (
+                    action === 'continue-instruction' &&
+                    typeof requestId === 'string'
+                ) {
+                    onInsightAction?.({ action, requestId });
                 }
                 return;
             }

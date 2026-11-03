@@ -272,3 +272,24 @@ describe('retired repository tool streams', () => {
         ).toMatchObject({ toolName: 'editRepo', toolResult: toolOutput });
     });
 });
+
+it('preserves personal Snowflake recovery in a streamed visualization result', () => {
+    expect(
+        parseStreamRawToolResult({
+            toolName: 'generateVisualization',
+            toolArgs: expressionToolArgs,
+            toolOutput: {
+                result: 'Your Snowflake sign-in has expired.',
+                metadata: {
+                    status: 'error',
+                    requiresSnowflakeReauthentication: true,
+                },
+                structuredContent: {
+                    error: 'Your Snowflake sign-in has expired.',
+                },
+            },
+        }),
+    ).toMatchObject({
+        toolResult: { metadata: { requiresSnowflakeReauthentication: true } },
+    });
+});

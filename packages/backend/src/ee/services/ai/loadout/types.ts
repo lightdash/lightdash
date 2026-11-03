@@ -128,6 +128,7 @@ export type LoadoutInput = Pick<
     | 'enableComposerQueries'
     | 'canRunSql'
     | 'canCreateDashboards'
+    | 'canCreateScheduledDeliveries'
     | 'enableContentTools'
     | 'enableDocuments'
     | 'enableGenerateDataApp'

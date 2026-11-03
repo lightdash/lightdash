@@ -5,7 +5,9 @@ import { randomUUID } from 'crypto';
 import knex from 'knex';
 import { gzipSync } from 'zlib';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import { up as createUsageProcessingStatus } from '../../database/migrations/20261030100000_create_usage_processing_status';
 import { CommercialFeatureFlagModel } from '../../ee/models/CommercialFeatureFlagModel';
+import { UsageProcessingModel } from '../../models/UsageProcessingModel';
 import type PrometheusMetrics from '../../prometheus/PrometheusMetrics';
 import { createS3AnalyticsSourceResolver } from '../../services/ProjectService/analyticsProject/S3AnalyticsSource';
 import { createEventStreamWriter } from './createEventStreamWriter';
@@ -16,7 +18,7 @@ import { UsageEventsCompactor } from './UsageEventsCompactor';
 describe.skipIf(!process.env.USAGE_PROCESSING_SMOKE_PGPORT)(
     'organization usage processing live locally',
     () => {
-        it('captures all organizations but gates processing, bounds history, and recovers cleanup', async () => {
+        it('processes recent data before retained raw history, gates organizations, and recovers cleanup', async () => {
             vi.unstubAllGlobals();
             const schema = `usage_policy_${randomUUID().replaceAll('-', '')}`;
             const db = knex({
@@ -51,6 +53,16 @@ describe.skipIf(!process.env.USAGE_PROCESSING_SMOKE_PGPORT)(
             const org = randomUUID();
             const otherOrg = randomUUID();
             const now = new Date('2026-10-08T00:30:00Z');
+            const historicalDates = Array.from(
+                { length: 23 },
+                (_, index) => `2026-09-${String(index + 8).padStart(2, '0')}`,
+            );
+            const recentDates = Array.from(
+                { length: 5 },
+                (_, index) => `2026-10-0${index + 2}`,
+            );
+            const recentEvents = 10001 + recentDates.length;
+            const processedEvents = recentEvents + historicalDates.length;
             const config = {
                 ...lightdashConfigMock,
                 enabledFeatureFlags: new Set<string>(),
@@ -71,6 +83,7 @@ describe.skipIf(!process.env.USAGE_PROCESSING_SMOKE_PGPORT)(
                 database: db,
                 lightdashConfig: config,
             });
+            const processing = new UsageProcessingModel(db);
             const get = vi.spyOn(flags, 'get');
             const metrics = {
                 incrementUsageEventsPushed: vi.fn(),
@@ -103,13 +116,14 @@ describe.skipIf(!process.env.USAGE_PROCESSING_SMOKE_PGPORT)(
                     yield* [];
                 },
             };
-            const run = () =>
+            const run = (includeHistory = false) =>
                 new UsageEventsCompactor({
                     s3Config: storage,
                     prometheusMetrics: null,
                     usageDimensionsModel: model,
                     featureFlagModel: flags,
-                }).run(now);
+                    usageProcessingModel: processing,
+                }).run(now, undefined, includeHistory);
             const event = (orgId: string, date = '2026-10-07') => ({
                 org_id: orgId,
                 user_id: 'test-user',
@@ -144,6 +158,14 @@ describe.skipIf(!process.env.USAGE_PROCESSING_SMOKE_PGPORT)(
             let created = false;
             try {
                 await db.raw('CREATE SCHEMA ??', [schema]);
+                await db.schema.createTable('organizations', (table) => {
+                    table.uuid('organization_uuid').primary();
+                });
+                await db.raw(
+                    'INSERT INTO organizations (organization_uuid) VALUES (?), (?)',
+                    [org, otherOrg],
+                );
+                await db.transaction(createUsageProcessingStatus);
                 await db.raw(
                     'CREATE TABLE feature_flags (flag_id text PRIMARY KEY, default_enabled boolean); CREATE TABLE feature_flag_overrides (flag_id text, organization_uuid uuid, user_uuid uuid, enabled boolean)',
                 );
@@ -184,7 +206,9 @@ describe.skipIf(!process.env.USAGE_PROCESSING_SMOKE_PGPORT)(
                     );
                     writer.push('query_events', event(otherOrg));
                 }
-                writer.push('query_events', event(org, '2026-09-30'));
+                for (const date of [...historicalDates, ...recentDates]) {
+                    writer.push('query_events', event(org, date));
+                }
                 writer.push('query_events', event(org, '2026-10-08'));
                 await writer.flush();
                 const captureMs = performance.now() - captureStart;
@@ -196,10 +220,15 @@ describe.skipIf(!process.env.USAGE_PROCESSING_SMOKE_PGPORT)(
                 const summary = await run();
                 const processingMs = performance.now() - runStart;
                 expect(summary).toMatchObject({
-                    partitionsCompacted: 2,
+                    partitionsDiscovered: 30,
+                    partitionsCompacted: 7,
                     partitionsFailed: 0,
                     dimensions: { refreshed: 7, failed: 0 },
-                    users: { published: 2, failed: 0 },
+                    users: { published: 7, failed: 0 },
+                });
+                expect(await processing.find(org)).toMatchObject({
+                    status: 'partial',
+                    stats: { partitionsDiscovered: 30, partitionsCompacted: 7 },
                 });
                 expect(new Set(dimensionsRead)).toEqual(new Set([org]));
                 expect(
@@ -208,14 +237,48 @@ describe.skipIf(!process.env.USAGE_PROCESSING_SMOKE_PGPORT)(
                 expect(
                     await list(`events/raw/org_id=${otherOrg}/`),
                 ).toHaveLength(2);
-                expect(await total('query_events', 'count(*)')).toBe(10001);
-                expect(await total('user_activity', 'sum(event_count)')).toBe(
-                    10001,
+                expect(await total('query_events', 'count(*)')).toBe(
+                    recentEvents,
                 );
-                expect(await list(`events/raw/org_id=${org}/`)).toHaveLength(2); // current day and day eight
+                expect(await total('user_activity', 'sum(event_count)')).toBe(
+                    recentEvents,
+                );
+                expect(await list(`events/raw/org_id=${org}/`)).toHaveLength(
+                    24,
+                );
                 expect((await run()).users).toMatchObject({
                     published: 0,
-                    unchanged: 2,
+                    unchanged: 7,
+                });
+                const historyStart = performance.now();
+                expect(await run(true)).toMatchObject({
+                    partitionsDiscovered: 23,
+                    partitionsCompacted: 23,
+                    partitionsFailed: 0,
+                    users: { published: 23, unchanged: 7, failed: 0 },
+                });
+                const historyMs = performance.now() - historyStart;
+                expect(await processing.find(org)).toMatchObject({
+                    status: 'success',
+                    stats: {
+                        partitionsDiscovered: 23,
+                        partitionsCompacted: 23,
+                    },
+                });
+                expect(await total('query_events', 'count(*)')).toBe(
+                    processedEvents,
+                );
+                expect(await total('user_activity', 'sum(event_count)')).toBe(
+                    processedEvents,
+                );
+                expect(await list(`events/raw/org_id=${org}/`)).toEqual([
+                    expect.objectContaining({
+                        Key: expect.stringContaining('dt=2026-10-08/'),
+                    }),
+                ]);
+                expect((await run(true)).users).toMatchObject({
+                    published: 0,
+                    unchanged: 30,
                 });
 
                 const putRaw = async (count: number) => {
@@ -260,12 +323,16 @@ describe.skipIf(!process.env.USAGE_PROCESSING_SMOKE_PGPORT)(
                         } as never;
                     });
                 expect((await run()).partitionsFailed).toBe(1);
-                expect(await total('query_events', 'count(*)')).toBe(10011);
+                expect(await total('query_events', 'count(*)')).toBe(
+                    processedEvents + 10,
+                );
                 deletion.mockRestore();
                 expect((await run()).partitionsFailed).toBe(0);
-                expect(await total('query_events', 'count(*)')).toBe(10011);
+                expect(await total('query_events', 'count(*)')).toBe(
+                    processedEvents + 10,
+                );
                 expect(await total('user_activity', 'sum(event_count)')).toBe(
-                    10011,
+                    processedEvents + 10,
                 );
                 expect(
                     (await list('events/raw/')).some((item) =>
@@ -283,9 +350,11 @@ describe.skipIf(!process.env.USAGE_PROCESSING_SMOKE_PGPORT)(
                 await putRaw(1);
                 await run();
                 await run();
-                expect(await total('query_events', 'count(*)')).toBe(10022);
+                expect(await total('query_events', 'count(*)')).toBe(
+                    processedEvents + 21,
+                );
                 expect(await total('user_activity', 'sum(event_count)')).toBe(
-                    10022,
+                    processedEvents + 21,
                 );
                 expect(await list('events/compaction/')).toHaveLength(0);
                 // A failed tenant snapshot must not stop either tenant's users
@@ -304,7 +373,7 @@ describe.skipIf(!process.env.USAGE_PROCESSING_SMOKE_PGPORT)(
                     '2 refreshes failed; previous snapshots retained',
                 );
                 expect(await total('user_activity', 'sum(event_count)')).toBe(
-                    10023,
+                    processedEvents + 22,
                 );
                 const otherReader = new DuckdbWarehouseClient({
                     type: 'duckdb_parquet',
@@ -350,12 +419,18 @@ describe.skipIf(!process.env.USAGE_PROCESSING_SMOKE_PGPORT)(
                 expect((await list()).length).toBe(before + 1);
                 process.stdout.write(
                     `${JSON.stringify({
-                        captureInputEvents: 20002,
-                        capturedEvents: 20002,
-                        eligibleEvents: 10001,
+                        captureInputEvents:
+                            20000 +
+                            historicalDates.length +
+                            recentDates.length +
+                            1,
+                        closedRawDays: 30,
+                        recentEvents,
+                        historicalEvents: historicalDates.length,
                         captureMs,
                         processingMs,
-                        recoveredTotal: 10023,
+                        historyMs,
+                        recoveredTotal: processedEvents + 22,
                         usersPublishedDespiteDimensionFailure: true,
                         flagLookupsPerFlush: 0,
                     })}\n`,

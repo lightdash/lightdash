@@ -95,6 +95,7 @@ import {
     KnexPaginateArgs,
     KnexPaginatedData,
     LightdashError,
+    MAX_RESULTS_CACHE_INVALIDATION_EXPLORES,
     MAX_RESULTS_CACHE_TTL_SECONDS,
     MergeQuery,
     MetricQuery,
@@ -129,6 +130,7 @@ import {
     WarehouseClient,
     WarehouseConnectionError,
     WarehouseQueryError,
+    WarehouseQueryTimeoutError,
     WarehouseTypes,
     withAgentMarkerTag,
     type AgentIdentityClaim,
@@ -164,8 +166,10 @@ import {
     type ExecuteAsyncQueryRequestParams,
     type ExecuteAsyncSavedChartRequestParams,
     type ExecuteAsyncUnderlyingDataRequestParams,
+    type ExploresResultsCacheInvalidation,
     type ExternalSourceTableReference,
     type Filters,
+    type InvalidateExploresResultsCache,
     type MergeQueryChart,
     type MergeQueryExecutionMode,
     type Organization,
@@ -361,7 +365,12 @@ import {
     getApiQueryOutcome,
     type ApiQueryOutcome,
 } from '../QuerySourceService/api/apiQueryOutcome';
+import {
+    compileApiSourceMetricQuery,
+    toApiSourceResult,
+} from '../QuerySourceService/api/apiSourceExplores';
 import type { QuerySourceService } from '../QuerySourceService/QuerySourceService';
+import type { ApiConnectorResolver } from '../QuerySourceService/sources/ApiQuerySource';
 import { mergeDraftIntoChart } from '../SavedChartsService/chartDraftOverlay';
 import { assertCanReplaceChartFilters } from '../SchedulerService/chartFilterOverridesAccess';
 import {
@@ -533,6 +542,15 @@ type ExecuteMergeQueryInternalArgs = Omit<
         | { type: 'resolved'; configuration: PivotConfiguration };
 };
 
+// Read-only tile queries that are safe to retry when they stall
+const STALL_RECOVERABLE_QUERY_CONTEXTS: ReadonlySet<QueryExecutionContext> =
+    new Set([
+        QueryExecutionContext.DASHBOARD,
+        QueryExecutionContext.AUTOREFRESHED_DASHBOARD,
+        QueryExecutionContext.EMBED,
+        QueryExecutionContext.CHART,
+    ]);
+
 export const QUEUED_QUERY_EXPIRED_MESSAGE =
     'Your query expired while waiting in the queue. Please try again.';
 
@@ -600,6 +618,8 @@ type AsyncQueryServiceArguments = ProjectServiceArguments & {
     /** Lazy: the query source registry is built over this service. */
     getQuerySourceService: () => QuerySourceService;
     preAggregateStrategy?: PreAggregateStrategy;
+    /** EE resolver for live data source connectors; absent in OSS. */
+    getApiSourceConnector?: ApiConnectorResolver;
     /** EE resolver for external tables; absent in OSS. */
     externalSourceTableResolver?: (
         projectUuid: string,
@@ -648,6 +668,12 @@ type ExecuteAsyncQueryArgs = Pick<
     connectionRoute?: ConnectionRouteWithOriginal | null;
     // Preloaded org from the caller (e.g. saved chart) to skip a redundant getSummary
     organizationUuid?: string;
+};
+
+/** Turns a connector's rows into the rows and columns a result stores. */
+type ApiResultShaper = (result: ApiConnectorResult) => {
+    rows: Record<string, unknown>[];
+    columns: ResultColumns;
 };
 
 type PreparedAsyncQueryArgs = Omit<
@@ -833,6 +859,8 @@ export class AsyncQueryService extends ProjectService {
 
     private readonly externalSourceTableResolver: AsyncQueryServiceArguments['externalSourceTableResolver'];
 
+    private readonly getApiSourceConnector: AsyncQueryServiceArguments['getApiSourceConnector'];
+
     constructor(args: AsyncQueryServiceArguments) {
         super(args);
         this.contentDraftModel = args.contentDraftModel;
@@ -854,6 +882,7 @@ export class AsyncQueryService extends ProjectService {
         this.preAggregateStrategy =
             args.preAggregateStrategy ?? new NoOpPreAggregateStrategy();
         this.externalSourceTableResolver = args.externalSourceTableResolver;
+        this.getApiSourceConnector = args.getApiSourceConnector;
     }
 
     /**
@@ -3818,6 +3847,7 @@ export class AsyncQueryService extends ProjectService {
         usedParameters,
         dataTimezone,
         displayTimezone,
+        recoverStalledQuery,
     }: {
         warehouseClient: WarehouseClient;
         query: string;
@@ -3828,6 +3858,7 @@ export class AsyncQueryService extends ProjectService {
         usedParameters?: ParametersValuesMap | null;
         dataTimezone?: string;
         displayTimezone: string | null;
+        recoverStalledQuery: boolean;
     }): Promise<{
         columns: ResultColumns;
         /** Pre-pivot columns, so pivoted queries keep a record of the
@@ -4091,6 +4122,7 @@ export class AsyncQueryService extends ProjectService {
                         sql: query,
                         tags: queryTags,
                         timezone: dataTimezone,
+                        recoverStalledQuery,
                     },
                     transformRows,
                 ),
@@ -5206,6 +5238,16 @@ export class AsyncQueryService extends ProjectService {
             const resolvedDataTimezone = isTimezoneSupportEnabled
                 ? warehouseClient.credentials.dataTimezone
                 : undefined;
+            const recoverStalledQuery =
+                credentialsType === WarehouseTypes.REDSHIFT &&
+                STALL_RECOVERABLE_QUERY_CONTEXTS.has(queryTags.query_context) &&
+                (
+                    await this.featureFlagModel.get({
+                        featureFlagId:
+                            FeatureFlags.RedshiftStalledQueryRecovery,
+                        user: { userUuid, organizationUuid },
+                    })
+                ).enabled;
 
             const t0 = Date.now();
 
@@ -5339,6 +5381,7 @@ export class AsyncQueryService extends ProjectService {
                                 usedParameters,
                                 dataTimezone: resolvedDataTimezone,
                                 displayTimezone,
+                                recoverStalledQuery,
                             });
                         setPhaseTimingAttributes(
                             span,
@@ -5667,6 +5710,10 @@ export class AsyncQueryService extends ProjectService {
                     warehouseType: warehouseCredentialsType,
                     errorName: e instanceof Error ? e.name : undefined,
                     errorCode: (e as { code?: string })?.code,
+                    warehouseTimeout:
+                        e instanceof WarehouseQueryTimeoutError
+                            ? e.data
+                            : undefined,
                     // Surface every queryTag (chart_uuid, dashboard_uuid,
                     // saved_sql_uuid, scheduler_uuid, scheduler_name, job_id,
                     // explore_name, query_context, …) onto the error log so a
@@ -6381,6 +6428,13 @@ export class AsyncQueryService extends ProjectService {
         organizationUuid: string,
     ): Promise<ExecuteAsyncQueryReturn> {
         await this.assertOrganizationNotBlocked(args.account);
+        if (args.queryComposer.getExplore().type === ExploreType.API_SOURCE) {
+            return this.executePreparedApiSourceQuery(
+                args,
+                requestParameters,
+                organizationUuid,
+            );
+        }
         return wrapSentryTransaction(
             'ProjectService.executeAsyncQuery',
             {},
@@ -6879,6 +6933,14 @@ export class AsyncQueryService extends ProjectService {
                                 account.user.id,
                                 resultsCache.resultProducer,
                             );
+                        // Before results land, so the row is never a live hit
+                        if (resultsCache.queryUuid) {
+                            await this.queryHistoryModel.inheritCacheInvalidation(
+                                queryHistoryUuid,
+                                resultsCache.queryUuid,
+                                projectUuid,
+                            );
+                        }
                         trackQueryExecuted();
                         if (this.lightdashConfig.natsWorker.enabled) {
                             await this.queryHistoryModel.updateStatusToExecuting(
@@ -7621,7 +7683,7 @@ export class AsyncQueryService extends ProjectService {
         const metricQueryStart = Date.now();
 
         // Load project warehouse config once, shared by warehouse credentials and timezone resolution
-        const { organizationWarehouseCredentialsUuid, queryTimezone } =
+        const { queryTimezone } =
             await this.projectModel.getProjectWarehouseConfig(projectUuid);
         const projectTimezone =
             queryTimezone ?? this.lightdashConfig.query.timezone ?? 'UTC';
@@ -7662,8 +7724,6 @@ export class AsyncQueryService extends ProjectService {
                 isRegisteredUser: account.isRegisteredUser(),
                 isServiceAccount: account.isServiceAccount(),
                 ...getAccountAgentIdentityFacts(account),
-                preloadedOrgWarehouseCredentialsUuid:
-                    organizationWarehouseCredentialsUuid,
             }),
             this.projectParametersModel.find(projectUuid),
             limit === undefined
@@ -8702,6 +8762,88 @@ export class AsyncQueryService extends ProjectService {
         });
     }
 
+    async invalidateExploresResultsCache(
+        user: SessionUser,
+        projectUuid: string,
+        {
+            exploreNames,
+            includeJoinedExplores = false,
+        }: InvalidateExploresResultsCache,
+    ): Promise<ExploresResultsCacheInvalidation> {
+        const { organizationUuid } = await this.assertCanInvalidateResultsCache(
+            user,
+            projectUuid,
+        );
+        const uniqueExploreNames = [...new Set(exploreNames)];
+        if (uniqueExploreNames.length === 0) {
+            throw new ParameterError('Provide at least one explore name');
+        }
+        if (
+            uniqueExploreNames.length > MAX_RESULTS_CACHE_INVALIDATION_EXPLORES
+        ) {
+            throw new ParameterError(
+                `Provide at most ${MAX_RESULTS_CACHE_INVALIDATION_EXPLORES} explore names`,
+            );
+        }
+        const knownExploreNames = new Set(
+            await this.projectModel.findExistingExploreNames(
+                projectUuid,
+                uniqueExploreNames,
+            ),
+        );
+        const unknownExploreNames = uniqueExploreNames.filter(
+            (exploreName) => !knownExploreNames.has(exploreName),
+        );
+        if (unknownExploreNames.length > 0) {
+            throw new NotFoundError(
+                `Explores not found: ${unknownExploreNames.join(', ')}`,
+                { exploreNames: unknownExploreNames },
+            );
+        }
+        const exploreNamesToInvalidate = includeJoinedExplores
+            ? [
+                  ...new Set([
+                      ...uniqueExploreNames,
+                      ...(await this.projectModel.findExploreNamesReadingBaseTables(
+                          projectUuid,
+                          uniqueExploreNames,
+                      )),
+                  ]),
+              ]
+            : uniqueExploreNames;
+        const invalidatedAt = new Date();
+        await this.queryHistoryModel.invalidateCachedResultsForExplores(
+            projectUuid,
+            exploreNamesToInvalidate,
+            this.getResultsCacheInvalidationWindowStart(invalidatedAt),
+        );
+        this.analytics.track({
+            event: 'results_cache.invalidated',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                scope: 'explores',
+                contentUuid: null,
+                exploreNames: exploreNamesToInvalidate,
+            },
+        });
+        return {
+            projectUuid,
+            invalidatedAt,
+            exploreNames: exploreNamesToInvalidate,
+        };
+    }
+
+    // Wide enough that a later TTL increase cannot revive older results
+    private getResultsCacheInvalidationWindowStart(invalidatedAt: Date): Date {
+        const maxTtlSeconds = Math.max(
+            this.lightdashConfig.results.cacheStateTimeSeconds,
+            MAX_RESULTS_CACHE_TTL_SECONDS,
+        );
+        return new Date(invalidatedAt.getTime() - maxTtlSeconds * 1000);
+    }
+
     private async invalidateContentResultsCache(
         user: SessionUser,
         {
@@ -8717,15 +8859,10 @@ export class AsyncQueryService extends ProjectService {
         },
     ): Promise<ResultsCacheInvalidation> {
         const invalidatedAt = new Date();
-        // Wide enough that a later TTL increase cannot revive older results
-        const maxTtlSeconds = Math.max(
-            this.lightdashConfig.results.cacheStateTimeSeconds,
-            MAX_RESULTS_CACHE_TTL_SECONDS,
-        );
         await this.queryHistoryModel.invalidateCachedResultsForContent(
             projectUuid,
             content,
-            new Date(invalidatedAt.getTime() - maxTtlSeconds * 1000),
+            this.getResultsCacheInvalidationWindowStart(invalidatedAt),
         );
         this.analytics.track({
             event: 'results_cache.invalidated',
@@ -9787,7 +9924,7 @@ export class AsyncQueryService extends ProjectService {
         });
 
         // Load project warehouse config once, shared by warehouse credentials and timezone resolution
-        const { organizationWarehouseCredentialsUuid, queryTimezone } =
+        const { queryTimezone } =
             await this.projectModel.getProjectWarehouseConfig(projectUuid);
         const projectTimezone =
             queryTimezone ?? this.lightdashConfig.query.timezone ?? 'UTC';
@@ -9812,8 +9949,6 @@ export class AsyncQueryService extends ProjectService {
                 isRegisteredUser: account.isRegisteredUser(),
                 isServiceAccount: account.isServiceAccount(),
                 ...getAccountAgentIdentityFacts(account),
-                preloadedOrgWarehouseCredentialsUuid:
-                    organizationWarehouseCredentialsUuid,
             }),
             this.dashboardModel.getDashboardParametersByIdOrSlug(
                 resolvedDashboardUuid,
@@ -10066,6 +10201,11 @@ export class AsyncQueryService extends ProjectService {
                 exploreName,
                 organizationUuid,
             );
+        if (explore.type === ExploreType.API_SOURCE) {
+            throw new ParameterError(
+                "Underlying data isn't available from live data sources: their integrations only return aggregated rows.",
+            );
+        }
 
         const warehouseSqlBuilder = getSqlBuilderForExplore(
             explore,
@@ -10667,6 +10807,30 @@ export class AsyncQueryService extends ProjectService {
             throw new ForbiddenError(
                 'SQL Runner is unavailable for managed analytics projects',
             );
+        }
+
+        // Column discovery runs the user's SQL, so check the setting first
+        const { warehouseCredentials: connectionCredentials } =
+            await this.warehouseClientFactory.resolveWarehouseCredentials(
+                {
+                    kind: 'binding',
+                    projectUuid,
+                    binding: {
+                        kind: 'connection',
+                        warehouseConnectionUuid:
+                            requestedConnectionUuid ?? null,
+                    },
+                },
+                connectionContextFromAccount(account, {
+                    organizationUuid,
+                    queryContext: context,
+                }),
+            );
+        if (
+            !getQueryCostEstimateSettings(connectionCredentials)
+                ?.estimateQueryBytes
+        ) {
+            return { status: 'unavailable' };
         }
 
         const {
@@ -11659,17 +11823,7 @@ export class AsyncQueryService extends ProjectService {
         parameters,
     }: ExecuteAsyncApiQueryArgs): Promise<{ queryUuid: string }> {
         assertIsAccountWithOrg(account);
-
-        const { enabled } = await this.featureFlagModel.get({
-            user: {
-                userUuid: account.user.id,
-                organizationUuid: account.organization.organizationUuid,
-            },
-            featureFlagId: FeatureFlags.ApiQuerySources,
-        });
-        if (!enabled) {
-            throw new ForbiddenError('Live data sources are not enabled');
-        }
+        await this.assertApiQuerySourcesEnabled(account);
 
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
@@ -11682,34 +11836,206 @@ export class AsyncQueryService extends ProjectService {
         if (effectiveLimit > maxLimit) {
             throw new ParameterError(`limit must be at most ${maxLimit} rows`);
         }
-        const identityEnabled = await this.isResultIdentityEnabled(account);
-        const effectiveParameters = parameters ?? {};
         const requestParameters: ExecuteAsyncApiQueryRequestParams = {
             connectionUuid,
             payload,
             limit: effectiveLimit,
             context,
-            parameters: effectiveParameters,
+            parameters: parameters ?? {},
         };
-        const metricQuery: MetricQuery = {
-            exploreName: SQL_QUERY_MOCK_EXPLORER_NAME,
-            dimensions: [],
-            metrics: [],
-            filters: {},
-            sorts: [],
+        const { queryUuid } = await this.submitApiQuery({
+            account,
+            projectUuid,
+            organizationUuid,
+            connector,
+            payload,
             limit: effectiveLimit,
-            tableCalculations: [],
-            additionalMetrics: [],
+            cacheKeySql: JSON.stringify({
+                connectionUuid,
+                payload,
+                limit: effectiveLimit,
+            }),
+            context,
+            querySurface,
+            invalidateCache: false,
+            history: {
+                fields: null,
+                requestParameters,
+                metricQuery: {
+                    exploreName: SQL_QUERY_MOCK_EXPLORER_NAME,
+                    dimensions: [],
+                    metrics: [],
+                    filters: {},
+                    sorts: [],
+                    limit: effectiveLimit,
+                    tableCalculations: [],
+                    additionalMetrics: [],
+                },
+            },
+            toResult: (result) => ({
+                rows: result.rows,
+                columns: Object.fromEntries(
+                    result.columns.map((column) => [
+                        column.name,
+                        { reference: column.name, type: column.type },
+                    ]),
+                ),
+            }),
+        });
+        return { queryUuid };
+    }
+
+    private async assertApiQuerySourcesEnabled(account: Account) {
+        assertIsAccountWithOrg(account);
+        const { enabled } = await this.featureFlagModel.get({
+            user: {
+                userUuid: account.user.id,
+                organizationUuid: account.organization.organizationUuid,
+            },
+            featureFlagId: FeatureFlags.ApiQuerySources,
+        });
+        if (!enabled) {
+            throw new ForbiddenError('Live data sources are not enabled');
+        }
+    }
+
+    /**
+     * Answers a metric query on a live data source explore with one call to
+     * its integration. Callers MUST authorize the account for the explore.
+     */
+    private async executePreparedApiSourceQuery(
+        args: PreparedAsyncQueryArgs,
+        requestParameters: ExecuteAsyncQueryRequestParams,
+        organizationUuid: string,
+    ): Promise<ExecuteAsyncQueryReturn> {
+        const { account, projectUuid, context, queryComposer, querySurface } =
+            args;
+        const explore = queryComposer.getExplore();
+        const { apiSource } = explore;
+        if (!apiSource) {
+            throw new UnexpectedServerError(
+                `"${explore.name}" isn't a live data source explore`,
+            );
+        }
+        if (!account.isRegisteredUser()) {
+            throw new ForbiddenError(
+                "Live data sources can't be queried from embedded content yet",
+            );
+        }
+        assertRegisteredAccount(account);
+        if (queryComposer.getPivotConfiguration()) {
+            throw new ParameterError(
+                "Pivoted results aren't available from live data sources yet. Remove the pivot to run this query.",
+            );
+        }
+        if (queryComposer.getDateZoom()?.granularity) {
+            throw new ParameterError(
+                "Date zoom isn't available on live data sources yet.",
+            );
+        }
+        if (!this.getApiSourceConnector) {
+            throw new ForbiddenError('Live data sources are not enabled');
+        }
+        await this.assertApiQuerySourcesEnabled(account);
+
+        const metricQuery = queryComposer.getMetricQuery();
+        const fields = queryComposer.getFields();
+        const connector = await this.getApiSourceConnector(
+            account,
+            projectUuid,
+            apiSource.connectionUuid,
+        );
+        const compiled = compileApiSourceMetricQuery({
+            explore,
+            metricQuery,
+            timezone: queryComposer.getTimezone() ?? 'UTC',
+            now: new Date(),
+        });
+        const { queryUuid, reusable } = await this.submitApiQuery({
+            account,
+            projectUuid,
+            organizationUuid,
+            connector,
+            payload: { kind: 'query', query: compiled.query },
+            limit: compiled.requestLimit,
+            // The compiled request has every relative date resolved, so it
+            // names exactly the rows the API returns.
+            cacheKeySql: JSON.stringify({
+                connectionUuid: apiSource.connectionUuid,
+                compiled,
+            }),
+            context,
+            querySurface,
+            invalidateCache:
+                requestParameters.invalidateCache ??
+                args.invalidateCache ??
+                false,
+            history: { fields, requestParameters, metricQuery },
+            toResult: (result) =>
+                toApiSourceResult({ compiled, rows: result.rows, fields }),
+        });
+        return {
+            queryUuid,
+            cacheMetadata: {
+                cacheHit: reusable !== null,
+                cacheUpdatedTime: reusable?.resultsUpdatedAt ?? undefined,
+                cacheExpiresAt: reusable?.resultsExpiresAt ?? undefined,
+            },
         };
+    }
+
+    /**
+     * Records an api query and runs it, or reuses this user's latest rows
+     * for the same request. `history.fields` null derives fields from the
+     * result columns.
+     */
+    private async submitApiQuery({
+        account,
+        projectUuid,
+        organizationUuid,
+        connector,
+        payload,
+        limit,
+        cacheKeySql,
+        context,
+        querySurface,
+        invalidateCache,
+        history,
+        toResult,
+    }: {
+        account: Account;
+        projectUuid: string;
+        organizationUuid: string;
+        connector: MeteredApiConnector;
+        payload: ApiSourcePayload;
+        limit: number;
+        cacheKeySql: string;
+        context: QueryExecutionContext;
+        querySurface: QuerySurface | undefined;
+        invalidateCache: boolean;
+        history: {
+            fields: ItemsMap | null;
+            requestParameters: ExecuteAsyncQueryRequestParams;
+            metricQuery: MetricQuery;
+        };
+        toResult: ApiResultShaper;
+    }): Promise<{
+        queryUuid: string;
+        reusable: Awaited<
+            ReturnType<AsyncQueryService['findReusableApiResult']>
+        >;
+    }> {
+        assertIsAccountWithOrg(account);
+        const identityEnabled = await this.isResultIdentityEnabled(account);
         const resultEntitlementFingerprint = identityEnabled
             ? getQueryResultEntitlementFingerprint({
                   parameters: getQueryResultRequestParameters(
-                      requestParameters,
+                      history.requestParameters,
                       {},
                   ),
                   controls: await this.getUserAttributes({ account }),
                   explore: null,
-                  metricQuery,
+                  metricQuery: history.metricQuery,
               })
             : null;
         const reader = buildResultReader(
@@ -11729,17 +12055,12 @@ export class AsyncQueryService extends ProjectService {
         // Reuse is per user: rows come straight from the source, unfiltered by
         // anything Lightdash can check against another reader.
         const cacheKey = QueryHistoryModel.getCacheKey(projectUuid, {
-            sql: JSON.stringify({
-                connectionUuid,
-                payload,
-                limit: effectiveLimit,
-            }),
+            sql: cacheKeySql,
             userUuid: account.user.id,
         });
-        const reusable = await this.findReusableApiResult(
-            projectUuid,
-            cacheKey,
-        );
+        const reusable = invalidateCache
+            ? null
+            : await this.findReusableApiResult(projectUuid, cacheKey);
 
         const queryCreatedAt = new Date();
         const { queryUuid } = await this.createQueryHistory(
@@ -11748,11 +12069,11 @@ export class AsyncQueryService extends ProjectService {
                 projectUuid,
                 organizationUuid,
                 context,
-                fields: {},
+                fields: history.fields ?? {},
                 compiledSql: payload.query,
-                requestParameters,
+                requestParameters: history.requestParameters,
                 usedParameters: {},
-                metricQuery,
+                metricQuery: history.metricQuery,
                 cacheKey,
                 pivotConfiguration: null,
                 originalColumns: {},
@@ -11791,7 +12112,9 @@ export class AsyncQueryService extends ProjectService {
                     results_updated_at: reusable.resultsUpdatedAt,
                     results_expires_at: reusable.resultsExpiresAt,
                     columns: reusable.columns,
-                    fields: pythonColumnsToFields(reusable.columns ?? {}),
+                    fields:
+                        history.fields ??
+                        pythonColumnsToFields(reusable.columns ?? {}),
                 },
                 account,
             );
@@ -11826,7 +12149,7 @@ export class AsyncQueryService extends ProjectService {
                 queryUuid,
                 context,
                 query: payload.query,
-                rowLimit: effectiveLimit,
+                rowLimit: limit,
                 outcome: 'ok',
                 errorMessage: null,
                 durationMs: Date.now() - queryCreatedAt.getTime(),
@@ -11836,7 +12159,7 @@ export class AsyncQueryService extends ProjectService {
                     : null,
                 truncated: null,
             });
-            return { queryUuid };
+            return { queryUuid, reusable };
         }
 
         void this.runApiQuery({
@@ -11846,10 +12169,12 @@ export class AsyncQueryService extends ProjectService {
             organizationUuid,
             connector,
             payload,
-            limit: effectiveLimit,
+            limit,
             cacheKey,
             context,
             queryCreatedAt,
+            fields: history.fields,
+            toResult,
         }).catch((e) => {
             this.logger.error(
                 `Async api query ${queryUuid} failed outside its error path: ${getErrorMessage(
@@ -11858,7 +12183,7 @@ export class AsyncQueryService extends ProjectService {
             );
         });
 
-        return { queryUuid };
+        return { queryUuid, reusable: null };
     }
 
     private async runApiQuery({
@@ -11872,6 +12197,8 @@ export class AsyncQueryService extends ProjectService {
         cacheKey,
         context,
         queryCreatedAt,
+        fields,
+        toResult,
     }: {
         account: Account;
         queryUuid: string;
@@ -11883,6 +12210,8 @@ export class AsyncQueryService extends ProjectService {
         cacheKey: string;
         context: QueryExecutionContext;
         queryCreatedAt: Date;
+        fields: ItemsMap | null;
+        toResult: ApiResultShaper;
     }): Promise<void> {
         const { connector: connectorType } = connector.describe();
         const attributes = {
@@ -11945,6 +12274,7 @@ export class AsyncQueryService extends ProjectService {
                             : {}),
                     });
 
+                    const shaped = toResult(result);
                     const resultsStorageClient =
                         this.getResultsStorageClientForContext(context);
                     if (!resultsStorageClient.isEnabled) {
@@ -11961,7 +12291,7 @@ export class AsyncQueryService extends ProjectService {
                             name: 'api.query.upload_result',
                             attributes: {
                                 ...attributes,
-                                'lightdash.totalRows': result.rows.length,
+                                'lightdash.totalRows': shaped.rows.length,
                             },
                         },
                         async () => {
@@ -11972,17 +12302,12 @@ export class AsyncQueryService extends ProjectService {
                                     ),
                                     { contentType: 'application/jsonl' },
                                 );
-                            await upload.write(result.rows);
+                            await upload.write(shaped.rows);
                             await upload.close();
                         },
                     );
 
-                    const columns: ResultColumns = Object.fromEntries(
-                        result.columns.map((column) => [
-                            column.name,
-                            { reference: column.name, type: column.type },
-                        ]),
-                    );
+                    const { columns } = shaped;
                     await this.queryHistoryModel.update(
                         queryUuid,
                         projectUuid,
@@ -11990,7 +12315,7 @@ export class AsyncQueryService extends ProjectService {
                             status: QueryHistoryStatus.READY,
                             error: null,
                             warehouse_execution_time_ms: Date.now() - startedAt,
-                            total_row_count: result.rows.length,
+                            total_row_count: shaped.rows.length,
                             cache_key: cacheKey,
                             results_file_name: fileName,
                             results_created_at: createdAt,
@@ -12000,7 +12325,7 @@ export class AsyncQueryService extends ProjectService {
                                 createdAt,
                             ),
                             columns,
-                            fields: pythonColumnsToFields(columns),
+                            fields: fields ?? pythonColumnsToFields(columns),
                         },
                         account,
                     );
@@ -12024,19 +12349,19 @@ export class AsyncQueryService extends ProjectService {
                         queryCreatedAt,
                         outcome: 'ok',
                         errorMessage: null,
-                        totalRowCount: result.rows.length,
-                        columnsCount: result.columns.length,
+                        totalRowCount: shaped.rows.length,
+                        columnsCount: Object.keys(shaped.columns).length,
                         truncated: result.truncated,
                     });
                     logCall({
                         outcome: 'ok',
                         errorMessage: null,
-                        rowCount: result.rows.length,
-                        columnCount: result.columns.length,
+                        rowCount: shaped.rows.length,
+                        columnCount: Object.keys(shaped.columns).length,
                         truncated: result.truncated,
                     });
                     this.logger.info(
-                        `Api query ${queryUuid} ready: ${result.rows.length} rows${
+                        `Api query ${queryUuid} ready: ${shaped.rows.length} rows${
                             result.truncated ? ' (truncated)' : ''
                         } from ${connectorType} in ${Date.now() - startedAt}ms`,
                     );
@@ -14866,6 +15191,10 @@ export class AsyncQueryService extends ProjectService {
                             ),
                             errorName: e instanceof Error ? e.name : undefined,
                             errorCode: (e as { code?: string })?.code,
+                            warehouseTimeout:
+                                e instanceof WarehouseQueryTimeoutError
+                                    ? e.data
+                                    : undefined,
                             errorMessage: getErrorMessage(e),
                             ...queryTags,
                         });

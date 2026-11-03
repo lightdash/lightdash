@@ -7,6 +7,7 @@ describeContentAsCodeSchemaContract({
     serverMetadataFields: ['dbtModelIdentity'],
     skippedModelFields: [
         'aiHint',
+        'apiSource',
         'baseTable',
         'caseSensitive',
         'customMeta',

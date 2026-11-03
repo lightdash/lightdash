@@ -20,8 +20,13 @@ const AnalyticsHistoryBackfill = () => {
     return (
         <SettingsCard>
             <Stack gap="md">
-                <Title order={5}>Historical activity</Title>
+                <Title order={5}>Additional historical records</Title>
                 <Stack gap="xs">
+                    <Text fz="sm" c="dimmed">
+                        Retained database records supplement collected events
+                        and may contain less detail. This import runs separately
+                        from event processing.
+                    </Text>
                     <Text fz="sm" c="dimmed">
                         Includes: retained queries, AI token usage, and activity
                         records for views, apps, AI conversations, tools and
@@ -49,8 +54,9 @@ const AnalyticsHistoryBackfill = () => {
                 )}
                 {status.data?.running && (
                     <Text fz="sm">
-                        Backfill is running in the background. You can leave
-                        this page.
+                        Backfill is running in the background. This can take a
+                        few minutes, or longer for larger histories. You can
+                        leave this page.
                     </Text>
                 )}
                 <Group>

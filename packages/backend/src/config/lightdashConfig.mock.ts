@@ -246,6 +246,16 @@ export const lightdashConfigMock: LightdashConfig = {
                 maxBatches: 100,
             },
         },
+        appStateHistory: {
+            cleanup: {
+                enabled: true,
+                retentionDays: 90,
+                keepVersions: 50,
+                batchSize: 1000,
+                delayMs: 100,
+                maxBatches: 100,
+            },
+        },
     },
     secureCookies: false,
     updateCheck: { enabled: true },

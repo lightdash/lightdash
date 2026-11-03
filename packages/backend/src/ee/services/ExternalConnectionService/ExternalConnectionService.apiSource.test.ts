@@ -77,6 +77,7 @@ const buildService = ({
         getProjectOrganizationUuid: vi.fn().mockResolvedValue('org-1'),
         getDecryptedSecret: vi.fn().mockResolvedValue('phx_secret'),
         create: vi.fn().mockResolvedValue(connections[0]),
+        update: vi.fn().mockResolvedValue(connections[0]),
         softDelete: vi.fn().mockResolvedValue(undefined),
         tryAcquireApiSourceCallLease: vi.fn().mockResolvedValue(true),
         tryCountApiSourceCall: vi.fn().mockResolvedValue(true),
@@ -90,7 +91,12 @@ const buildService = ({
     const schedulerClient = {
         scanApiSourceSchema: vi.fn().mockResolvedValue({ jobId: 'job-1' }),
     };
+    const projectModel = {
+        replaceApiSourceExplores: vi.fn().mockResolvedValue(undefined),
+        deleteApiSourceExplores: vi.fn().mockResolvedValue(undefined),
+    };
     const service = new ExternalConnectionService({
+        projectModel,
         allowedPrivateHostCidrs: {},
         externalConnectionModel,
         analytics,
@@ -103,7 +109,13 @@ const buildService = ({
         service as unknown as { createAuditedAbility: () => unknown },
         'createAuditedAbility',
     ).mockReturnValue({ can: () => canView, cannot: () => !canView });
-    return { service, externalConnectionModel, analytics, schedulerClient };
+    return {
+        service,
+        externalConnectionModel,
+        analytics,
+        schedulerClient,
+        projectModel,
+    };
 };
 
 const postHogQueryResponse = (
@@ -543,5 +555,111 @@ describe('ExternalConnectionService live source writes', () => {
         await expect(
             service.update(account, 'proj-1', 'conn-1', { apiSource: null }),
         ).rejects.toThrow(ParameterError);
+    });
+});
+
+describe('ExternalConnectionService live source explores', () => {
+    const PROPERTY_DEFINITIONS = '/api/projects/303731/property_definitions/';
+    const postHogSource: CreateExternalConnection = {
+        name: 'PostHog',
+        type: 'bearer_token',
+        origin: 'https://eu.posthog.com',
+        secret: 'phx_secret',
+        allowedPathPrefixes: ['/api/projects/303731/query/'],
+        allowedMethods: ['POST'],
+        allowedContentTypes: ['application/json'],
+        apiSource: { connector: ApiConnectorType.POSTHOG, projectId: '303731' },
+    };
+
+    const respondToScan = (scan: 'ok' | 'fail') => {
+        mockSecureFetch.mockImplementation(async (url) => {
+            if (!String(url).includes(PROPERTY_DEFINITIONS)) {
+                throw new Error(`unexpected call to ${url}`);
+            }
+            if (scan === 'fail') {
+                throw new SecureFetchError('timeout', 'timed out');
+            }
+            return {
+                status: 200,
+                contentType: 'application/json',
+                headers: {},
+                bodyText: JSON.stringify({
+                    results: [{ name: 'plan', property_type: 'String' }],
+                }),
+                truncated: false,
+            };
+        });
+    };
+
+    const savedFieldIds = (
+        projectModel: ReturnType<typeof buildService>['projectModel'],
+    ) => {
+        const [[projectUuid, connectionUuid, explores]] =
+            projectModel.replaceApiSourceExplores.mock.calls;
+        expect({ projectUuid, connectionUuid }).toEqual({
+            projectUuid: 'proj-1',
+            connectionUuid: 'conn-1',
+        });
+        return Object.keys(explores[0].apiSource.fields);
+    };
+
+    it('saves the base layer plus scanned properties when a source is created', async () => {
+        respondToScan('ok');
+        const { service, projectModel } = buildService();
+        await service.create(account, 'proj-1', postHogSource);
+
+        expect(savedFieldIds(projectModel)).toContain(
+            'posthog_conn1_events_property_plan',
+        );
+        expect(mockSecureFetch.mock.calls.map(([url]) => url)).toEqual([
+            `https://eu.posthog.com${PROPERTY_DEFINITIONS}?type=event&limit=500`,
+            `https://eu.posthog.com${PROPERTY_DEFINITIONS}?type=person&limit=500`,
+        ]);
+    });
+
+    it('saves the base layer alone when a new source cannot be scanned', async () => {
+        respondToScan('fail');
+        const { service, projectModel } = buildService();
+        await service.create(account, 'proj-1', postHogSource);
+
+        const fieldIds = savedFieldIds(projectModel);
+        expect(fieldIds).toContain('posthog_conn1_events_event');
+        expect(fieldIds).not.toContain('posthog_conn1_events_property_plan');
+    });
+
+    it('keeps the current explores, and the edit, when an edited source cannot be scanned', async () => {
+        respondToScan('fail');
+        const { service, projectModel } = buildService();
+        await expect(
+            service.update(account, 'proj-1', 'conn-1', { name: 'Renamed' }),
+        ).resolves.toMatchObject({ externalConnectionUuid: 'conn-1' });
+        expect(projectModel.replaceApiSourceExplores).not.toHaveBeenCalled();
+    });
+
+    it('reports a failed scan when an admin refreshes the explores', async () => {
+        respondToScan('fail');
+        const { service, projectModel } = buildService();
+        await expect(
+            service.refreshApiSourceExplores(account, 'proj-1', 'conn-1'),
+        ).rejects.toThrow(TimeoutError);
+        expect(projectModel.replaceApiSourceExplores).not.toHaveBeenCalled();
+    });
+
+    it('removes the explores of a deleted source', async () => {
+        const { service, projectModel } = buildService();
+        await service.delete(account, 'proj-1', 'conn-1');
+        expect(
+            projectModel.deleteApiSourceExplores,
+        ).toHaveBeenCalledExactlyOnceWith('proj-1', 'conn-1');
+    });
+
+    it('answers explore queries for accounts that cannot view the connection', async () => {
+        const { service } = buildService({ canView: false });
+        const connector = await service.getApiSourceConnector(
+            account,
+            'proj-1',
+            'conn-1',
+        );
+        expect(connector.describe().connector).toBe(ApiConnectorType.POSTHOG);
     });
 });

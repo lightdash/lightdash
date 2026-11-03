@@ -358,6 +358,7 @@ const getTagsForTask: {
     [SCHEDULER_TASKS.CLEAN_AI_DEEP_RESEARCH_REPORTS]: () => ({}),
     [SCHEDULER_TASKS.CLEAN_AI_AGENT_THREADS]: () => ({}),
     [SCHEDULER_TASKS.CLEAN_SCIM_REQUEST_LOGS]: () => ({}),
+    [SCHEDULER_TASKS.CLEAN_APP_STATE_HISTORY]: () => ({}),
     [SCHEDULER_TASKS.AI_WRITEBACK_PIPELINE]: (payload) => ({
         'organization.uuid': payload.organizationUuid,
         'user.uuid': payload.userUuid,
@@ -382,6 +383,15 @@ const getTagsForTask: {
               }),
         'agent.uuid': payload.agentUuid,
     }),
+    [SCHEDULER_TASKS.DATA_APP_INSTRUCTION_INVESTIGATE]: (payload) => ({
+        'organization.uuid': payload.organizationUuid,
+        'user.uuid': payload.userUuid,
+        'project.uuid': payload.projectUuid,
+        ...(payload.target.kind === 'dashboard'
+            ? { 'dashboard.uuid': payload.target.dashboardUuid }
+            : { 'app.uuid': payload.target.appUuid }),
+        'agent.uuid': payload.agentUuid,
+    }),
     [SCHEDULER_TASKS.AGENT_ONBOARDING_RUN]: (payload) => ({
         'organization.uuid': payload.organizationUuid,
         'user.uuid': payload.userUuid,
@@ -395,6 +405,15 @@ const getTagsForTask: {
     }),
     [SCHEDULER_TASKS.CLEAN_EXPIRED_PREVIEWS]: () => ({}),
     [SCHEDULER_TASKS.COMPACT_USAGE_EVENTS]: () => ({}),
+    [SCHEDULER_TASKS.RECONCILE_ANALYTICS_CONTENT]: (
+        payload,
+    ): Record<string, string> => {
+        if (payload.organizationUuid === undefined) return {};
+        return { 'organization.uuid': payload.organizationUuid };
+    },
+    [SCHEDULER_TASKS.SYNC_ANALYTICS_CONTENT]: (payload) => ({
+        'organization.uuid': payload.organizationUuid,
+    }),
     [SCHEDULER_TASKS.BACKFILL_USAGE_QUERY_HISTORY]: (payload) => ({
         'organization.uuid': payload.organizationUuid,
     }),

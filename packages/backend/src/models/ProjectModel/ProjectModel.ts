@@ -216,10 +216,6 @@ import { type StoredPreAggregateRefresh } from '../../services/ProjectService/pr
 import { wrapSentryTransaction, wrapSentryTransactionSync } from '../../utils';
 import { AwsWebIdentityResolver } from '../../utils/awsWebIdentity/AwsWebIdentityResolver';
 import {
-    defaultGoogleIdentityTokenSource,
-    type GoogleIdentityTokenSource,
-} from '../../utils/awsWebIdentity/googleIdentityTokenSource';
-import {
     chunkAsyncRowsByBytes,
     chunkRowsByBytes,
 } from '../../utils/chunkRowsByBytes';
@@ -232,11 +228,17 @@ import {
     hasSameWarehouseCredentialDestination,
 } from '../../utils/credentialDestination';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
+import { BigqueryWorkloadIdentityResolver } from '../../utils/googleIdentity/BigqueryWorkloadIdentityResolver';
+import {
+    defaultGoogleIdentityTokenSource,
+    type GoogleIdentityTokenSource,
+} from '../../utils/googleIdentity/googleIdentityTokenSource';
 import {
     acquireProjectSlugLock,
     generateUniqueProjectSlug,
     generateUniqueSlugScopedToProject,
 } from '../../utils/SlugUtils';
+import { stripSensitiveWarehouseCredentials } from '../../utils/stripSensitiveWarehouseCredentials';
 import { warehouseCredentialsEqual } from '../../utils/warehouseCredentialsEqual';
 import {
     copyWarehouseCredentialVersions,
@@ -248,7 +250,6 @@ import {
 } from '../../utils/warehouseCredentialVersion';
 import { AwsWebIdentityAudienceModel } from '../AwsWebIdentityAudienceModel';
 import { FeatureFlagModel } from '../FeatureFlagModel/FeatureFlagModel';
-import { OrganizationWarehouseCredentialsModel } from '../OrganizationWarehouseCredentialsModel';
 import { RefreshTokenSourceChangedError } from '../RefreshTokenRotation/RefreshTokenRotation';
 import { clearProjectExtraRoles } from '../roleSetUtils';
 import {
@@ -574,6 +575,7 @@ export class ProjectModel {
     private connectionRouter: WarehouseConnectionRouter;
 
     readonly awsWebIdentity: AwsWebIdentityResolver;
+    readonly bigqueryWorkloadIdentity: BigqueryWorkloadIdentityResolver;
 
     constructor(args: ProjectModelArguments) {
         this.database = args.database;
@@ -586,14 +588,24 @@ export class ProjectModel {
             database: args.database,
             lightdashConfig: args.lightdashConfig,
         });
-        this.awsWebIdentity = new AwsWebIdentityResolver({
-            isEnabledFor: async (organizationUuid) =>
+        const isFlagEnabledFor =
+            (featureFlagId: FeatureFlags) => async (organizationUuid: string) =>
                 (
                     await featureFlagModel.get({
                         user: { organizationUuid },
-                        featureFlagId: FeatureFlags.AthenaWebIdentityAuth,
+                        featureFlagId,
                     })
-                ).enabled,
+                ).enabled;
+        this.bigqueryWorkloadIdentity = new BigqueryWorkloadIdentityResolver({
+            isEnabledFor: isFlagEnabledFor(
+                FeatureFlags.BigqueryWorkloadIdentityAuth,
+            ),
+            tokenSource:
+                args.googleIdentityTokenSource ??
+                defaultGoogleIdentityTokenSource,
+        });
+        this.awsWebIdentity = new AwsWebIdentityResolver({
+            isEnabledFor: isFlagEnabledFor(FeatureFlags.AthenaWebIdentityAuth),
             audienceModel: new AwsWebIdentityAudienceModel({
                 database: args.database,
             }),
@@ -687,9 +699,12 @@ export class ProjectModel {
                 completeConfig,
             ) ||
             // BigQuery ADC authentication does not require credentials to be set
+            // BigQuery workload identity federation must not inherit keyfiles either.
             (incompleteConfig.type === WarehouseTypes.BIGQUERY &&
-                incompleteConfig.authenticationType ===
-                    BigqueryAuthenticationType.ADC) ||
+                (incompleteConfig.authenticationType ===
+                    BigqueryAuthenticationType.ADC ||
+                    incompleteConfig.authenticationType ===
+                        BigqueryAuthenticationType.WORKLOAD_IDENTITY_FEDERATION)) ||
             // Athena IAM role and web identity authentication should not merge old access keys
             (incompleteConfig.type === WarehouseTypes.ATHENA &&
                 (incompleteConfig.authenticationType ===
@@ -1483,8 +1498,7 @@ export class ProjectModel {
                           }
                         : {}),
                     created_by_user_uuid: userUuid,
-                    organization_warehouse_credentials_uuid:
-                        data.organizationWarehouseCredentialsUuid ?? null,
+                    organization_warehouse_credentials_uuid: null,
                     provisioning_source: provisioningSource ?? null,
                     ...(expiresAt !== undefined
                         ? { expires_at: expiresAt }
@@ -1882,8 +1896,7 @@ export class ProjectModel {
                     dbt_connection_type: data.dbtConnection.type,
                     dbt_connection: encryptedCredentials,
                     dbt_version: data.dbtVersion,
-                    organization_warehouse_credentials_uuid:
-                        data.organizationWarehouseCredentialsUuid,
+                    organization_warehouse_credentials_uuid: null,
                     project_defaults: data.projectDefaults ?? null,
                 })
                 .where('project_uuid', projectUuid)
@@ -1990,6 +2003,11 @@ export class ProjectModel {
             .forUpdate(ProjectTableName)
             .first();
         if (!project) return null;
+        if (project.organization_warehouse_credentials_uuid) {
+            throw new ParameterError(
+                'Organization warehouse credentials are no longer supported',
+            );
+        }
         const row = await trx(WarehouseCredentialTableName)
             .where('project_id', project.project_id)
             .select<{ encrypted_credentials: Buffer }[]>(
@@ -1997,13 +2015,6 @@ export class ProjectModel {
             )
             .forUpdate()
             .first();
-        if (project.organization_warehouse_credentials_uuid) {
-            return this.getOrganizationWarehouseCredentials(
-                project.organization_warehouse_credentials_uuid,
-                project.organization_uuid,
-                trx,
-            );
-        }
         return row
             ? this.decryptWarehouseCredentials(row.encrypted_credentials)
             : null;
@@ -2577,6 +2588,11 @@ export class ProjectModel {
                     );
                 }
                 const [project] = projects;
+                if (project.organization_warehouse_credentials_uuid) {
+                    throw new ParameterError(
+                        'Organization warehouse credentials are no longer supported',
+                    );
+                }
                 if (!project.dbt_connection) {
                     throw new NotFoundError(
                         'Project has no valid dbt credentials',
@@ -2616,9 +2632,7 @@ export class ProjectModel {
                     schedulerFailureContactOverride:
                         project.scheduler_failure_contact_override,
                     createdByUserUuid: project.created_by_user_uuid,
-                    organizationWarehouseCredentialsUuid:
-                        project.organization_warehouse_credentials_uuid ??
-                        undefined,
+                    organizationWarehouseCredentialsUuid: undefined,
                     hasDefaultUserSpaces: project.has_default_user_spaces,
                     projectDefaults: project.project_defaults ?? undefined,
                     colorPaletteUuid: project.color_palette_uuid ?? null,
@@ -2631,20 +2645,6 @@ export class ProjectModel {
                     ),
                 };
 
-                // If project uses organization warehouse credentials, load them
-                if (project.organization_warehouse_credentials_uuid) {
-                    const sensitiveCredentials =
-                        await this.getOrganizationWarehouseCredentials(
-                            project.organization_warehouse_credentials_uuid,
-                            project.organization_uuid,
-                        );
-                    return {
-                        ...result,
-                        warehouseConnection: sensitiveCredentials,
-                    };
-                }
-
-                // Fall back to project-level credentials
                 if (!project.warehouse_type) {
                     return result;
                 }
@@ -2833,45 +2833,6 @@ export class ProjectModel {
             }
             default:
                 return nonSensitiveCredentials;
-        }
-    }
-
-    private async getOrganizationWarehouseCredentials(
-        organizationWarehouseCredentialsUuid: string,
-        organizationUuid: string, // Extra filter value to ensure we are getting the credentials from the correct organization
-        database: Knex = this.database,
-    ): Promise<CreateWarehouseCredentials> {
-        const [orgCredentials] = await database(
-            'organization_warehouse_credentials',
-        )
-            .where(
-                'organization_warehouse_credentials_uuid',
-                organizationWarehouseCredentialsUuid,
-            )
-            .andWhere('organization_uuid', organizationUuid)
-            .select('warehouse_connection');
-
-        if (!orgCredentials) {
-            throw new NotFoundError(
-                'Organization warehouse credentials not found',
-            );
-        }
-
-        try {
-            return withWarehouseCredentialVersion(
-                normalizeWarehouseCredentials(
-                    JSON.parse(
-                        this.encryptionUtil.decrypt(
-                            orgCredentials.warehouse_connection,
-                        ),
-                    ) as CreateWarehouseCredentials,
-                ),
-                `organization:${organizationWarehouseCredentialsUuid}`,
-            );
-        } catch (e) {
-            throw new UnexpectedServerError(
-                'Failed to load organization warehouse credentials',
-            );
         }
     }
 
@@ -3116,6 +3077,49 @@ export class ProjectModel {
             exploreCount: Number(row?.exploreCount ?? 0),
             totalBytes: Number(row?.totalBytes ?? 0),
         };
+    }
+
+    async findExistingExploreNames(
+        projectUuid: string,
+        exploreNames: string[],
+    ): Promise<string[]> {
+        return this.database(CachedExploreTableName)
+            .where('project_uuid', projectUuid)
+            .whereIn('name', exploreNames)
+            .distinct('name')
+            .pluck('name');
+    }
+
+    /**
+     * Matches on sqlTable because a join can alias the table, which makes it
+     * invisible to table_names.
+     */
+    async findExploreNamesReadingBaseTables(
+        projectUuid: string,
+        exploreNames: string[],
+    ): Promise<string[]> {
+        const { rows } = await this.database.raw<{
+            rows: { name: string }[];
+        }>(
+            `SELECT DISTINCT reader.name
+             FROM ${CachedExploreTableName} reader
+             CROSS JOIN LATERAL jsonb_each(
+                 CASE WHEN jsonb_typeof(reader.explore->'tables') = 'object'
+                      THEN reader.explore->'tables'
+                      ELSE '{}'::jsonb
+                 END
+             ) AS reader_table
+             WHERE reader.project_uuid = ?
+               AND reader.explore->>'type' IS DISTINCT FROM 'pre_aggregate'
+               AND reader_table.value->>'sqlTable' IN (
+                   SELECT listed.explore->'tables'->(listed.explore->>'baseTable')->>'sqlTable'
+                   FROM ${CachedExploreTableName} listed
+                   WHERE listed.project_uuid = ?
+                     AND listed.name = ANY(?)
+               )`,
+            [projectUuid, projectUuid, exploreNames],
+        );
+        return rows.map(({ name }) => name);
     }
 
     async findExploreTableSummariesFromCache(
@@ -6031,11 +6035,6 @@ export class ProjectModel {
         return new WarehouseConnectionModel({
             database: this.database,
             encryptionUtil: this.encryptionUtil,
-            organizationWarehouseCredentialsModel:
-                new OrganizationWarehouseCredentialsModel({
-                    database: this.database,
-                    encryptionUtil: this.encryptionUtil,
-                }),
         });
     }
 
@@ -6058,9 +6057,7 @@ export class ProjectModel {
                       await model.getProject(projectUuid),
                       target.warehouseConnectionUuid,
                   );
-        return OrganizationWarehouseCredentialsModel.stripSensitiveCredentials(
-            credentials,
-        );
+        return stripSensitiveWarehouseCredentials(credentials);
     }
 
     private async getDbtSourceWarehouseConnectionUuid(
@@ -6074,9 +6071,9 @@ export class ProjectModel {
             return null;
         }
         const source = await this.database('project_dbt_sources')
-            .select<{ warehouse_connection_uuid: string | null }>(
-                'warehouse_connection_uuid',
-            )
+            .select<{
+                warehouse_connection_uuid: string | null;
+            }>('warehouse_connection_uuid')
             .where('project_uuid', projectUuid)
             .where('project_dbt_source_uuid', sourceUuid)
             .first();
@@ -6367,14 +6364,11 @@ export class ProjectModel {
                 `Cannot find any warehouse credentials for project.`,
             );
         }
+
         if (row.organization_warehouse_credentials_uuid) {
-            // If organization_warehouse_credentials_uuid is set, we overwrite the credentials with the organization credentials
-            const orgCredentials =
-                await this.getOrganizationWarehouseCredentials(
-                    row.organization_warehouse_credentials_uuid,
-                    row.organization_uuid,
-                );
-            return orgCredentials;
+            throw new ParameterError(
+                'Organization warehouse credentials are no longer supported',
+            );
         }
 
         try {
@@ -8563,11 +8557,23 @@ export class ProjectModel {
      * Identity options for warehouse clients that authenticate as this
      * instance. A web identity audience is only used for the organization it
      * was generated for, so a connection can't use another organization's.
+     * BigQuery workload identity federation requires the owning organization's flag.
      */
     async getWarehouseClientIdentityOptions(
         credentials: CreateWarehouseCredentials | undefined,
         organizationUuid: string | undefined,
-    ): Promise<Pick<WarehouseClientOptions, 'awsCredentials'>> {
+    ): Promise<
+        Pick<
+            WarehouseClientOptions,
+            'awsCredentials' | 'bigqueryExternalAccount'
+        >
+    > {
+        const bigqueryExternalAccount =
+            await this.bigqueryWorkloadIdentity.getExternalAccountCredentials(
+                credentials,
+                organizationUuid,
+            );
+        if (bigqueryExternalAccount) return { bigqueryExternalAccount };
         const awsCredentials = await this.awsWebIdentity.resolveCredentials(
             credentials,
             organizationUuid,
@@ -8758,6 +8764,80 @@ export class ProjectModel {
         });
     }
 
+    /**
+     * Replaces every explore of one live data source. Sources are soft
+     * deleted and explores have no foreign key, so explores are always
+     * written and removed per source.
+     */
+    async replaceApiSourceExplores(
+        projectUuid: string,
+        connectionUuid: string,
+        explores: Explore[],
+    ): Promise<void> {
+        await this.database.transaction(async (trx) => {
+            await ProjectModel.lockAndEnsureCachedExplores(trx, projectUuid);
+            const clashing = await trx(CachedExploreTableName)
+                .select('name')
+                .where('project_uuid', projectUuid)
+                .whereIn(
+                    'name',
+                    explores.map(({ name }) => name),
+                )
+                .whereRaw(
+                    "(explore->>'type' IS DISTINCT FROM ? OR explore->'apiSource'->>'connectionUuid' IS DISTINCT FROM ?)",
+                    [ExploreType.API_SOURCE, connectionUuid],
+                );
+            if (clashing.length > 0) {
+                throw new AlreadyExistsError(
+                    `Explore "${clashing[0].name}" already exists`,
+                );
+            }
+            await ProjectModel.deleteApiSourceExploreRows(
+                trx,
+                projectUuid,
+                connectionUuid,
+            );
+            if (explores.length > 0) {
+                await trx(CachedExploreTableName).insert(
+                    explores.map((explore) => ({
+                        project_uuid: projectUuid,
+                        name: explore.name,
+                        table_names: Object.keys(explore.tables),
+                        explore,
+                    })),
+                );
+            }
+        });
+    }
+
+    async deleteApiSourceExplores(
+        projectUuid: string,
+        connectionUuid: string,
+    ): Promise<void> {
+        await this.database.transaction(async (trx) => {
+            await ProjectModel.lockAndEnsureCachedExplores(trx, projectUuid);
+            await ProjectModel.deleteApiSourceExploreRows(
+                trx,
+                projectUuid,
+                connectionUuid,
+            );
+        });
+    }
+
+    private static async deleteApiSourceExploreRows(
+        trx: Transaction,
+        projectUuid: string,
+        connectionUuid: string,
+    ): Promise<void> {
+        await trx(CachedExploreTableName)
+            .where('project_uuid', projectUuid)
+            .whereRaw("explore->>'type' = ?", [ExploreType.API_SOURCE])
+            .whereRaw("explore->'apiSource'->>'connectionUuid' = ?", [
+                connectionUuid,
+            ])
+            .delete();
+    }
+
     static async lockAndEnsureCachedExplores(
         trx: Transaction,
         projectUuid: string,
@@ -8818,7 +8898,7 @@ export class ProjectModel {
         queryTimezone: string | null;
     }> {
         const [project] = await this.database(ProjectTableName)
-            .select('organization_warehouse_credentials_uuid', 'query_timezone')
+            .select('query_timezone')
             .where('project_uuid', projectUuid);
 
         if (!project) {
@@ -8828,8 +8908,7 @@ export class ProjectModel {
         }
 
         return {
-            organizationWarehouseCredentialsUuid:
-                project.organization_warehouse_credentials_uuid,
+            organizationWarehouseCredentialsUuid: null,
             queryTimezone: project.query_timezone,
         };
     }

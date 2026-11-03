@@ -14,6 +14,7 @@ import {
     AppBuildFromSourceJobPayload,
     AppCaptureThumbnailJobPayload,
     AppGeneratePipelineJobPayload,
+    DataAppInstructionInvestigateJobPayload,
     DataAppInvestigateJobPayload,
     EE_SCHEDULER_TASKS,
     EmbedArtifactVersionJobPayload,
@@ -311,6 +312,23 @@ export class CommercialSchedulerClient extends SchedulerClient {
                 runAt: new Date(),
                 maxAttempts: 1,
                 jobKey: `data-app-investigate:${payload.analysisId}:${payload.anomalyId}:${payload.userUuid}`,
+            },
+        );
+        return { jobId };
+    }
+
+    async dataAppInstructionInvestigate(
+        payload: DataAppInstructionInvestigateJobPayload,
+    ) {
+        const graphileClient = await this.graphileUtils;
+        const { id: jobId } = await graphileClient.addJob(
+            EE_SCHEDULER_TASKS.DATA_APP_INSTRUCTION_INVESTIGATE,
+            payload,
+            {
+                runAt: new Date(),
+                maxAttempts: 1,
+                // No jobKey: unlike anomalies nothing dedupes two different
+                // instructions, and repeat clicks are rate-limited upstream.
             },
         );
         return { jobId };

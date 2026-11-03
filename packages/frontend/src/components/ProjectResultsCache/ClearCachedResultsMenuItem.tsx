@@ -1,5 +1,3 @@
-import { subject } from '@casl/ability';
-import { FeatureFlags } from '@lightdash/common';
 import { Menu } from '@mantine/core';
 import { IconDatabaseX } from '@tabler/icons-react';
 import { type FC } from 'react';
@@ -7,30 +5,12 @@ import {
     useInvalidateContentResultsCache,
     type ResultsCacheContent,
 } from '../../hooks/useProjectResultsCacheSettings';
-import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
-import useApp from '../../providers/App/useApp';
 import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
-
-const useCanClearCachedResults = (projectUuid: string) => {
-    const { user } = useApp();
-    const { data: resultsCacheFlag } = useServerFeatureFlag(
-        FeatureFlags.ResultsCacheEnabled,
-    );
-    return (
-        !!resultsCacheFlag?.enabled &&
-        !!user.data?.ability.can(
-            'manage',
-            subject('Project', {
-                organizationUuid: user.data.organizationUuid,
-                projectUuid,
-            }),
-        )
-    );
-};
+import { useCanClearCachedResults } from './useCanClearCachedResults';
 
 type MenuItemProps = {
-    projectUuid: string;
+    projectUuid: string | undefined;
     onClick: () => void;
 };
 

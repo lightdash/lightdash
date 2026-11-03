@@ -1242,7 +1242,6 @@ const parseAndSanitizeSchedulerTasks = (): Array<SchedulerTaskName> => {
         'SCHEDULER_EXCLUDE_TASKS',
     );
 
-    // If neither is set, return undefined (run all tasks)
     if (includeTasks.length === 0 && excludeTasks.length === 0) {
         return ALL_TASK_NAMES;
     }
@@ -1292,6 +1291,14 @@ const isDisabledBoolean = (value: string | undefined): boolean =>
     value !== undefined && ['0', 'false'].includes(value.trim().toLowerCase());
 
 const getBedrockConfig = (customHeaders: Record<string, string>) => {
+    const maxOutputTokens = getIntegerFromEnvironmentVariable(
+        'BEDROCK_MAX_OUTPUT_TOKENS',
+    );
+    if (maxOutputTokens !== undefined && maxOutputTokens < 1) {
+        throw new ParseError(
+            `Cannot parse environment variable "BEDROCK_MAX_OUTPUT_TOKENS". Value must be a positive integer but BEDROCK_MAX_OUTPUT_TOKENS=${maxOutputTokens}`,
+        );
+    }
     const baseUrl = process.env.BEDROCK_BASE_URL
         ? normalizeLlmGatewayBaseUrl(
               process.env.BEDROCK_BASE_URL,
@@ -1312,6 +1319,7 @@ const getBedrockConfig = (customHeaders: Record<string, string>) => {
             ...gateway,
             inferenceProfilePrefix:
                 process.env.BEDROCK_INFERENCE_PROFILE_PREFIX,
+            maxOutputTokens,
             modelName:
                 process.env.BEDROCK_MODEL_NAME || DEFAULT_BEDROCK_MODEL_NAME,
             embeddingModelName: process.env.BEDROCK_EMBEDDING_MODEL,
@@ -1333,6 +1341,7 @@ const getBedrockConfig = (customHeaders: Record<string, string>) => {
             ...gateway,
             inferenceProfilePrefix:
                 process.env.BEDROCK_INFERENCE_PROFILE_PREFIX,
+            maxOutputTokens,
             modelName:
                 process.env.BEDROCK_MODEL_NAME || DEFAULT_BEDROCK_MODEL_NAME,
             embeddingModelName: process.env.BEDROCK_EMBEDDING_MODEL,
@@ -1352,6 +1361,7 @@ const getBedrockConfig = (customHeaders: Record<string, string>) => {
             ...gateway,
             inferenceProfilePrefix:
                 process.env.BEDROCK_INFERENCE_PROFILE_PREFIX,
+            maxOutputTokens,
             modelName:
                 process.env.BEDROCK_MODEL_NAME || DEFAULT_BEDROCK_MODEL_NAME,
             embeddingModelName: process.env.BEDROCK_EMBEDDING_MODEL,
@@ -1839,6 +1849,16 @@ export type LightdashConfig = {
             cleanup: {
                 enabled: boolean;
                 retentionDays: number;
+                batchSize: number;
+                delayMs: number;
+                maxBatches: number;
+            };
+        };
+        appStateHistory: {
+            cleanup: {
+                enabled: boolean;
+                retentionDays: number;
+                keepVersions: number;
                 batchSize: number;
                 delayMs: number;
                 maxBatches: number;
@@ -3951,6 +3971,33 @@ export const parseConfig = (): LightdashConfig => {
                     maxBatches:
                         getIntegerFromEnvironmentVariable(
                             'SCIM_REQUEST_LOG_CLEANUP_MAX_BATCHES',
+                        ) ?? 100,
+                },
+            },
+            appStateHistory: {
+                cleanup: {
+                    enabled:
+                        process.env.APP_STATE_HISTORY_CLEANUP_ENABLED !==
+                        'false', // true by default
+                    retentionDays:
+                        getIntegerFromEnvironmentVariable(
+                            'APP_STATE_HISTORY_RETENTION_DAYS',
+                        ) ?? 90,
+                    keepVersions:
+                        getIntegerFromEnvironmentVariable(
+                            'APP_STATE_HISTORY_KEEP_VERSIONS',
+                        ) ?? 50,
+                    batchSize:
+                        getIntegerFromEnvironmentVariable(
+                            'APP_STATE_HISTORY_CLEANUP_BATCH_SIZE',
+                        ) ?? 1000,
+                    delayMs:
+                        getIntegerFromEnvironmentVariable(
+                            'APP_STATE_HISTORY_CLEANUP_DELAY_MS',
+                        ) ?? 100,
+                    maxBatches:
+                        getIntegerFromEnvironmentVariable(
+                            'APP_STATE_HISTORY_CLEANUP_MAX_BATCHES',
                         ) ?? 100,
                 },
             },

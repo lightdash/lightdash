@@ -765,6 +765,7 @@ export const REST_OPERATION_CAPABILITIES = {
     'DataAppAnalysisController.detect': [AgentCapability.Query],
     'DataAppAnalysisController.getAnalysis': [AgentCapability.ReadDiscover],
     'DataAppAnalysisController.investigate': [AgentCapability.Query],
+    'DataAppAnalysisController.investigateInstruction': [AgentCapability.Query],
     'DataAppAnalysisController.lookup': [AgentCapability.ReadDiscover],
     'DataAppAnalysisController.prompt': [AgentCapability.Query],
     'DashboardAnalysisController.detect': [AgentCapability.Query],
@@ -895,6 +896,9 @@ export const REST_OPERATION_CAPABILITIES = {
         AgentCapability.ReadDiscover,
     ],
     'ExternalConnectionController.proposeExternalConnectionConfig': [
+        AgentCapability.Administration,
+    ],
+    'ExternalConnectionController.refreshExternalConnectionExplores': [
         AgentCapability.Administration,
     ],
     'ExternalConnectionController.rotateExternalConnectionSecret': [
@@ -1324,22 +1328,6 @@ export const REST_OPERATION_CAPABILITIES = {
     'OrganizationSsoController.upsertOneLoginConfig': [
         AgentCapability.Administration,
     ],
-    'OrganizationWarehouseCredentialsController.create': [
-        AgentCapability.Administration,
-    ],
-    'OrganizationWarehouseCredentialsController.delete': [
-        AgentCapability.Delete,
-        AgentCapability.Administration,
-    ],
-    'OrganizationWarehouseCredentialsController.get': [
-        AgentCapability.ReadDiscover,
-    ],
-    'OrganizationWarehouseCredentialsController.getAll': [
-        AgentCapability.ReadDiscover,
-    ],
-    'OrganizationWarehouseCredentialsController.update': [
-        AgentCapability.Administration,
-    ],
     'ParametersController.getParameters': [AgentCapability.ReadDiscover],
     'ParametersController.getParametersList': [AgentCapability.ReadDiscover],
     'ParametersController.replaceParameters': [AgentCapability.Administration],
@@ -1622,6 +1610,9 @@ export const REST_OPERATION_CAPABILITIES = {
         AgentCapability.Administration,
     ],
     'ProjectController.updateProjectResultsCacheSettings': [
+        AgentCapability.Administration,
+    ],
+    'ProjectController.invalidateExploresResultsCache': [
         AgentCapability.Administration,
     ],
     'ProjectController.invalidateProjectResultsCache': [

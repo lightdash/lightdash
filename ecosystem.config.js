@@ -59,6 +59,7 @@ const instanceId = env.LD_INSTANCE_ID || 'lightdash';
 const apiPort = env.PORT || '8080';
 const schedulerPort = env.SCHEDULER_PORT || '8081';
 const debugPort = env.DEBUG_PORT || '9229';
+const debugHost = env.DEBUG_HOST || '127.0.0.1';
 const fePort = env.FE_PORT || undefined; // Vite auto-detects if not set
 const sdkTestPort = env.SDK_TEST_PORT || '3030';
 const sdkTestEnabled =
@@ -134,7 +135,7 @@ module.exports = {
             name: `${instanceId}-api`,
             script: 'src/index.ts',
             interpreter: 'node',
-            node_args: `--import tsx --inspect=127.0.0.1:${debugPort}`,
+            node_args: `--import tsx --inspect=${debugHost}:${debugPort}`,
             cwd: path.join(__dirname, 'packages/backend'),
             env: {
                 ...envWithPath,

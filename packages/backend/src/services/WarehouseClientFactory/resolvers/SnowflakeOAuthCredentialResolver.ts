@@ -277,6 +277,15 @@ export class SnowflakeOAuthCredentialResolver implements CredentialResolver<Crea
                     mapped,
                 );
             }
+            if (
+                mapped instanceof SnowflakeTokenError &&
+                owner?.kind === 'user'
+            ) {
+                throw new SnowflakeTokenError(mapped.message, {
+                    ...mapped.data,
+                    requiresUserReauthentication: true,
+                });
+            }
             throw mapped;
         }
     }
