@@ -1,5 +1,5 @@
 import { type SavedChart } from '@lightdash/common';
-import pick from 'lodash/pick';
+import { pick } from 'es-toolkit/compat';
 
 const savedChartVersionKeys = [
     'tableName',

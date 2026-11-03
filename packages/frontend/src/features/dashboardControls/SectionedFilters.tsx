@@ -37,7 +37,7 @@ import {
     IconFilter,
     IconPlus,
 } from '@tabler/icons-react';
-import isEqual from 'lodash/isEqual';
+import { isEqual } from 'es-toolkit/compat';
 import {
     useCallback,
     useEffect,

@@ -492,6 +492,9 @@ importers:
       echarts:
         specifier: 5.6.0
         version: 5.6.0
+      es-toolkit:
+        specifier: 1.53.1
+        version: 1.53.1
       exceljs:
         specifier: 4.4.0
         version: 4.4.0
@@ -570,9 +573,6 @@ importers:
       langchain:
         specifier: 0.3.37
         version: 0.3.37(@langchain/core@0.3.80(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.219.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.8.0(@opentelemetry/api@1.9.0))(openai@7.30.0(@aws-sdk/credential-provider-node@3.972.62)(@smithy/signature-v4@5.6.2)(undici@6.29.1)(zod@4.6.6)))(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.219.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.8.0(@opentelemetry/api@1.9.0))(axios@1.18.0(debug@4.4.3(supports-color@5.5.0))(supports-color@5.5.0))(encoding@0.1.13)(handlebars@4.7.9)(openai@7.30.0(@aws-sdk/credential-provider-node@3.972.62)(@smithy/signature-v4@5.6.2)(undici@6.29.1)(zod@4.6.6))
-      lodash:
-        specifier: 4.18.1
-        version: 4.18.1
       marked:
         specifier: 9.0.3
         version: 9.0.3
@@ -754,9 +754,6 @@ importers:
       '@types/jsonwebtoken':
         specifier: 9.0.5
         version: 9.0.5
-      '@types/lodash':
-        specifier: 4.14.202
-        version: 4.14.202
       '@types/node-fetch':
         specifier: 2.5.12
         version: 2.5.12
@@ -896,6 +893,9 @@ importers:
       commander:
         specifier: 9.5.0
         version: 9.5.0
+      es-toolkit:
+        specifier: 1.53.1
+        version: 1.53.1
       execa:
         specifier: 5.1.1
         version: 5.1.1
@@ -911,9 +911,6 @@ importers:
       js-yaml:
         specifier: 4.3.2
         version: 4.3.2
-      lodash:
-        specifier: 4.18.1
-        version: 4.18.1
       node-fetch:
         specifier: 2.7.0
         version: 2.7.0(encoding@0.1.13)
@@ -954,9 +951,6 @@ importers:
       '@types/js-yaml':
         specifier: 4.0.9
         version: 4.0.9
-      '@types/lodash':
-        specifier: 4.14.202
-        version: 4.14.202
       '@types/node-fetch':
         specifier: 2.6.13
         version: 2.6.13
@@ -1011,9 +1005,6 @@ importers:
       '@sidvind/better-ajv-errors':
         specifier: 7.0.0
         version: 7.0.0(ajv@8.18.0)
-      '@types/lodash':
-        specifier: 4.14.202
-        version: 4.14.202
       ai:
         specifier: 7.0.106
         version: 7.0.106(zod@4.6.6)
@@ -1044,6 +1035,9 @@ importers:
       echarts:
         specifier: 5.6.0
         version: 5.6.0
+      es-toolkit:
+        specifier: 1.53.1
+        version: 1.53.1
       handlebars:
         specifier: 4.7.9
         version: 4.7.9
@@ -1053,9 +1047,6 @@ importers:
       liquidjs:
         specifier: 10.27.2
         version: 10.27.2
-      lodash:
-        specifier: 4.18.1
-        version: 4.18.1
       moment:
         specifier: 2.29.4
         version: 2.29.4
@@ -1401,9 +1392,9 @@ importers:
       emoji-picker-react:
         specifier: 4.12.0
         version: 4.12.0(react@19.3.0)
-      eslint-plugin-lodash:
-        specifier: 8.0.0
-        version: 8.0.0(eslint@8.57.1(supports-color@9.1.0))
+      es-toolkit:
+        specifier: 1.53.1
+        version: 1.53.1
       fastest-levenshtein:
         specifier: 1.0.16
         version: 1.0.16
@@ -1437,9 +1428,6 @@ importers:
       leaflet.heat:
         specifier: 0.2.0
         version: 0.2.0
-      lodash:
-        specifier: 4.18.1
-        version: 4.18.1
       mantine-form-zod-resolver:
         specifier: 1.3.0
         version: 1.3.0(@mantine/form@9.6.0(react@19.3.0))(zod@4.6.6)
@@ -1651,9 +1639,6 @@ importers:
       '@types/js-yaml':
         specifier: 4.0.9
         version: 4.0.9
-      '@types/lodash':
-        specifier: 4.14.202
-        version: 4.14.202
       '@types/node-fetch':
         specifier: 2.6.12
         version: 2.6.12
@@ -1943,9 +1928,9 @@ importers:
       dayjs:
         specifier: 1.11.10
         version: 1.11.10
-      lodash:
-        specifier: 4.18.1
-        version: 4.18.1
+      es-toolkit:
+        specifier: 1.53.1
+        version: 1.53.1
       tslib:
         specifier: 2.8.1
         version: 2.8.1
@@ -1953,9 +1938,6 @@ importers:
       '@playwright/test':
         specifier: 1.63.0
         version: 1.63.0
-      '@types/lodash':
-        specifier: 4.14.202
-        version: 4.14.202
       '@types/node':
         specifier: 24.13.2
         version: 24.13.2
@@ -7434,9 +7416,6 @@ packages:
   '@types/linkify-it@5.0.0':
     resolution: {integrity: sha512-sVDA58zAw4eWAffKOaQH5/5j3XeayukzDk+ewSsnv3p4yJEZHCCzMDiZM8e0OUrRvmpGZ85jf4yDHkHsgBNr9Q==}
 
-  '@types/lodash@4.14.202':
-    resolution: {integrity: sha512-OvlIYQK9tNneDlS0VN54LLd5uiPCBOp7gS5Z0f1mjoJYBrtStzgmJBxONW3U6OZqdtNzZPmn9BS/7WI7BFFcFQ==}
-
   '@types/markdown-it@13.0.9':
     resolution: {integrity: sha512-1XPwR0+MgXLWfTn9gCsZ55AHOKW1WN+P9vr0PaQh5aerR9LLQXUbjfEAFhjmEmyoYFWAyuN2Mqkn40MZ4ukjBw==}
 
@@ -9835,6 +9814,9 @@ packages:
     resolution: {integrity: sha512-w+5mJ3GuFL+NjVtJlvydShqE1eN3h3PbI7/5LAsYJP/2qtuMXjfL2LpHSRqo4b4eSF5K/DH1JXKUAHSB2UW50g==}
     engines: {node: '>= 0.4'}
 
+  es-toolkit@1.53.1:
+    resolution: {integrity: sha512-VhMc6IXmexu8iYFfL2aaAww6IvJTdHlqBLruLoEUs33YD4IcP5DdZcLOybMsMmmLsiy1c8PsiLsrM0DdIuuRUA==}
+
   esbuild@0.25.11:
     resolution: {integrity: sha512-KohQwyzrKTQmhXDW1PjCv3Tyspn9n5GcY2RTDqeORIdIJY8yKIF7sTSopFmn/wpMPW4rdPXI0UE5LJLuq3bx0Q==}
     engines: {node: '>=18'}
@@ -9887,12 +9869,6 @@ packages:
   eslint-plugin-jsdoc@62.5.0:
     resolution: {integrity: sha512-D+1haMVDzW/ZMoPwOnsbXCK07rJtsq98Z1v+ApvDKxSzYTTcPgmFc/nyUDCGmxm2cP7g7hszyjYHO7Zodl/43w==}
     engines: {node: ^20.19.0 || ^22.13.0 || >=24}
-    peerDependencies:
-      eslint: 8.57.1
-
-  eslint-plugin-lodash@8.0.0:
-    resolution: {integrity: sha512-7DA8485FolmWRzh+8t4S8Pzin2TTuWfb0ZW3j/2fYElgk82ZanFz8vDcvc4BBPceYdX1p/za+tkbO68maDBGGw==}
-    engines: {node: '>=10'}
     peerDependencies:
       eslint: 8.57.1
 
@@ -22726,8 +22702,6 @@ snapshots:
 
   '@types/linkify-it@5.0.0': {}
 
-  '@types/lodash@4.14.202': {}
-
   '@types/markdown-it@13.0.9':
     dependencies:
       '@types/linkify-it': 3.0.5
@@ -25677,6 +25651,8 @@ snapshots:
       is-date-object: 1.1.0
       is-symbol: 1.1.1
 
+  es-toolkit@1.53.1: {}
+
   esbuild@0.25.11:
     optionalDependencies:
       '@esbuild/aix-ppc64': 0.25.11
@@ -25809,11 +25785,6 @@ snapshots:
       to-valid-identifier: 1.0.0
     transitivePeerDependencies:
       - supports-color
-
-  eslint-plugin-lodash@8.0.0(eslint@8.57.1(supports-color@9.1.0)):
-    dependencies:
-      eslint: 8.57.1(supports-color@9.1.0)
-      lodash: 4.18.1
 
   eslint-plugin-perfectionist@5.6.0(eslint@8.57.1(supports-color@5.5.0))(supports-color@5.5.0):
     dependencies:

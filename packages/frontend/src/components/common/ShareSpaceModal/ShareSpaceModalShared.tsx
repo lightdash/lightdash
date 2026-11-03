@@ -25,7 +25,7 @@ import {
     IconUsers,
     IconUsersGroup,
 } from '@tabler/icons-react';
-import chunk from 'lodash/chunk';
+import { chunk } from 'es-toolkit/compat';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { useUpdateMutation } from '../../../hooks/useSpaces';
 import useApp from '../../../providers/App/useApp';

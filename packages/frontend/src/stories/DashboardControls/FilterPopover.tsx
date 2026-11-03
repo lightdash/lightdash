@@ -34,7 +34,7 @@ import {
     IconSql,
     IconX,
 } from '@tabler/icons-react';
-import omit from 'lodash/omit';
+import { omit } from 'es-toolkit/compat';
 import { useEffect, useMemo, useRef, useState, type FC } from 'react';
 import FieldIcon from '../../components/common/Filters/FieldIcon';
 import FilterInputComponent from '../../components/common/Filters/FilterInputs';

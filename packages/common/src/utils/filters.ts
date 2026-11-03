@@ -1,5 +1,5 @@
 import dayjs from 'dayjs';
-import isNil from 'lodash/isNil';
+import { isNil } from 'es-toolkit/compat';
 import moment from 'moment';
 import { v4 as uuidv4 } from 'uuid';
 import { type AnyType } from '../types/any';

@@ -91,8 +91,8 @@ import {
     warehouseClientFromCredentials,
     type WarehouseClientOptions,
 } from '@lightdash/warehouses';
+import { isEqual } from 'es-toolkit/compat';
 import { Knex } from 'knex';
-import isEqual from 'lodash/isEqual';
 import NodeCache from 'node-cache';
 import { createHash } from 'node:crypto';
 import { DatabaseError } from 'pg';

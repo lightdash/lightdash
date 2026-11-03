@@ -431,7 +431,7 @@ export class DashboardModel {
 
         const tileUuids = tilesWithUuids.map((tile) => tile.uuid);
 
-        // TODO: remove after resolving a problem with importing lodash-es in the backend
+        // Local pick keeps the stored key order of tileTargets
         const pick = <T>(object: Record<string, T>, keys: string[]) =>
             Object.keys(object)
                 .filter((key) => keys.includes(key))

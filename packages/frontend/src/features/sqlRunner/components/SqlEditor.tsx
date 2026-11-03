@@ -1,7 +1,6 @@
 import { Box, Center, Loader } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
-import debounce from 'lodash/debounce';
-import isEmpty from 'lodash/isEmpty';
+import { debounce, isEmpty } from 'es-toolkit/compat';
 import { type editor } from 'monaco-editor';
 import { useCallback, useEffect, useMemo, useRef, type FC } from 'react';
 import { type TourEditable } from '../../../components/common/GuidedTour/GuidedTour';

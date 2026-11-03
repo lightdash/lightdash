@@ -48,8 +48,7 @@ import {
     type Row,
 } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import isEqual from 'lodash/isEqual';
-import last from 'lodash/last';
+import { isEqual, last } from 'es-toolkit/compat';
 import { readableColor } from 'polished';
 import React, {
     useCallback,

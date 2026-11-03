@@ -256,6 +256,7 @@ refresh/restart behavior, and remove temporary ENV overrides after rollout.
     -   API design patterns where omission has semantic meaning
     -   Configuration objects with sensible defaults
 -   **Always wrap `JSON.parse` in try/catch**: Parse errors crash the app. On failure, considering showing a warning toast or falling back to a sensible default.
+-   **Use `es-toolkit/compat`, not lodash**: import lodash-style helpers as `import { groupBy } from 'es-toolkit/compat';`. It matches lodash's behaviour; the main `es-toolkit` API does not (null handling, `startCase`, `merge`, `round` differ), so don't switch to it without checking each call site. Never add `lodash` back as a dependency.
 -   **Keep code comments minimal**: 1–2 lines at most, only when the code isn't self-explanatory. No long explanatory blocks, no ticket references (PROD-XXXX, #issue) in comments.
 
 ## TypeScript Utilities

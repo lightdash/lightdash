@@ -7,7 +7,7 @@ import {
     InputWrapper,
 } from '@mantine/core';
 import { IconHelpCircle, IconPlus, IconTrash } from '@tabler/icons-react';
-import get from 'lodash/get';
+import { get } from 'es-toolkit/compat';
 import { useState, type ReactNode } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import MantineIcon from '../../common/MantineIcon';

@@ -18,8 +18,7 @@ import {
 } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconUsers } from '@tabler/icons-react';
-import uniq from 'lodash/uniq';
-import uniqBy from 'lodash/uniqBy';
+import { uniq, uniqBy } from 'es-toolkit/compat';
 import {
     useCallback,
     useEffect,
