@@ -128,6 +128,41 @@ Keep A's field-chip and row primitives (they are shared with the semantic
 cell). Keep C's sentence as the cell's one-line summary candidate for the
 collapsed/graph node tooltip rather than as the details body.
 
+## Run through the agent
+
+The agent can author a funnel node: the composer `query` tool offers a
+`funnel` kind (`toolComposerQueryArgs.ts`) when `funnelBuilder.enabled` and
+the agent has composer queries on. The pipeline refuses funnel nodes when the
+kind is off, then checks the explore and the user, timestamp, event and
+breakdown field ids exist on it. Funnel nodes need no SQL approval: the
+server compiles them. `systemV2QueryingComposer` tells the agent to answer
+"did A then B then C" and drop-off questions with a funnel node.
+
+On a preview env with the Jaffle shop demo, "Show me the checkout funnel …
+over the last 12 months, each step within 7 days, split by device type"
+produced one funnel node (`steps: page_view → product_viewed → add_to_cart →
+checkout_completed`, `last_12_months`, `7 days`, `device_type`), 12 rows,
+and a correct reading of the drop-off:
+
+![Agent thread with the funnel chart](images/funnel-node-spike/agent-thread-chart.png)
+
+The Lineage tab of that run, with the funnel cell as the pipeline's only
+node:
+
+![Agent thread Lineage tab](images/funnel-node-spike/agent-thread-lineage.png)
+
+The cell with its results open:
+
+![Funnel cell with results in the product](images/funnel-node-spike/agent-lineage-cell-results.png)
+
+Seen in the run and fixed or noted:
+
+- The agent charted the funnel as a grouped bar with steps sorted
+  alphabetically. The node description now tells it to order the axis by
+  `step_order`; a funnel-aware chart kind is the real fix.
+- The results toggle showed the raw table only; `AiComposerNodeResult` now
+  renders the result strip above the table for funnel nodes.
+
 ## Reference conventions
 
 How Mixpanel, Amplitude, PostHog, Statsig, Kissmetrics and June present

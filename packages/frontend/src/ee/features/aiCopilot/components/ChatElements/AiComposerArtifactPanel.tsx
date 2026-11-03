@@ -345,6 +345,11 @@ export const AiComposerArtifactPanel: FC<Props> = ({
                         agentUuid={agentUuid}
                         source={source}
                         queryUuid={nodeQueryUuid}
+                        query={
+                            config.queries.find(
+                                (node) => node.nodeId === nodeId,
+                            ) ?? null
+                        }
                     />
                 ) : null;
             }}

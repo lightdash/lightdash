@@ -1,8 +1,11 @@
-import { Box } from '@mantine/core';
+import { QuerySourceType, type SourceQuery } from '@lightdash/common';
+import { Box, Stack } from '@mantine/core';
 import { type FC } from 'react';
 import { useUiStrings } from '../../../../providers/Embed/useUiStrings';
 import { AiComposerResultError } from './AiComposerResultError';
 import { AiComposerResultTable } from './AiComposerResultTable';
+import { FunnelResultStrip } from './composerPipeline/FunnelResultStrip';
+import { funnelStripRowsOf } from './composerPipeline/funnelStripRows';
 import {
     useComposerNodeResults,
     type ComposerPanelSource,
@@ -30,6 +33,8 @@ type Props = {
     agentUuid: string;
     source: ComposerPanelSource;
     queryUuid: string;
+    /** The node's query; a funnel gets its per-step strip above the rows. */
+    query: SourceQuery | null;
 };
 
 /** A pipeline node's own rows, in the table every composer result uses. */
@@ -38,6 +43,7 @@ export const AiComposerNodeResult: FC<Props> = ({
     agentUuid,
     source,
     queryUuid,
+    query,
 }) => {
     const uiStrings = useUiStrings();
     const results = useComposerNodeResults({
@@ -54,17 +60,26 @@ export const AiComposerNodeResult: FC<Props> = ({
             />
         );
     }
+    const strip =
+        query?.sourceType === QuerySourceType.FUNNEL &&
+        !results.isFetchingRows &&
+        results.rows.length > 0 ? (
+            <FunnelResultStrip rows={funnelStripRowsOf(results.rows)} />
+        ) : null;
     return (
-        <Box
-            h={tableHeightOf(results.totalResults) + EMPTY_FOOTER_PX}
-            mb={-EMPTY_FOOTER_PX}
-        >
-            <AiComposerResultTable
-                projectUuid={projectUuid}
-                results={results}
-                headerContent={null}
-                loadingMessage={uiStrings('aiAgent.composer.loadingResult')}
-            />
-        </Box>
+        <Stack gap={0}>
+            {strip}
+            <Box
+                h={tableHeightOf(results.totalResults) + EMPTY_FOOTER_PX}
+                mb={-EMPTY_FOOTER_PX}
+            >
+                <AiComposerResultTable
+                    projectUuid={projectUuid}
+                    results={results}
+                    headerContent={null}
+                    loadingMessage={uiStrings('aiAgent.composer.loadingResult')}
+                />
+            </Box>
+        </Stack>
     );
 };

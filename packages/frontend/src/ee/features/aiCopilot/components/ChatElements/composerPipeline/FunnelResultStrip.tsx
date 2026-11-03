@@ -3,13 +3,7 @@ import { Box, Group, SimpleGrid, Stack, Text } from '@mantine/core';
 import { type FC } from 'react';
 import { useUiStrings } from '../../../../../providers/Embed/useUiStrings';
 import styles from './FunnelResultStrip.module.css';
-
-type FunnelResultRow = {
-    stepOrder: number;
-    stepName: string;
-    totalUsers: number;
-    breakdownValue: string | null;
-};
+import { type FunnelResultRow } from './funnelStripRows';
 
 const percent = (value: number) => `${value.toFixed(1)}%`;
 

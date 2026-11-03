@@ -324,19 +324,21 @@ const ComposerArtifact = ({
                                 new Set(queries.map((q) => q.nodeId!))
                             }
                             nodeStatuses={nodeStatuses}
-                            renderNodeResult={(nodeId) =>
-                                queries.find((q) => q.nodeId === nodeId)
-                                    ?.sourceType === QuerySourceType.FUNNEL ? (
-                                    <FunnelResultStrip
-                                        rows={funnelStripRows(result)}
-                                    />
-                                ) : (
+                            renderNodeResult={(nodeId) => (
+                                <>
+                                    {queries.find((q) => q.nodeId === nodeId)
+                                        ?.sourceType ===
+                                        QuerySourceType.FUNNEL && (
+                                        <FunnelResultStrip
+                                            rows={funnelStripRows(result)}
+                                        />
+                                    )}
                                     <ResultsTable
                                         result={result}
                                         withBorder={false}
                                     />
-                                )
-                            }
+                                </>
+                            )}
                             chatNodeIds={chatNodeIds}
                             onAddToChat={(node) =>
                                 setChatNodeIds(

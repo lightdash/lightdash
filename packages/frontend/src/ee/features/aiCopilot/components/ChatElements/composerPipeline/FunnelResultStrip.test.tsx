@@ -2,6 +2,7 @@ import { screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { renderWithProviders } from '../../../../../../testing/testUtils';
 import { FunnelResultStrip } from './FunnelResultStrip';
+import { funnelStripRowsOf } from './funnelStripRows';
 
 const row = (
     stepOrder: number,
@@ -9,6 +10,32 @@ const row = (
     totalUsers: number,
     breakdownValue: string,
 ) => ({ stepOrder, stepName, totalUsers, breakdownValue });
+
+describe('funnelStripRowsOf', () => {
+    it('reads the fixed funnel columns from result rows', () => {
+        const cell = (raw: unknown) => ({
+            value: { raw, formatted: String(raw) },
+        });
+        expect(
+            funnelStripRowsOf([
+                {
+                    step_order: cell(2),
+                    step_name: cell('add_to_cart'),
+                    total_users: cell(300),
+                    breakdown_value: cell('mobile'),
+                },
+                {
+                    step_order: cell(1),
+                    step_name: cell('page_view'),
+                    total_users: cell(1000),
+                },
+            ]),
+        ).toEqual([
+            row(2, 'add_to_cart', 300, 'mobile'),
+            { ...row(1, 'page_view', 1000, ''), breakdownValue: null },
+        ]);
+    });
+});
 
 describe('FunnelResultStrip', () => {
     it('sums each step across breakdown values, in step order', () => {

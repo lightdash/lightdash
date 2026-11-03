@@ -125,7 +125,7 @@ const getComposerNodeKindsDescription = ({
 }${
     enableFunnelNodes
         ? `
-- "funnel": a conversion funnel over the event rows of an explore, compiled to warehouse SQL. One row per step, per breakdown value when a breakdown is set, with fixed columns step_order, step_name, total_users, conversion_rate (% of step 1), step_conversion_rate (% of the previous step), median_time_to_convert (seconds from the previous step, null on step 1) and breakdown_value when a breakdown is set. It reads no other results; join its rows with a duckdb node.`
+- "funnel": a conversion funnel over the event rows of an explore, compiled to warehouse SQL. One row per step, per breakdown value when a breakdown is set, with fixed columns step_order, step_name, total_users, conversion_rate (% of step 1), step_conversion_rate (% of the previous step), median_time_to_convert (seconds from the previous step, null on step 1) and breakdown_value when a breakdown is set. It reads no other results; join its rows with a duckdb node. When charting it, put step_name on the axis sorted by step_order, never alphabetically.`
         : ''
 }
 
