@@ -1,7 +1,10 @@
 import {
+    AuthorizationError,
     DashboardTileTypes,
+    FeatureFlags,
     ForbiddenError,
     NotFoundError,
+    ParameterError,
     type Account,
     type Explore,
     type SavedChartDAO,
@@ -68,7 +71,13 @@ const embeddedDashboard = {
     ],
 };
 
-const setup = () => {
+const setup = ({ dashboardControlsEnabled = true } = {}) => {
+    const featureFlagModel = {
+        get: vi.fn(async () => ({
+            id: FeatureFlags.DashboardControls,
+            enabled: dashboardControlsEnabled,
+        })),
+    };
     const savedChartModel = {
         get: vi.fn(async (uuid: string) => {
             if (!charts[uuid]) throw new NotFoundError('Saved chart not found');
@@ -95,7 +104,13 @@ const setup = () => {
         ),
     };
     const projectService = {
-        findExplores: vi.fn(async () => ({ [chart.tableName]: explore })),
+        findExplores: vi.fn(
+            async (_args: {
+                exploreNames: string[];
+            }): Promise<Record<string, Explore>> => ({
+                [chart.tableName]: explore,
+            }),
+        ),
         compileQuery: vi.fn(
             async ({ body }: { body: { exploreName: string } }) => {
                 if (body.exploreName === 'broken') {
@@ -127,9 +142,12 @@ const setup = () => {
         projectService,
         dashboardModel,
         permissionsService,
+        featureFlagModel,
     } as unknown as ConstructorParameters<typeof DashboardService>[0]);
     return {
         service,
+        featureFlagModel,
+        savedSqlModel,
         savedChartModel,
         projectService,
         dashboardModel,
@@ -235,6 +253,124 @@ describe('DashboardService.getTileParameterReferences', () => {
         expect(results.every((result) => result.error === null)).toBe(true);
         expect(projectService.compileQuery).toHaveBeenCalledTimes(12);
         expect(maxRunning).toBe(5);
+    });
+
+    it('loads at most five charts at a time', async () => {
+        const { service, savedChartModel } = setup();
+        const manyCharts = Array.from({ length: 12 }, (_, index) =>
+            savedChart({ uuid: `load-${index}` }),
+        );
+        manyCharts.forEach((manyChart) => {
+            charts[manyChart.uuid] = manyChart;
+        });
+        let running = 0;
+        let maxRunning = 0;
+        savedChartModel.get.mockImplementation(async (uuid: string) => {
+            running += 1;
+            maxRunning = Math.max(maxRunning, running);
+            await new Promise((resolve) => {
+                setTimeout(resolve, 5);
+            });
+            running -= 1;
+            return charts[uuid];
+        });
+
+        await service.getTileParameterReferences(
+            account,
+            projectUuid,
+            manyCharts.map((manyChart) =>
+                chartTile(`tile-${manyChart.uuid}`, manyChart.uuid),
+            ),
+        );
+
+        expect(savedChartModel.get).toHaveBeenCalledTimes(12);
+        expect(maxRunning).toBe(5);
+    });
+
+    it('refuses a request with too many tiles before loading any', async () => {
+        const { service, savedChartModel } = setup();
+
+        await expect(
+            service.getTileParameterReferences(
+                account,
+                projectUuid,
+                Array.from({ length: 201 }, (_, index) =>
+                    chartTile(`tile-${index}`, 'plain'),
+                ),
+            ),
+        ).rejects.toThrow(
+            new ParameterError(
+                'A request can list the parameters of at most 200 tiles',
+            ),
+        );
+        expect(savedChartModel.get).not.toHaveBeenCalled();
+    });
+
+    it('refuses the request with the dashboard-controls flag off', async () => {
+        const { service, savedChartModel, featureFlagModel } = setup({
+            dashboardControlsEnabled: false,
+        });
+
+        await expect(
+            service.getTileParameterReferences(account, projectUuid, [
+                chartTile('tile-1', 'plain'),
+            ]),
+        ).rejects.toThrow(ForbiddenError);
+        expect(featureFlagModel.get).toHaveBeenCalledWith({
+            user: {
+                organizationUuid: user.organizationUuid,
+                userUuid: user.userUuid,
+            },
+            featureFlagId: FeatureFlags.DashboardControls,
+        });
+        expect(savedChartModel.get).not.toHaveBeenCalled();
+    });
+
+    it('reports a restricted explore on its own tiles only', async () => {
+        const { service, projectService } = setup();
+        charts.restricted = savedChart({
+            uuid: 'restricted',
+            tableName: 'restricted',
+            metricQuery: { ...chart.metricQuery, exploreName: 'restricted' },
+        });
+        projectService.findExplores.mockImplementation(
+            async ({ exploreNames }: { exploreNames: string[] }) => {
+                if (exploreNames.includes('restricted')) {
+                    throw new AuthorizationError(
+                        "You don't have authorization to access this explore",
+                    );
+                }
+                return { [chart.tableName]: explore };
+            },
+        );
+
+        await expect(
+            service.getTileParameterReferences(account, projectUuid, [
+                chartTile('tile-1', 'plain'),
+                chartTile('tile-2', 'restricted'),
+                {
+                    tileUuid: 'tile-3',
+                    savedChartUuid: null,
+                    savedSqlUuid: 'sql',
+                },
+            ]),
+        ).resolves.toEqual([
+            {
+                tileUuid: 'tile-1',
+                parameterReferences: ['orders.region'],
+                error: null,
+            },
+            {
+                tileUuid: 'tile-2',
+                parameterReferences: null,
+                error: "You don't have authorization to access this explore",
+            },
+            {
+                tileUuid: 'tile-3',
+                parameterReferences: ['region'],
+                error: null,
+            },
+        ]);
     });
 
     it('compiles a merged chart as a merge query', async () => {

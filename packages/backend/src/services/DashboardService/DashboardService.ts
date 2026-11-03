@@ -202,6 +202,8 @@ type DashboardDraftOverlay = Partial<
 >;
 
 const TILE_COMPILE_CONCURRENCY = 5;
+const TILE_LOAD_CONCURRENCY = 5;
+const MAX_PARAMETER_REFERENCE_TILES = 200;
 
 type ParameterReferencesResult =
     | { parameterReferences: string[]; error: null }
@@ -211,6 +213,25 @@ const parameterReferencesFailure = (e: unknown): ParameterReferencesResult => ({
     parameterReferences: null,
     error: typeof e === 'string' ? e : getErrorMessage(e),
 });
+
+type ParameterReferencesLookup = (
+    uuid: string,
+) => ParameterReferencesResult | undefined;
+
+const toError = (e: unknown): Error =>
+    e instanceof Error ? e : new Error(getErrorMessage(e));
+
+const toLookup =
+    (
+        results: Map<string, ParameterReferencesResult>,
+    ): ParameterReferencesLookup =>
+    (uuid) =>
+        results.get(uuid);
+
+const getFailedResults =
+    (e: unknown): ParameterReferencesLookup =>
+    () =>
+        parameterReferencesFailure(e);
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
     typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -947,6 +968,23 @@ export class DashboardService
         projectUuid: string,
         tiles: DashboardTileParameterReferencesTile[],
     ): Promise<DashboardTileParameterReferences[]> {
+        if (tiles.length > MAX_PARAMETER_REFERENCE_TILES) {
+            throw new ParameterError(
+                `A request can list the parameters of at most ${MAX_PARAMETER_REFERENCE_TILES} tiles`,
+            );
+        }
+        const { enabled } = await this.featureFlagModel.get({
+            user: {
+                organizationUuid: account.organization.organizationUuid,
+                userUuid: account.isRegisteredUser()
+                    ? account.user.id
+                    : undefined,
+            },
+            featureFlagId: FeatureFlags.DashboardControls,
+        });
+        if (!enabled) {
+            throw new ForbiddenError('Dashboard controls are not enabled');
+        }
         const sources = isJwtUser(account)
             ? await this.getEmbedDashboardTileSources(
                   account,
@@ -954,17 +992,22 @@ export class DashboardService
                   tiles,
               )
             : tiles;
+        // One kind failing outright keeps the other kind's results
         const [chartResults, sqlResults] = await Promise.all([
             this.getSavedChartParameterReferences(
                 account,
                 projectUuid,
                 uniq(sources.flatMap((tile) => tile?.savedChartUuid ?? [])),
-            ),
+            )
+                .then(toLookup)
+                .catch(getFailedResults),
             this.getSavedSqlParameterReferences(
                 account,
                 projectUuid,
                 uniq(sources.flatMap((tile) => tile?.savedSqlUuid ?? [])),
-            ),
+            )
+                .then(toLookup)
+                .catch(getFailedResults),
         ]);
         return tiles.map(({ tileUuid }, index) => {
             const source = sources[index];
@@ -978,8 +1021,8 @@ export class DashboardService
             }
             const result =
                 (source.savedChartUuid &&
-                    chartResults.get(source.savedChartUuid)) ||
-                (source.savedSqlUuid && sqlResults.get(source.savedSqlUuid)) ||
+                    chartResults(source.savedChartUuid)) ||
+                (source.savedSqlUuid && sqlResults(source.savedSqlUuid)) ||
                 parameterReferencesFailure('Tile has no saved chart');
             return { tileUuid, ...result };
         });
@@ -1028,14 +1071,16 @@ export class DashboardService
         savedChartUuids: string[],
     ): Promise<Map<string, ParameterReferencesResult>> {
         const results = new Map<string, ParameterReferencesResult>();
+        // Each chart load makes several DB calls too
+        const limitLoad = pLimit(TILE_LOAD_CONCURRENCY);
         const loaded = await Promise.all(
             savedChartUuids.map((uuid) =>
-                this.savedChartModel
-                    .get(uuid, undefined, { projectUuid })
-                    .catch((e) => {
-                        results.set(uuid, parameterReferencesFailure(e));
-                        return null;
-                    }),
+                limitLoad(() =>
+                    this.savedChartModel.get(uuid, undefined, { projectUuid }),
+                ).catch((e) => {
+                    results.set(uuid, parameterReferencesFailure(e));
+                    return null;
+                }),
             ),
         );
         const charts = loaded.filter(
@@ -1054,16 +1099,15 @@ export class DashboardService
                           ),
                   )
                 : this.getViewableChartUuids(account, charts),
-            this.projectService.findExplores({
+            this.findTileExplores(
                 account,
                 projectUuid,
-                exploreNames: uniq(
+                uniq(
                     charts.flatMap((chart) =>
                         chart.merge ? [] : [chart.tableName],
                     ),
                 ),
-                organizationUuid: account.organization.organizationUuid,
-            }),
+            ),
         ]);
         // Each compile makes several DB calls; cap them so one dashboard can't drain the pool
         const limitCompile = pLimit(TILE_COMPILE_CONCURRENCY);
@@ -1079,6 +1123,14 @@ export class DashboardService
                     );
                     return;
                 }
+                const explore = explores.get(chart.tableName);
+                if (explore instanceof Error) {
+                    results.set(
+                        chart.uuid,
+                        parameterReferencesFailure(explore),
+                    );
+                    return;
+                }
                 try {
                     results.set(chart.uuid, {
                         parameterReferences: await limitCompile(() =>
@@ -1086,7 +1138,7 @@ export class DashboardService
                                 account,
                                 projectUuid,
                                 chart,
-                                explores[chart.tableName],
+                                explore,
                             ),
                         ),
                         error: null,
@@ -1097,6 +1149,47 @@ export class DashboardService
             }),
         );
         return results;
+    }
+
+    /**
+     * Loads every explore in one call; when that call refuses (one explore the
+     * viewer can't access), loads them one by one so only that explore fails.
+     */
+    private async findTileExplores(
+        account: Account,
+        projectUuid: string,
+        exploreNames: string[],
+    ): Promise<Map<string, Explore | ExploreError | Error>> {
+        const findExplores = (names: string[]) =>
+            this.projectService.findExplores({
+                account,
+                projectUuid,
+                exploreNames: names,
+                organizationUuid: account.organization.organizationUuid,
+            });
+        if (exploreNames.length === 0) return new Map();
+        try {
+            return new Map(Object.entries(await findExplores(exploreNames)));
+        } catch (batchError) {
+            if (exploreNames.length === 1) {
+                return new Map([[exploreNames[0], toError(batchError)]]);
+            }
+            const limitLoad = pLimit(TILE_LOAD_CONCURRENCY);
+            const explores = await Promise.all(
+                exploreNames.map((name) =>
+                    limitLoad(() => findExplores([name])).then(
+                        (found) => found[name],
+                        toError,
+                    ),
+                ),
+            );
+            return new Map(
+                exploreNames.flatMap((name, index) => {
+                    const explore = explores[index];
+                    return explore === undefined ? [] : [[name, explore]];
+                }),
+            );
+        }
     }
 
     private async getViewableChartUuids(
@@ -1202,14 +1295,15 @@ export class DashboardService
         savedSqlUuids: string[],
     ): Promise<Map<string, ParameterReferencesResult>> {
         const results = new Map<string, ParameterReferencesResult>();
+        const limitLoad = pLimit(TILE_LOAD_CONCURRENCY);
         const loaded = await Promise.all(
             savedSqlUuids.map((uuid) =>
-                this.savedSqlModel
-                    .getByUuid(uuid, { projectUuid })
-                    .catch((e) => {
-                        results.set(uuid, parameterReferencesFailure(e));
-                        return null;
-                    }),
+                limitLoad(() =>
+                    this.savedSqlModel.getByUuid(uuid, { projectUuid }),
+                ).catch((e) => {
+                    results.set(uuid, parameterReferencesFailure(e));
+                    return null;
+                }),
             ),
         );
         const sqlCharts = loaded.filter(
