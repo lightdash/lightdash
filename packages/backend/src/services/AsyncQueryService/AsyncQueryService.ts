@@ -130,6 +130,7 @@ import {
     WarehouseClient,
     WarehouseConnectionError,
     WarehouseQueryError,
+    WarehouseQueryTimeoutError,
     WarehouseTypes,
     withAgentMarkerTag,
     type AgentIdentityClaim,
@@ -5693,6 +5694,10 @@ export class AsyncQueryService extends ProjectService {
                     warehouseType: warehouseCredentialsType,
                     errorName: e instanceof Error ? e.name : undefined,
                     errorCode: (e as { code?: string })?.code,
+                    warehouseTimeout:
+                        e instanceof WarehouseQueryTimeoutError
+                            ? e.data
+                            : undefined,
                     // Surface every queryTag (chart_uuid, dashboard_uuid,
                     // saved_sql_uuid, scheduler_uuid, scheduler_name, job_id,
                     // explore_name, query_context, …) onto the error log so a
@@ -14997,6 +15002,10 @@ export class AsyncQueryService extends ProjectService {
                             ),
                             errorName: e instanceof Error ? e.name : undefined,
                             errorCode: (e as { code?: string })?.code,
+                            warehouseTimeout:
+                                e instanceof WarehouseQueryTimeoutError
+                                    ? e.data
+                                    : undefined,
                             errorMessage: getErrorMessage(e),
                             ...queryTags,
                         });
