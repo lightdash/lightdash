@@ -43,7 +43,6 @@ const FilterYearPicker: FC<Props> = ({
             >
                 {({ close: closeInvalidInput }) => (
                     <YearPicker
-                        __stopPropagation
                         value={null}
                         minDate="1000-01-01"
                         maxDate="9999-12-31"

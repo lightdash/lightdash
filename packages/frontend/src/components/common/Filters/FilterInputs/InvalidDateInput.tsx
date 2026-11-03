@@ -50,12 +50,8 @@ const InvalidDateInput: FC<Props> = ({
                     readOnly
                     classNames={{ input: classes.input }}
                     onClick={openPopover}
-                    // Keeps a host modal open while this popover is open
-                    data-mantine-stop-propagation={opened || undefined}
                     onKeyDown={(event) => {
-                        if (event.key !== 'Escape' || !opened) return;
-                        event.preventDefault();
-                        closePopover();
+                        if (event.key === 'Escape' && opened) closePopover();
                     }}
                 />
             </Popover.Target>

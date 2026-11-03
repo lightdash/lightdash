@@ -20,9 +20,8 @@ const MultiValuePastePopUp: FC<PropsWithChildren<Props>> = ({
     const getUiString = useUiStrings();
     // Handle Escape here: focus stays in the caller's input
     useWindowEvent('keydown', (event) => {
-        if (!opened || event.key !== 'Escape' || event.defaultPrevented) return;
-        event.preventDefault();
-        onClose();
+        if (opened && event.key === 'Escape' && !event.defaultPrevented)
+            onClose();
     });
     const onSingleValueClick = useCallback(() => {
         onSingleValue();

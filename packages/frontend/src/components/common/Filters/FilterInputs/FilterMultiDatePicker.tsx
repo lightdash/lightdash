@@ -101,9 +101,8 @@ const FilterMultiDatePicker: FC<Props> = ({
 
     const handleKeyDown = useCallback(
         (event: KeyboardEvent<HTMLInputElement>) => {
-            // Handle Escape here: focus stays on the input
+            // Focus stays here, so the calendar's own Escape never fires
             if (event.key === 'Escape' && opened) {
-                event.preventDefault();
                 close();
                 return;
             }
@@ -199,8 +198,6 @@ const FilterMultiDatePicker: FC<Props> = ({
                             onFocus={openPopover}
                             onBlur={commitSearch}
                             onKeyDown={handleKeyDown}
-                            // Keeps a host modal open while this popover is open
-                            data-mantine-stop-propagation={opened || undefined}
                         />
                     </Pill.Group>
                 </PillsInput>

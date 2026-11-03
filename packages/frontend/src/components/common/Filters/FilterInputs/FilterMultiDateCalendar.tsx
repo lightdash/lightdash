@@ -74,7 +74,6 @@ const MultiWeekCalendar: FC<Omit<Props, 'timeFrame'>> = ({
 
     return (
         <DatePicker
-            __stopPropagation
             firstDayOfWeek={firstDayOfWeek}
             defaultDate={formatMantineDate(values[0] ?? null) ?? undefined}
             value={null}
@@ -132,7 +131,6 @@ const MultiQuarterCalendar: FC<Omit<Props, 'timeFrame'>> = ({
 
     return (
         <MonthPicker
-            __stopPropagation
             defaultDate={formatMantineDate(values[0] ?? null) ?? undefined}
             value={null}
             getMonthControlProps={getMonthControlProps}
@@ -175,7 +173,6 @@ const FilterMultiDateCalendar: FC<Props> = ({
         case TimeFrames.DAY:
             return (
                 <DatePicker
-                    __stopPropagation
                     type="multiple"
                     firstDayOfWeek={firstDayOfWeek}
                     // open on the earliest selected date rather than today
@@ -195,7 +192,6 @@ const FilterMultiDateCalendar: FC<Props> = ({
         case TimeFrames.MONTH:
             return (
                 <MonthPicker
-                    __stopPropagation
                     type="multiple"
                     defaultDate={mantineValues[0]}
                     value={mantineValues}
@@ -213,7 +209,6 @@ const FilterMultiDateCalendar: FC<Props> = ({
         case TimeFrames.YEAR:
             return (
                 <YearPicker
-                    __stopPropagation
                     type="multiple"
                     defaultDate={mantineValues[0]}
                     value={mantineValues}
