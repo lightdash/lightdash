@@ -48580,6 +48580,8 @@ const models: TsoaRoute.Models = {
                 },
                 role: { ref: 'UserAsCodeRole', required: true },
                 disabled: { dataType: 'boolean', required: true },
+                lastName: { dataType: 'string' },
+                firstName: { dataType: 'string' },
                 email: { dataType: 'string', required: true },
                 version: { dataType: 'enum', enums: [1], required: true },
             },
@@ -62756,6 +62758,8 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'union',
             subSchemas: [
+                { dataType: 'enum', enums: ['reconcileAnalyticsContent'] },
+                { dataType: 'enum', enums: ['syncAnalyticsContent'] },
                 { dataType: 'enum', enums: ['slackAiPrompt'] },
                 { dataType: 'enum', enums: ['slackAiArtifactImages'] },
                 { dataType: 'enum', enums: ['sweepSlackAiArtifactImages'] },
