@@ -126,10 +126,10 @@ import { SearchModel } from '../../models/SearchModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { createDashboardChartTiles } from '../../utils/dashboardTileUtils';
+import { runWithConcurrency } from '../../utils/runWithConcurrency';
 import { getContentWriteAgentIdentity } from '../AiAccessService/agentExecutionContext';
 import { logAgentContentWrite } from '../AiAccessService/logAgentContentWrite';
 import { BaseService } from '../BaseService';
-import type { PermissionsService } from '../PermissionsService/PermissionsService';
 import type { ProjectService } from '../ProjectService/ProjectService';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
 import type { SchedulerService } from '../SchedulerService/SchedulerService';
@@ -177,10 +177,6 @@ type DashboardServiceArguments = {
     projectService: Pick<
         ProjectService,
         'findExplores' | 'compileQuery' | 'compileMergeQuery'
-    >;
-    permissionsService: Pick<
-        PermissionsService,
-        'checkEmbedPermissions' | 'checkEmbedSqlChartPermissions'
     >;
 };
 
@@ -316,8 +312,6 @@ export class DashboardService
     contentVerificationModel: ContentVerificationModel;
 
     private readonly projectService: DashboardServiceArguments['projectService'];
-
-    private readonly permissionsService: DashboardServiceArguments['permissionsService'];
 
     async scheduleExportContent(
         account: Account,
@@ -476,7 +470,6 @@ export class DashboardService
         spacePermissionService,
         contentVerificationModel,
         projectService,
-        permissionsService,
     }: DashboardServiceArguments) {
         super();
         this.featureFlagModel = featureFlagModel;
@@ -506,7 +499,6 @@ export class DashboardService
         this.spacePermissionService = spacePermissionService;
         this.contentVerificationModel = contentVerificationModel;
         this.projectService = projectService;
-        this.permissionsService = permissionsService;
     }
 
     async verifyDashboard(
@@ -1085,18 +1077,18 @@ export class DashboardService
         savedChartUuids: string[],
     ): Promise<Map<string, ParameterReferencesResult>> {
         const results = new Map<string, ParameterReferencesResult>();
-        // Each chart load makes several DB calls too
-        const limitLoad = pLimit(TILE_LOAD_CONCURRENCY);
-        const loaded = await Promise.all(
-            savedChartUuids.map((uuid) =>
+        // Each chart load makes several DB calls too; a failure stays with its tile
+        const loaded = await runWithConcurrency(
+            savedChartUuids,
+            TILE_LOAD_CONCURRENCY,
+            (uuid) =>
                 // Published version: a tile running a viewer's draft replaces these once it runs
-                limitLoad(() =>
-                    this.savedChartModel.get(uuid, undefined, { projectUuid }),
-                ).catch((e) => {
-                    results.set(uuid, parameterReferencesFailure(e));
-                    return null;
-                }),
-            ),
+                this.savedChartModel
+                    .get(uuid, undefined, { projectUuid })
+                    .catch((e) => {
+                        results.set(uuid, parameterReferencesFailure(e));
+                        return null;
+                    }),
         );
         const charts = loaded.filter(
             (chart): chart is SavedChartDAO => chart !== null,
@@ -1119,10 +1111,10 @@ export class DashboardService
             ),
         ]);
         // Each compile makes several DB calls; cap them so one dashboard can't drain the pool
-        const limitCompile = pLimit(TILE_COMPILE_CONCURRENCY);
-
-        await Promise.all(
-            charts.map(async (chart) => {
+        await runWithConcurrency(
+            charts,
+            TILE_COMPILE_CONCURRENCY,
+            async (chart) => {
                 if (!viewableChartUuids.has(chart.uuid)) {
                     results.set(
                         chart.uuid,
@@ -1142,20 +1134,19 @@ export class DashboardService
                 }
                 try {
                     results.set(chart.uuid, {
-                        parameterReferences: await limitCompile(() =>
-                            this.compileChartParameterReferences(
+                        parameterReferences:
+                            await this.compileChartParameterReferences(
                                 account,
                                 projectUuid,
                                 chart,
                                 explore,
                             ),
-                        ),
                         error: null,
                     });
                 } catch (e) {
                     results.set(chart.uuid, parameterReferencesFailure(e));
                 }
-            }),
+            },
         );
         return results;
     }
@@ -1183,14 +1174,11 @@ export class DashboardService
             if (exploreNames.length === 1) {
                 return new Map([[exploreNames[0], toError(batchError)]]);
             }
-            const limitLoad = pLimit(TILE_LOAD_CONCURRENCY);
-            const explores = await Promise.all(
-                exploreNames.map((name) =>
-                    limitLoad(() => findExplores([name])).then(
-                        (found) => found[name],
-                        toError,
-                    ),
-                ),
+            const explores = await runWithConcurrency(
+                exploreNames,
+                TILE_LOAD_CONCURRENCY,
+                (name) =>
+                    findExplores([name]).then((found) => found[name], toError),
             );
             return new Map(
                 exploreNames.flatMap((name, index) => {
@@ -1290,16 +1278,16 @@ export class DashboardService
         savedSqlUuids: string[],
     ): Promise<Map<string, ParameterReferencesResult>> {
         const results = new Map<string, ParameterReferencesResult>();
-        const limitLoad = pLimit(TILE_LOAD_CONCURRENCY);
-        const loaded = await Promise.all(
-            savedSqlUuids.map((uuid) =>
-                limitLoad(() =>
-                    this.savedSqlModel.getByUuid(uuid, { projectUuid }),
-                ).catch((e) => {
-                    results.set(uuid, parameterReferencesFailure(e));
-                    return null;
-                }),
-            ),
+        const loaded = await runWithConcurrency(
+            savedSqlUuids,
+            TILE_LOAD_CONCURRENCY,
+            (uuid) =>
+                this.savedSqlModel
+                    .getByUuid(uuid, { projectUuid })
+                    .catch((e) => {
+                        results.set(uuid, parameterReferencesFailure(e));
+                        return null;
+                    }),
         );
         const sqlCharts = loaded.filter(
             (sqlChart): sqlChart is NonNullable<typeof sqlChart> =>

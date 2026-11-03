@@ -124,7 +124,6 @@ describe('DashboardService - Content Verification', () => {
             {} as unknown as OrganizationMemberProfileModel,
         spacePermissionService: {} as unknown as SpacePermissionService,
         projectService: {} as never,
-        permissionsService: {} as never,
         contentVerificationModel:
             contentVerificationModel as unknown as ContentVerificationModel,
     });

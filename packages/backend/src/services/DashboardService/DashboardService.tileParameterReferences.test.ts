@@ -127,14 +127,6 @@ const setup = ({ dashboardControlsEnabled = true } = {}) => {
     const dashboardModel = {
         getByIdOrSlug: vi.fn(async () => embeddedDashboard),
     };
-    const permissionsService = {
-        checkEmbedPermissions: vi.fn(
-            async (_account: unknown, uuid: string) => {
-                if (uuid === 'hidden') throw new ForbiddenError('Not embedded');
-            },
-        ),
-        checkEmbedSqlChartPermissions: vi.fn(async () => undefined),
-    };
     const service = new DashboardService({
         lightdashConfig: lightdashConfigMock,
         savedChartModel,
@@ -142,7 +134,6 @@ const setup = ({ dashboardControlsEnabled = true } = {}) => {
         spacePermissionService,
         projectService,
         dashboardModel,
-        permissionsService,
         featureFlagModel,
     } as unknown as ConstructorParameters<typeof DashboardService>[0]);
     return {
@@ -152,7 +143,6 @@ const setup = ({ dashboardControlsEnabled = true } = {}) => {
         savedChartModel,
         projectService,
         dashboardModel,
-        permissionsService,
     };
 };
 
@@ -491,9 +481,46 @@ describe('DashboardService.getTileParameterReferences', () => {
         ]);
     });
 
+    it('reports a SQL chart that fails to load without failing the rest', async () => {
+        const { service, savedSqlModel } = setup();
+        savedSqlModel.getByUuid.mockImplementation(async (savedSqlUuid) => {
+            if (savedSqlUuid === 'deleted-sql') {
+                throw new NotFoundError('SQL chart not found');
+            }
+            return {
+                savedSqlUuid,
+                sql: 'select * from orders where region = ${lightdash.parameters.region}',
+                space: { uuid: 'space', name: 'Space' },
+            };
+        });
+        const sqlTile = (tileUuid: string, savedSqlUuid: string) => ({
+            tileUuid,
+            savedChartUuid: null,
+            savedSqlUuid,
+        });
+
+        await expect(
+            service.getTileParameterReferences(account, projectUuid, [
+                sqlTile('missing', 'deleted-sql'),
+                sqlTile('good', 'sql'),
+            ]),
+        ).resolves.toEqual([
+            {
+                tileUuid: 'missing',
+                parameterReferences: null,
+                error: 'SQL chart not found',
+            },
+            {
+                tileUuid: 'good',
+                parameterReferences: ['region'],
+                error: null,
+            },
+        ]);
+    });
+
     describe('embed accounts', () => {
         it("lists the token dashboard's tiles with the charts saved on it", async () => {
-            const { service, savedChartModel, permissionsService } = setup();
+            const { service, savedChartModel } = setup();
 
             const results = await service.getTileParameterReferences(
                 dashboardEmbed,
@@ -532,13 +559,6 @@ describe('DashboardService.getTileParameterReferences', () => {
                 undefined,
                 expect.anything(),
             );
-            // Every chart comes from the token's dashboard: one dashboard check, none per chart
-            expect(
-                permissionsService.checkEmbedPermissions,
-            ).not.toHaveBeenCalled();
-            expect(
-                permissionsService.checkEmbedSqlChartPermissions,
-            ).not.toHaveBeenCalled();
         });
 
         it.each([
