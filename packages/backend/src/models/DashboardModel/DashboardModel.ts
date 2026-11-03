@@ -45,7 +45,6 @@ import {
     type DashboardVersionSummary,
     type StoredAgentIdentityClaim,
 } from '@lightdash/common';
-import { pick } from 'es-toolkit/compat';
 import { Knex } from 'knex';
 import { validate as isValidUuid, v4 as uuidv4 } from 'uuid';
 import { AppsTableName } from '../../database/entities/apps';
@@ -431,6 +430,15 @@ export class DashboardModel {
         }
 
         const tileUuids = tilesWithUuids.map((tile) => tile.uuid);
+
+        // Local pick keeps the stored key order of tileTargets
+        const pick = <T>(object: Record<string, T>, keys: string[]) =>
+            Object.keys(object)
+                .filter((key) => keys.includes(key))
+                .reduce<typeof object>(
+                    (obj, key) => ({ ...obj, [key]: object[key] }),
+                    {},
+                );
 
         const updateData: {
             filters: DashboardFilters;

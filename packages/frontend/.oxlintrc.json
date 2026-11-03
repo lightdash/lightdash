@@ -162,7 +162,7 @@
     "jest-dom/prefer-required": "error",
     "jest-dom/prefer-to-have-attribute": "error",
 
-/* ── lightdash-ui (local plugin, see eslint-rules/) ───────────── */
+    /* ── lightdash-ui (local plugin, see eslint-rules/) ───────────── */
     "lightdash-ui/no-ldgray-text-color": "error",
     "lightdash-ui/no-inline-style-prop": "error"
   },
