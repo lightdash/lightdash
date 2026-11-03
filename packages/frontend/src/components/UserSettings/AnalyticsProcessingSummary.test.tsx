@@ -68,6 +68,22 @@ describe('AnalyticsProcessingSummary', () => {
         ).toBeVisible();
     });
 
+    it('shows deferred history as pending while keeping available data usable', () => {
+        renderWithProviders(
+            <AnalyticsProcessingSummary
+                processing={{
+                    ...processing,
+                    stats: { ...processing.stats, partitionsFailed: 0 },
+                }}
+            />,
+        );
+        expect(screen.getByText('Latest run: More data pending')).toBeVisible();
+        expect(screen.getByText(/You can explore available/)).toBeVisible();
+        expect(
+            screen.queryByText('Latest run: Failed'),
+        ).not.toBeInTheDocument();
+    });
+
     it('keeps a missing processing record neutral', () => {
         renderWithProviders(<AnalyticsProcessingSummary processing={null} />);
         expect(screen.getByText('No processing run recorded')).toBeVisible();

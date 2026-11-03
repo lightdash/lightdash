@@ -145,8 +145,21 @@ preview and playground projects alone do not qualify. Raw event capture continue
 for other organizations, but their events are not processed by scheduled runs.
 Creating Analytics still queues explicit organization-scoped initial processing
 and makes the organization eligible for future nightly runs. Explicit recovery
-runs remain available. Initial and nightly processing retain the seven-day window;
-older raw events are not automatically backfilled on activation.
+runs remain available. Initial and nightly processing prepare the last seven
+closed UTC days first, then enqueue a low-priority history pass after one minute.
+History processing includes all retained closed raw partitions, including events
+captured before the Analytics project existed. It uses the same compactor and
+serial queue, so recent processing and history cannot compact the same inputs
+concurrently. Today's events remain excluded until the next UTC day.
+
+History batches retain the existing 5,000-partition work budget and schedule a
+continuation while deferred work is making progress. Successful raw inputs are
+removed and unchanged People summaries are skipped, so subsequent batches resume
+from storage without a new database cursor. Failed or unsupported partitions do
+not cause an endless continuation loop; nightly processing revisits retained
+work. Settings counts older pending partitions and polls between batches while
+keeping Explore available. The retained-database import is separate and
+supplements, rather than replaces, captured event history.
 
 ### Project creation and models
 

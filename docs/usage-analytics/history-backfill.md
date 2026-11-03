@@ -9,6 +9,10 @@ past event, a database backup restore, or an import of warehouse result rows.
 The import has three destinations: **Query Events**, **AI Usage**, and
 **Historical Activity**. The first two supplement existing event datasets. The
 third exposes retained database facts whose meaning differs from live events.
+Settings labels this import **Additional historical records**. Captured raw
+events are processed separately: recent activity first, followed automatically
+by all older retained events in background batches. Completing this database
+import does not mean captured-event processing has finished.
 This document describes the backfill implementation in
 [PR #31585](https://github.com/lightdash/lightdash/pull/31585); availability in an
 installation depends on the deployed version and Analytics configuration.
