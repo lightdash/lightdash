@@ -29,8 +29,38 @@
 }
 
 /* The page title already names the warehouse */
-.connectColumn :global([data-connection-card]) > div > div:first-child {
+.connectColumn
+    :global([data-connection-card]:not([data-connection-card='dbt']))
+    > div
+    > div:first-child {
     display: none;
+}
+
+/* The dbt card reads as a second section of the same form */
+.connectColumn :global([data-connection-card='dbt']) {
+    margin-top: var(--mantine-spacing-md);
+    padding-top: var(--mantine-spacing-lg) !important;
+    border-top: 1px solid var(--mantine-color-default-border);
+    border-radius: 0;
+}
+
+.connectColumn :global([data-connection-card='dbt']) > div > div:first-child {
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-sm);
+    margin-bottom: var(--mantine-spacing-xs);
+}
+
+.connectColumn
+    :global(
+        [data-connection-card='dbt']
+            > div
+            > div:first-child
+            .mantine-Avatar-root
+    ) {
+    width: 24px;
+    min-width: 24px;
+    height: 24px;
 }
 
 .connectColumn :global([data-form-collapse]) {

@@ -91,7 +91,7 @@ export const ProjectForm: FC<Props> = ({
             </SettingsGridCard>
 
             {!warehouseOnly && (
-                <SettingsGridCard>
+                <SettingsGridCard data-connection-card="dbt">
                     <div>
                         <Avatar
                             size="md"
