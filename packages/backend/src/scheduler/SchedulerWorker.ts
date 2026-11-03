@@ -2357,6 +2357,8 @@ export class SchedulerWorker extends SchedulerTask {
                     );
                     return;
                 }
+                if (!payload.includeHistory && !payload.organizationUuid)
+                    await this.schedulerClient.retryFailedUsageEventHistory();
                 const compactor = new UsageEventsCompactor({
                     s3Config: usageEvents.s3,
                     prometheusMetrics: this.prometheusMetrics,

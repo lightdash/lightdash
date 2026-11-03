@@ -127,6 +127,24 @@ test('schedules deferred history on the existing serial queue and permits contin
     ).toBeGreaterThanOrEqual(before + 60_000);
 });
 
+test('revives exhausted history jobs through the queue SQL API', async () => {
+    const client = makeClient(true);
+    const query = vi.fn().mockResolvedValue({ rows: [] });
+    client.graphileUtils = Promise.resolve({
+        withPgClient: async (
+            callback: (pg: { query: typeof query }) => unknown,
+        ) => callback({ query }),
+    } as unknown as Awaited<typeof client.graphileUtils>);
+    await client.retryFailedUsageEventHistory();
+    expect(query).toHaveBeenCalledWith(
+        expect.stringContaining(
+            'attempts >= max_attempts AND locked_at IS NULL',
+        ),
+        [SCHEDULER_TASKS.COMPACT_USAGE_EVENTS],
+    );
+    expect(query.mock.calls[0][0]).toContain('attempts := 0');
+});
+
 describe('query history backfill scheduling', () => {
     afterEach(() => vi.restoreAllMocks());
 

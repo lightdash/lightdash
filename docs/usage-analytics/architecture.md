@@ -146,18 +146,24 @@ for other organizations, but their events are not processed by scheduled runs.
 Creating Analytics still queues explicit organization-scoped initial processing
 and makes the organization eligible for future nightly runs. Explicit recovery
 runs remain available. Initial and nightly processing prepare the last seven
-closed UTC days first, then enqueue a low-priority history pass after one minute.
+closed UTC days first, then enqueue a low-priority history pass after one minute
+when older work remains. Project setup also checks previously compacted history.
 History processing includes all retained closed raw partitions, including events
 captured before the Analytics project existed. It uses the same compactor and
 serial queue, so recent processing and history cannot compact the same inputs
 concurrently. Today's events remain excluded until the next UTC day.
 
-History batches retain the existing 5,000-partition work budget and schedule a
-continuation while deferred work is making progress. Successful raw inputs are
+Recent processing retains its 5,000-partition work budget. History batches
+process up to 100 raw partitions and 100 changed People summaries, then schedule
+a continuation while deferred work is making progress. Successful raw inputs are
 removed and unchanged People summaries are skipped, so subsequent batches resume
 from storage without a new database cursor. Failed or unsupported partitions do
 not cause an endless continuation loop; nightly processing revisits retained
-work. Settings counts older pending partitions and polls between batches while
+work. Nightly processing also revives exhausted history jobs, including failed
+People summaries whose raw inputs were already compacted. Runs with no deferred
+history or failed jobs avoid rescanning old summaries;
+organization-scoped setup and recovery still perform a history pass. Settings
+counts older pending partitions and polls between batches while
 keeping Explore available. The retained-database import is separate and
 supplements, rather than replaces, captured event history.
 

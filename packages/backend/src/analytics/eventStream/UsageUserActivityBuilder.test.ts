@@ -246,15 +246,17 @@ describe('user activity safeguards', () => {
         const old = `${prefix}dt=2026-01-01/part.parquet`;
         const today = `${prefix}dt=2026-02-01/part.parquet`;
         vi.spyOn(S3.prototype, 'listObjectsV2').mockImplementation(
-            async (input) =>
-                ({
-                    Contents:
-                        input.Prefix === prefix
-                            ? [{ Key: old }, { Key: today }]
-                            : input.Prefix === `${prefix}dt=2026-01-01/`
-                              ? [{ Key: old, ETag: 'old', Size: 1 }]
-                              : [],
-                }) as never,
+            async (input) => {
+                if (input.Prefix === prefix)
+                    return {
+                        Contents: [{ Key: old }, { Key: today }],
+                    } as never;
+                if (input.Prefix === `${prefix}dt=2026-01-01/`)
+                    return {
+                        Contents: [{ Key: old, ETag: 'old', Size: 1 }],
+                    } as never;
+                return { Contents: [] } as never;
+            },
         );
         upload.mockResolvedValue(undefined);
         const runSqlWithMetrics = vi.fn(async (sql: string) => {

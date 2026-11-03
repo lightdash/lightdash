@@ -34,9 +34,11 @@ describe('usage processing task scope', () => {
                 } as unknown as typeof UsageEventsCompactor,
             );
             const scheduleUsageEventHistory = vi.fn();
+            const retryFailedUsageEventHistory = vi.fn();
             const worker = new UsageTestWorker({
                 schedulerClient: {
                     scheduleUsageEventHistory,
+                    retryFailedUsageEventHistory,
                 },
                 lightdashConfig: {
                     ...lightdashConfigMock,
@@ -58,6 +60,9 @@ describe('usage processing task scope', () => {
             );
             expect(scheduleUsageEventHistory).toHaveBeenCalledTimes(
                 organizationUuid ? 1 : 0,
+            );
+            expect(retryFailedUsageEventHistory).toHaveBeenCalledTimes(
+                organizationUuid ? 0 : 1,
             );
         },
     );

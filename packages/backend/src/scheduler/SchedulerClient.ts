@@ -1820,6 +1820,22 @@ export class SchedulerClient {
         );
     }
 
+    async retryFailedUsageEventHistory(): Promise<void> {
+        const graphileClient = await this.graphileUtils;
+        // The installed JS wrapper drops attempts: 0; call Graphile's SQL API.
+        await graphileClient.withPgClient((pgClient) =>
+            pgClient.query(
+                `SELECT id FROM graphile_worker.reschedule_jobs(
+                    ARRAY(SELECT id FROM graphile_worker.jobs
+                          WHERE task_identifier = $1 AND key LIKE 'usage-event-history:%'
+                            AND attempts >= max_attempts AND locked_at IS NULL),
+                    run_at := NOW() + INTERVAL '1 minute', attempts := 0
+                )`,
+                [SCHEDULER_TASKS.COMPACT_USAGE_EVENTS],
+            ),
+        );
+    }
+
     async getUsageHistoryBackfillJob(
         organizationUuid: string,
     ): Promise<{ running: boolean; failed: boolean }> {
