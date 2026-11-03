@@ -19489,12 +19489,16 @@ export class ProjectService
         user: SessionUser,
         keyfileContents: Record<string, string>,
     ) {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
         const auditedAbility = this.createAuditedAbility(user);
         if (
             auditedAbility.cannot(
                 'create',
                 subject('Project', {
-                    organizationUuid: user.organizationUuid,
+                    organizationUuid,
                     type: ProjectType.DEFAULT,
                 }),
             )
