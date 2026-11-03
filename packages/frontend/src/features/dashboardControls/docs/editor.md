@@ -124,7 +124,10 @@ A withdrawn question hands focus back to the editor (Apply, else its first
 enabled control) once it has left.
 
 A `pointerdown` outside the editor and the pills acts as a click outside a
-popover: nothing while a list is open (the press closes it), else
+popover. A press on a date input's calendar (`[data-dates-dropdown]`,
+portalled, and not seen by `hasOpenLayer` because Mantine's `DateInput`
+drops its roles) is inside the editor. Otherwise: nothing while a list is
+open (the press closes it), else
 `requestClose` cancels the edit, unapplied changes included, and never asks
 (only a pill or Add asks); its `mousedown` is left alone. A new
 filter with nothing picked has nothing to lose: a press outside dismisses it
