@@ -347,7 +347,10 @@ describe('UserModel', () => {
         expect(merge).toHaveBeenCalledOnce();
     });
 
-    it('activates an invited user without creating a password login', async () => {
+    it.each([
+        { firstName: '', lastName: '' },
+        { firstName: 'José', lastName: 'Müller' },
+    ])('preserves names during passwordless activation: %j', async (names) => {
         const update = vi.fn(() => ({
             returning: vi.fn(async () => [{ user_id: 1 }]),
         }));
@@ -372,8 +375,8 @@ describe('UserModel', () => {
         const activatedUser = mapDbUserDetailsToLightdashUser(
             {
                 ...userDetails,
-                first_name: '',
-                last_name: '',
+                first_name: names.firstName,
+                last_name: names.lastName,
             },
             false,
         );
@@ -387,8 +390,6 @@ describe('UserModel', () => {
 
         expect(activatedUser.isActive).toBe(true);
         expect(update).toHaveBeenCalledWith({
-            first_name: '',
-            last_name: '',
             updated_at: expect.any(Date),
         });
         expect(transactionClient).not.toHaveBeenCalledWith(
