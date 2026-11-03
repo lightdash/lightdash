@@ -1812,7 +1812,8 @@ export class SchedulerClient {
             {
                 queueName: 'analytics-content-reconciliation',
                 jobKey: `analytics-content-reconciliation:${organizationUuid ?? 'all'}`,
-                jobKeyMode: 'unsafe_dedupe',
+                // Allow the next processing run to revive exhausted retries.
+                jobKeyMode: 'preserve_run_at',
                 maxAttempts: 3,
                 priority: JobPriority.LOW,
             },
@@ -1829,7 +1830,8 @@ export class SchedulerClient {
             {
                 queueName: 'analytics-content-sync',
                 jobKey: `analytics-content-sync:${payload.projectUuid}`,
-                jobKeyMode: 'unsafe_dedupe',
+                // Allow the next processing run to revive exhausted retries.
+                jobKeyMode: 'preserve_run_at',
                 maxAttempts: 3,
                 priority: JobPriority.LOW,
             },

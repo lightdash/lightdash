@@ -110,7 +110,7 @@ describe('analytics content scheduling', () => {
     beforeEach(() => graphileAddJob.mockClear());
 
     it.each([null, ORG_UUID])(
-        'deduplicates reconciliation for scope %s separately from compaction',
+        'allows reconciliation for scope %s to recover on the next processing run',
         async (organizationUuid) => {
             await makeClient(true).scheduleAnalyticsContentReconciliation(
                 organizationUuid,
@@ -121,7 +121,7 @@ describe('analytics content scheduling', () => {
                 {
                     queueName: 'analytics-content-reconciliation',
                     jobKey: `analytics-content-reconciliation:${organizationUuid ?? 'all'}`,
-                    jobKeyMode: 'unsafe_dedupe',
+                    jobKeyMode: 'preserve_run_at',
                     maxAttempts: 3,
                     priority: JobPriority.LOW,
                 },
@@ -129,7 +129,7 @@ describe('analytics content scheduling', () => {
         },
     );
 
-    it('deduplicates full content sync per project on its own retryable queue', async () => {
+    it('keeps per-project content sync retryable after an earlier job exhausts attempts', async () => {
         const client = makeClient(true);
         const payload = {
             organizationUuid: ORG_UUID,
@@ -142,7 +142,7 @@ describe('analytics content scheduling', () => {
             {
                 queueName: 'analytics-content-sync',
                 jobKey: 'analytics-content-sync:project-1',
-                jobKeyMode: 'unsafe_dedupe',
+                jobKeyMode: 'preserve_run_at',
                 maxAttempts: 3,
                 priority: JobPriority.LOW,
             },
