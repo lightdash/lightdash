@@ -68,6 +68,7 @@ const fullInput: LoadoutInput = {
     canRunSql: true,
     canCreateDashboards: true,
     canCreateScheduledDeliveries: true,
+    enableContentReads: true,
     enableContentTools: true,
     enableDocuments: true,
     enableGenerateDataApp: true,
@@ -93,6 +94,7 @@ const minimalInput: LoadoutInput = {
     canRunSql: false,
     canCreateDashboards: false,
     canCreateScheduledDeliveries: false,
+    enableContentReads: false,
     enableContentTools: false,
     enableDocuments: false,
     enableGenerateDataApp: false,
@@ -138,6 +140,7 @@ const inputs: Record<LoadoutBase, LoadoutInput> = {
     no_data_access: {
         ...fullInput,
         enableDataAccess: false,
+        enableContentReads: false,
         enableContentTools: false,
     },
     deep_research_worker: {
@@ -227,6 +230,7 @@ describe('loadout contracts', () => {
             ...minimalInput,
             enableDataAccess: true,
             canRunSql: true,
+            enableContentReads: true,
             enableContentTools: true,
             canCreateScheduledDeliveries: true,
             enableDocuments: true,
@@ -342,10 +346,50 @@ describe('resolveLoadout', () => {
         expect(loadout.promptSections.has('schedulingTools')).toBe(false);
     });
 
+    test('content reads load without content write access', () => {
+        const loadout = resolveLoadout({
+            ...fullInput,
+            enableContentTools: false,
+            enableDocuments: false,
+            canCreateDashboards: false,
+        });
+        expect(loadout.addOns.has('contentReads')).toBe(true);
+        const reads: AgentToolName[] = [
+            'readContent',
+            'listContent',
+            'runContentQuery',
+        ];
+        const unloaded: AgentToolName[] = [
+            'createContent',
+            'editContent',
+            'createScheduledDelivery',
+            'getDashboardCharts',
+            'generateDashboard',
+        ];
+        for (const tool of reads) {
+            expect(loadout.toolNames.has(tool)).toBe(true);
+        }
+        for (const tool of unloaded) {
+            expect(loadout.toolNames.has(tool)).toBe(false);
+        }
+        expect(loadout.promptSections.has('contentTools')).toBe(false);
+    });
+
+    test('legacy dashboards load only when content reads are off', () => {
+        const loadout = resolveLoadout({
+            ...fullInput,
+            enableContentReads: false,
+            enableContentTools: false,
+        });
+        expect(loadout.addOns.has('contentReads')).toBe(false);
+        expect(loadout.toolNames.has('getDashboardCharts')).toBe(true);
+    });
+
     test('content tools bring their skill and loadSkill', () => {
         const loadout = resolveLoadout({
             ...minimalInput,
             enableDataAccess: true,
+            enableContentReads: true,
             enableContentTools: true,
         });
         expect(loadout.skills).toEqual(new Set(['developing-in-lightdash']));
@@ -529,7 +573,11 @@ describe('loadout structure', () => {
         const resolved = new Set<string>(
             [
                 inputs.classic,
-                { ...inputs.classic, enableContentTools: false },
+                {
+                    ...inputs.classic,
+                    enableContentReads: false,
+                    enableContentTools: false,
+                },
                 inputs.composer,
                 inputs.deep_research_coordinator,
             ].flatMap((input) => [...resolveLoadout(input).toolNames]),

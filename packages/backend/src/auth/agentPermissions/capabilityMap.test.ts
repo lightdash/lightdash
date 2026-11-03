@@ -229,6 +229,7 @@ const buildAgentTools = (overrides: Partial<AiAgentArgs>) => {
         canCreateScheduledDeliveries: true,
         canRunSql: true,
         enableAiWriteback: true,
+        enableContentReads: true,
         enableContentTools: true,
         enableDataAccess: true,
         enableDocuments: true,
@@ -281,6 +282,7 @@ it('covers common agent definitions and all runtime variants without stale entri
         {},
         { enableComposerQueries: true },
         { enableContentTools: false },
+        { enableContentReads: false, enableContentTools: false },
         { decisions: undefined, canRunSql: false, enableDataAccess: false },
         ...(['coordinator', 'worker'] as const).flatMap((role) =>
             [false, true].map((canUseRawSql) => ({

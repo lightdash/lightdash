@@ -35,7 +35,7 @@
         "addsSkills": []
     },
     "legacyDashboards": {
-        "description": "Read dashboard charts when content tools are off",
+        "description": "Read dashboard charts when content reads are off",
         "addsTools": [
             "getDashboardCharts"
         ],
