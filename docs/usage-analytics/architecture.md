@@ -167,7 +167,8 @@ derives dimensions from the compacted schemas and metrics from
 It explicitly includes `query_events`, `ai_usage`, `data_app_events` and
 `export_events`; registering another writer stream does not expose another
 explore automatically. Query Events joins Charts, Dashboards and Users; AI Usage
-joins Users and Agents; the other models join Users. These optional many-to-one
+joins Users and Agents; event models can join Users. Content inventory reads only
+the current `lightdash_content` snapshot, without user or event joins. These optional many-to-one
 LEFT joins match organization and
 entity ID, preserving events whose lookup is missing. Compiled models
 refer to table names, not signed URLs. SQL and aggregations are generated from
