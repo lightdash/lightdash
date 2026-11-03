@@ -67,13 +67,6 @@
     color: var(--ld-field-metric-color);
 }
 
-.badge {
-    padding: 0 6px;
-    border-radius: var(--mantine-radius-xl);
-    background: var(--ld-field-metric-bg);
-    color: var(--ld-field-metric-color);
-}
-
 .code {
     margin-top: 2px;
     font-family: var(--mantine-font-family-monospace);

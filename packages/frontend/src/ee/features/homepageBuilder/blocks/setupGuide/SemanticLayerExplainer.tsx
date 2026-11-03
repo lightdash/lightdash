@@ -58,14 +58,9 @@ const Diagram: FC = () => (
             <Box className={classes.packet} />
         </Box>
         <Box className={classes.metric} __vars={{ '--i': '2' }}>
-            <Group gap={6} wrap="nowrap" justify="space-between">
-                <Text fz="xs" fw={600} className={classes.metricName}>
-                    revenue
-                </Text>
-                <Text fz="xs" className={classes.badge}>
-                    defined once
-                </Text>
-            </Group>
+            <Text fz="xs" fw={600} className={classes.metricName}>
+                revenue
+            </Text>
             <Text fz="xs" className={classes.code}>
                 sum(orders.amount)
             </Text>
