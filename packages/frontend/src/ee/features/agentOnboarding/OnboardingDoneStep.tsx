@@ -174,31 +174,30 @@ export const OnboardingDoneStep: FC<{ projectUuid: string }> = ({
                     />
                 )}
 
+                <Box className={classes.runCard}>
+                    <OnboardingRunActivity
+                        projectUuid={projectUuid}
+                        variant="grouped"
+                    />
+                </Box>
+
                 <Stack gap="md">
-                    <Box className={classes.askGroup}>
-                        <OnboardingRunActivity
-                            projectUuid={projectUuid}
-                            variant="grouped"
-                        />
-                        <Stack gap="xs">
-                            {isLive && (
-                                <Text fz="sm" fw={500}>
-                                    While you wait
-                                </Text>
-                            )}
-                            <Button
-                                size="md"
-                                fullWidth
-                                onClick={() => ask(FIRST_QUESTION)}
-                                rightSection={
-                                    <MantineIcon icon={IconArrowRight} />
-                                }
-                                className={classes.primary}
-                            >
-                                Ask your first question
-                            </Button>
-                        </Stack>
-                    </Box>
+                    <Stack gap="xs">
+                        {isLive && (
+                            <Text fz="sm" fw={500}>
+                                While you wait
+                            </Text>
+                        )}
+                        <Button
+                            size="md"
+                            fullWidth
+                            onClick={() => ask(FIRST_QUESTION)}
+                            rightSection={<MantineIcon icon={IconArrowRight} />}
+                            className={classes.primary}
+                        >
+                            Ask your first question
+                        </Button>
+                    </Stack>
                     <Button
                         size="md"
                         fullWidth

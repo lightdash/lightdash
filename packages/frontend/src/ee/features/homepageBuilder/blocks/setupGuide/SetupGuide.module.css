@@ -29,7 +29,11 @@
 
 .top {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+    /* Two cards a row at most */
+    grid-template-columns: repeat(
+        auto-fit,
+        minmax(max(12rem, calc((100% - var(--mantine-spacing-sm)) / 2)), 1fr)
+    );
     gap: var(--mantine-spacing-sm);
 }
 

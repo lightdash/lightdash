@@ -8,19 +8,13 @@ import useToaster from '../../../hooks/toaster/useToaster';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import { useAgentOnboardingRun } from './hooks/useAgentOnboarding';
-import {
-    AGENT_ONBOARDING_STAGE_ACTIVE_LABELS,
-    getAgentOnboardingProgressStageTimings,
-    getAgentOnboardingRunUrl,
-} from './utils';
+import { getAgentOnboardingRunUrl } from './utils';
 import {
     clearWatchedAgentOnboardingRun,
     useWatchedAgentOnboardingRun,
 } from './watchedRunStore';
 
 const toastedRunUuids = new Set<string>();
-// Closing the progress toast lets the run finish quietly; completion still announces itself
-const dismissedRunUuids = new Set<string>();
 
 const runToastKey = (runUuid: string) => `agent-onboarding-run-${runUuid}`;
 
@@ -28,7 +22,7 @@ export const AgentOnboardingCompletionWatcher: FC = () => {
     const watched = useWatchedAgentOnboardingRun();
     const navigate = useNavigate();
     const location = useLocation();
-    const { showToastSuccess, showToastInfo, showToastWarning } = useToaster();
+    const { showToastSuccess, showToastWarning } = useToaster();
     const { track } = useTracking();
     const { data: organization } = useOrganization({
         queryKey: ['organization'],
@@ -43,12 +37,6 @@ export const AgentOnboardingCompletionWatcher: FC = () => {
     const { data: run, isError } = runQuery;
     const organizationUuid = organization?.organizationUuid;
     const { pathname } = location;
-    const activeStage =
-        run && !isAgentOnboardingRunTerminal(run.status)
-            ? (getAgentOnboardingProgressStageTimings(run).find(
-                  ({ state }) => state === 'active',
-              )?.stage ?? 'explore')
-            : null;
     // The run page and the setup steps show the run inline, so no toast there
     const isShownInline =
         pathname.startsWith('/onboarding/') ||
@@ -58,30 +46,6 @@ export const AgentOnboardingCompletionWatcher: FC = () => {
                     run.agentOnboardingRunUuid,
                     run.projectUuid,
                 ));
-
-    useEffect(() => {
-        if (!run || !activeStage || isShownInline) return;
-        const { agentOnboardingRunUuid, projectUuid } = run;
-        if (dismissedRunUuids.has(agentOnboardingRunUuid)) return;
-        showToastInfo({
-            key: runToastKey(agentOnboardingRunUuid),
-            autoClose: false,
-            loading: true,
-            onClose: () => dismissedRunUuids.add(agentOnboardingRunUuid),
-            title: `${AI_NAME} is drafting your workspace`,
-            subtitle: `${AGENT_ONBOARDING_STAGE_ACTIVE_LABELS[activeStage]}…`,
-            action: {
-                children: 'Watch progress',
-                onClick: () =>
-                    void navigate(
-                        getAgentOnboardingRunUrl(
-                            agentOnboardingRunUuid,
-                            projectUuid,
-                        ),
-                    ),
-            },
-        });
-    }, [run, activeStage, isShownInline, showToastInfo, navigate]);
 
     useEffect(() => {
         if (isError) {

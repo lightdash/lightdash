@@ -136,16 +136,13 @@
     }
 }
 
-/* The drafting run and the first question read as one block */
-.askGroup {
-    display: flex;
-    flex-direction: column;
-    gap: var(--mantine-spacing-xl);
-}
-
-.askGroup:has([data-run-activity]) {
+.runCard:has([data-run-activity]) {
     padding: var(--mantine-spacing-lg);
     border: 1px solid var(--mantine-color-default-border);
     border-radius: var(--mantine-radius-lg);
     background: var(--mantine-color-body);
+}
+
+.runCard:not(:has([data-run-activity])) {
+    display: none;
 }

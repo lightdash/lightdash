@@ -135,7 +135,7 @@ const renderGuide = (
                     onDismissedChange={handlers.onDismissedChange ?? vi.fn()}
                     onSkip={handlers.onSkip ?? vi.fn()}
                     onRestore={vi.fn()}
-                    highlight={null}
+                    highlight={[]}
                 />
             </MemoryRouter>
         </MantineProvider>,

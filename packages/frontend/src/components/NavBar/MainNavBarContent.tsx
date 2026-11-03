@@ -3,6 +3,7 @@ import { useDisclosure } from '@mantine/hooks';
 import { IconHome, IconMenu2 } from '@tabler/icons-react';
 import { lazy, Suspense, useEffect, type FC } from 'react';
 import { Link, useLocation } from 'react-router';
+import { AgentOnboardingNavIndicator } from '../../ee/features/agentOnboarding/AgentOnboardingNavIndicator';
 import { LearnLink } from '../../features/learn/LearnLink';
 import { useHasMetricsInCatalog } from '../../features/metricsCatalog/hooks/useMetricsCatalog';
 import Omnibar from '../../features/omnibar';
@@ -137,6 +138,9 @@ export const MainNavBarContent: FC<Props> = ({
                                 withLabel={compact}
                             />
                         </NavGroup>
+                        <AgentOnboardingNavIndicator
+                            projectUuid={activeProjectUuid}
+                        />
                         {!compact && (
                             <Omnibar projectUuid={activeProjectUuid} />
                         )}

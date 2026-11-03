@@ -1,10 +1,11 @@
 import { Box, Group, Stack, Text } from '@mantine/core';
+import { useInterval } from '@mantine/hooks';
 import {
     IconChartBar,
     IconDatabase,
     IconLayoutDashboard,
 } from '@tabler/icons-react';
-import { type FC, type ReactNode } from 'react';
+import { useState, type FC, type ReactNode } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import classes from './SemanticLayerExplainer.module.css';
 
@@ -86,71 +87,153 @@ const Diagram: FC = () => (
     </Box>
 );
 
-const Part: FC<{ term: string; detail: string; art: ReactNode }> = ({
-    term,
-    detail,
-    art,
-}) => (
-    <Box className={classes.part}>
-        <Box className={classes.partArt}>{art}</Box>
-        <Text fz="sm" fw={500}>
-            {term}
+type Slice = { dimension: string; bars: { label: string; value: number }[] };
+
+const SLICES: Slice[] = [
+    {
+        dimension: 'month',
+        bars: [
+            { label: 'Jan', value: 42 },
+            { label: 'Feb', value: 55 },
+            { label: 'Mar', value: 48 },
+            { label: 'Apr', value: 71 },
+            { label: 'May', value: 64 },
+            { label: 'Jun', value: 88 },
+        ],
+    },
+    {
+        dimension: 'status',
+        bars: [
+            { label: 'completed', value: 92 },
+            { label: 'shipped', value: 54 },
+            { label: 'placed', value: 31 },
+            { label: 'returned', value: 12 },
+        ],
+    },
+    {
+        dimension: 'payment',
+        bars: [
+            { label: 'card', value: 84 },
+            { label: 'transfer', value: 47 },
+            { label: 'coupon', value: 22 },
+            { label: 'gift card', value: 14 },
+        ],
+    },
+];
+
+const RevenueChart: FC<{ focus: 'metric' | 'dimension' }> = ({ focus }) => {
+    const [sliceIndex, setSliceIndex] = useState(0);
+    useInterval(
+        () => setSliceIndex((index) => (index + 1) % SLICES.length),
+        2200,
+        { autoInvoke: focus === 'dimension' },
+    );
+    const slice = focus === 'dimension' ? SLICES[sliceIndex] : SLICES[0];
+    return (
+        <Box className={classes.chart} data-focus={focus} aria-hidden>
+            <Group gap={6} wrap="nowrap">
+                <Text fz="xs" className={classes.chip} data-kind="metric">
+                    revenue
+                </Text>
+                <Text fz="xs" c="dimmed">
+                    by
+                </Text>
+                {SLICES.map(({ dimension }) => (
+                    <Text
+                        key={dimension}
+                        fz="xs"
+                        className={classes.chip}
+                        data-kind="dimension"
+                        data-active={dimension === slice.dimension}
+                    >
+                        {dimension}
+                    </Text>
+                ))}
+            </Group>
+            <Box className={classes.plot}>
+                {slice.bars.map(({ label, value }, index) => (
+                    <Box
+                        key={`${slice.dimension}-${label}`}
+                        className={classes.barColumn}
+                    >
+                        <Box
+                            className={classes.bar}
+                            __vars={{
+                                '--h': `${value}%`,
+                                '--i': String(index),
+                            }}
+                        />
+                        <Text fz={10} className={classes.barLabel} truncate>
+                            {label}
+                        </Text>
+                    </Box>
+                ))}
+            </Box>
+        </Box>
+    );
+};
+
+const DefinedInCode: FC = () => (
+    <Box className={classes.yaml}>
+        <Text fz={10} className={classes.yamlLine}>
+            metrics:
         </Text>
-        <Text fz="xs" c="dimmed">
-            {detail}
+        <Text fz={10} className={classes.yamlLine} data-added>
+            + revenue:
+        </Text>
+        <Text fz={10} className={classes.yamlLine} data-added>
+            + type: sum
         </Text>
     </Box>
 );
 
-const Chips: FC<{ items: string[]; kind: 'metric' | 'dimension' }> = ({
-    items,
-    kind,
-}) => (
-    <Group gap={4}>
-        {items.map((item) => (
-            <Text key={item} fz="xs" className={classes.chip} data-kind={kind}>
-                {item}
-            </Text>
-        ))}
-    </Group>
-);
+const STEPS: { art: ReactNode; title: string; body: ReactNode }[] = [
+    {
+        art: <RevenueChart focus="metric" />,
+        title: 'Metrics are the numbers',
+        body: 'A metric is a number you track, like revenue: the sum of every order amount. It is the height of each bar.',
+    },
+    {
+        art: <RevenueChart focus="dimension" />,
+        title: 'Dimensions slice them',
+        body: 'A dimension is what you group by, like month, order status or payment method. Same revenue, seen from a different angle.',
+    },
+    {
+        art: <Diagram />,
+        title: 'Defined once, used everywhere',
+        body: (
+            <Group gap="md" wrap="nowrap" align="center">
+                <Text fz="sm" c="dimmed">
+                    Every chart, dashboard and AI answer uses the same
+                    definitions, so the same question always gets the same
+                    number. They live in code and get reviewed like any other
+                    change.
+                </Text>
+                <DefinedInCode />
+            </Group>
+        ),
+    },
+];
 
-export const SemanticLayerExplainer: FC = () => (
-    <Stack gap="lg">
-        <Diagram />
-        <Text fz="sm" c="dimmed" ta="center">
-            Your metrics are defined once on top of your tables. Every chart,
-            dashboard and AI answer uses those definitions, so the same question
-            always gets the same number.
-        </Text>
-        <Box className={classes.parts}>
-            <Part
-                term="Metrics"
-                detail="The numbers you track"
-                art={<Chips items={['revenue', 'orders']} kind="metric" />}
-            />
-            <Part
-                term="Dimensions"
-                detail="What you slice them by"
-                art={<Chips items={['date', 'region']} kind="dimension" />}
-            />
-            <Part
-                term="Defined in code"
-                detail="Reviewed like any other code"
-                art={
-                    <Box className={classes.yaml}>
-                        <Text fz={10} className={classes.yamlLine}>
-                            metrics:
-                        </Text>
-                        <Text fz={10} className={classes.yamlLine} data-added>
-                            + revenue:
-                        </Text>
-                        <Text fz={10} className={classes.yamlLine} data-added>
-                            + type: sum
-                        </Text>
-                    </Box>
-                }
-            />
-        </Box>
-    </Stack>
-);
+export const SEMANTIC_LAYER_STEP_COUNT = STEPS.length;
+
+export const SemanticLayerExplainer: FC<{ step: number }> = ({ step }) => {
+    const { art, title, body } = STEPS[step];
+    return (
+        <Stack gap="lg" key={step} className={classes.step}>
+            {art}
+            <Stack gap={4}>
+                <Text fz="md" fw={600}>
+                    {title}
+                </Text>
+                {typeof body === 'string' ? (
+                    <Text fz="sm" c="dimmed">
+                        {body}
+                    </Text>
+                ) : (
+                    body
+                )}
+            </Stack>
+        </Stack>
+    );
+};

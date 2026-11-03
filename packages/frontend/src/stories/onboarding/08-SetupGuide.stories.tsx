@@ -78,7 +78,7 @@ const Guide = ({ state }: { state: GuideState }) => {
                     sections={buildSetupGuide(facts)}
                     isDismissed={isDismissed}
                     onDismissedChange={setIsDismissed}
-                    highlight={null}
+                    highlight={[]}
                     onSkip={(key) =>
                         setSkippedActions((keys) => [...keys, key])
                     }

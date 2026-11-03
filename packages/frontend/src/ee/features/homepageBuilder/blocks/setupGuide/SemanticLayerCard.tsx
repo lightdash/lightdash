@@ -1,12 +1,15 @@
 import { ActionIcon, Anchor, Box, Button, Group, Text } from '@mantine/core';
 import { useDisclosure, useLocalStorage } from '@mantine/hooks';
 import { IconExternalLink, IconLayersLinked, IconX } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { useState, type FC } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
 import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
-import { SemanticLayerExplainer } from './SemanticLayerExplainer';
+import {
+    SEMANTIC_LAYER_STEP_COUNT,
+    SemanticLayerExplainer,
+} from './SemanticLayerExplainer';
 import classes from './SetupGuide.module.css';
 import { type SetupGuideRow } from './setupGuideModel';
 import { StepArt } from './StepArt';
@@ -18,6 +21,8 @@ export const SemanticLayerCard: FC<{ projectUuid: string }> = ({
 }) => {
     const isEmbedded = useIsEmbedded();
     const [isModalOpen, { open, close }] = useDisclosure(false);
+    const [step, setStep] = useState(0);
+    const isLastStep = step === SEMANTIC_LAYER_STEP_COUNT - 1;
     const [isDismissed, setIsDismissed] = useLocalStorage({
         key: `ld.setupGuide.auroraResult.${projectUuid}`,
         defaultValue: false,
@@ -54,7 +59,10 @@ export const SemanticLayerCard: FC<{ projectUuid: string }> = ({
                         size="xs"
                         variant="subtle"
                         color="gray"
-                        onClick={open}
+                        onClick={() => {
+                            setStep(0);
+                            open();
+                        }}
                     >
                         Learn
                     </Button>
@@ -65,9 +73,9 @@ export const SemanticLayerCard: FC<{ projectUuid: string }> = ({
                 onClose={close}
                 title="How the semantic layer works"
                 icon={IconLayersLinked}
-                cancelLabel="Close"
+                cancelLabel={false}
                 leftActions={
-                    !isEmbedded && (
+                    isLastStep && !isEmbedded ? (
                         <Anchor
                             href={SEMANTIC_LAYER_DOCS_URL}
                             target="_blank"
@@ -82,10 +90,38 @@ export const SemanticLayerCard: FC<{ projectUuid: string }> = ({
                                 />
                             </Group>
                         </Anchor>
+                    ) : (
+                        <Text fz="xs" c="dimmed">
+                            {step + 1} of {SEMANTIC_LAYER_STEP_COUNT}
+                        </Text>
                     )
                 }
+                actions={
+                    <Group gap="xs">
+                        {step > 0 && (
+                            <Button
+                                variant="default"
+                                onClick={() => setStep(step - 1)}
+                            >
+                                Back
+                            </Button>
+                        )}
+                        {isLastStep ? (
+                            <Button
+                                component={Link}
+                                to={`/projects/${projectUuid}/metrics`}
+                            >
+                                Explore your metrics
+                            </Button>
+                        ) : (
+                            <Button onClick={() => setStep(step + 1)}>
+                                Next
+                            </Button>
+                        )}
+                    </Group>
+                }
             >
-                <SemanticLayerExplainer />
+                <SemanticLayerExplainer step={step} />
             </MantineModal>
         </Box>
     );

@@ -3,6 +3,7 @@ import {
     ActionIcon,
     Box,
     Button,
+    Divider,
     Group,
     Menu,
     Paper,
@@ -42,8 +43,11 @@ import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
-import { AgentOnboardingActivityPanel } from '../../../agentOnboarding/AgentOnboardingActivity';
 import { AgentOnboardingProgress } from '../../../agentOnboarding/AgentOnboardingProgress';
+import {
+    RunChanges,
+    RunRecentSteps,
+} from '../../../agentOnboarding/AgentOnboardingRunChanges';
 import { getAgentOnboardingRunUrl } from '../../../agentOnboarding/utils';
 import { type RecommendedActionsState } from '../useRecommendedActions';
 import { SemanticLayerCard, StarterDashboardCard } from './SemanticLayerCard';
@@ -342,7 +346,9 @@ const AuroraLiveCard: FC<{ rows: SetupGuideRow[] }> = ({ rows }) => {
                 >
                     <Stack gap="md">
                         <AgentOnboardingProgress run={run} />
-                        <AgentOnboardingActivityPanel events={run.events} />
+                        <RunRecentSteps run={run} />
+                        <Divider />
+                        <RunChanges run={run} />
                     </Stack>
                 </MantineModal>
             )}
@@ -393,7 +399,7 @@ type SetupGuideViewProps = {
     sections: SetupGuideSection[];
     isDismissed: boolean;
     onDismissedChange: (isDismissed: boolean) => void;
-    highlight: ReactNode;
+    highlight: ReactNode[];
 } & RowHandlers;
 
 export const SetupGuideView: FC<SetupGuideViewProps> = ({
@@ -412,7 +418,7 @@ export const SetupGuideView: FC<SetupGuideViewProps> = ({
     const rows = sections.flatMap((section) => section.rows);
     const { completed, total } = countProgress(rows);
     // Skipped rows are out of the total, so this means nothing is left to do
-    if (completed === total) return highlight;
+    if (completed === total) return <>{highlight}</>;
     if (isDismissed) {
         const reopenLabel = `Setup guide, ${completed} of ${total} done`;
         if (!cornerSlot) {
@@ -478,7 +484,11 @@ export const SetupGuideView: FC<SetupGuideViewProps> = ({
     const todoRows = rows.filter((row) => row.status === 'suggested');
     const skippedRows = rows.filter((row) => row.status === 'skipped');
     // Connecting dbt is for teams that already have it, so it never takes the big slot
-    const nextRow = todoRows.find(({ id }) => id !== 'source-control');
+    // The top row holds two cards at most, so a full highlight pushes next up below
+    const nextRow =
+        highlight.length >= 2
+            ? undefined
+            : todoRows.find(({ id }) => id !== 'source-control');
     const laterRows = todoRows.filter((row) => row !== nextRow);
 
     return (
@@ -550,7 +560,7 @@ export const SetupGuideView: FC<SetupGuideViewProps> = ({
                 {buildingRows.length > 0 && (
                     <AuroraLiveCard rows={buildingRows} />
                 )}
-                {(highlight || nextRow) && (
+                {(highlight.length > 0 || nextRow) && (
                     <Box className={classes.top}>
                         {highlight}
                         {nextRow && (
@@ -617,21 +627,21 @@ export const SetupGuide: FC<{
             sections={guide.sections}
             isDismissed={guide.isDismissed}
             onDismissedChange={guide.setIsDismissed}
-            highlight={
-                showSemanticLayer || showStarterDashboard ? (
-                    <>
-                        {showSemanticLayer && (
-                            <SemanticLayerCard projectUuid={projectUuid} />
-                        )}
-                        {showStarterDashboard && (
-                            <StarterDashboardCard
-                                projectUuid={projectUuid}
-                                starterDashboard={starterDashboard}
-                            />
-                        )}
-                    </>
-                ) : null
-            }
+            highlight={[
+                showSemanticLayer && (
+                    <SemanticLayerCard
+                        key="semantic-layer"
+                        projectUuid={projectUuid}
+                    />
+                ),
+                showStarterDashboard && (
+                    <StarterDashboardCard
+                        key="starter-dashboard"
+                        projectUuid={projectUuid}
+                        starterDashboard={starterDashboard}
+                    />
+                ),
+            ].filter(Boolean)}
             onSkip={(actionKey) => {
                 guide.skipAction(actionKey);
                 track({
