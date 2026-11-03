@@ -53,7 +53,10 @@ type Dependencies = {
         | 'scheduleUsageHistoryBackfill'
         | 'scheduleAnalyticsContentSync'
     >;
-    contentAsCodeSnapshotModel: Pick<ContentAsCodeSnapshotModel, 'get' | 'upsert'>;
+    contentAsCodeSnapshotModel: Pick<
+        ContentAsCodeSnapshotModel,
+        'get' | 'upsert'
+    >;
     featureFlagModel: Pick<FeatureFlagModel, 'get'>;
     coderService: Pick<CoderService, 'upsertChart' | 'upsertDashboard'>;
     contentVerificationModel: Pick<
@@ -227,9 +230,7 @@ export class AnalyticsProjectService extends BaseService {
         );
         if (!project) return { project: null };
 
-        const state = await this.getSyncState(
-            project.projectUuid,
-        );
+        const state = await this.getSyncState(project.projectUuid);
         return {
             project: {
                 projectUuid: project.projectUuid,
@@ -340,10 +341,7 @@ export class AnalyticsProjectService extends BaseService {
                 );
                 if (!project)
                     throw new NotFoundError('Analytics project not found');
-                const state =
-                    await this.getSyncState(
-                        project.projectUuid,
-                    );
+                const state = await this.getSyncState(project.projectUuid);
                 if (installedByNewerRelease(state)) {
                     throw new ConflictError(
                         'Analytics content was updated by a newer server version. Retry after the deployment completes.',
@@ -501,13 +499,11 @@ export class AnalyticsProjectService extends BaseService {
         /* eslint-disable no-await-in-loop */
         while (true) {
             const projects =
-                await this.dependencies.projectModel.getAnalyticsProjectsPage(
-                    {
-                        organizationUuid,
-                        afterProjectUuid,
-                        limit: 100,
-                    },
-                );
+                await this.dependencies.projectModel.getAnalyticsProjectsPage({
+                    organizationUuid,
+                    afterProjectUuid,
+                    limit: 100,
+                });
             if (projects.length === 0) break;
             for (const project of projects) {
                 try {
@@ -578,10 +574,7 @@ export class AnalyticsProjectService extends BaseService {
                     ))
                 )
                     return;
-                const state =
-                    await this.getSyncState(
-                        projectUuid,
-                    );
+                const state = await this.getSyncState(projectUuid);
                 if (!(await this.hasContentUpdates(projectUuid, state))) return;
                 const systemUser =
                     await this.dependencies.userModel.getOrCreateAnalyticsSystemUser(

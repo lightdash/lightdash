@@ -180,17 +180,21 @@ describe('analytics worker through the real content writer', () => {
             is_active: false,
             is_internal: true,
         });
-        for (const table of [
-            'emails',
-            'password_logins',
-            'openid_identities',
-            'organization_memberships',
-            'project_memberships',
-        ]) {
-            expect(
-                await migrated.database(table).where('user_id', first.userId),
-            ).toEqual([]);
-        }
+        await Promise.all(
+            [
+                'emails',
+                'password_logins',
+                'openid_identities',
+                'organization_memberships',
+                'project_memberships',
+            ].map(async (table) => {
+                expect(
+                    await migrated
+                        .database(table)
+                        .where('user_id', first.userId),
+                ).toEqual([]);
+            }),
+        );
         expect(
             await migrated
                 .database('personal_access_tokens')
