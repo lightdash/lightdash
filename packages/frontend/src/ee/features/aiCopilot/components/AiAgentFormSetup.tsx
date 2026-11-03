@@ -952,7 +952,7 @@ export const AiAgentFormSetup = ({
                                 label={
                                     <SwitchLabel
                                         text="Create and edit content"
-                                        help="Requires reading rows to be enabled. Only works for users with content-as-code access (admins, developers, and editors)."
+                                        help="Requires reading rows to be enabled. This setting never grants permission: the agent only offers what the user's role allows. Saving charts and dashboards needs permission to save content in a space. Scheduled deliveries need permission to create them."
                                         badge={<BetaBadge />}
                                     />
                                 }
