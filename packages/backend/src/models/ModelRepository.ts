@@ -10,6 +10,7 @@ import { AgentConnectionApprovalRequestModel } from './AgentConnectionApprovalRe
 import { AgentConnectionGrantModel } from './AgentConnectionGrantModel';
 import { AiServiceAccountCredentialsModel } from './AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel';
 import { AiUsageLedgerModel } from './AiUsageLedgerModel';
+import { AnalyticsContentSyncModel } from './AnalyticsContentSyncModel';
 import { AnalyticsModel } from './AnalyticsModel';
 import { AppAccessModel } from './AppAccessModel';
 import { AppModel } from './AppModel';
@@ -119,6 +120,7 @@ import { WarehouseConnectionTablesModel } from './WarehouseConnectionTablesModel
  */
 
 export type ModelManifest = {
+    analyticsContentSyncModel: AnalyticsContentSyncModel;
     analyticsModel: AnalyticsModel;
     recentContentModel: RecentContentModel;
     refreshTokenRotation: RefreshTokenRotation;
@@ -367,6 +369,13 @@ export class ModelRepository
         return this.getModel(
             'recentContentModel',
             () => new RecentContentModel(this.database),
+        );
+    }
+
+    public getAnalyticsContentSyncModel(): AnalyticsContentSyncModel {
+        return this.getModel(
+            'analyticsContentSyncModel',
+            () => new AnalyticsContentSyncModel({ database: this.database }),
         );
     }
 

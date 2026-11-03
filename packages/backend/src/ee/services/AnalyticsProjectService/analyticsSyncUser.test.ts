@@ -31,13 +31,13 @@ describe('analytics sync worker authority', () => {
             'Dashboard',
             'ContentVerification',
         ] as const) {
-            expect(user.ability.can('manage', subject(type, context))).toBe(
-                true,
-            );
+            expect(
+                user.ability.can('manage', subject(type, { ...context })),
+            ).toBe(true);
         }
-        expect(user.ability.can('view', subject('Project', context))).toBe(
-            true,
-        );
+        expect(
+            user.ability.can('view', subject('Project', { ...context })),
+        ).toBe(true);
     });
 
     it('cannot act in another project or administer the organization', () => {
@@ -69,11 +69,11 @@ describe('analytics sync worker authority', () => {
             ).toBe(false);
         }
         expect(
-            user.ability.can('manage', subject('Organization', project)),
+            user.ability.can('manage', subject('Organization', { ...project })),
         ).toBe(false);
-        expect(user.ability.can('manage', subject('Project', project))).toBe(
-            false,
-        );
+        expect(
+            user.ability.can('manage', subject('Project', { ...project })),
+        ).toBe(false);
         expect(
             user.ability.can(
                 'view',

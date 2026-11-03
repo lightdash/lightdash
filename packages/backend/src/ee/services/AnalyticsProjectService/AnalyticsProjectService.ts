@@ -2,10 +2,12 @@ import {
     AnalyticsHistoryBackfillStatus,
     AnalyticsProjectStatus,
     ConflictError,
+    compareSemverVersions,
     ContentType,
     EnsureAnalyticsProjectResult,
     ForbiddenError,
     getContentAsCodePathFromLtreePath,
+    getErrorMessage,
     getLtreePathFromContentAsCodePath,
     isUserWithOrg,
     NotFoundError,
@@ -18,8 +20,10 @@ import {
     analyticsDefaultSpace,
 } from '../../../analytics/systemExplores/sampleContent';
 import type { LightdashConfig } from '../../../config/parseConfig';
+import type { AnalyticsContentSyncModel } from '../../../models/AnalyticsContentSyncModel';
 import { type ContentVerificationModel } from '../../../models/ContentVerificationModel';
 import { type DashboardModel } from '../../../models/DashboardModel/DashboardModel';
+import type { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { type SavedChartModel } from '../../../models/SavedChartModel';
 import { type SpaceModel } from '../../../models/SpaceModel';
@@ -27,18 +31,33 @@ import { UserModel } from '../../../models/UserModel';
 import type { SchedulerClient } from '../../../scheduler/SchedulerClient';
 import { BaseService } from '../../../services/BaseService';
 import { type CoderService } from '../../../services/CoderService/CoderService';
+import { isAnalyticsProjectEnabled } from '../../../services/ProjectService/analyticsProject/analyticsProjectClient';
 import {
     analyticsExploreNames,
     createAnalyticsExplores,
 } from '../../../services/ProjectService/analyticsProject/createAnalyticsExplores';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
+import { VERSION } from '../../../version';
+import { getAnalyticsContentHash } from './analyticsContentHash';
+import { createAnalyticsSyncUser } from './analyticsSyncUser';
 
 type Dependencies = {
     lightdashConfig: Pick<LightdashConfig, 'usageEvents'>;
     schedulerClient: Pick<
         SchedulerClient,
-        'getUsageHistoryBackfillJob' | 'scheduleUsageHistoryBackfill'
+        | 'getUsageHistoryBackfillJob'
+        | 'scheduleUsageHistoryBackfill'
+        | 'scheduleAnalyticsContentSync'
     >;
+    analyticsContentSyncModel: Pick<
+        AnalyticsContentSyncModel,
+        | 'get'
+        | 'getProjectsPage'
+        | 'getProject'
+        | 'getOrCreateSystemUser'
+        | 'markSynced'
+    >;
+    featureFlagModel: Pick<FeatureFlagModel, 'get'>;
     coderService: Pick<CoderService, 'upsertChart' | 'upsertDashboard'>;
     contentVerificationModel: Pick<
         ContentVerificationModel,
@@ -77,6 +96,16 @@ const expectedModelCounts = memoize(() =>
         hiddenJoins: explore.joinedTables.filter((join) => join.hidden).length,
     })),
 );
+
+const contentHash = memoize(() =>
+    getAnalyticsContentHash(createAnalyticsExplores(), analyticsContentAsCode),
+);
+
+type SyncState = Awaited<ReturnType<AnalyticsContentSyncModel['get']>>;
+
+const installedByNewerRelease = (state: SyncState): boolean =>
+    state?.appliedVersion != null &&
+    compareSemverVersions(state.appliedVersion, VERSION) > 0;
 
 export class AnalyticsProjectService extends BaseService {
     constructor(private readonly dependencies: Dependencies) {
@@ -179,6 +208,30 @@ export class AnalyticsProjectService extends BaseService {
         );
         if (!project) return { project: null };
 
+        const state = await this.dependencies.analyticsContentSyncModel.get(
+            project.projectUuid,
+        );
+        return {
+            project: {
+                projectUuid: project.projectUuid,
+                name: project.name,
+                slug: project.slug ?? null,
+                url: `/projects/${project.slug ?? project.projectUuid}/tables`,
+                createdAt: new Date(project.createdAt).toISOString(),
+                hasContentUpdates: await this.hasContentUpdates(
+                    project.projectUuid,
+                    state,
+                ),
+            },
+        };
+    }
+
+    private async hasContentUpdates(
+        projectUuid: string,
+        state: SyncState,
+    ): Promise<boolean> {
+        if (installedByNewerRelease(state)) return false;
+        if (state?.appliedHash !== contentHash()) return true;
         const dashboardSlugs = analyticsContentAsCode.map(
             ({ dashboard }) => dashboard.slug,
         );
@@ -187,15 +240,15 @@ export class AnalyticsProjectService extends BaseService {
         );
         const [models, dashboards, charts] = await Promise.all([
             this.dependencies.projectModel.getAnalyticsModelCounts(
-                project.projectUuid,
+                projectUuid,
                 analyticsExploreNames,
             ),
             this.dependencies.dashboardModel.find({
-                projectUuid: project.projectUuid,
+                projectUuid,
                 slugs: dashboardSlugs,
             }),
             this.dependencies.savedChartModel.find({
-                projectUuid: project.projectUuid,
+                projectUuid,
                 slugs: chartSlugs,
             }),
         ]);
@@ -213,20 +266,12 @@ export class AnalyticsProjectService extends BaseService {
                     model.hiddenJoins === expected.hiddenJoins,
             ),
         );
-        return {
-            project: {
-                projectUuid: project.projectUuid,
-                name: project.name,
-                slug: project.slug ?? null,
-                url: `/projects/${project.slug ?? project.projectUuid}/tables`,
-                createdAt: new Date(project.createdAt).toISOString(),
-                hasContentUpdates:
-                    !modelsAreCurrent ||
-                    dashboards.length !== dashboardSlugs.length ||
-                    charts.length !== chartSlugs.length ||
-                    dashboards.some(({ uuid }) => !verifications.has(uuid)),
-            },
-        };
+        return (
+            !modelsAreCurrent ||
+            dashboards.length !== dashboardSlugs.length ||
+            charts.length !== chartSlugs.length ||
+            dashboards.some(({ uuid }) => !verifications.has(uuid))
+        );
     }
 
     async ensure(user: SessionUser): Promise<EnsureAnalyticsProjectResult> {
@@ -276,125 +321,268 @@ export class AnalyticsProjectService extends BaseService {
                 );
                 if (!project)
                     throw new NotFoundError('Analytics project not found');
-                // The org lock serializes syncs; interrupted uploads are retryable.
-                /* eslint-disable no-await-in-loop */
-                for (const { dashboard, charts } of analyticsContentAsCode) {
-                    for (const chart of charts) {
-                        const existing = await this.dependencies.savedChartModel
-                            .get(chart.slug, undefined, {
-                                projectUuid: project.projectUuid,
-                                deleted: 'any',
-                            })
-                            .catch((error: unknown) => {
-                                if (error instanceof NotFoundError) return null;
-                                throw error;
-                            });
-                        if (
-                            existing &&
-                            (existing.slug !== chart.slug ||
-                                existing.dashboardSlug !== dashboard.slug)
-                        ) {
-                            throw new ConflictError(
-                                `Chart slug ${chart.slug} belongs to content outside its managed dashboard`,
-                            );
-                        }
-                    }
-                }
-                // Refresh backend-owned models before uploading charts that may
-                // reference newly shipped explores, dimensions or metrics.
-                await this.dependencies.projectModel.saveExploresToCache(
-                    project.projectUuid,
-                    createAnalyticsExplores(),
-                    true,
-                );
-                for (const { dashboard, charts } of analyticsContentAsCode) {
-                    const [existingDashboard] =
-                        await this.dependencies.dashboardModel.find({
-                            projectUuid: project.projectUuid,
-                            slug: dashboard.slug,
-                        });
-                    const storedDashboard =
-                        existingDashboard ??
-                        (await this.dependencies.dashboardModel
-                            .getByIdOrSlug(dashboard.slug, {
-                                projectUuid: project.projectUuid,
-                                deleted: true,
-                            })
-                            .catch((error: unknown) => {
-                                if (error instanceof NotFoundError) return null;
-                                throw error;
-                            }));
-                    // Keep inherited access when syncing or restoring a dashboard.
-                    const existingSpace = storedDashboard
-                        ? await this.dependencies.spaceModel.get(
-                              storedDashboard.spaceUuid,
-                          )
-                        : undefined;
-                    const spaceSlug = existingSpace
-                        ? getContentAsCodePathFromLtreePath(existingSpace.path)
-                        : dashboard.spaceSlug;
-                    const matchingSpaces =
-                        await this.dependencies.spaceModel.find({
-                            projectUuid: project.projectUuid,
-                            path: getLtreePathFromContentAsCodePath(spaceSlug),
-                        });
-                    if (
-                        matchingSpaces.length > 1 ||
-                        (existingSpace &&
-                            matchingSpaces[0]?.uuid !== existingSpace.uuid)
-                    ) {
-                        throw new ConflictError(
-                            `Cannot safely resolve the space for dashboard ${dashboard.slug}`,
-                        );
-                    }
-                    const options = {
-                        spaceNames: {
-                            [spaceSlug]:
-                                existingSpace?.name ??
-                                analyticsDefaultSpace.name,
-                        },
-                        publicSpaceCreate: true,
-                        force: true,
-                        syncEnabled: false,
-                    };
-                    const dashboardContent = { ...dashboard, spaceSlug };
-                    // Restore the dashboard before uploading any owned charts.
-                    if (!existingDashboard) {
-                        await this.dependencies.coderService.upsertDashboard(
-                            user,
-                            project.projectUuid,
-                            dashboard.slug,
-                            {
-                                ...dashboardContent,
-                                verified: false,
-                                tiles: [],
-                                filters: {
-                                    dimensions: [],
-                                    metrics: [],
-                                    tableCalculations: [],
-                                },
-                            },
-                            options,
-                        );
-                    }
-                    for (const chart of charts) {
-                        await this.dependencies.coderService.upsertChart(
-                            user,
-                            project.projectUuid,
-                            chart.slug,
-                            { ...chart, spaceSlug },
-                            options,
-                        );
-                    }
-                    await this.dependencies.coderService.upsertDashboard(
-                        user,
+                const state =
+                    await this.dependencies.analyticsContentSyncModel.get(
                         project.projectUuid,
-                        dashboard.slug,
-                        dashboardContent,
-                        options,
+                    );
+                if (installedByNewerRelease(state)) {
+                    throw new ConflictError(
+                        'Analytics content was updated by a newer server version. Retry after the deployment completes.',
                     );
                 }
-                /* eslint-enable no-await-in-loop */
+                await this.installContent(user, project.projectUuid);
+            },
+        );
+    }
+
+    private async installContent(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<void> {
+        // The org lock serializes syncs; interrupted uploads are retryable.
+        /* eslint-disable no-await-in-loop */
+        for (const { dashboard, charts } of analyticsContentAsCode) {
+            for (const chart of charts) {
+                const existing = await this.dependencies.savedChartModel
+                    .get(chart.slug, undefined, {
+                        projectUuid,
+                        deleted: 'any',
+                    })
+                    .catch((error: unknown) => {
+                        if (error instanceof NotFoundError) return null;
+                        throw error;
+                    });
+                if (
+                    existing &&
+                    (existing.slug !== chart.slug ||
+                        existing.dashboardSlug !== dashboard.slug)
+                ) {
+                    throw new ConflictError(
+                        `Chart slug ${chart.slug} belongs to content outside its managed dashboard`,
+                    );
+                }
+            }
+        }
+        // Refresh backend-owned models before uploading charts that may
+        // reference newly shipped explores, dimensions or metrics.
+        await this.dependencies.projectModel.saveExploresToCache(
+            projectUuid,
+            createAnalyticsExplores(),
+            true,
+        );
+        for (const { dashboard, charts } of analyticsContentAsCode) {
+            const [existingDashboard] =
+                await this.dependencies.dashboardModel.find({
+                    projectUuid,
+                    slug: dashboard.slug,
+                });
+            const storedDashboard =
+                existingDashboard ??
+                (await this.dependencies.dashboardModel
+                    .getByIdOrSlug(dashboard.slug, {
+                        projectUuid,
+                        deleted: true,
+                    })
+                    .catch((error: unknown) => {
+                        if (error instanceof NotFoundError) return null;
+                        throw error;
+                    }));
+            // Keep inherited access when syncing or restoring a dashboard.
+            const existingSpace = storedDashboard
+                ? await this.dependencies.spaceModel.get(
+                      storedDashboard.spaceUuid,
+                  )
+                : undefined;
+            const spaceSlug = existingSpace
+                ? getContentAsCodePathFromLtreePath(existingSpace.path)
+                : dashboard.spaceSlug;
+            const matchingSpaces = await this.dependencies.spaceModel.find({
+                projectUuid,
+                path: getLtreePathFromContentAsCodePath(spaceSlug),
+            });
+            if (
+                matchingSpaces.length > 1 ||
+                (existingSpace &&
+                    matchingSpaces[0]?.uuid !== existingSpace.uuid)
+            ) {
+                throw new ConflictError(
+                    `Cannot safely resolve the space for dashboard ${dashboard.slug}`,
+                );
+            }
+            const options = {
+                spaceNames: {
+                    [spaceSlug]:
+                        existingSpace?.name ?? analyticsDefaultSpace.name,
+                },
+                publicSpaceCreate: true,
+                force: true,
+                syncEnabled: false,
+            };
+            const dashboardContent = { ...dashboard, spaceSlug };
+            // Restore the dashboard before uploading any owned charts.
+            if (!existingDashboard) {
+                await this.dependencies.coderService.upsertDashboard(
+                    user,
+                    projectUuid,
+                    dashboard.slug,
+                    {
+                        ...dashboardContent,
+                        verified: false,
+                        tiles: [],
+                        filters: {
+                            dimensions: [],
+                            metrics: [],
+                            tableCalculations: [],
+                        },
+                    },
+                    options,
+                );
+            }
+            for (const chart of charts) {
+                await this.dependencies.coderService.upsertChart(
+                    user,
+                    projectUuid,
+                    chart.slug,
+                    { ...chart, spaceSlug },
+                    options,
+                );
+            }
+            await this.dependencies.coderService.upsertDashboard(
+                user,
+                projectUuid,
+                dashboard.slug,
+                dashboardContent,
+                options,
+            );
+        }
+        /* eslint-enable no-await-in-loop */
+        await this.dependencies.analyticsContentSyncModel.markSynced(
+            projectUuid,
+            {
+                hash: contentHash(),
+                version: VERSION,
+            },
+        );
+    }
+
+    async reconcileContent({
+        organizationUuid,
+    }: {
+        organizationUuid: string | null;
+    }): Promise<void> {
+        if (
+            !this.dependencies.lightdashConfig.usageEvents.enabled ||
+            !this.dependencies.lightdashConfig.usageEvents.s3
+        )
+            return;
+        let afterProjectUuid: string | null = null;
+        let failed = 0;
+        while (true) {
+            // eslint-disable-next-line no-await-in-loop
+            const projects =
+                await this.dependencies.analyticsContentSyncModel.getProjectsPage(
+                    {
+                        organizationUuid,
+                        afterProjectUuid,
+                        limit: 100,
+                    },
+                );
+            if (projects.length === 0) break;
+            for (const project of projects) {
+                try {
+                    // eslint-disable-next-line no-await-in-loop
+                    if (
+                        await isAnalyticsProjectEnabled(
+                            this.dependencies.featureFlagModel,
+                            project.organizationUuid,
+                        )
+                    ) {
+                        // eslint-disable-next-line no-await-in-loop
+                        await this.dependencies.schedulerClient.scheduleAnalyticsContentSync(
+                            {
+                                organizationUuid: project.organizationUuid,
+                                projectUuid: project.projectUuid,
+                            },
+                        );
+                    }
+                } catch (error) {
+                    failed += 1;
+                    this.logger.error(
+                        'Failed to enqueue analytics content update',
+                        {
+                            projectUuid: project.projectUuid,
+                            organizationUuid: project.organizationUuid,
+                            error: getErrorMessage(error),
+                        },
+                    );
+                }
+            }
+            afterProjectUuid = projects[projects.length - 1].projectUuid;
+        }
+        if (failed > 0)
+            throw new Error(
+                `Failed to enqueue ${failed} analytics content updates`,
+            );
+    }
+
+    async syncContent({
+        organizationUuid,
+        projectUuid,
+    }: {
+        organizationUuid: string;
+        projectUuid: string;
+    }): Promise<void> {
+        if (
+            !this.dependencies.lightdashConfig.usageEvents.enabled ||
+            !this.dependencies.lightdashConfig.usageEvents.s3
+        )
+            return;
+        const target =
+            await this.dependencies.analyticsContentSyncModel.getProject(
+                projectUuid,
+            );
+        if (!target || target.organizationUuid !== organizationUuid) return;
+        await this.dependencies.projectModel.runInAnalyticsProvisioningLock(
+            organizationUuid,
+            async () => {
+                const project =
+                    await this.dependencies.analyticsContentSyncModel.getProject(
+                        projectUuid,
+                    );
+                if (
+                    !project ||
+                    project.organizationUuid !== organizationUuid ||
+                    !(await isAnalyticsProjectEnabled(
+                        this.dependencies.featureFlagModel,
+                        organizationUuid,
+                    ))
+                )
+                    return;
+                const state =
+                    await this.dependencies.analyticsContentSyncModel.get(
+                        projectUuid,
+                    );
+                if (!(await this.hasContentUpdates(projectUuid, state))) return;
+                const systemUser =
+                    await this.dependencies.analyticsContentSyncModel.getOrCreateSystemUser(
+                        projectUuid,
+                    );
+                const user = createAnalyticsSyncUser({
+                    ...systemUser,
+                    organizationUuid,
+                    organizationName: project.organizationName,
+                    projectUuid,
+                });
+                await this.installContent(user, projectUuid);
+                this.logger.info(
+                    'Analytics models and default dashboards updated',
+                    {
+                        organizationUuid,
+                        projectUuid,
+                        contentHash: contentHash(),
+                        version: VERSION,
+                    },
+                );
             },
         );
     }

@@ -199,6 +199,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 new AnalyticsProjectService({
                     lightdashConfig: context.lightdashConfig,
                     schedulerClient: clients.getSchedulerClient(),
+                    analyticsContentSyncModel:
+                        models.getAnalyticsContentSyncModel(),
+                    featureFlagModel: models.getFeatureFlagModel(),
                     coderService: repository.getCoderService(),
                     contentVerificationModel:
                         models.getContentVerificationModel(),
