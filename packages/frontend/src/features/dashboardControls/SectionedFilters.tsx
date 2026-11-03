@@ -601,7 +601,8 @@ export const SectionedFilters: FC<Props> = ({
     const { track } = useTracking();
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
     const sections = useDashboardSelector(selectControlSections);
-    const [moveStatus, setMoveStatus] = useState('');
+    // A new key per move, so the same words are announced again
+    const [moveStatus, setMoveStatus] = useState({ key: 0, text: '' });
     const savedSections = useDashboardContext(
         (c) => c.dashboard?.config?.controlSections,
     );
@@ -851,9 +852,10 @@ export const SectionedFilters: FC<Props> = ({
                               const place = nextLines[line].findIndex(
                                   ({ id }) => id === section.id,
                               );
-                              setMoveStatus(
-                                  `${section.name} moved to line ${line + 1}, position ${place + 1}`,
-                              );
+                              setMoveStatus(({ key }) => ({
+                                  key: key + 1,
+                                  text: `${section.name} moved to section line ${line + 1}, position ${place + 1}`,
+                              }));
                               arrange(section.id, next);
                           },
                           onOwnLine: () => {
@@ -1267,7 +1269,7 @@ export const SectionedFilters: FC<Props> = ({
                     </Box>
                 </BarSpace>
                 <VisuallyHidden role="status" aria-live="polite">
-                    {moveStatus}
+                    <span key={moveStatus.key}>{moveStatus.text}</span>
                 </VisuallyHidden>
                 {/* On the body, so the bar's overflow doesn't clip the copy */}
                 {createPortal(

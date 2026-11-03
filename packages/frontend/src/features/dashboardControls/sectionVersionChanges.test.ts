@@ -105,6 +105,12 @@ describe('getSectionChangeRows', () => {
         ]);
     });
 
+    it('reads an inline first section as starting its line', () => {
+        expect(rows(side([a, b]), side([{ ...a, inline: true }, b]))).toEqual(
+            [],
+        );
+    });
+
     const members = (count: number, sectionId: string) =>
         Array.from({ length: count }, (_, i) => rule(`m${i}`, sectionId));
 

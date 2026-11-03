@@ -2276,7 +2276,7 @@ describe('SectionedFilters', () => {
             });
             expect(lines()).toEqual(['c', '+a', '+b']);
             expect(
-                screen.getByText('Dates moved to line 1, position 2'),
+                screen.getByText('Dates moved to section line 1, position 2'),
             ).toBeInTheDocument();
             expect(
                 screen.getByRole('button', { name: 'Dates' }),
@@ -2287,7 +2287,7 @@ describe('SectionedFilters', () => {
             });
             expect(lines()).toEqual(['c', '+b', 'a']);
             expect(
-                screen.getByText('Dates moved to line 2, position 1'),
+                screen.getByText('Dates moved to section line 2, position 1'),
             ).toBeInTheDocument();
         });
 
