@@ -1,19 +1,26 @@
 import {
     AI_AGENT_APPLICATION_NAME,
     AI_AGENT_SESSION_SETTING,
-    AnyType,
     CreateRedshiftCredentials,
+    getErrorMessage,
     getWarehouseTableType,
     RedshiftAuthenticationType,
     SupportedDbtAdapter,
     WarehouseCatalog,
+    WarehouseQueryError,
     WarehouseResults,
     WarehouseTypes,
 } from '@lightdash/common';
 import * as fs from 'fs';
 import path from 'path';
+import * as pg from 'pg';
 import { PoolClient, PoolConfig } from 'pg';
-import { PostgresClient, PostgresSqlBuilder } from './PostgresWarehouseClient';
+import {
+    PostgresClient,
+    PostgresSqlBuilder,
+    type PostgresQueryAttempt,
+    type PostgresStreamQueryOptions,
+} from './PostgresWarehouseClient';
 import { mintRedshiftIamCredentials } from './redshiftIamCredentials';
 
 // Refresh minted credentials this long before the AWS-reported expiry so an
@@ -21,6 +28,36 @@ import { mintRedshiftIamCredentials } from './redshiftIamCredentials';
 const CREDENTIALS_REFRESH_BUFFER_MS = 60 * 1000;
 // Fallback lifetime when AWS returns no expiry — under the 15-min minimum.
 const CREDENTIALS_FALLBACK_LIFETIME_MS = 14 * 60 * 1000;
+
+// Tile queries on a healthy workgroup return a first row well within this.
+const STALL_CHECK_DELAY_MS = 30 * 1000;
+const MAX_STALL_RETRIES = 2;
+const STALL_LOOKUP_TIMEOUT_MS = 15 * 1000;
+
+// The lookup must see its own running query, otherwise an empty result for
+// the stalled session proves nothing and we keep waiting.
+const STALL_LOOKUP_SQL = `
+    SELECT
+        (SELECT COUNT(*) FROM sys_query_history
+            WHERE session_id = pg_backend_pid()
+                AND TRIM(status) = 'running') AS own_running,
+        (SELECT COUNT(*) FROM sys_query_history
+            WHERE session_id = $1
+                AND start_time > DATEADD(minute, -15, GETDATE())
+                AND (TRIM(status) IN ('planning', 'queued', 'running', 'returning')
+                    OR TRIM(query_type) NOT IN ('UTILITY', 'COMMAND'))) AS stalled_session_records
+`;
+
+type StallVerdict =
+    | { stalled: true; reason: 'session_setup' | 'no_query_record' }
+    | {
+          stalled: false;
+          reason:
+              | 'not_connected'
+              | 'query_recorded'
+              | 'lookup_not_visible'
+              | 'lookup_failed';
+      };
 
 const AMAZON_CA_BUNDLE = [
     fs.readFileSync(path.resolve(__dirname, './ca-bundle-aws-redshift.crt')),
@@ -134,11 +171,7 @@ export class RedshiftWarehouseClient extends PostgresClient<CreateRedshiftCreden
     async streamQuery(
         sql: string,
         streamCallback: (data: WarehouseResults) => void | Promise<void>,
-        options: {
-            values?: AnyType[];
-            tags?: Record<string, string>;
-            timezone?: string;
-        },
+        options: PostgresStreamQueryOptions,
     ): Promise<void> {
         if (
             this.credentials.authenticationType ===
@@ -148,7 +181,112 @@ export class RedshiftWarehouseClient extends PostgresClient<CreateRedshiftCreden
         ) {
             this.config = await this.resolveIamPoolConfig();
         }
-        return super.streamQuery(sql, streamCallback, options);
+        if (!options.recoverStalledQuery) {
+            return super.streamQuery(sql, streamCallback, options);
+        }
+        return this.streamQueryRecoveringStalls(sql, streamCallback, options);
+    }
+
+    // A stalled attempt has streamed no rows, so retrying with the same
+    // callback is safe. The last attempt runs unwatched, leaving the
+    // statement timeout as the final backstop.
+    private async streamQueryRecoveringStalls(
+        sql: string,
+        streamCallback: (data: WarehouseResults) => void | Promise<void>,
+        options: PostgresStreamQueryOptions,
+    ): Promise<void> {
+        const queryUuid = options.tags?.query_uuid ?? 'unknown';
+        for (let retry = 0; retry < MAX_STALL_RETRIES; retry += 1) {
+            const stallError = new WarehouseQueryError(
+                'Warehouse query stalled before reaching the warehouse',
+            );
+            let attempt: PostgresQueryAttempt | undefined;
+            let settled = false;
+            const stallCheck = setTimeout(() => {
+                if (!attempt || attempt.hasReceivedRow()) return;
+                const watched = attempt;
+                void this.getStallVerdict(watched).then((verdict) => {
+                    if (settled) return;
+                    if (verdict.stalled && watched.abort(stallError)) {
+                        console.warn(
+                            `Redshift query ${queryUuid} stalled with no first row after ${
+                                STALL_CHECK_DELAY_MS / 1000
+                            }s (${verdict.reason}, pid ${watched.getBackendPid()}). Retrying on a new connection (retry ${
+                                retry + 1
+                            } of ${MAX_STALL_RETRIES})`,
+                        );
+                    } else {
+                        console.info(
+                            `Redshift query ${queryUuid} has no first row after ${
+                                STALL_CHECK_DELAY_MS / 1000
+                            }s, still waiting (${verdict.reason}, pid ${watched.getBackendPid()})`,
+                        );
+                    }
+                });
+            }, STALL_CHECK_DELAY_MS);
+            try {
+                // eslint-disable-next-line no-await-in-loop
+                await this.streamQueryAttempt(
+                    sql,
+                    streamCallback,
+                    options,
+                    (started) => {
+                        attempt = started;
+                    },
+                );
+                return;
+            } catch (error) {
+                if (error !== stallError) throw error;
+            } finally {
+                settled = true;
+                clearTimeout(stallCheck);
+            }
+        }
+        await this.streamQueryAttempt(sql, streamCallback, options, null);
+    }
+
+    private async getStallVerdict(
+        attempt: PostgresQueryAttempt,
+    ): Promise<StallVerdict> {
+        const pid = attempt.getBackendPid();
+        if (pid === null) return { stalled: false, reason: 'not_connected' };
+        // Still on the session SETs, so the real query was never sent
+        if (!attempt.hasSentQuery()) {
+            return { stalled: true, reason: 'session_setup' };
+        }
+
+        let client: pg.Client | undefined;
+        try {
+            // Same user as the stalled query: non-superusers only see their own history
+            client = new pg.Client({
+                ...this.config,
+                connectionTimeoutMillis: STALL_LOOKUP_TIMEOUT_MS,
+                query_timeout: STALL_LOOKUP_TIMEOUT_MS,
+            });
+            client.on('error', (error) => {
+                console.warn(
+                    `Redshift stall lookup connection error: ${getErrorMessage(error)}`,
+                );
+            });
+            await client.connect();
+            const { rows } = await client.query<{
+                own_running: number | bigint;
+                stalled_session_records: number | bigint;
+            }>(STALL_LOOKUP_SQL, [pid]);
+            if (!rows[0] || Number(rows[0].own_running) === 0) {
+                return { stalled: false, reason: 'lookup_not_visible' };
+            }
+            return Number(rows[0].stalled_session_records) === 0
+                ? { stalled: true, reason: 'no_query_record' }
+                : { stalled: false, reason: 'query_recorded' };
+        } catch (error) {
+            console.warn(
+                `Redshift stall lookup failed: ${getErrorMessage(error)}`,
+            );
+            return { stalled: false, reason: 'lookup_failed' };
+        } finally {
+            await client?.end().catch(() => undefined);
+        }
     }
 
     // SVV_ALL_* are grant-filtered catalog views; SVV_TABLES and SVV_COLUMNS are
