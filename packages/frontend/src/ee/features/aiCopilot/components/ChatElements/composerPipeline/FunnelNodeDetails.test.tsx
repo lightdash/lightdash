@@ -3,6 +3,7 @@ import { screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../../../testing/testUtils';
 import { FunnelNodeDetails } from './FunnelNodeDetails';
+import { type FunnelDetailsVariant } from './funnelNodeLabels';
 
 vi.mock('../../../../../../hooks/useExplore', () => ({
     useExploreByProjectUuid: vi.fn(() => ({ data: undefined })),
@@ -25,9 +26,12 @@ const funnel: FunnelSourceQuery = {
     breakdownDimensionId: 'product_events_device_type',
 };
 
-const renderDetails = (query: FunnelSourceQuery = funnel) =>
+const renderDetails = (
+    query: FunnelSourceQuery = funnel,
+    variant: FunnelDetailsVariant = 'rows',
+) =>
     renderWithProviders(
-        <FunnelNodeDetails query={query} fieldsMap={{}} projectUuid="p" />,
+        <FunnelNodeDetails query={query} fieldsMap={{}} variant={variant} />,
     );
 
 const texts = (testId: string) =>
@@ -92,5 +96,32 @@ describe('FunnelNodeDetails', () => {
         expect(screen.queryByLabelText('Breakdown')).toBeNull();
         expect(texts('funnel-node-column')).not.toContain('breakdown_value');
         expect(screen.getByText('One row per step')).toBeInTheDocument();
+    });
+
+    it('spine: one circle per step and the window between each pair', () => {
+        renderDetails(funnel, 'spine');
+        expect(texts('funnel-spine-circle')).toEqual(['1', '2', '3']);
+        expect(texts('funnel-spine-then')).toEqual([
+            'then, within 7 days',
+            'then, within 7 days',
+        ]);
+        expect(
+            screen.getByText(
+                'Returns one row per step and breakdown value: total_users, conversion_rate, step_conversion_rate, median_time_to_convert, breakdown_value',
+            ),
+        ).toBeInTheDocument();
+    });
+
+    it('sentence: leads with the steps and splits only with a breakdown', () => {
+        const { unmount } = renderDetails(funnel, 'sentence');
+        expect(texts('funnel-sentence')).toEqual([
+            'Of users who did Page view, how many went on to Add to cart and Checkout completed, in that order, each within 7 days of the step before, over Last 30 days, split by Product events device type.',
+        ]);
+        unmount();
+        renderDetails(
+            { ...funnel, breakdownDimensionId: undefined },
+            'sentence',
+        );
+        expect(texts('funnel-sentence')[0]).not.toContain('split by');
     });
 });

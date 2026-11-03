@@ -531,6 +531,19 @@ export const DEFAULT_UI_STRINGS = {
     'aiAgent.composer.funnelNode.returnsNote': 'One row per step',
     'aiAgent.composer.funnelNode.returnsNoteBreakdown':
         'One row per step and breakdown value',
+    'aiAgent.composer.funnelNode.spine.then': 'then, within {window}',
+    'aiAgent.composer.funnelNode.spine.returns':
+        'Returns one row per step: {columns}',
+    'aiAgent.composer.funnelNode.spine.returnsBreakdown':
+        'Returns one row per step and breakdown value: {columns}',
+    'aiAgent.composer.funnelNode.sentence.lead':
+        'Of users who did {first}, how many went on to {rest}',
+    'aiAgent.composer.funnelNode.sentence.rule':
+        ', in that order, each within {window} of the step before, over {range}',
+    'aiAgent.composer.funnelNode.sentence.breakdown': ', split by {breakdown}',
+    'aiAgent.composer.funnelNode.sentence.listAnd': ' and ',
+    'aiAgent.composer.funnelNode.strip.ofPrevious': '{percent}% of previous',
+    'aiAgent.composer.funnelNode.strip.users': 'users',
     'aiAgent.thread.boundDashboard': 'Linked dashboard',
     'aiAgent.thread.boundDashboardUnavailable': 'Dashboard no longer available',
     'aiAgent.thread.boundChart': 'Linked chart',

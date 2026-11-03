@@ -1,0 +1,10 @@
+.sentence {
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--mantine-color-ldGray-7);
+}
+
+.em {
+    font-weight: 600;
+    color: var(--mantine-color-text);
+}

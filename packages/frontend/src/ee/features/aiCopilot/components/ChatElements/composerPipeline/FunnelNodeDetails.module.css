@@ -6,3 +6,11 @@
 .stepNumber {
     font-variant-numeric: tabular-nums;
 }
+
+/* A result column: reads as an output, not a field. */
+.outputChip {
+    composes: chip from '../QueryChip.module.css';
+    background: var(--mantine-color-ldGray-1);
+    border-color: transparent;
+    color: var(--mantine-color-ldGray-6);
+}
