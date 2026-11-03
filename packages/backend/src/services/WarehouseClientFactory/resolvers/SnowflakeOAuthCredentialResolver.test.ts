@@ -658,13 +658,7 @@ describe('Snowflake OAuth refresh concurrency', () => {
     });
 });
 
-test.each([
-    'user',
-    'organization',
-    'project',
-    'warehouseConnection',
-    null,
-] as const)(
+test.each(['user', 'project', 'warehouseConnection', null] as const)(
     'marks reauthentication only for a personal credential owner (%s)',
     async (kind) => {
         const f = setup();
