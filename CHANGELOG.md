@@ -1,3 +1,10 @@
+## [3.135.1](https://github.com/lightdash/lightdash/compare/3.135.0...3.135.1) (2026-11-03)
+
+
+### Bug Fixes
+
+* **ai:** only offer scheduled deliveries when the user can create them ([#31984](https://github.com/lightdash/lightdash/issues/31984)) ([35dfc5b](https://github.com/lightdash/lightdash/commit/35dfc5bda58e54565bab243903be8a673eec60e8))
+
 # [3.135.0](https://github.com/lightdash/lightdash/compare/3.134.1...3.135.0) (2026-11-03)
 
 
