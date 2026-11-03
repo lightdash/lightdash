@@ -147,6 +147,7 @@ const awsErrorCodes = (error: Record<string, unknown>): string[] => {
                     'Error',
                     'WarehouseConnectionError',
                     'WarehouseQueryError',
+                    'WarehouseQueryTimeoutError',
                 ].includes(value),
         );
     if (codes.length > 0) return codes;

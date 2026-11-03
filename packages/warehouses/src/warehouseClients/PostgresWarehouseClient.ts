@@ -17,12 +17,15 @@ import {
     WarehouseDatabaseListing,
     WarehouseListedDatabase,
     WarehouseQueryError,
+    WarehouseQueryTimeoutError,
     WarehouseResults,
     WarehouseTables,
     WarehouseTypes,
     type ResultNumericKind,
     type TimestampDomain,
+    type WarehousePhaseTimings,
     type WarehouseQueryPhase,
+    type WarehouseQueryTimeoutDetails,
 } from '@lightdash/common';
 import { readFileSync } from 'fs';
 import path from 'path';
@@ -170,6 +173,19 @@ const DEFAULT_STATEMENT_TIMEOUT_MS = 1000 * 60 * 9; // 9 minutes
 // surfaces a clear message; the client backstop only triggers if the server
 // never reports back (e.g. a dead SSH tunnel socket).
 const CLIENT_STATEMENT_TIMEOUT_BUFFER_MS = 1000 * 30; // 30 seconds
+
+const formatTimeoutDetails = ({
+    step,
+    stepElapsedMs,
+    completedStepTimingsMs,
+    rowsFetched,
+    backendPid,
+}: WarehouseQueryTimeoutDetails): string => {
+    const completed = Object.entries(completedStepTimingsMs)
+        .map(([phase, ms]) => `${phase}=${ms}ms`)
+        .join(' ');
+    return `step=${step} step_elapsed=${stepElapsedMs}ms completed=[${completed}] rows=${rowsFetched} backend_pid=${backendPid ?? 'unknown'}`;
+};
 
 const convertDataTypeIdToDimensionType = (
     dataTypeId: number,
@@ -414,7 +430,23 @@ export class PostgresClient<
         let sentQuery = false;
         let receivedRow = false;
 
-        const reportPhase = options.onPhaseTiming;
+        // Tracked so a backstop timeout can say which step never finished.
+        const completedStepTimingsMs: WarehousePhaseTimings = {};
+        let currentStep: WarehouseQueryPhase = 'connect';
+        let currentStepStartedAt = performance.now();
+        let rowsFetched = 0;
+
+        const startStep = (step: WarehouseQueryPhase) => {
+            currentStep = step;
+            currentStepStartedAt = performance.now();
+        };
+        const reportPhase = (
+            phase: WarehouseQueryPhase,
+            durationMs: number,
+        ) => {
+            completedStepTimingsMs[phase] = Math.round(durationMs);
+            options.onPhaseTiming?.(phase, durationMs);
+        };
 
         // Enforce the ceiling with a server-side `statement_timeout` (set
         // below) plus this client-side wall-clock backstop, which fires shortly
@@ -429,10 +461,24 @@ export class PostgresClient<
 
         return new Promise<void>((resolve, reject) => {
             clientTimeout = setTimeout(() => {
-                const timeoutError = new WarehouseQueryError(
-                    `Query timed out after ${Math.round(
-                        clientTimeoutMs / 1000,
-                    )}s`,
+                const message = `Query timed out after ${Math.round(
+                    clientTimeoutMs / 1000,
+                )}s`;
+                const details: WarehouseQueryTimeoutDetails = {
+                    step: currentStep,
+                    stepElapsedMs: Math.round(
+                        performance.now() - currentStepStartedAt,
+                    ),
+                    completedStepTimingsMs: { ...completedStepTimingsMs },
+                    rowsFetched,
+                    backendPid,
+                };
+                console.warn(
+                    `${message} with no response from ${this.credentials.type}: ${formatTimeoutDetails(details)} project_uuid=${options.tags?.project_uuid ?? 'unknown'} query_context=${options.tags?.query_context ?? 'unknown'}`,
+                );
+                const timeoutError = new WarehouseQueryTimeoutError(
+                    message,
+                    details,
                 );
                 activeStream?.destroy(timeoutError);
                 reject(timeoutError);
@@ -483,8 +529,9 @@ export class PostgresClient<
                     reject(new Error('client undefined'));
                     return;
                 }
-                reportPhase?.('connect', performance.now() - connectStart);
+                reportPhase('connect', performance.now() - connectStart);
                 backendPid = client.processID;
+                startStep('session');
 
                 client.on('error', (e) => {
                     console.error(
@@ -541,12 +588,14 @@ export class PostgresClient<
                                         PostgresClient.convertQueryResultFields(
                                             chunk.fields,
                                         );
-                                    reportPhase?.(
+                                    reportPhase(
                                         'query',
                                         performance.now() - queryStart,
                                     );
                                     fetchStart = performance.now();
+                                    startStep('fetch');
                                 }
+                                rowsFetched += 1;
                                 await streamCallback({
                                     fields: cachedFields,
                                     rows: [chunk.row],
@@ -566,13 +615,13 @@ export class PostgresClient<
                     // (not 'end' on readable - async write callbacks may still be in flight)
                     writable.on('finish', () => {
                         if (fetchStart === undefined) {
-                            reportPhase?.(
+                            reportPhase(
                                 'query',
                                 performance.now() - queryStart,
                             );
-                            reportPhase?.('fetch', 0);
+                            reportPhase('fetch', 0);
                         } else {
-                            reportPhase?.(
+                            reportPhase(
                                 'fetch',
                                 performance.now() - fetchStart,
                             );
@@ -615,10 +664,11 @@ export class PostgresClient<
                         return undefined;
                     })
                     .then(() => {
-                        reportPhase?.(
+                        reportPhase(
                             'session',
                             performance.now() - sessionStart,
                         );
+                        startStep('query');
                         runQuery();
                     })
                     .catch((sessionError) => {

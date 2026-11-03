@@ -575,6 +575,7 @@ const ERROR_NAME_TO_CATEGORY: Record<string, string> = {
     DbtError: 'dbt',
     WarehouseConnectionError: 'warehouse_connection',
     WarehouseQueryError: 'warehouse_query',
+    WarehouseQueryTimeoutError: 'warehouse_query',
 };
 
 export const categorizeError = (error: unknown): string => {

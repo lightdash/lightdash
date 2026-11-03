@@ -81,6 +81,7 @@ export const errorsOnlyIntegrations = (
 export const IGNORE_ERRORS = [
     'WarehouseConnectionError',
     'WarehouseQueryError',
+    'WarehouseQueryTimeoutError',
     'FieldReferenceError',
     'NotEnoughResults',
     'CompileError',
