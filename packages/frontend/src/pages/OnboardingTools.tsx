@@ -9,6 +9,7 @@ import {
     Button,
     Divider,
     Group,
+    Loader,
     Paper,
     Stack,
     Text,
@@ -17,6 +18,7 @@ import {
 } from '@mantine/core';
 import {
     IconBrandGithub,
+    IconArrowUpRight,
     IconCircleCheck,
     IconInfoCircle,
 } from '@tabler/icons-react';
@@ -57,6 +59,7 @@ import { OnboardingDoneStep } from '../ee/features/agentOnboarding/OnboardingDon
 import { OnboardingRunActivity } from '../ee/features/agentOnboarding/OnboardingRunActivity';
 import { useCreateExternalConnection } from '../features/externalConnections/hooks/useCreateExternalConnection';
 import { useExternalConnections } from '../features/externalConnections/hooks/useExternalConnections';
+import { useLiveSourceExplores } from '../features/externalConnections/hooks/useLiveSourceExplores';
 import { getLiveSource } from '../features/externalConnections/liveSources/liveSourceCatalog';
 import { LiveSourceIcon } from '../features/externalConnections/liveSources/LiveSourceIcon';
 import { useGetSlack } from '../hooks/slack/useSlack';
@@ -128,6 +131,63 @@ const ToolRow: FC<{
         {action}
     </Group>
 );
+
+const LiveSourceReadyRow: FC<{
+    projectUuid: string;
+    connection: ExternalConnectionListItem;
+}> = ({ projectUuid, connection }) => {
+    const { data: explores, isError } = useLiveSourceExplores({
+        projectUuid,
+        connectionUuid: connection.externalConnectionUuid,
+    });
+    const explore = explores?.[0];
+    const fieldCount = (explores ?? [])
+        .flatMap((e) => Object.values(e.tables))
+        .flatMap((table) => [
+            ...Object.values(table.dimensions),
+            ...Object.values(table.metrics),
+        ])
+        .filter((field) => !field.hidden).length;
+
+    return (
+        <Group justify="space-between" wrap="nowrap" gap="md" p="md">
+            <Group gap="sm" wrap="nowrap" miw={0}>
+                {connection.apiSource && (
+                    <LiveSourceIcon
+                        connector={connection.apiSource.connector}
+                        size={20}
+                    />
+                )}
+                <Stack gap={0} miw={0}>
+                    <Text fz="sm" fw={500} truncate>
+                        {connection.name}
+                    </Text>
+                    <Text fz="xs" c="dimmed">
+                        {isError
+                            ? 'Fields are still being prepared'
+                            : explore
+                              ? `${fieldCount} fields ready to explore`
+                              : 'Preparing fields…'}
+                    </Text>
+                </Stack>
+            </Group>
+            {explore ? (
+                <Button
+                    component={Link}
+                    to={`/projects/${projectUuid}/tables/${explore.name}`}
+                    target="_blank"
+                    size="xs"
+                    variant="subtle"
+                    rightSection={<MantineIcon icon={IconArrowUpRight} />}
+                >
+                    Explore
+                </Button>
+            ) : (
+                !isError && <Loader size="xs" />
+            )}
+        </Group>
+    );
+};
 
 const ToolGroup: FC<{ title: string | null; children: ReactNode }> = ({
     title,
@@ -573,6 +633,22 @@ const OnboardingToolsContent: FC<{
                                 </Box>
                             );
                         })}
+                    </ToolGroup>
+                )}
+
+                {hasConnected && (
+                    <ToolGroup title="Ready to explore">
+                        {connections
+                            .filter(({ kind }) => kind === 'live_source')
+                            .map((connection, index) => (
+                                <Box key={connection.externalConnectionUuid}>
+                                    {index > 0 && <Divider />}
+                                    <LiveSourceReadyRow
+                                        projectUuid={projectUuid}
+                                        connection={connection}
+                                    />
+                                </Box>
+                            ))}
                     </ToolGroup>
                 )}
 
