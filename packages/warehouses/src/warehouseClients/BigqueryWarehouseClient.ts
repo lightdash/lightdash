@@ -936,7 +936,11 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
     }
 
     private async getAllTablesFromClient() {
-        const [datasets] = await this.client.getDatasets();
+        // The client defaults to the execution project, which only bills
+        // jobs; tables live in the connection's project.
+        const [datasets] = await this.client.getDatasets({
+            projectId: this.credentials.project,
+        });
         const datasetTablesResponses = await Promise.all(
             datasets.map((d) => d.getTables()),
         );
@@ -946,7 +950,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                 try {
                     const [rows] = await this.client.query(`
                         SELECT table_name, column_name, data_type
-                        FROM \`${dataset.id}.INFORMATION_SCHEMA.COLUMNS\`
+                        FROM \`${dataset.projectId}.${dataset.id}.INFORMATION_SCHEMA.COLUMNS\`
                         WHERE is_partitioning_column = "YES"
                     `);
                     return {
@@ -989,7 +993,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                         : undefined;
 
                 return {
-                    database: t.bigQuery.projectId,
+                    database: t.dataset.projectId,
                     schema: t.dataset.id!,
                     table: t.id!,
                     tableType: getWarehouseTableType(t.metadata?.type),
