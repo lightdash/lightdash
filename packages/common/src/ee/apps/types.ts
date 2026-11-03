@@ -1467,7 +1467,18 @@ export const APP_SDK_MOUNTED_QUERIES_MESSAGE = 'lightdash:sdk:mounted-queries';
 export type DataAppInsightAction =
     | { action: 'analyse' }
     | { action: 'investigate'; anomalyId: string }
-    | { action: 'continue'; anomalyId: string };
+    | { action: 'continue'; anomalyId: string }
+    // App-authored instruction for the agent; `requestId` keys the status the
+    // host pushes back in `instructionInvestigations`, and `sources` name the
+    // viewer's own query results the agent starts from.
+    | {
+          action: 'investigate-instruction';
+          requestId: string;
+          instruction: string;
+          sources: { queryUuid: string; label: string | null }[];
+      }
+    // Open an instruction investigation's thread in Ask AI.
+    | { action: 'continue-instruction'; requestId: string };
 
 // Bridge-only virtual route: the viz posts semantic click intent here and the
 // host rewrites it into the real underlying-data POST. Never forwarded to the

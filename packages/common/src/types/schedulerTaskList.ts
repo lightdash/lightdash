@@ -15,6 +15,7 @@ import {
     type DataAppClaudeModel,
     type DataAppCodexModel,
     type DataAppCreationExperience,
+    type DataAppInstructionInvestigateJobPayload,
     type DataAppInvestigateJobPayload,
     type DataAppTemplate,
     type EmbedArtifactVersionJobPayload,
@@ -222,6 +223,7 @@ export const EE_SCHEDULER_TASKS = {
     AI_WRITEBACK_PIPELINE: 'aiWritebackPipeline',
     AI_DEEP_RESEARCH: 'aiDeepResearch',
     DATA_APP_INVESTIGATE: 'dataAppInvestigate',
+    DATA_APP_INSTRUCTION_INVESTIGATE: 'dataAppInstructionInvestigate',
     AGENT_ONBOARDING_RUN: 'agentOnboardingRun',
     AI_AGENT_EDIT_DBT_PROJECT_PIPELINE: 'aiAgentEditDbtProjectPipeline',
     SWEEP_STALE_APP_LOCKS: 'sweepStaleAppLocks',
@@ -366,6 +368,7 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.AI_AGENT_REVIEW_REMEDIATION_COMPILE]: AiAgentReviewRemediationCompileJobPayload;
     [SCHEDULER_TASKS.AI_AGENT_REVIEW_REMEDIATION_RUN]: AiAgentReviewRemediationRunJobPayload;
     [SCHEDULER_TASKS.DATA_APP_INVESTIGATE]: DataAppInvestigateJobPayload;
+    [SCHEDULER_TASKS.DATA_APP_INSTRUCTION_INVESTIGATE]: DataAppInstructionInvestigateJobPayload;
     [SCHEDULER_TASKS.SEND_REVIEW_NOTIFICATION]: SendReviewNotificationPayload;
     [SCHEDULER_TASKS.SEND_CONTENT_REVIEW_NOTIFICATION]: SendContentReviewNotificationPayload;
     [SCHEDULER_TASKS.CREATE_REVIEW_JIRA_ISSUE]: CreateReviewJiraIssuePayload;
@@ -418,6 +421,7 @@ export interface EETaskPayloadMap {
     [EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_REMEDIATION_COMPILE]: AiAgentReviewRemediationCompileJobPayload;
     [EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_REMEDIATION_RUN]: AiAgentReviewRemediationRunJobPayload;
     [EE_SCHEDULER_TASKS.DATA_APP_INVESTIGATE]: DataAppInvestigateJobPayload;
+    [EE_SCHEDULER_TASKS.DATA_APP_INSTRUCTION_INVESTIGATE]: DataAppInstructionInvestigateJobPayload;
     [EE_SCHEDULER_TASKS.SEND_REVIEW_NOTIFICATION]: SendReviewNotificationPayload;
     [EE_SCHEDULER_TASKS.SEND_CONTENT_REVIEW_NOTIFICATION]: SendContentReviewNotificationPayload;
     [EE_SCHEDULER_TASKS.CREATE_REVIEW_JIRA_ISSUE]: CreateReviewJiraIssuePayload;

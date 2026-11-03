@@ -376,6 +376,15 @@ const getTagsForTask: {
               }),
         'agent.uuid': payload.agentUuid,
     }),
+    [SCHEDULER_TASKS.DATA_APP_INSTRUCTION_INVESTIGATE]: (payload) => ({
+        'organization.uuid': payload.organizationUuid,
+        'user.uuid': payload.userUuid,
+        'project.uuid': payload.projectUuid,
+        ...(payload.target.kind === 'dashboard'
+            ? { 'dashboard.uuid': payload.target.dashboardUuid }
+            : { 'app.uuid': payload.target.appUuid }),
+        'agent.uuid': payload.agentUuid,
+    }),
     [SCHEDULER_TASKS.AGENT_ONBOARDING_RUN]: (payload) => ({
         'organization.uuid': payload.organizationUuid,
         'user.uuid': payload.userUuid,

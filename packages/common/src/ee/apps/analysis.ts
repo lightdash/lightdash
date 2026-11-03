@@ -153,6 +153,50 @@ export type DataAppInvestigateJobPayload = TraceTaskBase & {
 
 export type ApiDataAppInvestigateResponse = ApiSuccess<{ jobId: string }>;
 
+/** Author instructions are untrusted input to the agent; keep them short. */
+export const DATA_APP_INSTRUCTION_INVESTIGATE_MAX_CHARS = 2000;
+
+/**
+ * An app-authored investigation: a written instruction (e.g. a recommendation
+ * pill) the agent follows using the named sources as its starting data. Unlike
+ * anomaly investigations nothing anchors it to a stored detection; the viewer
+ * gates, budgets and read-only tool set are the same.
+ */
+export type DataAppInstructionInvestigateRequest = {
+    instruction: string;
+    sources: DataAppAnalysisSource[];
+    agentUuid: string;
+};
+
+export type DataAppInstructionInvestigateResult = {
+    explanation: string;
+    instruction: string;
+    agentUuid: string;
+    threadUuid: string;
+    queriesRun: number;
+    partial: boolean;
+};
+
+export type DataAppInstructionInvestigation =
+    DataAppInstructionInvestigateResult & {
+        investigationId: string;
+        target: AnalysisTargetRef;
+        sources: DataAppAnalysisSource[];
+        generatedAt: Date;
+    };
+
+/** Job that runs an instruction investigation off the request path; poll by jobId. */
+export type DataAppInstructionInvestigateJobPayload = TraceTaskBase & {
+    target: AnalysisTargetLocator;
+    instruction: string;
+    sources: DataAppAnalysisSource[];
+    agentUuid: string;
+};
+
+export type ApiDataAppInstructionInvestigateResponse = ApiSuccess<{
+    jobId: string;
+}>;
+
 /**
  * A free-form question an app asks about the viewer's own query results.
  * `focus` narrows the question to one row (field id → value as shown).
@@ -190,6 +234,9 @@ export type ApiDataAppAnalysisLookupResponse =
 export type DataAppAnalysisRecord =
     | ({ operation: 'detect' } & DataAppAnalysis)
     | ({ operation: 'investigate' } & DataAppInvestigation)
+    | ({
+          operation: 'investigate_instruction';
+      } & DataAppInstructionInvestigation)
     | ({ operation: 'prompt' } & DataAppPromptAnswer);
 
 export type ApiDataAppAnalysisResponse = ApiSuccess<DataAppAnalysisRecord>;
@@ -223,4 +270,9 @@ export type DataAppInsightsPayload = {
     anomalies: (DataAppAnomaly & {
         investigation: DataAppInsightInvestigation;
     })[];
+    /**
+     * App-authored instruction investigations, keyed by the requestId the app
+     * sent with the action. Absent on hosts that predate the capability.
+     */
+    instructionInvestigations?: Record<string, DataAppInsightInvestigation>;
 };

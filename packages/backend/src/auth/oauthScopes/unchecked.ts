@@ -229,6 +229,7 @@ export const OAUTH_UNCHECKED_OPERATIONS = {
     'DataAppAnalysisController.lookup': 'read',
     'DataAppAnalysisController.prompt': 'write',
     'DataAppAnalysisController.investigate': 'write',
+    'DataAppAnalysisController.investigateInstruction': 'write',
     'DataAppAnalysisController.getAnalysis': 'read',
     'DashboardAnalysisController.detect': 'write',
     'DashboardAnalysisController.lookup': 'read',
