@@ -13,7 +13,6 @@ import { analyticsMock } from '../../../analytics/LightdashAnalytics.mock';
 import { analyticsContentAsCode } from '../../../analytics/systemExplores/sampleContent';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import { createAnalyticsSyncUser } from '../../../ee/services/AnalyticsProjectService/analyticsSyncUser';
-import { AnalyticsContentSyncModel } from '../../../models/AnalyticsContentSyncModel';
 import { ModelRepository } from '../../../models/ModelRepository';
 import { CoderService } from '../../../services/CoderService/CoderService';
 import { DirectAccessFeatureGate } from '../../../services/DirectAccess/DirectAccessFeatureGate';
@@ -38,7 +37,6 @@ const unusedDependency = <T extends object>(name: string): T =>
 describe('analytics worker through the real content writer', () => {
     let migrated: MigratedDatabase;
     let models: ModelRepository;
-    let syncModel: AnalyticsContentSyncModel;
     let coder: CoderService;
 
     beforeAll(async () => {
@@ -50,9 +48,6 @@ describe('analytics worker through the real content writer', () => {
             database: migrated.database,
             lightdashConfig: lightdashConfigMock,
             utils,
-        });
-        syncModel = new AnalyticsContentSyncModel({
-            database: migrated.database,
         });
         const spacePermissionService = new SpacePermissionService({
             spaceModel: models.getSpaceModel(),
@@ -159,6 +154,109 @@ describe('analytics worker through the real content writer', () => {
         return { organization, project };
     };
 
+    it('reuses one credential-free worker under concurrent requests and rejects altered identities', async () => {
+        const { project } = await createProject();
+        const userModel = models.getUserModel();
+        const [first, second] = await Promise.all([
+            userModel.getOrCreateAnalyticsSystemUser(project.project_uuid),
+            userModel.getOrCreateAnalyticsSystemUser(project.project_uuid),
+        ]);
+        expect(second).toEqual(first);
+        expect(
+            await userModel.getOrCreateAnalyticsSystemUser(
+                project.project_uuid,
+            ),
+        ).toEqual(first);
+        expect(
+            await migrated.database('users').where('user_uuid', first.userUuid),
+        ).toHaveLength(1);
+        expect(
+            await migrated
+                .database('users')
+                .where('user_uuid', first.userUuid)
+                .first(),
+        ).toMatchObject({
+            first_name: 'Analytics system',
+            is_active: false,
+            is_internal: true,
+        });
+        for (const table of [
+            'emails',
+            'password_logins',
+            'openid_identities',
+            'organization_memberships',
+            'project_memberships',
+        ]) {
+            expect(
+                await migrated.database(table).where('user_id', first.userId),
+            ).toEqual([]);
+        }
+        expect(
+            await migrated
+                .database('personal_access_tokens')
+                .where('created_by_user_id', first.userId),
+        ).toEqual([]);
+        expect(
+            await migrated
+                .database('service_accounts')
+                .where('service_account_user_uuid', first.userUuid),
+        ).toEqual([]);
+        await migrated
+            .database('users')
+            .where('user_uuid', first.userUuid)
+            .update({ first_name: 'Unexpected identity' });
+        await expect(
+            userModel.getOrCreateAnalyticsSystemUser(project.project_uuid),
+        ).rejects.toThrow('Analytics system user is invalid');
+    });
+
+    it('resolves and pages only marked analytics projects in the requested organization', async () => {
+        const source = await createProject();
+        const target = await createProject();
+        const projectModel = models.getProjectModel();
+        const expected = {
+            projectUuid: target.project.project_uuid,
+            organizationUuid: target.organization.organization_uuid,
+            organizationName: target.organization.organization_name,
+        };
+        expect(
+            await projectModel.getAnalyticsProject(target.project.project_uuid),
+        ).toEqual(expected);
+        expect(
+            await projectModel.getAnalyticsProjectsPage({
+                organizationUuid: target.organization.organization_uuid,
+                afterProjectUuid: null,
+                limit: 1,
+            }),
+        ).toEqual([expected]);
+        expect(
+            await projectModel.getAnalyticsProjectsPage({
+                organizationUuid: target.organization.organization_uuid,
+                afterProjectUuid: target.project.project_uuid,
+                limit: 1,
+            }),
+        ).toEqual([]);
+        await migrated
+            .database('projects')
+            .where('project_uuid', source.project.project_uuid)
+            .update({ provisioning_source: null });
+        expect(
+            await projectModel.getAnalyticsProject(source.project.project_uuid),
+        ).toBeNull();
+        expect(
+            await projectModel.getAnalyticsProjectsPage({
+                organizationUuid: source.organization.organization_uuid,
+                afterProjectUuid: null,
+                limit: 1,
+            }),
+        ).toEqual([]);
+        await expect(
+            models
+                .getUserModel()
+                .getOrCreateAnalyticsSystemUser(source.project.project_uuid),
+        ).rejects.toThrow('Analytics project not found');
+    });
+
     it('creates and updates managed content in a restricted space with real permissions and worker attribution', async () => {
         const { project, organization } = await createProject();
         const bundle = analyticsContentAsCode[0];
@@ -187,7 +285,9 @@ describe('analytics worker through the real content writer', () => {
             })
             .returning('*');
         const user = createAnalyticsSyncUser({
-            ...(await syncModel.getOrCreateSystemUser(project.project_uuid)),
+            ...(await models
+                .getUserModel()
+                .getOrCreateAnalyticsSystemUser(project.project_uuid)),
             organizationUuid: organization.organization_uuid,
             organizationName: organization.organization_name,
             projectUuid: project.project_uuid,
@@ -292,9 +392,9 @@ describe('analytics worker through the real content writer', () => {
         const source = await createProject();
         const target = await createProject();
         const user = createAnalyticsSyncUser({
-            ...(await syncModel.getOrCreateSystemUser(
-                source.project.project_uuid,
-            )),
+            ...(await models
+                .getUserModel()
+                .getOrCreateAnalyticsSystemUser(source.project.project_uuid)),
             organizationUuid: source.organization.organization_uuid,
             organizationName: source.organization.organization_name,
             projectUuid: source.project.project_uuid,
