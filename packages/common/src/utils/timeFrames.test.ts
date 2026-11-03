@@ -84,7 +84,7 @@ describe('TimeFrames', () => {
             ).toEqual(
                 "DATE_TRUNC('WEEK', ${TABLE}.created)", // start of week is set in the session
             );
-            // ClickHouse: toStartOfWeek(date, 1) uses mode 1 (Monday base), matching Postgres DATE_TRUNC('week')
+            // ClickHouse: shift with INTERVAL (not addDays) so the primary key can still prune
             expect(
                 timeFrameConfigs[TimeFrames.WEEK].getSql(
                     SupportedDbtAdapter.CLICKHOUSE,
@@ -94,7 +94,7 @@ describe('TimeFrames', () => {
                     WeekDay.WEDNESDAY,
                 ),
             ).toEqual(
-                'addDays(toStartOfWeek(addDays(${TABLE}.created, -2), 1), 2)',
+                '(toStartOfWeek(${TABLE}.created - INTERVAL 2 DAY, 1) + INTERVAL 2 DAY)',
             );
         });
 
@@ -243,9 +243,19 @@ describe('TimeFrames', () => {
                     DimensionType.TIMESTAMP,
                     WeekDay.MONDAY,
                 ),
-            ).toEqual(
-                'addDays(toStartOfWeek(addDays(${TABLE}.created, -0), 1), 0)',
-            );
+            ).toEqual('toStartOfWeek(${TABLE}.created, 1)');
+        });
+
+        test('should get sql where start of the week is Sunday for ClickHouse', () => {
+            expect(
+                timeFrameConfigs[TimeFrames.WEEK].getSql(
+                    SupportedDbtAdapter.CLICKHOUSE,
+                    TimeFrames.WEEK,
+                    '${TABLE}.created',
+                    DimensionType.TIMESTAMP,
+                    WeekDay.SUNDAY,
+                ),
+            ).toEqual('toStartOfWeek(${TABLE}.created, 0)');
         });
 
         test('ClickHouse SECOND truncation lifts to DateTime64 (toStartOfSecond rejects plain DateTime)', () => {

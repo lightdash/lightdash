@@ -929,10 +929,17 @@ const clickhouseConfig: WarehouseConfig = {
     getSqlForTruncatedDateAsDateInTimezone: null,
     getSqlForTruncatedDate: (timeFrame, originalSql, _, startOfWeek) => {
         if (timeFrame === TimeFrames.WEEK && isWeekDay(startOfWeek)) {
-            const intervalDiff = startOfWeek;
-            // Mode 1 makes toStartOfWeek() return Monday (matching Postgres DATE_TRUNC('week')),
-            // so the shift arithmetic is correct for all startOfWeek values.
-            return `addDays(toStartOfWeek(addDays(${originalSql}, -${intervalDiff}), 1), ${intervalDiff})`;
+            // Mode 1 starts weeks on Monday, mode 0 on Sunday. Other days
+            // shift with INTERVAL arithmetic: ClickHouse can't use addDays()
+            // for primary key pruning.
+            if (startOfWeek === WeekDay.MONDAY) {
+                return `toStartOfWeek(${originalSql}, 1)`;
+            }
+            if (startOfWeek === WeekDay.SUNDAY) {
+                return `toStartOfWeek(${originalSql}, 0)`;
+            }
+            const intervalDiff = `INTERVAL ${startOfWeek} DAY`;
+            return `(toStartOfWeek(${originalSql} - ${intervalDiff}, 1) + ${intervalDiff})`;
         }
 
         switch (timeFrame) {
