@@ -104,6 +104,9 @@ export const useDashboardChartReadyQuery = (
     const setTileChartSavedParameters = useDashboardContext(
         (c) => c.setTileChartSavedParameters,
     );
+    const setTileVirtualViewSavedParameters = useDashboardContext(
+        (c) => c.setTileVirtualViewSavedParameters,
+    );
     const markTileLoaded = useDashboardTileStatusContext(
         (c) => c.markTileLoaded,
     );
@@ -178,6 +181,15 @@ export const useDashboardChartReadyQuery = (
             );
         }
     }, [explore, addParameterDefinitions]);
+
+    useEffect(() => {
+        if (explore) {
+            setTileVirtualViewSavedParameters(
+                tileUuid,
+                explore.savedParameterValues ?? {},
+            );
+        }
+    }, [explore, setTileVirtualViewSavedParameters, tileUuid]);
 
     const dateZoomCapabilities = useMemo(() => {
         if (!chartQuery.data || !explore) return undefined;

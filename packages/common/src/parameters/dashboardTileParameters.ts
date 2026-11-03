@@ -172,6 +172,8 @@ export const getDashboardTileParameterSource = ({
 
 export type DashboardTileParameterState = DashboardTileParameterInputs & {
     parameterReferences: string[];
+    // The tile's virtual-view saved values, the last fallback before "missing"
+    virtualViewSavedValues: ParametersValuesMap;
 };
 
 export type DashboardParameterStatusInputs = {
@@ -184,23 +186,31 @@ const getKeysResolvedPerTile = ({
     tiles,
     definitions,
 }: DashboardParameterStatusInputs): Map<string, boolean[]> =>
-    tiles.reduce((acc, { parameterReferences, ...inputs }) => {
-        const overrides = getDashboardTileParameterOverrides({
-            ...inputs,
-            definitions,
-        });
-        new Set(parameterReferences).forEach((key) => {
-            if (isReservedParameterName(key)) return;
-            acc.set(key, [
-                ...(acc.get(key) ?? []),
-                overrides[key] !== undefined ||
-                    definitions[key]?.default !== undefined,
-            ]);
-        });
-        return acc;
-    }, new Map<string, boolean[]>());
+    tiles.reduce(
+        (acc, { parameterReferences, virtualViewSavedValues, ...inputs }) => {
+            const overrides = getDashboardTileParameterOverrides({
+                ...inputs,
+                definitions,
+            });
+            const virtualViewValues = omitDisallowedParameterValues(
+                virtualViewSavedValues,
+                definitions,
+            );
+            new Set(parameterReferences).forEach((key) => {
+                if (isReservedParameterName(key)) return;
+                acc.set(key, [
+                    ...(acc.get(key) ?? []),
+                    overrides[key] !== undefined ||
+                        definitions[key]?.default !== undefined ||
+                        virtualViewValues[key] !== undefined,
+                ]);
+            });
+            return acc;
+        },
+        new Map<string, boolean[]>(),
+    );
 
-// A key is missing when any referencing tile has no dashboard value, default or chart-saved value.
+// A key is missing when any referencing tile has no dashboard, default, chart-saved or virtual-view value.
 export const getMissingRequiredDashboardParameters = (
     inputs: DashboardParameterStatusInputs,
 ): string[] =>

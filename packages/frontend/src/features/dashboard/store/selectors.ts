@@ -77,6 +77,8 @@ export const selectTileParameterReferences = (state: DashboardStoreState) =>
     state.parameters.tileParameterReferences;
 const selectTileChartSavedParameters = (state: DashboardStoreState) =>
     state.parameters.tileChartSavedParameters;
+const selectTileVirtualViewSavedParameters = (state: DashboardStoreState) =>
+    state.parameters.tileVirtualViewSavedParameters;
 const selectRawParameterDefinitions = (state: DashboardStoreState) =>
     state.parameters.parameterDefinitions;
 const selectParameterLabelOverrides = (state: DashboardStoreState) =>
@@ -140,12 +142,14 @@ export const selectMissingRequiredParameters = createSelector(
     [
         selectTileParameterReferences,
         selectTileChartSavedParameters,
+        selectTileVirtualViewSavedParameters,
         selectAppliedParameterValues,
         selectDashboardParameterDefinitions,
     ],
     (
         tileParameterReferences,
         tileChartSavedParameters,
+        tileVirtualViewSavedParameters,
         appliedParameterValues,
         parameterDefinitions,
     ) =>
@@ -156,6 +160,8 @@ export const selectMissingRequiredParameters = createSelector(
                     chartSavedValues: tileChartSavedParameters[tileUuid] ?? {},
                     dashboardValues: appliedParameterValues,
                     untargetedKeys: [],
+                    virtualViewSavedValues:
+                        tileVirtualViewSavedParameters[tileUuid] ?? {},
                 }),
             ),
             definitions: parameterDefinitions,
