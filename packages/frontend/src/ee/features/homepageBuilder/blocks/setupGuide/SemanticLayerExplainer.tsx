@@ -1,11 +1,15 @@
 import { Box, Group, Stack, Text } from '@mantine/core';
 import { useInterval } from '@mantine/hooks';
 import {
+    IconCalendar,
     IconChartBar,
     IconDatabase,
+    IconHash,
     IconLayoutDashboard,
+    IconTag,
+    IconUser,
 } from '@tabler/icons-react';
-import { useState, type FC, type ReactNode } from 'react';
+import { Fragment, useState, type FC, type ReactNode } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import classes from './SemanticLayerExplainer.module.css';
 
@@ -89,6 +93,8 @@ const Diagram: FC = () => (
 
 type Slice = { dimension: string; bars: { label: string; value: number }[] };
 
+const formatK = (value: number) => `$${value}k`;
+
 const SLICES: Slice[] = [
     {
         dimension: 'month',
@@ -125,12 +131,13 @@ const RevenueChart: FC = () => {
     const [sliceIndex, setSliceIndex] = useState(0);
     useInterval(
         () => setSliceIndex((index) => (index + 1) % SLICES.length),
-        2200,
+        2400,
         { autoInvoke: true },
     );
     const slice = SLICES[sliceIndex];
+    const max = Math.max(...slice.bars.map(({ value }) => value));
     return (
-        <Box className={classes.chart} aria-hidden>
+        <Box className={classes.chartCard} aria-hidden>
             <Group gap={6} wrap="nowrap">
                 <Text fz="xs" className={classes.chip} data-kind="metric">
                     revenue
@@ -138,31 +145,47 @@ const RevenueChart: FC = () => {
                 <Text fz="xs" c="dimmed">
                     by
                 </Text>
-                {SLICES.map(({ dimension }) => (
-                    <Text
-                        key={dimension}
-                        fz="xs"
-                        className={classes.chip}
-                        data-kind="dimension"
-                        data-active={dimension === slice.dimension}
-                    >
-                        {dimension}
-                    </Text>
-                ))}
+                <Box className={classes.dimensionSwitch}>
+                    {SLICES.map(({ dimension }) => (
+                        <Text
+                            key={dimension}
+                            fz="xs"
+                            className={classes.dimensionOption}
+                            data-active={dimension === slice.dimension}
+                        >
+                            {dimension}
+                        </Text>
+                    ))}
+                </Box>
             </Group>
             <Box className={classes.plot}>
+                {[1, 2, 3].map((line) => (
+                    <Box
+                        key={line}
+                        className={classes.gridLine}
+                        __vars={{ '--y': `${line * 25}%` }}
+                    />
+                ))}
                 {slice.bars.map(({ label, value }, index) => (
                     <Box
                         key={`${slice.dimension}-${label}`}
                         className={classes.barColumn}
                     >
-                        <Box
-                            className={classes.bar}
-                            __vars={{
-                                '--h': `${value}%`,
-                                '--i': String(index),
-                            }}
-                        />
+                        <Box className={classes.barTrack}>
+                            {value === max && (
+                                <Text fz={10} fw={600} className={classes.peak}>
+                                    {formatK(value)}
+                                </Text>
+                            )}
+                            <Box
+                                className={classes.bar}
+                                data-peak={value === max}
+                                __vars={{
+                                    '--h': `${(value / max) * 82}%`,
+                                    '--i': String(index),
+                                }}
+                            />
+                        </Box>
                         <Text fz={10} className={classes.barLabel} truncate>
                             {label}
                         </Text>
@@ -173,69 +196,60 @@ const RevenueChart: FC = () => {
     );
 };
 
-const DefinedInCode: FC = () => (
-    <Box className={classes.yaml}>
-        <Text fz={10} className={classes.yamlLine}>
-            metrics:
-        </Text>
-        <Text fz={10} className={classes.yamlLine} data-added>
-            + revenue:
-        </Text>
-        <Text fz={10} className={classes.yamlLine} data-added>
-            + type: sum
-        </Text>
-    </Box>
-);
-
-const RENAMES = [
-    { raw: 'cust_id', label: 'Customer' },
-    { raw: 'ord_amt_usd', label: 'Amount' },
-    { raw: 'crt_ts', label: 'Order date' },
-    { raw: 'ord_sts_cd', label: 'Status' },
+const FIELDS = [
+    { raw: 'cust_id', label: 'Customer', icon: IconUser },
+    { raw: 'ord_amt_usd', label: 'Amount', icon: IconHash },
+    { raw: 'crt_ts', label: 'Order date', icon: IconCalendar },
+    { raw: 'ord_sts_cd', label: 'Status', icon: IconTag },
 ];
 
 const TablesArt: FC = () => (
-    <Box className={classes.tables} aria-hidden>
-        <Box className={classes.tableCard} data-side="raw">
-            <Text fz={10} c="dimmed" mb={6}>
-                In your warehouse
+    <Box className={classes.mapping} aria-hidden>
+        <Text
+            fz={10}
+            c="dimmed"
+            className={`${classes.mappingHeading} ${classes.mappingTable}`}
+        >
+            tbl_ord_dtl
+        </Text>
+        <Box />
+        <Group gap={6} wrap="nowrap" className={classes.mappingHeading}>
+            <MantineIcon icon={IconDatabase} size={12} />
+            <Text fz="xs" fw={600}>
+                Orders
             </Text>
-            <Text fz="xs" className={classes.mono} fw={500}>
-                tbl_ord_dtl
-            </Text>
-            {RENAMES.map(({ raw }) => (
-                <Text key={raw} fz="xs" c="dimmed" className={classes.mono}>
-                    {raw}
-                </Text>
-            ))}
-        </Box>
-        <Box className={classes.arrow} />
-        <Box className={classes.tableCard} data-side="business">
-            <Text fz={10} c="dimmed" mb={6}>
-                In your semantic layer
-            </Text>
-            <Group gap={6} wrap="nowrap">
-                <MantineIcon icon={IconDatabase} size={12} />
-                <Text fz="xs" fw={600}>
-                    Orders
-                </Text>
-            </Group>
-            {RENAMES.map(({ raw, label }, index) => (
+        </Group>
+        {FIELDS.map(({ raw, label, icon }, index) => (
+            <Fragment key={raw}>
                 <Text
-                    key={raw}
                     fz="xs"
-                    className={classes.renamed}
+                    className={classes.rawField}
                     __vars={{ '--i': String(index) }}
                 >
-                    {label}
+                    {raw}
                 </Text>
-            ))}
-        </Box>
+                <Box
+                    className={classes.link}
+                    __vars={{ '--i': String(index) }}
+                />
+                <Group
+                    gap={6}
+                    wrap="nowrap"
+                    className={classes.field}
+                    __vars={{ '--i': String(index) }}
+                >
+                    <MantineIcon icon={icon} size={12} />
+                    <Text fz="xs" fw={500}>
+                        {label}
+                    </Text>
+                </Group>
+            </Fragment>
+        ))}
     </Box>
 );
 
 // Follows the docs: tables, then metrics and dimensions, then defined once
-const STEPS: { art: ReactNode; title: string; body: ReactNode }[] = [
+const STEPS: { art: ReactNode; title: string; body: string }[] = [
     {
         art: <TablesArt />,
         title: 'Tables become business objects',
@@ -244,21 +258,12 @@ const STEPS: { art: ReactNode; title: string; body: ReactNode }[] = [
     {
         art: <RevenueChart />,
         title: 'Metrics and dimensions',
-        body: 'Metrics are the numbers you track, like revenue. Dimensions are what you slice them by, like month, status or payment method. Same revenue, different angle.',
+        body: 'Metrics are the numbers you track, like revenue. Dimensions are what you slice them by, like month, status or payment method.',
     },
     {
         art: <Diagram />,
         title: 'Defined once, used everywhere',
-        body: (
-            <Group gap="md" wrap="nowrap" align="center">
-                <Text fz="sm" c="dimmed">
-                    Definitions live in version-controlled YAML and the SQL is
-                    written for you. Every chart, dashboard and AI answer uses
-                    them, so the same question always gets the same number.
-                </Text>
-                <DefinedInCode />
-            </Group>
-        ),
+        body: 'Definitions live in version-controlled YAML and the SQL is written for you. Every chart, dashboard and AI answer uses them, so the same question gets the same number.',
     },
 ];
 
@@ -267,19 +272,19 @@ export const SEMANTIC_LAYER_STEP_COUNT = STEPS.length;
 export const SemanticLayerExplainer: FC<{ step: number }> = ({ step }) => {
     const { art, title, body } = STEPS[step];
     return (
-        <Stack gap="lg" key={step} className={classes.step}>
-            {art}
-            <Stack gap={4}>
+        <Stack gap="lg">
+            <Box className={classes.stage}>
+                <Box key={step} className={classes.step}>
+                    {art}
+                </Box>
+            </Box>
+            <Stack gap={4} key={step} className={classes.step}>
                 <Text fz="md" fw={600}>
                     {title}
                 </Text>
-                {typeof body === 'string' ? (
-                    <Text fz="sm" c="dimmed">
-                        {body}
-                    </Text>
-                ) : (
-                    body
-                )}
+                <Text fz="sm" c="dimmed">
+                    {body}
+                </Text>
             </Stack>
         </Stack>
     );

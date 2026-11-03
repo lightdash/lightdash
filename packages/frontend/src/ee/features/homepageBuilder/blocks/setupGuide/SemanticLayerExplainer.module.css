@@ -1,8 +1,10 @@
-.diagram {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: var(--mantine-spacing-lg) var(--mantine-spacing-md);
+/* One stage for every step, so the modal never jumps between them */
+.stage {
+    display: grid;
+    place-items: center;
+    height: 248px;
+    padding: var(--mantine-spacing-md);
+    overflow: hidden;
     border-radius: var(--mantine-radius-md);
     background-color: var(--ld-color-page);
     background-image: radial-gradient(
@@ -10,6 +12,16 @@
         transparent 1px
     );
     background-size: 14px 14px;
+}
+
+.stage > .step {
+    width: 100%;
+}
+
+.diagram {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 
 .table,
@@ -150,23 +162,6 @@
     color: var(--ld-field-dimension-color);
 }
 
-.yaml {
-    width: 100%;
-    padding: 4px 6px;
-    border-radius: var(--mantine-radius-sm);
-    background: var(--ld-color-page);
-    font-family: var(--mantine-font-family-monospace);
-}
-
-.yamlLine {
-    line-height: 1.5;
-    white-space: nowrap;
-}
-
-.yamlLine[data-added] {
-    color: var(--mantine-color-green-light-color);
-}
-
 .packet {
     position: absolute;
     left: -2px;
@@ -238,12 +233,6 @@
     }
 }
 
-@media (width < $mantine-breakpoint-xs) {
-    .parts {
-        grid-template-columns: 1fr;
-    }
-}
-
 @media (prefers-reduced-motion: reduce) {
     .table,
     .metric,
@@ -259,17 +248,6 @@
     }
 }
 
-.chip[data-kind='dimension'][data-active='false'] {
-    background: transparent;
-    color: var(--mantine-color-dimmed);
-}
-
-.chip[data-kind='dimension'] {
-    transition:
-        background 0.2s ease,
-        color 0.2s ease;
-}
-
 .step {
     animation: stepIn 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
@@ -281,118 +259,192 @@
     }
 }
 
-.chart {
-    display: flex;
-    flex-direction: column;
-    gap: var(--mantine-spacing-md);
-    padding: var(--mantine-spacing-lg);
-    border-radius: var(--mantine-radius-md);
-    background: var(--ld-color-page);
-}
-
-.plot {
-    display: flex;
-    align-items: flex-end;
-    gap: 10px;
-    height: 150px;
-    padding-bottom: 2px;
-    border-bottom: 1px solid var(--mantine-color-default-border);
-}
-
-.barColumn {
-    display: flex;
-    flex: 1;
-    flex-direction: column;
-    justify-content: flex-end;
-    gap: 6px;
-    height: 100%;
-    min-width: 0;
-}
-
-.bar {
-    height: var(--h);
-    border-radius: 4px 4px 0 0;
-    background: var(--mantine-color-ldGray-3);
-    animation: grow 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
-    animation-delay: calc(var(--i) * 40ms);
-    transform-origin: bottom;
-}
-
-.chart .bar {
-    background: var(--ld-field-metric-color);
-    opacity: 0.75;
-}
-
-.barLabel {
-    text-align: center;
-    color: var(--mantine-color-dimmed);
-}
-
-.chart .barLabel {
-    color: var(--ld-field-dimension-color);
-    font-weight: 500;
-}
-
-@keyframes grow {
+@keyframes barGrow {
     from {
         transform: scaleY(0);
     }
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .step,
-    .bar {
+    .step {
         animation: none;
     }
 }
 
-.tables {
+.mapping {
     display: grid;
-    grid-template-columns: 1fr 40px 1fr;
+    grid-template-columns: max-content 56px max-content;
+    row-gap: 8px;
     align-items: center;
-    padding: var(--mantine-spacing-lg);
-    border-radius: var(--mantine-radius-md);
-    background: var(--ld-color-page);
+    justify-content: center;
 }
 
-.tableCard {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    padding: var(--mantine-spacing-sm) var(--mantine-spacing-md);
-    border: 1px solid var(--mantine-color-default-border);
-    border-radius: var(--mantine-radius-md);
-    background: var(--mantine-color-body);
+.mappingHeading {
+    padding-bottom: 4px;
 }
 
-.tableCard[data-side='raw'] {
-    border-style: dashed;
-    background: transparent;
-}
-
-.mono {
+.mappingTable {
+    justify-self: end;
     font-family: var(--mantine-font-family-monospace);
 }
 
-.renamed {
-    align-self: flex-start;
-    padding: 0 6px;
+.rawField {
+    justify-self: end;
+    padding: 3px 8px;
+    border: 1px dashed var(--mantine-color-ldGray-4);
     border-radius: var(--mantine-radius-sm);
-    background: var(--ld-field-dimension-bg);
-    color: var(--ld-field-dimension-color);
-    animation: stepIn 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    color: var(--mantine-color-dimmed);
+    font-family: var(--mantine-font-family-monospace);
+    animation: rise 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: calc(var(--i) * 90ms);
+}
+
+.link {
+    position: relative;
+    height: 1px;
+    margin: 0 6px;
+    background: var(--mantine-color-ldGray-4);
+    transform-origin: left;
+    animation: grow-x 300ms ease both;
     animation-delay: calc(200ms + var(--i) * 90ms);
 }
 
-.arrow {
-    justify-self: center;
-    width: 20px;
-    height: 1px;
-    background: var(--mantine-color-ldGray-4);
+.link::after {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--ld-field-dimension-color);
+    content: '';
+}
+
+.field {
+    min-width: 132px;
+    padding: 5px 10px;
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-sm);
+    background: var(--mantine-color-body);
+    box-shadow: 0 6px 16px -12px rgb(0 0 0 / 0.3);
+    color: var(--ld-field-dimension-color);
+    animation: rise 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: calc(320ms + var(--i) * 90ms);
+}
+
+.field p {
+    color: var(--mantine-color-text);
+}
+
+@keyframes grow-x {
+    from {
+        transform: scaleX(0);
+    }
+}
+
+.chartCard {
+    display: flex;
+    flex-direction: column;
+    gap: var(--mantine-spacing-sm);
+    width: min(100%, 440px);
+    margin: 0 auto;
+    padding: var(--mantine-spacing-sm) var(--mantine-spacing-md)
+        var(--mantine-spacing-xs);
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-md);
+    background: var(--mantine-color-body);
+    box-shadow: 0 12px 28px -18px rgb(0 0 0 / 0.35);
+}
+
+.dimensionSwitch {
+    display: flex;
+    gap: 2px;
+    padding: 2px;
+    border-radius: var(--mantine-radius-xl);
+    background: var(--ld-color-page);
+}
+
+.dimensionOption {
+    padding: 1px 8px;
+    border-radius: var(--mantine-radius-xl);
+    color: var(--mantine-color-dimmed);
+    transition:
+        background 0.25s ease,
+        color 0.25s ease;
+}
+
+.dimensionOption[data-active='true'] {
+    background: var(--ld-field-dimension-bg);
+    color: var(--ld-field-dimension-color);
+}
+
+.plot {
+    position: relative;
+    display: flex;
+    gap: 8px;
+    height: 150px;
+}
+
+.gridLine {
+    position: absolute;
+    right: 0;
+    bottom: calc(18px + (100% - 18px) * var(--y) / 100%);
+    left: 0;
+    border-top: 1px dashed var(--mantine-color-ldGray-2);
+}
+
+.barColumn {
+    position: relative;
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.barTrack {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 2px;
+}
+
+.bar {
+    width: min(100%, 28px);
+    height: var(--h);
+    border-radius: 4px 4px 1px 1px;
+    background: var(--ld-field-metric-color);
+    opacity: 0.35;
+    transform-origin: bottom;
+    animation: barGrow 460ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: calc(var(--i) * 45ms);
+}
+
+.bar[data-peak='true'] {
+    opacity: 0.9;
+}
+
+.peak {
+    color: var(--ld-field-metric-color);
+    font-variant-numeric: tabular-nums;
+    animation: rise 300ms ease both;
+    animation-delay: 300ms;
+}
+
+.barLabel {
+    height: 14px;
+    color: var(--mantine-color-dimmed);
+    text-align: center;
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .renamed {
+    .rawField,
+    .link,
+    .field,
+    .bar,
+    .peak {
         animation: none;
     }
 }
