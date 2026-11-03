@@ -48,7 +48,7 @@ describe('describeWarehouseTable partitioning', () => {
         expect(output.result).toBe(
             [
                 'Columns for `example-project.analytics.fact_orders` (2):',
-                'Partitioned by `created_at` (DAY). Filter `created_at` directly against constant bounds (literals, or CURRENT_DATE()/CURRENT_TIMESTAMP() expressions) so BigQuery reads only the partitions you need; without that filter it reads and bills every partition.',
+                'Partitioned by `created_at` (DAY). Filter `created_at` directly against constant bounds (literals, or CURRENT_DATE()/CURRENT_TIMESTAMP() expressions) so BigQuery reads only the partitions you need; queries without that filter run but read and bill every partition.',
                 '  - order_id: string',
                 '  - created_at: timestamp',
             ].join('\n'),
@@ -69,7 +69,7 @@ describe('describeWarehouseTable partitioning', () => {
         });
 
         expect(output.result).toContain(
-            'Partitioned by `_PARTITIONTIME` (HOUR). This table requires a partition filter: queries without one fail. Filter `_PARTITIONTIME` directly',
+            'Partitioned by `_PARTITIONTIME` (HOUR). Filter `_PARTITIONTIME` directly against constant bounds (literals, or CURRENT_DATE()/CURRENT_TIMESTAMP() expressions) so BigQuery reads only the partitions you need; queries without that filter fail.',
         );
     });
 
@@ -84,7 +84,7 @@ describe('describeWarehouseTable partitioning', () => {
         });
 
         expect(output.result).toContain(
-            'Partitioned by `customer_id` (integer ranges). Filter `customer_id` directly against constant bounds (integer literals) so BigQuery reads only the partitions you need; without that filter it reads and bills every partition.',
+            'Partitioned by `customer_id` (integer ranges). Filter `customer_id` directly against constant bounds (integer literals) so BigQuery reads only the partitions you need; queries without that filter run but read and bill every partition.',
         );
     });
 

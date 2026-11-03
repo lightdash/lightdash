@@ -12,10 +12,15 @@ const CONSTANT_BOUNDS: Record<PartitionType, string> = {
 
 // Only warehouses that bill or prune by partition get a filter instruction.
 const FILTER_GUIDANCE: Partial<
-    Record<WarehouseTypes, (column: string, bounds: string) => string>
+    Record<
+        WarehouseTypes,
+        (column: string, bounds: string, required: boolean) => string
+    >
 > = {
-    [WarehouseTypes.BIGQUERY]: (column, bounds) =>
-        `Filter \`${column}\` directly against constant bounds (${bounds}) so BigQuery reads only the partitions you need; without that filter it reads and bills every partition.`,
+    [WarehouseTypes.BIGQUERY]: (column, bounds, required) =>
+        `Filter \`${column}\` directly against constant bounds (${bounds}) so BigQuery reads only the partitions you need; queries without that filter ${
+            required ? 'fail' : 'run but read and bill every partition'
+        }.`,
 };
 
 export const formatPartitioning = (
@@ -32,14 +37,19 @@ export const formatPartitioning = (
     const sentences = [
         `Partitioned by \`${field}\`${unit ? ` (${unit})` : ''}.`,
     ];
-    if (requiresPartitionFilter) {
+    const guidance = FILTER_GUIDANCE[warehouseType];
+    if (guidance) {
+        sentences.push(
+            guidance(
+                field,
+                CONSTANT_BOUNDS[partitionType],
+                requiresPartitionFilter,
+            ),
+        );
+    } else if (requiresPartitionFilter) {
         sentences.push(
             'This table requires a partition filter: queries without one fail.',
         );
-    }
-    const guidance = FILTER_GUIDANCE[warehouseType];
-    if (guidance) {
-        sentences.push(guidance(field, CONSTANT_BOUNDS[partitionType]));
     }
     return sentences.join(' ');
 };
