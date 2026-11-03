@@ -54,6 +54,7 @@ export class UsageDimensionsModel {
                             query.whereExists(
                                 this.database('projects')
                                     .select(this.database.raw('1'))
+                                    .where('provisioning_source', 'analytics')
                                     .whereRaw('?? = ??', [
                                         'projects.organization_id',
                                         'organizations.organization_id',
