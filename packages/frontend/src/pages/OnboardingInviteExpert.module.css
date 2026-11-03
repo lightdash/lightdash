@@ -1,3 +1,10 @@
+.page {
+    min-height: calc(100dvh - var(--navbar-height));
+    background-color: var(--mantine-color-white);
+    display: flex;
+    flex-direction: column;
+}
+
 .column {
     width: 100%;
     max-width: 560px;
@@ -17,9 +24,19 @@
     outline: none;
 }
 
+/* Outside onboarding the page owns its spacing, as it did before the onboarding layout */
+.page .column {
+    flex: 1;
+    padding: 72px var(--mantine-spacing-xxl) var(--mantine-spacing-xl);
+}
+
 @media (width < $mantine-breakpoint-sm) {
     .column {
         padding: 0;
+    }
+
+    .page .column {
+        padding: var(--mantine-spacing-xl) var(--mantine-spacing-md);
     }
 
     .card {

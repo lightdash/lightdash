@@ -229,7 +229,14 @@ const AgentOnboardingRunPage: FC = () => {
     const navigate = useNavigate();
     const [isCancellationRequested, setIsCancellationRequested] =
         useState(false);
-    const [codeView, setCodeView] = useState<CodePanelView | null>(null);
+    // The panel keeps its last view while closed so the sidebar can animate out
+    const [panelView, setPanelView] = useState<CodePanelView | null>(null);
+    const [isPanelOpen, setIsPanelOpen] = useState(false);
+    const codeView = isPanelOpen ? panelView : null;
+    const setCodeView = (view: CodePanelView | null) => {
+        if (view) setPanelView(view);
+        setIsPanelOpen(view !== null);
+    };
     const runQuery = useAgentOnboardingRun(projectUuid, agentOnboardingRunUuid);
     const cancelMutation = useCancelAgentOnboardingRun();
     const startMutation = useStartAgentOnboardingRun();
@@ -322,10 +329,10 @@ const AgentOnboardingRunPage: FC = () => {
             withPaddedContent
             withFullHeight
             rightSidebar={
-                codeView ? (
+                panelView ? (
                     <AgentOnboardingCodePanel
                         run={run}
-                        view={codeView}
+                        view={panelView}
                         onChange={setCodeView}
                         onClose={() => setCodeView(null)}
                     />

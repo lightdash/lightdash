@@ -112,7 +112,7 @@ export const Building: StoryObj = {
     play: async ({ canvasElement }) => {
         await userEvent.click(
             await within(canvasElement).findByRole('button', {
-                name: 'Show progress',
+                name: 'Watch',
             }),
         );
     },

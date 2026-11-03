@@ -123,6 +123,7 @@ const renderGuide = (
     facts: SetupGuideFacts,
     handlers: {
         onSkip?: (key: HomepageRecommendedActionKey) => void;
+        onRestore?: (key: HomepageRecommendedActionKey) => void;
         onDismissedChange?: (isDismissed: boolean) => void;
         isDismissed?: boolean;
     } = {},
@@ -135,7 +136,7 @@ const renderGuide = (
                     isDismissed={handlers.isDismissed ?? false}
                     onDismissedChange={handlers.onDismissedChange ?? vi.fn()}
                     onSkip={handlers.onSkip ?? vi.fn()}
-                    onRestore={vi.fn()}
+                    onRestore={handlers.onRestore ?? vi.fn()}
                     highlight={[]}
                 />
             </MemoryRouter>
@@ -150,6 +151,7 @@ describe('buildSetupGuide', () => {
             'Your semantic layer',
             'Starter content',
             'Your team',
+            'More data',
         ]);
         expect(rowById(fresh, 'source-control')).toBeUndefined();
         expect(rowById(fresh, 'slack')).toBeDefined();
@@ -194,6 +196,26 @@ describe('buildSetupGuide', () => {
         });
     });
 
+    it('credits a finished build and links back to its run', () => {
+        expect(
+            rowById(
+                {
+                    ...fresh,
+                    semanticModelCount: 3,
+                    completedRun: { ...run, status: 'completed' },
+                },
+                'semantic-layer',
+            ),
+        ).toMatchObject({
+            status: 'done',
+            evidence: { text: '3 models built by Lightdash' },
+            action: {
+                label: 'Review',
+                to: '/projects/p1/onboarding/runs/run-1',
+            },
+        });
+    });
+
     it('completes every row once everything exists', () => {
         expect(countProgress(rowsOf(allDone))).toEqual({
             completed: 7,
@@ -220,33 +242,41 @@ describe('buildSetupGuide', () => {
 });
 
 describe('SetupGuideView', () => {
-    it('renders a fresh guide with quiet progress and per-section counts', () => {
+    it('leads with one next step and lists the rest as cards', () => {
         renderGuide(fresh);
         expect(screen.getByText('Set up your workspace')).toBeInTheDocument();
-        expect(screen.getByText('0 / 7 completed')).toBeInTheDocument();
-        expect(screen.getAllByText('Suggested')).toHaveLength(7);
+        expect(screen.getByText('0 of 7 done')).toBeInTheDocument();
+        expect(screen.getByText('Next up, 3 min')).toBeInTheDocument();
+        expect(
+            screen.getByText('Connect your warehouse').closest('a'),
+        ).toBeNull();
+        expect(
+            screen.getByRole('link', { name: /Define metrics and dimensions/ }),
+        ).toHaveAttribute('href', '/setup');
     });
 
-    it('expands a building row to show run progress', async () => {
+    it('shows background work as one live card', async () => {
         renderGuide(building);
-        expect(screen.getAllByText('Building')).toHaveLength(2);
-        await userEvent.click(
-            screen.getByRole('button', { name: 'Show progress' }),
-        );
         expect(
-            screen.getByRole('list', { name: 'Setup stages' }),
+            screen.getByText(
+                'Lightdash is drafting your metrics and first dashboard',
+            ),
+        ).toBeInTheDocument();
+        await userEvent.click(screen.getByRole('button', { name: 'Watch' }));
+        expect(
+            await screen.findByRole('list', { name: 'Setup stages' }),
         ).toBeInTheDocument();
     });
 
-    it('shows evidence while one step is left', () => {
+    it('shows evidence for finished steps on demand', async () => {
         renderGuide({ ...allDone, teammateCount: 0 });
-        expect(screen.getByText('6 / 7 completed')).toBeInTheDocument();
+        expect(screen.getByText('6 of 7 done')).toBeInTheDocument();
+        expect(screen.queryByText('48 models ready to explore')).toBeNull();
+        await userEvent.click(screen.getByText('6 of 7 done'));
         expect(
             screen.getByText('48 models ready to explore'),
         ).toBeInTheDocument();
         expect(screen.getByText('PostHog connected')).toBeInTheDocument();
-        expect(screen.getAllByText('Suggested')).toHaveLength(1);
-        expect(screen.getByText('Ready')).toBeInTheDocument();
     });
 
     it('hides once nothing is pending, counting skipped as settled', () => {
@@ -266,21 +296,30 @@ describe('SetupGuideView', () => {
 
     it('offers restore on skipped rows and skip on skippable suggestions', async () => {
         const onSkip = vi.fn();
-        renderGuide(someSkipped, { onSkip });
+        const onRestore = vi.fn();
+        const { unmount } = renderGuide(someSkipped, { onSkip, onRestore });
         expect(screen.getAllByText('Skipped')).toHaveLength(2);
         expect(
-            screen.getByRole('button', {
-                name: 'Restore Define metrics and dimensions',
+            screen.queryByRole('button', {
+                name: 'More options for Invite your team',
             }),
-        ).toBeInTheDocument();
-        expect(
-            screen.queryByRole('button', { name: 'Skip Invite your team' }),
         ).toBeNull();
+        await userEvent.click(
+            screen.getByRole('button', {
+                name: 'More options for Define metrics and dimensions',
+            }),
+        );
+        await userEvent.click(await screen.findByText('Add back to the list'));
+        expect(onRestore).toHaveBeenCalledWith('add-semantic-layer');
+        unmount();
 
         renderGuide(fresh, { onSkip });
         await userEvent.click(
-            screen.getByRole('button', { name: 'Skip Connect Slack' }),
+            screen.getByRole('button', {
+                name: 'More options for Connect Slack',
+            }),
         );
+        await userEvent.click(await screen.findByText('Skip for now'));
         expect(onSkip).toHaveBeenCalledWith('connect-slack');
     });
 
@@ -295,7 +334,7 @@ describe('SetupGuideView', () => {
 
         renderGuide(fresh, { isDismissed: true, onDismissedChange });
         const reopen = screen.getByRole('button', {
-            name: /Setup guide · 0 \/ 7 completed/,
+            name: 'Setup guide, 0 of 7 done',
         });
         expect(
             within(document.body).queryByText('Set up your workspace'),

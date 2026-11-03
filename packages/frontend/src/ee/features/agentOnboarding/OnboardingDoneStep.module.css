@@ -1,7 +1,7 @@
 .column {
     width: 100%;
     text-align: center;
-    animation: reveal 480ms cubic-bezier(0.22, 1, 0.36, 1) 1150ms both;
+    animation: reveal 300ms cubic-bezier(0.22, 1, 0.36, 1) 700ms both;
 }
 
 /* A tick draws in, then makes way for the page */
@@ -12,7 +12,7 @@
     display: grid;
     place-items: center;
     pointer-events: none;
-    animation: tickOut 280ms ease-in 1000ms both;
+    animation: tickOut 200ms cubic-bezier(0.22, 1, 0.36, 1) 650ms both;
 }
 
 .tick > svg {
@@ -73,9 +73,16 @@
         box-shadow 150ms ease;
 }
 
-.primary:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 10px 24px -8px rgb(0 0 0 / 0.5);
+@media (hover: hover) and (pointer: fine) {
+    .primary:not(:disabled):hover {
+        transform: translateY(-1px);
+        box-shadow: 0 10px 24px -8px rgb(0 0 0 / 0.5);
+    }
+}
+
+/* The title arrives with the tick, so it must not also morph in from the last step */
+.column h1[class] {
+    view-transition-name: none;
 }
 
 .subtitle {

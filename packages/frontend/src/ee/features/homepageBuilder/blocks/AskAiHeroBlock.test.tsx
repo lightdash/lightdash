@@ -12,6 +12,12 @@ vi.mock('../../../../providers/App/useApp', () => ({
 vi.mock('../../../../providers/Tracking/useTracking', () => ({
     default: () => ({ track: vi.fn() }),
 }));
+vi.mock('../../../../hooks/useServerOrClientFeatureFlag', () => ({
+    useServerFeatureFlag: () => ({
+        data: { enabled: false },
+        isLoading: false,
+    }),
+}));
 vi.mock('./QuickActionsBlock', () => ({
     QuickActionCards: () => <div data-testid="quick-actions" />,
 }));

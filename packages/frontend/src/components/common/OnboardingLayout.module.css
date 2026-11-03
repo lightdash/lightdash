@@ -116,7 +116,7 @@
 
 .journeySegment[data-state='current']::after {
     transform: scaleX(0.4);
-    animation: segmentFill 900ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation: segmentFill 400ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 @keyframes segmentFill {
@@ -299,7 +299,7 @@
     view-transition-name: onboarding-wordmark;
 }
 
-.journey {
+.journeyBar {
     view-transition-name: onboarding-journey;
 }
 
@@ -321,8 +321,18 @@
     transform: translateX(3px);
 }
 
+.card :global(.mantine-Button-root),
+.splitForm :global(.mantine-Button-root) {
+    transition:
+        background-color 120ms ease,
+        border-color 120ms ease,
+        color 120ms ease,
+        box-shadow 120ms ease,
+        transform 160ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
 .card :global(.mantine-Button-root):not(:disabled):active {
-    transform: translateY(1px) scale(0.98);
+    transform: scale(0.97);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -335,7 +345,7 @@
 :global(html)::view-transition-group(onboarding-ghost),
 :global(html)::view-transition-group(onboarding-title),
 :global(html)::view-transition-group(onboarding-journey) {
-    animation-duration: 460ms;
+    animation-duration: 300ms;
     animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -356,11 +366,11 @@
 }
 
 :global(html)::view-transition-old(onboarding-card) {
-    animation: vtContentOut 180ms ease-in both;
+    animation: vtContentOut 150ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 :global(html)::view-transition-new(onboarding-card) {
-    animation: vtContentIn 360ms cubic-bezier(0.22, 1, 0.36, 1) 120ms both;
+    animation: vtContentIn 250ms cubic-bezier(0.22, 1, 0.36, 1) 60ms both;
 }
 
 :global(html[data-onboarding-direction='back'])::view-transition-new(
@@ -370,11 +380,11 @@
 }
 
 :global(html)::view-transition-old(onboarding-title) {
-    animation: vtTitleOut 200ms ease-in both;
+    animation: vtTitleOut 150ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 :global(html)::view-transition-new(onboarding-title) {
-    animation: vtTitleIn 420ms cubic-bezier(0.22, 1, 0.36, 1) 80ms both;
+    animation: vtTitleIn 250ms cubic-bezier(0.22, 1, 0.36, 1) 40ms both;
 }
 
 :global(html)::view-transition-old(onboarding-title),
@@ -537,7 +547,7 @@
 }
 
 .splitForm :global(.mantine-Button-root):not(:disabled):active {
-    transform: translateY(1px) scale(0.98);
+    transform: scale(0.97);
 }
 
 @media (max-width: $mantine-breakpoint-md) {

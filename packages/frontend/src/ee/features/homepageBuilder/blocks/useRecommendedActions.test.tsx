@@ -365,6 +365,15 @@ describe('useRecommendedActions', () => {
     });
 
     describe('add-semantic-layer completion', () => {
+        beforeEach(() => {
+            vi.mocked(useServerFeatureFlag).mockImplementation(
+                (flag) =>
+                    settled({
+                        enabled: flag === FeatureFlags.NewOnboarding,
+                    }) as ReturnType<typeof useServerFeatureFlag>,
+            );
+        });
+
         const mockExplores = (explores: ApiExploresResults) =>
             vi
                 .mocked(useExplores)

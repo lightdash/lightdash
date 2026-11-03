@@ -24,8 +24,10 @@
     transform-origin: right center;
 }
 
-.band[data-size='sm']:hover .scene {
-    transform: scale(0.8) translateY(-2px);
+@media (hover: hover) and (pointer: fine) {
+    .band[data-size='sm']:hover .scene {
+        transform: scale(0.8) translateY(-2px);
+    }
 }
 
 .band::before {
@@ -60,8 +62,10 @@
     transition: transform 240ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.band:hover .scene {
-    transform: translateY(-2px) scale(1.03);
+@media (hover: hover) and (pointer: fine) {
+    .band:hover .scene {
+        transform: translateY(-2px) scale(1.03);
+    }
 }
 
 .sheet,

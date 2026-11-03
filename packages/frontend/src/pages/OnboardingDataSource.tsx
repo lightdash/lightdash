@@ -17,10 +17,7 @@ import {
     useStepCopy,
 } from '../components/common/onboardingVariant';
 import { StepVisual } from '../components/common/OnboardingVisuals';
-import {
-    useOnboardingNavigate,
-    withViewTransition,
-} from '../components/common/viewTransition';
+import { useOnboardingNavigate } from '../components/common/viewTransition';
 import { CreateProjectConnection } from '../components/ProjectConnection';
 import { ConnectionFormSkeleton } from '../components/ProjectConnection/ConnectionFormSkeleton';
 import { type ConnectionFormStep } from '../components/ProjectConnection/CreateProjectconnection';
@@ -33,6 +30,7 @@ import {
 } from '../components/ProjectConnection/ProjectConnectFlow/utils';
 import { ProjectFormProvider } from '../components/ProjectConnection/ProjectFormProvider';
 import { MeetAurora } from '../ee/features/agentOnboarding/MeetAurora';
+import { withViewTransition } from '../features/apps/utils/viewTransition';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import { useOnboardingPageGuard } from '../hooks/useOnboardingPageGuard';
 import { useProjects } from '../hooks/useProjects';

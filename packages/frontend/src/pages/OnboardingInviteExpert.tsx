@@ -34,13 +34,16 @@ import {
     useRef,
     useState,
     type FC,
+    type ReactNode,
 } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { z } from 'zod';
+import AboutFooter from '../components/AboutFooter';
 import Callout from '../components/common/Callout';
 import { DocumentTitle } from '../components/common/DocumentTitle';
 import MantineIcon from '../components/common/MantineIcon';
 import OnboardingLayout from '../components/common/OnboardingLayout';
+import NavBar from '../components/NavBar';
 import PageSpinner from '../components/PageSpinner';
 import {
     getPlaygroundSetupFailure,
@@ -170,6 +173,23 @@ const InviteExpertForm: FC<{
         </Stack>
     </form>
 );
+
+// Without the new onboarding the page keeps the app chrome it had inside NavBarLayout
+const InviteExpertShell: FC<{
+    isNewOnboarding: boolean;
+    children: ReactNode;
+}> = ({ isNewOnboarding, children }) =>
+    isNewOnboarding ? (
+        <OnboardingLayout>{children}</OnboardingLayout>
+    ) : (
+        <>
+            <NavBar />
+            <Box className={classes.page}>
+                {children}
+                <AboutFooter />
+            </Box>
+        </>
+    );
 
 const OnboardingInviteExpert: FC = () => {
     const { health, user } = useApp();
@@ -363,7 +383,7 @@ const OnboardingInviteExpert: FC = () => {
     // submitting would only produce a raw 403.
     if (!canInviteUsers) {
         return (
-            <OnboardingLayout>
+            <InviteExpertShell isNewOnboarding={isNewOnboarding}>
                 <DocumentTitle title="Invite an expert" />
                 <Box className={classes.column}>
                     <Stack align="center" gap="md" maw={420} mx="auto">
@@ -389,12 +409,12 @@ const OnboardingInviteExpert: FC = () => {
                         </Button>
                     </Stack>
                 </Box>
-            </OnboardingLayout>
+            </InviteExpertShell>
         );
     }
 
     return (
-        <OnboardingLayout>
+        <InviteExpertShell isNewOnboarding={isNewOnboarding}>
             <DocumentTitle title="Invite an expert" />
             <Box className={classes.column}>
                 <Stack align="center" gap="xs">
@@ -409,7 +429,9 @@ const OnboardingInviteExpert: FC = () => {
                         Invite someone to set this up
                     </Title>
                     <Text size="md" c="dimmed" ta="center">
-                        They'll go straight to warehouse setup.
+                        {isNewOnboarding
+                            ? "They'll go straight to warehouse setup."
+                            : "Connecting the warehouse is usually a data-team job — we'll take them straight to warehouse setup."}
                     </Text>
                 </Stack>
 
@@ -447,7 +469,7 @@ const OnboardingInviteExpert: FC = () => {
                     {backLabel}
                 </Button>
             </Box>
-        </OnboardingLayout>
+        </InviteExpertShell>
     );
 };
 

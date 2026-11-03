@@ -1,5 +1,9 @@
 import { subject } from '@casl/ability';
-import { OrganizationAccessStatus, ProjectType } from '@lightdash/common';
+import {
+    FeatureFlags,
+    OrganizationAccessStatus,
+    ProjectType,
+} from '@lightdash/common';
 import { Box } from '@mantine/core';
 import { clsx } from 'clsx';
 import { memo } from 'react';
@@ -9,6 +13,7 @@ import { useActiveProjectUuid } from '../../hooks/useActiveProject';
 import { useProject } from '../../hooks/useProject';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import { useImpersonation } from '../../hooks/user/useImpersonation';
+import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
 import useFullscreen from '../../providers/Fullscreen/useFullscreen';
 import MantineBaseProvider from '../../providers/MantineBaseProvider';
@@ -109,7 +114,9 @@ const NavBar = memo(({ isFixed = true }: NavBarProps) => {
                 OrganizationAccessStatus.TRIAL_EXPIRED);
 
     const { user } = useApp();
+    const newOnboardingFlag = useServerFeatureFlag(FeatureFlags.NewOnboarding);
     const showSampleDataBanner =
+        newOnboardingFlag.data?.enabled === true &&
         !isImpersonating &&
         isCurrentProjectPlayground &&
         user.data?.ability.can(

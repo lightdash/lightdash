@@ -7,8 +7,11 @@ import {
 } from './useAgentOnboarding';
 
 /** The project's latest Aurora run, kept after it finishes so the outcome stays visible */
-export const useAuroraRun = (projectUuid: string) => {
-    const activeRun = useActiveAgentOnboardingRun(projectUuid);
+export const useAuroraRun = (
+    projectUuid: string,
+    options?: { enabled: boolean },
+) => {
+    const activeRun = useActiveAgentOnboardingRun(projectUuid, options);
     const [lastRunUuid, setLastRunUuid] = useSessionStorage<string | null>({
         key: `ld.aurora.lastRun.${projectUuid}`,
         defaultValue: null,
@@ -22,6 +25,7 @@ export const useAuroraRun = (projectUuid: string) => {
     const watchedRun = useAgentOnboardingRun(
         projectUuid,
         activeRunUuid ?? lastRunUuid ?? undefined,
+        options,
     );
     // A deleted run keeps its last data in the cache, so a failed refetch drops it
     const run =

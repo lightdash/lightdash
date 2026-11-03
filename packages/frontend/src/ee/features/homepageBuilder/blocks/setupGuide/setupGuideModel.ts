@@ -7,7 +7,10 @@ import {
 } from '@lightdash/common';
 import { type ReactNode } from 'react';
 import { AI_NAME } from '../../../../../components/common/aiName';
-import { getAgentOnboardingRunUrl } from '../../../agentOnboarding/utils';
+import {
+    getAgentOnboardingRunUrl,
+    plural,
+} from '../../../agentOnboarding/utils';
 import { type ActionStatus } from '../useRecommendedActions';
 
 /** The homepage corner toolbar slot a hidden guide portals its popover button into */
@@ -106,9 +109,6 @@ const evidence = (
     logo: extra.logo ?? null,
     swatches: extra.swatches ?? [],
 });
-
-const plural = (count: number, word: string) =>
-    `${count} ${word}${count === 1 ? '' : 's'}`;
 
 const checklistRow = (
     facts: SetupGuideFacts,

@@ -3,7 +3,6 @@ import {
     ActionIcon,
     Box,
     Center,
-    CopyButton,
     Group,
     Text,
     Tooltip,
@@ -12,9 +11,7 @@ import {
 } from '@mantine/core';
 import {
     IconChartBar,
-    IconCheck,
     IconChevronRight,
-    IconCopy,
     IconFile,
     IconFolder,
     IconFolderOpen,
@@ -27,6 +24,7 @@ import {
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import { useMemo, useState, type FC } from 'react';
 import CodeBlock from '../../../components/common/CodeBlock/CodeBlock';
+import { CopyActionIcon } from '../../../components/common/CopyActionIcon';
 import EmptyStateLoader from '../../../components/common/EmptyStateLoader';
 import MantineIcon from '../../../components/common/MantineIcon';
 import {
@@ -179,24 +177,13 @@ const CopyFile: FC<{ run: AgentOnboardingRun; path: string }> = ({
     );
     if (query.data?.encoding !== 'utf8') return null;
     return (
-        <CopyButton value={query.data.content}>
-            {({ copied, copy }) => (
-                <Tooltip label={copied ? 'Copied' : 'Copy file'}>
-                    <ActionIcon
-                        variant="subtle"
-                        color="gray"
-                        size="sm"
-                        onClick={copy}
-                        aria-label="Copy file"
-                    >
-                        <MantineIcon
-                            icon={copied ? IconCheck : IconCopy}
-                            size={14}
-                        />
-                    </ActionIcon>
-                </Tooltip>
-            )}
-        </CopyButton>
+        <CopyActionIcon
+            value={query.data.content}
+            copyLabel="Copy file"
+            variant="subtle"
+            color="gray"
+            size="sm"
+        />
     );
 };
 

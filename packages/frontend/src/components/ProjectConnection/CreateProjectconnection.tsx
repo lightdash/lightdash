@@ -7,7 +7,7 @@ import {
     WarehouseTypes,
     type CreateWarehouseCredentials,
 } from '@lightdash/common';
-import { Box, Button, Group } from '@mantine/core';
+import { Box, Button, Group, Loader } from '@mantine/core';
 import {
     useCallback,
     useEffect,
@@ -18,6 +18,7 @@ import {
     type ReactNode,
 } from 'react';
 import { useLocation } from 'react-router';
+import { withViewTransition } from '../../features/apps/utils/viewTransition';
 import {
     getInFlightJobUuidFromError,
     useActiveCreateProjectJob,
@@ -27,10 +28,11 @@ import useActiveJob from '../../providers/ActiveJob/useActiveJob';
 import useApp from '../../providers/App/useApp';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
-import { withViewTransition } from '../common/viewTransition';
 import { ConnectionFormSkeleton } from './ConnectionFormSkeleton';
 import classes from './CreateProjectconnection.module.css';
-import CreateProjectJobProgress from './CreateProjectJobProgress';
+import CreateProjectJobProgress, {
+    OnboardingConnectionProgress,
+} from './CreateProjectJobProgress';
 import { dbtDefaults, noneDefaultValues } from './DbtForms/defaultValues';
 import { dbtFormValidators } from './DbtForms/validators';
 import { FormContainer } from './FormContainer';
@@ -41,7 +43,10 @@ import { ProjectFormProvider } from './ProjectFormProvider';
 import { type ProjectConnectionForm } from './types';
 import { useCreateProjectSuccessRedirect } from './useCreateProjectSuccessRedirect';
 import { useOnProjectError } from './useOnProjectError';
-import { warehouseDefaultValues } from './WarehouseForms/defaultValues';
+import {
+    onboardingWarehouseDefaultValues,
+    warehouseDefaultValues,
+} from './WarehouseForms/defaultValues';
 import { createWarehouseValueValidators } from './WarehouseForms/validators';
 
 export type ConnectionFormStep = 'warehouse' | 'dbt';
@@ -80,6 +85,7 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
     const onboardingFlow = pathname.startsWith('/onboarding/')
         ? 'new'
         : 'legacy';
+    const isNewOnboarding = onboardingFlow === 'new';
     const { user, health } = useApp();
     const [createProjectJobId, setCreateProjectJobId] = useState<string>();
     const { activeJob, setActiveJobId, setQuietActiveJobId } = useActiveJob();
@@ -134,7 +140,9 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                       ...dbtDefaults.formValues[dbtType],
                       ...health.data?.defaultProject,
                   },
-            warehouse: warehouseDefaultValues[warehouseType],
+            warehouse: (isNewOnboarding
+                ? onboardingWarehouseDefaultValues
+                : warehouseDefaultValues)[warehouseType],
             dbtVersion: dbtDefaults.dbtVersion,
         },
         validate: {
@@ -231,7 +239,7 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
         successRedirect,
         celebrateOnSuccess,
         // Let the inline success state register before the next step slides in
-        successHoldMs: warehouseOnly ? 900 : 0,
+        successHoldMs: isNewOnboarding && warehouseOnly ? 900 : 0,
         submitButtonRef,
     });
 
@@ -303,6 +311,7 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
         !!latestJob && latestJob.jobStatus !== JobStatusType.ERROR;
     useEffect(() => {
         if (
+            !isNewOnboarding ||
             !latestJobUuid ||
             (shown?.jobUuid === latestJobUuid &&
                 shown.hidesForm === latestHidesForm)
@@ -313,15 +322,24 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
         // Onboarding keeps the form in place, so there is no layout swap to animate
         if (steps) setShown(next);
         else withViewTransition(() => setShown(next));
-    }, [latestJobUuid, latestHidesForm, shown, steps]);
+    }, [isNewOnboarding, latestJobUuid, latestHidesForm, shown, steps]);
     const thisJob =
-        latestJob?.jobUuid === shown?.jobUuid ? latestJob : undefined;
+        !isNewOnboarding || latestJob?.jobUuid === shown?.jobUuid
+            ? latestJob
+            : undefined;
 
-    const lockForm = !!thisJob && !!shown?.hidesForm;
+    const lockForm =
+        !!thisJob && (isNewOnboarding ? !!shown?.hidesForm : latestHidesForm);
     const hideForm = lockForm && !steps;
 
     if (isCheckingInFlightJob) {
-        return <ConnectionFormSkeleton />;
+        return isNewOnboarding ? (
+            <ConnectionFormSkeleton />
+        ) : (
+            <Group justify="center" p="xl">
+                <Loader color="gray" />
+            </Group>
+        );
     }
 
     const isWarehouseStep = steps?.current === 'warehouse';
@@ -350,16 +368,21 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
             >
                 <FormContainer>
                     <ProjectFormProvider revealAfterSignIn={!!steps}>
-                        {thisJob && (
-                            <CreateProjectJobProgress
-                                job={thisJob}
-                                warehouseLabel={
-                                    selectedWarehouse
-                                        ? getWarehouseLabel(selectedWarehouse)
-                                        : null
-                                }
-                            />
-                        )}
+                        {thisJob &&
+                            (isNewOnboarding ? (
+                                <OnboardingConnectionProgress
+                                    job={thisJob}
+                                    warehouseLabel={
+                                        selectedWarehouse
+                                            ? getWarehouseLabel(
+                                                  selectedWarehouse,
+                                              )
+                                            : null
+                                    }
+                                />
+                            ) : (
+                                <CreateProjectJobProgress job={thisJob} />
+                            ))}
 
                         {!hideForm && (
                             <Box

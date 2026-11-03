@@ -217,6 +217,7 @@ export const OnboardingDoneStep: FC<{ projectUuid: string }> = ({
                         color="gray"
                         component={Link}
                         to={`/projects/${projectUuid}/home`}
+                        viewTransition
                     >
                         Go to home
                     </Button>

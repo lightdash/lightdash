@@ -29,7 +29,7 @@
 
 @media (prefers-reduced-motion: no-preference) {
     .pulse {
-        animation: breathe 1.4s ease-in-out infinite;
+        animation: breathe 1.6s ease-in-out infinite;
     }
 }
 

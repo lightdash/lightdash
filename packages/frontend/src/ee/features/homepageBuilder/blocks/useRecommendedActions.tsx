@@ -230,10 +230,16 @@ const useActionStatuses = (
     const organizationQuery = useOrganization();
     const projectQuery = useProject(projectUuid ?? undefined);
     const projectsQuery = useProjects();
-    const exploresQuery = useExplores(projectUuid ?? undefined);
     const githubConfigQuery = useGithubConfig();
     const slackQuery = useGetSlack();
     const newOnboardingFlag = useServerFeatureFlag(FeatureFlags.NewOnboarding);
+    const isNewOnboarding = isFlagOn(newOnboardingFlag);
+    const exploresQuery = useExplores(
+        projectUuid ?? undefined,
+        undefined,
+        undefined,
+        { enabled: !!projectUuid && isNewOnboarding },
+    );
     const codingAgentOnboardingFlag = useServerFeatureFlag(
         FeatureFlags.CodingAgentOnboarding,
     );
@@ -266,7 +272,7 @@ const useActionStatuses = (
             [true, health],
             [true, organizationQuery],
             [!!projectUuid, projectQuery],
-            [!!projectUuid, exploresQuery],
+            [!!projectUuid && isNewOnboarding, exploresQuery],
             [true, projectsQuery],
             [gate(isHealthSettled, hasGithub), githubConfigQuery],
             [gate(isHealthSettled, hasGitlab), gitlabQuery],
@@ -295,9 +301,9 @@ const useActionStatuses = (
             'add-semantic-layer': semanticLayerStatus({
                 projectUuid,
                 dbtConnection,
-                hasSemanticLayer: hasSemanticLayerExplore(
-                    exploresQuery.data ?? [],
-                ),
+                hasSemanticLayer: isNewOnboarding
+                    ? hasSemanticLayerExplore(exploresQuery.data ?? [])
+                    : hasDbtConnection(dbtConnection),
                 activeAgentRun,
                 hasAgentSemanticLayerEntry,
             }),

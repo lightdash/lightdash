@@ -1,3 +1,4 @@
+import { ProjectType } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
@@ -5,13 +6,15 @@ import { MemoryRouter, Route, Routes } from 'react-router';
 import NoProjectHomepage from './NoProjectHomepage';
 
 const state = vi.hoisted(() => ({
-    needsProject: true,
+    hasProject: false,
     isHomepageBuilderEnabled: true,
 }));
 
-vi.mock('../../../hooks/organization/useOrganization', () => ({
-    useOrganization: () => ({
-        data: { needsProject: state.needsProject },
+vi.mock('../../../hooks/useProjects', () => ({
+    useProjects: () => ({
+        data: state.hasProject
+            ? [{ type: ProjectType.DEFAULT, provisioningSource: null }]
+            : [],
         isInitialLoading: false,
     }),
 }));
@@ -65,7 +68,7 @@ const renderHomepage = () => render(homepageTree());
 
 describe('NoProjectHomepage', () => {
     beforeEach(() => {
-        state.needsProject = true;
+        state.hasProject = false;
         state.isHomepageBuilderEnabled = true;
     });
 
@@ -79,7 +82,7 @@ describe('NoProjectHomepage', () => {
     });
 
     it('redirects away once the organization has a project', () => {
-        state.needsProject = false;
+        state.hasProject = true;
         renderHomepage();
 
         expect(screen.getByText('redirected')).toBeInTheDocument();
@@ -87,7 +90,7 @@ describe('NoProjectHomepage', () => {
 
     it('stays put when a project appears after arrival', () => {
         const { rerender } = renderHomepage();
-        state.needsProject = false;
+        state.hasProject = true;
         rerender(homepageTree());
 
         expect(screen.queryByText('redirected')).toBeNull();

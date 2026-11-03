@@ -16,6 +16,7 @@ import { captureException } from '@sentry/react';
 import { IconChevronRight, IconTable } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router';
+import { withViewTransition } from '../../../features/apps/utils/viewTransition';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useEnsurePlaygroundProject } from '../../../hooks/useEnsurePlaygroundProject';
 import useApp from '../../../providers/App/useApp';
@@ -23,10 +24,7 @@ import useTracking from '../../../providers/Tracking/useTracking';
 import LogoIcon from '../../../svgs/logo-icon.svg?react';
 import { EventName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
-import {
-    useOnboardingNavigate,
-    withViewTransition,
-} from '../../common/viewTransition';
+import { useOnboardingNavigate } from '../../common/viewTransition';
 import DbtLogo from './Assets/dbt.svg';
 import { DbtAnswerSummary, type DbtAnswer } from './ChoiceSummary';
 import classes from './DataSourceChooser.module.css';

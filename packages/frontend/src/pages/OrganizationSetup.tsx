@@ -42,14 +42,12 @@ import { DocumentTitle } from '../components/common/DocumentTitle';
 import MantineIcon from '../components/common/MantineIcon';
 import OnboardingLayout from '../components/common/OnboardingLayout';
 import { useOnboardingVariant } from '../components/common/onboardingVariant';
-import {
-    useOnboardingNavigate,
-    withViewTransition,
-} from '../components/common/viewTransition';
+import { useOnboardingNavigate } from '../components/common/viewTransition';
 import PageSpinner from '../components/PageSpinner';
 import { jobTitles } from '../components/UserCompletionModal/jobTitles';
 import { BrandPreview } from '../components/UserSettings/AppearanceSettingsPanel/BrandPreview';
 import { useHomepageBuilderFlag } from '../ee/features/homepageBuilder/hooks/useProjectHomepage';
+import { withViewTransition } from '../features/apps/utils/viewTransition';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import {
     useDetectOrganizationBrand,

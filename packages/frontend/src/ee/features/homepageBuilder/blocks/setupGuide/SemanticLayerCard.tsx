@@ -47,10 +47,15 @@ export const SemanticLayerCard: FC<{
                     Your semantic layer is ready
                 </Text>
                 <Text fz="xs" c="dimmed">
-                    {buildRunUrl ? (
+                    {buildRunUrl && !isEmbedded ? (
                         <>
                             Built by {AI_NAME} from your tables.{' '}
-                            <Anchor component={Link} to={buildRunUrl} fz="xs">
+                            <Anchor
+                                component={Link}
+                                to={buildRunUrl}
+                                viewTransition
+                                fz="xs"
+                            >
                                 See how
                             </Anchor>
                         </>

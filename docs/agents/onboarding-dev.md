@@ -3,7 +3,7 @@
 From the worktree root, with its app running:
 
 ```sh
-corepack pnpm dev:onboarding
+pnpm dev:onboarding
 ```
 
 Resets the dedicated `onboarding@lightdash.com` account and its organization,
@@ -18,8 +18,8 @@ Signup and email verification remain available as Storybook states.
 Options:
 
 ```sh
-corepack pnpm dev:onboarding --resume   # open the existing journey without resetting
-corepack pnpm dev:onboarding --no-open  # reset without opening Chrome
+pnpm dev:onboarding --resume   # open the existing journey without resetting
+pnpm dev:onboarding --no-open  # reset without opening Chrome
 ```
 
 For another browser, sign in at the worktree's `/login` with

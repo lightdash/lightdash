@@ -109,8 +109,12 @@ export const BigQuerySchemaInput: FC<{
         isAuthenticated && isSso,
         debouncedProject,
     );
+    const isNewOnboarding =
+        useServerFeatureFlag(FeatureFlags.NewOnboarding).data?.enabled === true;
     const keyfileContents =
-        form.values.warehouse?.type === WarehouseTypes.BIGQUERY && !isSso
+        isNewOnboarding &&
+        form.values.warehouse?.type === WarehouseTypes.BIGQUERY &&
+        !isSso
             ? form.values.warehouse.keyfileContents
             : undefined;
     const keyfileDatasets = useBigqueryKeyfileDatasets(keyfileContents);

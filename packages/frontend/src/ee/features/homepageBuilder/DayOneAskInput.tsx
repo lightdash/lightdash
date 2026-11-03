@@ -1,4 +1,5 @@
 import {
+    FeatureFlags,
     type AgentSuggestion,
     type AiPromptContextInput,
     type AiPromptContextItem,
@@ -18,6 +19,7 @@ import {
 } from 'react';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
@@ -363,6 +365,8 @@ const DayOneAskInputInner: FC<Props> = ({
         selectedAgent,
         createAgentThread,
     });
+    const isNewOnboarding =
+        useServerFeatureFlag(FeatureFlags.NewOnboarding).data?.enabled === true;
     const [composerValue, setComposerValue] = useState('');
     const [hasAsked, setHasAsked] = useLocalStorage({
         key: 'ld.home.hasAsked',
@@ -462,7 +466,7 @@ const DayOneAskInputInner: FC<Props> = ({
 
     // Before the first question, a chart prompt sits inside the empty composer as the way in
     const starterIndex =
-        hasAsked || composerValue.trim() !== ''
+        !isNewOnboarding || hasAsked || composerValue.trim() !== ''
             ? -1
             : suggestions.chips.findIndex(isChartChip);
     const starterChip =

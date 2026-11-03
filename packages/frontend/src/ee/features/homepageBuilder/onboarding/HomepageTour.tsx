@@ -1,6 +1,8 @@
+import { FeatureFlags } from '@lightdash/common';
 import { Tour, type FloatingPosition } from '@mantine/core';
 import { type FC } from 'react';
 import { useGuidedTour } from '../../../../hooks/useGuidedTour';
+import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
 import { HOMEPAGE_TOUR_STORAGE_KEY } from './homepageTourStorage';
 
 type HomepageTourStep = {
@@ -41,6 +43,8 @@ export const HomepageTour: FC<{ ready: boolean }> = ({ ready }) => {
     const { isOpen, closeTour } = useGuidedTour({
         storageKey: HOMEPAGE_TOUR_STORAGE_KEY,
     });
+    const newOnboardingFlag = useServerFeatureFlag(FeatureFlags.NewOnboarding);
+    if (newOnboardingFlag.data?.enabled !== true) return null;
 
     return (
         <Tour

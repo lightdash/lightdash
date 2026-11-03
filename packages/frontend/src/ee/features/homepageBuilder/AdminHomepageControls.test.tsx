@@ -27,6 +27,10 @@ vi.mock('../../../hooks/organization/useOrganization', () => ({
     useOrganization: () => ({ data: undefined }),
 }));
 
+vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
+    useServerFeatureFlag: () => ({ data: { enabled: false } }),
+}));
+
 vi.mock('../../../hooks/useContentAuthoringEnabled', () => ({
     useContentAuthoringEnabled: () => authoringEnabled.current,
 }));

@@ -1,6 +1,7 @@
 import { MantineProvider } from '@mantine/core';
 import { composeStories } from '@storybook/react-vite';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import * as stories from './08-SetupGuide.stories';
 
 const { Fresh, Building, MostlyDone } = composeStories(stories);
@@ -12,13 +13,19 @@ describe('homepage setup guide stories', () => {
                 <Fresh />
             </MantineProvider>,
         );
-        fireEvent.click(
-            await screen.findByRole('button', { name: 'Skip Connect Slack' }),
+        await userEvent.click(
+            await screen.findByRole('button', {
+                name: 'More options for Connect Slack',
+            }),
         );
+        await userEvent.click(await screen.findByText('Skip for now'));
         expect(screen.getByText('Skipped')).toBeInTheDocument();
-        fireEvent.click(
-            screen.getByRole('button', { name: 'Restore Connect Slack' }),
+        await userEvent.click(
+            screen.getByRole('button', {
+                name: 'More options for Connect Slack',
+            }),
         );
+        await userEvent.click(await screen.findByText('Add back to the list'));
         expect(screen.queryByText('Skipped')).not.toBeInTheDocument();
     });
 
@@ -28,11 +35,11 @@ describe('homepage setup guide stories', () => {
                 <Building />
             </MantineProvider>,
         );
-        fireEvent.click(
-            await screen.findByRole('button', { name: 'Show progress' }),
+        await userEvent.click(
+            await screen.findByRole('button', { name: 'Watch' }),
         );
         expect(
-            screen.getByRole('list', { name: 'Setup stages' }),
+            await screen.findByRole('list', { name: 'Setup stages' }),
         ).toBeInTheDocument();
         expect(
             screen.getByText('Building the semantic layer'),
@@ -45,10 +52,11 @@ describe('homepage setup guide stories', () => {
                 <MostlyDone />
             </MantineProvider>,
         );
+        expect(await screen.findAllByText('Skipped')).toHaveLength(2);
+        await userEvent.click(screen.getByText(/of \d+ done/));
         expect(
-            await screen.findByText('3 models ready to explore'),
+            screen.getByText('3 models ready to explore'),
         ).toBeInTheDocument();
-        expect(screen.getAllByText('Skipped')).toHaveLength(2);
         expect(screen.getByText('Coffee overview')).toBeInTheDocument();
     });
 });

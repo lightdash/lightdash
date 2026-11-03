@@ -33,10 +33,22 @@ export const storyAgentRun = (completed: boolean): AgentOnboardingRun => ({
             createdAt: minutesFromNow(-3),
         },
         {
+            eventType: 'step',
+            stage: 'exploring_warehouse',
+            message: 'warehouse-catalog --table orders',
+            createdAt: minutesFromNow(-2.5),
+        },
+        {
             eventType: 'stage',
             stage: 'deploying_semantic_layer',
             message: 'Defining revenue, order count and repeat customers',
             createdAt: minutesFromNow(-2),
+        },
+        {
+            eventType: 'step',
+            stage: 'deploying_semantic_layer',
+            message: 'Write: models/orders.yml',
+            createdAt: minutesFromNow(-1.9),
         },
         ...(completed
             ? ([

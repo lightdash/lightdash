@@ -26,10 +26,13 @@ const createUniqueViolation = (): DatabaseError => {
     return error;
 };
 
-const buildService = () => {
+const buildService = ({ isNewOnboarding = false } = {}) => {
     const findAllAgents = vi.fn<AiAgentModel['findAllAgents']>();
     const service = new AiAgentService({
         aiAgentModel: { findAllAgents },
+        featureFlagService: {
+            get: vi.fn().mockResolvedValue({ enabled: isNewOnboarding }),
+        },
     } as unknown as ConstructorParameters<typeof AiAgentService>[0]);
     const getIsCopilotEnabled = vi.spyOn(service, 'getIsCopilotEnabled');
     const createAgent = vi.spyOn(service, 'createAgent');
@@ -71,9 +74,42 @@ describe('AiAgentService.provisionDefaultAgent', () => {
         expect(createAgent).not.toHaveBeenCalled();
     });
 
+    it.each([
+        [
+            false,
+            'Aurora',
+            "You are Aurora, this organization's analytics agent.",
+        ],
+        [true, 'Lightdash', "You are this organization's analytics agent."],
+    ])(
+        'names the default agent by the new onboarding flag (%s)',
+        async (isNewOnboarding, name, opening) => {
+            const { service, findAllAgents, getIsCopilotEnabled, createAgent } =
+                buildService({ isNewOnboarding });
+            getIsCopilotEnabled.mockResolvedValue(true);
+            findAllAgents.mockResolvedValue([]);
+            createAgent.mockResolvedValue(
+                {} as Awaited<ReturnType<AiAgentService['createAgent']>>,
+            );
+
+            await service.provisionDefaultAgent(user, PROJECT_UUID);
+
+            expect(createAgent).toHaveBeenCalledWith(
+                user,
+                expect.objectContaining({
+                    name,
+                    instruction: expect.stringMatching(
+                        new RegExp(`^${opening}`),
+                    ),
+                }),
+                { autoProvisioned: true },
+            );
+        },
+    );
+
     it('creates the default agent with the starter configuration', async () => {
         const { service, findAllAgents, getIsCopilotEnabled, createAgent } =
-            buildService();
+            buildService({ isNewOnboarding: true });
         getIsCopilotEnabled.mockResolvedValue(true);
         findAllAgents.mockResolvedValue([]);
         createAgent.mockResolvedValue(

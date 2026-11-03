@@ -29,6 +29,14 @@ export const useCreateProjectSuccessRedirect = ({
     const queryClient = useQueryClient();
     const hasFiredConfettiRef = useRef(false);
     const hasScheduledRedirectRef = useRef(false);
+    const redirectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    useEffect(
+        () => () => {
+            if (redirectTimerRef.current)
+                clearTimeout(redirectTimerRef.current);
+        },
+        [],
+    );
 
     useEffect(() => {
         if (
@@ -47,7 +55,10 @@ export const useCreateProjectSuccessRedirect = ({
         if (!celebrateOnSuccess) {
             if (hasScheduledRedirectRef.current) return;
             hasScheduledRedirectRef.current = true;
-            setTimeout(() => onboardingNavigate(redirectTo), successHoldMs);
+            redirectTimerRef.current = setTimeout(
+                () => onboardingNavigate(redirectTo),
+                successHoldMs,
+            );
             return;
         }
 

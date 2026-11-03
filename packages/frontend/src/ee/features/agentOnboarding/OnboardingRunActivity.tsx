@@ -15,14 +15,12 @@ import {
     AGENT_ONBOARDING_STAGE_ACTIVE_LABELS,
     describeAgentOnboardingEvent,
     formatStageDuration,
+    plural,
     getAgentOnboardingProgressStageTimings,
     summarizeAgentOnboardingEvents,
 } from './utils';
 
 const RECENT_STEPS = 1;
-
-const plural = (count: number, word: string) =>
-    `${count} ${word}${count === 1 ? '' : 's'}`;
 
 type Step = { label: string; createdAt: string };
 

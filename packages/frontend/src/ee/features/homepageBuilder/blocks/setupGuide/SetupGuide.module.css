@@ -44,7 +44,7 @@
     border: 1px solid var(--mantine-color-default-border);
     border-radius: var(--mantine-radius-md);
     background: var(--mantine-color-body);
-    animation: rise 280ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+    animation: rise 280ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .nextBody {
@@ -72,13 +72,21 @@
     transition:
         transform 160ms ease,
         box-shadow 160ms ease;
-    animation: rise 320ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+    animation: rise 280ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: calc(var(--i, 0) * 40ms);
 }
 
-.card:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 10px 24px -14px
-        light-dark(rgb(16 16 20 / 0.25), rgb(0 0 0 / 0.6));
+@media (hover: hover) and (pointer: fine) {
+    .card:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 10px 24px -14px
+            light-dark(rgb(16 16 20 / 0.25), rgb(0 0 0 / 0.6));
+    }
+
+    .card:hover .cardArrow {
+        opacity: 1;
+        transform: none;
+    }
 }
 
 .card[data-status='skipped'] {
@@ -133,11 +141,6 @@
     transition:
         opacity 150ms ease,
         transform 150ms ease;
-}
-
-.card:hover .cardArrow {
-    opacity: 1;
-    transform: none;
 }
 
 .cardMenu {

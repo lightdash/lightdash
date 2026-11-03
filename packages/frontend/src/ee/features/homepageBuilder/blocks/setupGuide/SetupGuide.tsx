@@ -215,8 +215,9 @@ const NextStepCard: FC<{ row: SetupGuideRow } & RowHandlers> = ({
     );
 };
 
-const StepCard: FC<{ row: SetupGuideRow } & RowHandlers> = ({
+const StepCard: FC<{ row: SetupGuideRow; index: number } & RowHandlers> = ({
     row,
+    index,
     ...handlers
 }) => {
     const { track } = useTracking();
@@ -237,7 +238,11 @@ const StepCard: FC<{ row: SetupGuideRow } & RowHandlers> = ({
         </>
     );
     return (
-        <Box className={classes.card} data-status={row.status}>
+        <Box
+            className={classes.card}
+            data-status={row.status}
+            style={{ '--i': index }}
+        >
             <StepArt
                 id={row.id}
                 badge={isSkipped ? 'Skipped' : copy.time}
@@ -564,15 +569,24 @@ export const SetupGuideView: FC<SetupGuideViewProps> = ({
                     <Box className={classes.top}>
                         {highlight}
                         {nextRow && (
-                            <NextStepCard row={nextRow} {...handlers} />
+                            <NextStepCard
+                                key={nextRow.id}
+                                row={nextRow}
+                                {...handlers}
+                            />
                         )}
                     </Box>
                 )}
 
                 {(laterRows.length > 0 || skippedRows.length > 0) && (
                     <Box className={classes.cards}>
-                        {[...laterRows, ...skippedRows].map((row) => (
-                            <StepCard key={row.id} row={row} {...handlers} />
+                        {[...laterRows, ...skippedRows].map((row, index) => (
+                            <StepCard
+                                key={row.id}
+                                row={row}
+                                index={index}
+                                {...handlers}
+                            />
                         ))}
                     </Box>
                 )}

@@ -86,7 +86,8 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
     typePicker = 'select',
 }) => {
     const form = useFormContext();
-    const { isDbtSource, projectUuid } = useProjectFormContext();
+    const { isDbtSource, projectUuid, revealAfterSignIn } =
+        useProjectFormContext();
     const selectedWarehouse = form.values.warehouse?.type;
 
     const type: DbtProjectType =
@@ -243,10 +244,11 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
                 <DbtForm disabled={disabled} />
 
                 {/* Skipping still needs a schema, so surface it when the target section does not */}
-                {(awaitingSignIn ||
-                    isNative ||
-                    isDbtSource ||
-                    type === DbtProjectType.NONE) &&
+                {revealAfterSignIn &&
+                    (awaitingSignIn ||
+                        isNative ||
+                        isDbtSource ||
+                        type === DbtProjectType.NONE) &&
                     form.errors['warehouse.schema'] && (
                         <WarehouseSchemaInput
                             warehouseType={warehouseType}

@@ -1,20 +1,10 @@
 import { useCallback } from 'react';
-import { flushSync } from 'react-dom';
 import { useNavigate, type To } from 'react-router';
 
 const CARD_SELECTOR = '[data-onboarding-card]';
 const MAX_FROZEN_MS = 300;
 
 const canTransition = () => typeof document.startViewTransition === 'function';
-
-/** Runs a state update inside a view transition, when the browser has them */
-export const withViewTransition = (update: () => void) => {
-    if (!canTransition()) {
-        update();
-        return;
-    }
-    document.startViewTransition(() => flushSync(update));
-};
 
 // Routes often show a spinner first; snapshotting that loses the card morph
 const waitForNextCard = (previous: Element) =>

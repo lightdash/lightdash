@@ -183,12 +183,15 @@ describe('AiAgentService suggestion warehouse tables', () => {
     beforeEach(() => vi.clearAllMocks());
     const sqlInput = { ...input, enableSqlMode: true };
 
-    it('reads the cached catalog when agent identity is off', async () => {
+    it('lists tables in the AI context when agent identity is off', async () => {
         const { service, getWarehouseTables } = buildService();
-        await service.getAgentSuggestions(suggestionUser, sqlInput);
+        const user = { ...suggestionUser, abilityRules: [] };
+        await service.getAgentSuggestions(user, sqlInput);
         expect(getWarehouseTables).toHaveBeenCalledExactlyOnceWith(
-            suggestionUser,
+            user,
             'project-1',
+            QueryExecutionContext.AI,
+            QuerySurface.APP,
         );
         expect(vi.mocked(generateAgentSuggestions).mock.calls[0][1]).toEqual(
             expect.objectContaining({ warehouseTables: ['db.public.events'] }),

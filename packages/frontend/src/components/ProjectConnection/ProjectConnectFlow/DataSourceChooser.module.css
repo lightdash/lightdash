@@ -5,7 +5,13 @@
     padding: 10px var(--mantine-spacing-sm);
     border: 1px solid var(--mantine-color-default-border);
     border-radius: var(--mantine-radius-md);
-    transition: border-color 100ms ease;
+    transition:
+        border-color 100ms ease,
+        transform 160ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.tile:active:not(:disabled) {
+    transform: scale(0.97);
 }
 
 .tile:hover:not(:disabled) {
@@ -61,7 +67,13 @@
     padding: var(--mantine-spacing-sm);
     border: 1px solid var(--mantine-color-default-border);
     border-radius: var(--mantine-radius-md);
-    transition: border-color 100ms ease;
+    transition:
+        border-color 100ms ease,
+        transform 160ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.choiceCard:active:not(:disabled) {
+    transform: scale(0.97);
 }
 
 .choiceCard:hover {

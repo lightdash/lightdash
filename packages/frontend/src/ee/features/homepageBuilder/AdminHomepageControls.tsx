@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { type HomepageOpening } from '@lightdash/common';
+import { FeatureFlags, type HomepageOpening } from '@lightdash/common';
 import {
     Box,
     Button,
@@ -23,6 +23,7 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useContentAuthoringEnabled } from '../../../hooks/useContentAuthoringEnabled';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { Can } from '../../../providers/Ability';
 import classes from './adminHomepageControls.module.css';
 import { SETUP_GUIDE_CORNER_SLOT_ID } from './blocks/setupGuide/setupGuideModel';
@@ -66,7 +67,10 @@ const OpeningMenu: FC<{
     );
     // A brand-new org never saw the classic homepage, so there is nothing to announce
     const { data: organization } = useOrganization();
+    const isNewOnboarding =
+        useServerFeatureFlag(FeatureFlags.NewOnboarding).data?.enabled === true;
     const isNewOrg =
+        isNewOnboarding &&
         !!organization?.createdAt &&
         Date.now() - new Date(organization.createdAt).getTime() <
             NEW_ORG_WINDOW_MS;

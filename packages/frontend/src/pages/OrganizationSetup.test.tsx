@@ -13,6 +13,10 @@ vi.mock('../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: vi.fn(),
 }));
 
+vi.mock('../ee/features/homepageBuilder/hooks/useProjectHomepage', () => ({
+    useHomepageBuilderFlag: () => ({ isEnabled: false, isLoading: false }),
+}));
+
 const toasterMocks = vi.hoisted(() => ({
     showToastApiError: vi.fn(),
     showToastSuccess: vi.fn(),

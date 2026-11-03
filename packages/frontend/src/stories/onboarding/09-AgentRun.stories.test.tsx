@@ -1,6 +1,7 @@
 import { MantineProvider } from '@mantine/core';
 import { composeStories } from '@storybook/react-vite';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import * as stories from './09-AgentRun.stories';
 
 const { Running, Completed } = composeStories(stories);
@@ -13,15 +14,21 @@ describe('agent onboarding run stories', () => {
             </MantineProvider>,
         );
         expect(
-            await screen.findByText('Building the semantic layer'),
+            await screen.findByRole('heading', {
+                name: 'Building your project',
+            }),
         ).toBeInTheDocument();
         expect(
-            screen.getByRole('button', { name: 'Cancel setup' }),
-        ).toBeInTheDocument();
-        expect(
-            screen.getByText(
-                'Defining revenue, order count and repeat customers',
+            within(screen.getByRole('listitem', { current: 'step' })).getByText(
+                'Define metrics',
             ),
+        ).toBeInTheDocument();
+        expect(screen.getByText('Wrote the orders model')).toBeInTheDocument();
+        await userEvent.click(
+            screen.getByRole('button', { name: 'More setup options' }),
+        );
+        expect(
+            await screen.findByRole('menuitem', { name: 'Cancel setup' }),
         ).toBeInTheDocument();
     });
 
@@ -32,11 +39,18 @@ describe('agent onboarding run stories', () => {
             </MantineProvider>,
         );
         expect(
-            await screen.findByRole('link', { name: 'View dashboard' }),
+            await screen.findByRole('link', { name: 'Open starter dashboard' }),
         ).toHaveAttribute('href', expect.stringContaining('/dashboards'));
-        expect(screen.getByText('handoff.md')).toBeInTheDocument();
+        await userEvent.click(
+            screen.getByRole('button', { name: 'More setup options' }),
+        );
+        const viewCode = await screen.findByRole('menuitem', {
+            name: 'View code',
+        });
         expect(
-            screen.queryByRole('button', { name: 'Cancel setup' }),
+            screen.queryByRole('menuitem', { name: 'Cancel setup' }),
         ).not.toBeInTheDocument();
+        await userEvent.click(viewCode);
+        expect(await screen.findByText('handoff.md')).toBeInTheDocument();
     });
 });

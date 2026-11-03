@@ -158,9 +158,9 @@ const useDbtSetupDetection = (isEnabled: boolean) => {
     );
 
     const baselineProjectUuids = useRef<string[] | null>(null);
-    const [detectedProjectUuid, setDetectedProjectUuid] = useState<
-        string | null
-    >(null);
+    const [createdProjectUuid, setCreatedProjectUuid] = useState<string | null>(
+        null,
+    );
 
     // The demo project already has dbt and explores, so it never counts as a deploy
     const deployTargetUuid =
@@ -180,21 +180,15 @@ const useDbtSetupDetection = (isEnabled: boolean) => {
         const created = uuids.find(
             (uuid) => !baselineProjectUuids.current?.includes(uuid),
         );
-        if (created) setDetectedProjectUuid(created);
+        if (created) setCreatedProjectUuid(created);
     }, [projects]);
 
-    useEffect(() => {
-        const dbtType = project?.dbtConnection?.type;
-        if (deployTargetUuid && dbtType && dbtType !== DbtProjectType.NONE) {
-            setDetectedProjectUuid(deployTargetUuid);
-        }
-    }, [project, deployTargetUuid]);
-
-    useEffect(() => {
-        if (deployTargetUuid && explores && hasSemanticLayerExplore(explores)) {
-            setDetectedProjectUuid(deployTargetUuid);
-        }
-    }, [explores, deployTargetUuid]);
+    const dbtType = project?.dbtConnection?.type;
+    const isDeployed =
+        (!!dbtType && dbtType !== DbtProjectType.NONE) ||
+        (!!explores && hasSemanticLayerExplore(explores));
+    const detectedProjectUuid =
+        deployTargetUuid && isDeployed ? deployTargetUuid : createdProjectUuid;
 
     return { detectedProjectUuid, deployTargetUuid };
 };

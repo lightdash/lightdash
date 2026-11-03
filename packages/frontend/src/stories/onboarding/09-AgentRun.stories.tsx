@@ -57,8 +57,13 @@ export const Completed: StoryObj = {
     name: 'Completed with handoff',
     ...runStory(true),
     play: async ({ canvasElement }) => {
+        const page = within(canvasElement.ownerDocument.body);
         await userEvent.click(
-            await within(canvasElement).findByText('handoff.md'),
+            await page.findByRole('button', { name: 'More setup options' }),
         );
+        await userEvent.click(
+            await page.findByRole('menuitem', { name: 'View code' }),
+        );
+        await userEvent.click(await page.findByText('handoff.md'));
     },
 };

@@ -80,3 +80,22 @@
         display: none;
     }
 }
+
+.button {
+    transition:
+        opacity 200ms cubic-bezier(0.22, 1, 0.36, 1),
+        transform 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@starting-style {
+    .button {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .button {
+        transition: opacity 200ms ease;
+    }
+}

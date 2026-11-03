@@ -49,7 +49,7 @@ export const BigQueryDefaultValues: CreateBigqueryCredentials = {
 
 export const DatabricksDefaultValues: CreateDatabricksCredentials = {
     type: WarehouseTypes.DATABRICKS,
-    database: 'default',
+    database: '',
     serverHostName: '',
     httpPath: '',
     authenticationType: DatabricksAuthenticationType.PERSONAL_ACCESS_TOKEN,
@@ -63,7 +63,7 @@ export const DatabricksDefaultValues: CreateDatabricksCredentials = {
 
 export const PostgresDefaultValues: CreatePostgresCredentials = {
     type: WarehouseTypes.POSTGRES,
-    schema: 'public',
+    schema: '',
     host: '',
     user: '',
     password: '',
@@ -92,7 +92,7 @@ export const PostgresDefaultValues: CreatePostgresCredentials = {
 
 export const RedshiftDefaultValues: CreateRedshiftCredentials = {
     type: WarehouseTypes.REDSHIFT,
-    schema: 'public',
+    schema: '',
     host: '',
     user: '',
     password: '',
@@ -128,7 +128,7 @@ export const RedshiftDefaultValues: CreateRedshiftCredentials = {
 
 export const SnowflakeDefaultValues: CreateSnowflakeCredentials = {
     type: WarehouseTypes.SNOWFLAKE,
-    schema: 'PUBLIC',
+    schema: '',
     account: '',
     user: '',
     password: '',
@@ -164,7 +164,7 @@ export const TrinoDefaultValues: CreateTrinoCredentials = {
 
 export const ClickhouseDefaultValues: CreateClickhouseCredentials = {
     type: WarehouseTypes.CLICKHOUSE,
-    schema: 'default',
+    schema: '',
     host: '',
     user: '',
     password: '',
@@ -181,7 +181,7 @@ export const AthenaDefaultValues: CreateAthenaCredentials = {
     authenticationType: AthenaAuthenticationType.ACCESS_KEY,
     region: '',
     database: 'AwsDataCatalog',
-    schema: 'default',
+    schema: '',
     s3StagingDir: '',
     accessKeyId: '',
     secretAccessKey: '',
@@ -238,4 +238,21 @@ export const warehouseDefaultValues = {
     [WarehouseTypes.CLICKHOUSE]: ClickhouseDefaultValues,
     [WarehouseTypes.ATHENA]: AthenaDefaultValues,
     [WarehouseTypes.DUCKDB]: DuckdbDefaultValues,
+};
+
+// Onboarding prefills the conventional schema so a first connection needs fewer fields
+export const onboardingWarehouseDefaultValues: typeof warehouseDefaultValues = {
+    ...warehouseDefaultValues,
+    [WarehouseTypes.POSTGRES]: { ...PostgresDefaultValues, schema: 'public' },
+    [WarehouseTypes.REDSHIFT]: { ...RedshiftDefaultValues, schema: 'public' },
+    [WarehouseTypes.SNOWFLAKE]: { ...SnowflakeDefaultValues, schema: 'PUBLIC' },
+    [WarehouseTypes.DATABRICKS]: {
+        ...DatabricksDefaultValues,
+        database: 'default',
+    },
+    [WarehouseTypes.CLICKHOUSE]: {
+        ...ClickhouseDefaultValues,
+        schema: 'default',
+    },
+    [WarehouseTypes.ATHENA]: { ...AthenaDefaultValues, schema: 'default' },
 };

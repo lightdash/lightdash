@@ -89,11 +89,13 @@ describe('OnboardingTools', () => {
         renderPage({ hasGoogleLiveSources: true });
 
         expect(
-            await screen.findByText('Connect the tools your team uses'),
+            await screen.findByRole('heading', {
+                name: 'Bring in your other tools',
+            }),
         ).toBeInTheDocument();
-        expect(screen.getByText('PostHog')).toBeInTheDocument();
+        expect(screen.getByText('Product analytics')).toBeInTheDocument();
         expect(screen.getByText('Google Analytics 4')).toBeInTheDocument();
-        expect(screen.getByText('CSV or Google Sheet')).toBeInTheDocument();
+        expect(screen.getByText('Google Search Console')).toBeInTheDocument();
         expect(
             screen.getByRole('button', { name: 'Skip for now' }),
         ).toBeInTheDocument();
@@ -103,19 +105,25 @@ describe('OnboardingTools', () => {
         mockFlags({ [FeatureFlags.ApiQuerySources]: true });
         renderPage({ hasGoogleLiveSources: false });
 
-        expect(await screen.findByText('PostHog')).toBeInTheDocument();
+        expect(
+            await screen.findByText('Product analytics'),
+        ).toBeInTheDocument();
         expect(
             screen.queryByText('Google Analytics 4'),
         ).not.toBeInTheDocument();
         expect(
-            screen.queryByText('CSV or Google Sheet'),
+            screen.queryByText('Marketing and search'),
         ).not.toBeInTheDocument();
     });
 
-    it('goes straight to the project home when no source kind is enabled', async () => {
+    it('goes straight to the Slack and GitHub step when no source kind is enabled', async () => {
         mockFlags({});
-        renderPage({ hasGoogleLiveSources: true });
+        renderPage({ hasGoogleLiveSources: true, hasSlack: true });
 
-        expect(await screen.findByText('project home')).toBeInTheDocument();
+        expect(
+            await screen.findByRole('heading', {
+                name: 'Connect Slack and GitHub',
+            }),
+        ).toBeInTheDocument();
     });
 });

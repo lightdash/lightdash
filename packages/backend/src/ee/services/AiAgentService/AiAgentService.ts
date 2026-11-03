@@ -3916,29 +3916,22 @@ export class AiAgentService extends BaseService {
                     user,
                     featureFlagId: FeatureFlags.AgentIdentity,
                 });
-            // Without agent identity the agent uses the project's credentials, so the cached catalog matches
-            const catalog = agentIdentityEnabled
-                ? await agentExecutionContext.run(
-                      createAgentExecutionContext({
-                          account: fromSession(user),
-                          surface: AgentActorSurface.IN_APP_AGENT,
-                          clientId:
-                              AGENT_CLIENT_IDS[AgentActorSurface.IN_APP_AGENT],
-                          agentUuid,
-                          agentIdentityEnabled,
-                      }),
-                      () =>
-                          this.projectService.getWarehouseTables(
-                              user,
-                              projectUuid,
-                              QueryExecutionContext.AI,
-                              QuerySurface.APP,
-                          ),
-                  )
-                : await this.projectService.getWarehouseTables(
-                      user,
-                      projectUuid,
-                  );
+            const catalog = await agentExecutionContext.run(
+                createAgentExecutionContext({
+                    account: fromSession(user),
+                    surface: AgentActorSurface.IN_APP_AGENT,
+                    clientId: AGENT_CLIENT_IDS[AgentActorSurface.IN_APP_AGENT],
+                    agentUuid,
+                    agentIdentityEnabled,
+                }),
+                () =>
+                    this.projectService.getWarehouseTables(
+                        user,
+                        projectUuid,
+                        QueryExecutionContext.AI,
+                        QuerySurface.APP,
+                    ),
+            );
             const tables: string[] = [];
             for (const [database, schemas] of Object.entries(catalog)) {
                 for (const [schema, schemaTables] of Object.entries(schemas)) {
@@ -6014,16 +6007,20 @@ export class AiAgentService extends BaseService {
                 return;
             }
 
+            const { enabled: isNewOnboarding } =
+                await this.featureFlagService.get({
+                    user,
+                    featureFlagId: FeatureFlags.NewOnboarding,
+                });
             await this.createAgent(
                 user,
                 {
-                    name: 'Lightdash',
+                    name: isNewOnboarding ? 'Lightdash' : 'Aurora',
                     projectUuid,
                     description: null,
                     integrations: [],
                     tags: null,
-                    instruction:
-                        "You are this organization's analytics agent. Help people explore and understand their data, and answer questions with clear, concise analysis. If no explores are available yet, use your warehouse tools to discover the schema and answer with SQL.",
+                    instruction: `You are ${isNewOnboarding ? '' : 'Aurora, '}this organization's analytics agent. Help people explore and understand their data, and answer questions with clear, concise analysis. If no explores are available yet, use your warehouse tools to discover the schema and answer with SQL.`,
                     imageUrl: null,
                     groupAccess: [],
                     userAccess: [],

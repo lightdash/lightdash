@@ -1,5 +1,6 @@
 .card {
     display: flex;
+    animation: arrive 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
     flex-direction: column;
     gap: var(--mantine-spacing-md);
     padding: var(--mantine-spacing-md);
@@ -145,4 +146,17 @@ button.stat:hover {
 [data-variant='lead'] .notes.notes p {
     color: var(--mantine-color-text);
     font-size: var(--mantine-font-size-sm);
+}
+
+@keyframes arrive {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .card {
+        animation: none;
+    }
 }

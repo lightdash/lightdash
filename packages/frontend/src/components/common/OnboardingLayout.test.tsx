@@ -6,6 +6,12 @@ import { MemoryRouter, Route, Routes } from 'react-router';
 import { BASE_API_URL } from '../../api';
 import OnboardingLayout from './OnboardingLayout';
 
+vi.mock('../../providers/App/useApp', () => ({
+    default: () => ({ user: { data: { email: 'ada@example.com' } } }),
+}));
+
+vi.mock('./OnboardingControlPanel', () => ({ default: () => null }));
+
 const renderLayout = (withAccountSwitch: boolean) =>
     render(
         <QueryClientProvider client={new QueryClient()}>
@@ -40,6 +46,7 @@ describe('OnboardingLayout', () => {
             <MantineProvider env="test">
                 <OnboardingLayout
                     withAccountSwitch={false}
+                    centered
                     progress={{
                         currentStep: 2,
                         steps: ['Organization', 'About you'],
@@ -62,7 +69,7 @@ describe('OnboardingLayout', () => {
         expect(container.querySelector('header')).not.toBeInTheDocument();
         expect(container.querySelector('footer')).not.toBeInTheDocument();
         expect(
-            screen.queryByRole('button', { name: 'Use another account' }),
+            screen.queryByRole('button', { name: 'Switch account' }),
         ).not.toBeInTheDocument();
     });
     it('lets authenticated users log out from the card', async () => {
@@ -70,9 +77,7 @@ describe('OnboardingLayout', () => {
             .get('/api/v1/logout')
             .reply(200, { status: 'ok', results: null });
         renderLayout(true);
-        fireEvent.click(
-            screen.getByRole('button', { name: 'Use another account' }),
-        );
+        fireEvent.click(screen.getByRole('button', { name: 'Switch account' }));
         expect(
             await screen.findByRole('heading', { name: 'Sign in' }),
         ).toBeInTheDocument();
