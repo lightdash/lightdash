@@ -49,14 +49,19 @@ export const ShortcutCard: FC<{
     title: string;
     description: string;
     onClick: () => void;
-}> = ({ icon, title, description, onClick }) => (
-    <UnstyledButton className={classes.shortcut} onClick={onClick}>
+    primary?: boolean;
+}> = ({ icon, title, description, onClick, primary = false }) => (
+    <UnstyledButton
+        className={classes.shortcut}
+        data-primary={primary}
+        onClick={onClick}
+    >
         <Box className={classes.shortcutIcon}>{icon}</Box>
         <Stack gap={0} className={classes.shortcutText}>
             <Text fw={500} size="sm">
                 {title}
             </Text>
-            <Text size="xs" c="dimmed">
+            <Text size="xs" className={classes.shortcutDescription}>
                 {description}
             </Text>
         </Stack>

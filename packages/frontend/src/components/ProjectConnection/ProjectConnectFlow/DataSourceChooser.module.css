@@ -80,3 +80,26 @@
 .tileLogo :global(.mantine-Avatar-image) {
     object-fit: contain;
 }
+
+.shortcutDescription {
+    color: var(--mantine-color-dimmed);
+}
+
+.shortcut[data-primary='true'] {
+    background: var(--mantine-color-text);
+    color: var(--mantine-color-body);
+}
+
+.shortcut[data-primary='true']:hover:not(:disabled) {
+    background: var(--mantine-color-text);
+    opacity: 0.9;
+}
+
+.shortcut[data-primary='true'] .shortcutDescription {
+    color: inherit;
+    opacity: 0.7;
+}
+
+.shortcut[data-primary='true'] .shortcutIcon {
+    border-color: transparent;
+}

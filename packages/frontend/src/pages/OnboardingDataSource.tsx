@@ -101,6 +101,13 @@ const DbtQuestion: FC<{ selectedWarehouse: WarehouseTypes }> = ({
             </Group>
             <Stack gap="xs">
                 <ShortcutCard
+                    icon={getWarehouseIcon(selectedWarehouse, 'sm')}
+                    title="No, skip"
+                    description="Our agent will build your models and metrics for you"
+                    onClick={() => toMode(WAREHOUSE_MODE)}
+                    primary
+                />
+                <ShortcutCard
                     icon={<img src={DbtLogo} alt="" width={16} height={16} />}
                     title="Yes, connect it from git"
                     description={`Connect ${getWarehouseLabel(selectedWarehouse)} and your dbt repository`}
@@ -117,12 +124,6 @@ const DbtQuestion: FC<{ selectedWarehouse: WarehouseTypes }> = ({
                     title="Yes, deploy it with the CLI"
                     description="Run lightdash deploy from your dbt project"
                     onClick={() => onboardingNavigate('/onboarding/dbt/cli')}
-                />
-                <ShortcutCard
-                    icon={getWarehouseIcon(selectedWarehouse, 'sm')}
-                    title={`No, just connect ${getWarehouseLabel(selectedWarehouse)}`}
-                    description="Aurora builds your first models from the tables"
-                    onClick={() => toMode(WAREHOUSE_MODE)}
                 />
             </Stack>
             <Group>
