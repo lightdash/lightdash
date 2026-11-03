@@ -1,3 +1,10 @@
+# [3.141.0](https://github.com/lightdash/lightdash/compare/3.140.0...3.141.0) (2026-11-03)
+
+
+### Features
+
+* **backend:** answer metric queries on live data source explores ([#32011](https://github.com/lightdash/lightdash/issues/32011)) ([5dbc54c](https://github.com/lightdash/lightdash/commit/5dbc54cea924701c549b80ed7006834770f4c469)), closes [#32010](https://github.com/lightdash/lightdash/issues/32010)
+
 # [3.140.0](https://github.com/lightdash/lightdash/compare/3.139.0...3.140.0) (2026-11-03)
 
 
