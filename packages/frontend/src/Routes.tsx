@@ -959,7 +959,7 @@ const PRIVATE_ROUTES: RouteObject[] = [
                         },
                     },
                     {
-                        path: '/onboarding/data-source/:warehouse?',
+                        path: '/onboarding/data-source/:warehouse?/:mode?',
                         handle: { hideAILauncher: true },
                         lazy: async () => {
                             const OnboardingDataSource =

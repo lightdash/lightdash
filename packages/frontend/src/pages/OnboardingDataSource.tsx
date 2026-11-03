@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import { ProjectType, WarehouseTypes } from '@lightdash/common';
 import { Box, Button, Group, Stack, Text, Title } from '@mantine/core';
+import { IconTerminal2 } from '@tabler/icons-react';
 import { type FC } from 'react';
 import {
     Navigate,
@@ -10,6 +11,7 @@ import {
 } from 'react-router';
 import { DocumentTitle } from '../components/common/DocumentTitle';
 import ErrorState from '../components/common/ErrorState';
+import MantineIcon from '../components/common/MantineIcon';
 import OnboardingLayout from '../components/common/OnboardingLayout';
 import { ONBOARDING_DATA_STEPS } from '../components/common/onboardingSteps';
 import {
@@ -20,7 +22,11 @@ import { StepVisual } from '../components/common/OnboardingVisuals';
 import { useOnboardingNavigate } from '../components/common/viewTransition';
 import { CreateProjectConnection } from '../components/ProjectConnection';
 import { ConnectionFormSkeleton } from '../components/ProjectConnection/ConnectionFormSkeleton';
-import { DataSourceChooser } from '../components/ProjectConnection/ProjectConnectFlow/DataSourceChooser';
+import DbtLogo from '../components/ProjectConnection/ProjectConnectFlow/Assets/dbt.svg';
+import {
+    DataSourceChooser,
+    ShortcutCard,
+} from '../components/ProjectConnection/ProjectConnectFlow/DataSourceChooser';
 import UnsupportedWarehouse from '../components/ProjectConnection/ProjectConnectFlow/UnsupportedWarehouse';
 import {
     getWarehouseIcon,
@@ -66,9 +72,77 @@ const DataSourcePicker: FC = () => {
     );
 };
 
-const WarehouseConnect: FC<{ selectedWarehouse: WarehouseTypes }> = ({
+const DBT_MODE = 'dbt';
+const WAREHOUSE_MODE = 'warehouse';
+
+const DbtQuestion: FC<{ selectedWarehouse: WarehouseTypes }> = ({
     selectedWarehouse,
 }) => {
+    const onboardingNavigate = useOnboardingNavigate();
+    const goBack = useBackToChooser();
+    const { search } = useLocation();
+    const toMode = (mode: string) =>
+        onboardingNavigate(
+            `/onboarding/data-source/${selectedWarehouse}/${mode}${search}`,
+        );
+
+    return (
+        <Stack gap="lg">
+            <Group gap="sm" wrap="nowrap">
+                <Box className={classes.logo}>
+                    {getWarehouseIcon(selectedWarehouse, 'sm')}
+                </Box>
+                <Stack gap={0}>
+                    <Title order={2}>Do you have a dbt project?</Title>
+                    <Text c="dimmed" size="sm">
+                        We'll use the models and metrics you already have.
+                    </Text>
+                </Stack>
+            </Group>
+            <Stack gap="xs">
+                <ShortcutCard
+                    icon={<img src={DbtLogo} alt="" width={16} height={16} />}
+                    title="Yes, connect it from git"
+                    description={`Connect ${getWarehouseLabel(selectedWarehouse)} and your dbt repository`}
+                    onClick={() => toMode(DBT_MODE)}
+                />
+                <ShortcutCard
+                    icon={
+                        <MantineIcon
+                            icon={IconTerminal2}
+                            size={16}
+                            color="ldGray.7"
+                        />
+                    }
+                    title="Yes, deploy it with the CLI"
+                    description="Run lightdash deploy from your dbt project"
+                    onClick={() => onboardingNavigate('/onboarding/dbt/cli')}
+                />
+                <ShortcutCard
+                    icon={getWarehouseIcon(selectedWarehouse, 'sm')}
+                    title={`No, just connect ${getWarehouseLabel(selectedWarehouse)}`}
+                    description="Aurora builds your first models from the tables"
+                    onClick={() => toMode(WAREHOUSE_MODE)}
+                />
+            </Stack>
+            <Group>
+                <Button
+                    variant="transparent"
+                    color="gray"
+                    px={0}
+                    onClick={goBack}
+                >
+                    Back
+                </Button>
+            </Group>
+        </Stack>
+    );
+};
+
+const WarehouseConnect: FC<{
+    selectedWarehouse: WarehouseTypes;
+    withDbt: boolean;
+}> = ({ selectedWarehouse, withDbt }) => {
     const goBack = useBackToChooser();
     const [searchParams] = useSearchParams();
     const then = searchParams.get('then');
@@ -112,7 +186,7 @@ const WarehouseConnect: FC<{ selectedWarehouse: WarehouseTypes }> = ({
                     <CreateProjectConnection
                         isCreatingFirstProject={!hasRealProject}
                         selectedWarehouse={selectedWarehouse}
-                        warehouseOnly
+                        warehouseOnly={!withDbt}
                         alwaysShowProjectName
                         successRedirect={(projectUuid) =>
                             `/onboarding/tools/${projectUuid}${
@@ -149,7 +223,10 @@ const OtherWarehouseConnect: FC = () => {
 };
 
 const OnboardingDataSourceContent: FC = () => {
-    const { warehouse } = useParams<{ warehouse?: string }>();
+    const { warehouse, mode } = useParams<{
+        warehouse?: string;
+        mode?: string;
+    }>();
     const [searchParams] = useSearchParams();
     const [variant] = useOnboardingVariant();
 
@@ -157,6 +234,13 @@ const OnboardingDataSourceContent: FC = () => {
         warehouse && isWarehouseType(warehouse) ? warehouse : undefined;
 
     if (warehouse && !selectedWarehouse && warehouse !== OTHER_ROUTE_PARAM) {
+        return <Navigate to="/onboarding/data-source" replace />;
+    }
+
+    if (
+        mode &&
+        (!selectedWarehouse || (mode !== DBT_MODE && mode !== WAREHOUSE_MODE))
+    ) {
         return <Navigate to="/onboarding/data-source" replace />;
     }
 
@@ -177,12 +261,17 @@ const OnboardingDataSourceContent: FC = () => {
         <OnboardingLayout
             screen={warehouse ? 'warehouse_form' : 'choose_source'}
             journey={{ currentStep: 1, steps: ONBOARDING_DATA_STEPS }}
-            stackDepth={warehouse ? 1 : 0}
+            stackDepth={mode ? 2 : warehouse ? 1 : 0}
             aside={<StepVisual step="warehouse" />}
         >
             <DocumentTitle title="Add a data source" />
-            {selectedWarehouse ? (
-                <WarehouseConnect selectedWarehouse={selectedWarehouse} />
+            {selectedWarehouse && mode ? (
+                <WarehouseConnect
+                    selectedWarehouse={selectedWarehouse}
+                    withDbt={mode === DBT_MODE}
+                />
+            ) : selectedWarehouse ? (
+                <DbtQuestion selectedWarehouse={selectedWarehouse} />
             ) : warehouse === OTHER_ROUTE_PARAM ? (
                 <OtherWarehouseConnect />
             ) : (

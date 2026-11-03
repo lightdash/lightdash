@@ -23,7 +23,7 @@ import {
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState, type FC } from 'react';
-import { Navigate, useNavigate, useParams } from 'react-router';
+import { Navigate, useLocation, useNavigate, useParams } from 'react-router';
 import CodeBlock from '../components/common/CodeBlock/CodeBlock';
 import { DocumentTitle } from '../components/common/DocumentTitle';
 import MantineIcon from '../components/common/MantineIcon';
@@ -346,6 +346,7 @@ const DbtCliWaiting: FC = () => {
 const OnboardingDbtContent: FC = () => {
     const { method } = useParams<{ method?: string }>();
     const onboardingNavigate = useOnboardingNavigate();
+    const location = useLocation();
 
     if (method && method !== CLI_ROUTE_PARAM) {
         return <Navigate to="/onboarding/dbt" replace />;
@@ -369,11 +370,9 @@ const OnboardingDbtContent: FC = () => {
                     variant="subtle"
                     color="gray"
                     onClick={() =>
-                        onboardingNavigate(
-                            method === CLI_ROUTE_PARAM
-                                ? '/onboarding/dbt'
-                                : '/onboarding/data-source',
-                        )
+                        location.key === 'default'
+                            ? onboardingNavigate('/onboarding/data-source')
+                            : onboardingNavigate(-1)
                     }
                 >
                     Back

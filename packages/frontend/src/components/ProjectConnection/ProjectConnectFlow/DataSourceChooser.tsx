@@ -9,13 +9,8 @@ import {
     UnstyledButton,
 } from '@mantine/core';
 import { captureException } from '@sentry/react';
-import {
-    IconChevronRight,
-    IconGitBranch,
-    IconUserPlus,
-    type Icon,
-} from '@tabler/icons-react';
-import { useState, type FC } from 'react';
+import { IconChevronRight, IconUserPlus } from '@tabler/icons-react';
+import { useState, type FC, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useEnsurePlaygroundProject } from '../../../hooks/useEnsurePlaygroundProject';
@@ -49,16 +44,14 @@ const WAREHOUSES: SelectedWarehouse[] = [
 
 const POPULAR = new Set<SelectedWarehouse>(WAREHOUSES.slice(0, 4));
 
-const ShortcutCard: FC<{
-    icon: Icon;
+export const ShortcutCard: FC<{
+    icon: ReactNode;
     title: string;
     description: string;
     onClick: () => void;
 }> = ({ icon, title, description, onClick }) => (
     <UnstyledButton className={classes.shortcut} onClick={onClick}>
-        <Box className={classes.shortcutIcon}>
-            <MantineIcon icon={icon} size={16} color="ldGray.7" />
-        </Box>
+        <Box className={classes.shortcutIcon}>{icon}</Box>
         <Stack gap={0} className={classes.shortcutText}>
             <Text fw={500} size="sm">
                 {title}
@@ -214,16 +207,15 @@ export const DataSourceChooser: FC = () => {
                 </Text>
             )}
 
-            <ShortcutCard
-                icon={IconGitBranch}
-                title="Already use dbt?"
-                description="Connect your dbt project and we'll use the models you have"
-                onClick={() => onboardingNavigate('/onboarding/dbt')}
-            />
-
             {canInvite && (
                 <ShortcutCard
-                    icon={IconUserPlus}
+                    icon={
+                        <MantineIcon
+                            icon={IconUserPlus}
+                            size={16}
+                            color="ldGray.7"
+                        />
+                    }
                     title="Don't have the warehouse details?"
                     description="Invite your data engineer or analyst to connect it"
                     onClick={() => setIsInviteOpen(true)}
