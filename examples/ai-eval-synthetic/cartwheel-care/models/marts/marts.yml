@@ -1,0 +1,1553 @@
+version: 2
+models:
+  - name: districts
+    description: "Partner school districts. One row per district with enrollment, funding model, and partnership start."
+    config:
+      meta:
+        primary_key: district_id
+        label: "Districts"
+        spotlight:
+          categories: [operations]
+        metrics:
+          avg_partnership_months:
+            type: average
+            sql: ${TABLE}.partnership_months
+            label: "Avg Partnership Months"
+            round: 1
+          referral_rate:
+            type: number
+            sql: "1.0 * sum(${TABLE}.students_referred) / nullif(sum(${TABLE}.enrollment), 0)"
+            label: "Students Referred % of Enrollment"
+            description: "Distinct students referred divided by district enrollment."
+            format: percent
+            round: 1
+    columns:
+      - name: district_id
+        data_tests: [unique, not_null]
+        config:
+          meta:
+            dimension:
+              type: string
+              hidden: true
+            metrics:
+              district_count:
+                type: count_distinct
+                label: "Districts"
+      - name: district_name
+        config:
+          meta:
+            dimension:
+              type: string
+              label: "District"
+      - name: state
+        config:
+          meta:
+            dimension:
+              type: string
+      - name: funding_model
+        description: "District Contract or State Program funding."
+        config:
+          meta:
+            dimension:
+              type: string
+      - name: partnership_start_date
+        config:
+          meta:
+            dimension:
+              type: date
+              time_intervals: [DAY, MONTH, YEAR]
+      - name: enrollment
+        config:
+          meta:
+            dimension:
+              type: number
+            metrics:
+              total_enrollment:
+                type: sum
+                label: "Total Enrollment"
+      - name: clinical_program_director
+        description: "Cartwheel director who partners with the district on data and trends."
+        config:
+          meta:
+            dimension:
+              type: string
+      - name: students_referred
+        config:
+          meta:
+            dimension:
+              type: number
+            metrics:
+              district_students_referred:
+                type: sum
+                label: "Students Referred"
+      - name: schools_with_referrals
+        config:
+          meta:
+            dimension:
+              type: number
+      - name: partnership_months
+        config:
+          meta:
+            dimension:
+              type: number
+
+  - name: schools
+    description: "Schools within partner districts. One row per school with enrollment and students referred and served."
+    config:
+      meta:
+        primary_key: school_id
+        label: "Schools"
+        spotlight:
+          categories: [operations, access]
+        joins:
+          - join: districts
+            type: left
+            sql_on: ${schools.district_id} = ${districts.district_id}
+            relationship: many-to-one
+        metrics:
+          pct_enrollment_served:
+            type: number
+            sql: "1.0 * sum(${TABLE}.students_served) / nullif(sum(${TABLE}.enrollment), 0)"
+            label: "% of Enrollment in Care"
+            description: "Distinct students who completed intake divided by enrollment."
+            format: percent
+            round: 1
+          pct_enrollment_referred:
+            type: number
+            sql: "1.0 * sum(${TABLE}.students_referred) / nullif(sum(${TABLE}.enrollment), 0)"
+            label: "% of Enrollment Referred"
+            format: percent
+            round: 1
+    columns:
+      - name: school_id
+        data_tests: [unique, not_null]
+        config:
+          meta:
+            dimension:
+              type: string
+              hidden: true
+            metrics:
+              school_count:
+                type: count_distinct
+                label: "Schools"
+      - name: district_id
+        config:
+          meta:
+            dimension:
+              type: string
+              hidden: true
+      - name: school_name
+        config:
+          meta:
+            dimension:
+              type: string
+              label: "School"
+      - name: school_level
+        description: "Elementary, Middle, or High."
+        config:
+          meta:
+            dimension:
+              type: string
+      - name: enrollment
+        config:
+          meta:
+            dimension:
+              type: number
+            metrics:
+              school_enrollment:
+                type: sum
+                label: "Enrollment"
+      - name: is_title_i
+        config:
+          meta:
+            dimension:
+              type: boolean
+              label: "Title I School"
+            metrics:
+              title_i_school_count:
+                type: count_distinct
+                sql: ${TABLE}.school_id
+                label: "Title I Schools"
+                filters:
+                  - is_title_i: true
+      - name: students_referred
+        config:
+          meta:
+            dimension:
+              type: number
+            metrics:
+              school_students_referred:
+                type: sum
+                label: "Students Referred"
+      - name: students_served
+        config:
+          meta:
+            dimension:
+              type: number
+            metrics:
+              school_students_served:
+                type: sum
+                label: "Students in Care"
+
+  - name: care_team
+    description: "Cartwheel clinicians and care coordinators with credentials, languages, and state licensure."
+    config:
+      meta:
+        primary_key: care_team_member_id
+        label: "Care Team"
+        spotlight:
+          categories: [operations]
+    columns:
+      - name: care_team_member_id
+        data_tests: [unique, not_null]
+        config:
+          meta:
+            dimension:
+              type: string
+              hidden: true
+            metrics:
+              team_member_count:
+                type: count_distinct
+                label: "Team Members"
+              clinician_count:
+                type: count_distinct
+                label: "Clinicians"
+                filters:
+                  - team: "Clinical"
+              bilingual_member_count:
+                type: count_distinct
+                label: "Bilingual Team Members"
+                filters:
+                  - is_bilingual: true
+      - name: full_name
+        config:
+          meta:
+            dimension:
+              type: string
+              label: "Care Team Member"
+      - name: role
+        config:
+          meta:
+            dimension:
+              type: string
+      - name: credential
+        config:
+          meta:
+            dimension:
+              type: string
+      - name: languages
+        config:
+          meta:
+            dimension:
+              type: string
+      - name: is_bilingual
+        config:
+          meta:
+            dimension:
+              type: boolean
+      - name: licensed_states
+        config:
+          meta:
+            dimension:
+              type: string
+      - name: hire_date
+        config:
+          meta:
+            dimension:
+              type: date
+              time_intervals: [MONTH, QUARTER, YEAR]
+      - name: weekly_session_capacity
+        config:
+          meta:
+            dimension:
+              type: number
+            metrics:
+              total_weekly_capacity:
+                type: sum
+                label: "Weekly Session Capacity"
+      - name: employment_type
+        config:
+          meta:
+            dimension:
+              type: string
+      - name: team
+        description: "Clinical or Care Coordination."
+        config:
+          meta:
+            dimension:
+              type: string
+
+  - name: students
+    description: "De-identified students referred to Cartwheel. One row per student with referral and care summary."
+    config:
+      meta:
+        primary_key: student_id
+        label: "Students"
+        spotlight:
+          categories: [access]
+        joins:
+          - join: schools
+            type: left
+            sql_on: ${students.school_id} = ${schools.school_id}
+            relationship: many-to-one
+          - join: districts
+            type: left
+            sql_on: ${students.district_id} = ${districts.district_id}
+            relationship: many-to-one
+        metrics:
+          care_access_rate:
+            type: number
+            sql: "1.0 * sum(case when ${TABLE}.received_care then 1 else 0 end) / nullif(count(distinct ${TABLE}.student_id), 0)"
+            label: "Referred Students Reaching Care"
+            format: percent
+            round: 1
+    columns:
+      - name: student_id
+        data_tests: [unique, not_null]
+        config:
+          meta:
+            dimension:
+              type: string
+              hidden: true
+            metrics:
+              student_count:
+                type: count_distinct
+                label: "Students Referred"
+              students_received_care:
+                type: count_distinct
+                label: "Students in Care"
+                filters:
+                  - received_care: true
+              students_in_active_care:
+                type: count_distinct
+                label: "Students in Active Care"
+                filters:
+                  - is_in_active_care: true
+      - name: school_id
+        config:
+          meta:
+            dimension:
+              type: string
+              hidden: true
+      - name: district_id
+        config:
+          meta:
+            dimension:
+              type: string
+              hidden: true
+      - name: grade_at_referral
+        config:
+          meta:
+            dimension:
+              type: string
+              label: "Grade"
+      - name: grade_band
+        config:
+          meta:
+            dimension:
+              type: string
+      - name: gender
+        config:
+          meta:
+            dimension:
+              type: string
+      - name: primary_home_language
+        config:
+          meta:
+            dimension:
+              type: string
+      - name: is_multilingual_household
+        config:
+          meta:
+            dimension:
+              type: boolean
+      - name: coverage_type
+        description: "Medicaid, Commercial In-Network, or Uninsured. Families pay nothing in all cases."
+        config:
+          meta:
+            dimension:
+              type: string
+      - name: has_iep_or_504
+        config:
+          meta:
+            dimension:
+              type: boolean
+              label: "Has IEP or 504 Plan"
+      - name: first_referral_date
+        config:
+          meta:
+            dimension:
+              type: date
+              time_intervals: [DAY, WEEK, MONTH, QUARTER, YEAR]
+      - name: referral_count
+        config:
+          meta:
+            dimension:
+              type: number
+            metrics:
+              avg_referrals_per_student:
+                type: average
+                round: 2
+      - name: episode_count
+        config:
+          meta:
+            dimension:
+              type: number
+      - name: is_in_active_care
+        config:
+          meta:
+            dimension:
+              type: boolean
+      - name: first_episode_started_on
+        config:
+          meta:
+            dimension:
+              type: date
+              time_intervals: [DAY, WEEK, MONTH, QUARTER, YEAR]
+      - name: received_care
+        config:
+          meta:
+            dimension:
+              type: boolean
+
+  - name: referrals
+    description: "Portal referrals from school staff. One row per referral with outreach, consent, and intake milestones."
+    config:
+      meta:
+        primary_key: referral_id
+        label: "Referrals"
+        spotlight:
+          categories: [access]
+        joins:
+          - join: students
+            type: left
+            sql_on: ${referrals.student_id} = ${students.student_id}
+            relationship: many-to-one
+          - join: schools
+            type: left
+            sql_on: ${referrals.school_id} = ${schools.school_id}
+            relationship: many-to-one
+          - join: districts
+            type: left
+            sql_on: ${referrals.district_id} = ${districts.district_id}
+            relationship: many-to-one
+          - join: care_team
+            type: left
+            sql_on: ${referrals.care_coordinator_id} = ${care_team.care_team_member_id}
+            relationship: many-to-one
+        metrics:
+          outreach_within_24h_rate:
+            type: number
+            sql: "1.0 * sum(case when ${TABLE}.outreach_within_24h then 1 else 0 end) / nullif(sum(case when ${TABLE}.first_outreach_at is not null then 1 else 0 end), 0)"
+            label: "Outreach Within 24 Hours"
+            description: "Referrals with outreach within 24 hours divided by referrals with a recorded first outreach."
+            format: percent
+            round: 1
+          consent_rate:
+            type: number
+            sql: "1.0 * sum(case when ${TABLE}.is_consented then 1 else 0 end) / nullif(sum(case when not ${TABLE}.is_open then 1 else 0 end), 0)"
+            label: "Consent Rate"
+            description: "Closed referrals where the family signed consent."
+            format: percent
+            round: 1
+          intake_conversion_rate:
+            type: number
+            sql: "1.0 * sum(case when ${TABLE}.is_converted_to_care then 1 else 0 end) / nullif(sum(case when not ${TABLE}.is_open then 1 else 0 end), 0)"
+            label: "Referral to Intake Rate"
+            description: "Closed referrals that completed a virtual intake and started care."
+            format: percent
+            round: 1
+    columns:
+      - name: referral_id
+        data_tests: [unique, not_null]
+        config:
+          meta:
+            dimension:
+              type: string
+              hidden: true
+            metrics:
+              referral_count:
+                type: count_distinct
+                label: "Referrals"
+              open_referral_count:
+                type: count_distinct
+                label: "Open Referrals"
+                filters:
+                  - is_open: true
+              consented_referral_count:
+                type: count_distinct
+                label: "Referrals with Consent"
+                filters:
+                  - is_consented: true
+              converted_referral_count:
+                type: count_distinct
+                label: "Referrals Reaching Intake"
+                filters:
+                  - is_converted_to_care: true
+              re_referral_count:
+                type: count_distinct
+                label: "Re-referrals"
+                filters:
+                  - is_re_referral: true
+      - name: student_id
+        config:
+          meta:
+            dimension:
+              type: string
+              hidden: true
+            metrics:
+              students_referred:
+                type: count_distinct
+                label: "Students Referred"
+      - name: school_id
+        config:
+          meta:
+            dimension:
+              type: string
+              hidden: true
+      - name: district_id
+        config:
+          meta:
+            dimension:
+              type: string
+              hidden: true
+      - name: care_coordinator_id
+        config:
+          meta:
+            dimension:
+              type: string
+              hidden: true
+      - name: episode_id
+        config:
+          meta:
+            dimension:
+              type: string
+              hidden: true
+      - name: referred_at
+        config:
+          meta:
+            dimension:
+              type: timestamp
+              label: "Referred"
+              time_intervals: [DAY, WEEK, MONTH, QUARTER, YEAR]
+      - name: referred_on
+        config:
+          meta:
+            dimension:
+              type: date
+              hidden: true
+      - name: school_year
+        config:
+          meta:
+            dimension:
+              type: string
+      - name: referral_source
+        description: "Role of the school staff member or family member who submitted the referral."
+        config:
+          meta:
+            dimension:
+              type: string
+      - name: referral_reason
+        config:
+          meta:
+            dimension:
+              type: string
+      - name: tier
+        description: "MTSS tier of support requested."
+        config:
+          meta:
+            dimension:
+              type: string
+              label: "MTSS Tier"
+      - name: urgency
+        config:
+          meta:
+            dimension:
+              type: string
+      - name: status
+        config:
+          meta:
+            dimension:
+              type: string
+      - name: is_re_referral
+        config:
+          meta:
+            dimension:
+              type: boolean
+      - name: first_outreach_at
+        config:
+          meta:
+            dimension:
+              type: timestamp
+              time_intervals: [DAY, WEEK, MONTH]
+      - name: consent_signed_on
+        config:
+          meta:
+            dimension:
+              type: date
+              time_intervals: [DAY, WEEK, MONTH]
+      - name: intake_completed_on
+        config:
+          meta:
+            dimension:
+              type: date
+              time_intervals: [DAY, WEEK, MONTH, QUARTER, YEAR]
+      - name: program
+        description: "Program the student entered after intake."
+        config:
+          meta:
+            dimension:
+              type: string
+      - name: hours_to_first_outreach
+        config:
+          meta:
+            dimension:
+              type: number
+              round: 1
+            metrics:
+              median_hours_to_first_outreach:
+                type: median
+                label: "Median Hours to First Outreach"
+                round: 1
+              avg_hours_to_first_outreach:
+                type: average
+                label: "Avg Hours to First Outreach"
+                round: 1
+      - name: outreach_within_24h
+        config:
+          meta:
+            dimension:
+              type: boolean
+      - name: days_to_consent
+        config:
+          meta:
+            dimension:
+              type: number
+            metrics:
+              median_days_to_consent:
+                type: median
+                label: "Median Days to Consent"
+                round: 1
+      - name: days_to_intake
+        description: "Days from referral to completed virtual intake."
+        config:
+          meta:
+            dimension:
+              type: number
+            metrics:
+              median_days_to_intake:
+                type: median
+                label: "Median Days to Intake"
+                round: 1
+              avg_days_to_intake:
+                type: average
+                label: "Avg Days to Intake"
+                round: 1
+              p90_days_to_intake:
+                type: percentile
+                percentile: 90
+                label: "P90 Days to Intake"
+                round: 1
+      - name: is_consented
+        config:
+          meta:
+            dimension:
+              type: boolean
+      - name: is_converted_to_care
+        config:
+          meta:
+            dimension:
+              type: boolean
+      - name: is_closed_without_care
+        config:
+          meta:
+            dimension:
+              type: boolean
+      - name: is_open
+        config:
+          meta:
+            dimension:
+              type: boolean
+
+  - name: care_episodes
+    description: "Episodes of care from intake to discharge. One row per episode with attendance and outcome summary."
+    config:
+      meta:
+        primary_key: episode_id
+        label: "Care Episodes"
+        spotlight:
+          categories: [engagement, outcomes]
+        joins:
+          - join: referrals
+            type: left
+            sql_on: ${care_episodes.referral_id} = ${referrals.referral_id}
+            relationship: one-to-one
+          - join: students
+            type: left
+            sql_on: ${care_episodes.student_id} = ${students.student_id}
+            relationship: many-to-one
+          - join: schools
+            type: left
+            sql_on: ${care_episodes.school_id} = ${schools.school_id}
+            relationship: many-to-one
+          - join: districts
+            type: left
+            sql_on: ${care_episodes.district_id} = ${districts.district_id}
+            relationship: many-to-one
+          - join: care_team
+            type: left
+            sql_on: ${care_episodes.clinician_id} = ${care_team.care_team_member_id}
+            relationship: many-to-one
+        metrics:
+          goals_met_rate:
+            type: number
+            sql: "1.0 * sum(case when ${TABLE}.completed_with_goals_met then 1 else 0 end) / nullif(sum(case when ${TABLE}.status = 'Discharged' then 1 else 0 end), 0)"
+            label: "Discharged with Goals Met"
+            format: percent
+            round: 1
+          reliable_improvement_rate:
+            type: number
+            sql: "1.0 * sum(case when ${TABLE}.achieved_reliable_improvement then 1 else 0 end) / nullif(sum(case when ${TABLE}.discharge_score is not null then 1 else 0 end), 0)"
+            label: "At Least 30% Reduction at Discharge"
+            description: "Episodes with at least 30% intake-to-discharge score reduction divided by episodes with discharge scores. This demo threshold is not an instrument-specific reliable change index."
+            format: percent
+            round: 1
+          below_cutoff_rate:
+            type: number
+            sql: "1.0 * sum(case when ${TABLE}.moved_below_clinical_cutoff then 1 else 0 end) / nullif(sum(case when ${TABLE}.above_cutoff_at_intake then 1 else 0 end), 0)"
+            label: "Moved Below Clinical Cutoff"
+            description: "Episodes that started above the instrument's clinical cutoff and whose latest score is below it."
+            format: percent
+            round: 1
+          episode_show_rate:
+            type: number
+            sql: "1.0 * sum(${TABLE}.sessions_completed) / nullif(sum(${TABLE}.sessions_completed) + sum(${TABLE}.no_shows), 0)"
+            label: "Show Rate"
+            format: percent
+            round: 1
+          avg_sessions_per_episode:
+            type: number
+            sql: "1.0 * sum(${TABLE}.sessions_completed) / nullif(count(distinct ${TABLE}.episode_id), 0)"
+            label: "Avg Sessions per Episode"
+            round: 1
+    columns:
+      - name: episode_id
+        data_tests: [unique, not_null]
+        config:
+          meta:
+            dimension:
+              type: string
+              hidden: true
+            metrics:
+              episode_count:
+                type: count_distinct
+                label: "Episodes"
+              active_episode_count:
+                type: count_distinct
+                label: "Active Episodes"
+                filters:
+                  - status: "Active"
+              discharged_episode_count:
+                type: count_distinct
+                label: "Discharged Episodes"
+                filters:
+                  - status: "Discharged"
+      - name: referral_id
+        config:
+          meta:
+            dimension:
+              type: string
+              hidden: true
+      - name: student_id
+        config:
+          meta:
+            dimension:
+              type: string
+              hidden: true
+            metrics:
+              students_in_care:
+                type: count_distinct
+                label: "Students in Care"
+      - name: school_id
+        config:
+          meta:
+            dimension:
+              type: string
+              hidden: true
+      - name: district_id
+        config:
+          meta:
+            dimension:
+              type: string
+              hidden: true
+      - name: clinician_id
+        config:
+          meta:
+            dimension:
+              type: string
+              hidden: true
+            metrics:
+              clinicians_with_caseload:
+                type: count_distinct
+                label: "Clinicians with Caseload"
+      - name: program
+        description: "Individual Therapy, Group Therapy, Psychiatry, Parent Guidance, or School Avoidance Program."
+        config:
+          meta:
+            dimension:
+              type: string
+      - name: presenting_concern
+        config:
+          meta:
+            dimension:
+              type: string
+      - name: tier
+        config:
+          meta:
+            dimension:
+              type: string
+              label: "MTSS Tier"
+      - name: status
+        config:
+          meta:
+            dimension:
+              type: string
+      - name: discharge_reason
+        config:
+          meta:
+            dimension:
+              type: string
+      - name: started_on
+        config:
+          meta:
+            dimension:
+              type: date
+              label: "Started"
+              time_intervals: [DAY, WEEK, MONTH, QUARTER, YEAR]
+      - name: ended_on
+        config:
+          meta:
+            dimension:
+              type: date
+              label: "Ended"
+              time_intervals: [DAY, WEEK, MONTH, QUARTER, YEAR]
+      - name: school_year
+        config:
+          meta:
+            dimension:
+              type: string
+      - name: planned_sessions
+        config:
+          meta:
+            dimension:
+              type: number
+      - name: episode_length_days
+        config:
+          meta:
+            dimension:
+              type: number
+            metrics:
+              avg_episode_length_days:
+                type: average
+                label: "Avg Episode Length (Days)"
+                round: 0
+      - name: appointments_scheduled
+        config:
+          meta:
+            dimension:
+              type: number
+            metrics:
+              total_appointments_scheduled:
+                type: sum
+                label: "Appointments Scheduled"
+      - name: sessions_completed
+        config:
+          meta:
+            dimension:
+              type: number
+            metrics:
+              total_sessions_completed:
+                type: sum
+                label: "Sessions Completed"
+      - name: no_shows
+        config:
+          meta:
+            dimension:
+              type: number
+            metrics:
+              total_no_shows:
+                type: sum
+                label: "No Shows"
+      - name: cancellations
+        config:
+          meta:
+            dimension:
+              type: number
+      - name: care_hours_delivered
+        config:
+          meta:
+            dimension:
+              type: number
+              round: 1
+            metrics:
+              total_care_hours:
+                type: sum
+                label: "Care Hours Delivered"
+                round: 0
+      - name: last_attended_on
+        config:
+          meta:
+            dimension:
+              type: date
+              time_intervals: [DAY, WEEK, MONTH]
+      - name: instrument
+        description: "Measurement-based care instrument: PHQ-A, GAD-7, SCARED, or SDQ."
+        config:
+          meta:
+            dimension:
+              type: string
+      - name: clinical_cutoff
+        config:
+          meta:
+            dimension:
+              type: number
+      - name: intake_score
+        config:
+          meta:
+            dimension:
+              type: number
+            metrics:
+              avg_intake_score:
+                type: average
+                label: "Avg Intake Score"
+                round: 1
+      - name: latest_score
+        config:
+          meta:
+            dimension:
+              type: number
+            metrics:
+              avg_latest_score:
+                type: average
+                label: "Avg Latest Score"
+                round: 1
+      - name: discharge_score
+        config:
+          meta:
+            dimension:
+              type: number
+            metrics:
+              avg_discharge_score:
+                type: average
+                label: "Avg Discharge Score"
+                round: 1
+      - name: assessment_count
+        config:
+          meta:
+            dimension:
+              type: number
+      - name: symptom_reduction_pct
+        description: "Intake score minus latest score, as a share of the intake score."
+        config:
+          meta:
+            dimension:
+              type: number
+              format: percent
+            metrics:
+              avg_symptom_reduction:
+                type: average
+                label: "Avg Symptom Reduction"
+                format: percent
+                round: 1
+      - name: above_cutoff_at_intake
+        config:
+          meta:
+            dimension:
+              type: boolean
+      - name: below_cutoff_at_latest
+        config:
+          meta:
+            dimension:
+              type: boolean
+      - name: moved_below_clinical_cutoff
+        config:
+          meta:
+            dimension:
+              type: boolean
+      - name: achieved_reliable_improvement
+        config:
+          meta:
+            dimension:
+              type: boolean
+      - name: completed_with_goals_met
+        config:
+          meta:
+            dimension:
+              type: boolean
+
+  - name: appointments
+    description: "Scheduled virtual appointments. One row per appointment with attendance status."
+    config:
+      meta:
+        primary_key: appointment_id
+        label: "Appointments"
+        spotlight:
+          categories: [engagement, operations]
+        joins:
+          - join: care_episodes
+            type: left
+            sql_on: ${appointments.episode_id} = ${care_episodes.episode_id}
+            relationship: many-to-one
+          - join: students
+            type: left
+            sql_on: ${appointments.student_id} = ${students.student_id}
+            relationship: many-to-one
+          - join: schools
+            type: left
+            sql_on: ${appointments.school_id} = ${schools.school_id}
+            relationship: many-to-one
+          - join: districts
+            type: left
+            sql_on: ${appointments.district_id} = ${districts.district_id}
+            relationship: many-to-one
+          - join: care_team
+            type: left
+            sql_on: ${appointments.clinician_id} = ${care_team.care_team_member_id}
+            relationship: many-to-one
+        metrics:
+          show_rate:
+            type: number
+            sql: "1.0 * sum(case when ${TABLE}.is_completed then 1 else 0 end) / nullif(sum(case when ${TABLE}.is_kept_or_missed then 1 else 0 end), 0)"
+            label: "Show Rate"
+            description: "Completed appointments divided by completed plus no-show appointments."
+            format: percent
+            round: 1
+          no_show_rate:
+            type: number
+            sql: "1.0 * sum(case when ${TABLE}.is_no_show then 1 else 0 end) / nullif(count(distinct ${TABLE}.appointment_id), 0)"
+            label: "No-Show Rate"
+            format: percent
+            round: 1
+          cancellation_rate:
+            type: number
+            sql: "1.0 * sum(case when ${TABLE}.is_cancelled then 1 else 0 end) / nullif(count(distinct ${TABLE}.appointment_id), 0)"
+            label: "Cancellation Rate"
+            format: percent
+            round: 1
+          school_day_share:
+            type: number
+            sql: "1.0 * sum(case when ${TABLE}.is_during_school_day then 1 else 0 end) / nullif(count(distinct ${TABLE}.appointment_id), 0)"
+            label: "Held During School Day"
+            format: percent
+            round: 1
+    columns:
+      - name: appointment_id
+        data_tests: [unique, not_null]
+        config:
+          meta:
+            dimension:
+              type: string
+              hidden: true
+            metrics:
+              appointment_count:
+                type: count_distinct
+                label: "Appointments"
+              completed_count:
+                type: count_distinct
+                label: "Completed Appointments"
+                filters:
+                  - status: "Completed"
+              no_show_count:
+                type: count_distinct
+                label: "No Shows"
+                filters:
+                  - status: "No Show"
+              cancelled_count:
+                type: count_distinct
+                label: "Cancellations"
+                filters:
+                  - is_cancelled: true
+      - name: episode_id
+        config:
+          meta:
+            dimension:
+              type: string
+              hidden: true
+      - name: student_id
+        config:
+          meta:
+            dimension:
+              type: string
+              hidden: true
+            metrics:
+              students_seen:
+                type: count_distinct
+                label: "Students Seen"
+                filters:
+                  - status: "Completed"
+      - name: school_id
+        config:
+          meta:
+            dimension:
+              type: string
+              hidden: true
+      - name: district_id
+        config:
+          meta:
+            dimension:
+              type: string
+              hidden: true
+      - name: clinician_id
+        config:
+          meta:
+            dimension:
+              type: string
+              hidden: true
+            metrics:
+              active_clinicians:
+                type: count_distinct
+                label: "Active Clinicians"
+                filters:
+                  - status: "Completed"
+      - name: scheduled_at
+        config:
+          meta:
+            dimension:
+              type: timestamp
+              label: "Scheduled"
+              time_intervals: [DAY, WEEK, MONTH, QUARTER, YEAR]
+      - name: scheduled_on
+        config:
+          meta:
+            dimension:
+              type: date
+              hidden: true
+      - name: scheduled_hour
+        config:
+          meta:
+            dimension:
+              type: number
+      - name: scheduled_weekday
+        config:
+          meta:
+            dimension:
+              type: string
+      - name: school_year
+        config:
+          meta:
+            dimension:
+              type: string
+      - name: appointment_type
+        config:
+          meta:
+            dimension:
+              type: string
+      - name: program
+        config:
+          meta:
+            dimension:
+              type: string
+      - name: modality
+        config:
+          meta:
+            dimension:
+              type: string
+      - name: status
+        config:
+          meta:
+            dimension:
+              type: string
+      - name: duration_minutes
+        config:
+          meta:
+            dimension:
+              type: number
+            metrics:
+              avg_duration_minutes:
+                type: average
+                label: "Avg Duration (Minutes)"
+                round: 0
+      - name: hours_delivered
+        config:
+          meta:
+            dimension:
+              type: number
+            metrics:
+              total_hours_delivered:
+                type: sum
+                label: "Care Hours Delivered"
+                round: 0
+      - name: is_during_school_day
+        config:
+          meta:
+            dimension:
+              type: boolean
+      - name: is_completed
+        config:
+          meta:
+            dimension:
+              type: boolean
+      - name: is_no_show
+        config:
+          meta:
+            dimension:
+              type: boolean
+      - name: is_cancelled
+        config:
+          meta:
+            dimension:
+              type: boolean
+      - name: is_kept_or_missed
+        config:
+          meta:
+            dimension:
+              type: boolean
+              hidden: true
+
+  - name: outcome_assessments
+    description: "Measurement-based care scores at intake, progress checks, and discharge. One row per administered assessment."
+    config:
+      meta:
+        primary_key: assessment_id
+        label: "Outcome Assessments"
+        spotlight:
+          categories: [outcomes]
+        joins:
+          - join: care_episodes
+            type: left
+            sql_on: ${outcome_assessments.episode_id} = ${care_episodes.episode_id}
+            relationship: many-to-one
+          - join: students
+            type: left
+            sql_on: ${outcome_assessments.student_id} = ${students.student_id}
+            relationship: many-to-one
+          - join: schools
+            type: left
+            sql_on: ${outcome_assessments.school_id} = ${schools.school_id}
+            relationship: many-to-one
+          - join: districts
+            type: left
+            sql_on: ${outcome_assessments.district_id} = ${districts.district_id}
+            relationship: many-to-one
+        metrics:
+          above_cutoff_rate:
+            type: number
+            sql: "1.0 * sum(case when ${TABLE}.is_above_clinical_cutoff then 1 else 0 end) / nullif(count(distinct ${TABLE}.assessment_id), 0)"
+            label: "Above Clinical Cutoff"
+            format: percent
+            round: 1
+    columns:
+      - name: assessment_id
+        data_tests: [unique, not_null]
+        config:
+          meta:
+            dimension:
+              type: string
+              hidden: true
+            metrics:
+              assessment_count:
+                type: count_distinct
+                label: "Assessments"
+      - name: episode_id
+        config:
+          meta:
+            dimension:
+              type: string
+              hidden: true
+            metrics:
+              episodes_assessed:
+                type: count_distinct
+                label: "Episodes Assessed"
+      - name: student_id
+        config:
+          meta:
+            dimension:
+              type: string
+              hidden: true
+      - name: school_id
+        config:
+          meta:
+            dimension:
+              type: string
+              hidden: true
+      - name: district_id
+        config:
+          meta:
+            dimension:
+              type: string
+              hidden: true
+      - name: clinician_id
+        config:
+          meta:
+            dimension:
+              type: string
+              hidden: true
+      - name: program
+        config:
+          meta:
+            dimension:
+              type: string
+      - name: presenting_concern
+        config:
+          meta:
+            dimension:
+              type: string
+      - name: administered_on
+        config:
+          meta:
+            dimension:
+              type: date
+              label: "Administered"
+              time_intervals: [DAY, WEEK, MONTH, QUARTER, YEAR]
+      - name: instrument
+        config:
+          meta:
+            dimension:
+              type: string
+      - name: assessment_point
+        description: "Intake, Progress Check, or Discharge."
+        config:
+          meta:
+            dimension:
+              type: string
+      - name: sequence
+        config:
+          meta:
+            dimension:
+              type: number
+      - name: score
+        config:
+          meta:
+            dimension:
+              type: number
+            metrics:
+              avg_score:
+                type: average
+                label: "Avg Score"
+                round: 1
+      - name: max_score
+        config:
+          meta:
+            dimension:
+              type: number
+      - name: clinical_cutoff
+        config:
+          meta:
+            dimension:
+              type: number
+      - name: intake_score
+        config:
+          meta:
+            dimension:
+              type: number
+            metrics:
+              avg_intake_score:
+                type: average
+                label: "Avg Intake Score"
+                round: 1
+      - name: score_pct_of_max
+        config:
+          meta:
+            dimension:
+              type: number
+              format: percent
+            metrics:
+              avg_score_pct_of_max:
+                type: average
+                label: "Avg Score % of Max"
+                format: percent
+                round: 1
+      - name: is_above_clinical_cutoff
+        config:
+          meta:
+            dimension:
+              type: boolean
+      - name: improvement_from_intake
+        config:
+          meta:
+            dimension:
+              type: number
+            metrics:
+              avg_improvement_from_intake:
+                type: average
+                label: "Avg Point Improvement from Intake"
+                round: 1
+      - name: improvement_pct_from_intake
+        config:
+          meta:
+            dimension:
+              type: number
+              format: percent
+            metrics:
+              avg_improvement_pct:
+                type: average
+                label: "Avg Improvement from Intake"
+                format: percent
+                round: 1
+
+  - name: student_terms
+    description: "District SIS attendance and discipline per referred student per term, with care status in that term."
+    config:
+      meta:
+        primary_key: student_term_id
+        label: "Student Terms"
+        spotlight:
+          categories: [outcomes]
+        joins:
+          - join: students
+            type: left
+            sql_on: ${student_terms.student_id} = ${students.student_id}
+            relationship: many-to-one
+          - join: schools
+            type: left
+            sql_on: ${student_terms.school_id} = ${schools.school_id}
+            relationship: many-to-one
+          - join: districts
+            type: left
+            sql_on: ${student_terms.district_id} = ${districts.district_id}
+            relationship: many-to-one
+        metrics:
+          overall_absence_rate:
+            type: number
+            sql: "1.0 * sum(${TABLE}.days_absent) / nullif(sum(${TABLE}.days_enrolled), 0)"
+            label: "Absence Rate"
+            description: "Days absent divided by days enrolled across the selected student terms."
+            format: percent
+            round: 1
+          chronic_absenteeism_rate:
+            type: number
+            sql: "1.0 * sum(case when ${TABLE}.is_chronically_absent then 1 else 0 end) / nullif(count(distinct ${TABLE}.student_term_id), 0)"
+            label: "Chronic Absenteeism Rate"
+            description: "Student terms with 10% or more school days missed."
+            format: percent
+            round: 1
+          suspensions_per_100_students:
+            type: number
+            sql: "100.0 * sum(${TABLE}.suspensions) / nullif(count(distinct ${TABLE}.student_term_id), 0)"
+            label: "Suspensions per 100 Student Terms"
+            description: "Suspensions divided by student terms, multiplied by 100. Comparisons by care status are observational."
+            round: 1
+          suspension_rate:
+            type: number
+            sql: "1.0 * sum(case when ${TABLE}.was_suspended then 1 else 0 end) / nullif(count(distinct ${TABLE}.student_term_id), 0)"
+            label: "Students Suspended"
+            format: percent
+            round: 1
+    columns:
+      - name: student_term_id
+        data_tests: [unique, not_null]
+        config:
+          meta:
+            dimension:
+              type: string
+              hidden: true
+            metrics:
+              student_term_count:
+                type: count_distinct
+                label: "Student Terms"
+      - name: student_id
+        config:
+          meta:
+            dimension:
+              type: string
+              hidden: true
+            metrics:
+              students_with_records:
+                type: count_distinct
+                label: "Students"
+      - name: school_id
+        config:
+          meta:
+            dimension:
+              type: string
+              hidden: true
+      - name: district_id
+        config:
+          meta:
+            dimension:
+              type: string
+              hidden: true
+      - name: term
+        config:
+          meta:
+            dimension:
+              type: string
+      - name: school_year
+        config:
+          meta:
+            dimension:
+              type: string
+      - name: term_start_date
+        config:
+          meta:
+            dimension:
+              type: date
+              time_intervals: [DAY, MONTH, YEAR]
+      - name: term_end_date
+        config:
+          meta:
+            dimension:
+              type: date
+              time_intervals: [DAY, MONTH, YEAR]
+      - name: days_enrolled
+        config:
+          meta:
+            dimension:
+              type: number
+            metrics:
+              total_days_enrolled:
+                type: sum
+                label: "Days Enrolled"
+      - name: days_absent
+        config:
+          meta:
+            dimension:
+              type: number
+            metrics:
+              total_days_absent:
+                type: sum
+                label: "Days Absent"
+              avg_days_absent:
+                type: average
+                label: "Avg Days Absent per Term"
+                round: 1
+      - name: suspensions
+        config:
+          meta:
+            dimension:
+              type: number
+            metrics:
+              total_suspensions:
+                type: sum
+                label: "Suspensions"
+      - name: office_referrals
+        config:
+          meta:
+            dimension:
+              type: number
+            metrics:
+              total_office_referrals:
+                type: sum
+                label: "Office Discipline Referrals"
+      - name: absence_rate
+        config:
+          meta:
+            dimension:
+              type: number
+              format: percent
+      - name: is_chronically_absent
+        config:
+          meta:
+            dimension:
+              type: boolean
+      - name: was_suspended
+        config:
+          meta:
+            dimension:
+              type: boolean
+      - name: care_status_in_term
+        description: "Before Care, In Care, or After Care relative to the student's episodes."
+        config:
+          meta:
+            dimension:
+              type: string

@@ -1,14 +1,19 @@
 import {
     COMPOSER_QUERY_PREVIEW_ROW_LIMIT,
     createToolComposerQueriesArgsSchema,
+    DimensionType,
+    getFields,
+    getItemId,
     getSourceQueryResultReferences,
     getSqlApprovalSql,
     getToolComposerQueriesDescription,
+    isDimension,
     QuerySourceType,
     queryToolDefinition,
     toComposerNodeColumns,
     WarehouseQueryError,
     type ComposerApiConnection,
+    type Explore,
     type ParameterDefinitions,
     type SemanticLayerSourceQuery,
     type SourceQuery,
@@ -17,7 +22,15 @@ import {
 } from '@lightdash/common';
 import { tool } from 'ai';
 import { type AiDecisionClient } from '../decisions/AiDecisionClient';
-import { getEmptyFilterHints } from '../decisions/queryChecks';
+import {
+    checkFilterLiteral,
+    equivalentValueHint,
+    findLiteralInOtherFields,
+    getFilterLiterals,
+    GROUNDED_FILTER_OPERATORS,
+    withinBudget,
+    type FilterLiteralCheck,
+} from '../decisions/queryChecks';
 import {
     preferFilterValueHints,
     type QueryReviewer,
@@ -147,23 +160,94 @@ const getSemanticLayerAncestors = (
     return visit(terminalNodeId);
 };
 
-const getComposerEmptyFilterHints = async (
+const MAX_GROUNDED_LITERALS = 4;
+const LITERAL_CHECK_BUDGET_MS = 2_000;
+const CROSS_FIELD_BUDGET_MS = 3_000;
+
+type NodeLiteralCheck = {
+    node: SemanticLayerSourceQuery;
+    explore: Explore;
+    check: FilterLiteralCheck;
+};
+
+/** Checks string filter literals against their field's values; runs beside execution and never rejects. */
+const checkComposerFilterLiterals = async (
     { decisions, searchFieldValues }: FilterValueHintDependencies,
     nodes: SemanticLayerSourceQuery[],
-): Promise<string> => {
-    const hints = await Promise.all(
-        nodes.map((node) =>
-            getEmptyFilterHints({
-                decisions,
-                query: {
+    explores: Explore[],
+): Promise<NodeLiteralCheck[]> => {
+    const literals = nodes
+        .flatMap((node) => {
+            const explore = explores.find(
+                ({ name }) => name === node.exploreName,
+            );
+            if (!explore) return [];
+            const stringDimensionIds = new Set(
+                getFields(explore)
+                    .filter(
+                        (field) =>
+                            isDimension(field) &&
+                            field.type === DimensionType.STRING,
+                    )
+                    .map(getItemId),
+            );
+            return getFilterLiterals(
+                node.filters ?? {},
+                GROUNDED_FILTER_OPERATORS,
+            )
+                .filter(({ fieldId }) => stringDimensionIds.has(fieldId))
+                .map((literal) => ({ node, explore, literal }));
+        })
+        .slice(0, MAX_GROUNDED_LITERALS);
+    const checks = await Promise.all(
+        literals.map(({ node, explore, literal }) =>
+            withinBudget(
+                checkFilterLiteral({
+                    decisions,
                     exploreName: node.exploreName,
-                    filters: node.filters ?? {},
-                },
-                searchFieldValues,
-            }),
+                    literal,
+                    searchFieldValues,
+                }).then(
+                    (check) => ({ node, explore, check }),
+                    () => null,
+                ),
+                LITERAL_CHECK_BUDGET_MS,
+                null,
+            ),
         ),
     );
-    return hints.filter(Boolean).join(' ');
+    return checks.filter((check): check is NodeLiteralCheck => !!check);
+};
+
+/** Advisory notes; never rewrites a filter. Cross-field lookups run only for nodes that returned no rows. */
+const getFilterLiteralHints = async (
+    { searchFieldValues }: FilterValueHintDependencies,
+    checks: NodeLiteralCheck[],
+    isEmptyNode: (node: SemanticLayerSourceQuery) => boolean,
+): Promise<string> => {
+    const crossField = await Promise.all(
+        checks.map(({ node, explore, check }) =>
+            check.outcome === 'missing' && isEmptyNode(node)
+                ? withinBudget(
+                      findLiteralInOtherFields({
+                          explore,
+                          literal: check,
+                          searchFieldValues,
+                      }),
+                      CROSS_FIELD_BUDGET_MS,
+                      null,
+                  )
+                : null,
+        ),
+    );
+    return [
+        ...checks.map(({ check }) =>
+            check.outcome === 'equivalent' ? equivalentValueHint(check) : null,
+        ),
+        ...crossField,
+    ]
+        .filter(Boolean)
+        .join(' ');
 };
 
 export const getRunComposerQueries = ({
@@ -302,7 +386,14 @@ export const getRunComposerQueries = ({
 
                 await updateProgress('Running composer queries...');
 
-                const [run, review] = await Promise.all([
+                const groundedNodes = getSemanticLayerAncestors(
+                    queries,
+                    resolvedTerminalNodeId,
+                ).filter(
+                    ({ nodeId }) =>
+                        nodeId !== undefined && submittedNodeIds.has(nodeId),
+                );
+                const [run, review, literalChecks] = await Promise.all([
                     runComposerQueries({
                         queries,
                         terminalNodeId: resolvedTerminalNodeId,
@@ -348,6 +439,13 @@ export const getRunComposerQueries = ({
                               terminalNodeId: resolvedTerminalNodeId,
                           }) ?? '')
                         : '',
+                    enableDataAccess && filterValueHints
+                        ? checkComposerFilterLiterals(
+                              filterValueHints,
+                              groundedNodes,
+                              agentContext.getAvailableExplores(),
+                          )
+                        : [],
                 ]);
 
                 // Only ready nodes are saved; other node ids stay free to resubmit corrected.
@@ -440,13 +538,17 @@ export const getRunComposerQueries = ({
                               { emptyResult: true, review },
                           )
                         : null,
-                    isEmpty && filterValueHints
-                        ? getComposerEmptyFilterHints(
+                    filterValueHints
+                        ? getFilterLiteralHints(
                               filterValueHints,
-                              getSemanticLayerAncestors(
-                                  queries,
-                                  resolvedTerminalNodeId,
-                              ),
+                              literalChecks,
+                              ({ nodeId }) =>
+                                  nodeId === resolvedTerminalNodeId
+                                      ? terminal.rowCount === 0
+                                      : nodeStatuses.find(
+                                            (status) =>
+                                                status.nodeId === nodeId,
+                                        )?.rowCount === 0,
                           )
                         : '',
                 ]);
@@ -458,6 +560,7 @@ export const getRunComposerQueries = ({
                               valueHints,
                               review,
                           });
+                const notes = [review, valueHints].filter(Boolean).join(' ');
                 const resultSummary = [
                     `Composer query complete. Terminal node "${resolvedTerminalNodeId}" returned ${terminal.rowCount} rows.`,
                     `Nodes in this pipeline:\n${nodeSummary}`,
@@ -467,7 +570,7 @@ export const getRunComposerQueries = ({
                             `Node "${nodeId}":${renderAppliedParameters(applied)}`,
                     ),
                     `Not visualized yet. To present it to the user, call visualize with nodeId "${resolvedTerminalNodeId}".`,
-                    ...(review && terminal.rowCount !== 0 ? [review] : []),
+                    ...(notes && terminal.rowCount !== 0 ? [notes] : []),
                     ...(emptyReview !== null ? [emptyReview] : []),
                 ].join('\n');
                 const summary = {
@@ -477,7 +580,7 @@ export const getRunComposerQueries = ({
                     columns,
                     parameters: appliedParameters,
                     review:
-                        terminal.rowCount === 0 ? emptyReview : review || null,
+                        terminal.rowCount === 0 ? emptyReview : notes || null,
                 };
 
                 const buildOutput = (): ComposerQueriesOutput => {

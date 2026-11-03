@@ -1,6 +1,7 @@
 import {
     FilterOperator,
     toolRunQueryArgsSchemaTransformed,
+    type Explore,
 } from '@lightdash/common';
 import { MockLanguageModelV3 } from 'ai/test';
 import { describe, expect, it, vi } from 'vitest';
@@ -9,11 +10,13 @@ import {
     validExplore,
 } from '../../../../services/ProjectService/ProjectService.mock';
 import { evaluateAgentReadiness } from '../agents/readinessScorer';
+import { mockUsersOrdersExplore } from '../utils/validationExplore.mock';
 import { AiDecisionClient } from './AiDecisionClient';
 import { resolveFieldValue } from './fieldValues';
 import {
     checkQueryIntent,
     emptyResultGuidance,
+    findLiteralInOtherFields,
     getEmptyFilterHints,
 } from './queryChecks';
 import { queryErrorOverride } from './queryErrors';
@@ -202,6 +205,49 @@ describe('decision fallbacks and invariants', () => {
                 searchFieldValues,
             }),
         ).toBe('');
+    });
+
+    it('searches a missing literal in other string dimensions, base table first', async () => {
+        const { users, orders } = mockUsersOrdersExplore.tables;
+        const stringDimension = (name: string) => ({
+            ...users.dimensions.user_name,
+            table: 'orders',
+            name,
+        });
+        const explore: Explore = {
+            ...mockUsersOrdersExplore,
+            // Joined table listed first so the ordering is not incidental.
+            tables: {
+                orders: {
+                    ...orders,
+                    dimensions: {
+                        ...orders.dimensions,
+                        status: stringDimension('status'),
+                        region: stringDimension('region'),
+                    },
+                },
+                users,
+            },
+        };
+        const searchFieldValues = vi.fn(async ({ fieldId }) =>
+            fieldId === 'orders_region' ? ['north', 'North'] : [],
+        );
+        expect(
+            await findLiteralInOtherFields({
+                explore,
+                literal: {
+                    fieldId: 'orders_status',
+                    operator: FilterOperator.EQUALS,
+                    value: 'North',
+                },
+                searchFieldValues,
+            }),
+        ).toBe(
+            '"North" is a value of orders_region, not orders_status. Check it fits the request before retrying.',
+        );
+        expect(
+            searchFieldValues.mock.calls.map(([{ fieldId }]) => fieldId),
+        ).toEqual(['users_user_name', 'orders_region']);
     });
 
     it('does not retry an unrepairable error or repeatedly classify the same failure', async () => {

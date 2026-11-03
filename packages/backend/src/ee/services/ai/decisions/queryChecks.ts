@@ -1,8 +1,10 @@
 import {
+    DimensionType,
     FilterOperator,
     getFields,
     getItemId,
     getTotalFilterRules,
+    isDimension,
     type Explore,
     type MetricQuery,
     type ParametersValuesMap,
@@ -178,6 +180,181 @@ export const emptyResultGuidance = (
     return suggestions.filter(Boolean).join(' ');
 };
 
+export type FilterLiteral = {
+    fieldId: string;
+    operator: FilterOperator;
+    value: string;
+};
+
+export type FilterLiteralCheck = FilterLiteral &
+    (
+        | { outcome: 'found' | 'missing' }
+        | { outcome: 'equivalent'; equivalent: string | number | boolean }
+    );
+
+export const GROUNDED_FILTER_OPERATORS = [
+    FilterOperator.EQUALS,
+    FilterOperator.INCLUDE,
+    FilterOperator.STARTS_WITH,
+];
+
+export const getFilterLiterals = (
+    filters: MetricQuery['filters'],
+    operators: FilterOperator[],
+): FilterLiteral[] =>
+    getTotalFilterRules(filters)
+        .filter((filter) => operators.includes(filter.operator))
+        .flatMap((filter) =>
+            (filter.values ?? [])
+                .filter(
+                    (value): value is string =>
+                        typeof value === 'string' && value.trim().length > 0,
+                )
+                .map((value) => ({
+                    fieldId: filter.target.fieldId,
+                    operator: filter.operator,
+                    value,
+                })),
+        );
+
+/** Case-insensitive for include/startsWith, so a hint never fires on a literal that may match. */
+const literalMatches = (
+    { operator, value: literal }: FilterLiteral,
+    value: string | number | boolean,
+): boolean => {
+    if (operator === FilterOperator.EQUALS) return value === literal;
+    const text = String(value).toLowerCase();
+    return operator === FilterOperator.STARTS_WITH
+        ? text.startsWith(literal.toLowerCase())
+        : text.includes(literal.toLowerCase());
+};
+
+const toValues = (result: Awaited<ReturnType<SearchFieldValuesFn>>) =>
+    Array.isArray(result) ? result : result.results;
+
+/** Looks a filter literal up in its own field. Throws when the lookup fails. */
+export const checkFilterLiteral = async ({
+    decisions,
+    exploreName,
+    literal,
+    searchFieldValues,
+}: {
+    decisions: Pick<AiDecisionClient, 'evaluate'>;
+    exploreName: string;
+    literal: FilterLiteral;
+    searchFieldValues: SearchFieldValuesFn;
+}): Promise<FilterLiteralCheck> => {
+    const values = toValues(
+        await searchFieldValues({
+            table: exploreName,
+            fieldId: literal.fieldId,
+            query: literal.value,
+        }),
+    );
+    if (values.some((value) => literalMatches(literal, value)))
+        return { ...literal, outcome: 'found' };
+    const resolved = await resolveFieldValue({
+        decisions,
+        fieldId: literal.fieldId,
+        requested: literal.value,
+        values,
+    });
+    return resolved === null || resolved === literal.value
+        ? { ...literal, outcome: 'missing' }
+        : { ...literal, outcome: 'equivalent', equivalent: resolved };
+};
+
+export const equivalentValueHint = ({
+    fieldId,
+    value,
+    equivalent,
+}: FilterLiteral & { equivalent: string | number | boolean }): string =>
+    `For ${fieldId}, ${JSON.stringify(equivalent)} is a likely equivalent of ${JSON.stringify(value)} from the available values. Verify it preserves the requested meaning before retrying.`;
+
+/** Other visible string dimensions of the explore, base table first. */
+const getOtherStringDimensionIds = (
+    explore: Explore,
+    fieldId: string,
+): string[] =>
+    getFields(explore)
+        .filter(
+            (field) =>
+                isDimension(field) &&
+                field.type === DimensionType.STRING &&
+                !field.hidden &&
+                getItemId(field) !== fieldId,
+        )
+        .sort(
+            (a, b) =>
+                Number(b.table === explore.baseTable) -
+                Number(a.table === explore.baseTable),
+        )
+        .map(getItemId);
+
+/** Finds a literal missing from its own field in another string dimension of the explore. */
+export const findLiteralInOtherFields = async ({
+    explore,
+    literal,
+    searchFieldValues,
+    maxFields = 6,
+}: {
+    explore: Explore;
+    literal: FilterLiteral;
+    searchFieldValues: SearchFieldValuesFn;
+    maxFields?: number;
+}): Promise<string | null> => {
+    const matches = await Promise.all(
+        getOtherStringDimensionIds(explore, literal.fieldId)
+            .slice(0, maxFields)
+            .map(async (fieldId) => {
+                try {
+                    const values = toValues(
+                        await searchFieldValues({
+                            table: explore.name,
+                            fieldId,
+                            query: literal.value,
+                        }),
+                    );
+                    const match =
+                        values.find((value) =>
+                            literalMatches(literal, value),
+                        ) ??
+                        values.find(
+                            (value) =>
+                                String(value).toLowerCase() ===
+                                literal.value.toLowerCase(),
+                        );
+                    return match === undefined ? null : { fieldId, match };
+                } catch {
+                    return null;
+                }
+            }),
+    );
+    const found = matches.find((match) => match !== null);
+    return found
+        ? `${JSON.stringify(found.match)} is a value of ${found.fieldId}, not ${literal.fieldId}. Check it fits the request before retrying.`
+        : null;
+};
+
+/** Resolves to the fallback once the budget elapses; value search can hit the warehouse. */
+export const withinBudget = async <T>(
+    promise: Promise<T>,
+    ms: number,
+    fallback: T,
+): Promise<T> => {
+    let timer: NodeJS.Timeout | undefined;
+    try {
+        return await Promise.race([
+            promise,
+            new Promise<T>((resolve) => {
+                timer = setTimeout(() => resolve(fallback), ms);
+            }),
+        ]);
+    } finally {
+        clearTimeout(timer);
+    }
+};
+
 export const getEmptyFilterHints = async ({
     decisions,
     query,
@@ -187,52 +364,26 @@ export const getEmptyFilterHints = async ({
     query: Pick<MetricQuery, 'exploreName' | 'filters'>;
     searchFieldValues: SearchFieldValuesFn;
 }): Promise<string> => {
-    const candidates = getTotalFilterRules(query.filters)
-        .filter((filter) => filter.operator === FilterOperator.EQUALS)
-        .flatMap((filter) =>
-            (filter.values ?? [])
-                .filter(
-                    (value): value is string =>
-                        typeof value === 'string' && value.trim().length > 0,
-                )
-                .map((value) => ({ fieldId: filter.target.fieldId, value })),
-        )
-        .slice(0, 2);
     const lookup = Promise.all(
-        candidates.map(async ({ fieldId, value }) => {
-            try {
-                const result = await searchFieldValues({
-                    table: query.exploreName,
-                    fieldId,
-                    query: value,
-                });
-                const values = Array.isArray(result) ? result : result.results;
-                const resolved = await resolveFieldValue({
-                    decisions,
-                    fieldId,
-                    requested: value,
-                    values,
-                });
-                return resolved === null || resolved === value
-                    ? null
-                    : `For ${fieldId}, ${JSON.stringify(resolved)} is a likely equivalent of ${JSON.stringify(value)} from the available values. Verify it preserves the requested meaning before retrying.`;
-            } catch {
-                return null;
-            }
-        }),
-    );
-    // Value search can hit the warehouse. Bound optional diagnosis as a whole;
-    // a slow lookup must not delay reporting a legitimate empty result.
-    let timer: NodeJS.Timeout | undefined;
-    try {
-        const hints = await Promise.race([
-            lookup,
-            new Promise<null[]>((resolve) => {
-                timer = setTimeout(() => resolve([]), 1_000);
+        getFilterLiterals(query.filters, [FilterOperator.EQUALS])
+            .slice(0, 2)
+            .map(async (literal) => {
+                try {
+                    const check = await checkFilterLiteral({
+                        decisions,
+                        exploreName: query.exploreName,
+                        literal,
+                        searchFieldValues,
+                    });
+                    return check.outcome === 'equivalent'
+                        ? equivalentValueHint(check)
+                        : null;
+                } catch {
+                    return null;
+                }
             }),
-        ]);
-        return hints.filter(Boolean).join(' ');
-    } finally {
-        clearTimeout(timer);
-    }
+    );
+    // A slow lookup must not delay reporting a legitimate empty result.
+    const hints = await withinBudget(lookup, 1_000, []);
+    return hints.filter(Boolean).join(' ');
 };

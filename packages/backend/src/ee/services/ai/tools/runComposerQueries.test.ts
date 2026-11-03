@@ -2031,7 +2031,7 @@ describe('semanticLayer node filters', () => {
                 const pending = emptyTool(
                     vi.fn().mockReturnValue(new Promise(() => {})),
                 ).run();
-                await vi.advanceTimersByTimeAsync(1_000);
+                await vi.advanceTimersByTimeAsync(2_000);
                 const output = await pending;
 
                 expect(output.metadata.status).toBe('success');
@@ -2039,6 +2039,134 @@ describe('semanticLayer node filters', () => {
             } finally {
                 vi.useRealTimers();
             }
+        });
+    });
+
+    describe('filter literal grounding', () => {
+        const valuesByField =
+            (values: Record<string, string[]>): SearchFieldValuesFn =>
+            async ({ fieldId }) =>
+                values[fieldId] ?? [];
+        const groundingTool = (
+            searchFieldValues: SearchFieldValuesFn,
+            dimensions: string,
+            rowCount: number,
+        ) => {
+            const evaluate = vi.fn().mockResolvedValue({
+                value: {
+                    type: 'choice',
+                    choice: '0',
+                    confidence: 0.99,
+                    probabilities: { '0': 1 },
+                },
+            });
+            const made = makeTool({
+                reviewQuery: vi.fn<QueryReviewer>(async () => ''),
+                filterValueHints: {
+                    decisions: { evaluate },
+                    searchFieldValues,
+                },
+            });
+            made.dependencies.runComposerQueries.mockResolvedValue({
+                status: 'success',
+                submissions: [],
+                terminal: {
+                    queryUuid: 'q',
+                    columns: {},
+                    rows: rowCount ? [{ revenue: 1 }] : [],
+                    rowCount,
+                },
+                nodeStatuses: [],
+            });
+            return {
+                ...made,
+                evaluate,
+                run: () =>
+                    executeTool(
+                        made.tool,
+                        makeArgs({
+                            queries: [
+                                ordersNodeWithFilters({
+                                    dimensions,
+                                    metrics: null,
+                                }),
+                            ],
+                        }),
+                    ),
+            };
+        };
+
+        it('notes a likely equivalent value even when the query returns rows, without changing the filter', async () => {
+            const { run, dependencies } = groundingTool(
+                valuesByField({ orders_customer_name: ['Alice'] }),
+                'orders_customer_name equals=Alic',
+                3,
+            );
+            const output = await run();
+
+            expect(output.result).toContain(
+                'For orders_customer_name, "Alice" is a likely equivalent of "Alic"',
+            );
+            expect(submittedFilters(dependencies)).toMatchObject({
+                dimensions: { and: [{ values: ['Alic'] }] },
+            });
+        });
+
+        it('says nothing when the literal exists verbatim', async () => {
+            const { run, evaluate } = groundingTool(
+                valuesByField({
+                    orders_customer_name: ['Alice', 'Alice Cooper'],
+                    orders_product_category: ['ali'],
+                }),
+                'orders_customer_name equals=Alice OR orders_product_category include=Ali',
+                3,
+            );
+            const output = await run();
+
+            expect(output.result).not.toContain('likely equivalent');
+            expect(evaluate).not.toHaveBeenCalled();
+        });
+
+        it('names the other field holding a literal that matched nothing in its own', async () => {
+            const searchFieldValues = vi.fn(
+                valuesByField({ orders_product_category: ['Widgets'] }),
+            );
+            const { run } = groundingTool(
+                searchFieldValues,
+                'orders_customer_name equals=Widgets',
+                0,
+            );
+            const output = await run();
+
+            expect(output.result).toContain(
+                '"Widgets" is a value of orders_product_category, not orders_customer_name. Check it fits the request before retrying.',
+            );
+            expect(output.result).toContain('Preserve the user’s scope');
+        });
+
+        it('looks in other fields only when the node returned no rows', async () => {
+            const searchFieldValues = vi.fn(
+                valuesByField({ orders_product_category: ['Widgets'] }),
+            );
+            const output = await groundingTool(
+                searchFieldValues,
+                'orders_customer_name equals=Widgets',
+                2,
+            ).run();
+
+            expect(output.result).not.toContain('is a value of');
+            expect(searchFieldValues).toHaveBeenCalledOnce();
+        });
+
+        it('checks at most four literals', async () => {
+            const searchFieldValues = vi.fn(valuesByField({}));
+            await groundingTool(
+                searchFieldValues,
+                'orders_customer_name equals=a,b,c,d,e',
+                1,
+            ).run();
+
+            expect(searchFieldValues).toHaveBeenCalledTimes(4);
         });
     });
 
