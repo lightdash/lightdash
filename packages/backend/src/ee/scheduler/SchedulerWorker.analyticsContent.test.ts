@@ -39,7 +39,7 @@ describe('dedicated analytics content worker', () => {
         expect(worker['getEnabledCronItems']()).toEqual([]);
     });
 
-    it.each([null, 'org-1'])(
+    it.each([undefined, 'org-1'])(
         'passes reconciliation scope %s to the service',
         async (organizationUuid) => {
             const { worker, analyticsProjectService } = makeWorker();
@@ -48,7 +48,9 @@ describe('dedicated analytics content worker', () => {
             ]({ organizationUuid }, {} as never);
             expect(
                 analyticsProjectService.reconcileContent,
-            ).toHaveBeenCalledExactlyOnceWith({ organizationUuid });
+            ).toHaveBeenCalledExactlyOnceWith({
+                organizationUuid: organizationUuid ?? null,
+            });
             expect(analyticsProjectService.syncContent).not.toHaveBeenCalled();
         },
     );

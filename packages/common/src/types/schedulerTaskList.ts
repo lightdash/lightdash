@@ -188,11 +188,9 @@ export type LearnSandboxCommandPayload = TraceTaskBase & {
     userUuid: string;
 };
 
-export type ReconcileAnalyticsContentPayload = {
-    organizationUuid: string | null;
-};
+export type ReconcileAnalyticsContentPayload = Partial<TraceTaskBase>;
 
-export type SyncAnalyticsContentPayload = {
+export type SyncAnalyticsContentPayload = Partial<TraceTaskBase> & {
     organizationUuid: string;
     projectUuid: string;
 };

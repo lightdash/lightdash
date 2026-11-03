@@ -475,7 +475,9 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
             [EE_SCHEDULER_TASKS.RECONCILE_ANALYTICS_CONTENT]: async (
                 payload,
             ) => {
-                await this.analyticsProjectService.reconcileContent(payload);
+                await this.analyticsProjectService.reconcileContent({
+                    organizationUuid: payload.organizationUuid ?? null,
+                });
             },
             [EE_SCHEDULER_TASKS.SYNC_ANALYTICS_CONTENT]: async (payload) => {
                 await this.analyticsProjectService.syncContent(payload);

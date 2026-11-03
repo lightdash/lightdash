@@ -389,10 +389,12 @@ const getTagsForTask: {
     }),
     [SCHEDULER_TASKS.CLEAN_EXPIRED_PREVIEWS]: () => ({}),
     [SCHEDULER_TASKS.COMPACT_USAGE_EVENTS]: () => ({}),
-    [SCHEDULER_TASKS.RECONCILE_ANALYTICS_CONTENT]: (payload) =>
-        payload.organizationUuid === null
-            ? {}
-            : { 'organization.uuid': payload.organizationUuid },
+    [SCHEDULER_TASKS.RECONCILE_ANALYTICS_CONTENT]: (
+        payload,
+    ): Record<string, string> => {
+        if (payload.organizationUuid === undefined) return {};
+        return { 'organization.uuid': payload.organizationUuid };
+    },
     [SCHEDULER_TASKS.SYNC_ANALYTICS_CONTENT]: (payload) => ({
         'organization.uuid': payload.organizationUuid,
         'project.uuid': payload.projectUuid,

@@ -117,7 +117,7 @@ describe('analytics content scheduling', () => {
             );
             expect(graphileAddJob).toHaveBeenCalledExactlyOnceWith(
                 SCHEDULER_TASKS.RECONCILE_ANALYTICS_CONTENT,
-                { organizationUuid },
+                { organizationUuid: organizationUuid ?? undefined },
                 {
                     queueName: 'analytics-content-reconciliation',
                     jobKey: `analytics-content-reconciliation:${organizationUuid ?? 'all'}`,
