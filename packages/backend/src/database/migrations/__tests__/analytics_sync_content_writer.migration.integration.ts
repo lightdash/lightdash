@@ -26,6 +26,15 @@ import {
 } from '../../../testing/migratedDatabase';
 import { UtilRepository } from '../../../utils/UtilRepository';
 
+type ContentWriterDependencies = ConstructorParameters<typeof CoderService>[0];
+
+const unusedDependency = <T extends object>(name: string): T =>
+    new Proxy({} as T, {
+        get: (_target, property) => {
+            throw new Error(`Unexpected use of ${name}.${String(property)}`);
+        },
+    });
+
 describe('analytics worker through the real content writer', () => {
     let migrated: MigratedDatabase;
     let models: ModelRepository;
@@ -85,6 +94,25 @@ describe('analytics worker through the real content writer', () => {
             dashboardModel: models.getDashboardModel(),
             spaceModel: models.getSpaceModel(),
             schedulerModel: models.getSchedulerModel(),
+            schedulerService:
+                unusedDependency<ContentWriterDependencies['schedulerService']>(
+                    'schedulerService',
+                ),
+            savedChartService:
+                unusedDependency<
+                    ContentWriterDependencies['savedChartService']
+                >('savedChartService'),
+            dashboardService:
+                unusedDependency<ContentWriterDependencies['dashboardService']>(
+                    'dashboardService',
+                ),
+            schedulerClient:
+                unusedDependency<ContentWriterDependencies['schedulerClient']>(
+                    'schedulerClient',
+                ),
+            directAccessService: unusedDependency<
+                ContentWriterDependencies['directAccessService']
+            >('directAccessService'),
             promoteService,
             spacePermissionService,
             contentAsCodeSnapshotModel: models.getContentAsCodeSnapshotModel(),
@@ -96,10 +124,8 @@ describe('analytics worker through the real content writer', () => {
                 models.getOrganizationMemberProfileModel(),
             userModel: models.getUserModel(),
             warehouseConnectionModel: models.getWarehouseConnectionModel(),
-        } satisfies Partial<ConstructorParameters<typeof CoderService>[0]>;
-        coder = new CoderService(
-            dependencies as ConstructorParameters<typeof CoderService>[0],
-        );
+        } satisfies ContentWriterDependencies;
+        coder = new CoderService(dependencies);
     });
 
     afterAll(async () => {
