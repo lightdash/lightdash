@@ -15199,8 +15199,8 @@ export class ProjectService
                 },
             );
             let liveRef: WarehouseClientRef = bindingRef;
-            let savedList: {
-                userWarehouseCredentialsUuid: string | null;
+            let savedListKey: {
+                userWarehouseCredentialsUuid: UUID | null;
             } | null = null;
             if (!bound) {
                 const resolution =
@@ -15213,14 +15213,14 @@ export class ProjectService
                     resolution.aiPlan === null ||
                     resolution.aiPlan.identity === 'marked_person'
                 ) {
-                    savedList = {
+                    savedListKey = {
                         userWarehouseCredentialsUuid:
                             resolution.warehouseCredentials
                                 .userWarehouseCredentialsUuid ?? null,
                     };
                     const saved = await this.getSavedWarehouseTables(
                         projectUuid,
-                        savedList.userWarehouseCredentialsUuid,
+                        savedListKey.userWarehouseCredentialsUuid,
                     );
                     if (saved) return saved;
                 }
@@ -15246,10 +15246,10 @@ export class ProjectService
                             ?.agentConnectionExecution
                     )
                         await this.assertConnectionDiscovery(user, projectUuid);
-                    if (savedList)
+                    if (savedListKey)
                         await this.saveWarehouseTables(
                             projectUuid,
-                            savedList.userWarehouseCredentialsUuid,
+                            savedListKey.userWarehouseCredentialsUuid,
                             tables,
                         );
                     return WarehouseAvailableTablesModel.toWarehouseCatalog(
@@ -15280,8 +15280,8 @@ export class ProjectService
     }
 
     private async getSavedWarehouseTables(
-        projectUuid: string,
-        userWarehouseCredentialsUuid: string | null,
+        projectUuid: UUID,
+        userWarehouseCredentialsUuid: UUID | null,
     ): Promise<WarehouseTablesCatalog | null> {
         const catalog = userWarehouseCredentialsUuid
             ? await this.warehouseAvailableTablesModel.getTablesForUserWarehouseCredentials(
@@ -15294,8 +15294,8 @@ export class ProjectService
     }
 
     private async saveWarehouseTables(
-        projectUuid: string,
-        userWarehouseCredentialsUuid: string | null,
+        projectUuid: UUID,
+        userWarehouseCredentialsUuid: UUID | null,
         tables: WarehouseTables,
     ): Promise<void> {
         if (userWarehouseCredentialsUuid) {
