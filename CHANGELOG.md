@@ -1,3 +1,10 @@
+## [3.135.2](https://github.com/lightdash/lightdash/compare/3.135.1...3.135.2) (2026-11-03)
+
+
+### Bug Fixes
+
+* **clickhouse:** keep primary key pruning for week dimensions with a start of week ([#31995](https://github.com/lightdash/lightdash/issues/31995)) ([2e9375d](https://github.com/lightdash/lightdash/commit/2e9375d0bb986c32291a4d635d44ea283887cd8e)), closes [#31994](https://github.com/lightdash/lightdash/issues/31994)
+
 ## [3.135.1](https://github.com/lightdash/lightdash/compare/3.135.0...3.135.1) (2026-11-03)
 
 
