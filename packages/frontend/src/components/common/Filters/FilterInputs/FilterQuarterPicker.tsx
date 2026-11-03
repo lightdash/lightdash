@@ -113,7 +113,9 @@ const FilterQuarterPicker: FC<Props> = ({
     return (
         <Popover
             opened={opened}
-            onClose={close}
+            onChange={(isOpened) => {
+                if (!isOpened) close();
+            }}
             position="bottom"
             {...popoverProps}
         >

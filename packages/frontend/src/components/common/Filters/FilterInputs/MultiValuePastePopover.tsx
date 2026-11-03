@@ -36,7 +36,9 @@ const MultiValuePastePopUp: FC<PropsWithChildren<Props>> = ({
     return (
         <Popover
             opened={opened}
-            onClose={onClose}
+            onChange={(isOpened) => {
+                if (!isOpened) onClose();
+            }}
             position="top-start"
             withArrow
             arrowPosition="side"

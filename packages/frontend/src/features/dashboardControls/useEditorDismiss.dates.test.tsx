@@ -431,7 +431,7 @@ describe('date filter calendar inside the dashboard filter editor', () => {
             dateField,
             makeRule(FilterOperator.LESS_THAN, ['not a date']),
         ],
-    ])('Escape with the popover of %s open', (_, field, rule) => {
+    ])('The popover of %s', (_, field, rule) => {
         it('closes the popover and keeps the editor, then cancels on the next press', async () => {
             const user = userEvent.setup();
             const { onDismiss, onDismissOutside } = renderEditor(field, rule);
@@ -453,6 +453,28 @@ describe('date filter calendar inside the dashboard filter editor', () => {
             await user.keyboard('{Escape}');
 
             expect(onDismiss).toHaveBeenCalledTimes(1);
+        });
+
+        it('closes the popover on a press outside and keeps the editor, then cancels on the next press', async () => {
+            const user = userEvent.setup();
+            const { onDismissOutside } = renderEditor(field, rule);
+            const openPopovers = () =>
+                [
+                    ...document.querySelectorAll('.mantine-Popover-dropdown'),
+                ].filter(
+                    (dropdown) => !dropdown.closest('[data-testid="editor"]'),
+                );
+
+            await user.click(valueInputs()[0]);
+            await waitFor(() => expect(openPopovers()).toHaveLength(1));
+            await user.click(document.body);
+
+            await waitFor(() => expect(openPopovers()).toHaveLength(0));
+            expectEditorOpen(onDismissOutside);
+
+            await user.click(document.body);
+
+            expect(onDismissOutside).toHaveBeenCalledTimes(1);
         });
     });
 });

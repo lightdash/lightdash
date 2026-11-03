@@ -25,6 +25,25 @@ describe('MultiValuePastePopover', () => {
         expect(onClose).toHaveBeenCalledTimes(1);
     });
 
+    it('closes on a press outside', async () => {
+        const user = userEvent.setup();
+        const onClose = vi.fn();
+        renderWithProviders(
+            <MultiValuePastePopover
+                opened
+                onClose={onClose}
+                onMultiValue={() => {}}
+                onSingleValue={() => {}}
+            >
+                <input aria-label="Values" />
+            </MultiValuePastePopover>,
+        );
+
+        await user.click(document.body);
+
+        expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
     it('does nothing on Escape while closed', async () => {
         const user = userEvent.setup();
         const onClose = vi.fn();
