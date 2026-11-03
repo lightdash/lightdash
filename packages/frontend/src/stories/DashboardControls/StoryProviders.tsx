@@ -73,6 +73,7 @@ const createStore = (sections: DashboardControlSection[]) =>
                 },
             },
             dashboardTabs: tabs,
+            dashboardTiles: tiles,
             activeTab: tabs[0],
         },
     );
@@ -129,7 +130,11 @@ const DashboardControlsProviders: FC<FrameProps> = ({
 
 /** The providers and the page margin every prototype story sits in. */
 export const StoryFrame: FC<FrameProps> = ({ children, ...props }) => (
-    <DashboardControlsProviders {...props}>
+    // The store is built on mount: new sections build a new one
+    <DashboardControlsProviders
+        key={props.sections.map(({ id, name }) => `${id}:${name}`).join('|')}
+        {...props}
+    >
         <Box p="xl">{children}</Box>
     </DashboardControlsProviders>
 );
