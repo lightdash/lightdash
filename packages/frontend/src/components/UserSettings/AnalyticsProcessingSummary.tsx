@@ -63,9 +63,10 @@ const AnalyticsProcessingSummary = ({
         : [
               processing.status === 'partial' &&
                   'Some data was processed, but the refresh is incomplete.',
-              processing.finishedAt
-                  ? `Finished ${formatTime(processing.finishedAt)}.`
-                  : `Started ${formatTime(processing.startedAt)}.`,
+              processing.status !== 'success' &&
+                  (processing.finishedAt
+                      ? `Finished ${formatTime(processing.finishedAt)}.`
+                      : `Started ${formatTime(processing.startedAt)}.`),
               details,
           ]
               .filter(Boolean)
@@ -81,11 +82,15 @@ const AnalyticsProcessingSummary = ({
             </Text>
             <Tooltip
                 label={tooltip}
+                disabled={!tooltip}
                 multiline
                 maw={360}
                 events={{ hover: true, focus: true, touch: true }}
             >
-                <Badge color={presentation.color} tabIndex={0}>
+                <Badge
+                    color={presentation.color}
+                    tabIndex={tooltip ? 0 : undefined}
+                >
                     Latest run: {presentation.label}
                 </Badge>
             </Tooltip>

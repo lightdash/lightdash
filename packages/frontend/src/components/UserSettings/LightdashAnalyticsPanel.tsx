@@ -87,14 +87,6 @@ const LightdashAnalyticsPanel = ({
                                     : 'Create a dedicated project with built-in AI usage and query event models. No connection setup is needed.'}
                             </Text>
                         </Stack>
-                        {analyticsProject && (
-                            <Text fz="xs" c="dimmed">
-                                Created{' '}
-                                {new Date(
-                                    analyticsProject.createdAt,
-                                ).toLocaleString()}
-                            </Text>
-                        )}
                         {createProject.isError && (
                             <Callout
                                 variant="danger"
