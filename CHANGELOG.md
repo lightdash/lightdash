@@ -1,3 +1,10 @@
+## [3.136.2](https://github.com/lightdash/lightdash/compare/3.136.1...3.136.2) (2026-11-03)
+
+
+### Bug Fixes
+
+* recover chart metadata snapshots after query timeout ([#32006](https://github.com/lightdash/lightdash/issues/32006)) ([dddadee](https://github.com/lightdash/lightdash/commit/dddadee6a3b442ad785afd8c689b22436b509bd0))
+
 ## [3.136.1](https://github.com/lightdash/lightdash/compare/3.136.0...3.136.1) (2026-11-03)
 
 
