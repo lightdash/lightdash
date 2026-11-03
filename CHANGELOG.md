@@ -1,3 +1,10 @@
+## [3.128.3](https://github.com/lightdash/lightdash/compare/3.128.2...3.128.3) (2026-11-03)
+
+
+### Bug Fixes
+
+* skip projectless organizations in scheduled analytics processing ([#31967](https://github.com/lightdash/lightdash/issues/31967)) ([08c94c5](https://github.com/lightdash/lightdash/commit/08c94c58a6d78c9fe9bb9b90a23b5278c7052a37))
+
 ## [3.128.2](https://github.com/lightdash/lightdash/compare/3.128.1...3.128.2) (2026-11-03)
 
 
