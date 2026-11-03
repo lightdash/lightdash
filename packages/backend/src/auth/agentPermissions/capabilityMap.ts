@@ -892,6 +892,9 @@ export const REST_OPERATION_CAPABILITIES = {
     'ExternalConnectionController.proposeExternalConnectionConfig': [
         AgentCapability.Administration,
     ],
+    'ExternalConnectionController.refreshExternalConnectionExplores': [
+        AgentCapability.Administration,
+    ],
     'ExternalConnectionController.rotateExternalConnectionSecret': [
         AgentCapability.Administration,
     ],
