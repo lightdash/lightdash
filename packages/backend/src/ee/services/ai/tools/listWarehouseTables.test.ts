@@ -1,4 +1,5 @@
 import {
+    PartitionType,
     toolListWarehouseTablesOutputSchema,
     type ToolListWarehouseTablesOutput,
     type WarehouseTablesCatalog,
@@ -234,24 +235,28 @@ describe('listWarehouseTables tool', () => {
                     schema: 'jaffle',
                     table: 'customers',
                     qualifiedName: 'analytics.jaffle.customers',
+                    partitionColumn: null,
                 },
                 {
                     database: 'analytics',
                     schema: 'jaffle',
                     table: 'orders',
                     qualifiedName: 'analytics.jaffle.orders',
+                    partitionColumn: null,
                 },
                 {
                     database: 'analytics',
                     schema: 'jaffle',
                     table: 'payments',
                     qualifiedName: 'analytics.jaffle.payments',
+                    partitionColumn: null,
                 },
                 {
                     database: 'analytics',
                     schema: 'raw',
                     table: 'raw_orders',
                     qualifiedName: 'analytics.raw.raw_orders',
+                    partitionColumn: null,
                 },
             ],
         });
@@ -278,6 +283,7 @@ describe('listWarehouseTables tool', () => {
                     schema: 'jaffle',
                     table: 'orders',
                     qualifiedName: 'analytics.jaffle.orders',
+                    partitionColumn: null,
                 },
             ],
         });
@@ -320,5 +326,43 @@ describe('listWarehouseTables tool', () => {
         expect(
             toolListWarehouseTablesOutputSchema.safeParse(output).success,
         ).toBe(true);
+    });
+});
+
+describe('warehouse table partitions', () => {
+    it('marks partitioned tables in the text and structured content', async () => {
+        const { result } = await run(null, {
+            enabled: false,
+            limit: 10,
+            catalog: {
+                'acme-prod': {
+                    rides: {
+                        fact_ride_request: {
+                            partitionColumn: {
+                                field: 'created_at_utc',
+                                partitionType: PartitionType.DATE,
+                            },
+                        },
+                        dim_driver: {},
+                    },
+                },
+            },
+        });
+
+        expect(result.result).toContain(
+            '  - acme-prod.rides.fact_ride_request (partitioned by created_at_utc)',
+        );
+        expect(result.result.split('\n')).toContain(
+            '  - acme-prod.rides.dim_driver',
+        );
+        expect(result.structuredContent).toMatchObject({
+            tables: [
+                {
+                    table: 'fact_ride_request',
+                    partitionColumn: 'created_at_utc',
+                },
+                { table: 'dim_driver', partitionColumn: null },
+            ],
+        });
     });
 });

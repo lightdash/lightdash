@@ -5264,14 +5264,16 @@ export class AiAgentToolsService extends BaseService {
                     );
                 }
 
-                const { fields, nativeTypes } =
-                    await this.projectService.getWarehouseFields(
+                const { fields, nativeTypes, partitioning, warehouseType } =
+                    await this.projectService.describeWarehouseTable(
                         context.user,
                         context.projectUuid,
                         context.defaultQueryExecutionContext,
-                        table,
-                        resolvedSchema ?? undefined,
-                        resolvedDatabase ?? undefined,
+                        {
+                            tableName: table,
+                            schemaName: resolvedSchema ?? undefined,
+                            databaseName: resolvedDatabase ?? undefined,
+                        },
                         context.querySurface,
                     );
                 return {
@@ -5282,6 +5284,8 @@ export class AiAgentToolsService extends BaseService {
                     })),
                     resolvedSchema,
                     resolvedDatabase,
+                    partitioning,
+                    warehouseType,
                 };
             },
         );

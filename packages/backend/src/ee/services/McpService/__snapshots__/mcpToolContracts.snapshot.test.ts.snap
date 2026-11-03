@@ -1094,6 +1094,29 @@ Use a metric's default time dimension unless the user asks for a different one.
                       "const": "found",
                       "type": "string",
                     },
+                    "warehouseTables": {
+                      "description": "Warehouse table behind the base table and each joined table, as "database.schema.table"; null when the table reads custom SQL.",
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "table": {
+                            "type": "string",
+                          },
+                          "warehouseTable": {
+                            "type": [
+                              "string",
+                              "null",
+                            ],
+                          },
+                        },
+                        "required": [
+                          "table",
+                          "warehouseTable",
+                        ],
+                        "type": "object",
+                      },
+                      "type": "array",
+                    },
                   },
                   "required": [
                     "exploreId",
@@ -1103,6 +1126,7 @@ Use a metric's default time dimension unless the user asks for a different one.
                     "hint",
                     "baseTable",
                     "joinedTables",
+                    "warehouseTables",
                     "requiredFilters",
                     "parameters",
                     "baseDimensions",

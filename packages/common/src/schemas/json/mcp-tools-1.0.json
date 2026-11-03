@@ -1595,6 +1595,29 @@
                                         "status": {
                                             "const": "found",
                                             "type": "string"
+                                        },
+                                        "warehouseTables": {
+                                            "description": "Warehouse table behind the base table and each joined table, as \"database.schema.table\"; null when the table reads custom SQL.",
+                                            "items": {
+                                                "additionalProperties": false,
+                                                "properties": {
+                                                    "table": {
+                                                        "type": "string"
+                                                    },
+                                                    "warehouseTable": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": [
+                                                    "table",
+                                                    "warehouseTable"
+                                                ],
+                                                "type": "object"
+                                            },
+                                            "type": "array"
                                         }
                                     },
                                     "required": [
@@ -1605,6 +1628,7 @@
                                         "hint",
                                         "baseTable",
                                         "joinedTables",
+                                        "warehouseTables",
                                         "requiredFilters",
                                         "parameters",
                                         "baseDimensions",

@@ -48,6 +48,7 @@ import {
     SourceQuery,
     SourceQuerySubmission,
     SqlChartAsCode,
+    TablePartitioning,
     ThreadComposerQueryNode,
     ToolFindContentArgs,
     ToolFindFieldsArgs,
@@ -834,6 +835,8 @@ export type DescribeWarehouseTableFn = (args: {
     columns: Array<{ name: string; type: string; nativeType: string | null }>;
     resolvedSchema: string | null;
     resolvedDatabase: string | null;
+    partitioning: TablePartitioning | null;
+    warehouseType: WarehouseTypes;
 }>;
 
 export type ListKnowledgeDocumentsFn = () => Promise<AiAgentDocumentSummary[]>;

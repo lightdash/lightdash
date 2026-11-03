@@ -46,6 +46,12 @@ const tableSchema = z.object({
     qualifiedName: z
         .string()
         .describe('"database.schema.table", ready to use in SQL.'),
+    partitionColumn: z
+        .string()
+        .nullable()
+        .describe(
+            'Column the table is partitioned on; null when it has none or the warehouse does not report one.',
+        ),
 });
 
 export const toolListWarehouseTablesStructuredContentSchema = z.union([

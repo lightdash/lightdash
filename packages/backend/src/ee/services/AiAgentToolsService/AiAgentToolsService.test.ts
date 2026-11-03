@@ -955,9 +955,11 @@ describe('AiAgentToolsService', () => {
             const refusal = new AiAccessRefusedError(
                 AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
             );
-            const getWarehouseFields = vi.fn().mockRejectedValueOnce(refusal);
+            const describeWarehouseTable = vi
+                .fn()
+                .mockRejectedValueOnce(refusal);
             const service = makeService({
-                projectService: { getWarehouseFields },
+                projectService: { describeWarehouseTable },
             });
             const runtime = service.createRuntime(makeRuntimeContext());
             const describeTool = getDescribeWarehouseTable({
@@ -981,11 +983,11 @@ describe('AiAgentToolsService', () => {
                 },
                 metadata: { status: 'error' },
             });
-            expect(getWarehouseFields).toHaveBeenCalledOnce();
+            expect(describeWarehouseTable).toHaveBeenCalledOnce();
         });
 
         it('blocks metadata from an excluded default database', async () => {
-            const getWarehouseFields = vi.fn();
+            const describeWarehouseTable = vi.fn();
             const service = makeService({
                 projectModel: {
                     ...singleRouteProjectModelMethods,
@@ -997,7 +999,7 @@ describe('AiAgentToolsService', () => {
                             schema: 'jaffle',
                         }),
                 },
-                projectService: { getWarehouseFields },
+                projectService: { describeWarehouseTable },
             });
             const runtime = service.createRuntime(
                 makeRuntimeContext({
@@ -1016,16 +1018,18 @@ describe('AiAgentToolsService', () => {
             ).rejects.toThrow(
                 'reads from catalog `postgres3`, which is explicitly excluded',
             );
-            expect(getWarehouseFields).not.toHaveBeenCalled();
+            expect(describeWarehouseTable).not.toHaveBeenCalled();
         });
 
         it('describes a table in an explicitly allowed database', async () => {
-            const getWarehouseFields = vi.fn().mockResolvedValue({
+            const describeWarehouseTable = vi.fn().mockResolvedValue({
                 fields: { customer_id: DimensionType.STRING },
                 nativeTypes: {},
+                partitioning: null,
+                warehouseType: WarehouseTypes.POSTGRES,
             });
             const service = makeService({
-                projectService: { getWarehouseFields },
+                projectService: { describeWarehouseTable },
             });
             const runtime = service.createRuntime(
                 makeRuntimeContext({
@@ -1052,14 +1056,18 @@ describe('AiAgentToolsService', () => {
                 ],
                 resolvedSchema: 'jaffle',
                 resolvedDatabase: 'analytics',
+                partitioning: null,
+                warehouseType: WarehouseTypes.POSTGRES,
             });
-            expect(getWarehouseFields).toHaveBeenCalledWith(
+            expect(describeWarehouseTable).toHaveBeenCalledWith(
                 user,
                 projectUuid,
                 QueryExecutionContext.AI,
-                'orders',
-                'jaffle',
-                'analytics',
+                {
+                    tableName: 'orders',
+                    schemaName: 'jaffle',
+                    databaseName: 'analytics',
+                },
                 QuerySurface.SLACK,
             );
         });
@@ -1070,9 +1078,11 @@ describe('AiAgentToolsService', () => {
         ])(
             'treats a $label optional database as the default database',
             async ({ database }) => {
-                const getWarehouseFields = vi.fn().mockResolvedValue({
+                const describeWarehouseTable = vi.fn().mockResolvedValue({
                     fields: { customer_id: DimensionType.STRING },
                     nativeTypes: {},
+                    partitioning: null,
+                    warehouseType: WarehouseTypes.POSTGRES,
                 });
                 const service = makeService({
                     projectModel: {
@@ -1085,7 +1095,7 @@ describe('AiAgentToolsService', () => {
                                 schema: 'jaffle',
                             }),
                     },
-                    projectService: { getWarehouseFields },
+                    projectService: { describeWarehouseTable },
                 });
                 const runtime = service.createRuntime(makeRuntimeContext());
 
@@ -1095,22 +1105,26 @@ describe('AiAgentToolsService', () => {
                     database,
                 });
 
-                expect(getWarehouseFields).toHaveBeenCalledWith(
+                expect(describeWarehouseTable).toHaveBeenCalledWith(
                     user,
                     projectUuid,
                     QueryExecutionContext.AI,
-                    'orders',
-                    'jaffle',
-                    'postgres3',
+                    {
+                        tableName: 'orders',
+                        schemaName: 'jaffle',
+                        databaseName: 'postgres3',
+                    },
                     QuerySurface.SLACK,
                 );
             },
         );
 
         it('uses the Databricks catalog and schema defaults', async () => {
-            const getWarehouseFields = vi.fn().mockResolvedValue({
+            const describeWarehouseTable = vi.fn().mockResolvedValue({
                 fields: { customer_id: DimensionType.STRING },
                 nativeTypes: {},
+                partitioning: null,
+                warehouseType: WarehouseTypes.POSTGRES,
             });
             const service = makeService({
                 projectModel: {
@@ -1123,19 +1137,21 @@ describe('AiAgentToolsService', () => {
                             database: 'analytics',
                         }),
                 },
-                projectService: { getWarehouseFields },
+                projectService: { describeWarehouseTable },
             });
             const runtime = service.createRuntime(makeRuntimeContext());
 
             await runtime.describeWarehouseTable({ table: 'orders' });
 
-            expect(getWarehouseFields).toHaveBeenCalledWith(
+            expect(describeWarehouseTable).toHaveBeenCalledWith(
                 user,
                 projectUuid,
                 QueryExecutionContext.AI,
-                'orders',
-                'analytics',
-                'main',
+                {
+                    tableName: 'orders',
+                    schemaName: 'analytics',
+                    databaseName: 'main',
+                },
                 QuerySurface.SLACK,
             );
         });
