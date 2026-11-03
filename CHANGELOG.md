@@ -1,3 +1,10 @@
+# [3.139.0](https://github.com/lightdash/lightdash/compare/3.138.0...3.139.0) (2026-11-03)
+
+
+### Features
+
+* **backend:** compile GA4 and Search Console metric queries ([#32009](https://github.com/lightdash/lightdash/issues/32009)) ([7948160](https://github.com/lightdash/lightdash/commit/7948160c97d109e510df76b8466059790847f65e)), closes [#32008](https://github.com/lightdash/lightdash/issues/32008)
+
 # [3.138.0](https://github.com/lightdash/lightdash/compare/3.137.1...3.138.0) (2026-11-03)
 
 
