@@ -128,7 +128,9 @@ const FilterMultiStringInput: FC<Props> = ({
             onClose={() => {
                 setPastePopUpOpened(false);
                 setTempPasteValues(undefined);
-                handleResetSearch();
+                // Now, not deferred: a press outside blurs the input next, and its
+                // blur would commit the pasted text as one value
+                setSearch('');
             }}
             onMultiValue={() => {
                 if (!tempPasteValues) {
