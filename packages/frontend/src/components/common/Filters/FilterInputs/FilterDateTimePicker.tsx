@@ -160,8 +160,7 @@ const FilterDateTimePicker: FC<Props> = ({
                             size="xs"
                             w="100%"
                             miw={185}
-                            // Inside the invalid-value popover, or a press in
-                            // it would close that popover
+                            // Render inside the outer popover so picks don't dismiss it
                             popoverProps={{ withinPortal: false }}
                             placeholder={invalidValue}
                             valueFormat={displayFormat}

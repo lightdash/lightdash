@@ -452,8 +452,7 @@ const FilterStringAutoComplete: FC<Props> = ({
                 onClose={() => {
                     setPastePopUpOpened(false);
                     setTempPasteValues(undefined);
-                    // Now, not deferred: a press outside blurs the input next, and its
-                    // blur would commit the pasted text as one value
+                    // Clear now so the blur that follows doesn't commit the pasted text
                     setSearch('');
                 }}
                 onMultiValue={() => {

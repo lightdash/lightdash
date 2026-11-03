@@ -101,7 +101,7 @@ const FilterMultiDatePicker: FC<Props> = ({
 
     const handleKeyDown = useCallback(
         (event: KeyboardEvent<HTMLInputElement>) => {
-            // Focus stays here, so the calendar's own Escape never fires
+            // Handle Escape here: focus stays on the input
             if (event.key === 'Escape' && opened) {
                 event.preventDefault();
                 close();
@@ -199,8 +199,7 @@ const FilterMultiDatePicker: FC<Props> = ({
                             onFocus={openPopover}
                             onBlur={commitSearch}
                             onKeyDown={handleKeyDown}
-                            // As Mantine's own lists do: a host Modal leaves
-                            // this Escape
+                            // Keeps a host modal open while this popover is open
                             data-mantine-stop-propagation={opened || undefined}
                         />
                     </Pill.Group>

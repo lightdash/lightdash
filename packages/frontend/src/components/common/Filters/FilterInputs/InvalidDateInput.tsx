@@ -50,11 +50,10 @@ const InvalidDateInput: FC<Props> = ({
                     readOnly
                     classNames={{ input: classes.input }}
                     onClick={openPopover}
-                    // As Mantine's own lists do: a host Modal leaves this Escape
+                    // Keeps a host modal open while this popover is open
                     data-mantine-stop-propagation={opened || undefined}
                     onKeyDown={(event) => {
                         if (event.key !== 'Escape' || !opened) return;
-                        // Consumed, so a host modal stays open
                         event.preventDefault();
                         closePopover();
                     }}
