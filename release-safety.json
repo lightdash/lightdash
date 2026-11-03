@@ -1,28 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "3.129.0",
-  "previousVersion": "3.128.7",
-  "releaseDate": "2026-11-03T10:56:31.539Z",
+  "version": "3.130.1",
+  "previousVersion": "3.130.0",
+  "releaseDate": "2026-11-03T11:43:27.639Z",
   "migrations": {
-    "present": true,
-    "count": 1,
-    "coreCount": 1,
+    "present": false,
+    "count": 0,
+    "coreCount": 0,
     "eeCount": 0,
-    "files": [
-      {
-        "name": "20261030100000_create_usage_processing_status.ts",
-        "edition": "core",
-        "tables": [
-          "organizations",
-          "usage_processing_status"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": true
-        }
-      }
-    ]
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,

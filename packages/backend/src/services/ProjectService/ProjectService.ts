@@ -100,6 +100,7 @@ import {
     getAiExecutionCredentialUuid,
     getAvailableParametersFromTables,
     getBigqueryKeyfileCredentials,
+    getCatalogTableNativeTypes,
     getColumnTimezone,
     getCompiledModels,
     getCustomSqlFieldKey,
@@ -15276,7 +15277,10 @@ export class ProjectService
         schemaName?: string,
         databaseName?: string,
         querySurface?: QuerySurface,
-    ): Promise<WarehouseTableSchema> {
+    ): Promise<{
+        fields: WarehouseTableSchema;
+        nativeTypes: Record<string, string>;
+    }> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
         const auditedAbility = this.createAuditedAbility(user);
@@ -15359,7 +15363,17 @@ export class ProjectService
                             ?.agentConnectionExecution
                     )
                         await this.assertConnectionDiscovery(user, projectUuid);
-                    return warehouseCatalog[database][schemaName][tableName];
+                    return {
+                        fields: warehouseCatalog[database][schemaName][
+                            tableName
+                        ],
+                        nativeTypes: getCatalogTableNativeTypes(
+                            warehouseCatalog,
+                            database,
+                            schemaName,
+                            tableName,
+                        ),
+                    };
                 } catch (error) {
                     this.logger.error('Error fetching warehouse fields', {
                         error,

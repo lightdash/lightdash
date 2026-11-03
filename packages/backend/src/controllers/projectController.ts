@@ -14,6 +14,7 @@ import {
     ApiDashboardAsCodeUpsertResponse,
     ApiDataTimezonePreview,
     ApiErrorPayload,
+    ApiExploresResultsCacheInvalidationResponse,
     ApiGetProjectGroupAccesses,
     ApiGetProjectMemberResponse,
     ApiGoogleSheetsSyncAsCodeListResponse,
@@ -84,6 +85,7 @@ import {
     type CreateDashboardWithCharts,
     type DataTimezonePreviewRequest,
     type DuplicateDashboardParams,
+    type InvalidateExploresResultsCache,
     type MergeQuery,
     type MergeQueryColumns,
     type MergeQueryError,
@@ -1594,6 +1596,53 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
             .invalidateProjectResultsCache(
                 toSessionUser(req.account),
                 projectUuid,
+            );
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * Invalidate the cached query results of the listed explores. The next run
+     * of each query against them executes against the warehouse, and results
+     * from other explores stay cached. Queries that share a cache key are
+     * invalidated too. Query history and existing result files are kept.
+     * Requires project admin access.
+     *
+     * Only the listed explores are cleared by default. Set
+     * includeJoinedExplores to also clear every explore that reads the base
+     * table of a listed explore, for example by joining it. The response lists
+     * every explore that was cleared. Pre-aggregates are not rebuilt: refresh
+     * them as well, or queries routed to them keep returning the same data.
+     *
+     * Call this from a data pipeline once a load finishes, e.g.
+     * `curl -X POST -H "Authorization: ApiKey $LIGHTDASH_API_KEY"
+     * -H "Content-Type: application/json"
+     * -d '{"exploreNames":["orders","payments"]}'
+     * "$LIGHTDASH_URL/api/v1/projects/$PROJECT_UUID/results-cache/invalidate/explores"`
+     * @summary Invalidate explores results cache
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Invalidated')
+    @Post('{projectUuid}/results-cache/invalidate/explores')
+    @OperationId('invalidateExploresResultsCache')
+    async invalidateExploresResultsCache(
+        @Path() projectUuid: UUID,
+        @Body() body: InvalidateExploresResultsCache,
+        @Request() req: express.Request,
+    ): Promise<ApiExploresResultsCacheInvalidationResponse> {
+        assertRegisteredAccount(req.account);
+        const results = await this.services
+            .getAsyncQueryService()
+            .invalidateExploresResultsCache(
+                toSessionUser(req.account),
+                projectUuid,
+                body,
             );
         return {
             status: 'ok',

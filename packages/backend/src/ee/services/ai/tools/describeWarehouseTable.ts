@@ -52,9 +52,9 @@ export const getDescribeWarehouseTable = ({
                     {
                         qualifiedName,
                         columnCount: columns.length,
-                        columns: columns.map(({ name, type }) => ({
+                        columns: columns.map(({ name, type, nativeType }) => ({
                             name,
-                            type,
+                            type: nativeType ? `${type} (${nativeType})` : type,
                         })),
                     };
 

@@ -57,6 +57,9 @@ import { EventName } from '../../../types/Events';
 import { BetaBadge } from '../../common/BetaBadge';
 import MantineIcon from '../../common/MantineIcon';
 import PageBreadcrumbs from '../../common/PageBreadcrumbs';
+import { ClearCachedResultsMenuItem } from '../../ProjectResultsCache/ClearCachedResultsMenuItem';
+import { ClearExploreCacheModal } from '../../ProjectResultsCache/ClearExploreCacheModal';
+import { useCanClearCachedResults } from '../../ProjectResultsCache/useCanClearCachedResults';
 import ExploreTree from '../ExploreTree';
 import LoadingSkeleton from '../ExploreTree/LoadingSkeleton';
 import { ItemDetailProvider } from '../ExploreTree/TableTree/ItemDetailProvider';
@@ -75,9 +78,11 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
         useState(false);
     const [isVirtualViewAsCodeOpen, virtualViewAsCodeModalHandlers] =
         useDisclosure();
+    const [isClearCacheOpen, clearCacheModalHandlers] = useDisclosure();
     const [, startTransition] = useTransition();
 
     const projectUuid = useProjectUuid();
+    const canClearCache = useCanClearCachedResults(projectUuid);
     const merge = useMergeSafe();
     const additionalSource = merge?.additionalSources[0];
     const [isChoosingMergeExplore, setIsChoosingMergeExplore] = useState(
@@ -283,7 +288,9 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                         )}
                     </Group>
                     {explore.type !== ExploreType.EXTERNAL_SOURCE &&
-                        (canMergeAnotherQuery || hasVirtualViewActions) && (
+                        (canMergeAnotherQuery ||
+                            hasVirtualViewActions ||
+                            canClearCache) && (
                             <Menu withArrow offset={-2}>
                                 <Menu.Target>
                                     {/* Two literal triggers: the tour generator reads anchors and hints from source. */}
@@ -361,6 +368,20 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                                             >
                                                 View as code
                                             </Menu.Item>
+                                        </>
+                                    )}
+                                    {canClearCache && (
+                                        <>
+                                            {(canMergeAnotherQuery ||
+                                                hasVirtualViewActions) && (
+                                                <Menu.Divider />
+                                            )}
+                                            <ClearCachedResultsMenuItem
+                                                projectUuid={projectUuid}
+                                                onClick={
+                                                    clearCacheModalHandlers.open
+                                                }
+                                            />
                                         </>
                                     )}
                                     {isVirtualView && canDeleteVirtualView && (
@@ -452,6 +473,13 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                         onClose={() => setIsDeleteVirtualViewOpen(false)}
                         virtualViewName={activeTableName}
                         projectUuid={projectUuid}
+                    />
+                )}
+                {projectUuid && isClearCacheOpen && (
+                    <ClearExploreCacheModal
+                        projectUuid={projectUuid}
+                        exploreName={explore.name}
+                        onClose={clearCacheModalHandlers.close}
                     />
                 )}
                 {projectUuid && isVirtualViewAsCodeOpen && (

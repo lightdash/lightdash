@@ -656,11 +656,63 @@ export class QueryHistoryModel {
                 requestParameterKey,
                 content.identifiers,
             ]);
+        return this.invalidateCachedResultsByCacheKeys(
+            projectUuid,
+            contentCacheKeys,
+        );
+    }
+
+    /**
+     * Stops results produced for these explores from being served as cache
+     * hits, including any other query that shares their cache key.
+     */
+    async invalidateCachedResultsForExplores(
+        projectUuid: string,
+        exploreNames: string[],
+        createdSince: Date,
+    ): Promise<number> {
+        // The key is a literal so this matches the expression index
+        const exploreCacheKeys = this.database(QueryHistoryTableName)
+            .distinct('cache_key')
+            .where('project_uuid', projectUuid)
+            .andWhere('created_at', '>', createdSince)
+            .whereRaw(`metric_query->>'exploreName' = ANY(?)`, [exploreNames]);
+        return this.invalidateCachedResultsByCacheKeys(
+            projectUuid,
+            exploreCacheKeys,
+        );
+    }
+
+    private async invalidateCachedResultsByCacheKeys(
+        projectUuid: string,
+        cacheKeys: Knex.QueryBuilder,
+    ): Promise<number> {
         return this.database(QueryHistoryTableName)
             .where('project_uuid', projectUuid)
             .whereNull('cache_invalidated_at')
-            .whereIn('cache_key', contentCacheKeys)
+            .whereIn('cache_key', cacheKeys)
             .update({ cache_invalidated_at: new Date() });
+    }
+
+    /**
+     * A cache hit found before a clear can insert its row after it, so the row
+     * takes the source's invalidation to avoid reviving the cleared results.
+     */
+    async inheritCacheInvalidation(
+        queryUuid: string,
+        sourceQueryUuid: string,
+        projectUuid: string,
+    ): Promise<void> {
+        await this.database(QueryHistoryTableName)
+            .where('query_uuid', queryUuid)
+            .andWhere('project_uuid', projectUuid)
+            .whereNull('cache_invalidated_at')
+            .update({
+                cache_invalidated_at: this.database(QueryHistoryTableName)
+                    .select('cache_invalidated_at')
+                    .where('query_uuid', sourceQueryUuid)
+                    .andWhere('project_uuid', projectUuid) as unknown as Date,
+            });
     }
 
     async getByQueryUuid(queryUuid: string): Promise<QueryHistory | undefined> {

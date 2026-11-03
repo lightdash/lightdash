@@ -248,6 +248,8 @@ export type DashboardControlSection = {
     name: string;
     /** Starts folded in the rail and on the bar; absent, the bar folds only a dense section */
     collapsed?: boolean;
+    /** Sits on the bar line of the section before it; absent, starts a line of its own */
+    inline?: boolean;
 };
 
 export type DateZoomConfig = {
