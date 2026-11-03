@@ -12240,7 +12240,7 @@ describe('AsyncQueryService', () => {
             type: WarehouseTypes.REDSHIFT,
             host: 'redshift.example.com',
             user: 'analytics',
-            password: 'password',
+            password: 'test-password',
             port: 5439,
             dbname: 'warehouse',
             schema: 'public',
