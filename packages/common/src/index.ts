@@ -40,6 +40,7 @@ import { formatItemValue } from './utils/formatting';
 import { getItemId, getItemLabelWithoutTableName } from './utils/item';
 import { getOrganizationNameSchema } from './utils/organization';
 import { timeFrameConfigs } from './utils/timeFrames';
+import { validateUserName } from './utils/userName';
 import type { PivotValuesColumn } from './visualizations/types';
 
 dayjs.extend(utc);
@@ -390,6 +391,7 @@ export * from './types/tags';
 export * from './types/timeFrames';
 export * from './types/timezone';
 export * from './types/user';
+export { validateUserName } from './utils/userName';
 export * from './types/userAvatars';
 export * from './types/userAttributes';
 export * from './types/userOnboarding';
@@ -505,8 +507,6 @@ export const validateEmail = (email: string): boolean => {
         /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
     return re.test(String(email).toLowerCase());
 };
-
-export const validateUserName = (name: string): boolean => !/[<>]/u.test(name);
 
 export const getUserNameSchema = () =>
     z.string().trim().min(1, { message: 'Required' }).refine(validateUserName, {

@@ -47,6 +47,9 @@ const params = {
 
 const createUserService = () => ({
     storeOAuthGrant: vi.fn<UserService['storeOAuthGrant']>(async () => {}),
+    fillMissingNamesFromGoogle: vi.fn<
+        UserService['fillMissingNamesFromGoogle']
+    >(async (sessionUser) => sessionUser),
     loginWithOpenId: vi.fn<UserService['loginWithOpenId']>(async () => user),
     createBigqueryWarehouseCredentials: vi.fn<
         UserService['createBigqueryWarehouseCredentials']
@@ -152,5 +155,44 @@ describe('googleStrategyVerify', () => {
             ['openid', 'email', 'https://www.googleapis.com/auth/bigquery'],
             expect.any(Object),
         );
+    });
+
+    it('fills blank names from Google when connecting Google while signed in', async () => {
+        const userService = createUserService();
+        const namelessUser = { ...user, firstName: '', lastName: '' };
+        const filledUser = {
+            ...user,
+            firstName: 'Shared',
+            lastName: 'Account',
+        };
+        userService.fillMissingNamesFromGoogle.mockResolvedValueOnce(
+            filledUser,
+        );
+        const done = vi.fn<VerifyCallback>();
+        const req = {
+            session: { oauth: { intent: 'link' } },
+            user: namelessUser,
+            services: { getUserService: () => userService },
+        } as unknown as Express.Request;
+
+        await googleStrategyVerify(
+            req,
+            'access-token',
+            'refresh-token',
+            params,
+            profile,
+            done,
+        );
+
+        expect(userService.fillMissingNamesFromGoogle).toHaveBeenCalledWith(
+            namelessUser,
+            expect.objectContaining({
+                firstName: 'Shared',
+                lastName: 'Account',
+                issuerType: OpenIdIdentityIssuerType.GOOGLE,
+            }),
+        );
+        expect(userService.loginWithOpenId).not.toHaveBeenCalled();
+        expect(done).toHaveBeenCalledWith(null, filledUser);
     });
 });

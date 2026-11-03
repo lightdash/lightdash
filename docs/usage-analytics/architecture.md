@@ -139,6 +139,15 @@ engine limit, and streams uploads with one 8 MB part in flight. See
 for resource limits, retries and operational caveats. Reader resource settings
 below apply to interactive queries, not this background export.
 
+Scheduled processing includes only organizations with a managed Analytics project
+(`provisioning_source = 'analytics'); feature-flag checks still apply. Regular,
+preview and playground projects alone do not qualify. Raw event capture continues
+for other organizations, but their events are not processed by scheduled runs.
+Creating Analytics still queues explicit organization-scoped initial processing
+and makes the organization eligible for future nightly runs. Explicit recovery
+runs remain available. Initial and nightly processing retain the seven-day window;
+older raw events are not automatically backfilled on activation.
+
 ### Project creation and models
 
 [`ProjectService.ensureAnalyticsProject`](../../packages/backend/src/services/ProjectService/ProjectService.ts)
@@ -167,7 +176,8 @@ derives dimensions from the compacted schemas and metrics from
 It explicitly includes `query_events`, `ai_usage`, `data_app_events` and
 `export_events`; registering another writer stream does not expose another
 explore automatically. Query Events joins Charts, Dashboards and Users; AI Usage
-joins Users and Agents; the other models join Users. These optional many-to-one
+joins Users and Agents; event models can join Users. Content inventory reads only
+the current `lightdash_content` snapshot, without user or event joins. These optional many-to-one
 LEFT joins match organization and
 entity ID, preserving events whose lookup is missing. Compiled models
 refer to table names, not signed URLs. SQL and aggregations are generated from

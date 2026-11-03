@@ -45,10 +45,7 @@ import {
     hasBlockingCompileError,
     stripWarehouseColumnErrors,
 } from './compile';
-import {
-    createProject,
-    resolveOrganizationCredentialsName,
-} from './createProject';
+import { createProject } from './createProject';
 import {
     checkLightdashVersion,
     lightdashApi,
@@ -80,7 +77,6 @@ type DeployHandlerOptions = DbtCompileOptions & {
     ignoreErrors: boolean;
     startOfWeek?: number;
     warehouseCredentials?: boolean;
-    organizationCredentials?: string;
     assumeYes?: boolean;
     batchedDeploy?: boolean;
     batchSize?: string;
@@ -810,22 +806,6 @@ export const deployHandler = async (originalOptions: DeployHandlerOptions) => {
     options.warehouseCredentials = projectTypeConfig.warehouseCredentials;
     options.skipDbtCompile = projectTypeConfig.skipDbtCompile;
     options.skipWarehouseCatalog = projectTypeConfig.skipWarehouseCatalog;
-
-    // Resolve organization credentials early before doing any heavy work
-    if (options.organizationCredentials) {
-        try {
-            await resolveOrganizationCredentialsName(
-                options.organizationCredentials,
-            );
-        } catch (error) {
-            console.error(
-                styles.error(
-                    error instanceof Error ? error.message : 'Unknown error',
-                ),
-            );
-            process.exit(1);
-        }
-    }
 
     // Only check dbt version for dbt projects (YAML-only projects don't need dbt)
     // For YAML-only projects, we return success: false to indicate dbt wasn't checked,

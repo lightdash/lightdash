@@ -36,7 +36,6 @@ import { DatabaseError } from 'pg';
 import { type LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { trackSafely } from '../../analytics/trackSafely';
 import { type DbtSourceRefCatalogModel } from '../../models/DbtSourceRefCatalogModel';
-import { OrganizationWarehouseCredentialsModel } from '../../models/OrganizationWarehouseCredentialsModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { type UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import {
@@ -47,6 +46,7 @@ import {
 } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import { logCrossSourceCacheError } from '../../projectAdapters/crossSourceCatalogCache';
 import { inheritUpstreamSshTunnelPrivateKey } from '../../utils/inheritUpstreamSshTunnelPrivateKey';
+import { stripSensitiveWarehouseCredentials } from '../../utils/stripSensitiveWarehouseCredentials';
 import { BaseService } from '../BaseService';
 import { type FeatureFlagService } from '../FeatureFlag/FeatureFlagService';
 import { type LicenseService } from '../LicenseService/LicenseService';
@@ -76,7 +76,6 @@ export type WarehouseCredentialPolicy = {
         >,
         data: {
             warehouseConnection?: CreateWarehouseCredentials;
-            organizationWarehouseCredentialsUuid?: string;
         },
     ) => void;
     testWarehouseConnectionCredentialsForSave: (
@@ -344,7 +343,7 @@ export class WarehouseConnectionService extends BaseService {
         credentials: CreateWarehouseCredentials,
         operation: 'add' | 'update',
         warehouseConnectionUuid: string | null,
-        credentialSource: 'project' | 'organization',
+        credentialSource: 'project',
     ): Promise<CreateWarehouseCredentials> {
         let result: WarehouseConnectionTestResults;
         let resolvedCredentials: CreateWarehouseCredentials;
@@ -409,19 +408,13 @@ export class WarehouseConnectionService extends BaseService {
         project: WarehouseConnectionProject,
         source: WarehouseConnectionCredentialSource,
     ): Promise<CreateWarehouseCredentials> {
-        return source.kind === 'project'
-            ? source.credentials
-            : this.warehouseConnectionModel.loadOrganizationCredentials(
-                  project.organizationUuid,
-                  source.organizationWarehouseCredentialsUuid,
-              );
+        return source.credentials;
     }
 
     private async inheritPrimaryCredentialRequirement(
         projectUuid: string,
         source: WarehouseConnectionCredentialSource,
     ): Promise<WarehouseConnectionCredentialSource> {
-        if (source.kind === 'organization') return source;
         const originalCredentials =
             await this.projectModel.getWarehouseCredentialsForProject(
                 projectUuid,
@@ -431,15 +424,13 @@ export class WarehouseConnectionService extends BaseService {
                 'Internal analytics connections cannot be added as extra connections.',
             );
         }
+        const requireUserCredentials =
+            originalCredentials.type === source.credentials.type
+                ? originalCredentials.requireUserCredentials
+                : (source.credentials.requireUserCredentials ?? false);
         return {
             kind: 'project',
-            credentials: {
-                ...source.credentials,
-                requireUserCredentials:
-                    originalCredentials.type === source.credentials.type
-                        ? originalCredentials.requireUserCredentials
-                        : (source.credentials.requireUserCredentials ?? false),
-            },
+            credentials: { ...source.credentials, requireUserCredentials },
         };
     }
 
@@ -458,10 +449,6 @@ export class WarehouseConnectionService extends BaseService {
             summary,
             {
                 warehouseConnection: credentials ?? undefined,
-                organizationWarehouseCredentialsUuid:
-                    source?.kind === 'organization'
-                        ? source.organizationWarehouseCredentialsUuid
-                        : undefined,
             },
         );
     }
@@ -504,10 +491,9 @@ export class WarehouseConnectionService extends BaseService {
             await this.projectModel.getWarehouseCredentialsForProject(
                 projectUuid,
             );
-        const warehouseConnection =
-            OrganizationWarehouseCredentialsModel.stripSensitiveCredentials(
-                source.credentials,
-            );
+        const warehouseConnection = stripSensitiveWarehouseCredentials(
+            source.credentials,
+        );
         warehouseConnection.requireUserCredentials =
             getExtraConnectionRequireUserCredentials(
                 originalCredentials,
@@ -635,9 +621,7 @@ export class WarehouseConnectionService extends BaseService {
                     source,
                 ) === true,
             allowsOptionalUserCredentials: allowsOptionalUserCredentials(
-                OrganizationWarehouseCredentialsModel.stripSensitiveCredentials(
-                    source.credentials,
-                ),
+                stripSensitiveWarehouseCredentials(source.credentials),
             ),
             userWarehouseCredentials:
                 preferredUuid === null
@@ -697,21 +681,13 @@ export class WarehouseConnectionService extends BaseService {
     private static toCreateSource(
         request: ApiCreateWarehouseConnectionRequest,
     ): WarehouseConnectionCredentialSource {
-        if (
-            (request.warehouseConnection === undefined) ===
-            (request.organizationWarehouseCredentialsUuid === undefined)
-        ) {
+        if (request.organizationWarehouseCredentialsUuid != null)
             throw new ParameterError(
-                'Provide either warehouse credentials or an organization warehouse credential.',
+                'Organization warehouse credentials are no longer supported.',
             );
-        }
-        return request.organizationWarehouseCredentialsUuid !== undefined
-            ? {
-                  kind: 'organization',
-                  organizationWarehouseCredentialsUuid:
-                      request.organizationWarehouseCredentialsUuid,
-              }
-            : { kind: 'project', credentials: request.warehouseConnection! };
+        if (!request.warehouseConnection)
+            throw new ParameterError('Provide warehouse credentials.');
+        return { kind: 'project', credentials: request.warehouseConnection };
     }
 
     async create(
@@ -940,29 +916,11 @@ export class WarehouseConnectionService extends BaseService {
         summary: ProjectSummary,
         method: RequestMethod,
     ): Promise<WarehouseConnectionCredentialSource | null> {
-        if (
-            request.warehouseConnection !== undefined &&
-            request.organizationWarehouseCredentialsUuid !== undefined
-        ) {
-            throw new ParameterError(
-                'Provide either warehouse credentials or an organization warehouse credential.',
-            );
-        }
-        if (request.organizationWarehouseCredentialsUuid !== undefined) {
-            return {
-                kind: 'organization',
-                organizationWarehouseCredentialsUuid:
-                    request.organizationWarehouseCredentialsUuid,
-            };
-        }
         if (request.warehouseConnection !== undefined) {
-            const saved =
-                existing.organizationWarehouseCredentialsUuid === null
-                    ? await this.warehouseConnectionModel.getCredentials(
-                          project,
-                          existing.warehouseConnectionUuid,
-                      )
-                    : null;
+            const saved = await this.warehouseConnectionModel.getCredentials(
+                project,
+                existing.warehouseConnectionUuid,
+            );
             let credentials = request.warehouseConnection;
             let upstreamCredentials: CreateWarehouseCredentials | null = null;
             if (
@@ -1033,28 +991,16 @@ export class WarehouseConnectionService extends BaseService {
                 },
                 featureFlagId: FeatureFlags.MixedWarehouseConnections,
             });
-        this.assertCanWrite(
-            account,
-            summary,
-            request.organizationWarehouseCredentialsUuid !== undefined
-                ? {
-                      kind: 'organization',
-                      organizationWarehouseCredentialsUuid:
-                          request.organizationWarehouseCredentialsUuid,
-                  }
-                : null,
-            null,
-            mixedTypesEnabled,
-        );
+        this.assertCanWrite(account, summary, null, null, mixedTypesEnabled);
+        if (request.organizationWarehouseCredentialsUuid != null)
+            throw new ParameterError(
+                'Organization warehouse credentials are no longer supported.',
+            );
         const existing = await this.warehouseConnectionModel.get(
             project,
             warehouseConnectionUuid,
         );
-        if (
-            existing.isOriginal &&
-            (request.warehouseConnection !== undefined ||
-                request.organizationWarehouseCredentialsUuid !== undefined)
-        ) {
+        if (existing.isOriginal && request.warehouseConnection !== undefined) {
             await this.trackRefusal(
                 account,
                 summary.organizationUuid,
@@ -1082,15 +1028,7 @@ export class WarehouseConnectionService extends BaseService {
                   requestedSource,
               )
             : null;
-        const effectiveSource: WarehouseConnectionCredentialSource | null =
-            source ??
-            (existing.organizationWarehouseCredentialsUuid !== null
-                ? {
-                      kind: 'organization',
-                      organizationWarehouseCredentialsUuid:
-                          existing.organizationWarehouseCredentialsUuid,
-                  }
-                : null);
+        const effectiveSource = source;
         const credentials =
             source === null
                 ? null
@@ -1240,10 +1178,7 @@ export class WarehouseConnectionService extends BaseService {
                 warehouseConnectionId: updated.warehouseConnectionUuid,
                 warehouseType: updated.warehouseType,
                 connectionKind: updated.isOriginal ? 'primary' : 'extra',
-                credentialSource:
-                    updated.organizationWarehouseCredentialsUuid === null
-                        ? 'project'
-                        : 'organization',
+                credentialSource: 'project',
                 connectionCount,
                 listAllDatabases: updated.listAllDatabases,
                 additionalDatabaseCount: updated.additionalDatabases.length,
@@ -1298,10 +1233,7 @@ export class WarehouseConnectionService extends BaseService {
                     warehouseConnectionId: renamed.warehouseConnectionUuid,
                     warehouseType: renamed.warehouseType,
                     connectionKind: renamed.isOriginal ? 'primary' : 'extra',
-                    credentialSource:
-                        renamed.organizationWarehouseCredentialsUuid === null
-                            ? 'project'
-                            : 'organization',
+                    credentialSource: 'project',
                     connectionCount,
                     listAllDatabases: renamed.listAllDatabases,
                     additionalDatabaseCount: renamed.additionalDatabases.length,

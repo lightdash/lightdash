@@ -168,6 +168,10 @@
                     "mcp": []
                 }
             }
+        },
+        "organization-warehouse-credentials-api-retired": {
+            "reason": "The deprecated organization warehouse credential REST endpoints and CLI organization-credentials option are removed. Callers of those endpoints receive 404 and older CLI commands using that option must configure warehouse credentials on the project instead. Existing project credentials, personal sign-ins and service accounts retain their current behavior. Legacy storage and shared compatibility types remain unchanged.",
+            "requiredStop": false
         }
     }
 }

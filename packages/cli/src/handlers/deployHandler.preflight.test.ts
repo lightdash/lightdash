@@ -38,7 +38,6 @@ vi.mock('./compile', async (original) => ({
 }));
 vi.mock('./createProject', () => ({
     createProject: vi.fn(),
-    resolveOrganizationCredentialsName: vi.fn(),
 }));
 vi.mock('./dbt/apiClient', () => ({
     lightdashApi: vi.fn(),

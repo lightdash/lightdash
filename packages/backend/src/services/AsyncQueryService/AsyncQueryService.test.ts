@@ -41,6 +41,8 @@ import {
     getUserAttributeRegex,
     isMergeMetricSource,
     lightdashVariablePattern,
+    MAX_RESULTS_CACHE_INVALIDATION_EXPLORES,
+    MAX_RESULTS_CACHE_TTL_SECONDS,
     MergeJoinType,
     MergeQueryErrorKind,
     MetricType,
@@ -175,7 +177,6 @@ import type { JobModel } from '../../models/JobModel/JobModel';
 import type { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import type { OrganizationModel } from '../../models/OrganizationModel';
 import type { OrganizationSettingsModel } from '../../models/OrganizationSettingsModel';
-import { OrganizationWarehouseCredentialsModel } from '../../models/OrganizationWarehouseCredentialsModel';
 import type { ProjectCompileLogModel } from '../../models/ProjectCompileLogModel';
 import type { ProjectDbtSourcesModel } from '../../models/ProjectDbtSourcesModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -396,6 +397,12 @@ const projectModel = {
     get: vi.fn(async () => projectWithSensitiveFields),
     getSummary: vi.fn(async () => projectSummary),
     getEffectiveResultsCacheTtlSeconds: vi.fn(async () => 86400),
+    findExistingExploreNames: vi.fn(
+        async (_projectUuid: string, exploreNames: string[]) => exploreNames,
+    ),
+    findExploreNamesReadingBaseTables: vi.fn(
+        async (_projectUuid: string, exploreNames: string[]) => exploreNames,
+    ),
     getResultsCacheSettings: vi.fn(async () => ({
         cacheTtlSeconds: null,
         cacheGeneration: 0,
@@ -409,7 +416,6 @@ const projectModel = {
     getQueryTimezone: vi.fn(async () => 'UTC'),
     getExploreFromCache: vi.fn(async () => validExplore),
     getProjectWarehouseConfig: vi.fn(async () => ({
-        organizationWarehouseCredentialsUuid: null,
         queryTimezone: null,
     })),
     findExploresFromCache: vi.fn(async () => allExplores),
@@ -508,6 +514,7 @@ const inMemoryDuckdbHistory = ({
         ),
         recordAiSignInCredential: vi.fn(),
         recordResultProducer: vi.fn(),
+        inheritCacheInvalidation: vi.fn(),
         update: vi.fn(),
         ...overrides,
     };
@@ -642,6 +649,8 @@ const getMockedAsyncQueryService = (
             getDuckdbExecution: vi.fn(async () => null),
             recordAiSignInCredential: vi.fn(),
             recordResultProducer: vi.fn(),
+            inheritCacheInvalidation: vi.fn(),
+            invalidateCachedResultsForExplores: vi.fn(async () => 1),
             update: vi.fn(),
             updateStatusToError: vi.fn(async () => 1),
             updateClaimedQueryToError: vi.fn(async () => 1),
@@ -692,8 +701,6 @@ const getMockedAsyncQueryService = (
         projectParametersModel: {
             find: vi.fn(async () => []),
         } as unknown as ProjectParametersModel,
-        organizationWarehouseCredentialsModel:
-            {} as OrganizationWarehouseCredentialsModel,
         organizationModel: {} as OrganizationModel,
         pivotTableService: new PivotTableService({
             lightdashConfig,
@@ -1089,6 +1096,224 @@ describe('underlying data dimension selection', () => {
 });
 
 describe('AsyncQueryService', () => {
+    describe('invalidateExploresResultsCache', () => {
+        const projectAdmin: SessionUser = {
+            ...defaultSessionUser,
+            ability: new Ability<PossibleAbilities>([
+                { subject: 'Project', action: ['manage'] },
+            ]),
+        };
+        const getCachingService = () =>
+            getMockedAsyncQueryService({
+                ...lightdashConfigMock,
+                results: {
+                    ...lightdashConfigMock.results,
+                    cacheEnabled: true,
+                },
+            });
+
+        test('marks the deduplicated explores within the max TTL window', async () => {
+            const service = getCachingService();
+            const track = vi.spyOn(analyticsMock, 'track');
+            vi.mocked(track).mockClear();
+
+            const result = await service.invalidateExploresResultsCache(
+                projectAdmin,
+                projectUuid,
+                { exploreNames: ['orders', 'payments', 'orders'] },
+            );
+
+            expect(result).toEqual({
+                projectUuid,
+                invalidatedAt: expect.any(Date),
+                exploreNames: ['orders', 'payments'],
+            });
+            const [calledProject, calledNames, createdSince] = vi.mocked(
+                service.queryHistoryModel.invalidateCachedResultsForExplores,
+            ).mock.calls[0];
+            expect(calledProject).toBe(projectUuid);
+            expect(calledNames).toEqual(['orders', 'payments']);
+            expect(
+                result.invalidatedAt.getTime() - createdSince.getTime(),
+            ).toBe(MAX_RESULTS_CACHE_TTL_SECONDS * 1000);
+            expect(track).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    event: 'results_cache.invalidated',
+                    properties: expect.objectContaining({
+                        scope: 'explores',
+                        exploreNames: ['orders', 'payments'],
+                    }),
+                }),
+            );
+        });
+
+        test('rejects users who cannot manage the project', async () => {
+            const service = getCachingService();
+
+            await expect(
+                service.invalidateExploresResultsCache(
+                    {
+                        ...defaultSessionUser,
+                        ability: new Ability<PossibleAbilities>([]),
+                    },
+                    projectUuid,
+                    { exploreNames: ['orders'] },
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            expect(
+                service.queryHistoryModel.invalidateCachedResultsForExplores,
+            ).not.toHaveBeenCalled();
+        });
+
+        test('rejects invalidation while results caching is disabled', async () => {
+            const service = getMockedAsyncQueryService({
+                ...lightdashConfigMock,
+                results: {
+                    ...lightdashConfigMock.results,
+                    cacheEnabled: false,
+                },
+            });
+
+            await expect(
+                service.invalidateExploresResultsCache(
+                    projectAdmin,
+                    projectUuid,
+                    { exploreNames: ['orders'] },
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            expect(
+                service.queryHistoryModel.invalidateCachedResultsForExplores,
+            ).not.toHaveBeenCalled();
+        });
+
+        test.each([
+            ['an empty list', []],
+            [
+                'too many explores',
+                Array.from(
+                    { length: MAX_RESULTS_CACHE_INVALIDATION_EXPLORES + 1 },
+                    (_, index) => `explore_${index}`,
+                ),
+            ],
+        ])('rejects %s', async (_name, exploreNames) => {
+            const service = getCachingService();
+
+            await expect(
+                service.invalidateExploresResultsCache(
+                    projectAdmin,
+                    projectUuid,
+                    { exploreNames },
+                ),
+            ).rejects.toThrow(ParameterError);
+            expect(
+                service.queryHistoryModel.invalidateCachedResultsForExplores,
+            ).not.toHaveBeenCalled();
+        });
+
+        test('expands to explores reading the same table only when asked', async () => {
+            const service = getCachingService();
+            const findReaders = vi.mocked(
+                projectModel.findExploreNamesReadingBaseTables,
+            );
+            findReaders.mockClear();
+            findReaders.mockResolvedValueOnce(['orders', 'customers']);
+
+            await expect(
+                service.invalidateExploresResultsCache(
+                    projectAdmin,
+                    projectUuid,
+                    { exploreNames: ['orders'], includeJoinedExplores: true },
+                ),
+            ).resolves.toMatchObject({
+                exploreNames: ['orders', 'customers'],
+            });
+            expect(
+                vi.mocked(
+                    service.queryHistoryModel
+                        .invalidateCachedResultsForExplores,
+                ).mock.calls[0][1],
+            ).toEqual(['orders', 'customers']);
+
+            findReaders.mockClear();
+            await expect(
+                service.invalidateExploresResultsCache(
+                    projectAdmin,
+                    projectUuid,
+                    { exploreNames: ['orders'] },
+                ),
+            ).resolves.toMatchObject({ exploreNames: ['orders'] });
+            expect(findReaders).not.toHaveBeenCalled();
+        });
+
+        test('clears nothing when any explore is unknown', async () => {
+            const service = getCachingService();
+            vi.mocked(
+                projectModel.findExistingExploreNames,
+            ).mockResolvedValueOnce(['orders']);
+
+            await expect(
+                service.invalidateExploresResultsCache(
+                    projectAdmin,
+                    projectUuid,
+                    { exploreNames: ['orders', 'renamed'] },
+                ),
+            ).rejects.toThrow('Explores not found: renamed');
+            expect(
+                service.queryHistoryModel.invalidateCachedResultsForExplores,
+            ).not.toHaveBeenCalled();
+        });
+    });
+
+    test('a cache hit inherits the invalidation of its source before landing', async () => {
+        const service = getMockedAsyncQueryService(lightdashConfigMock);
+        vi.spyOn(service, 'findResultsCache').mockResolvedValue({
+            queryUuid: 'source-query',
+            resultProducer: null,
+            cacheHit: true,
+            cacheGeneration: 0,
+            cacheKey: 'cache',
+            totalRowCount: 10,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            expiresAt: new Date(),
+            fileName: 'file',
+            columns: expectedColumns,
+            originalColumns: expectedColumns,
+            pivotValuesColumns: null,
+            pivotTotalColumnCount: null,
+        });
+
+        await service['executeAsyncQuery'](
+            {
+                inheritedFromProjectUuid: null,
+                aiPrincipalUuid: null,
+                account: sessionAccount,
+                projectUuid,
+                context: QueryExecutionContext.EXPLORE,
+                queryTags: {
+                    query_context: QueryExecutionContext.EXPLORE,
+                },
+                queryComposer: createQueryComposerMock(),
+                warehouseCredentials: warehouseCredentialsMock,
+                warehouseConnectionUuid: null,
+            },
+            { query: metricQueryMock },
+        );
+
+        const inherit = vi.mocked(
+            service.queryHistoryModel.inheritCacheInvalidation,
+        );
+        expect(inherit).toHaveBeenCalledWith(
+            'queryUuid',
+            'source-query',
+            projectUuid,
+        );
+        expect(inherit.mock.invocationCallOrder[0]).toBeLessThan(
+            vi.mocked(service.queryHistoryModel.update).mock
+                .invocationCallOrder[0],
+        );
+    });
+
     test('terminal query error carries explicit single-connection dimensions', async () => {
         const service = getMockedAsyncQueryService(lightdashConfigMock);
         const track = vi.spyOn(analyticsMock, 'track');
@@ -12083,7 +12308,6 @@ describe('AsyncQueryService', () => {
                 ...projectModel,
                 ...singleRouteProjectModelMethods,
                 getProjectWarehouseConfig: vi.fn(async () => ({
-                    organizationWarehouseCredentialsUuid: null,
                     queryTimezone: null,
                 })),
                 getWarehouseCredentialsForProject: vi.fn(async (uuid: string) =>
@@ -17700,16 +17924,18 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
                 agentUuid: 'trusted-artifact-agent',
                 agentIdentityEnabled: enabled,
             });
-            const executeQuery = () =>
-                service.executeAsyncMergeQuery({
-                    ...{ agentActor },
+            const executeQuery = () => {
+                const args = {
+                    agentActor,
                     account: sessionAccount,
                     projectUuid,
                     mergeQuery,
                     context: QueryExecutionContext.AI,
                     querySurface: QuerySurface.APP,
-                    mode: { type: 'interactive' },
-                });
+                    mode: { type: 'interactive' as const },
+                };
+                return service.executeAsyncMergeQuery(args);
+            };
             await agentExecutionContext.run(scope, executeQuery);
             expect(service.executeAsyncMetricQuery).toHaveBeenCalledTimes(2);
             for (const [args] of vi.mocked(service.executeAsyncMetricQuery).mock
@@ -20033,15 +20259,11 @@ describe('fresh stored result read boundary', () => {
             ).toHaveBeenCalledTimes(allowed ? 1 : 0);
         },
     );
-    test.each(['project', 'organization'] as const)(
+    test.each(['project'] as const)(
         '%s primary credentials keep producer compatibility across real cache loads and edits',
         async (kind) => {
             const f = setupRead();
             const fixtureProjectUuid = `round8-cache-${kind}`;
-            const organizationCredentialUuid =
-                kind === 'organization'
-                    ? 'round8-organization-credential'
-                    : null;
             const database = knex({ client: MockClient, dialect: 'pg' });
             const tracker = getTracker();
             tracker.reset();
@@ -20072,29 +20294,12 @@ describe('fresh stored result read boundary', () => {
                 project_id: 1,
                 warehouse_credentials_id: 8,
                 encrypted_credentials: Buffer.from(JSON.stringify(stored)),
-                organization_warehouse_credentials_uuid:
-                    organizationCredentialUuid,
                 organization_uuid: projectSummary.organizationUuid,
                 playground_bundle_version: null,
             });
             tracker.on
                 .select(/from "warehouse_credentials"/)
                 .response(() => [row()]);
-            tracker.on
-                .select('organization_warehouse_credentials')
-                .response(() => [
-                    {
-                        organization_warehouse_credentials_uuid:
-                            organizationCredentialUuid,
-                        organization_uuid: projectSummary.organizationUuid,
-                        warehouse_type: WarehouseTypes.POSTGRES,
-                        warehouse_connection: Buffer.from(
-                            JSON.stringify(stored),
-                        ),
-                        name: 'Fixture',
-                        description: null,
-                    },
-                ]);
             tracker.on.select('warehouse_connections').response([]);
             tracker.on.update('projects').response([{ project_id: 1 }]);
             tracker.on
@@ -20104,13 +20309,6 @@ describe('fresh stored result read boundary', () => {
                     if (encrypted && kind === 'project')
                         stored = decode(encrypted);
                     return [];
-                });
-            tracker.on
-                .update('organization_warehouse_credentials')
-                .response(({ bindings }) => {
-                    const encrypted = bindings.find(Buffer.isBuffer);
-                    if (encrypted) stored = decode(encrypted);
-                    return 1;
                 });
             const model = new ProjectModel({
                 database,
@@ -20136,8 +20334,7 @@ describe('fresh stored result read boundary', () => {
             const config = vi
                 .spyOn(f.service.projectModel, 'getProjectWarehouseConfig')
                 .mockResolvedValue({
-                    organizationWarehouseCredentialsUuid:
-                        organizationCredentialUuid,
+                    organizationWarehouseCredentialsUuid: null,
                     queryTimezone: null,
                 });
             vi.mocked(
@@ -20212,7 +20409,7 @@ describe('fresh stored result read boundary', () => {
                     tracker.history.select.filter(({ sql }) =>
                         sql.includes('"organization_warehouse_credentials"'),
                     ),
-                ).toHaveLength(kind === 'organization' ? 1 : 0);
+                ).toHaveLength(0);
                 expect(f.page).toHaveBeenCalledTimes(2);
                 expect(
                     f.service.resultsStorageClient.getDownloadStream,
@@ -20262,38 +20459,17 @@ describe('fresh stored result read boundary', () => {
                     ...stored,
                     password: 'replacement',
                 } as CreateWarehouseCredentials;
-                let changed: Awaited<ReturnType<typeof resolve>>;
-                if (organizationCredentialUuid) {
-                    const organizationModel =
-                        new OrganizationWarehouseCredentialsModel({
-                            database,
-                            encryptionUtil: encryption,
-                        });
-                    await organizationModel.update(organizationCredentialUuid, {
-                        credentials: edited,
-                    });
-                    expect(producer(await resolve())).toEqual(producer(cold));
-                    const time = vi
-                        .spyOn(Date, 'now')
-                        .mockReturnValue(Date.now() + 31_000);
-                    try {
-                        changed = await resolve();
-                    } finally {
-                        time.mockRestore();
-                    }
-                } else {
-                    await model.update(
-                        fixtureProjectUuid,
-                        {
-                            name: 'Fixture',
-                            dbtVersion: projectWithSensitiveFields.dbtVersion,
-                            dbtConnection: { type: DbtProjectType.NONE },
-                            warehouseConnection: edited,
-                        },
-                        null,
-                    );
-                    changed = await resolve();
-                }
+                await model.update(
+                    fixtureProjectUuid,
+                    {
+                        name: 'Fixture',
+                        dbtVersion: projectWithSensitiveFields.dbtVersion,
+                        dbtConnection: { type: DbtProjectType.NONE },
+                        warehouseConnection: edited,
+                    },
+                    null,
+                );
+                const changed = await resolve();
                 expect(producer(await resolve())).toEqual(producer(changed));
                 expect(
                     getWarehouseCredentialVersions(
@@ -21065,7 +21241,6 @@ describe('fresh stored result read boundary', () => {
                 projectUuid,
                 organizationUuid: projectSummary.organizationUuid,
                 credentials: preview,
-                organizationWarehouseCredentialsUuid: null,
                 warehouseConnectionUuid: null,
                 connectionRoute: null,
             },
@@ -24790,7 +24965,6 @@ describe('fresh execution producer to result reader', () => {
                 warehouse_type: WarehouseTypes.POSTGRES,
                 encrypted_credentials: Buffer.from(JSON.stringify(stored)),
                 credential_subject_user_uuid: null,
-                organization_warehouse_credentials_uuid: null,
                 playground_bundle_version: null,
             });
             tracker.on.select('warehouse_credentials').response(() => [row()]);
@@ -26032,7 +26206,6 @@ describe('fresh execution producer to result reader', () => {
             projectUuid,
             organizationUuid: projectSummary.organizationUuid,
             warehouseConnectionUuid: null,
-            organizationWarehouseCredentialsUuid: null,
             connectionRoute: null,
             credentials: f.client.credentials,
         });

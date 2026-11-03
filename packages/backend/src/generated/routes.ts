@@ -15,6 +15,8 @@ import { AwsWebIdentityController } from './../controllers/awsWebIdentityControl
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { BigquerySSOController } from './../controllers/bigquerySSOController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+import { BigqueryWorkloadIdentityController } from './../controllers/bigqueryWorkloadIdentityController';
+// WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { CatalogController } from './../controllers/catalogController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { CommentsController } from './../controllers/commentsController';
@@ -5968,6 +5970,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                inline: { dataType: 'boolean' },
                 collapsed: { dataType: 'boolean' },
                 name: { dataType: 'string', required: true },
                 id: { dataType: 'string', required: true },
@@ -23763,6 +23766,62 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AnalyticsProcessingStats: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                limitReached: { dataType: 'boolean', required: true },
+                userPartitionsDeferred: { dataType: 'double', required: true },
+                userPartitionsFailed: { dataType: 'double', required: true },
+                dimensionsFailed: { dataType: 'double', required: true },
+                rawObjectsDeleted: { dataType: 'double', required: true },
+                partitionsFailed: { dataType: 'double', required: true },
+                partitionsCompacted: { dataType: 'double', required: true },
+                partitionsDiscovered: { dataType: 'double', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AnalyticsProcessingStatus: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                stats: { ref: 'AnalyticsProcessingStats', required: true },
+                lastSuccessfulAt: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                finishedAt: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                startedAt: { dataType: 'string', required: true },
+                status: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'enum', enums: ['running'] },
+                        { dataType: 'enum', enums: ['success'] },
+                        { dataType: 'enum', enums: ['partial'] },
+                        { dataType: 'enum', enums: ['failed'] },
+                    ],
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AnalyticsProjectStatus: {
         dataType: 'refAlias',
         type: {
@@ -23774,6 +23833,13 @@ const models: TsoaRoute.Models = {
                         {
                             dataType: 'nestedObjectLiteral',
                             nestedProperties: {
+                                processing: {
+                                    dataType: 'union',
+                                    subSchemas: [
+                                        { ref: 'AnalyticsProcessingStatus' },
+                                        { dataType: 'enum', enums: [null] },
+                                    ],
+                                },
                                 hasContentUpdates: {
                                     dataType: 'boolean',
                                     required: true,
@@ -32800,6 +32866,24 @@ const models: TsoaRoute.Models = {
                                                     dataType:
                                                         'nestedObjectLiteral',
                                                     nestedProperties: {
+                                                        requiresSnowflakeReauthentication:
+                                                            {
+                                                                dataType:
+                                                                    'union',
+                                                                subSchemas: [
+                                                                    {
+                                                                        dataType:
+                                                                            'enum',
+                                                                        enums: [
+                                                                            true,
+                                                                        ],
+                                                                    },
+                                                                    {
+                                                                        dataType:
+                                                                            'undefined',
+                                                                    },
+                                                                ],
+                                                            },
                                                         refusal: {
                                                             dataType: 'union',
                                                             subSchemas: [
@@ -33072,6 +33156,24 @@ const models: TsoaRoute.Models = {
                                                     dataType:
                                                         'nestedObjectLiteral',
                                                     nestedProperties: {
+                                                        requiresSnowflakeReauthentication:
+                                                            {
+                                                                dataType:
+                                                                    'union',
+                                                                subSchemas: [
+                                                                    {
+                                                                        dataType:
+                                                                            'enum',
+                                                                        enums: [
+                                                                            true,
+                                                                        ],
+                                                                    },
+                                                                    {
+                                                                        dataType:
+                                                                            'undefined',
+                                                                    },
+                                                                ],
+                                                            },
                                                         refusal: {
                                                             dataType: 'union',
                                                             subSchemas: [
@@ -33344,6 +33446,24 @@ const models: TsoaRoute.Models = {
                                                     dataType:
                                                         'nestedObjectLiteral',
                                                     nestedProperties: {
+                                                        requiresSnowflakeReauthentication:
+                                                            {
+                                                                dataType:
+                                                                    'union',
+                                                                subSchemas: [
+                                                                    {
+                                                                        dataType:
+                                                                            'enum',
+                                                                        enums: [
+                                                                            true,
+                                                                        ],
+                                                                    },
+                                                                    {
+                                                                        dataType:
+                                                                            'undefined',
+                                                                    },
+                                                                ],
+                                                            },
                                                         refusal: {
                                                             dataType: 'union',
                                                             subSchemas: [
@@ -33616,6 +33736,24 @@ const models: TsoaRoute.Models = {
                                                     dataType:
                                                         'nestedObjectLiteral',
                                                     nestedProperties: {
+                                                        requiresSnowflakeReauthentication:
+                                                            {
+                                                                dataType:
+                                                                    'union',
+                                                                subSchemas: [
+                                                                    {
+                                                                        dataType:
+                                                                            'enum',
+                                                                        enums: [
+                                                                            true,
+                                                                        ],
+                                                                    },
+                                                                    {
+                                                                        dataType:
+                                                                            'undefined',
+                                                                    },
+                                                                ],
+                                                            },
                                                         refusal: {
                                                             dataType: 'union',
                                                             subSchemas: [
@@ -34480,6 +34618,24 @@ const models: TsoaRoute.Models = {
                                                     dataType:
                                                         'nestedObjectLiteral',
                                                     nestedProperties: {
+                                                        requiresSnowflakeReauthentication:
+                                                            {
+                                                                dataType:
+                                                                    'union',
+                                                                subSchemas: [
+                                                                    {
+                                                                        dataType:
+                                                                            'enum',
+                                                                        enums: [
+                                                                            true,
+                                                                        ],
+                                                                    },
+                                                                    {
+                                                                        dataType:
+                                                                            'undefined',
+                                                                    },
+                                                                ],
+                                                            },
                                                         refusal: {
                                                             dataType: 'union',
                                                             subSchemas: [
@@ -35192,6 +35348,24 @@ const models: TsoaRoute.Models = {
                                                     dataType:
                                                         'nestedObjectLiteral',
                                                     nestedProperties: {
+                                                        requiresSnowflakeReauthentication:
+                                                            {
+                                                                dataType:
+                                                                    'union',
+                                                                subSchemas: [
+                                                                    {
+                                                                        dataType:
+                                                                            'enum',
+                                                                        enums: [
+                                                                            true,
+                                                                        ],
+                                                                    },
+                                                                    {
+                                                                        dataType:
+                                                                            'undefined',
+                                                                    },
+                                                                ],
+                                                            },
                                                         refusal: {
                                                             dataType: 'union',
                                                             subSchemas: [
@@ -35464,6 +35638,24 @@ const models: TsoaRoute.Models = {
                                                     dataType:
                                                         'nestedObjectLiteral',
                                                     nestedProperties: {
+                                                        requiresSnowflakeReauthentication:
+                                                            {
+                                                                dataType:
+                                                                    'union',
+                                                                subSchemas: [
+                                                                    {
+                                                                        dataType:
+                                                                            'enum',
+                                                                        enums: [
+                                                                            true,
+                                                                        ],
+                                                                    },
+                                                                    {
+                                                                        dataType:
+                                                                            'undefined',
+                                                                    },
+                                                                ],
+                                                            },
                                                         refusal: {
                                                             dataType: 'union',
                                                             subSchemas: [
@@ -35736,6 +35928,24 @@ const models: TsoaRoute.Models = {
                                                     dataType:
                                                         'nestedObjectLiteral',
                                                     nestedProperties: {
+                                                        requiresSnowflakeReauthentication:
+                                                            {
+                                                                dataType:
+                                                                    'union',
+                                                                subSchemas: [
+                                                                    {
+                                                                        dataType:
+                                                                            'enum',
+                                                                        enums: [
+                                                                            true,
+                                                                        ],
+                                                                    },
+                                                                    {
+                                                                        dataType:
+                                                                            'undefined',
+                                                                    },
+                                                                ],
+                                                            },
                                                         refusal: {
                                                             dataType: 'union',
                                                             subSchemas: [
@@ -36065,6 +36275,24 @@ const models: TsoaRoute.Models = {
                                                     dataType:
                                                         'nestedObjectLiteral',
                                                     nestedProperties: {
+                                                        requiresSnowflakeReauthentication:
+                                                            {
+                                                                dataType:
+                                                                    'union',
+                                                                subSchemas: [
+                                                                    {
+                                                                        dataType:
+                                                                            'enum',
+                                                                        enums: [
+                                                                            true,
+                                                                        ],
+                                                                    },
+                                                                    {
+                                                                        dataType:
+                                                                            'undefined',
+                                                                    },
+                                                                ],
+                                                            },
                                                         refusal: {
                                                             dataType: 'union',
                                                             subSchemas: [
@@ -36799,6 +37027,24 @@ const models: TsoaRoute.Models = {
                                                     dataType:
                                                         'nestedObjectLiteral',
                                                     nestedProperties: {
+                                                        requiresSnowflakeReauthentication:
+                                                            {
+                                                                dataType:
+                                                                    'union',
+                                                                subSchemas: [
+                                                                    {
+                                                                        dataType:
+                                                                            'enum',
+                                                                        enums: [
+                                                                            true,
+                                                                        ],
+                                                                    },
+                                                                    {
+                                                                        dataType:
+                                                                            'undefined',
+                                                                    },
+                                                                ],
+                                                            },
                                                         refusal: {
                                                             dataType: 'union',
                                                             subSchemas: [
@@ -37071,6 +37317,24 @@ const models: TsoaRoute.Models = {
                                                     dataType:
                                                         'nestedObjectLiteral',
                                                     nestedProperties: {
+                                                        requiresSnowflakeReauthentication:
+                                                            {
+                                                                dataType:
+                                                                    'union',
+                                                                subSchemas: [
+                                                                    {
+                                                                        dataType:
+                                                                            'enum',
+                                                                        enums: [
+                                                                            true,
+                                                                        ],
+                                                                    },
+                                                                    {
+                                                                        dataType:
+                                                                            'undefined',
+                                                                    },
+                                                                ],
+                                                            },
                                                         refusal: {
                                                             dataType: 'union',
                                                             subSchemas: [
@@ -37343,6 +37607,24 @@ const models: TsoaRoute.Models = {
                                                     dataType:
                                                         'nestedObjectLiteral',
                                                     nestedProperties: {
+                                                        requiresSnowflakeReauthentication:
+                                                            {
+                                                                dataType:
+                                                                    'union',
+                                                                subSchemas: [
+                                                                    {
+                                                                        dataType:
+                                                                            'enum',
+                                                                        enums: [
+                                                                            true,
+                                                                        ],
+                                                                    },
+                                                                    {
+                                                                        dataType:
+                                                                            'undefined',
+                                                                    },
+                                                                ],
+                                                            },
                                                         refusal: {
                                                             dataType: 'union',
                                                             subSchemas: [
@@ -37615,6 +37897,24 @@ const models: TsoaRoute.Models = {
                                                     dataType:
                                                         'nestedObjectLiteral',
                                                     nestedProperties: {
+                                                        requiresSnowflakeReauthentication:
+                                                            {
+                                                                dataType:
+                                                                    'union',
+                                                                subSchemas: [
+                                                                    {
+                                                                        dataType:
+                                                                            'enum',
+                                                                        enums: [
+                                                                            true,
+                                                                        ],
+                                                                    },
+                                                                    {
+                                                                        dataType:
+                                                                            'undefined',
+                                                                    },
+                                                                ],
+                                                            },
                                                         refusal: {
                                                             dataType: 'union',
                                                             subSchemas: [
@@ -38059,6 +38359,24 @@ const models: TsoaRoute.Models = {
                                                     dataType:
                                                         'nestedObjectLiteral',
                                                     nestedProperties: {
+                                                        requiresSnowflakeReauthentication:
+                                                            {
+                                                                dataType:
+                                                                    'union',
+                                                                subSchemas: [
+                                                                    {
+                                                                        dataType:
+                                                                            'enum',
+                                                                        enums: [
+                                                                            true,
+                                                                        ],
+                                                                    },
+                                                                    {
+                                                                        dataType:
+                                                                            'undefined',
+                                                                    },
+                                                                ],
+                                                            },
                                                         refusal: {
                                                             dataType: 'union',
                                                             subSchemas: [
@@ -38754,6 +39072,24 @@ const models: TsoaRoute.Models = {
                                                     dataType:
                                                         'nestedObjectLiteral',
                                                     nestedProperties: {
+                                                        requiresSnowflakeReauthentication:
+                                                            {
+                                                                dataType:
+                                                                    'union',
+                                                                subSchemas: [
+                                                                    {
+                                                                        dataType:
+                                                                            'enum',
+                                                                        enums: [
+                                                                            true,
+                                                                        ],
+                                                                    },
+                                                                    {
+                                                                        dataType:
+                                                                            'undefined',
+                                                                    },
+                                                                ],
+                                                            },
                                                         refusal: {
                                                             dataType: 'union',
                                                             subSchemas: [
@@ -39139,6 +39475,24 @@ const models: TsoaRoute.Models = {
                                                     dataType:
                                                         'nestedObjectLiteral',
                                                     nestedProperties: {
+                                                        requiresSnowflakeReauthentication:
+                                                            {
+                                                                dataType:
+                                                                    'union',
+                                                                subSchemas: [
+                                                                    {
+                                                                        dataType:
+                                                                            'enum',
+                                                                        enums: [
+                                                                            true,
+                                                                        ],
+                                                                    },
+                                                                    {
+                                                                        dataType:
+                                                                            'undefined',
+                                                                    },
+                                                                ],
+                                                            },
                                                         refusal: {
                                                             dataType: 'union',
                                                             subSchemas: [
@@ -39535,6 +39889,24 @@ const models: TsoaRoute.Models = {
                                                     dataType:
                                                         'nestedObjectLiteral',
                                                     nestedProperties: {
+                                                        requiresSnowflakeReauthentication:
+                                                            {
+                                                                dataType:
+                                                                    'union',
+                                                                subSchemas: [
+                                                                    {
+                                                                        dataType:
+                                                                            'enum',
+                                                                        enums: [
+                                                                            true,
+                                                                        ],
+                                                                    },
+                                                                    {
+                                                                        dataType:
+                                                                            'undefined',
+                                                                    },
+                                                                ],
+                                                            },
                                                         refusal: {
                                                             dataType: 'union',
                                                             subSchemas: [
@@ -39833,6 +40205,24 @@ const models: TsoaRoute.Models = {
                                                     dataType:
                                                         'nestedObjectLiteral',
                                                     nestedProperties: {
+                                                        requiresSnowflakeReauthentication:
+                                                            {
+                                                                dataType:
+                                                                    'union',
+                                                                subSchemas: [
+                                                                    {
+                                                                        dataType:
+                                                                            'enum',
+                                                                        enums: [
+                                                                            true,
+                                                                        ],
+                                                                    },
+                                                                    {
+                                                                        dataType:
+                                                                            'undefined',
+                                                                    },
+                                                                ],
+                                                            },
                                                         refusal: {
                                                             dataType: 'union',
                                                             subSchemas: [
@@ -40133,6 +40523,24 @@ const models: TsoaRoute.Models = {
                                                     dataType:
                                                         'nestedObjectLiteral',
                                                     nestedProperties: {
+                                                        requiresSnowflakeReauthentication:
+                                                            {
+                                                                dataType:
+                                                                    'union',
+                                                                subSchemas: [
+                                                                    {
+                                                                        dataType:
+                                                                            'enum',
+                                                                        enums: [
+                                                                            true,
+                                                                        ],
+                                                                    },
+                                                                    {
+                                                                        dataType:
+                                                                            'undefined',
+                                                                    },
+                                                                ],
+                                                            },
                                                         refusal: {
                                                             dataType: 'union',
                                                             subSchemas: [
@@ -40448,6 +40856,24 @@ const models: TsoaRoute.Models = {
                                                     dataType:
                                                         'nestedObjectLiteral',
                                                     nestedProperties: {
+                                                        requiresSnowflakeReauthentication:
+                                                            {
+                                                                dataType:
+                                                                    'union',
+                                                                subSchemas: [
+                                                                    {
+                                                                        dataType:
+                                                                            'enum',
+                                                                        enums: [
+                                                                            true,
+                                                                        ],
+                                                                    },
+                                                                    {
+                                                                        dataType:
+                                                                            'undefined',
+                                                                    },
+                                                                ],
+                                                            },
                                                         refusal: {
                                                             dataType: 'union',
                                                             subSchemas: [
@@ -40742,6 +41168,24 @@ const models: TsoaRoute.Models = {
                                                     dataType:
                                                         'nestedObjectLiteral',
                                                     nestedProperties: {
+                                                        requiresSnowflakeReauthentication:
+                                                            {
+                                                                dataType:
+                                                                    'union',
+                                                                subSchemas: [
+                                                                    {
+                                                                        dataType:
+                                                                            'enum',
+                                                                        enums: [
+                                                                            true,
+                                                                        ],
+                                                                    },
+                                                                    {
+                                                                        dataType:
+                                                                            'undefined',
+                                                                    },
+                                                                ],
+                                                            },
                                                         refusal: {
                                                             dataType: 'union',
                                                             subSchemas: [
@@ -41304,6 +41748,24 @@ const models: TsoaRoute.Models = {
                                                     dataType:
                                                         'nestedObjectLiteral',
                                                     nestedProperties: {
+                                                        requiresSnowflakeReauthentication:
+                                                            {
+                                                                dataType:
+                                                                    'union',
+                                                                subSchemas: [
+                                                                    {
+                                                                        dataType:
+                                                                            'enum',
+                                                                        enums: [
+                                                                            true,
+                                                                        ],
+                                                                    },
+                                                                    {
+                                                                        dataType:
+                                                                            'undefined',
+                                                                    },
+                                                                ],
+                                                            },
                                                         refusal: {
                                                             dataType: 'union',
                                                             subSchemas: [
@@ -41576,6 +42038,24 @@ const models: TsoaRoute.Models = {
                                                     dataType:
                                                         'nestedObjectLiteral',
                                                     nestedProperties: {
+                                                        requiresSnowflakeReauthentication:
+                                                            {
+                                                                dataType:
+                                                                    'union',
+                                                                subSchemas: [
+                                                                    {
+                                                                        dataType:
+                                                                            'enum',
+                                                                        enums: [
+                                                                            true,
+                                                                        ],
+                                                                    },
+                                                                    {
+                                                                        dataType:
+                                                                            'undefined',
+                                                                    },
+                                                                ],
+                                                            },
                                                         refusal: {
                                                             dataType: 'union',
                                                             subSchemas: [
@@ -45368,7 +45848,7 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     BigqueryAuthenticationType: {
         dataType: 'refEnum',
-        enums: ['sso', 'private_key', 'adc'],
+        enums: ['sso', 'private_key', 'adc', 'workload_identity_federation'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     BigqueryMaximumBytesBilledByRole: {
@@ -45484,6 +45964,20 @@ const models: TsoaRoute.Models = {
                             { dataType: 'undefined' },
                         ],
                         required: true,
+                    },
+                    workloadIdentityProvider: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    workloadIdentityAudience: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'undefined' },
+                        ],
                     },
                     allowUserCredentials: {
                         dataType: 'union',
@@ -46710,6 +47204,8 @@ const models: TsoaRoute.Models = {
                     additionalProperties: { dataType: 'string' },
                     required: true,
                 },
+                workloadIdentityAudience: { dataType: 'string' },
+                workloadIdentityProvider: { dataType: 'string' },
                 authenticationType: { ref: 'BigqueryAuthenticationType' },
                 priority: {
                     dataType: 'union',
@@ -48084,6 +48580,8 @@ const models: TsoaRoute.Models = {
                 },
                 role: { ref: 'UserAsCodeRole', required: true },
                 disabled: { dataType: 'boolean', required: true },
+                lastName: { dataType: 'string' },
+                firstName: { dataType: 'string' },
                 email: { dataType: 'string', required: true },
                 version: { dataType: 'enum', enums: [1], required: true },
             },
@@ -62260,6 +62758,8 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'union',
             subSchemas: [
+                { dataType: 'enum', enums: ['reconcileAnalyticsContent'] },
+                { dataType: 'enum', enums: ['syncAnalyticsContent'] },
                 { dataType: 'enum', enums: ['slackAiPrompt'] },
                 { dataType: 'enum', enums: ['slackAiArtifactImages'] },
                 { dataType: 'enum', enums: ['sweepSlackAiArtifactImages'] },
@@ -66032,6 +66532,66 @@ const models: TsoaRoute.Models = {
     ApiResultsCacheInvalidationResponse: {
         dataType: 'refAlias',
         type: { ref: 'ApiSuccess_ResultsCacheInvalidation_', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ExploresResultsCacheInvalidation: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'ResultsCacheInvalidation' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        exploreNames: {
+                            dataType: 'array',
+                            array: { dataType: 'string' },
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiSuccess_ExploresResultsCacheInvalidation_: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    ref: 'ExploresResultsCacheInvalidation',
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiExploresResultsCacheInvalidationResponse: {
+        dataType: 'refAlias',
+        type: {
+            ref: 'ApiSuccess_ExploresResultsCacheInvalidation_',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    InvalidateExploresResultsCache: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                includeJoinedExplores: { dataType: 'boolean' },
+                exploreNames: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+            },
+            validators: {},
+        },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     PreviewExpiresAt: {
@@ -73719,6 +74279,41 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 targetCatalogSearchUuid: { dataType: 'string', required: true },
                 sourceCatalogSearchUuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    BigqueryWorkloadIdentity: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                subject: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                issuer: {
+                    dataType: 'enum',
+                    enums: ['https://accounts.google.com'],
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiBigqueryWorkloadIdentityResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: { ref: 'BigqueryWorkloadIdentity', required: true },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
             },
             validators: {},
         },
@@ -129149,6 +129744,71 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsProjectController_invalidateExploresResultsCache: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'InvalidateExploresResultsCache',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.post(
+        '/api/v1/projects/:projectUuid/results-cache/invalidate/explores',
+        ...fetchMiddlewares<RequestHandler>(ProjectController),
+        ...fetchMiddlewares<RequestHandler>(
+            ProjectController.prototype.invalidateExploresResultsCache,
+        ),
+
+        async function ProjectController_invalidateExploresResultsCache(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsProjectController_invalidateExploresResultsCache,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<ProjectController>(ProjectController);
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'invalidateExploresResultsCache',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     const argsProjectController_updatePreviewExpiresAt: Record<
         string,
         TsoaRoute.ParameterSchema
@@ -141278,6 +141938,62 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'getMetricOwners',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsBigqueryWorkloadIdentityController_getIdentity: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: { in: 'query', name: 'projectUuid', ref: 'UUID' },
+    };
+    app.get(
+        '/api/v1/bigquery/workload-identity',
+        ...fetchMiddlewares<RequestHandler>(BigqueryWorkloadIdentityController),
+        ...fetchMiddlewares<RequestHandler>(
+            BigqueryWorkloadIdentityController.prototype.getIdentity,
+        ),
+
+        async function BigqueryWorkloadIdentityController_getIdentity(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsBigqueryWorkloadIdentityController_getIdentity,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<BigqueryWorkloadIdentityController>(
+                        BigqueryWorkloadIdentityController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getIdentity',
                     controller,
                     response,
                     next,

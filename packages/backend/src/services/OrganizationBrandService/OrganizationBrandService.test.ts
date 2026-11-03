@@ -73,13 +73,34 @@ describe('brand logos', () => {
         );
     });
 
-    it('rejects reading branding without organization access', async () => {
+    it('reads branding for an organization member with no other permissions', async () => {
         const account = buildAccount();
         account.user.ability = new Ability<PossibleAbilities>([]);
-        await expect(
-            buildLicensedService().getBrand(account),
-        ).rejects.toBeInstanceOf(ForbiddenError);
-        expect(organizationBrandModel.findBrand).not.toHaveBeenCalled();
+        organizationBrandModel.findBrand.mockResolvedValueOnce(null);
+        expect(await buildLicensedService().getBrand(account)).toBeNull();
+        expect(organizationBrandModel.findBrand).toHaveBeenCalledWith(
+            account.organization.organizationUuid,
+        );
+    });
+
+    it('reads uploaded logos for an organization member with no other permissions', async () => {
+        const account = buildAccount();
+        account.user.ability = new Ability<PossibleAbilities>([]);
+        const logoFile = {
+            content_type: 'image/png',
+            data: Buffer.from('logo'),
+        };
+        organizationBrandModel.findBrandLogoFile.mockResolvedValueOnce(
+            logoFile,
+        );
+        const logoUuid = '6f1d0a52-8b0a-4b6a-9a52-3f0a7c1f2d11';
+        expect(
+            await buildLicensedService().getBrandLogo(account, logoUuid),
+        ).toEqual({ contentType: logoFile.content_type, data: logoFile.data });
+        expect(organizationBrandModel.findBrandLogoFile).toHaveBeenCalledWith(
+            account.organization.organizationUuid,
+            logoUuid,
+        );
     });
 
     it('fetches a normalized domain without persisting the brand', async () => {

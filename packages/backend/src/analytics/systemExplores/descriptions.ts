@@ -27,6 +27,8 @@ export const analyticsTableDescriptions: Record<string, string> = {
         'Captured chart and dashboard fetches, with audience and returning-viewer metrics. Qualifying views are successful backend fetches by identified users, excluding known previews and embeds. Refetches count; browser-cache-only visits are not captured. Data app loads are in Data app reach.',
     content_health:
         'The latest inventory of charts, dashboards and data apps, including items with no observed activity and soft-deleted items. Combines current ownership and known dependencies with retained usage. No observed activity does not prove an item is unused or safe to delete.',
+    content_inventory:
+        'The latest inventory of charts, dashboards and data apps, including zero-activity and soft-deleted items. Use for creation dates, ownership and current metadata without reading usage history. This is not a historical inventory.',
     semantic_usage:
         'Direct field references in captured semantic queries, with one row per query, field and role. Use this Explore to find which metrics and dimensions are queried. Counts are distinct and cannot be summed across fields or roles; SQL-only and older queries may have no field details.',
     data_app_reach:
@@ -377,6 +379,12 @@ const modelDimensions: Record<string, Record<string, string>> = {
             'Verification state captured at the time of the fetch. Older or unsupported states remain unknown.',
         view_context:
             'Captured fetch context: backend, preview or embed. Legacy unclassified context is unknown and does not qualify for audience counts.',
+    },
+    content_inventory: {
+        content_name: 'Content name in the latest inventory snapshot.',
+        project_name: 'Project name in the latest inventory snapshot.',
+        is_verified:
+            'Verification state in the latest inventory snapshot, not its historical state during activity.',
     },
     content_health: {
         content_name:

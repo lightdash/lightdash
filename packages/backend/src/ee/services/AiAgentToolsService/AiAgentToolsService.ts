@@ -5264,19 +5264,21 @@ export class AiAgentToolsService extends BaseService {
                     );
                 }
 
-                const fields = await this.projectService.getWarehouseFields(
-                    context.user,
-                    context.projectUuid,
-                    context.defaultQueryExecutionContext,
-                    table,
-                    resolvedSchema ?? undefined,
-                    resolvedDatabase ?? undefined,
-                    context.querySurface,
-                );
+                const { fields, nativeTypes } =
+                    await this.projectService.getWarehouseFields(
+                        context.user,
+                        context.projectUuid,
+                        context.defaultQueryExecutionContext,
+                        table,
+                        resolvedSchema ?? undefined,
+                        resolvedDatabase ?? undefined,
+                        context.querySurface,
+                    );
                 return {
                     columns: Object.entries(fields).map(([name, type]) => ({
                         name,
                         type: String(type),
+                        nativeType: nativeTypes[name] ?? null,
                     })),
                     resolvedSchema,
                     resolvedDatabase,

@@ -101,6 +101,7 @@ import {
     getAiExecutionCredentialUuid,
     getAvailableParametersFromTables,
     getBigqueryKeyfileCredentials,
+    getCatalogTableNativeTypes,
     getColumnTimezone,
     getCompiledModels,
     getCustomSqlFieldKey,
@@ -286,6 +287,7 @@ import {
     WarehouseConnectionTestResults,
     WarehouseCredentials,
     WarehouseDatabaseListing,
+    WarehouseTables,
     WarehouseTablesCatalog,
     WarehouseTableSchema,
     WarehouseTypes,
@@ -399,7 +401,6 @@ import { JobModel } from '../../models/JobModel/JobModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { OrganizationSettingsModel } from '../../models/OrganizationSettingsModel';
-import { OrganizationWarehouseCredentialsModel } from '../../models/OrganizationWarehouseCredentialsModel';
 import { ProjectCompileLogModel } from '../../models/ProjectCompileLogModel';
 import { ProjectDbtSourcesModel } from '../../models/ProjectDbtSourcesModel';
 import { type ExploreNaming } from '../../models/ProjectModel/exploreNameAllocation';
@@ -507,6 +508,7 @@ import {
     isSameResultReader,
     matchesResultEntitlementFingerprint,
 } from '../../utils/queryResultProducer';
+import { stripSensitiveWarehouseCredentials } from '../../utils/stripSensitiveWarehouseCredentials';
 import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
 import { copyWarehouseCredentialVersions } from '../../utils/warehouseCredentialVersion';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
@@ -677,10 +679,6 @@ type TestProjectAdapterCredentials =
 type RefreshTokenRotationSource =
     | { kind: 'project'; projectUuid: string }
     | {
-          kind: 'organization';
-          organizationWarehouseCredentialsUuid: string;
-      }
-    | {
           kind: 'user';
           userWarehouseCredentialsUuid: string;
           refreshSource: CredentialRefreshSource;
@@ -742,7 +740,6 @@ export type ProjectServiceArguments = {
     featureFlagModel: FeatureFlagModel;
     aiAccessService: AiAccessService;
     projectParametersModel: ProjectParametersModel;
-    organizationWarehouseCredentialsModel: OrganizationWarehouseCredentialsModel;
     organizationModel: OrganizationModel;
     projectCompileLogModel: ProjectCompileLogModel;
     adminNotificationService: AdminNotificationService;
@@ -953,8 +950,6 @@ export class ProjectService
 
     projectCompileLogModel: ProjectCompileLogModel;
 
-    organizationWarehouseCredentialsModel: OrganizationWarehouseCredentialsModel;
-
     organizationModel: OrganizationModel;
 
     adminNotificationService: AdminNotificationService;
@@ -1045,7 +1040,6 @@ export class ProjectService
         aiAccessService,
         projectParametersModel,
         projectCompileLogModel,
-        organizationWarehouseCredentialsModel,
         organizationModel,
         adminNotificationService,
         permissionsService,
@@ -1078,7 +1072,6 @@ export class ProjectService
                 refreshTokenRotation,
                 featureFlagModel,
                 projectModel,
-                organizationWarehouseCredentialsModel,
                 userWarehouseCredentialsModel,
                 warehouseConnectionModel,
                 userOAuthGrantsModel,
@@ -1099,7 +1092,6 @@ export class ProjectService
                 refreshTokenRotation,
                 featureFlagModel,
                 projectModel,
-                organizationWarehouseCredentialsModel,
                 userWarehouseCredentialsModel,
                 warehouseConnectionModel,
                 lightdashConfig,
@@ -1170,8 +1162,6 @@ export class ProjectService
         this.aiAccessService = aiAccessService;
         this.projectParametersModel = projectParametersModel;
         this.projectCompileLogModel = projectCompileLogModel;
-        this.organizationWarehouseCredentialsModel =
-            organizationWarehouseCredentialsModel;
         this.organizationModel = organizationModel;
         this.adminNotificationService = adminNotificationService;
         this.permissionsService = permissionsService;
@@ -1810,9 +1800,6 @@ export class ProjectService
     This runs on every request to the warehouse, to refresh the token if needed when an accessToken is requested
     Bigquery uses the refresh token directly on the warehouse connection, so there is no need to refresh it
 
-    If organizationWarehouseCredentialsUuid is provided, this means the project is using organization-level
-    credentials and the refresh token is already stored in the credentials (fetched from the org credentials table).
-    Otherwise, fetch the refresh token from the user's OpenID table.
     */
     private async refreshCredentialsAndPersistRotation<
         T extends CreateWarehouseCredentials,
@@ -1887,8 +1874,6 @@ export class ProjectService
         switch (source.kind) {
             case 'project':
                 return source.projectUuid;
-            case 'organization':
-                return source.organizationWarehouseCredentialsUuid;
             case 'user':
                 return source.userWarehouseCredentialsUuid;
             case 'warehouseConnection':
@@ -1919,7 +1904,6 @@ export class ProjectService
     }): Promise<PushToPreview | null> {
         if (
             savedProject.type === ProjectType.PREVIEW ||
-            updatedProject.organizationWarehouseCredentialsUuid ||
             !getBigquerySsoCredentials(updatedProject.warehouseConnection)
         ) {
             return null;
@@ -2120,13 +2104,12 @@ export class ProjectService
         if (!rejectedRefreshToken) {
             return false;
         }
-        const { organizationWarehouseCredentialsUuid } =
-            await this.projectModel.getProjectWarehouseConfig(projectUuid);
-        if (organizationWarehouseCredentialsUuid) return false;
         const storedCredentials =
             await this.projectModel.getWarehouseCredentialsForBinding(
                 projectUuid,
-                { kind: 'original' },
+                {
+                    kind: 'original',
+                },
             );
         const repairedCredentials = await this.repairStalePreviewSsoCredentials(
             projectUuid,
@@ -2298,7 +2281,6 @@ export class ProjectService
             await this.projectModel.getWarehouseCredentialsForProject(
                 projectUuid,
             );
-        const { organizationWarehouseCredentialsUuid } = source;
         if (
             source.credentials.type === WarehouseTypes.DUCKDB &&
             source.credentials.connectionType === DuckdbConnectionType.ANALYTICS
@@ -2323,7 +2305,6 @@ export class ProjectService
             kind: 'extra',
             projectUuid,
             credentials,
-            organizationWarehouseCredentialsUuid,
             organizationUuid: project.organizationUuid,
             warehouseConnectionUuid,
             connectionRoute: null,
@@ -2388,7 +2369,7 @@ export class ProjectService
                 'Warehouse credentials require a connection person',
             );
         const { userUuid: userId, isRegisteredUser, isServiceAccount } = person;
-        const { projectUuid, organizationWarehouseCredentialsUuid } = base;
+        const { projectUuid } = base;
         let { credentials } = base;
         let userWarehouseCredentialsUuid: string | undefined;
         const { project, warehouseConnectionUuid } = base;
@@ -2397,19 +2378,6 @@ export class ProjectService
             project,
             warehouseConnectionUuid,
         };
-
-        if (
-            organizationWarehouseCredentialsUuid &&
-            !credentials.requireUserCredentials
-        ) {
-            credentials = await this.materializeSelectedCredentials(
-                base,
-                context,
-                credentials,
-                userId,
-                { kind: 'organization', organizationWarehouseCredentialsUuid },
-            );
-        }
 
         if (isServiceAccount && credentials.requireUserCredentials) {
             this.trackExtraConnectionCredentialsRequired({
@@ -2522,7 +2490,7 @@ export class ProjectService
                         ? EXTRA_CONNECTION_SELECT_CREDENTIALS_MESSAGE
                         : "You don't have warehouse credentials set up for this project. Add them under 'User settings' → 'My warehouse connections', or refresh the page to sign in again.",
                 );
-            } else if (!organizationWarehouseCredentialsUuid) {
+            } else {
                 credentials = await this.materializeSelectedCredentials(
                     base,
                     context,
@@ -2535,7 +2503,7 @@ export class ProjectService
             throw new ForbiddenError(
                 'Embedded users cannot use personal warehouse credentials',
             );
-        } else if (!organizationWarehouseCredentialsUuid) {
+        } else {
             credentials = await this.materializeSelectedCredentials(
                 base,
                 context,
@@ -2559,20 +2527,14 @@ export class ProjectService
     This does not depend on `requireUserCredentials` flag (check getWarehouseCredentials for more details about that)
     In here, we will load on runtime SSH credentials or refresh tokens for SSO
 
-    If organizationWarehouseCredentialsUuid is provided, load the credentials from the organization
-    credentials table instead of using the inline warehouseConnection.
     */
     private async _resolveWarehouseClientCredentials<
         T extends {
             warehouseConnection: CreateWarehouseCredentials;
             organizationWarehouseCredentialsUuid?: string;
         },
-    >(
-        rawArgs: T,
-        userUuid: string,
-        organizationUuid: string,
-        organizationCredentialRotation: 'persist' | 'ignore' = 'ignore',
-    ): Promise<T> {
+    >(rawArgs: T, userUuid: string, organizationUuid: string): Promise<T> {
+        ProjectService.assertOrganizationWarehouseCredentialsRemoved(rawArgs);
         // Normalize submitted credentials so in-flight connection tests and
         // compiles never see legacy values that violate the credentials types
         const args: T = {
@@ -2585,99 +2547,6 @@ export class ProjectService
             args.warehouseConnection,
             organizationUuid,
         );
-        // If using organization credentials, load them from the organization table
-        const organizationWarehouseCredentialsUuid =
-            args.organizationWarehouseCredentialsUuid ||
-            (args.warehouseConnection.type === WarehouseTypes.SNOWFLAKE
-                ? args.warehouseConnection.organizationWarehouseCredentialsUuid
-                : undefined);
-
-        if (organizationWarehouseCredentialsUuid) {
-            this.logger.debug(
-                `Resolving organization warehouse credentials with uuid ${organizationWarehouseCredentialsUuid}`,
-            );
-
-            const orgCredentialData =
-                await this.organizationWarehouseCredentialsModel.getByUuidWithSensitiveData(
-                    organizationWarehouseCredentialsUuid,
-                );
-
-            // Security check: Verify the credentials belong to the user's organization
-            if (orgCredentialData.organizationUuid !== organizationUuid) {
-                this.logger.warn(
-                    `User attempted to use organization credentials from different organization. User org: ${organizationUuid}, Credentials org: ${orgCredentialData.organizationUuid}`,
-                );
-                throw new ForbiddenError(
-                    'You do not have permission to use these organization warehouse credentials',
-                );
-            }
-
-            const { credentials: orgCredentials } = orgCredentialData;
-
-            if (orgCredentials.type !== WarehouseTypes.SNOWFLAKE) {
-                throw new UnexpectedServerError(
-                    'Organization warehouse credentials are not compatible with Snowflake SSO authentication',
-                );
-            }
-            // Replace the warehouseConnection with the organization credentials
-            // The organizationWarehouseCredentialsUuid will be stored in the projects table
-            // but we don't store duplicate credentials in warehouse_credentials table
-            const mergedWarehouseConnection = {
-                ...args.warehouseConnection,
-                ...orgCredentials,
-            } as CreateSnowflakeCredentials;
-            this.logger.debug(
-                `Refreshing snowflake warehouse credentials from organization credentials uuid: ${organizationWarehouseCredentialsUuid}`,
-            );
-            if (
-                mergedWarehouseConnection.authenticationType !==
-                SnowflakeAuthenticationType.SSO
-            ) {
-                return {
-                    ...args,
-                    warehouseConnection: mergedWarehouseConnection,
-                };
-            }
-            const owner: CredentialOwner = {
-                kind: 'organization',
-                uuid: organizationWarehouseCredentialsUuid,
-            };
-            const resolved =
-                await this.snowflakeOAuthCredentialResolver.refresh(
-                    {
-                        connection: mergedWarehouseConnection,
-                        stored: mergedWarehouseConnection,
-                        owner,
-                        context: connectionContextFromUser(
-                            { userUuid },
-                            { organizationUuid, queryContext: null },
-                        ),
-                        projectUuid: null,
-                        warehouseConnectionUuid: null,
-                        credentialKind: WarehouseCredentialKind.SHARED,
-                        aiPlan: null,
-                    },
-                    {
-                        errorPolicy: 'standard',
-                        legacyOwner:
-                            organizationCredentialRotation === 'persist'
-                                ? owner
-                                : null,
-                    },
-                );
-            const credentials = prepareWarehouseOAuthCredentials(
-                resolved.clientCredentials,
-            );
-
-            return {
-                ...args,
-                warehouseConnection: {
-                    ...mergedWarehouseConnection,
-                    ...credentials,
-                },
-            };
-        }
-
         if (
             this.warehouseClientFactory.credentialResolvers.has(
                 args.warehouseConnection,
@@ -2713,35 +2582,18 @@ export class ProjectService
         return args;
     }
 
-    private assertCanUseOrganizationWarehouseCredentials(
-        accountOrUser: Account | SessionUser,
-        organizationUuid: string,
-        data: {
-            warehouseConnection?: CreateWarehouseCredentials;
-            organizationWarehouseCredentialsUuid?: string;
-        },
-    ): void {
-        const organizationWarehouseCredentialsUuid =
-            data.organizationWarehouseCredentialsUuid ||
-            (data.warehouseConnection?.type === WarehouseTypes.SNOWFLAKE
-                ? data.warehouseConnection.organizationWarehouseCredentialsUuid
-                : undefined);
-
-        if (!organizationWarehouseCredentialsUuid) {
-            return;
-        }
-
-        const auditedAbility = this.createAuditedAbility(accountOrUser);
+    private static assertOrganizationWarehouseCredentialsRemoved(data: {
+        warehouseConnection?: CreateWarehouseCredentials;
+        organizationWarehouseCredentialsUuid?: string;
+    }): void {
         if (
-            auditedAbility.cannot(
-                'view',
-                subject('OrganizationWarehouseCredentials', {
-                    organizationUuid,
-                }),
-            )
+            data.organizationWarehouseCredentialsUuid != null ||
+            (data.warehouseConnection?.type === WarehouseTypes.SNOWFLAKE &&
+                data.warehouseConnection.organizationWarehouseCredentialsUuid !=
+                    null)
         ) {
-            throw new ForbiddenError(
-                'You do not have permission to use these organization warehouse credentials',
+            throw new ParameterError(
+                'Organization warehouse credentials are no longer supported. Configure credentials on the project instead.',
             );
         }
     }
@@ -2765,11 +2617,7 @@ export class ProjectService
             data.warehouseConnection,
         );
         ProjectService.assertSupportedBigqueryKeyfile(data.warehouseConnection);
-        this.assertCanUseOrganizationWarehouseCredentials(
-            account,
-            project.organizationUuid,
-            data,
-        );
+        ProjectService.assertOrganizationWarehouseCredentialsRemoved(data);
     }
 
     // The project-update form sends masked secrets (placeholder values), so
@@ -2935,8 +2783,6 @@ export class ProjectService
             case 'original':
                 base = await this.loadSingleRouteCredentialBase({
                     ...args,
-                    preloadedOrgWarehouseCredentialsUuid:
-                        ref.preloadedOrgWarehouseCredentialsUuid,
                     purpose: context.purpose,
                 });
                 break;
@@ -2994,18 +2840,13 @@ export class ProjectService
                 'Warehouse credentials require a connection person',
             );
         }
-        const { projectUuid, organizationWarehouseCredentialsUuid } = base;
+        const { projectUuid } = base;
         let { credentials } = base;
         let source: RefreshTokenRotationSource = {
             kind: 'project',
             projectUuid,
         };
-        if (organizationWarehouseCredentialsUuid) {
-            source = {
-                kind: 'organization',
-                organizationWarehouseCredentialsUuid,
-            };
-        } else if (base.kind === 'extra') {
+        if (base.kind === 'extra') {
             source = {
                 kind: 'warehouseConnection',
                 project: base.project,
@@ -3014,7 +2855,7 @@ export class ProjectService
         }
         let userWarehouseCredentialsUuid: string | undefined;
 
-        if (base.kind === 'original' && !organizationWarehouseCredentialsUuid) {
+        if (base.kind === 'original') {
             credentials = await this.repairStalePreviewSsoCredentials(
                 projectUuid,
                 credentials,
@@ -3329,7 +3170,6 @@ export class ProjectService
         isServiceAccount = false,
         serviceAccountUuid,
         oauthClientId,
-        preloadedOrgWarehouseCredentialsUuid,
     }: {
         projectUuid: string;
         userId: string;
@@ -3339,7 +3179,6 @@ export class ProjectService
         isServiceAccount?: boolean;
         serviceAccountUuid?: string | null;
         oauthClientId?: string | null;
-        preloadedOrgWarehouseCredentialsUuid?: string | null;
     }): Promise<ResolvedWarehouseCredentials> {
         const base = await this.loadSingleRouteCredentialBase({
             projectUuid,
@@ -3347,7 +3186,6 @@ export class ProjectService
             isRegisteredUser,
             isServiceAccount,
             context,
-            preloadedOrgWarehouseCredentialsUuid,
         });
         return this.resolveLegacyWarehouseCredentials(base, {
             serviceAccountUuid,
@@ -3366,7 +3204,6 @@ export class ProjectService
         isRegisteredUser,
         context,
         isServiceAccount = false,
-        preloadedOrgWarehouseCredentialsUuid,
         purpose = 'query',
     }: {
         projectUuid: string;
@@ -3374,18 +3211,8 @@ export class ProjectService
         isRegisteredUser: boolean;
         context?: QueryExecutionContext;
         isServiceAccount?: boolean;
-        preloadedOrgWarehouseCredentialsUuid?: string | null;
         purpose?: ConnectionContext['purpose'];
     }): Promise<WarehouseCredentialBase> {
-        const organizationWarehouseCredentialsUuid =
-            preloadedOrgWarehouseCredentialsUuid !== undefined
-                ? preloadedOrgWarehouseCredentialsUuid
-                : (
-                      await this.projectModel.getProjectWarehouseConfig(
-                          projectUuid,
-                      )
-                  ).organizationWarehouseCredentialsUuid;
-
         const credentials: CreateWarehouseCredentials =
             purpose === 'compile'
                 ? await this.projectModel.getWarehouseCredentialsForProjectUncached(
@@ -3423,8 +3250,6 @@ export class ProjectService
             kind: 'original',
             projectUuid,
             credentials,
-            organizationWarehouseCredentialsUuid:
-                organizationWarehouseCredentialsUuid ?? null,
             organizationUuid:
                 context && isAiAccessQueryContext(context)
                     ? (await this.projectModel.getSummary(projectUuid))
@@ -3445,28 +3270,9 @@ export class ProjectService
                 'Warehouse credentials require a connection person',
             );
         const { userUuid: userId, isRegisteredUser, isServiceAccount } = person;
-        const { projectUuid, organizationWarehouseCredentialsUuid } = base;
+        const { projectUuid } = base;
         let { credentials } = base;
         let userWarehouseCredentialsUuid: string | undefined;
-
-        if (
-            organizationWarehouseCredentialsUuid &&
-            !credentials.requireUserCredentials
-        ) {
-            this.logger.debug(
-                `Refreshing warehouse credentials from organization credentials`,
-            );
-            credentials = await this.materializeSelectedCredentials(
-                base,
-                context,
-                credentials,
-                userId,
-                {
-                    kind: 'organization',
-                    organizationWarehouseCredentialsUuid,
-                },
-            );
-        }
 
         if (isServiceAccount && credentials.requireUserCredentials) {
             throw new ForbiddenError(
@@ -3563,7 +3369,7 @@ export class ProjectService
                 throw new MissingWarehouseCredentialsError(
                     "You don't have warehouse credentials set up for this project. Add them under 'User settings' → 'My warehouse connections', or refresh the page to sign in again.",
                 );
-            } else if (!organizationWarehouseCredentialsUuid) {
+            } else {
                 this.logger.debug(
                     `Refreshing warehouse credentials for session user ${userId}`,
                 );
@@ -3582,7 +3388,7 @@ export class ProjectService
             throw new ForbiddenError(
                 'Embedded users cannot use personal warehouse credentials',
             );
-        } else if (!organizationWarehouseCredentialsUuid) {
+        } else {
             this.logger.debug(
                 `Refreshing warehouse credentials for embed user ${userId}`,
             );
@@ -3623,7 +3429,6 @@ export class ProjectService
             createdByUserUuid: project.createdByUserUuid,
         });
         if (ability.cannot('view', resource)) throw new ForbiddenError();
-        if (project.organizationWarehouseCredentialsUuid) return null;
         const credentials = project.warehouseConnection;
         const signIn = credentials ? getPersonSignIn(credentials) : null;
         if (!signIn) return null;
@@ -3703,7 +3508,6 @@ export class ProjectService
         const credentials = project.warehouseConnection;
         const signIn = credentials ? getPersonSignIn(credentials) : null;
         if (
-            project.organizationWarehouseCredentialsUuid ||
             credentials?.type !== WarehouseTypes.BIGQUERY ||
             signIn?.provider !== PersonSignInProvider.GOOGLE
         ) {
@@ -5184,7 +4988,9 @@ export class ProjectService
         const credentials =
             await this.projectModel.getWarehouseCredentialsForBinding(
                 projectUuid,
-                { kind: 'original' },
+                {
+                    kind: 'original',
+                },
             );
         if (credentials.type !== WarehouseTypes.DATABRICKS) {
             throw new ParameterError(
@@ -5321,11 +5127,7 @@ export class ProjectService
         );
         ProjectService.assertSupportedBigqueryKeyfile(data.warehouseConnection);
 
-        this.assertCanUseOrganizationWarehouseCredentials(
-            user,
-            user.organizationUuid,
-            data,
-        );
+        ProjectService.assertOrganizationWarehouseCredentialsRemoved(data);
 
         const newProjectData = data;
         ProjectService.validateDbtEnvironmentVariables(
@@ -5337,17 +5139,6 @@ export class ProjectService
                 user.organizationUuid,
             );
 
-        // If type preview and has upstream project, we first link the preview to the same organization warehouse credentials (if exists)
-        if (
-            newProjectData.type === ProjectType.PREVIEW &&
-            newProjectData.upstreamProjectUuid
-        ) {
-            const upstreamProject = data.upstreamProjectUuid
-                ? await this.projectModel.get(data.upstreamProjectUuid)
-                : undefined;
-            newProjectData.organizationWarehouseCredentialsUuid =
-                upstreamProject?.organizationWarehouseCredentialsUuid;
-        }
         if (
             newProjectData.type === ProjectType.PREVIEW &&
             data.copyWarehouseConnectionFromUpstreamProject &&
@@ -5423,10 +5214,7 @@ export class ProjectService
                 previewProjectUuid: projectUuid,
                 warehouseConnectionUuidMap: connectionMap?.uuids ?? new Map(),
             });
-            if (
-                createProject.warehouseConnection &&
-                !createProject.organizationWarehouseCredentialsUuid
-            ) {
+            if (createProject.warehouseConnection) {
                 await this.recordPreviewCredentialOwnership({
                     previewProjectUuid: projectUuid,
                     upstreamProjectUuid: createProject.upstreamProjectUuid,
@@ -5714,11 +5502,7 @@ export class ProjectService
             user.organizationUuid,
         );
 
-        this.assertCanUseOrganizationWarehouseCredentials(
-            user,
-            user.organizationUuid,
-            data,
-        );
+        ProjectService.assertOrganizationWarehouseCredentialsRemoved(data);
         ProjectService.validateDbtEnvironmentVariables(data.dbtConnection);
 
         let encryptedData: string;
@@ -5762,7 +5546,9 @@ export class ProjectService
                 }
                 throw new ConflictError(
                     'A project creation is already in progress',
-                    { jobUuid: result.activeJob.jobUuid },
+                    {
+                        jobUuid: result.activeJob.jobUuid,
+                    },
                 );
             }
         }
@@ -6672,11 +6458,7 @@ export class ProjectService
         ) {
             throw new ForbiddenError();
         }
-        this.assertCanUseOrganizationWarehouseCredentials(
-            account,
-            savedProject.organizationUuid,
-            data,
-        );
+        ProjectService.assertOrganizationWarehouseCredentialsRemoved(data);
 
         let updateData = data;
         let upstreamCredentials: CreateWarehouseCredentials | undefined;
@@ -6789,8 +6571,7 @@ export class ProjectService
         }
         if (
             savedProject.type === ProjectType.PREVIEW &&
-            savedProject.upstreamProjectUuid &&
-            !updatedProject.organizationWarehouseCredentialsUuid
+            savedProject.upstreamProjectUuid
         ) {
             await this.recordPreviewCredentialOwnership({
                 previewProjectUuid: projectUuid,
@@ -6919,11 +6700,7 @@ export class ProjectService
         ) {
             throw new ForbiddenError();
         }
-        this.assertCanUseOrganizationWarehouseCredentials(
-            account,
-            savedProject.organizationUuid,
-            data,
-        );
+        ProjectService.assertOrganizationWarehouseCredentialsRemoved(data);
 
         const updatedProjectData: UpdateProject = {
             name: savedProject.name,
@@ -6954,7 +6731,7 @@ export class ProjectService
                 SnowflakeAuthenticationType.NONE
         ) {
             updatedProject.warehouseConnection =
-                OrganizationWarehouseCredentialsModel.stripSensitiveCredentials(
+                stripSensitiveWarehouseCredentials(
                     updatedProject.warehouseConnection,
                 ) as CreateWarehouseCredentials;
         }
@@ -6969,8 +6746,7 @@ export class ProjectService
         });
         if (
             savedProject.type === ProjectType.PREVIEW &&
-            savedProject.upstreamProjectUuid &&
-            !updatedProject.organizationWarehouseCredentialsUuid
+            savedProject.upstreamProjectUuid
         ) {
             await this.recordPreviewCredentialOwnership({
                 previewProjectUuid: projectUuid,
@@ -7070,8 +6846,7 @@ export class ProjectService
             }
             if (
                 !this.lightdashConfig.warehouseClient
-                    .resolveTestAndCompileCredentials &&
-                !updatedProject.organizationWarehouseCredentialsUuid
+                    .resolveTestAndCompileCredentials
             ) {
                 updatedProject.warehouseConnection =
                     await this.repairStalePreviewSsoCredentials(
@@ -7155,7 +6930,9 @@ export class ProjectService
                             if (
                                 (await this.projectModel.getConnectionRoute(
                                     projectUuid,
-                                    { kind: 'original' },
+                                    {
+                                        kind: 'original',
+                                    },
                                 )) === 'multi'
                             ) {
                                 multiConnection =
@@ -7977,17 +7754,14 @@ export class ProjectService
                     cachePolicy: 'disabled',
                 };
             } else {
-                this.assertCanUseOrganizationWarehouseCredentials(
-                    account,
-                    connectionOrganizationUuid,
-                    { warehouseConnection: body.credentials },
-                );
+                ProjectService.assertOrganizationWarehouseCredentialsRemoved({
+                    warehouseConnection: body.credentials,
+                });
                 const { warehouseConnection } =
                     await this._resolveWarehouseClientCredentials(
                         { warehouseConnection: body.credentials },
                         account.user.userUuid,
                         connectionOrganizationUuid,
-                        'persist',
                     );
                 warehouseRef = {
                     kind: 'resolved',
@@ -8244,24 +8018,19 @@ export class ProjectService
             );
         }
         let { warehouseConnection } = project;
-        if (!project.organizationWarehouseCredentialsUuid) {
-            warehouseConnection = await this.repairStalePreviewSsoCredentials(
-                projectUuid,
-                warehouseConnection,
-            );
-        }
+        warehouseConnection = await this.repairStalePreviewSsoCredentials(
+            projectUuid,
+            warehouseConnection,
+        );
         if (
             warehouseConnection.type === WarehouseTypes.SNOWFLAKE &&
             warehouseConnection.authenticationType === 'sso' &&
             warehouseConnection.refreshToken
         ) {
-            const owner: CredentialOwner =
-                project.organizationWarehouseCredentialsUuid
-                    ? {
-                          kind: 'organization',
-                          uuid: project.organizationWarehouseCredentialsUuid,
-                      }
-                    : { kind: 'project', uuid: projectUuid };
+            const owner: CredentialOwner = {
+                kind: 'project',
+                uuid: projectUuid,
+            };
             const resolved =
                 await this.snowflakeOAuthCredentialResolver.refresh(
                     {
@@ -8296,12 +8065,7 @@ export class ProjectService
                     DatabricksAuthenticationType.OAUTH_U2M)
         ) {
             let selectionSource: CredentialSelectionSource = {
-                owner: project.organizationWarehouseCredentialsUuid
-                    ? {
-                          kind: 'organization',
-                          uuid: project.organizationWarehouseCredentialsUuid,
-                      }
-                    : { kind: 'project', uuid: projectUuid },
+                owner: { kind: 'project', uuid: projectUuid },
             };
             let selected = warehouseConnection;
             if (
@@ -8753,9 +8517,7 @@ export class ProjectService
         this.logger.info(
             `${event} projectUuid=${projectUuid} sourceName=${sourceName} durationMs=${durationMs} models=${modelCount} gitRefreshMs=${
                 timings.gitRefreshMs ?? 'none'
-            } depsMs=${timings.depsMs ?? 'none'} manifestMs=${
-                timings.manifestMs
-            }`,
+            } depsMs=${timings.depsMs ?? 'none'} manifestMs=${timings.manifestMs}`,
             {
                 event,
                 projectUuid,
@@ -9329,9 +9091,7 @@ export class ProjectService
             } models=${[...modelsBySchema.values()].reduce(
                 (sum, count) => sum + count,
                 0,
-            )} columns=${mergedColumnCount} distinctSchemas=${
-                modelsBySchema.size
-            }`,
+            )} columns=${mergedColumnCount} distinctSchemas=${modelsBySchema.size}`,
             {
                 event: 'dbt.compile.mergedManifestShape',
                 projectUuid,
@@ -10008,10 +9768,16 @@ export class ProjectService
                         (tc) => tc.sql,
                     ),
                     customSqlDimensions: customDimensionsToAuthorize.map(
-                        (cd) => ({ sql: cd.sql, table: cd.table }),
+                        (cd) => ({
+                            sql: cd.sql,
+                            table: cd.table,
+                        }),
                     ),
                     additionalMetrics: additionalMetricsToAuthorize.map(
-                        (metric) => ({ sql: metric.sql, table: metric.table }),
+                        (metric) => ({
+                            sql: metric.sql,
+                            table: metric.table,
+                        }),
                     ),
                 });
 
@@ -10913,9 +10679,7 @@ export class ProjectService
                               fieldIds: unresolved,
                               message: `Calculation "${calculation.name}" references ${unresolved.join(
                                   ', ',
-                              )}. The merged result has: ${available.join(
-                                  ', ',
-                              )}.`,
+                              )}. The merged result has: ${available.join(', ')}.`,
                           },
                       ];
             },
@@ -15221,17 +14985,11 @@ export class ProjectService
                         })),
                     );
 
-                if (credentials.userWarehouseCredentialsUuid) {
-                    await this.warehouseAvailableTablesModel.createAvailableTablesForUserWarehouseCredentials(
-                        credentials.userWarehouseCredentialsUuid,
-                        warehouseTables,
-                    );
-                } else {
-                    await this.warehouseAvailableTablesModel.createAvailableTablesForProjectWarehouseCredentials(
-                        projectUuid,
-                        warehouseTables,
-                    );
-                }
+                await this.saveWarehouseTables(
+                    projectUuid,
+                    credentials.userWarehouseCredentialsUuid ?? null,
+                    warehouseTables,
+                );
 
                 return catalog;
             },
@@ -15263,37 +15021,66 @@ export class ProjectService
         );
         if (agentExecutionContext.getStore()?.agentConnectionExecution)
             await this.assertConnectionDiscovery(user, projectUuid);
-        if (
-            bound ||
-            isAiAccessQueryContext(context ?? QueryExecutionContext.SQL_RUNNER)
-        ) {
-            return this.warehouseClientFactory.withWarehouseClient(
+        const queryContext = context ?? QueryExecutionContext.SQL_RUNNER;
+        if (bound || isAiAccessQueryContext(queryContext)) {
+            const bindingRef = {
+                kind: 'binding',
+                projectUuid,
+                binding: { kind: 'connection', warehouseConnectionUuid: null },
+            } as const;
+            const connectionContext = connectionContextFromUser(
+                { userUuid: user.userUuid, isRegisteredUser: true },
                 {
-                    kind: 'binding',
-                    projectUuid,
-                    binding: {
-                        kind: 'connection',
-                        warehouseConnectionUuid: null,
-                    },
+                    organizationUuid,
+                    queryContext,
+                    surface:
+                        querySurface === undefined
+                            ? undefined
+                            : connectionSurfaceFromQuerySurface(
+                                  querySurface,
+                                  context ?? null,
+                              ),
                 },
-                connectionContextFromUser(
-                    { userUuid: user.userUuid, isRegisteredUser: true },
-                    {
-                        organizationUuid,
-                        queryContext:
-                            context ?? QueryExecutionContext.SQL_RUNNER,
-                        surface:
-                            querySurface === undefined
-                                ? undefined
-                                : connectionSurfaceFromQuerySurface(
-                                      querySurface,
-                                      context ?? null,
-                                  ),
-                    },
-                ),
+            );
+            let liveRef: WarehouseClientRef = bindingRef;
+            let savedListKey: {
+                userWarehouseCredentialsUuid: UUID | null;
+            } | null = null;
+            if (!bound) {
+                const resolution =
+                    await this.warehouseClientFactory.resolveWarehouseCredentials(
+                        bindingRef,
+                        connectionContext,
+                    );
+                // Agents running as the person see what the SQL runner sees
+                if (
+                    resolution.aiPlan === null ||
+                    resolution.aiPlan.identity === 'marked_person'
+                ) {
+                    savedListKey = {
+                        userWarehouseCredentialsUuid:
+                            resolution.warehouseCredentials
+                                .userWarehouseCredentialsUuid ?? null,
+                    };
+                    const saved = await this.getSavedWarehouseTables(
+                        projectUuid,
+                        savedListKey.userWarehouseCredentialsUuid,
+                    );
+                    if (saved) return saved;
+                }
+                liveRef = {
+                    kind: 'resolved',
+                    projectUuid,
+                    credentials: resolution.warehouseCredentials,
+                    aiPlan: resolution.aiPlan,
+                    warehouseConnectionUuid: resolution.warehouseConnectionUuid,
+                    connectionRoute: resolution.connectionRoute,
+                };
+            }
+            return this.warehouseClientFactory.withWarehouseClient(
+                liveRef,
+                connectionContext,
                 async ({ warehouseClient }) => {
-                    const queryContext =
-                        context ?? QueryExecutionContext.SQL_RUNNER;
                     const tables = await warehouseClient.getAllTables(
                         undefined,
                         withAgentMarkerTag({ query_context: queryContext }),
@@ -15303,6 +15090,12 @@ export class ProjectService
                             ?.agentConnectionExecution
                     )
                         await this.assertConnectionDiscovery(user, projectUuid);
+                    if (savedListKey)
+                        await this.saveWarehouseTables(
+                            projectUuid,
+                            savedListKey.userWarehouseCredentialsUuid,
+                            tables,
+                        );
                     return WarehouseAvailableTablesModel.toWarehouseCatalog(
                         tables.map((table) => ({
                             ...table,
@@ -15322,32 +15115,44 @@ export class ProjectService
                 isRegisteredUser: true,
             });
 
-        let catalog: WarehouseTablesCatalog | null = null;
-        // Check the cache for catalog
-        if (credentials.userWarehouseCredentialsUuid) {
-            catalog =
-                await this.warehouseAvailableTablesModel.getTablesForUserWarehouseCredentials(
-                    credentials.userWarehouseCredentialsUuid,
-                );
-        } else {
-            catalog =
-                await this.warehouseAvailableTablesModel.getTablesForProjectWarehouseCredentials(
-                    projectUuid,
-                );
-        }
-
-        // If there was no cached catalog, generate it
-        if (!catalog || Object.keys(catalog).length === 0) {
-            catalog = await this.populateWarehouseTablesCache(
-                user,
+        return (
+            (await this.getSavedWarehouseTables(
                 projectUuid,
+                credentials.userWarehouseCredentialsUuid ?? null,
+            )) ?? this.populateWarehouseTablesCache(user, projectUuid)
+        );
+    }
+
+    private async getSavedWarehouseTables(
+        projectUuid: UUID,
+        userWarehouseCredentialsUuid: UUID | null,
+    ): Promise<WarehouseTablesCatalog | null> {
+        const catalog = userWarehouseCredentialsUuid
+            ? await this.warehouseAvailableTablesModel.getTablesForUserWarehouseCredentials(
+                  userWarehouseCredentialsUuid,
+              )
+            : await this.warehouseAvailableTablesModel.getTablesForProjectWarehouseCredentials(
+                  projectUuid,
+              );
+        return catalog && Object.keys(catalog).length > 0 ? catalog : null;
+    }
+
+    private async saveWarehouseTables(
+        projectUuid: UUID,
+        userWarehouseCredentialsUuid: UUID | null,
+        tables: WarehouseTables,
+    ): Promise<void> {
+        if (userWarehouseCredentialsUuid) {
+            await this.warehouseAvailableTablesModel.createAvailableTablesForUserWarehouseCredentials(
+                userWarehouseCredentialsUuid,
+                tables,
+            );
+        } else {
+            await this.warehouseAvailableTablesModel.createAvailableTablesForProjectWarehouseCredentials(
+                projectUuid,
+                tables,
             );
         }
-
-        if (!catalog) {
-            throw new NotFoundError('Warehouse tables not found');
-        }
-        return catalog;
     }
 
     async getWarehouseFields(
@@ -15358,7 +15163,10 @@ export class ProjectService
         schemaName?: string,
         databaseName?: string,
         querySurface?: QuerySurface,
-    ): Promise<WarehouseTableSchema> {
+    ): Promise<{
+        fields: WarehouseTableSchema;
+        nativeTypes: Record<string, string>;
+    }> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
         const auditedAbility = this.createAuditedAbility(user);
@@ -15441,7 +15249,17 @@ export class ProjectService
                             ?.agentConnectionExecution
                     )
                         await this.assertConnectionDiscovery(user, projectUuid);
-                    return warehouseCatalog[database][schemaName][tableName];
+                    return {
+                        fields: warehouseCatalog[database][schemaName][
+                            tableName
+                        ],
+                        nativeTypes: getCatalogTableNativeTypes(
+                            warehouseCatalog,
+                            database,
+                            schemaName,
+                            tableName,
+                        ),
+                    };
                 } catch (error) {
                     this.logger.error('Error fetching warehouse fields', {
                         error,
@@ -17571,10 +17389,7 @@ export class ProjectService
             upstreamCredentials.type === WarehouseTypes.DUCKDB &&
             upstreamCredentials.connectionType ===
                 DuckdbConnectionType.EMBEDDED;
-        if (
-            !isShippedSampleData ||
-            training.organizationWarehouseCredentialsUuid
-        ) {
+        if (!isShippedSampleData) {
             throw new ForbiddenError(
                 ProjectService.TRAINING_CONNECTION_MANAGED_MESSAGE,
             );
@@ -18170,7 +17985,9 @@ export class ProjectService
         const credentials =
             await this.projectModel.getWarehouseCredentialsForBinding(
                 projectUuid,
-                { kind: 'original' },
+                {
+                    kind: 'original',
+                },
             );
         return this.userWarehouseCredentialsModel.findForProject(
             project.projectUuid,
@@ -18194,7 +18011,9 @@ export class ProjectService
         const credentials =
             await this.projectModel.getWarehouseCredentialsForBinding(
                 projectUuid,
-                { kind: 'original' },
+                {
+                    kind: 'original',
+                },
             );
         return {
             type: credentials.type,
@@ -18256,7 +18075,9 @@ export class ProjectService
             const connection =
                 await this.projectModel.getWarehouseCredentialsForBinding(
                     projectUuid,
-                    { kind: 'original' },
+                    {
+                        kind: 'original',
+                    },
                 );
             if (
                 (userWarehouseCredentials.project !== null &&

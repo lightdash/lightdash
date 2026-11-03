@@ -126,18 +126,10 @@ export class OrganizationBrandService extends BaseService {
         return !!this.dependencies.lightdashConfig.license.licenseKey;
     }
 
+    // Every org member sees the white-label brand, whatever their role
     async getBrand(account: Account): Promise<OrganizationBrand | null> {
         assertIsAccountWithOrg(account);
         const { organizationUuid } = account.organization;
-        const auditedAbility = this.createAuditedAbility(account);
-        if (
-            auditedAbility.cannot(
-                'view',
-                subject('Organization', { organizationUuid }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
         const brand =
             await this.dependencies.organizationBrandModel.findBrand(
                 organizationUuid,
@@ -444,15 +436,6 @@ export class OrganizationBrandService extends BaseService {
     ): Promise<{ contentType: string; data: Buffer }> {
         assertIsAccountWithOrg(account);
         const { organizationUuid } = account.organization;
-        const auditedAbility = this.createAuditedAbility(account);
-        if (
-            auditedAbility.cannot(
-                'view',
-                subject('Organization', { organizationUuid }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
         if (!this.hasBrandLogoStorage()) {
             throw new NotFoundError('Brand logo not found');
         }

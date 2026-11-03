@@ -1,6 +1,7 @@
 import {
     BigQuery,
     Dataset,
+    Table,
     type DatasetsResponse,
     type QueryRowsResponse,
 } from '@google-cloud/bigquery';
@@ -10,10 +11,13 @@ import {
     DimensionType,
     getBigqueryWorkloadIdentityStsAudience,
     getCatalogNestedColumnShape,
+    getCatalogTableNativeTypes,
+    PartitionType,
     setCatalogNestedColumnShape,
     setCatalogTimestampDomain,
     WarehouseConnectionError,
     WarehouseQueryError,
+    WarehouseTableType,
     type BigqueryProject,
     type CreateBigqueryCredentials,
     type WarehouseNestedColumnShape,
@@ -309,6 +313,38 @@ describe('BigqueryWarehouseClient', () => {
             ),
         ).toBeUndefined();
     });
+    it('expect getFields to record native types that collapse into timestamp', async () => {
+        const schemaFields = [
+            { name: 'created_at_local', type: 'DATETIME' },
+            { name: 'departure_at', type: 'TIMESTAMP' },
+            { name: 'pickup_time', type: 'TIME' },
+            { name: 'trip_date', type: 'DATE' },
+            { name: 'name', type: 'STRING' },
+        ];
+        Dataset.prototype.table = vi.fn(() => ({
+            id: 'trips',
+            bigQuery: { projectId: 'myDatabase' },
+            getMetadata: vi.fn(() => [{ schema: { fields: schemaFields } }]),
+        })) as never;
+        const warehouse = new BigqueryWarehouseClient(credentials);
+        const fields = await warehouse.getFields(
+            'trips',
+            'mySchema',
+            'myDatabase',
+        );
+        expect(
+            getCatalogTableNativeTypes(
+                fields,
+                'myDatabase',
+                'mySchema',
+                'trips',
+            ),
+        ).toEqual({
+            created_at_local: 'DATETIME',
+            departure_at: 'TIMESTAMP',
+            pickup_time: 'TIME',
+        });
+    });
 });
 
 describe('BigqueryWarehouseClient.estimateQuery', () => {
@@ -466,6 +502,79 @@ describe('BigqueryWarehouseClient.getDatabases', () => {
         expect(
             result.slice(25).every(({ sizeBytes }) => sizeBytes === null),
         ).toBe(true);
+    });
+});
+
+describe('BigqueryWarehouseClient.getAllTables', () => {
+    // Mirrors the SDK: datasets carry the requested project, or the
+    // client's default project when none is requested.
+    const createWarehouse = (overrides: Partial<CreateBigqueryCredentials>) => {
+        const warehouse = new BigqueryWarehouseClient({
+            ...credentials,
+            ...overrides,
+        });
+        const getDatasets = vi.fn((options?: { projectId?: string }) => {
+            const dataset = new Dataset(warehouse.client, 'prod_report', {
+                projectId: options?.projectId,
+            });
+            // Not dataset.table(): other suites stub Dataset.prototype.table.
+            const table = new Table(dataset, 'semantic_listenings');
+            table.metadata = { type: 'TABLE' };
+            dataset.getTables = vi
+                .fn()
+                .mockResolvedValue([
+                    [table],
+                ]) as unknown as Dataset['getTables'];
+            return Promise.resolve([[dataset]]);
+        });
+        const query = vi.fn().mockResolvedValue([
+            [
+                {
+                    table_name: 'semantic_listenings',
+                    column_name: 'listened_at',
+                    data_type: 'DATE',
+                },
+            ],
+        ]);
+        warehouse.client.getDatasets =
+            getDatasets as unknown as BigQuery['getDatasets'];
+        warehouse.client.query = query as unknown as BigQuery['query'];
+        return { warehouse, getDatasets, query };
+    };
+
+    it('lists the connection project when an execution project is set', async () => {
+        const { warehouse, getDatasets, query } = createWarehouse({
+            project: 'dbt-project',
+            executionProject: 'billing-project',
+        });
+
+        await expect(warehouse.getAllTables()).resolves.toEqual([
+            {
+                database: 'dbt-project',
+                schema: 'prod_report',
+                table: 'semantic_listenings',
+                tableType: WarehouseTableType.TABLE,
+                partitionColumn: {
+                    field: 'listened_at',
+                    partitionType: PartitionType.DATE,
+                },
+            },
+        ]);
+        expect(warehouse.client.projectId).toBe('billing-project');
+        expect(getDatasets).toHaveBeenCalledWith({ projectId: 'dbt-project' });
+        expect(query).toHaveBeenCalledWith(
+            expect.stringContaining(
+                '`dbt-project.prod_report.INFORMATION_SCHEMA.COLUMNS`',
+            ),
+        );
+    });
+
+    it('lists the connection project when no execution project is set', async () => {
+        const { warehouse } = createWarehouse({ project: 'dbt-project' });
+
+        const [table] = await warehouse.getAllTables();
+
+        expect(table.database).toBe('dbt-project');
     });
 });
 

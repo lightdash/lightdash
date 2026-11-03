@@ -1,5 +1,5 @@
 import type * as DndKitCore from '@dnd-kit/core';
-import { type DragEndEvent } from '@dnd-kit/core';
+import { type DragEndEvent, type DragMoveEvent } from '@dnd-kit/core';
 import {
     DashboardTileTypes,
     FieldType,
@@ -56,6 +56,9 @@ const mockDraggableDisabled = vi.hoisted(() => new Map<unknown, boolean>());
 const mockDragEnd = vi.hoisted(() => ({
     handlers: [] as ((event: DragEndEvent) => void)[],
 }));
+const mockDragMove = vi.hoisted(() => ({
+    handlers: [] as ((event: DragMoveEvent) => void)[],
+}));
 // A drop state dnd-kit would report mid-drag, without the gesture
 const mockDroppable = vi.hoisted(() => ({
     current: null as null | {
@@ -96,6 +99,7 @@ vi.mock('@dnd-kit/core', async (importOriginal) => {
         ...actual,
         DndContext: (props: Parameters<typeof actual.DndContext>[0]) => {
             if (props.onDragEnd) mockDragEnd.handlers.push(props.onDragEnd);
+            if (props.onDragMove) mockDragMove.handlers.push(props.onDragMove);
             return <actual.DndContext {...props} />;
         },
         useDraggable: (args: Parameters<typeof actual.useDraggable>[0]) => {
@@ -320,6 +324,7 @@ describe('SectionedFilters', () => {
     beforeEach(() => {
         pillsProps.current = [];
         mockDragEnd.handlers = [];
+        mockDragMove.handlers = [];
         mockSidebar.current = { isViewer: false, isSidebarOpen: false };
         mockDashboardContext.current = {
             filterableFieldsByTileUuid: {
@@ -354,14 +359,16 @@ describe('SectionedFilters', () => {
             ) & Node.DOCUMENT_POSITION_FOLLOWING,
         ).toBeTruthy();
         // One capsule per section, its toggle and its pills inside it
-        const dates = screen.getByRole('button', { name: 'Dates' });
-        const capsule = dates.parentElement;
-        expect(capsule?.className).toContain('capsule');
+        const capsule = capsuleOf('Dates');
+        expect(capsule.className).toContain('capsule');
+        expect(capsule).toContainElement(
+            screen.getByRole('button', { name: 'Dates' }),
+        );
         expect(capsule).toContainElement(screen.getByTestId('pills-a'));
         expect(capsule).not.toContainElement(screen.getByTestId('pills-b'));
-        expect(
-            screen.getByRole('button', { name: 'Regions' }).parentElement,
-        ).toContainElement(screen.getByTestId('pills-b'));
+        expect(capsuleOf('Regions')).toContainElement(
+            screen.getByTestId('pills-b'),
+        );
         expect(document.querySelectorAll('[class*="capsule"]')).toHaveLength(2);
     });
 
@@ -438,14 +445,14 @@ describe('SectionedFilters', () => {
         ).not.toBeInTheDocument();
     });
 
-    it('starts the capsules on a line below the unsectioned pills only when there are any', () => {
+    it('starts the capsules on a line below the filters, with unsectioned pills or without', () => {
         const sectionsLine = () =>
             screen
                 .getByRole('button', { name: 'New section' })
                 .closest('[class*="sections"]');
         const { unmount } = renderSectioned([rule('one', 'a')], 'tab-1');
-        // No unsectioned pills: the capsules follow Add filter
-        expect(sectionsLine()).not.toHaveAttribute('data-own-line');
+        expect(sectionsLine()).toHaveAttribute('data-own-line');
+        expect(sectionsLine()).toContainElement(capsuleOf('Dates'));
         unmount();
 
         renderSectioned([rule('one', 'a'), rule('loose', undefined)], 'tab-1');
@@ -468,19 +475,13 @@ describe('SectionedFilters', () => {
         ).toHaveAttribute('data-own-line');
     });
 
-    it('keeps saved order on the sections line: open, folded, folded, open', () => {
+    it('puts each section on a line of its own unless it is saved inline, whatever its fold', () => {
         const saved = [
             { id: 'a', name: 'Dates' },
-            { id: 'b', name: 'Regions', collapsed: true },
+            { id: 'b', name: 'Regions', collapsed: true, inline: true },
             { id: 'c', name: 'Status', collapsed: true },
-            { id: 'd', name: 'Totals' },
+            { id: 'd', name: 'Totals', inline: true },
         ];
-        mockDashboardContext.current = {
-            ...mockDashboardContext.current,
-            dashboard: {
-                config: { isDateZoomDisabled: false, controlSections: saved },
-            },
-        };
         renderSectioned(
             [
                 rule('one', 'a'),
@@ -491,33 +492,26 @@ describe('SectionedFilters', () => {
             'tab-1',
             saved,
         );
-        const lines = ['Dates', 'Regions', 'Status', 'Totals'].map(
-            (name) => capsuleOf(name).parentElement as HTMLElement,
-        );
-        const sectionsLine = lines[0].parentElement;
+        const lineOf = (name: string) =>
+            capsuleOf(name).parentElement as HTMLElement;
+        expect(lineOf('Dates').className).toMatch(/sectionLine/);
+        expect(lineOf('Regions')).toBe(lineOf('Dates'));
+        expect(lineOf('Totals')).toBe(lineOf('Status'));
+        expect(lineOf('Status')).not.toBe(lineOf('Dates'));
+        const sectionsLine = lineOf('Dates').parentElement;
         expect(sectionsLine?.className).toMatch(/sections/);
-        expect([...(sectionsLine?.children ?? [])].slice(0, 4)).toEqual(lines);
-        expect(lines.map((line) => line.hasAttribute('data-own-line'))).toEqual(
-            [true, false, false, true],
-        );
+        expect([...(sectionsLine?.children ?? [])].slice(0, 2)).toEqual([
+            lineOf('Dates'),
+            lineOf('Status'),
+        ]);
     });
 
-    it("starts a viewer's capsules below a temporary filter, their only loose pill", () => {
+    it("starts a viewer's capsules on a line below the filters", () => {
         mockSidebar.current = { isViewer: true, isSidebarOpen: false };
-        const { store } = renderSectioned([rule('one', 'a')], 'tab-1');
-        const sectionsLine = () =>
-            capsuleOf('Dates').parentElement?.parentElement;
-        expect(sectionsLine()).not.toHaveAttribute('data-own-line');
-        act(() => {
-            store.dispatch(
-                dashboardFiltersActions.setTemporaryFilters({
-                    dimensions: [rule('own', undefined)],
-                    metrics: [],
-                    tableCalculations: [],
-                }),
-            );
-        });
-        expect(sectionsLine()).toHaveAttribute('data-own-line');
+        renderSectioned([rule('one', 'a')], 'tab-1');
+        expect(capsuleOf('Dates').parentElement?.parentElement).toHaveAttribute(
+            'data-own-line',
+        );
     });
 
     it('renders sections and an unsectioned filter while a filter is edited', () => {
@@ -530,23 +524,6 @@ describe('SectionedFilters', () => {
         expect(capsuleOf('Dates').parentElement?.parentElement).toHaveAttribute(
             'data-own-line',
         );
-    });
-
-    it('counts the edited pill shown on another tab as a loose pill', () => {
-        const filters = [rule('one', 'a'), rule('loose', undefined, onTabOne)];
-        const sectionsLine = () =>
-            capsuleOf('Dates').parentElement?.parentElement;
-        const { unmount } = renderSectioned(filters, 'tab-2');
-        expect(sectionsLine()).not.toHaveAttribute('data-own-line');
-        unmount();
-
-        mockSidebar.current = {
-            isViewer: false,
-            isSidebarOpen: true,
-            editing: { filterId: 'loose' },
-        };
-        renderSectioned(filters, 'tab-2');
-        expect(sectionsLine()).toHaveAttribute('data-own-line');
     });
 
     it('renders a capsule only for the sections that have a visible member', () => {
@@ -1199,9 +1176,7 @@ describe('SectionedFilters', () => {
         afterEach(() => grid.remove());
 
         it.each([
-            // No sections: 7 pills fold the new section, beside Add filter
-            { loose: 7, moved: 7, saved: [], isOpen: false, isOwnLine: false },
-            // Folded sections: the last pills open it, on a line of its own
+            { loose: 7, moved: 7, saved: [] },
             {
                 loose: 2,
                 moved: 2,
@@ -1209,14 +1184,11 @@ describe('SectionedFilters', () => {
                     { id: 'b', name: 'Regions', collapsed: true },
                     { id: 'c', name: 'Empty', collapsed: true },
                 ],
-                isOpen: true,
-                isOwnLine: false,
             },
-            // A pill stays loose: the sections start below it
-            { loose: 3, moved: 2, saved: [], isOpen: true, isOwnLine: true },
+            { loose: 3, moved: 2, saved: [] },
         ])(
-            'names a section where its capsule lands ($loose loose, $moved moved)',
-            async ({ loose, moved, saved, isOpen, isOwnLine }) => {
+            'names a section on a line of its own below the filters ($loose loose, $moved moved)',
+            async ({ loose, moved, saved }) => {
                 const ids = Array.from({ length: loose }, (_, i) => `p${i}`);
                 const { store } = renderSectioned(
                     ids.map((id) => rule(id, undefined)),
@@ -1231,19 +1203,6 @@ describe('SectionedFilters', () => {
                             ),
                         ),
                 );
-                // Whether its line is open, and the sections' line its own
-                const placeOf = (element: HTMLElement) => {
-                    const sectionsLine = element.closest(
-                        '[class*="sections"]',
-                    ) as HTMLElement;
-                    const line = [...sectionsLine.children].find((child) =>
-                        child.contains(element),
-                    );
-                    return {
-                        isOpen: line?.hasAttribute('data-own-line'),
-                        isOwnLine: sectionsLine.hasAttribute('data-own-line'),
-                    };
-                };
                 ids.slice(0, moved).forEach((id) =>
                     fireEvent.click(pillOf(id), { metaKey: true }),
                 );
@@ -1252,16 +1211,23 @@ describe('SectionedFilters', () => {
                         name: 'Move to new section',
                     }),
                 );
-                expect(
-                    placeOf(
-                        screen.getByRole('textbox', { name: 'Section name' }),
-                    ),
-                ).toEqual({ isOpen, isOwnLine });
-                await userEvent.keyboard('Misc{Enter}');
-                expect(placeOf(capsuleOf('Misc'))).toEqual({
-                    isOpen,
-                    isOwnLine,
+                const input = screen.getByRole('textbox', {
+                    name: 'Section name',
                 });
+                expect(input.closest('[class*="sections"]')).toHaveAttribute(
+                    'data-own-line',
+                );
+                expect(input.closest('[data-own-line]')).not.toBe(
+                    input.closest('[class*="sections"]'),
+                );
+                await userEvent.keyboard('Misc{Enter}');
+                const line = capsuleOf('Misc').parentElement as HTMLElement;
+                expect(line.className).toMatch(/sectionLine/);
+                expect(
+                    [...line.children].filter(
+                        (child) => child.getAttribute('role') === 'group',
+                    ),
+                ).toEqual([capsuleOf('Misc')]);
             },
         );
 
@@ -1285,8 +1251,11 @@ describe('SectionedFilters', () => {
                 }),
             );
             await userEvent.keyboard('Misc{Enter}');
+            // Alone on its line, folded or open
             const ownLine = () =>
-                capsuleOf('Misc').parentElement?.hasAttribute('data-own-line');
+                [...(capsuleOf('Misc').parentElement?.children ?? [])].filter(
+                    (child) => child.getAttribute('role') === 'group',
+                ).length === 1;
             expect(ownLine()).toBe(true);
             await userEvent.click(foldOf('Misc'));
             expect(foldOf('Misc')).toHaveAttribute('aria-expanded', 'false');
@@ -2120,6 +2089,23 @@ describe('SectionedFilters', () => {
             expect(sectionsOf(store)[0].name).toBe('When');
         });
 
+        it('renames from the section menu as a click on the name does', async () => {
+            const { store } = renderSectioned([rule('one', 'a')], 'tab-1');
+            const user = userEvent.setup();
+
+            await user.click(
+                screen.getByRole('button', { name: 'Dates menu' }),
+            );
+            await user.click(
+                await screen.findByRole('menuitem', { name: 'Rename' }),
+            );
+            const input = screen.getByRole('textbox', { name: 'Section name' });
+            expect(input).toHaveFocus();
+            await user.clear(input);
+            await user.type(input, 'When{Enter}');
+            expect(sectionsOf(store)[0].name).toBe('When');
+        });
+
         it('renames with the check and keeps the old name with the X; an empty name disables the check', async () => {
             const { store } = renderSectioned([rule('one', 'a')], 'tab-1');
             const user = userEvent.setup();
@@ -2241,50 +2227,116 @@ describe('SectionedFilters', () => {
             ).not.toBeInTheDocument();
         });
 
-        it('reorders sections by dragging a capsule onto another, and with Alt and an arrow on the name', async () => {
-            const { store } = renderSectioned([rule('one', 'a')], 'tab-1');
-            const order = () => sectionsOf(store).map((section) => section.id);
-            act(() =>
-                mockDragEnd.handlers[0]({
-                    active: { id: 'a', data: { current: { kind: 'section' } } },
-                    over: { id: 'c' },
-                } as unknown as DragEndEvent),
-            );
-            expect(order()).toEqual(['b', 'c', 'a']);
-            expect(setDashboardFilters).not.toHaveBeenCalled();
-
-            fireEvent.keyDown(screen.getByRole('button', { name: 'Dates' }), {
-                key: 'ArrowLeft',
-                altKey: true,
-            });
-            expect(order()).toEqual(['b', 'a', 'c']);
+        // A capsule dragged with its copy's centre at `x`, over a target 100px wide at 0
+        const sectionDrag = (id: string, overId: string, x = 500) => ({
+            active: {
+                id,
+                data: { current: { kind: 'section' } },
+                rect: { current: { translated: { left: x, width: 0 } } },
+            },
+            over: { id: overId, rect: { left: 0, width: 100 } },
         });
 
-        it('draws a line on the side a dragged capsule would land, never a pill line', () => {
-            mockDroppable.current = {
-                activeId: 'a',
-                overId: 'c',
-                isSection: true,
-            };
-            const { unmount } = renderSectioned([rule('one', 'a')], 'tab-1');
+        it('places a section by dragging its capsule beside another or onto a line of its own, and with Alt and an arrow on the name', async () => {
+            const { store } = renderSectioned([rule('one', 'a')], 'tab-1');
+            const lines = () =>
+                sectionsOf(store).map(
+                    ({ id, inline }) => `${inline ? '+' : ''}${id}`,
+                );
+            // After Empty, on its line
+            act(() =>
+                mockDragEnd.handlers.at(-1)!(
+                    sectionDrag('a', 'c') as unknown as DragEndEvent,
+                ),
+            );
+            expect(lines()).toEqual(['b', 'c', '+a']);
+            expect(setDashboardFilters).not.toHaveBeenCalled();
+            // Before Regions, taking the start of its line
+            act(() =>
+                mockDragEnd.handlers.at(-1)!(
+                    sectionDrag('c', 'b', 10) as unknown as DragEndEvent,
+                ),
+            );
+            expect(lines()).toEqual(['c', '+b', 'a']);
+            // The gap above the first line: a line of its own, first
+            act(() =>
+                mockDragEnd.handlers.at(-1)!(
+                    sectionDrag(
+                        'a',
+                        'section-line:0',
+                    ) as unknown as DragEndEvent,
+                ),
+            );
+            expect(lines()).toEqual(['a', 'c', '+b']);
+
+            // Alt and an arrow: along the bar, then to the line below
+            fireEvent.keyDown(screen.getByRole('button', { name: 'Dates' }), {
+                key: 'ArrowRight',
+                altKey: true,
+            });
+            expect(lines()).toEqual(['c', '+a', '+b']);
+            expect(
+                screen.getByText('Dates moved to section line 1, position 2'),
+            ).toBeInTheDocument();
+            expect(
+                screen.getByRole('button', { name: 'Dates' }),
+            ).toHaveAttribute('aria-keyshortcuts');
+            fireEvent.keyDown(screen.getByRole('button', { name: 'Dates' }), {
+                key: 'ArrowDown',
+                altKey: true,
+            });
+            expect(lines()).toEqual(['c', '+b', 'a']);
+            expect(
+                screen.getByText('Dates moved to section line 2, position 1'),
+            ).toBeInTheDocument();
+        });
+
+        it('draws a line on the side a dragged capsule would land, or across a gap between lines, never a pill line', () => {
+            renderSectioned([rule('one', 'a')], 'tab-1');
+            act(() =>
+                mockDragMove.handlers.at(-1)!(
+                    sectionDrag('a', 'c') as unknown as DragMoveEvent,
+                ),
+            );
             expect(capsuleOf('Empty')).toHaveAttribute(
                 'data-section-drop',
                 'after',
             );
             expect(capsuleOf('Empty')).not.toHaveAttribute('data-over');
-            unmount();
 
-            mockDroppable.current = {
-                activeId: 'c',
-                overId: 'a',
-                isSection: true,
-            };
-            renderSectioned([rule('one', 'a')], 'tab-1');
+            act(() =>
+                mockDragMove.handlers.at(-1)!(
+                    sectionDrag('c', 'a', 10) as unknown as DragMoveEvent,
+                ),
+            );
             expect(capsuleOf('Dates')).toHaveAttribute(
                 'data-section-drop',
                 'before',
             );
-            mockDroppable.current = null;
+            expect(capsuleOf('Empty')).not.toHaveAttribute('data-section-drop');
+
+            const gaps = () =>
+                document.querySelectorAll('[class*="lineGap"][data-over]');
+            act(() =>
+                mockDragMove.handlers.at(-1)!(
+                    sectionDrag(
+                        'c',
+                        'section-line:1',
+                    ) as unknown as DragMoveEvent,
+                ),
+            );
+            expect(gaps()).toHaveLength(1);
+            expect(capsuleOf('Dates')).not.toHaveAttribute('data-section-drop');
+            // Its own line's gaps move nothing: no line
+            act(() =>
+                mockDragMove.handlers.at(-1)!(
+                    sectionDrag(
+                        'c',
+                        'section-line:2',
+                    ) as unknown as DragMoveEvent,
+                ),
+            );
+            expect(gaps()).toHaveLength(0);
         });
 
         it('hands focus to Add filter once a section is removed', async () => {
@@ -2411,16 +2463,12 @@ describe('SectionedFilters', () => {
             expect(selectHaveControlSectionsChanged(store.getState())).toBe(
                 false,
             );
-            // Saved open, a capsule takes a line of its own, and keeps it
-            // while the unsaved fold changes; empty, it stays inline
-            const ownLineOf = (name: string) =>
-                capsuleOf(name).parentElement?.hasAttribute('data-own-line');
-            expect(ownLineOf('Dates')).toBe(true);
-            expect(ownLineOf('Empty')).toBe(false);
+            // A fold moves no line
+            const line = capsuleOf('Dates').parentElement;
             await userEvent.click(foldOf('Dates'));
             expect(foldOf('Dates')).toHaveAttribute('aria-expanded', 'false');
             expect(foldOf('Dates')).toHaveFocus();
-            expect(ownLineOf('Dates')).toBe(true);
+            expect(capsuleOf('Dates').parentElement).toBe(line);
             expect(sectionsOf(store)[0].collapsed).toBe(true);
             expect(selectHaveControlSectionsChanged(store.getState())).toBe(
                 true,
@@ -2429,27 +2477,18 @@ describe('SectionedFilters', () => {
             await userEvent.click(foldOf('Dates'));
             expect(foldOf('Dates')).toHaveAttribute('aria-expanded', 'true');
             expect(foldOf('Dates')).toHaveFocus();
-            expect(ownLineOf('Dates')).toBe(true);
+            expect(capsuleOf('Dates').parentElement).toBe(line);
             expect(sectionsOf(store)[0]).not.toHaveProperty('collapsed');
         });
 
         it.each([false, true])(
-            'places a section by its saved fold, so a fold moves no line (viewer: %s)',
+            'keeps sections sharing a line on it through a fold (viewer: %s)',
             async (isViewer) => {
                 mockSidebar.current = { isViewer, isSidebarOpen: false };
                 const saved = [
                     { id: 'a', name: 'Dates' },
-                    { id: 'b', name: 'Regions', collapsed: true },
+                    { id: 'b', name: 'Regions', collapsed: true, inline: true },
                 ];
-                mockDashboardContext.current = {
-                    ...mockDashboardContext.current,
-                    dashboard: {
-                        config: {
-                            isDateZoomDisabled: false,
-                            controlSections: saved,
-                        },
-                    },
-                };
                 renderSectioned(
                     [rule('one', 'a'), rule('two', 'b')],
                     'tab-1',
@@ -2459,61 +2498,21 @@ describe('SectionedFilters', () => {
                     isViewer
                         ? screen.getByRole('button', { name })
                         : foldOf(name);
-                const ownLineOf = (name: string) =>
-                    capsuleOf(name).parentElement?.hasAttribute(
-                        'data-own-line',
-                    );
-                expect(ownLineOf('Dates')).toBe(true);
-                expect(ownLineOf('Regions')).toBe(false);
+                const line = capsuleOf('Dates').parentElement;
+                expect(capsuleOf('Regions').parentElement).toBe(line);
 
-                // Folded in place, on its own line
-                await userEvent.click(toggleOf('Dates'));
-                expect(toggleOf('Dates')).toHaveAttribute(
-                    'aria-expanded',
-                    'false',
-                );
-                expect(toggleOf('Dates')).toHaveFocus();
-                expect(ownLineOf('Dates')).toBe(true);
-
-                // Opened in place, inline
                 await userEvent.click(toggleOf('Regions'));
                 expect(toggleOf('Regions')).toHaveAttribute(
                     'aria-expanded',
                     'true',
                 );
                 expect(toggleOf('Regions')).toHaveFocus();
-                expect(ownLineOf('Regions')).toBe(false);
+                expect(capsuleOf('Regions').parentElement).toBe(line);
+
+                await userEvent.click(toggleOf('Dates'));
+                expect(capsuleOf('Dates').parentElement).toBe(line);
             },
         );
-
-        it('places an unsaved section by its size, never by its fold', () => {
-            mockDashboardContext.current = {
-                ...mockDashboardContext.current,
-                dashboard: {
-                    config: {
-                        isDateZoomDisabled: false,
-                        controlSections: [{ id: 'a', name: 'Dates' }],
-                    },
-                },
-            };
-            renderSectioned(
-                [
-                    rule('one', 'a'),
-                    rule('two', 'b'),
-                    ...Array.from({ length: 7 }, (_, i) => rule(`c-${i}`, 'c')),
-                ],
-                'tab-1',
-                [
-                    { id: 'a', name: 'Dates' },
-                    { id: 'b', name: 'Regions', collapsed: true },
-                    { id: 'c', name: 'Status', collapsed: false },
-                ],
-            );
-            const ownLineOf = (name: string) =>
-                capsuleOf(name).parentElement?.hasAttribute('data-own-line');
-            expect(ownLineOf('Regions')).toBe(true);
-            expect(ownLineOf('Status')).toBe(false);
-        });
 
         it('keeps an explicit value when the saved section has one', async () => {
             const saved = [{ id: 'a', name: 'Dates', collapsed: false }];
@@ -2592,16 +2591,31 @@ describe('SectionedFilters', () => {
             expect(foldOf('Dates')).toHaveAttribute('aria-expanded', 'true');
         });
 
-        it('has only the remove item in the section menu', async () => {
-            renderSectioned([rule('one', 'a')], 'tab-1');
+        it('offers a line of its own when it shares one, and remove in the section menu', async () => {
+            const { store } = renderSectioned([rule('one', 'a')], 'tab-1', [
+                { id: 'a', name: 'Dates' },
+                { id: 'b', name: 'Regions', inline: true },
+            ]);
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Regions menu' }),
+            );
+            await userEvent.click(
+                await screen.findByRole('menuitem', {
+                    name: 'Move to its own line',
+                }),
+            );
+            expect(sectionsOf(store)[1]).not.toHaveProperty('inline');
             await userEvent.click(
                 screen.getByRole('button', { name: 'Dates menu' }),
             );
-            await screen.findByRole('menuitem', {
-                name: 'Remove, keep filters',
-            });
-            expect(screen.getAllByRole('menuitem')).toHaveLength(1);
-            expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+            expect(
+                screen.queryByRole('menuitem', {
+                    name: 'Move to its own line',
+                }),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.getByRole('menuitem', { name: 'Remove, keep filters' }),
+            ).toBeInTheDocument();
         });
 
         it('removes a section with members in one click, keeping them on the bar in one write', async () => {

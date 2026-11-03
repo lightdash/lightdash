@@ -37,6 +37,7 @@ import {
     UserAsCodeLifecycleStatus,
     UserAsCodeRole,
     validateEmail,
+    validateUserName,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { nanoid } from 'nanoid';
@@ -600,6 +601,8 @@ export class RolesService extends BaseService {
         const expectedKeys = [
             'version',
             'email',
+            'firstName',
+            'lastName',
             'disabled',
             'role',
             'additionalRoles',
@@ -625,6 +628,16 @@ export class RolesService extends BaseService {
         }
         if (typeof desiredUser.disabled !== 'boolean') {
             throw new ParameterError('User disabled must be a boolean');
+        }
+        for (const name of [desiredUser.firstName, desiredUser.lastName]) {
+            if (
+                name !== undefined &&
+                (typeof name !== 'string' || !validateUserName(name))
+            ) {
+                throw new ParameterError(
+                    'User names must be strings without < or >',
+                );
+            }
         }
         if (
             typeof desiredUser.role !== 'object' ||
@@ -687,6 +700,12 @@ export class RolesService extends BaseService {
         return {
             ...desiredUser,
             email: desiredUser.email.toLowerCase(),
+            ...(desiredUser.firstName !== undefined
+                ? { firstName: desiredUser.firstName.trim() }
+                : {}),
+            ...(desiredUser.lastName !== undefined
+                ? { lastName: desiredUser.lastName.trim() }
+                : {}),
         };
     }
 
@@ -796,6 +815,8 @@ export class RolesService extends BaseService {
                 const base: UserAsCode = {
                     version: 1,
                     email: member.email.toLowerCase(),
+                    firstName: member.firstName,
+                    lastName: member.lastName,
                     disabled: !member.isActive,
                     role,
                 };
@@ -979,6 +1000,12 @@ export class RolesService extends BaseService {
         const disabledChanged = existingUser
             ? existingUser.isActive === desiredUser.disabled
             : false;
+        const namesChanged =
+            existingUser !== undefined &&
+            ((desiredUser.firstName !== undefined &&
+                desiredUser.firstName !== existingUser.firstName) ||
+                (desiredUser.lastName !== undefined &&
+                    desiredUser.lastName !== existingUser.lastName));
         const roleChanged =
             existingRoleSet === undefined ||
             existingRoleSet.systemRole !== desiredRoleSet.systemRole ||
@@ -1008,8 +1035,8 @@ export class RolesService extends BaseService {
                 organizationUuid,
                 {
                     email: desiredUser.email,
-                    firstName: '',
-                    lastName: '',
+                    firstName: desiredUser.firstName ?? '',
+                    lastName: desiredUser.lastName ?? '',
                     role: OrganizationMemberRole.MEMBER,
                 },
                 !desiredUser.disabled,
@@ -1023,19 +1050,12 @@ export class RolesService extends BaseService {
                 OrganizationMemberRole.MEMBER,
                 undefined,
             );
-            if (disabledChanged) {
-                await this.userModel.updateUser(
-                    existingUser.userUuid,
-                    existingUser.email,
-                    { isActive: !desiredUser.disabled },
-                );
-            }
             userUuid = existingUser.userUuid;
             action = PromotionAction.CREATE;
         } else {
             userUuid = existingUser.userUuid;
             action =
-                roleChanged || disabledChanged
+                roleChanged || disabledChanged || namesChanged
                     ? PromotionAction.UPDATE
                     : PromotionAction.NO_CHANGES;
         }
@@ -1060,12 +1080,15 @@ export class RolesService extends BaseService {
                 );
             }
         }
-        if (
-            existingUser?.organizationUuid === organizationUuid &&
-            disabledChanged
-        ) {
+        if (existingUser && (disabledChanged || namesChanged)) {
             await this.userModel.updateUser(userUuid, existingUser.email, {
-                isActive: !desiredUser.disabled,
+                ...(disabledChanged ? { isActive: !desiredUser.disabled } : {}),
+                ...(desiredUser.firstName !== undefined
+                    ? { firstName: desiredUser.firstName }
+                    : {}),
+                ...(desiredUser.lastName !== undefined
+                    ? { lastName: desiredUser.lastName }
+                    : {}),
             });
         }
 
