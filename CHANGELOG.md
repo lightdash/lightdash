@@ -1,3 +1,10 @@
+## [3.128.7](https://github.com/lightdash/lightdash/compare/3.128.6...3.128.7) (2026-11-03)
+
+
+### Bug Fixes
+
+* **ai:** prompt personal Snowflake reauthentication in chat ([#31931](https://github.com/lightdash/lightdash/issues/31931)) ([8bc926c](https://github.com/lightdash/lightdash/commit/8bc926ccd774b8812b1291f3079631335a5ab312))
+
 ## [3.128.6](https://github.com/lightdash/lightdash/compare/3.128.5...3.128.6) (2026-11-03)
 
 
