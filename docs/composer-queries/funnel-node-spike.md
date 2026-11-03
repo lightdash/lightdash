@@ -54,16 +54,72 @@ What a reader must get from the cell, in priority order:
 5. **After a run:** users and conversion per step. Already available through
    the results toggle; a compact per-step strip is an option (variant C).
 
-Variants explored (screenshots in the PR / thread):
+## Variants
 
-- **A. Rows.** The semantic-cell idiom: icon-led rows for Steps, Source,
-  Range, Breakdown, Returns. Lowest novelty, instantly consistent.
-- **B. Spine.** The steps as a vertical numbered spine with the window
-  written between steps; source and scope as a footer line.
-- **C. Sentence + strip.** A declarative sentence ("Of users who viewed a
-  page, how many went on to …, each within 7 days, over the last 30 days,
-  by device type?") and, after a run, a per-step bar strip with users and
-  conversion.
+All three render inside the real Lineage notebook (Storybook on a rainbow
+env, light scheme, 700px cell). Baseline for comparison: a semantic cell.
+
+![Lineage baseline](images/funnel-node-spike/lineage-baseline.png)
+
+A pipeline with a funnel feeding a DuckDB node:
+
+![Pipeline with a funnel node](images/funnel-node-spike/pipeline-with-funnel.png)
+
+### A. Rows (default)
+
+The semantic-cell idiom: icon-led rows for Steps, Source, Range, Breakdown,
+Returns. Steps are numbered chips joined by arrows with the window stated
+once at the end.
+
+![A. Rows](images/funnel-node-spike/a-rows.png)
+
+Minimal funnel (two steps, no breakdown, no window):
+
+![A. Rows, minimal](images/funnel-node-spike/a-rows-minimal.png)
+
+### B. Spine
+
+Steps as a vertical numbered spine with "then, within 7 days" written between
+each pair, so the rule between steps is read where it applies. Source fields,
+range and breakdown form a footer chip line; returned columns stated below.
+
+![B. Spine](images/funnel-node-spike/b-spine.png)
+
+### C. Sentence
+
+The funnel stated as one sentence with the moving parts emphasised, the three
+event fields as chips beneath, and the returned shape as a short note.
+
+![C. Sentence](images/funnel-node-spike/c-sentence.png)
+
+### Result strip (any variant)
+
+After a run the results toggle opens a per-step strip instead of a raw table:
+users, bar share of step 1, and "% of previous". Breakdown values are summed
+per step; the raw rows stay available in the full results view.
+
+![B. Spine with the result strip](images/funnel-node-spike/b-spine-results-strip.png)
+
+![C. Sentence with the result strip](images/funnel-node-spike/c-sentence-results-strip.png)
+
+### Findings
+
+- **A** is the safe default: zero new idiom, reads like every other cell,
+  but the window ("each within 7 days") is easy to miss at the end of the
+  steps row and the cell carries five rows of labels for one idea.
+- **B** explains the mechanics best. Ordering, "then", and the window are
+  read in the order the funnel applies them; the footer keeps the fields and
+  scope scannable. Tallest of the three (one line per step plus one per gap).
+- **C** is the fastest read and the shortest, and is the one a non-analyst
+  would understand first. It is weakest for a pipeline reader who needs the
+  returned columns, and it loses structure past ~5 steps.
+- The result strip is the biggest single win: it turns the cell from "a
+  query" into "a funnel" after a run and works under any variant.
+
+Recommendation: ship **B (spine) plus the result strip** as the funnel cell.
+Keep A's field-chip and row primitives (they are shared with the semantic
+cell). Keep C's sentence as the cell's one-line summary candidate for the
+collapsed/graph node tooltip rather than as the details body.
 
 ## Out of scope, in order of value
 
