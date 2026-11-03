@@ -634,7 +634,7 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                 );
                 if (!completed) {
                     Logger.warn(
-                        `App state history cleanup stopped at the batch cap with rows older than ${cutoffDate.toISOString()} remaining`,
+                        'App state history cleanup stopped at the batch cap; rows remain to be pruned',
                     );
                 }
             },
