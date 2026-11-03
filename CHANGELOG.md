@@ -1,3 +1,15 @@
+# [3.137.0](https://github.com/lightdash/lightdash/compare/3.136.2...3.137.0) (2026-11-03)
+
+
+### Bug Fixes
+
+* improve input handling in rename service ([#32014](https://github.com/lightdash/lightdash/issues/32014)) ([a66d6ab](https://github.com/lightdash/lightdash/commit/a66d6ab9e648776b5fa44f98bfb17e276ad7d0f3))
+
+
+### Features
+
+* **warehouses:** log the step that hung on a client query timeout ([#31992](https://github.com/lightdash/lightdash/issues/31992)) ([65d7dca](https://github.com/lightdash/lightdash/commit/65d7dca0e5f6356d8e7a971df90e49b8a97a2b1b))
+
 ## [3.136.2](https://github.com/lightdash/lightdash/compare/3.136.1...3.136.2) (2026-11-03)
 
 
