@@ -7,6 +7,7 @@ import {
     getTotalFilterRules,
     MergeJoinType,
     MetricType,
+    SnowflakeTokenError,
     TimeFrames,
     toolRunQueryOutputSchema,
     type AiArtifact,
@@ -2953,4 +2954,20 @@ it('preserves the refusal envelope when a visualization query is refused', async
         error: error.message,
         refusal: error.refusal,
     });
+});
+
+it('preserves personal Snowflake recovery when a visualization query fails', async () => {
+    const output = await executeTool(
+        vi.fn().mockRejectedValue(
+            new SnowflakeTokenError('Expired token', {
+                requiresUserReauthentication: true,
+            }),
+        ),
+    );
+    expect(toolRunQueryOutputSchema.parse(output).metadata).toMatchObject({
+        status: 'error',
+        requiresSnowflakeReauthentication: true,
+    });
+    expect(output.result).toContain('Your Snowflake sign-in has expired');
+    expect(output.result).not.toContain('Try again');
 });

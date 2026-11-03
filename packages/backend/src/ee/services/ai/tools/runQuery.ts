@@ -13,6 +13,7 @@ import {
     getValidAiQueryLimit,
     isCustomChartTypeSlugChartConfig,
     isSlackPrompt,
+    SnowflakeTokenError,
     toolRunQueryArgsSchemaTransformed,
     toolRunQueryExpressionArgsSchemaV2RejectingMerge,
     type AiArtifact,
@@ -1175,7 +1176,10 @@ export const getRunQuery = ({
                     },
                 };
             } catch (e) {
-                if (e instanceof AiAccessRefusedError) {
+                if (
+                    e instanceof AiAccessRefusedError ||
+                    e instanceof SnowflakeTokenError
+                ) {
                     return toolErrorOutput(e, `Error running query.`);
                 }
                 const fieldAdvice =
