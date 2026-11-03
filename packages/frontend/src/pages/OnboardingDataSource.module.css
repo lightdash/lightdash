@@ -36,6 +36,32 @@
     display: none;
 }
 
+/* Two-step warehouse + dbt form shows one section at a time */
+.connectColumn
+    :global(form[data-form-step='warehouse'] [data-connection-card='dbt']),
+.connectColumn
+    :global(
+        form[data-form-step='dbt']
+            [data-connection-card]:not([data-connection-card='dbt'])
+    ),
+.connectColumn :global(form[data-form-step='dbt'] [data-form-collapse]),
+.connectColumn :global(form[data-form-step='dbt'] [data-form-collapse] + *) {
+    display: none;
+}
+
+.connectColumn :global(form[data-form-step] [data-connection-card='dbt']) {
+    margin-top: 0;
+    padding-top: 0 !important;
+    border-top: 0;
+}
+
+.connectColumn
+    :global(form[data-form-step] [data-connection-card='dbt'])
+    > div
+    > div:first-child {
+    display: none;
+}
+
 /* The dbt card reads as a second section of the same form */
 .connectColumn :global([data-connection-card='dbt']) {
     margin-top: var(--mantine-spacing-md);

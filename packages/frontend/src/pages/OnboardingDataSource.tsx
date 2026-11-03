@@ -2,7 +2,7 @@ import { subject } from '@casl/ability';
 import { ProjectType, WarehouseTypes } from '@lightdash/common';
 import { Box, Button, Group, Stack, Text, Title } from '@mantine/core';
 import { IconTerminal2 } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { useState, type FC } from 'react';
 import {
     Navigate,
     useLocation,
@@ -19,9 +19,13 @@ import {
     useStepCopy,
 } from '../components/common/onboardingVariant';
 import { StepVisual } from '../components/common/OnboardingVisuals';
-import { useOnboardingNavigate } from '../components/common/viewTransition';
+import {
+    useOnboardingNavigate,
+    withViewTransition,
+} from '../components/common/viewTransition';
 import { CreateProjectConnection } from '../components/ProjectConnection';
 import { ConnectionFormSkeleton } from '../components/ProjectConnection/ConnectionFormSkeleton';
+import { type ConnectionFormStep } from '../components/ProjectConnection/CreateProjectconnection';
 import DbtLogo from '../components/ProjectConnection/ProjectConnectFlow/Assets/dbt.svg';
 import {
     DataSourceChooser,
@@ -145,6 +149,8 @@ const WarehouseConnect: FC<{
     withDbt: boolean;
 }> = ({ selectedWarehouse, withDbt }) => {
     const goBack = useBackToChooser();
+    const [step, setStep] = useState<ConnectionFormStep>('warehouse');
+    const isDbtStep = withDbt && step === 'dbt';
     const [searchParams] = useSearchParams();
     const then = searchParams.get('then');
     const {
@@ -176,11 +182,16 @@ const WarehouseConnect: FC<{
             <Stack gap="lg">
                 <Group gap="sm" wrap="nowrap">
                     <Box className={classes.logo}>
-                        {getWarehouseIcon(selectedWarehouse, 'sm')}
+                        {isDbtStep ? (
+                            <img src={DbtLogo} alt="" width={24} height={24} />
+                        ) : (
+                            getWarehouseIcon(selectedWarehouse, 'sm')
+                        )}
                     </Box>
                     <Title order={2}>
-                        Create a {getWarehouseLabel(selectedWarehouse)}{' '}
-                        connection
+                        {isDbtStep
+                            ? 'Connect your dbt project'
+                            : `Create a ${getWarehouseLabel(selectedWarehouse)} connection`}
                     </Title>
                 </Group>
                 <ProjectFormProvider>
@@ -188,6 +199,17 @@ const WarehouseConnect: FC<{
                         isCreatingFirstProject={!hasRealProject}
                         selectedWarehouse={selectedWarehouse}
                         warehouseOnly={!withDbt}
+                        steps={
+                            withDbt
+                                ? {
+                                      current: step,
+                                      onChange: (next) =>
+                                          withViewTransition(() =>
+                                              setStep(next),
+                                          ),
+                                  }
+                                : null
+                        }
                         alwaysShowProjectName
                         successRedirect={(projectUuid) =>
                             `/onboarding/tools/${projectUuid}${

@@ -44,6 +44,8 @@ import { useOnProjectError } from './useOnProjectError';
 import { warehouseDefaultValues } from './WarehouseForms/defaultValues';
 import { createWarehouseValueValidators } from './WarehouseForms/validators';
 
+export type ConnectionFormStep = 'warehouse' | 'dbt';
+
 interface CreateProjectConnectionProps {
     isCreatingFirstProject: boolean;
     selectedWarehouse?: WarehouseTypes | undefined;
@@ -53,7 +55,14 @@ interface CreateProjectConnectionProps {
     celebrateOnSuccess?: boolean;
     footerStart?: ReactNode;
     alwaysShowProjectName?: boolean;
+    /** Splits the warehouse and dbt fields into two steps of the same form */
+    steps?: {
+        current: ConnectionFormStep;
+        onChange: (step: ConnectionFormStep) => void;
+    } | null;
 }
+
+const isDbtField = (path: string) => path.startsWith('dbt');
 
 const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
     isCreatingFirstProject,
@@ -63,6 +72,7 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
     celebrateOnSuccess = false,
     footerStart = null,
     alwaysShowProjectName = false,
+    steps = null,
 }) => {
     const { pathname } = useLocation();
     const onboardingFlow = pathname.startsWith('/onboarding/')
@@ -185,7 +195,21 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
     };
 
     const handleError = (errors: typeof form.errors) => {
+        if (steps && Object.keys(errors).some((path) => !isDbtField(path))) {
+            steps.onChange('warehouse');
+        }
         onProjectError(errors);
+    };
+
+    const goToDbtStep = () => {
+        if (!steps) return;
+        const { errors } = form.validate();
+        const warehouseErrors = Object.keys(errors).filter(
+            (path) => !isDbtField(path),
+        );
+        if (warehouseErrors.length > 0) return;
+        form.clearErrors();
+        steps.onChange('dbt');
     };
 
     useCreateProjectSuccessRedirect({
@@ -285,7 +309,12 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
         return <ConnectionFormSkeleton />;
     }
 
-    const submitButton = (
+    const isWarehouseStep = steps?.current === 'warehouse';
+    const submitButton = isWarehouseStep ? (
+        <Button className={classes.submitButton} onClick={goToDbtStep}>
+            Next
+        </Button>
+    ) : (
         <Button
             ref={submitButtonRef}
             className={classes.submitButton}
@@ -301,6 +330,7 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
         <FormProvider form={form}>
             <form
                 className={classes.form}
+                data-form-step={steps?.current}
                 onSubmit={form.onSubmit(handleSubmit, handleError)}
             >
                 <FormContainer>
@@ -332,7 +362,20 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                                         justify="space-between"
                                         data-form-footer
                                     >
-                                        {footerStart}
+                                        {steps && !isWarehouseStep ? (
+                                            <Button
+                                                variant="transparent"
+                                                color="gray"
+                                                px={0}
+                                                onClick={() =>
+                                                    steps.onChange('warehouse')
+                                                }
+                                            >
+                                                Back
+                                            </Button>
+                                        ) : (
+                                            footerStart
+                                        )}
                                         {submitButton}
                                     </Group>
                                 ) : (
