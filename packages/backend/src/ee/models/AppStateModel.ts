@@ -417,6 +417,10 @@ export class AppStateModel {
                 const deletedCount = await this.database(
                     AppSharedStateHistoryTableName,
                 )
+                    // Repeating the scope predicates lets the outer delete use
+                    // the unique index instead of scanning for the uuids.
+                    .where('app_uuid', scope.app_uuid)
+                    .andWhere('key', scope.key)
                     .whereIn('app_shared_state_history_uuid', (builder) => {
                         void builder
                             .select('app_shared_state_history_uuid')
@@ -432,7 +436,9 @@ export class AppStateModel {
                 if (deletedCount === 0) break;
                 totalDeleted += deletedCount;
                 batchCount += 1;
-                if (deletedCount < options.batchSize) break;
+                // Pause after every batch that deleted rows, including a
+                // partial one — scopes usually drain in a single partial
+                // batch, so pausing only on full batches would never throttle.
                 // eslint-disable-next-line no-await-in-loop
                 await new Promise<void>((resolve) => {
                     setTimeout(
@@ -443,6 +449,7 @@ export class AppStateModel {
                         ),
                     );
                 });
+                if (deletedCount < options.batchSize) break;
             }
         }
     }
