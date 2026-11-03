@@ -6,7 +6,6 @@ import { Link } from 'react-router';
 import { DocumentTitle } from '../../../components/common/DocumentTitle';
 import MantineIcon from '../../../components/common/MantineIcon';
 import OnboardingLayout from '../../../components/common/OnboardingLayout';
-import { ONBOARDING_DATA_STEPS } from '../../../components/common/onboardingSteps';
 import { useOnboardingVariant } from '../../../components/common/onboardingVariant';
 import { WarehouseTypeLabels } from '../../../components/ProjectConnection/ProjectConnectFlow/utils';
 import { useExternalConnections } from '../../../features/externalConnections/hooks/useExternalConnections';
@@ -139,13 +138,7 @@ export const OnboardingDoneStep: FC<{ projectUuid: string }> = ({
     ];
 
     return (
-        <OnboardingLayout
-            screen="done"
-            journey={{ currentStep: 3, steps: ONBOARDING_DATA_STEPS }}
-            stackDepth={6}
-            centered
-            size="compact"
-        >
+        <OnboardingLayout screen="done" stackDepth={6} centered size="compact">
             <DocumentTitle title="You're all set" />
             <Stack className={classes.column} gap="xl">
                 <Stack gap={4} align="center">

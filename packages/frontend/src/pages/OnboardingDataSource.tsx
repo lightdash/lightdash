@@ -1,7 +1,7 @@
 import { subject } from '@casl/ability';
 import { ProjectType, WarehouseTypes } from '@lightdash/common';
-import { Box, Button, Group, Stack, Text, Title } from '@mantine/core';
-import { IconTerminal2 } from '@tabler/icons-react';
+import { Anchor, Box, Button, Group, Stack, Text, Title } from '@mantine/core';
+import { IconBrandGit } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import {
     Navigate,
@@ -26,7 +26,6 @@ import {
 import { CreateProjectConnection } from '../components/ProjectConnection';
 import { ConnectionFormSkeleton } from '../components/ProjectConnection/ConnectionFormSkeleton';
 import { type ConnectionFormStep } from '../components/ProjectConnection/CreateProjectconnection';
-import DbtLogo from '../components/ProjectConnection/ProjectConnectFlow/Assets/dbt.svg';
 import {
     DataSourceChooser,
     ShortcutCard,
@@ -76,10 +75,10 @@ const DataSourcePicker: FC = () => {
     );
 };
 
-const DBT_MODE = 'dbt';
+const REPO_MODE = 'repo';
 const WAREHOUSE_MODE = 'warehouse';
 
-const DbtQuestion: FC<{ selectedWarehouse: WarehouseTypes }> = ({
+const RepoQuestion: FC<{ selectedWarehouse: WarehouseTypes }> = ({
     selectedWarehouse,
 }) => {
     const onboardingNavigate = useOnboardingNavigate();
@@ -97,40 +96,37 @@ const DbtQuestion: FC<{ selectedWarehouse: WarehouseTypes }> = ({
                     {getWarehouseIcon(selectedWarehouse, 'sm')}
                 </Box>
                 <Stack gap={0}>
-                    <Title order={2}>Do you have a dbt project?</Title>
+                    <Title order={2}>
+                        Where should your analytics code live?
+                    </Title>
                     <Text c="dimmed" size="sm">
-                        We'll use the models and metrics you already have.
+                        Lightdash keeps your metrics, charts and dashboards as
+                        code.
                     </Text>
                 </Stack>
             </Group>
             <Stack gap="xs">
                 <ShortcutCard
                     icon={getWarehouseIcon(selectedWarehouse, 'sm')}
-                    title="No, skip"
-                    description="Our agent will build your models and metrics for you"
+                    title="Start fresh"
+                    description={`Aurora builds your models and metrics from ${getWarehouseLabel(selectedWarehouse)}. Add a repo any time.`}
                     onClick={() => toMode(WAREHOUSE_MODE)}
                     primary
                 />
                 <ShortcutCard
-                    icon={<img src={DbtLogo} alt="" width={16} height={16} />}
-                    title="Yes, connect it from git"
-                    description={`Connect ${getWarehouseLabel(selectedWarehouse)} and your dbt repository`}
-                    onClick={() => toMode(DBT_MODE)}
-                />
-                <ShortcutCard
                     icon={
                         <MantineIcon
-                            icon={IconTerminal2}
+                            icon={IconBrandGit}
                             size={16}
                             color="ldGray.7"
                         />
                     }
-                    title="Yes, deploy it with the CLI"
-                    description="Run lightdash deploy from your dbt project"
-                    onClick={() => onboardingNavigate('/onboarding/dbt/cli')}
+                    title="Connect an existing repo"
+                    description="Your dbt project or Lightdash YAML, from GitHub, GitLab or Bitbucket"
+                    onClick={() => toMode(REPO_MODE)}
                 />
             </Stack>
-            <Group>
+            <Group justify="space-between">
                 <Button
                     variant="transparent"
                     color="gray"
@@ -139,6 +135,14 @@ const DbtQuestion: FC<{ selectedWarehouse: WarehouseTypes }> = ({
                 >
                     Back
                 </Button>
+                <Anchor
+                    component="button"
+                    size="sm"
+                    c="dimmed"
+                    onClick={() => onboardingNavigate('/onboarding/dbt/cli')}
+                >
+                    Deploying from your machine? Use the CLI
+                </Anchor>
             </Group>
         </Stack>
     );
@@ -183,14 +187,14 @@ const WarehouseConnect: FC<{
                 <Group gap="sm" wrap="nowrap">
                     <Box className={classes.logo}>
                         {isDbtStep ? (
-                            <img src={DbtLogo} alt="" width={24} height={24} />
+                            <MantineIcon icon={IconBrandGit} size={24} />
                         ) : (
                             getWarehouseIcon(selectedWarehouse, 'sm')
                         )}
                     </Box>
                     <Title order={2}>
                         {isDbtStep
-                            ? 'Connect your dbt project'
+                            ? 'Connect your repo'
                             : `Create a ${getWarehouseLabel(selectedWarehouse)} connection`}
                     </Title>
                 </Group>
@@ -262,7 +266,7 @@ const OnboardingDataSourceContent: FC = () => {
 
     if (
         mode &&
-        (!selectedWarehouse || (mode !== DBT_MODE && mode !== WAREHOUSE_MODE))
+        (!selectedWarehouse || (mode !== REPO_MODE && mode !== WAREHOUSE_MODE))
     ) {
         return <Navigate to="/onboarding/data-source" replace />;
     }
@@ -291,10 +295,10 @@ const OnboardingDataSourceContent: FC = () => {
             {selectedWarehouse && mode ? (
                 <WarehouseConnect
                     selectedWarehouse={selectedWarehouse}
-                    withDbt={mode === DBT_MODE}
+                    withDbt={mode === REPO_MODE}
                 />
             ) : selectedWarehouse ? (
-                <DbtQuestion selectedWarehouse={selectedWarehouse} />
+                <RepoQuestion selectedWarehouse={selectedWarehouse} />
             ) : warehouse === OTHER_ROUTE_PARAM ? (
                 <OtherWarehouseConnect />
             ) : (

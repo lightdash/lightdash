@@ -1,5 +1,9 @@
 import { subject } from '@casl/ability';
-import { WarehouseTypes } from '@lightdash/common';
+import {
+    ApiConnectorType,
+    FeatureFlags,
+    WarehouseTypes,
+} from '@lightdash/common';
 import {
     Box,
     Loader,
@@ -9,15 +13,27 @@ import {
     UnstyledButton,
 } from '@mantine/core';
 import { captureException } from '@sentry/react';
-import { IconChevronRight, IconUserPlus } from '@tabler/icons-react';
-import { useState, type FC, type ReactNode } from 'react';
-import { useNavigate } from 'react-router';
+import {
+    IconBrandGithub,
+    IconCheck,
+    IconChevronRight,
+    IconFileSpreadsheet,
+    IconUserPlus,
+} from '@tabler/icons-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useEffect, useState, type FC, type ReactNode } from 'react';
+import { useLocation, useNavigate, useSearchParams } from 'react-router';
+import { getLiveSource } from '../../../features/externalConnections/liveSources/liveSourceCatalog';
+import { LiveSourceIcon } from '../../../features/externalConnections/liveSources/LiveSourceIcon';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useEnsurePlaygroundProject } from '../../../hooks/useEnsurePlaygroundProject';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
 import LogoIcon from '../../../svgs/logo-icon.svg?react';
+import SlackSvg from '../../../svgs/slack.svg?react';
 import { EventName } from '../../../types/Events';
+import { useGithubConfig } from '../../common/GithubIntegration/hooks/useGithubIntegration';
 import MantineIcon from '../../common/MantineIcon';
 import { useOnboardingNavigate } from '../../common/viewTransition';
 import classes from './DataSourceChooser.module.css';
@@ -69,8 +85,172 @@ export const ShortcutCard: FC<{
     </UnstyledButton>
 );
 
+// Read by the tools step, which opens the first picked source after setup
+const THEN_PARAM = 'then';
+
+type CatalogItem = {
+    id: string;
+    icon: ReactNode;
+    label: string;
+};
+
+const CatalogTile: FC<{
+    item: CatalogItem;
+    status: string;
+    isActive: boolean;
+    onClick: (() => void) | null;
+}> = ({ item, status, isActive, onClick }) => (
+    <UnstyledButton
+        className={classes.catalogTile}
+        data-active={isActive}
+        disabled={onClick === null}
+        onClick={onClick ?? undefined}
+    >
+        <Box className={classes.tileLogo}>{item.icon}</Box>
+        <Stack gap={0} miw={0}>
+            <Text fw={500} size="sm" truncate>
+                {item.label}
+            </Text>
+            <Text size="xs" c="dimmed" truncate>
+                {status}
+            </Text>
+        </Stack>
+        {isActive && (
+            <MantineIcon
+                icon={IconCheck}
+                size={14}
+                className={classes.catalogCheck}
+            />
+        )}
+    </UnstyledButton>
+);
+
+const StackCatalog: FC<{ canInstallGithub: boolean }> = ({
+    canInstallGithub,
+}) => {
+    const { health } = useApp();
+    const queryClient = useQueryClient();
+    const [searchParams, setSearchParams] = useSearchParams();
+    const liveSourcesFlag = useServerFeatureFlag(FeatureFlags.ApiQuerySources);
+    const externalSourcesFlag = useServerFeatureFlag(
+        FeatureFlags.ExternalSources,
+    );
+    const hasGithub = health.data?.hasGithub === true && canInstallGithub;
+    const githubQuery = useGithubConfig();
+    const isGithubInstalled = hasGithub && githubQuery.data?.enabled === true;
+
+    // GitHub installs in a popup, so pick it up when the user comes back
+    useEffect(() => {
+        const refresh = () =>
+            void queryClient.invalidateQueries(['github_installation']);
+        window.addEventListener('focus', refresh);
+        return () => window.removeEventListener('focus', refresh);
+    }, [queryClient]);
+
+    const picked = new Set(
+        (searchParams.get(THEN_PARAM) ?? '').split(',').filter(Boolean),
+    );
+    const togglePicked = (id: string) => {
+        const next = new Set(picked);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        setSearchParams(
+            (params) => {
+                if (next.size === 0) params.delete(THEN_PARAM);
+                else params.set(THEN_PARAM, [...next].join(','));
+                return params;
+            },
+            { replace: true },
+        );
+    };
+
+    const laterItems: CatalogItem[] = [
+        ...(health.data?.hasSlack
+            ? [
+                  {
+                      id: 'slack',
+                      icon: <SlackSvg width={16} height={16} />,
+                      label: 'Slack',
+                  },
+              ]
+            : []),
+        ...(liveSourcesFlag.data?.enabled
+            ? [
+                  ApiConnectorType.POSTHOG,
+                  ...(health.data?.hasGoogleLiveSources
+                      ? [ApiConnectorType.GA4]
+                      : []),
+              ].map((connector) => ({
+                  id: connector,
+                  icon: <LiveSourceIcon connector={connector} size={16} />,
+                  label: getLiveSource(connector).label,
+              }))
+            : []),
+        ...(externalSourcesFlag.data?.enabled
+            ? [
+                  {
+                      id: 'files',
+                      icon: (
+                          <MantineIcon
+                              icon={IconFileSpreadsheet}
+                              size={16}
+                              color="ldGray.7"
+                          />
+                      ),
+                      label: 'CSV and Sheets',
+                  },
+              ]
+            : []),
+    ];
+
+    if (!hasGithub && laterItems.length === 0) return null;
+
+    return (
+        <Stack gap="xs">
+            <Text size="sm" fw={500} c="dimmed">
+                Also bring in
+            </Text>
+            <SimpleGrid cols={{ base: 2, sm: 3 }} spacing="xs">
+                {hasGithub && (
+                    <CatalogTile
+                        item={{
+                            id: 'github',
+                            icon: (
+                                <MantineIcon icon={IconBrandGithub} size={16} />
+                            ),
+                            label: 'GitHub',
+                        }}
+                        status={isGithubInstalled ? 'Connected' : 'Connect now'}
+                        isActive={isGithubInstalled}
+                        onClick={
+                            isGithubInstalled
+                                ? null
+                                : () =>
+                                      window.open(
+                                          '/api/v1/github/install',
+                                          '_blank',
+                                          'popup=true,width=600,height=700',
+                                      )
+                        }
+                    />
+                )}
+                {laterItems.map((item) => (
+                    <CatalogTile
+                        key={item.id}
+                        item={item}
+                        status={picked.has(item.id) ? 'Next up' : 'After setup'}
+                        isActive={picked.has(item.id)}
+                        onClick={() => togglePicked(item.id)}
+                    />
+                ))}
+            </SimpleGrid>
+        </Stack>
+    );
+};
+
 export const DataSourceChooser: FC = () => {
     const navigate = useNavigate();
+    const { search } = useLocation();
     const onboardingNavigate = useOnboardingNavigate();
     const { health, user } = useApp();
     const { track } = useTracking();
@@ -110,7 +290,7 @@ export const DataSourceChooser: FC = () => {
                 onboardingFlow: 'new',
             },
         });
-        onboardingNavigate(getWarehouseRoute(key));
+        onboardingNavigate(`${getWarehouseRoute(key)}${search}`);
     };
 
     const openSampleWorkspace = async () => {
@@ -204,6 +384,16 @@ export const DataSourceChooser: FC = () => {
                     </UnstyledButton>
                 )}
             </SimpleGrid>
+
+            <StackCatalog
+                canInstallGithub={
+                    !!organizationUuid &&
+                    user.data?.ability?.can(
+                        'update',
+                        subject('Organization', { organizationUuid }),
+                    ) === true
+                }
+            />
 
             {hasFailed && (
                 <Text size="sm" c="red" role="alert">

@@ -204,8 +204,8 @@ const TeamStep: FC<{
     const queryClient = useQueryClient();
     const slackQuery = useGetSlack();
     const githubQuery = useGithubConfig();
-    const hasConnected =
-        (hasSlack && !!slackQuery.data) || (hasGithub && githubQuery.isSuccess);
+    const isGithubInstalled = hasGithub && githubQuery.data?.enabled === true;
+    const hasConnected = (hasSlack && !!slackQuery.data) || isGithubInstalled;
 
     // Connect opens a new tab, so pick up the install when the user comes back
     useEffect(() => {
@@ -292,12 +292,16 @@ const TeamStep: FC<{
                                 <MantineIcon icon={IconBrandGithub} size={24} />
                             }
                             label="GitHub"
-                            description="Aurora opens pull requests for your models. Works with or without dbt."
-                            connectedDetail={null}
-                            action={connectButton(
-                                '/api/v1/github/install',
-                                false,
-                            )}
+                            description="Let Aurora open pull requests on the repos your projects use"
+                            connectedDetail={
+                                isGithubInstalled
+                                    ? 'GitHub app installed'
+                                    : null
+                            }
+                            action={
+                                !isGithubInstalled &&
+                                connectButton('/api/v1/github/install', false)
+                            }
                         />
                     )}
                 </ToolGroup>
