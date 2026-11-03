@@ -299,12 +299,10 @@ describe('AnalyticsProjectService', () => {
         });
 
         it('ignores deleted, unmarked, or cross-organization targets', async () => {
-            getSyncProject
-                .mockResolvedValueOnce(null)
-                .mockResolvedValueOnce({
-                    ...target,
-                    organizationUuid: 'other-org',
-                });
+            getSyncProject.mockResolvedValueOnce(null).mockResolvedValueOnce({
+                ...target,
+                organizationUuid: 'other-org',
+            });
             await enabledService().syncContent(target);
             await enabledService().syncContent(target);
             expect(lock).not.toHaveBeenCalled();

@@ -1,3 +1,4 @@
+/* eslint-disable lightdash/no-direct-ability-check -- Tests inspect the worker's raw authority. */
 import { subject } from '@casl/ability';
 import { createAnalyticsSyncUser } from './analyticsSyncUser';
 

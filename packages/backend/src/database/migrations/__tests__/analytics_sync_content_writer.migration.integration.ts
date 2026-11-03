@@ -4,10 +4,10 @@ import {
     DbtProjectType,
     DefaultSupportedDbtVersion,
     ForbiddenError,
-    ProjectType,
-    type DashboardAsCode,
     getContentAsCodePathFromLtreePath,
     getLtreePathFromContentAsCodePath,
+    ProjectType,
+    type DashboardAsCode,
 } from '@lightdash/common';
 import { analyticsMock } from '../../../analytics/LightdashAnalytics.mock';
 import { analyticsContentAsCode } from '../../../analytics/systemExplores/sampleContent';

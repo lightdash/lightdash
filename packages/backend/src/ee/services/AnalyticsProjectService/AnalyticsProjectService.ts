@@ -1,8 +1,8 @@
 import {
     AnalyticsHistoryBackfillStatus,
     AnalyticsProjectStatus,
-    ConflictError,
     compareSemverVersions,
+    ConflictError,
     ContentType,
     EnsureAnalyticsProjectResult,
     ForbiddenError,
@@ -477,8 +477,8 @@ export class AnalyticsProjectService extends BaseService {
             return;
         let afterProjectUuid: string | null = null;
         let failed = 0;
+        /* eslint-disable no-await-in-loop */
         while (true) {
-            // eslint-disable-next-line no-await-in-loop
             const projects =
                 await this.dependencies.analyticsContentSyncModel.getProjectsPage(
                     {
@@ -490,14 +490,12 @@ export class AnalyticsProjectService extends BaseService {
             if (projects.length === 0) break;
             for (const project of projects) {
                 try {
-                    // eslint-disable-next-line no-await-in-loop
                     if (
                         await isAnalyticsProjectEnabled(
                             this.dependencies.featureFlagModel,
                             project.organizationUuid,
                         )
                     ) {
-                        // eslint-disable-next-line no-await-in-loop
                         await this.dependencies.schedulerClient.scheduleAnalyticsContentSync(
                             {
                                 organizationUuid: project.organizationUuid,
@@ -519,6 +517,7 @@ export class AnalyticsProjectService extends BaseService {
             }
             afterProjectUuid = projects[projects.length - 1].projectUuid;
         }
+        /* eslint-enable no-await-in-loop */
         if (failed > 0)
             throw new Error(
                 `Failed to enqueue ${failed} analytics content updates`,
