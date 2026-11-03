@@ -1085,6 +1085,17 @@ export class DashboardService
                 // Published version: a tile running a viewer's draft replaces these once it runs
                 this.savedChartModel
                     .get(uuid, undefined, { projectUuid })
+                    .then((chart) => {
+                        // The model also resolves slugs; results are keyed by uuid
+                        if (chart.uuid === uuid) return chart;
+                        results.set(
+                            uuid,
+                            parameterReferencesFailure(
+                                `Saved chart ${uuid} must be addressed by its uuid`,
+                            ),
+                        );
+                        return null;
+                    })
                     .catch((e) => {
                         results.set(uuid, parameterReferencesFailure(e));
                         return null;

@@ -518,6 +518,53 @@ describe('DashboardService.getTileParameterReferences', () => {
         ]);
     });
 
+    it('keeps the references of a chart that compiles with errors', async () => {
+        // A number filter on a parameter with no value is a compile error; the
+        // listing is how the bar learns that parameter, so the tile keeps it
+        const { service, projectService } = setup();
+        projectService.compileQuery.mockResolvedValueOnce({
+            parameterReferences: ['orders.min_amount'],
+            compilationErrors: [
+                'Invalid number value in filter: "${lightdash.parameters.orders.min_amount}". Expected a valid number.',
+            ],
+        } as never);
+
+        await expect(
+            service.getTileParameterReferences(account, projectUuid, [
+                chartTile('tile-1', 'plain'),
+            ]),
+        ).resolves.toEqual([
+            {
+                tileUuid: 'tile-1',
+                parameterReferences: ['orders.min_amount'],
+                error: null,
+            },
+        ]);
+    });
+
+    it('refuses a chart addressed by slug instead of uuid', async () => {
+        const { service } = setup();
+        charts['plain-slug'] = charts.plain;
+
+        await expect(
+            service.getTileParameterReferences(account, projectUuid, [
+                chartTile('tile-1', 'plain-slug'),
+                chartTile('tile-2', 'plain'),
+            ]),
+        ).resolves.toEqual([
+            {
+                tileUuid: 'tile-1',
+                parameterReferences: null,
+                error: 'Saved chart plain-slug must be addressed by its uuid',
+            },
+            {
+                tileUuid: 'tile-2',
+                parameterReferences: ['orders.region'],
+                error: null,
+            },
+        ]);
+    });
+
     describe('embed accounts', () => {
         it("lists the token dashboard's tiles with the charts saved on it", async () => {
             const { service, savedChartModel } = setup();
