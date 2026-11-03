@@ -94,6 +94,7 @@ const FileContent: FC<{ run: AgentOnboardingRun; path: string }> = ({
             code={content}
             language={/\.json$/i.test(path) ? 'json' : 'yaml'}
             withLineNumbers
+            lineNumberFontSize={11}
             withCopyButton={false}
             className={classes.code}
         />
@@ -137,17 +138,17 @@ const FileTree: FC<{
                     >
                         <MantineIcon
                             icon={IconChevronRight}
-                            size={12}
+                            size={10}
                             className={classes.treeChevron}
                             data-hidden={!isFolder}
                             data-open={isOpen}
                         />
                         <MantineIcon
                             icon={icon}
-                            size={14}
+                            size={13}
                             className={classes.treeIcon}
                         />
-                        <Text fz="xs" truncate title={node.name}>
+                        <Text fz={11} truncate title={node.name}>
                             {node.name}
                         </Text>
                     </UnstyledButton>
@@ -184,10 +185,14 @@ const CopyFile: FC<{ run: AgentOnboardingRun; path: string }> = ({
                     <ActionIcon
                         variant="subtle"
                         color="gray"
+                        size="sm"
                         onClick={copy}
                         aria-label="Copy file"
                     >
-                        <MantineIcon icon={copied ? IconCheck : IconCopy} />
+                        <MantineIcon
+                            icon={copied ? IconCheck : IconCopy}
+                            size={14}
+                        />
                     </ActionIcon>
                 </Tooltip>
             )}
@@ -234,20 +239,28 @@ export const AgentOnboardingCodePanel: FC<{
                                   ]
                                 : IconTerminal2
                         }
-                        size={16}
+                        size={14}
                         className={classes.titleIcon}
                     />
                     <Box miw={0}>
-                        <Text fz="sm" fw={500} truncate>
+                        <Text fz="xs" fw={500} truncate>
                             {view.kind === 'file'
                                 ? describeAgentOnboardingFile(view.path).label
                                 : 'Run log'}
                         </Text>
-                        {view.kind === 'file' && (
-                            <Text fz={11} c="dimmed" ff="monospace" truncate>
-                                {view.path}
-                            </Text>
-                        )}
+                        {view.kind === 'file' &&
+                            view.path !==
+                                describeAgentOnboardingFile(view.path)
+                                    .label && (
+                                <Text
+                                    fz={10}
+                                    c="dimmed"
+                                    ff="monospace"
+                                    truncate
+                                >
+                                    {view.path}
+                                </Text>
+                            )}
                     </Box>
                 </Group>
                 {view.kind === 'file' && (
@@ -257,6 +270,7 @@ export const AgentOnboardingCodePanel: FC<{
                     <ActionIcon
                         variant={isLog ? 'light' : 'subtle'}
                         color="gray"
+                        size="sm"
                         aria-label="Run log"
                         aria-pressed={isLog}
                         disabled={isLog && firstPath === null}
@@ -268,16 +282,17 @@ export const AgentOnboardingCodePanel: FC<{
                             )
                         }
                     >
-                        <MantineIcon icon={IconTerminal2} />
+                        <MantineIcon icon={IconTerminal2} size={14} />
                     </ActionIcon>
                 </Tooltip>
                 <ActionIcon
                     variant="subtle"
                     color="gray"
+                    size="sm"
                     onClick={onClose}
                     aria-label="Close code panel"
                 >
-                    <MantineIcon icon={IconX} />
+                    <MantineIcon icon={IconX} size={14} />
                 </ActionIcon>
             </Group>
             <Box className={classes.body}>

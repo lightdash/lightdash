@@ -9,7 +9,7 @@
 
 .header {
     flex: 0 0 auto;
-    min-height: 52px;
+    min-height: 44px;
     padding: 6px var(--mantine-spacing-xs) 6px 6px;
     border-bottom: 1px solid var(--mantine-color-default-border);
 }
@@ -33,7 +33,7 @@
 
 .tree {
     flex: 0 0 auto;
-    width: rem(200px);
+    width: rem(180px);
     padding: 6px 4px;
     overflow: auto;
     border-right: 1px solid var(--mantine-color-default-border);
@@ -72,7 +72,8 @@
     gap: 4px;
     align-items: center;
     width: 100%;
-    padding: 3px 6px 3px calc(6px + var(--depth) * 12px);
+    padding: 2px 6px 2px calc(6px + var(--depth) * 10px);
+    font-size: rem(11px);
     border-radius: var(--mantine-radius-sm);
     color: var(--mantine-color-text);
 
@@ -110,7 +111,10 @@
     margin: 0;
     border-radius: 0;
     background: transparent;
-    font-size: var(--mantine-font-size-xs);
+
+    & code {
+        font-size: rem(11px);
+    }
 }
 
 .markdown {
@@ -120,6 +124,6 @@
 .markdownBody.markdownBody {
     color: var(--mantine-color-text);
     font-family: inherit;
-    font-size: var(--mantine-font-size-sm);
+    font-size: var(--mantine-font-size-xs);
     background: transparent;
 }
