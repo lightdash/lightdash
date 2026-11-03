@@ -11,7 +11,6 @@ import {
     Group,
     Menu,
     Paper,
-    SegmentedControl,
     Stack,
     Text,
     Title,
@@ -24,19 +23,21 @@ import {
     IconDots,
     IconPlayerStop,
     IconRefresh,
+    IconTerminal2,
 } from '@tabler/icons-react';
 import { useEffect, useState, type FC } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import ErrorState from '../../../components/common/ErrorState';
 import MantineIcon from '../../../components/common/MantineIcon';
-import MantineModal from '../../../components/common/MantineModal';
 import Page from '../../../components/common/Page/Page';
 import PageBreadcrumbs from '../../../components/common/PageBreadcrumbs';
 import PageSpinner from '../../../components/PageSpinner';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
-import { AgentOnboardingActivityPanel } from './AgentOnboardingActivity';
+import {
+    AgentOnboardingCodePanel,
+    type CodePanelView,
+} from './AgentOnboardingCodePanel';
 import { AgentOnboardingDemoOffer } from './AgentOnboardingDemoOffer';
-import { AgentOnboardingFileBrowser } from './AgentOnboardingFileBrowser';
 import { RunChanges } from './AgentOnboardingRunChanges';
 import { RunJourney } from './AgentOnboardingRunOverview';
 import classes from './AgentOnboardingRunPage.module.css';
@@ -115,6 +116,7 @@ const RunActions: FC<{
     onRetry: () => Promise<void>;
     onOpenProject: () => void;
     onViewCode: () => void;
+    onViewLog: () => void;
     isCancelling: boolean;
     isRetrying: boolean;
 }> = ({
@@ -124,6 +126,7 @@ const RunActions: FC<{
     onRetry,
     onOpenProject,
     onViewCode,
+    onViewLog,
     isCancelling,
     isRetrying,
 }) => {
@@ -146,6 +149,12 @@ const RunActions: FC<{
                     onClick={onViewCode}
                 >
                     View code
+                </Menu.Item>
+                <Menu.Item
+                    leftSection={<MantineIcon icon={IconTerminal2} />}
+                    onClick={onViewLog}
+                >
+                    Run log
                 </Menu.Item>
                 {isLive && (
                     <>
@@ -202,65 +211,13 @@ const RunActions: FC<{
     );
 };
 
-const RunFilesModal: FC<{
-    run: AgentOnboardingRun;
-    opened: boolean;
-    onClose: () => void;
-}> = ({ run, opened, onClose }) => {
-    const [view, setView] = useState<'files' | 'log'>('files');
-    return (
-        <MantineModal
-            opened={opened}
-            onClose={onClose}
-            title="Project code"
-            icon={IconCode}
-            size="90%"
-            cancelLabel="Close"
-            headerActions={
-                <SegmentedControl
-                    size="xs"
-                    value={view}
-                    onChange={(value) =>
-                        setView(value === 'log' ? 'log' : 'files')
-                    }
-                    data={[
-                        {
-                            value: 'files',
-                            label: `Files (${run.files.length})`,
-                        },
-                        { value: 'log', label: 'Log' },
-                    ]}
-                />
-            }
-            modalBodyProps={{ p: 0 }}
-        >
-            <Box className={classes.detailsBody}>
-                {view === 'files' ? (
-                    <AgentOnboardingFileBrowser
-                        projectUuid={run.projectUuid}
-                        runUuid={run.agentOnboardingRunUuid}
-                        files={run.files}
-                        isLive={!isAgentOnboardingRunTerminal(run.status)}
-                        latestActivity={run.events.at(-1)?.message ?? null}
-                    />
-                ) : (
-                    <AgentOnboardingActivityPanel
-                        key={run.agentOnboardingRunUuid}
-                        events={run.events}
-                    />
-                )}
-            </Box>
-        </MantineModal>
-    );
-};
-
 const AgentOnboardingRunPage: FC = () => {
     const { agentOnboardingRunUuid } = useParams();
     const projectUuid = useProjectUuid();
     const navigate = useNavigate();
     const [isCancellationRequested, setIsCancellationRequested] =
         useState(false);
-    const [isFilesOpen, setIsFilesOpen] = useState(false);
+    const [codeView, setCodeView] = useState<CodePanelView | null>(null);
     const runQuery = useAgentOnboardingRun(projectUuid, agentOnboardingRunUuid);
     const cancelMutation = useCancelAgentOnboardingRun();
     const startMutation = useStartAgentOnboardingRun();
@@ -345,9 +302,33 @@ const AgentOnboardingRunPage: FC = () => {
     const isLive = !isAgentOnboardingRunTerminal(run.status);
     const isStopping = isCancellationRequested && isLive;
     const copy = RUN_COPY[run.status];
+    const viewFile = (path: string) => setCodeView({ kind: 'file', path });
 
     return (
-        <Page title="Project setup" withPaddedContent fullPageScroll>
+        <Page
+            title="Project setup"
+            withPaddedContent
+            withFullHeight
+            rightSidebar={
+                codeView ? (
+                    <AgentOnboardingCodePanel
+                        run={run}
+                        view={codeView}
+                        onChange={setCodeView}
+                        onClose={() => setCodeView(null)}
+                    />
+                ) : undefined
+            }
+            isRightSidebarOpen={codeView !== null}
+            onRightSidebarClose={() => setCodeView(null)}
+            rightSidebarTitle="Project code"
+            noRightSidebarPadding
+            rightSidebarWidthProps={{
+                defaultWidth: 560,
+                minWidth: 380,
+                maxWidth: 960,
+            }}
+        >
             <Box className={classes.page}>
                 <Box className={classes.column}>
                     <PageBreadcrumbs
@@ -370,7 +351,7 @@ const AgentOnboardingRunPage: FC = () => {
                                 <RunElapsed run={run} now={now} />
                             </Group>
                             {(isStopping || copy.subtitle) && (
-                                <Text c="dimmed" fz="sm" maw={560}>
+                                <Text c="dimmed" fz="sm">
                                     {isStopping
                                         ? 'Stopping the setup run…'
                                         : copy.subtitle}
@@ -395,7 +376,20 @@ const AgentOnboardingRunPage: FC = () => {
                                 cancelMutation.isLoading || isStopping
                             }
                             isRetrying={startMutation.isLoading}
-                            onViewCode={() => setIsFilesOpen(true)}
+                            onViewCode={() =>
+                                setCodeView(
+                                    run.files[0]
+                                        ? {
+                                              kind: 'file',
+                                              path:
+                                                  run.files.find(({ path }) =>
+                                                      /models\//.test(path),
+                                                  )?.path ?? run.files[0].path,
+                                          }
+                                        : { kind: 'log' },
+                                )
+                            }
+                            onViewLog={() => setCodeView({ kind: 'log' })}
                         />
                     </Box>
 
@@ -416,24 +410,17 @@ const AgentOnboardingRunPage: FC = () => {
                     <RunJourney run={run} now={now} />
 
                     {run.status === 'completed' ? (
-                        <RunSummary run={run} />
+                        <RunSummary run={run} onViewCode={viewFile} />
                     ) : (
-                        <Stack gap="sm">
-                            <Text fz="sm" fw={500}>
-                                Charts and tables
-                            </Text>
-                            <Paper className={classes.changes}>
-                                <RunChanges run={run} withModels={false} />
-                            </Paper>
-                        </Stack>
+                        <RunChanges run={run} withModels={false} />
                     )}
 
-                    <RunSemanticLayer run={run} />
-
-                    <RunFilesModal
+                    <RunSemanticLayer
                         run={run}
-                        opened={isFilesOpen}
-                        onClose={() => setIsFilesOpen(false)}
+                        inspectedPath={
+                            codeView?.kind === 'file' ? codeView.path : null
+                        }
+                        onViewCode={viewFile}
                     />
                 </Box>
             </Box>

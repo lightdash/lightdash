@@ -1,5 +1,4 @@
 import {
-    isAgentOnboardingRunTerminal,
     MetricType,
     type AgentOnboardingFile,
     type AgentOnboardingRun,
@@ -16,10 +15,8 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconArrowRight, IconCode, IconTable } from '@tabler/icons-react';
-import { useState, type FC } from 'react';
+import { type FC } from 'react';
 import { Link } from 'react-router';
-import { AI_NAME } from '../../../components/common/aiName';
-import CodeBlock from '../../../components/common/CodeBlock/CodeBlock';
 import {
     FIELD_ICONS,
     getItemIconName,
@@ -27,7 +24,11 @@ import {
 import MantineIcon from '../../../components/common/MantineIcon';
 import classes from './AgentOnboardingSemanticLayer.module.css';
 import { useRunSemanticLayer } from './hooks/useAgentOnboarding';
-import { type SemanticLayerField, type SemanticLayerModel } from './utils';
+import {
+    SEMANTIC_LAYER_ANCHOR,
+    type SemanticLayerField,
+    type SemanticLayerModel,
+} from './utils';
 
 const METRIC_TYPE_LABELS: Partial<Record<string, string>> = {
     [MetricType.SUM]: 'Sum',
@@ -101,15 +102,15 @@ const FieldList: FC<{
 
 const ModelCard: FC<{
     file: AgentOnboardingFile;
-    content: string | null;
     model: SemanticLayerModel | null;
     exploreHref: string | null;
-}> = ({ file, content, model, exploreHref }) => {
-    const [view, setView] = useState<'definitions' | 'yaml'>('definitions');
+    isInspected: boolean;
+    onViewCode: () => void;
+}> = ({ file, model, exploreHref, isInspected, onViewCode }) => {
     const name = file.path.split('/').pop() ?? file.path;
 
     return (
-        <Paper className={classes.model}>
+        <Paper className={classes.model} data-inspected={isInspected}>
             <Group justify="space-between" wrap="nowrap" gap="sm">
                 <Group gap="sm" wrap="nowrap" miw={0}>
                     <MantineIcon
@@ -129,28 +130,18 @@ const ModelCard: FC<{
                     </Box>
                 </Group>
                 <Group gap="xs" wrap="nowrap">
-                    {content !== null && (
-                        <Tooltip
-                            label={view === 'yaml' ? 'Hide YAML' : 'View YAML'}
+                    <Tooltip label="View YAML">
+                        <ActionIcon
+                            variant={isInspected ? 'light' : 'subtle'}
+                            color="gray"
+                            size="sm"
+                            aria-label={`View ${model?.label ?? name} YAML`}
+                            aria-pressed={isInspected}
+                            onClick={onViewCode}
                         >
-                            <ActionIcon
-                                variant={view === 'yaml' ? 'light' : 'subtle'}
-                                color="gray"
-                                size="sm"
-                                aria-label="View YAML"
-                                aria-pressed={view === 'yaml'}
-                                onClick={() =>
-                                    setView(
-                                        view === 'yaml'
-                                            ? 'definitions'
-                                            : 'yaml',
-                                    )
-                                }
-                            >
-                                <MantineIcon icon={IconCode} size={14} />
-                            </ActionIcon>
-                        </Tooltip>
-                    )}
+                            <MantineIcon icon={IconCode} size={14} />
+                        </ActionIcon>
+                    </Tooltip>
                     {exploreHref && (
                         <Button
                             size="compact-xs"
@@ -169,16 +160,7 @@ const ModelCard: FC<{
                 </Group>
             </Group>
 
-            {view === 'yaml' && content !== null ? (
-                <Box className={classes.code}>
-                    <CodeBlock
-                        code={content}
-                        language="yaml"
-                        withLineNumbers
-                        withCopyButton
-                    />
-                </Box>
-            ) : model ? (
+            {model ? (
                 <Box className={classes.columns}>
                     <FieldList kind="metric" fields={model.metrics} />
                     <FieldList kind="dimension" fields={model.dimensions} />
@@ -195,47 +177,30 @@ const ModelCard: FC<{
 };
 
 /** The models the run wrote, shown as the metrics and dimensions they define, with the YAML one click away */
-export const RunSemanticLayer: FC<{ run: AgentOnboardingRun }> = ({ run }) => {
-    const isLive = !isAgentOnboardingRunTerminal(run.status);
-    const { files: modelFiles, contents, models } = useRunSemanticLayer(run);
-
-    if (modelFiles.length === 0 && !isLive) return null;
+export const RunSemanticLayer: FC<{
+    run: AgentOnboardingRun;
+    inspectedPath: string | null;
+    onViewCode: (path: string) => void;
+}> = ({ run, inspectedPath, onViewCode }) => {
+    const { files: modelFiles, models } = useRunSemanticLayer(run);
+    if (modelFiles.length === 0) return null;
 
     return (
-        <Stack gap="sm">
-            <Group justify="space-between" align="flex-end" gap="xs">
-                <Box>
-                    <Text fz="sm" fw={500}>
-                        Your semantic layer
-                    </Text>
-                    <Text fz="xs" c="dimmed">
-                        Shared definitions that charts, dashboards and {AI_NAME}{' '}
-                        all read from.
-                    </Text>
-                </Box>
-            </Group>
-            {modelFiles.length === 0 ? (
-                <Box className={classes.empty}>
-                    <Text fz="sm" c="dimmed">
-                        Metrics and dimensions appear here once {AI_NAME} has
-                        read your tables.
-                    </Text>
-                </Box>
-            ) : (
-                modelFiles.map((file, index) => (
-                    <ModelCard
-                        key={file.path}
-                        file={file}
-                        content={contents[index]}
-                        model={models[index]}
-                        exploreHref={
-                            run.status === 'completed' && models[index]
-                                ? `/projects/${run.projectUuid}/tables/${models[index].name}`
-                                : null
-                        }
-                    />
-                ))
-            )}
+        <Stack gap="sm" id={SEMANTIC_LAYER_ANCHOR} className={classes.section}>
+            {modelFiles.map((file, index) => (
+                <ModelCard
+                    key={file.path}
+                    file={file}
+                    model={models[index]}
+                    exploreHref={
+                        run.status === 'completed' && models[index]
+                            ? `/projects/${run.projectUuid}/tables/${models[index].name}`
+                            : null
+                    }
+                    isInspected={inspectedPath === file.path}
+                    onViewCode={() => onViewCode(file.path)}
+                />
+            ))}
         </Stack>
     );
 };

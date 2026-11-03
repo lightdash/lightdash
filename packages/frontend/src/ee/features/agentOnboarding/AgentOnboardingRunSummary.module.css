@@ -64,6 +64,7 @@ button.stat:hover {
 
 .chip {
     display: inline-flex;
+    cursor: pointer;
     gap: 4px;
     align-items: center;
     padding: 2px 8px;
@@ -72,9 +73,25 @@ button.stat:hover {
     font-size: var(--mantine-font-size-xs);
 }
 
+.chip:hover {
+    background: var(--ld-color-page);
+}
+
 .nextAction {
+    display: flex;
+    gap: var(--mantine-spacing-sm);
+    align-items: flex-start;
     padding-top: var(--mantine-spacing-sm);
     border-top: 1px solid var(--mantine-color-default-border);
+}
+
+.nextCheck {
+    flex: 0 0 auto;
+    width: 14px;
+    height: 14px;
+    margin-top: 2px;
+    border: 1.5px solid var(--mantine-color-ldGray-5);
+    border-radius: 50%;
 }
 
 .more {

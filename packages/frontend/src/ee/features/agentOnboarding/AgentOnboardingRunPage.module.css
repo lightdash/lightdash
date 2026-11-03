@@ -267,152 +267,7 @@
     color: var(--mantine-color-green-light-color);
 }
 
-.emptyActivity {
-    max-width: 480px;
-    overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-}
-
-.fileBrowser {
-    min-height: 0;
-    height: 100%;
-}
-
-.filePanel {
-    min-width: 0;
-    min-height: 0;
-    height: 100%;
-}
-
-.fileTree {
-    min-height: 0;
-    height: 100%;
-    overflow: auto;
-    overscroll-behavior: contain;
-    scrollbar-gutter: stable;
-    background: var(--ld-color-page);
-}
-
-.fileResizeHandle {
-    position: relative;
-    display: flex;
-    flex: 0 0 1px;
-    width: 1px;
-    color: transparent;
-    cursor: col-resize;
-    background: var(--mantine-color-ldGray-3);
-    outline: none;
-    transition: background-color 120ms ease;
-}
-
 /* Wider invisible hit area so a 1px line stays easy to grab */
-.fileResizeHandle::before {
-    content: '';
-    position: absolute;
-    inset: 0 -4px;
-}
-
-.fileResizeHandle:hover,
-.fileResizeHandle[data-active],
-.fileResizeHandle:focus-visible {
-    background: var(--mantine-color-ldGray-5);
-}
-
-.fileTreeItem {
-    display: flex;
-    align-items: center;
-    width: 100%;
-    min-height: 32px;
-    padding-block: 6px;
-    padding-inline-end: 10px;
-    color: var(--mantine-color-ldGray-7);
-}
-
-.fileTreeToggle,
-.fileTreeIcon {
-    display: flex;
-    flex: 0 0 20px;
-    align-items: center;
-    justify-content: center;
-    width: 20px;
-    height: 20px;
-    line-height: 0;
-    color: var(--mantine-color-dimmed);
-}
-
-.fileTreeToggle svg,
-.fileTreeIcon svg {
-    flex: 0 0 auto;
-    display: block;
-}
-
-.fileTreeItem:hover {
-    background: var(--mantine-color-default-hover);
-}
-
-.fileTreeItem[data-recent='true'] {
-    animation: flash 1.8s ease-out;
-}
-
-.fileTreeItem[data-selected='true'] {
-    color: var(--mantine-color-text);
-    font-weight: 500;
-    background: var(--mantine-color-default-hover);
-}
-
-.filePreview {
-    display: grid;
-    grid-template-rows: 36px minmax(0, 1fr);
-    min-width: 0;
-    min-height: 0;
-    height: 100%;
-    background: var(--mantine-color-body);
-}
-
-.filePreviewHeader {
-    height: 36px;
-    border-bottom: 1px solid var(--mantine-color-default-border);
-    background: var(--ld-color-page);
-}
-
-.filePreviewScroll {
-    min-height: 0;
-    height: 100%;
-    overflow: auto;
-    overscroll-behavior: contain;
-    scrollbar-gutter: stable;
-}
-
-.filePreviewCode {
-    min-height: 100%;
-    margin: 0;
-    border-radius: 0;
-}
-
-.markdownPreviewContainer {
-    min-height: 100%;
-    padding: var(--mantine-spacing-lg);
-    color: var(--mantine-color-text);
-    background: var(--mantine-color-body);
-}
-
-.markdownPreview {
-    color: inherit;
-    font-size: var(--mantine-font-size-sm);
-    background: transparent;
-}
-
-.plainTextPreview {
-    min-height: 100%;
-    margin: 0;
-    padding: var(--mantine-spacing-md);
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
-    font-family: var(--mantine-font-family-monospace);
-    font-size: var(--mantine-font-size-xs);
-}
-
 @keyframes pulse {
     0%,
     100% {
@@ -434,16 +289,6 @@
     }
 }
 
-@keyframes flash {
-    from {
-        background: var(--mantine-color-indigo-light);
-    }
-
-    to {
-        background: transparent;
-    }
-}
-
 @keyframes ring {
     0% {
         box-shadow: 0 0 0 0 var(--mantine-color-indigo-outline);
@@ -456,7 +301,6 @@
 
 @media (prefers-reduced-motion: reduce) {
     .stage[data-state='active'] .stageGlyph,
-    .fileTreeItem[data-recent='true'],
     .trackStep[data-state='active'] .trackBar::after,
     .livePulse,
     .liveStep,
@@ -467,17 +311,4 @@
 
 .journeySteps {
     margin-top: var(--mantine-spacing-md);
-}
-
-.changes {
-    padding: var(--mantine-spacing-lg);
-    border: 1px solid var(--mantine-color-default-border);
-    border-radius: var(--mantine-radius-lg);
-}
-
-.detailsBody {
-    display: flex;
-    flex-direction: column;
-    height: 70vh;
-    min-height: 0;
 }

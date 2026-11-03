@@ -1,8 +1,9 @@
-.empty {
-    padding: var(--mantine-spacing-lg);
-    border: 1px dashed var(--mantine-color-default-border);
-    border-radius: var(--mantine-radius-lg);
-    text-align: center;
+.section {
+    scroll-margin-top: var(--mantine-spacing-xl);
+}
+
+.model[data-inspected='true'] {
+    border-color: var(--mantine-color-ldGray-4);
 }
 
 .model {
@@ -83,11 +84,4 @@
 .fieldType {
     flex: 0 0 auto;
     white-space: nowrap;
-}
-
-.code {
-    max-height: rem(420px);
-    overflow: auto;
-    border: 1px solid var(--mantine-color-default-border);
-    border-radius: var(--mantine-radius-md);
 }

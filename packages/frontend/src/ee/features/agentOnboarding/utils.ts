@@ -270,56 +270,26 @@ export const sanitizeTerminalText = (value: string): string => {
         .join('');
 };
 
-export type AgentOnboardingFileTreeNode = {
-    name: string;
-    path: string;
-    file: AgentOnboardingFile | null;
-    children: AgentOnboardingFileTreeNode[];
-};
+export type AgentOnboardingFileKind = 'model' | 'chart' | 'dashboard' | 'other';
 
-export const buildAgentOnboardingFileTree = (
-    files: AgentOnboardingFile[],
-): AgentOnboardingFileTreeNode[] => {
-    const root: AgentOnboardingFileTreeNode[] = [];
-
-    for (const file of [...files].sort((left, right) =>
-        left.path.localeCompare(right.path),
-    )) {
-        const segments = file.path.split('/').filter(Boolean);
-        let children = root;
-        let currentPath = '';
-
-        segments.forEach((segment, index) => {
-            currentPath = currentPath ? `${currentPath}/${segment}` : segment;
-            const isFile = index === segments.length - 1;
-            let node = children.find(({ name }) => name === segment);
-            if (!node) {
-                node = {
-                    name: segment,
-                    path: currentPath,
-                    file: isFile ? file : null,
-                    children: [],
-                };
-                children.push(node);
-            } else if (isFile) {
-                node.file = file;
-            }
-            children = node.children;
-        });
-    }
-
-    const sortNodes = (
-        nodes: AgentOnboardingFileTreeNode[],
-    ): AgentOnboardingFileTreeNode[] =>
-        nodes
-            .map((node) => ({ ...node, children: sortNodes(node.children) }))
-            .sort((left, right) => {
-                if (left.file === null && right.file !== null) return -1;
-                if (left.file !== null && right.file === null) return 1;
-                return left.name.localeCompare(right.name);
-            });
-
-    return sortNodes(root);
+/** Which part of the project a written file is, and what to call it */
+export const describeAgentOnboardingFile = (
+    path: string,
+): { kind: AgentOnboardingFileKind; label: string } => {
+    const kind: AgentOnboardingFileKind = /(^|\/)models\//.test(path)
+        ? 'model'
+        : /(^|\/)charts\//.test(path)
+          ? 'chart'
+          : /(^|\/)dashboards\//.test(path)
+            ? 'dashboard'
+            : 'other';
+    return {
+        kind,
+        label:
+            kind === 'other'
+                ? (path.split('/').pop() ?? path)
+                : humanizeSlug(fileName(path)),
+    };
 };
 
 export const getAgentOnboardingRunUrl = (
@@ -508,3 +478,5 @@ export const parseSemanticLayerModel = (
 
 export const isSemanticLayerModelFile = ({ path }: AgentOnboardingFile) =>
     /(^|\/)models\/[^/]+\.ya?ml$/i.test(path);
+
+export const SEMANTIC_LAYER_ANCHOR = 'semantic-layer';

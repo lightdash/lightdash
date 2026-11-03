@@ -13,7 +13,6 @@ import {
 } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import { Link } from 'react-router';
-import { AI_NAME } from '../../../components/common/aiName';
 import MantineIcon from '../../../components/common/MantineIcon';
 import classes from './AgentOnboardingRunChanges.module.css';
 import {
@@ -76,27 +75,21 @@ export const RunRecentSteps: FC<{ run: AgentOnboardingRun }> = ({ run }) => {
 const ChangeRow: FC<{
     label: string;
     items: string[];
-    waiting: string;
-    isLive: boolean;
     hrefFor: ((item: string) => string) | null;
     icon: TablerIcon;
     // Long lists start folded behind a count, opened on demand
     countLabel: ((count: number) => string) | null;
-}> = ({ label, items, waiting, isLive, hrefFor, icon, countLabel }) => {
+}> = ({ label, items, hrefFor, icon, countLabel }) => {
     const [isOpen, setIsOpen] = useState(false);
-    if (items.length === 0 && !isLive) return null;
+    if (items.length === 0) return null;
     const extra = items.length - MAX_CHIPS;
-    const isFolded = countLabel !== null && !isOpen && items.length > 0;
+    const isFolded = countLabel !== null && !isOpen;
     return (
         <Box className={classes.row}>
             <Text fz="xs" c="dimmed" className={classes.rowLabel}>
                 {label}
             </Text>
-            {items.length === 0 ? (
-                <Text fz="xs" c="dimmed">
-                    {waiting}
-                </Text>
-            ) : isFolded ? (
+            {isFolded ? (
                 <UnstyledButton
                     className={classes.fold}
                     aria-expanded={false}
@@ -148,17 +141,16 @@ export const RunChanges: FC<{
         () => collectAgentOnboardingArtifacts(run.events),
         [run.events],
     );
-    const isLive = !isAgentOnboardingRunTerminal(run.status);
     const isDone = run.status === 'completed';
 
-    const rows = (
+    if (tables.length === 0 && charts.length === 0 && !withModels) return null;
+
+    return (
         <Stack gap="md">
             {withModels && (
                 <ChangeRow
                     label="Metrics on"
                     items={models}
-                    waiting="Once the tables are read"
-                    isLive={isLive}
                     hrefFor={
                         isDone
                             ? (model) =>
@@ -172,8 +164,6 @@ export const RunChanges: FC<{
             <ChangeRow
                 label="Charts"
                 items={charts}
-                waiting="Once the metrics are live"
-                isLive={isLive}
                 hrefFor={null}
                 icon={IconChartBar}
                 countLabel={(count) =>
@@ -183,14 +173,10 @@ export const RunChanges: FC<{
             <ChangeRow
                 label="Tables read"
                 items={tables.map(friendlyName)}
-                waiting={`${AI_NAME} starts by reading your tables`}
-                isLive={isLive}
                 hrefFor={null}
                 icon={IconTable}
                 countLabel={null}
             />
         </Stack>
     );
-
-    return rows;
 };

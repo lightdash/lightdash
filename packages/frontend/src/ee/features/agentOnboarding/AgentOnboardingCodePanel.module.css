@@ -1,0 +1,75 @@
+.panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    background: var(--mantine-color-body);
+}
+
+.header {
+    flex: 0 0 auto;
+    min-height: 52px;
+    padding: 6px var(--mantine-spacing-xs) 6px 6px;
+    border-bottom: 1px solid var(--mantine-color-default-border);
+}
+
+.picker {
+    display: flex;
+    flex: 1;
+    gap: var(--mantine-spacing-xs);
+    align-items: center;
+    min-width: 0;
+    padding: 4px var(--mantine-spacing-xs);
+    border-radius: var(--mantine-radius-md);
+
+    &:hover {
+        background: var(--ld-color-page);
+    }
+
+    & > :nth-child(2) {
+        flex: 1;
+    }
+}
+
+.title {
+    flex: 1;
+    min-width: 0;
+    padding: 4px var(--mantine-spacing-xs);
+}
+
+.pickerIcon {
+    flex: 0 0 auto;
+    color: var(--mantine-color-dimmed);
+}
+
+.body {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+    overflow: auto;
+}
+
+.code {
+    min-height: 100%;
+    margin: 0;
+    border-radius: 0;
+    background: transparent;
+    font-size: var(--mantine-font-size-xs);
+}
+
+.markdown {
+    padding: var(--mantine-spacing-md);
+}
+
+.markdownBody.markdownBody {
+    color: var(--mantine-color-text);
+    font-family: inherit;
+    font-size: var(--mantine-font-size-sm);
+    background: transparent;
+}
+
+.menu {
+    max-height: rem(420px);
+    overflow-y: auto;
+}

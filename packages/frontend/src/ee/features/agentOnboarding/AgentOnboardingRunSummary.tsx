@@ -13,6 +13,7 @@ import {
     IconAbc,
     IconChartBar,
     IconChevronDown,
+    IconLayoutDashboard,
     IconTable,
     type Icon as TablerIcon,
 } from '@tabler/icons-react';
@@ -25,7 +26,11 @@ import {
 } from '../../../utils/markdownUtils';
 import classes from './AgentOnboardingRunSummary.module.css';
 import { useRunSemanticLayer } from './hooks/useAgentOnboarding';
-import { collectAgentOnboardingArtifacts } from './utils';
+import {
+    collectAgentOnboardingArtifacts,
+    describeAgentOnboardingFile,
+    SEMANTIC_LAYER_ANCHOR,
+} from './utils';
 
 const isInAppHref = (href: string) => /^(https?:|mailto:|\/|#)/.test(href);
 
@@ -63,13 +68,12 @@ const Notes: FC<{ source: string; variant: 'lead' | 'body' }> = ({
 }) => {
     const { colorScheme } = useMantineColorScheme();
     return (
-        <Box data-color-mode={colorScheme}>
+        <Box data-color-mode={colorScheme} data-variant={variant}>
             <MarkdownPreview
                 source={source}
                 rehypePlugins={markdownSanitizeRehypePlugins}
                 rehypeRewrite={rehypeRewrite}
-                className={classes.notesMarkdown}
-                data-variant={variant}
+                className={classes.notes}
             />
         </Box>
     );
@@ -81,7 +85,8 @@ const Stat: FC<{
     label: string;
     detail: string[];
     onClick: (() => void) | null;
-    isOpen: boolean;
+    // null for stats that jump elsewhere instead of unfolding
+    isOpen: boolean | null;
 }> = ({ icon, kind, value, label, detail, onClick, isOpen }) => {
     const body = (
         <>
@@ -93,7 +98,7 @@ const Stat: FC<{
                 <Text fz="xs" c="dimmed">
                     {label}
                 </Text>
-                {onClick && (
+                {isOpen !== null && (
                     <MantineIcon
                         icon={IconChevronDown}
                         size={12}
@@ -109,7 +114,7 @@ const Stat: FC<{
         <UnstyledButton
             className={classes.stat}
             onClick={onClick}
-            aria-expanded={isOpen}
+            aria-expanded={isOpen ?? undefined}
         >
             {body}
         </UnstyledButton>
@@ -126,11 +131,27 @@ const Stat: FC<{
 };
 
 /** What a finished run built, in one card: the agent's summary, the counts, and its suggested next step */
-export const RunSummary: FC<{ run: AgentOnboardingRun }> = ({ run }) => {
-    const { tables, charts } = useMemo(
+export const RunSummary: FC<{
+    run: AgentOnboardingRun;
+    onViewCode: (path: string) => void;
+}> = ({ run, onViewCode }) => {
+    const { tables } = useMemo(
         () => collectAgentOnboardingArtifacts(run.events),
         [run.events],
     );
+    const contentFiles = run.files.flatMap(({ path }) => {
+        const { kind, label } = describeAgentOnboardingFile(path);
+        return kind === 'chart' || kind === 'dashboard'
+            ? [{ path, kind, label }]
+            : [];
+    });
+    const chartCount = contentFiles.filter(
+        ({ kind }) => kind === 'chart',
+    ).length;
+    const showSemanticLayer = () =>
+        document
+            .getElementById(SEMANTIC_LAYER_ANCHOR)
+            ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     const { metricCount, dimensionCount } = useRunSemanticLayer(run);
     const [isChartsOpen, setIsChartsOpen] = useState(false);
     const [isNotesOpen, setIsNotesOpen] = useState(false);
@@ -159,7 +180,7 @@ export const RunSummary: FC<{ run: AgentOnboardingRun }> = ({ run }) => {
                     label={tables.length === 1 ? 'table read' : 'tables read'}
                     detail={tables.map(friendlyName)}
                     onClick={null}
-                    isOpen={false}
+                    isOpen={null}
                 />
                 <Stat
                     icon={Icon123}
@@ -167,8 +188,8 @@ export const RunSummary: FC<{ run: AgentOnboardingRun }> = ({ run }) => {
                     value={metricCount}
                     label={metricCount === 1 ? 'metric' : 'metrics'}
                     detail={[]}
-                    onClick={null}
-                    isOpen={false}
+                    onClick={showSemanticLayer}
+                    isOpen={null}
                 />
                 <Stat
                     icon={IconAbc}
@@ -176,17 +197,17 @@ export const RunSummary: FC<{ run: AgentOnboardingRun }> = ({ run }) => {
                     value={dimensionCount}
                     label={dimensionCount === 1 ? 'dimension' : 'dimensions'}
                     detail={[]}
-                    onClick={null}
-                    isOpen={false}
+                    onClick={showSemanticLayer}
+                    isOpen={null}
                 />
                 <Stat
                     icon={IconChartBar}
                     kind="plain"
-                    value={charts.length}
-                    label={charts.length === 1 ? 'chart' : 'charts'}
-                    detail={charts}
+                    value={chartCount}
+                    label={chartCount === 1 ? 'chart' : 'charts'}
+                    detail={[]}
                     onClick={
-                        charts.length > 0
+                        contentFiles.length > 0
                             ? () => setIsChartsOpen((value) => !value)
                             : null
                     }
@@ -196,25 +217,39 @@ export const RunSummary: FC<{ run: AgentOnboardingRun }> = ({ run }) => {
 
             {isChartsOpen && (
                 <Box className={classes.chips}>
-                    {charts.map((chart) => (
-                        <Box key={chart} className={classes.chip}>
-                            <MantineIcon icon={IconChartBar} size={12} />
-                            {chart}
-                        </Box>
+                    {contentFiles.map(({ path, kind, label }) => (
+                        <UnstyledButton
+                            key={path}
+                            className={classes.chip}
+                            onClick={() => onViewCode(path)}
+                        >
+                            <MantineIcon
+                                icon={
+                                    kind === 'dashboard'
+                                        ? IconLayoutDashboard
+                                        : IconChartBar
+                                }
+                                size={12}
+                            />
+                            {label}
+                        </UnstyledButton>
                     ))}
                 </Box>
             )}
 
             {nextAction && (
-                <Stack gap={2} className={classes.nextAction}>
-                    <Text fz="xs" fw={500}>
-                        Next step
-                    </Text>
-                    <Notes
-                        source={nextAction.replace(NEXT_ACTION_PATTERN, '')}
-                        variant="body"
-                    />
-                </Stack>
+                <Box className={classes.nextAction}>
+                    <Box className={classes.nextCheck} aria-hidden />
+                    <Stack gap={2} miw={0}>
+                        <Text fz="xs" fw={500}>
+                            Next step
+                        </Text>
+                        <Notes
+                            source={nextAction.replace(NEXT_ACTION_PATTERN, '')}
+                            variant="body"
+                        />
+                    </Stack>
+                </Box>
             )}
 
             {rest && (
