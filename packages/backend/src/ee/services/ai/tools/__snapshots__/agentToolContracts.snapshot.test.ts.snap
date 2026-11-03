@@ -673,7 +673,8 @@ When string dimension metadata has \`caseSensitiveFilters\`, \`true\` means stri
 ## Answering data questions
 
 - Query each explore with one semanticLayer node, and combine explores that are not joined in the semantic layer with a duckdb node that joins their results.
-- Compute what a metric query cannot express in a duckdb node that reads the semanticLayer nodes: arithmetic and ratios across metrics, % of total, aggregates of aggregated metrics, period-over-period change, running totals, moving averages, ranking and top N per group, cohort comparisons, row-level conditionals, reshaping, and a metric the explore lacks, derived from the metrics and dimensions it has.
+- Compute a metric the explore lacks as a custom metric on its semanticLayer node, and a metric in an earlier period as a period comparison there. The warehouse computes them in the same query, so the user gets the answer sooner and over every row; aggregating in a duckdb or python node waits on an extra query and sees only the rows within its source node's limit.
+- Compute what a metric query cannot express in a duckdb node that reads the semanticLayer nodes: arithmetic and ratios across metrics, % of total, aggregates of aggregated metrics, the change between a metric and its period comparison, running totals, moving averages, ranking and top N per group, cohort comparisons, row-level conditionals and reshaping.
 - Build an answer that takes several queries, or a computation over their results, as one pipeline in one query call, whose terminal node is the result that answers the question.
 - For a follow-up that changes an earlier result, change only what the user asked for, and claim a change only after the call succeeds. When the requested field is not among the carried-forward candidates, discover it rather than binding its value to an unrelated existing dimension.
 - After query, call visualize on the node your answer rests on: with the chart type the user asked for; otherwise with a chart that fits the result (a line for a trend over time, a bar to compare categories), or a table when the user wants an interactive or downloadable table or the rows are too many for a Markdown table. Skip visualize when a sentence or a small Markdown table answers the question and the user asked for no chart.
@@ -931,6 +932,10 @@ For explore-backed tables use grepFields and getMetadata; to find a table's name
                     "connectUrl",
                   ],
                   "type": "object",
+                },
+                "requiresSnowflakeReauthentication": {
+                  "const": true,
+                  "type": "boolean",
                 },
                 "status": {
                   "allOf": [
@@ -4365,6 +4370,10 @@ Usage tips:
                   ],
                   "type": "object",
                 },
+                "requiresSnowflakeReauthentication": {
+                  "const": true,
+                  "type": "boolean",
+                },
                 "status": {
                   "allOf": [
                     {
@@ -4711,6 +4720,10 @@ Usage tips:
                     "connectUrl",
                   ],
                   "type": "object",
+                },
+                "requiresSnowflakeReauthentication": {
+                  "const": true,
+                  "type": "boolean",
                 },
                 "status": {
                   "allOf": [
@@ -6549,6 +6562,10 @@ All branches of an IF must return the same type.",
                   ],
                   "type": "object",
                 },
+                "requiresSnowflakeReauthentication": {
+                  "const": true,
+                  "type": "boolean",
+                },
                 "status": {
                   "allOf": [
                     {
@@ -6820,6 +6837,10 @@ All branches of an IF must return the same type.",
                   ],
                   "type": "object",
                 },
+                "requiresSnowflakeReauthentication": {
+                  "const": true,
+                  "type": "boolean",
+                },
                 "status": {
                   "allOf": [
                     {
@@ -7086,6 +7107,10 @@ All branches of an IF must return the same type.",
                     "connectUrl",
                   ],
                   "type": "object",
+                },
+                "requiresSnowflakeReauthentication": {
+                  "const": true,
+                  "type": "boolean",
                 },
                 "status": {
                   "allOf": [
@@ -7472,6 +7497,10 @@ All branches of an IF must return the same type.",
                     "connectUrl",
                   ],
                   "type": "object",
+                },
+                "requiresSnowflakeReauthentication": {
+                  "const": true,
+                  "type": "boolean",
                 },
                 "status": {
                   "allOf": [
@@ -8058,6 +8087,10 @@ Read the full text of one knowledge document or Deep Research report by its uuid
                   ],
                   "type": "object",
                 },
+                "requiresSnowflakeReauthentication": {
+                  "const": true,
+                  "type": "boolean",
+                },
                 "status": {
                   "allOf": [
                     {
@@ -8497,6 +8530,10 @@ Read the full text of one knowledge document or Deep Research report by its uuid
                   ],
                   "type": "object",
                 },
+                "requiresSnowflakeReauthentication": {
+                  "const": true,
+                  "type": "boolean",
+                },
                 "status": {
                   "allOf": [
                     {
@@ -8827,6 +8864,10 @@ When to use:
                   ],
                   "type": "object",
                 },
+                "requiresSnowflakeReauthentication": {
+                  "const": true,
+                  "type": "boolean",
+                },
                 "status": {
                   "allOf": [
                     {
@@ -9097,6 +9138,10 @@ When to use:
                     "connectUrl",
                   ],
                   "type": "object",
+                },
+                "requiresSnowflakeReauthentication": {
+                  "const": true,
+                  "type": "boolean",
                 },
                 "status": {
                   "allOf": [
@@ -9475,6 +9520,10 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
                     "connectUrl",
                   ],
                   "type": "object",
+                },
+                "requiresSnowflakeReauthentication": {
+                  "const": true,
+                  "type": "boolean",
                 },
                 "status": {
                   "allOf": [
@@ -9863,6 +9912,10 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
                   ],
                   "type": "object",
                 },
+                "requiresSnowflakeReauthentication": {
+                  "const": true,
+                  "type": "boolean",
+                },
                 "skill": {
                   "additionalProperties": false,
                   "properties": {
@@ -10195,6 +10248,10 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
                     "connectUrl",
                   ],
                   "type": "object",
+                },
+                "requiresSnowflakeReauthentication": {
+                  "const": true,
+                  "type": "boolean",
                 },
                 "status": {
                   "allOf": [
@@ -11092,6 +11149,10 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
                   ],
                   "type": "object",
                 },
+                "requiresSnowflakeReauthentication": {
+                  "const": true,
+                  "type": "boolean",
+                },
                 "status": {
                   "allOf": [
                     {
@@ -11399,6 +11460,10 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
                     "connectUrl",
                   ],
                   "type": "object",
+                },
+                "requiresSnowflakeReauthentication": {
+                  "const": true,
+                  "type": "boolean",
                 },
                 "status": {
                   "allOf": [
@@ -11892,6 +11957,10 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
                       ],
                       "type": "object",
                     },
+                    "requiresSnowflakeReauthentication": {
+                      "const": true,
+                      "type": "boolean",
+                    },
                     "status": {
                       "allOf": [
                         {
@@ -12080,6 +12149,10 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
                       ],
                       "type": "object",
                     },
+                    "requiresSnowflakeReauthentication": {
+                      "const": true,
+                      "type": "boolean",
+                    },
                     "status": {
                       "allOf": [
                         {
@@ -12218,6 +12291,10 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
                         "connectUrl",
                       ],
                       "type": "object",
+                    },
+                    "requiresSnowflakeReauthentication": {
+                      "const": true,
+                      "type": "boolean",
                     },
                     "status": {
                       "allOf": [
@@ -12795,6 +12872,10 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
                   ],
                   "type": "object",
                 },
+                "requiresSnowflakeReauthentication": {
+                  "const": true,
+                  "type": "boolean",
+                },
                 "status": {
                   "allOf": [
                     {
@@ -13072,6 +13153,10 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
                     "connectUrl",
                   ],
                   "type": "object",
+                },
+                "requiresSnowflakeReauthentication": {
+                  "const": true,
+                  "type": "boolean",
                 },
                 "status": {
                   "allOf": [
@@ -13430,6 +13515,10 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
                   ],
                   "type": "object",
                 },
+                "requiresSnowflakeReauthentication": {
+                  "const": true,
+                  "type": "boolean",
+                },
                 "status": {
                   "allOf": [
                     {
@@ -13692,6 +13781,10 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
                     "connectUrl",
                   ],
                   "type": "object",
+                },
+                "requiresSnowflakeReauthentication": {
+                  "const": true,
+                  "type": "boolean",
                 },
                 "status": {
                   "allOf": [
@@ -13971,6 +14064,10 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
                     "connectUrl",
                   ],
                   "type": "object",
+                },
+                "requiresSnowflakeReauthentication": {
+                  "const": true,
+                  "type": "boolean",
                 },
                 "status": {
                   "allOf": [
@@ -15142,6 +15239,10 @@ Sources:
                     "connectUrl",
                   ],
                   "type": "object",
+                },
+                "requiresSnowflakeReauthentication": {
+                  "const": true,
+                  "type": "boolean",
                 },
                 "status": {
                   "allOf": [
@@ -17411,6 +17512,10 @@ Use them whenever the question needs math the metric query alone can't express; 
                   ],
                   "type": "object",
                 },
+                "requiresSnowflakeReauthentication": {
+                  "const": true,
+                  "type": "boolean",
+                },
                 "status": {
                   "allOf": [
                     {
@@ -17926,6 +18031,10 @@ Use them whenever the question needs math the metric query alone can't express; 
                   ],
                   "type": "object",
                 },
+                "requiresSnowflakeReauthentication": {
+                  "const": true,
+                  "type": "boolean",
+                },
                 "status": {
                   "allOf": [
                     {
@@ -18295,6 +18404,10 @@ Each result renders as its own artifact with a "Continue exploring in SQL Runner
                   ],
                   "type": "object",
                 },
+                "requiresSnowflakeReauthentication": {
+                  "const": true,
+                  "type": "boolean",
+                },
                 "status": {
                   "allOf": [
                     {
@@ -18420,7 +18533,7 @@ Each result renders as its own artifact with a "Continue exploring in SQL Runner
     },
   },
   {
-    "description": "Run a pipeline: one or more nodes submitted together, where duckdb nodes join or transform other nodes' results. The terminal node's rows are returned to you.
+    "description": "Run a pipeline: one or more nodes submitted together, where duckdb nodes join or transform other nodes' results. One call returns one node's rows, the terminal node's, so exactly one submitted node may go unread by the others: to get several results, combine them in one duckdb node (UNION ALL or JOIN) or submit them in separate calls. Every other submitted node is listed with its columns and first rows.
 
 Node kinds:
 - "semanticLayer": a metric query against an explore. Result columns are the requested field ids.
@@ -18436,6 +18549,7 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
       "additionalProperties": false,
       "properties": {
         "description": {
+          "default": null,
           "description": "A one-line description of what the pipeline computes.",
           "type": [
             "string",
@@ -18449,6 +18563,94 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
               {
                 "additionalProperties": false,
                 "properties": {
+                  "customMetrics": {
+                    "anyOf": [
+                      {
+                        "items": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "aggregation": {
+                              "description": "Aggregation over the base dimension. Number dimensions take any; string, date and timestamp dimensions take count, count_distinct, min or max; boolean dimensions take count or count_distinct.",
+                              "enum": [
+                                "sum",
+                                "average",
+                                "count",
+                                "count_distinct",
+                                "min",
+                                "max",
+                                "median",
+                                "percentile",
+                              ],
+                              "type": "string",
+                            },
+                            "description": {
+                              "description": "Shown to users as the metric's description. Null when the label is enough.",
+                              "type": [
+                                "string",
+                                "null",
+                              ],
+                            },
+                            "dimensionFieldId": {
+                              "description": "Field id of the dimension to aggregate, a dimension of "table".",
+                              "type": "string",
+                            },
+                            "filter": {
+                              "anyOf": [
+                                {
+                                  "maxLength": 16384,
+                                  "minLength": 1,
+                                  "type": "string",
+                                },
+                                {
+                                  "type": "null",
+                                },
+                              ],
+                              "description": "Aggregates only the rows this flat AND expression over dimensions matches, in the node filter grammar, e.g. "orders_status equals=completed". Null aggregates every row.",
+                            },
+                            "label": {
+                              "description": "Column label shown to users.",
+                              "type": "string",
+                            },
+                            "name": {
+                              "description": "snake_case name. The metric's field id is "<table>_<name>": list it in "metrics" to select it, and use it in sorts, metric filters and periodComparisons.",
+                              "pattern": "^[a-z][a-z0-9_]*$",
+                              "type": "string",
+                            },
+                            "percentile": {
+                              "anyOf": [
+                                {
+                                  "maximum": 100,
+                                  "minimum": 0,
+                                  "type": "number",
+                                },
+                                {
+                                  "type": "null",
+                                },
+                              ],
+                              "description": "0–100, set only for the percentile aggregation.",
+                            },
+                            "table": {
+                              "description": "Table of the base dimension; the metric belongs to it.",
+                              "type": "string",
+                            },
+                          },
+                          "required": [
+                            "table",
+                            "name",
+                            "label",
+                            "aggregation",
+                            "dimensionFieldId",
+                          ],
+                          "type": "object",
+                        },
+                        "type": "array",
+                      },
+                      {
+                        "type": "null",
+                      },
+                    ],
+                    "description": "Metrics the explore lacks, each an aggregation over one of its dimensions, computed in this query.",
+                  },
                   "description": {
                     "description": "One sentence for a business user on what this node does to the data, adding to the title rather than repeating it, e.g. "Sums completed order revenue per month over the last year." Shown as the node's heading in the pipeline list.",
                     "type": "string",
@@ -18480,6 +18682,7 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
                                 "type": "null",
                               },
                             ],
+                            "default": null,
                             "description": "Flat filter expression for dimension fields.",
                           },
                           "metrics": {
@@ -18493,19 +18696,17 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
                                 "type": "null",
                               },
                             ],
+                            "default": null,
                             "description": "Flat filter expression for metric fields.",
                           },
                         },
-                        "required": [
-                          "dimensions",
-                          "metrics",
-                        ],
                         "type": "object",
                       },
                       {
                         "type": "null",
                       },
                     ],
+                    "default": null,
                     "description": "Filters on this node's explore as flat expression strings, never structured rule objects: one for dimension fields and one for metric fields, each choosing AND or OR independently and combined with AND. Null when unfiltered, or null for an unused kind.",
                   },
                   "limit": {
@@ -18561,8 +18762,43 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
                         "type": "null",
                       },
                     ],
-                    "default": null,
                     "description": "Parameter values for this node, keyed by parameter name exactly as shown in the explore metadata (e.g. {"orders.metric": "active_users"}). Set them whenever a selected field is marked "requires parameters" and the default does not match what the user asked for: an unset parameter silently resolves to its default, which can return the wrong data. null when the explore has no parameters or the defaults are correct.",
+                  },
+                  "periodComparisons": {
+                    "anyOf": [
+                      {
+                        "items": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "metricFieldId": {
+                              "description": "Metric to compare: a field id in "metrics", explore or custom.",
+                              "type": "string",
+                            },
+                            "periodOffset": {
+                              "description": "Periods to look back: 1 for the previous period, 12 on a month grain for the same month last year.",
+                              "maximum": 9007199254740991,
+                              "minimum": 1,
+                              "type": "integer",
+                            },
+                            "timeDimensionFieldId": {
+                              "description": "Time dimension in "dimensions" with a day, week, month, quarter or year grain; the offset counts in that grain.",
+                              "type": "string",
+                            },
+                          },
+                          "required": [
+                            "metricFieldId",
+                            "timeDimensionFieldId",
+                            "periodOffset",
+                          ],
+                          "type": "object",
+                        },
+                        "type": "array",
+                      },
+                      {
+                        "type": "null",
+                      },
+                    ],
+                    "description": "Each adds a column holding a metric shifted back in time, next to that metric, e.g. revenue the same month last year. The warehouse reads the earlier period even when the filters exclude it. The column id is generated; read it from the result columns.",
                   },
                   "sorts": {
                     "anyOf": [
@@ -18591,6 +18827,7 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
                         "type": "null",
                       },
                     ],
+                    "default": null,
                     "description": "Sorts by fields this node also selects in dimensions or metrics, e.g. [{"fieldId": "orders_order_date", "descending": true}].",
                   },
                   "sourceType": {
@@ -18610,8 +18847,6 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
                   "exploreName",
                   "dimensions",
                   "metrics",
-                  "filters",
-                  "sorts",
                 ],
                 "type": "object",
               },
@@ -18702,7 +18937,7 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
                     "type": "string",
                   },
                   "sql": {
-                    "description": "DuckDB SQL over the tables "references" exposes.",
+                    "description": "DuckDB SQL over the tables "references" exposes. Write each column alias with AS, because DuckDB rejects many keywords as bare aliases: \`SUM(v) AS value\`, \`d AS day\` and \`fam AS label\` work, \`SUM(v) value\` does not. Double-quote a column named after a reserved word, such as \`"order"\`.",
                     "type": "string",
                   },
                   "title": {
@@ -18744,7 +18979,7 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
                     "type": "string",
                   },
                   "sql": {
-                    "description": "DuckDB SQL over the tables "tables" declares.",
+                    "description": "DuckDB SQL over the tables "tables" declares. Write each column alias with AS, because DuckDB rejects many keywords as bare aliases: \`SUM(v) AS value\`, \`d AS day\` and \`fam AS label\` work, \`SUM(v) value\` does not. Double-quote a column named after a reserved word, such as \`"order"\`.",
                     "type": "string",
                   },
                   "tables": {
@@ -18788,13 +19023,15 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
           "type": "array",
         },
         "terminalNodeId": {
-          "description": "The terminal node. Null picks the unique sink, the one submitted node no other submitted node reads; name a node when there are several sinks.",
+          "default": null,
+          "description": "The terminal node. Null picks the one submitted node no other submitted node reads; a node id returns that node of the pipeline instead, including a node from an earlier call.",
           "type": [
             "string",
             "null",
           ],
         },
         "title": {
+          "default": null,
           "description": "A short title for the result.",
           "type": [
             "string",
@@ -18803,10 +19040,7 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
         },
       },
       "required": [
-        "title",
-        "description",
         "queries",
-        "terminalNodeId",
       ],
       "type": "object",
     },
@@ -18931,6 +19165,41 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
                   "items": {
                     "additionalProperties": false,
                     "properties": {
+                      "columns": {
+                        "anyOf": [
+                          {
+                            "items": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "reference": {
+                                  "description": "Column name as it appears in the rows.",
+                                  "type": "string",
+                                },
+                                "type": {
+                                  "enum": [
+                                    "string",
+                                    "number",
+                                    "timestamp",
+                                    "date",
+                                    "boolean",
+                                  ],
+                                  "type": "string",
+                                },
+                              },
+                              "required": [
+                                "reference",
+                                "type",
+                              ],
+                              "type": "object",
+                            },
+                            "type": "array",
+                          },
+                          {
+                            "type": "null",
+                          },
+                        ],
+                        "description": "Columns of a node submitted in this call; null for reused nodes and for the terminal node, whose columns are in columns.",
+                      },
                       "limit": {
                         "description": "Row limit this node ran with. A rowCount equal to it means the node reached its limit, so more rows may exist.",
                         "exclusiveMinimum": 0,
@@ -18954,6 +19223,24 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
                           },
                         ],
                         "description": "Rows this node returned; null when its query is not ready.",
+                      },
+                      "sample": {
+                        "anyOf": [
+                          {
+                            "items": {
+                              "additionalProperties": {},
+                              "propertyNames": {
+                                "type": "string",
+                              },
+                              "type": "object",
+                            },
+                            "type": "array",
+                          },
+                          {
+                            "type": "null",
+                          },
+                        ],
+                        "description": "First 5 rows of a node submitted in this call other than the terminal node; null otherwise or when data access is disabled.",
                       },
                       "sourceType": {
                         "enum": [
@@ -18980,6 +19267,8 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
                       "sourceType",
                       "rowCount",
                       "limit",
+                      "columns",
+                      "sample",
                     ],
                     "type": "object",
                   },
@@ -19221,6 +19510,10 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
                       ],
                       "type": "object",
                     },
+                    "requiresSnowflakeReauthentication": {
+                      "const": true,
+                      "type": "boolean",
+                    },
                     "status": {
                       "allOf": [
                         {
@@ -19320,6 +19613,10 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
                         "connectUrl",
                       ],
                       "type": "object",
+                    },
+                    "requiresSnowflakeReauthentication": {
+                      "const": true,
+                      "type": "boolean",
                     },
                     "status": {
                       "enum": [
@@ -19446,7 +19743,7 @@ Pie and series-split charts return readability notes when they have many slices 
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "definitions": {
-        "__schema8": {
+        "__schema10": {
           "anyOf": [
             {
               "type": "string",
@@ -19461,7 +19758,7 @@ Pie and series-split charts return readability notes when they have many slices 
           ],
           "description": "A result column reference of the presented node",
         },
-        "__schema9": {
+        "__schema11": {
           "additionalProperties": {
             "anyOf": [
               {
@@ -19516,11 +19813,45 @@ Pie and series-split charts return readability notes when they have many slices 
               },
             ],
           },
-          "type": "object",
+          "type": [
+            "object",
+            "null",
+          ],
+        },
+        "__schema8": {
+          "additionalProperties": false,
+          "properties": {
+            "x": {
+              "default": null,
+              "type": [
+                "string",
+                "null",
+              ],
+            },
+            "y": {
+              "default": null,
+              "type": [
+                "string",
+                "null",
+              ],
+            },
+            "y2": {
+              "default": null,
+              "type": [
+                "string",
+                "null",
+              ],
+            },
+          },
+          "type": [
+            "object",
+            "null",
+          ],
         },
       },
       "properties": {
         "description": {
+          "default": null,
           "description": "One sentence on what the card shows, only when the title is not enough. Null otherwise.",
           "type": [
             "string",
@@ -19541,6 +19872,7 @@ Pie and series-split charts return readability notes when they have many slices 
               "additionalProperties": false,
               "properties": {
                 "groupBy": {
+                  "default": null,
                   "description": "Columns that split y into one series per value. bar/line/area/scatter only. Must not include x.",
                   "items": {
                     "description": "A result column reference of the presented node",
@@ -19552,6 +19884,7 @@ Pie and series-split charts return readability notes when they have many slices 
                   ],
                 },
                 "horizontal": {
+                  "default": null,
                   "description": "bar only: draw bars horizontally.",
                   "type": [
                     "boolean",
@@ -19559,39 +19892,16 @@ Pie and series-split charts return readability notes when they have many slices 
                   ],
                 },
                 "labels": {
-                  "additionalProperties": false,
+                  "allOf": [
+                    {
+                      "$ref": "#/definitions/__schema8",
+                    },
+                  ],
+                  "default": null,
                   "description": "Axis titles. big_number uses labels.y as its label.",
-                  "properties": {
-                    "x": {
-                      "type": [
-                        "string",
-                        "null",
-                      ],
-                    },
-                    "y": {
-                      "type": [
-                        "string",
-                        "null",
-                      ],
-                    },
-                    "y2": {
-                      "type": [
-                        "string",
-                        "null",
-                      ],
-                    },
-                  },
-                  "required": [
-                    "x",
-                    "y",
-                    "y2",
-                  ],
-                  "type": [
-                    "object",
-                    "null",
-                  ],
                 },
                 "stack": {
+                  "default": null,
                   "description": "bar: stack series on top of each other. area always stacks. Ignored elsewhere.",
                   "type": [
                     "boolean",
@@ -19613,6 +19923,7 @@ Pie and series-split charts return readability notes when they have many slices 
                   "type": "string",
                 },
                 "x": {
+                  "default": null,
                   "description": "Category or time column. bar/line/area/scatter/pie/funnel. null for table/big_number, or to use the first non-numeric column.",
                   "type": [
                     "string",
@@ -19620,6 +19931,7 @@ Pie and series-split charts return readability notes when they have many slices 
                   ],
                 },
                 "y": {
+                  "default": null,
                   "description": "Value columns. big_number, pie and funnel use y[0]. null to use every numeric column not on x or groupBy.",
                   "items": {
                     "description": "A result column reference of the presented node",
@@ -19631,6 +19943,7 @@ Pie and series-split charts return readability notes when they have many slices 
                   ],
                 },
                 "y2": {
+                  "default": null,
                   "description": "Column on a secondary (right) y axis. bar/line/area (drawn as a line on area). Must not be in y.",
                   "type": [
                     "string",
@@ -19640,13 +19953,6 @@ Pie and series-split charts return readability notes when they have many slices 
               },
               "required": [
                 "type",
-                "x",
-                "y",
-                "groupBy",
-                "stack",
-                "horizontal",
-                "y2",
-                "labels",
               ],
               "type": "object",
             },
@@ -19659,20 +19965,18 @@ Pie and series-split charts return readability notes when they have many slices 
                 },
                 "fieldMapping": {
                   "additionalProperties": {
-                    "$ref": "#/definitions/__schema8",
+                    "$ref": "#/definitions/__schema10",
                   },
                   "description": "Binds each slot of the type, by slot name, to a column, or ordered columns for a multiple slot. The slot's kind sets the column's role: a metric slot is measured, a series slot splits the chart into one series per value, and a dimension or column slot groups, so a numeric column there is grouped, not measured. A measure split by series goes in a metric slot.",
                   "type": "object",
                 },
                 "options": {
-                  "anyOf": [
+                  "allOf": [
                     {
-                      "$ref": "#/definitions/__schema9",
-                    },
-                    {
-                      "type": "null",
+                      "$ref": "#/definitions/__schema11",
                     },
                   ],
+                  "default": null,
                   "description": "Values for the type's options; null for defaults.",
                 },
                 "type": {
@@ -19685,7 +19989,6 @@ Pie and series-split charts return readability notes when they have many slices 
                 "type",
                 "customChartTypeSlug",
                 "fieldMapping",
-                "options",
               ],
               "type": "object",
             },
@@ -19695,7 +19998,6 @@ Pie and series-split charts return readability notes when they have many slices 
       "required": [
         "nodeId",
         "title",
-        "description",
         "vizConfig",
       ],
       "type": "object",
@@ -19891,6 +20193,10 @@ Pie and series-split charts return readability notes when they have many slices 
                       ],
                       "type": "object",
                     },
+                    "requiresSnowflakeReauthentication": {
+                      "const": true,
+                      "type": "boolean",
+                    },
                     "status": {
                       "allOf": [
                         {
@@ -19983,6 +20289,10 @@ Pie and series-split charts return readability notes when they have many slices 
                         "connectUrl",
                       ],
                       "type": "object",
+                    },
+                    "requiresSnowflakeReauthentication": {
+                      "const": true,
+                      "type": "boolean",
                     },
                     "status": {
                       "allOf": [
@@ -21182,6 +21492,10 @@ Reading the result: the values describe observed data, not the permitted filter 
                   ],
                   "type": "object",
                 },
+                "requiresSnowflakeReauthentication": {
+                  "const": true,
+                  "type": "boolean",
+                },
                 "status": {
                   "allOf": [
                     {
@@ -21876,6 +22190,10 @@ When no field matches literally, the result lists the closest catalog matches (f
                     "connectUrl",
                   ],
                   "type": "object",
+                },
+                "requiresSnowflakeReauthentication": {
+                  "const": true,
+                  "type": "boolean",
                 },
                 "status": {
                   "allOf": [
@@ -22620,6 +22938,10 @@ Use a metric's default time dimension unless the user asks for a different one.
                   ],
                   "type": "object",
                 },
+                "requiresSnowflakeReauthentication": {
+                  "const": true,
+                  "type": "boolean",
+                },
                 "status": {
                   "allOf": [
                     {
@@ -23080,6 +23402,10 @@ It reports references, not values: when a field keeps its id but its SQL or aggr
                     "connectUrl",
                   ],
                   "type": "object",
+                },
+                "requiresSnowflakeReauthentication": {
+                  "const": true,
+                  "type": "boolean",
                 },
                 "status": {
                   "allOf": [
@@ -23594,6 +23920,10 @@ Search or list metrics and dimensions across every explore at once, as one flat,
                   ],
                   "type": "object",
                 },
+                "requiresSnowflakeReauthentication": {
+                  "const": true,
+                  "type": "boolean",
+                },
                 "status": {
                   "allOf": [
                     {
@@ -23913,6 +24243,10 @@ Reading the result: the values describe observed data, not the permitted filter 
                 ],
                 "type": "object",
               },
+              "requiresSnowflakeReauthentication": {
+                "const": true,
+                "type": "boolean",
+              },
               "status": {
                 "allOf": [
                   {
@@ -24043,6 +24377,36 @@ Filter expressions use \`<fieldId> <operator>[=<value>...]\`. The input schema d
     "$schema": "http://json-schema.org/draft-07/schema#",
     "additionalProperties": false,
     "definitions": {
+      "__schema11": {
+        "default": null,
+        "description": "Flat filter expression for dimension fields.",
+        "maxLength": 16384,
+        "minLength": 1,
+        "type": [
+          "string",
+          "null",
+        ],
+      },
+      "__schema13": {
+        "default": null,
+        "description": "Flat filter expression for metric fields.",
+        "maxLength": 16384,
+        "minLength": 1,
+        "type": [
+          "string",
+          "null",
+        ],
+      },
+      "__schema15": {
+        "default": null,
+        "description": "Flat filter expression for table calculations.",
+        "maxLength": 16384,
+        "minLength": 1,
+        "type": [
+          "string",
+          "null",
+        ],
+      },
       "__schema2": {
         "additionalProperties": false,
         "properties": {
@@ -24069,7 +24433,7 @@ Filter expressions use \`<fieldId> <operator>[=<value>...]\`. The input schema d
         ],
         "type": "object",
       },
-      "__schema23": {
+      "__schema26": {
         "anyOf": [
           {
             "type": "string",
@@ -24084,7 +24448,7 @@ Filter expressions use \`<fieldId> <operator>[=<value>...]\`. The input schema d
         ],
         "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
       },
-      "__schema25": {
+      "__schema28": {
         "additionalProperties": {
           "anyOf": [
             {
@@ -24482,7 +24846,7 @@ All branches of an IF must return the same type.",
               },
               "fieldMapping": {
                 "additionalProperties": {
-                  "$ref": "#/definitions/__schema23",
+                  "$ref": "#/definitions/__schema26",
                 },
                 "description": "Binds each custom chart type slot to this query's fields: a field id for a single slot, or ordered unique field ids for a slot declared multiple. Every required slot must be bound.",
                 "type": "object",
@@ -24490,7 +24854,7 @@ All branches of an IF must return the same type.",
               "options": {
                 "allOf": [
                   {
-                    "$ref": "#/definitions/__schema25",
+                    "$ref": "#/definitions/__schema28",
                   },
                 ],
                 "default": null,
@@ -24576,38 +24940,15 @@ Example B — "Revenue by month with year-over-year comparison"
             "description": "Separate flat expressions for dimensions, metrics, and table calculations. Each category chooses AND or OR independently. Non-null categories combine implicitly with AND. For example, dimensions "D1 AND D2" and metrics "M1 OR M2" mean "(D1 AND D2) AND (M1 OR M2)", where D1, D2, M1, and M2 are complete filter rules. Use null when a category has no filters.",
             "properties": {
               "dimensions": {
-                "description": "Flat filter expression for dimension fields.",
-                "maxLength": 16384,
-                "minLength": 1,
-                "type": [
-                  "string",
-                  "null",
-                ],
+                "$ref": "#/definitions/__schema11",
               },
               "metrics": {
-                "description": "Flat filter expression for metric fields.",
-                "maxLength": 16384,
-                "minLength": 1,
-                "type": [
-                  "string",
-                  "null",
-                ],
+                "$ref": "#/definitions/__schema13",
               },
               "tableCalculations": {
-                "description": "Flat filter expression for table calculations.",
-                "maxLength": 16384,
-                "minLength": 1,
-                "type": [
-                  "string",
-                  "null",
-                ],
+                "$ref": "#/definitions/__schema15",
               },
             },
-            "required": [
-              "dimensions",
-              "metrics",
-              "tableCalculations",
-            ],
             "type": [
               "object",
               "null",
@@ -25278,6 +25619,10 @@ Use them whenever the question needs math the metric query alone can't express; 
                   "connectUrl",
                 ],
                 "type": "object",
+              },
+              "requiresSnowflakeReauthentication": {
+                "const": true,
+                "type": "boolean",
               },
               "status": {
                 "allOf": [

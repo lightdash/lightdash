@@ -90,6 +90,7 @@ const scheduler: SchedulerAndTargets = {
     enabled: true,
     includeLinks: true,
     plainTextEmail: false,
+    useCachedResults: false,
     targets: [
         {
             schedulerEmailTargetUuid: 'email-target-uuid',
@@ -112,6 +113,7 @@ const delivery: ScheduledDeliveryAsCode = {
     enabled: true,
     includeLinks: true,
     plainTextEmail: false,
+    useCachedResults: false,
     targets: [{ type: 'email', recipient: 'data@example.com' }],
     resource: { type: 'chart', slug: 'orders' },
     format: SchedulerFormat.CSV,
@@ -151,6 +153,7 @@ const alert: AlertAsCode = {
     enabled: true,
     includeLinks: true,
     plainTextEmail: false,
+    useCachedResults: false,
     targets: [{ type: 'email', recipient: 'data@example.com' }],
     resource: { type: 'chart', slug: 'orders' },
     thresholds: [
@@ -181,6 +184,7 @@ const googleSheetsScheduler: SchedulerAndTargets = {
     },
     includeLinks: false,
     plainTextEmail: false,
+    useCachedResults: false,
     targets: [],
 };
 
@@ -195,6 +199,7 @@ const googleSheetsSync: GoogleSheetsSyncAsCode = {
     enabled: true,
     includeLinks: false,
     plainTextEmail: false,
+    useCachedResults: false,
     destination: {
         spreadsheetId: 'spreadsheet-id',
         spreadsheetName: 'Orders',
@@ -481,6 +486,50 @@ describe('CoderService scheduled deliveries as code', () => {
 
         expect(result).toEqual({ action: PromotionAction.NO_CHANGES });
         expect(schedulerService.updateScheduler).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        ['delivery', () => scheduler, () => delivery],
+        ['alert', () => alertScheduler, () => alert],
+        ['sync', () => googleSheetsScheduler, () => googleSheetsSync],
+    ] as const)(
+        'does not update a %s from a file written before the optional settings',
+        async (_name, getExisting, getContent) => {
+            const { service, schedulerService } = buildService({
+                existing: getExisting(),
+            });
+            const {
+                plainTextEmail: _plainTextEmail,
+                useCachedResults: _useCachedResults,
+                ...legacyContent
+            } = getContent();
+
+            const result = await service.upsertScheduledDelivery(
+                user,
+                projectUuid,
+                legacyContent.slug,
+                legacyContent,
+            );
+
+            expect(result).toEqual({ action: PromotionAction.NO_CHANGES });
+            expect(schedulerService.updateScheduler).not.toHaveBeenCalled();
+        },
+    );
+
+    it('still updates a delivery when a file changes useCachedResults', async () => {
+        const { service, schedulerService } = buildService({
+            existing: scheduler,
+        });
+
+        const result = await service.upsertScheduledDelivery(
+            user,
+            projectUuid,
+            delivery.slug,
+            { ...delivery, useCachedResults: true },
+        );
+
+        expect(result.action).toBe(PromotionAction.UPDATE);
+        expect(schedulerService.updateScheduler).toHaveBeenCalledOnce();
     });
 
     it('ignores generated filter IDs when detecting delivery changes', async () => {

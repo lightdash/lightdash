@@ -216,10 +216,6 @@ import { type StoredPreAggregateRefresh } from '../../services/ProjectService/pr
 import { wrapSentryTransaction, wrapSentryTransactionSync } from '../../utils';
 import { AwsWebIdentityResolver } from '../../utils/awsWebIdentity/AwsWebIdentityResolver';
 import {
-    defaultGoogleIdentityTokenSource,
-    type GoogleIdentityTokenSource,
-} from '../../utils/awsWebIdentity/googleIdentityTokenSource';
-import {
     chunkAsyncRowsByBytes,
     chunkRowsByBytes,
 } from '../../utils/chunkRowsByBytes';
@@ -232,6 +228,11 @@ import {
     hasSameWarehouseCredentialDestination,
 } from '../../utils/credentialDestination';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
+import { BigqueryWorkloadIdentityResolver } from '../../utils/googleIdentity/BigqueryWorkloadIdentityResolver';
+import {
+    defaultGoogleIdentityTokenSource,
+    type GoogleIdentityTokenSource,
+} from '../../utils/googleIdentity/googleIdentityTokenSource';
 import {
     acquireProjectSlugLock,
     generateUniqueProjectSlug,
@@ -574,6 +575,7 @@ export class ProjectModel {
     private connectionRouter: WarehouseConnectionRouter;
 
     readonly awsWebIdentity: AwsWebIdentityResolver;
+    readonly bigqueryWorkloadIdentity: BigqueryWorkloadIdentityResolver;
 
     constructor(args: ProjectModelArguments) {
         this.database = args.database;
@@ -586,14 +588,24 @@ export class ProjectModel {
             database: args.database,
             lightdashConfig: args.lightdashConfig,
         });
-        this.awsWebIdentity = new AwsWebIdentityResolver({
-            isEnabledFor: async (organizationUuid) =>
+        const isFlagEnabledFor =
+            (featureFlagId: FeatureFlags) => async (organizationUuid: string) =>
                 (
                     await featureFlagModel.get({
                         user: { organizationUuid },
-                        featureFlagId: FeatureFlags.AthenaWebIdentityAuth,
+                        featureFlagId,
                     })
-                ).enabled,
+                ).enabled;
+        this.bigqueryWorkloadIdentity = new BigqueryWorkloadIdentityResolver({
+            isEnabledFor: isFlagEnabledFor(
+                FeatureFlags.BigqueryWorkloadIdentityAuth,
+            ),
+            tokenSource:
+                args.googleIdentityTokenSource ??
+                defaultGoogleIdentityTokenSource,
+        });
+        this.awsWebIdentity = new AwsWebIdentityResolver({
+            isEnabledFor: isFlagEnabledFor(FeatureFlags.AthenaWebIdentityAuth),
             audienceModel: new AwsWebIdentityAudienceModel({
                 database: args.database,
             }),
@@ -687,9 +699,12 @@ export class ProjectModel {
                 completeConfig,
             ) ||
             // BigQuery ADC authentication does not require credentials to be set
+            // BigQuery workload identity federation must not inherit keyfiles either.
             (incompleteConfig.type === WarehouseTypes.BIGQUERY &&
-                incompleteConfig.authenticationType ===
-                    BigqueryAuthenticationType.ADC) ||
+                (incompleteConfig.authenticationType ===
+                    BigqueryAuthenticationType.ADC ||
+                    incompleteConfig.authenticationType ===
+                        BigqueryAuthenticationType.WORKLOAD_IDENTITY_FEDERATION)) ||
             // Athena IAM role and web identity authentication should not merge old access keys
             (incompleteConfig.type === WarehouseTypes.ATHENA &&
                 (incompleteConfig.authenticationType ===
@@ -1631,6 +1646,9 @@ export class ProjectModel {
         cacheTtlSeconds: number | null;
         cacheGeneration: number;
         lastInvalidatedAt: Date | null;
+        clearCron: string | null;
+        clearNextRunAt: Date | null;
+        schedulerTimezone: string;
     }> {
         const row = await this.database(ProjectTableName)
             .where('project_uuid', projectUuid)
@@ -1638,6 +1656,9 @@ export class ProjectModel {
                 'results_cache_ttl_seconds',
                 'results_cache_generation',
                 'results_cache_invalidated_at',
+                'results_cache_clear_cron',
+                'results_cache_clear_next_run_at',
+                'scheduler_timezone',
             )
             .first();
 
@@ -1651,6 +1672,9 @@ export class ProjectModel {
             cacheTtlSeconds: row.results_cache_ttl_seconds,
             cacheGeneration: row.results_cache_generation,
             lastInvalidatedAt: row.results_cache_invalidated_at,
+            clearCron: row.results_cache_clear_cron,
+            clearNextRunAt: row.results_cache_clear_next_run_at,
+            schedulerTimezone: row.scheduler_timezone,
         };
     }
 
@@ -1693,6 +1717,95 @@ export class ProjectModel {
                 `Cannot find project with id: ${projectUuid}`,
             );
         }
+    }
+
+    async updateResultsCacheClearSchedule(
+        projectUuid: string,
+        schedule: { cron: string; nextRunAt: Date | null },
+    ): Promise<void> {
+        const affectedRows = await this.database(ProjectTableName)
+            .where('project_uuid', projectUuid)
+            .update({
+                results_cache_clear_cron: schedule.cron,
+                results_cache_clear_next_run_at: schedule.nextRunAt,
+            });
+        if (affectedRows === 0) {
+            throw new NotFoundError(
+                `Cannot find project with id: ${projectUuid}`,
+            );
+        }
+    }
+
+    async getDueResultsCacheClears(now: Date): Promise<
+        {
+            projectUuid: string;
+            organizationUuid: string;
+            cron: string;
+            schedulerTimezone: string;
+            nextRunAt: Date;
+        }[]
+    > {
+        const rows = await this.database(ProjectTableName)
+            .innerJoin(
+                OrganizationTableName,
+                `${OrganizationTableName}.organization_id`,
+                `${ProjectTableName}.organization_id`,
+            )
+            .whereNotNull(`${ProjectTableName}.results_cache_clear_cron`)
+            .where(
+                `${ProjectTableName}.results_cache_clear_next_run_at`,
+                '<=',
+                now,
+            )
+            .select<
+                {
+                    project_uuid: string;
+                    organization_uuid: string;
+                    results_cache_clear_cron: string;
+                    scheduler_timezone: string;
+                    results_cache_clear_next_run_at: Date;
+                }[]
+            >(
+                `${ProjectTableName}.project_uuid`,
+                `${OrganizationTableName}.organization_uuid`,
+                `${ProjectTableName}.results_cache_clear_cron`,
+                `${ProjectTableName}.scheduler_timezone`,
+                `${ProjectTableName}.results_cache_clear_next_run_at`,
+            );
+        return rows.map((row) => ({
+            projectUuid: row.project_uuid,
+            organizationUuid: row.organization_uuid,
+            cron: row.results_cache_clear_cron,
+            schedulerTimezone: row.scheduler_timezone,
+            nextRunAt: row.results_cache_clear_next_run_at,
+        }));
+    }
+
+    /** Compare-and-swap on next_run_at, so concurrent sweeps or an edit mid-sweep can't double-clear. */
+    async claimDueResultsCacheClear(
+        projectUuid: string,
+        claim: { expectedNextRunAt: Date; nextRunAt: Date; clear: boolean },
+    ): Promise<boolean> {
+        const affectedRows = await this.database(ProjectTableName)
+            .where('project_uuid', projectUuid)
+            // JS dates only keep milliseconds, Postgres timestamps keep microseconds
+            .whereRaw(
+                `date_trunc('milliseconds', results_cache_clear_next_run_at) = ?`,
+                [claim.expectedNextRunAt],
+            )
+            .update({
+                results_cache_clear_next_run_at: claim.nextRunAt,
+                ...(claim.clear
+                    ? {
+                          results_cache_generation: this.database.raw(
+                              'results_cache_generation + 1',
+                          ) as unknown as number,
+                          results_cache_invalidated_at:
+                              this.database.fn.now() as unknown as Date,
+                      }
+                    : {}),
+            });
+        return affectedRows > 0;
     }
 
     async getEffectiveResultsCacheTtlSeconds(
@@ -3018,6 +3131,49 @@ export class ProjectModel {
             exploreCount: Number(row?.exploreCount ?? 0),
             totalBytes: Number(row?.totalBytes ?? 0),
         };
+    }
+
+    async findExistingExploreNames(
+        projectUuid: string,
+        exploreNames: string[],
+    ): Promise<string[]> {
+        return this.database(CachedExploreTableName)
+            .where('project_uuid', projectUuid)
+            .whereIn('name', exploreNames)
+            .distinct('name')
+            .pluck('name');
+    }
+
+    /**
+     * Matches on sqlTable because a join can alias the table, which makes it
+     * invisible to table_names.
+     */
+    async findExploreNamesReadingBaseTables(
+        projectUuid: string,
+        exploreNames: string[],
+    ): Promise<string[]> {
+        const { rows } = await this.database.raw<{
+            rows: { name: string }[];
+        }>(
+            `SELECT DISTINCT reader.name
+             FROM ${CachedExploreTableName} reader
+             CROSS JOIN LATERAL jsonb_each(
+                 CASE WHEN jsonb_typeof(reader.explore->'tables') = 'object'
+                      THEN reader.explore->'tables'
+                      ELSE '{}'::jsonb
+                 END
+             ) AS reader_table
+             WHERE reader.project_uuid = ?
+               AND reader.explore->>'type' IS DISTINCT FROM 'pre_aggregate'
+               AND reader_table.value->>'sqlTable' IN (
+                   SELECT listed.explore->'tables'->(listed.explore->>'baseTable')->>'sqlTable'
+                   FROM ${CachedExploreTableName} listed
+                   WHERE listed.project_uuid = ?
+                     AND listed.name = ANY(?)
+               )`,
+            [projectUuid, projectUuid, exploreNames],
+        );
+        return rows.map(({ name }) => name);
     }
 
     async findExploreTableSummariesFromCache(
@@ -8465,11 +8621,23 @@ export class ProjectModel {
      * Identity options for warehouse clients that authenticate as this
      * instance. A web identity audience is only used for the organization it
      * was generated for, so a connection can't use another organization's.
+     * BigQuery workload identity federation requires the owning organization's flag.
      */
     async getWarehouseClientIdentityOptions(
         credentials: CreateWarehouseCredentials | undefined,
         organizationUuid: string | undefined,
-    ): Promise<Pick<WarehouseClientOptions, 'awsCredentials'>> {
+    ): Promise<
+        Pick<
+            WarehouseClientOptions,
+            'awsCredentials' | 'bigqueryExternalAccount'
+        >
+    > {
+        const bigqueryExternalAccount =
+            await this.bigqueryWorkloadIdentity.getExternalAccountCredentials(
+                credentials,
+                organizationUuid,
+            );
+        if (bigqueryExternalAccount) return { bigqueryExternalAccount };
         const awsCredentials = await this.awsWebIdentity.resolveCredentials(
             credentials,
             organizationUuid,

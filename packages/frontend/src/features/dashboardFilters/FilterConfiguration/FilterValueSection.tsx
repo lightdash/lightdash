@@ -44,7 +44,7 @@ type Props = {
     withDefaultValueSwitch?: boolean;
     /** The note that a required filter's value is dropped on save (default shown). */
     withRequiredSaveNote?: boolean;
-    /** Closes a value list once an option is picked (default: stays open). */
+    /** Keeps a string value list shut on focus, and closes it once an option is picked (default: neither). */
     isListClosedOnPick?: boolean;
     onChangeFilterRule: (value: DashboardFilterRule) => void;
 };
@@ -188,7 +188,11 @@ export const FilterValueSection: FC<Props> = ({
                                 // would hand it to their popover's DOM
                                 isListClosedOnPick &&
                                 filterType === FilterType.STRING
-                                    ? { ...popoverProps, closeListOnPick: true }
+                                    ? {
+                                          ...popoverProps,
+                                          closeListOnPick: true,
+                                          openListOnFocus: false,
+                                      }
                                     : popoverProps
                             }
                             filterType={filterType}

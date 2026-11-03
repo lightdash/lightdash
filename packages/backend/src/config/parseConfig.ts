@@ -1292,6 +1292,14 @@ const isDisabledBoolean = (value: string | undefined): boolean =>
     value !== undefined && ['0', 'false'].includes(value.trim().toLowerCase());
 
 const getBedrockConfig = (customHeaders: Record<string, string>) => {
+    const maxOutputTokens = getIntegerFromEnvironmentVariable(
+        'BEDROCK_MAX_OUTPUT_TOKENS',
+    );
+    if (maxOutputTokens !== undefined && maxOutputTokens < 1) {
+        throw new ParseError(
+            `Cannot parse environment variable "BEDROCK_MAX_OUTPUT_TOKENS". Value must be a positive integer but BEDROCK_MAX_OUTPUT_TOKENS=${maxOutputTokens}`,
+        );
+    }
     const baseUrl = process.env.BEDROCK_BASE_URL
         ? normalizeLlmGatewayBaseUrl(
               process.env.BEDROCK_BASE_URL,
@@ -1312,6 +1320,7 @@ const getBedrockConfig = (customHeaders: Record<string, string>) => {
             ...gateway,
             inferenceProfilePrefix:
                 process.env.BEDROCK_INFERENCE_PROFILE_PREFIX,
+            maxOutputTokens,
             modelName:
                 process.env.BEDROCK_MODEL_NAME || DEFAULT_BEDROCK_MODEL_NAME,
             embeddingModelName: process.env.BEDROCK_EMBEDDING_MODEL,
@@ -1333,6 +1342,7 @@ const getBedrockConfig = (customHeaders: Record<string, string>) => {
             ...gateway,
             inferenceProfilePrefix:
                 process.env.BEDROCK_INFERENCE_PROFILE_PREFIX,
+            maxOutputTokens,
             modelName:
                 process.env.BEDROCK_MODEL_NAME || DEFAULT_BEDROCK_MODEL_NAME,
             embeddingModelName: process.env.BEDROCK_EMBEDDING_MODEL,
@@ -1352,6 +1362,7 @@ const getBedrockConfig = (customHeaders: Record<string, string>) => {
             ...gateway,
             inferenceProfilePrefix:
                 process.env.BEDROCK_INFERENCE_PROFILE_PREFIX,
+            maxOutputTokens,
             modelName:
                 process.env.BEDROCK_MODEL_NAME || DEFAULT_BEDROCK_MODEL_NAME,
             embeddingModelName: process.env.BEDROCK_EMBEDDING_MODEL,
@@ -1780,6 +1791,7 @@ export type LightdashConfig = {
     dashboard: {
         maxTilesPerTab: number;
         maxTabsPerDashboard: number;
+        maxConcurrentTileQueries: number | null;
         disableSentryTracking: boolean;
     };
     // This is the override color palette for the organization
@@ -3788,6 +3800,13 @@ export const parseConfig = (): LightdashConfig => {
                 getIntegerFromEnvironmentVariable(
                     'LIGHTDASH_DASHBOARD_MAX_TABS_PER_DASHBOARD',
                 ) || 20,
+            maxConcurrentTileQueries: process.env
+                .LIGHTDASH_DASHBOARD_MAX_CONCURRENT_TILE_QUERIES
+                ? getPositiveIntegerFromEnvironmentVariable(
+                      'LIGHTDASH_DASHBOARD_MAX_CONCURRENT_TILE_QUERIES',
+                      1,
+                  )
+                : null,
             disableSentryTracking:
                 process.env.LIGHTDASH_DASHBOARD_DISABLE_SENTRY_TRACKING ===
                 'true',

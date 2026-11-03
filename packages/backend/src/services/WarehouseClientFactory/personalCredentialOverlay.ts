@@ -52,6 +52,8 @@ export const personalCredentialFieldClassification = {
         startOfWeek: 'connection',
         dataTimezone: 'connection',
         keyfileContents: 'auth',
+        workloadIdentityProvider: 'auth',
+        workloadIdentityAudience: 'auth',
         allowUserCredentials: 'connection',
         authenticationType: 'auth',
         requireUserCredentials: 'connection',

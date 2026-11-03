@@ -97,6 +97,21 @@ a columnar format suitable for analytics. The reader only sees compacted output,
 so capture is not immediately visible in Explore. Event delivery does not have
 an exactly-once guarantee.
 
+Embedded dashboard fetches reuse `content_views`. After a successful authorized
+fetch, `embed_dashboard.viewed` records an interaction ID and the explicit JWT
+`user.externalId`, when supplied. The usage-only metadata is not added to
+RudderStack. Preview traffic is excluded, the registered-user ID remains null,
+and neither the token issuer nor a generated fallback identity counts as an
+external viewer. Arbitrary user attributes are not captured.
+
+The Embed reach model deduplicates interaction IDs and counts external IDs
+within each organization/project. Refetches are separate loads; tile queries
+are not loads. This is observed backend usage, not confirmed browser rendering,
+configured embed dependencies, tenant attribution or invoice reconciliation.
+Existing partitions without the new nullable column remain readable; capture
+starts after deployment and requires no backfill. New loads appear after daily
+compaction, and **Sync content** installs the Explore and Embed dashboard.
+
 ### Current dimension snapshots
 
 After event compaction, the same `compactUsageEvents` job refreshes charts,
@@ -123,6 +138,15 @@ engine limit, and streams uploads with one 8 MB part in flight. See
 [dimension export and failure behavior](dimensions.md#export-and-failure-behavior)
 for resource limits, retries and operational caveats. Reader resource settings
 below apply to interactive queries, not this background export.
+
+Scheduled processing includes only organizations with a managed Analytics project
+(`provisioning_source = 'analytics'); feature-flag checks still apply. Regular,
+preview and playground projects alone do not qualify. Raw event capture continues
+for other organizations, but their events are not processed by scheduled runs.
+Creating Analytics still queues explicit organization-scoped initial processing
+and makes the organization eligible for future nightly runs. Explicit recovery
+runs remain available. Initial and nightly processing retain the seven-day window;
+older raw events are not automatically backfilled on activation.
 
 ### Project creation and models
 
@@ -152,7 +176,8 @@ derives dimensions from the compacted schemas and metrics from
 It explicitly includes `query_events`, `ai_usage`, `data_app_events` and
 `export_events`; registering another writer stream does not expose another
 explore automatically. Query Events joins Charts, Dashboards and Users; AI Usage
-joins Users and Agents; the other models join Users. These optional many-to-one
+joins Users and Agents; event models can join Users. Content inventory reads only
+the current `lightdash_content` snapshot, without user or event joins. These optional many-to-one
 LEFT joins match organization and
 entity ID, preserving events whose lookup is missing. Compiled models
 refer to table names, not signed URLs. SQL and aggregations are generated from

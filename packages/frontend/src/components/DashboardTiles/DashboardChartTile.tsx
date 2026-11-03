@@ -130,7 +130,7 @@ import {
     selectIsDateZoomAppliedToTile,
     useDashboardSelector,
 } from '../../features/dashboard/store';
-import { useWhenAnswered } from '../../features/dashboardControls/useControlsSidebar';
+import { useTileQueryQueueVisibility } from '../../features/dashboard/tileQueryQueue/useTileQueryQueue';
 import { FilterDashboardTo } from '../../features/dashboardFilters/FilterDashboardTo';
 import { DateZoomInfoOnTile } from '../../features/dateZoom';
 import { ExportToGoogleSheet } from '../../features/export';
@@ -675,7 +675,6 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
             (c) => c.setDashboardTiles,
         );
 
-        const whenAnswered = useWhenAnswered();
         const [contextMenuIsOpen, setContextMenuIsOpen] = useState(false);
         const [contextMenuTargetOffset, setContextMenuTargetOffset] = useState<{
             left: number;
@@ -1030,7 +1029,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                     ...dimensionOptions,
                     ...pivotOptions,
                 ]);
-                whenAnswered(() => setContextMenuIsOpen(true));
+                setContextMenuIsOpen(true);
                 setContextMenuTargetOffset({
                     left: e.event.event.pageX,
                     top: e.event.event.pageY,
@@ -1047,7 +1046,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                     dimensions: queryDimensions,
                 });
             },
-            [explore, chart, whenAnswered],
+            [explore, chart],
         );
         const { appliedFilterItems, chartFilterItems } = useMemo(
             () =>
@@ -2045,7 +2044,6 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMinimalProps> = (
 ) => {
     const authoringEnabled = useContentAuthoringEnabled();
     const getUiString = useUiStrings();
-    const whenAnswered = useWhenAnswered();
     const [contextMenuIsOpen, setContextMenuIsOpen] = useState(false);
     const [contextMenuTargetOffset, setContextMenuTargetOffset] = useState<{
         left: number;
@@ -2160,7 +2158,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMinimalProps> = (
                 return;
             }
 
-            whenAnswered(() => setContextMenuIsOpen(true));
+            setContextMenuIsOpen(true);
             setContextMenuTargetOffset({
                 left: e.event.event.pageX,
                 top: e.event.event.pageY,
@@ -2183,7 +2181,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMinimalProps> = (
                 dimensions: queryDimensions,
             });
         },
-        [explore, chart, whenAnswered],
+        [explore, chart],
     );
 
     const isEmbeddedExploreEnabled =
@@ -2692,6 +2690,7 @@ const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
         resultsData.isFetchingFirstPage,
         resultsData.error,
     ]);
+    useTileQueryQueueVisibility(props.tile.uuid);
 
     // Publish this tile's query as an AI analysis source once it settles.
     const queryUuid = readyQuery.data?.executeQueryResponse.queryUuid ?? null;

@@ -129,6 +129,30 @@ export class ContentAsCodeSnapshotModel {
         return new Set(rows.map((row) => row.slug));
     }
 
+    // Snapshots applied from files under `dirPath` whose slug is no longer
+    // there. Rows without a recorded file path cannot be attributed to a
+    // directory and are left alone. Returns the released slugs.
+    async pruneMissingFromDirectory(
+        projectUuid: string,
+        contentType: ContentAsCodeSnapshotType,
+        dirPath: string,
+        keepSlugs: string[],
+    ): Promise<string[]> {
+        const prefix = dirPath === '' ? '' : `${dirPath}/`;
+        const rows = await this.database(ContentAsCodeSnapshotsTableName)
+            .where({ project_uuid: projectUuid, content_type: contentType })
+            .whereNotNull('file_path')
+            .whereLike('file_path', `${prefix.replace(/[%_]/g, '\\$&')}%`)
+            .modify((query) => {
+                // '' is the project dir itself; sibling folders are not in it
+                if (prefix === '') query.whereNot('file_path', 'like', '../%');
+                if (keepSlugs.length > 0) query.whereNotIn('slug', keepSlugs);
+            })
+            .delete()
+            .returning('slug');
+        return rows.map((row) => row.slug);
+    }
+
     async deleteByPrefix(
         projectUuid: string,
         contentType: ContentAsCodeSnapshotType,

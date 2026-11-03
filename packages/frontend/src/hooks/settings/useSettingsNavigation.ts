@@ -81,7 +81,6 @@ export const useSettingsNavigation = (
         allowPasswordAuthentication,
         hasSocialLogin,
         isGroupManagementEnabled,
-        isProLimitsEnabled,
         canAccessAnalyticsSettings,
         isOrganizationRoadmapEnabled,
         canAccessAiCredits,
@@ -256,7 +255,7 @@ export const useSettingsNavigation = (
             });
         }
 
-        if (isProLimitsEnabled && ability?.can('manage', 'Organization')) {
+        if (ability?.can('manage', 'Organization')) {
             organizationItems.push({
                 label: 'Limits',
                 to: '/generalSettings/limits',
@@ -1372,7 +1371,6 @@ export const useSettingsNavigation = (
         allowPasswordAuthentication,
         hasSocialLogin,
         isGroupManagementEnabled,
-        isProLimitsEnabled,
         canAccessAnalyticsSettings,
         isOrganizationRoadmapEnabled,
         canAccessAiCredits,

@@ -40,6 +40,7 @@ import { AsyncQueryService } from './AsyncQueryService/AsyncQueryService';
 import { ComposeEngineClient } from './AsyncQueryService/ComposeEngineClient';
 import { AwsWebIdentityService } from './AwsWebIdentityService';
 import { BaseService } from './BaseService';
+import { BigqueryWorkloadIdentityService } from './BigqueryWorkloadIdentityService';
 import { CatalogService } from './CatalogService/CatalogService';
 import { CiService } from './CiService/CiService';
 import { CoderService } from './CoderService/CoderService';
@@ -75,6 +76,7 @@ import { NotificationsService } from './NotificationsService/NotificationsServic
 import { ManagedSignInService } from './OAuthService/managedSignIn/ManagedSignInService';
 import { OAuthService } from './OAuthService/OAuthService';
 import { OrganizationAccessService } from './OrganizationAccessService/OrganizationAccessService';
+import { OrganizationBrandService } from './OrganizationBrandService/OrganizationBrandService';
 import { OrganizationDesignService } from './OrganizationDesignService/OrganizationDesignService';
 import { OrganizationDomainVerificationService } from './OrganizationDomainVerificationService/OrganizationDomainVerificationService';
 import { OrganizationService } from './OrganizationService/OrganizationService';
@@ -154,6 +156,7 @@ interface ServiceManifest {
     oauthService: OAuthService;
 
     organizationDesignService: OrganizationDesignService;
+    organizationBrandService: OrganizationBrandService;
     organizationService: OrganizationService;
     organizationSettingsService: OrganizationSettingsService;
     organizationSsoService: OrganizationSsoService;
@@ -180,6 +183,7 @@ interface ServiceManifest {
     slackIntegrationService: SlackIntegrationService;
     sshKeyPairService: SshKeyPairService;
     awsWebIdentityService: AwsWebIdentityService;
+    bigqueryWorkloadIdentityService: BigqueryWorkloadIdentityService;
     spacePermissionService: SpacePermissionService;
     spaceService: SpaceService;
     unfurlService: UnfurlService;
@@ -876,7 +880,6 @@ export class ServiceRepository
                     lightdashConfig: this.context.lightdashConfig,
                     organizationSettingsModel:
                         this.models.getOrganizationSettingsModel(),
-                    featureFlagModel: this.models.getFeatureFlagModel(),
                 }),
         );
     }
@@ -1530,6 +1533,19 @@ export class ServiceRepository
                     awsWebIdentityResolver:
                         this.models.getProjectModel().awsWebIdentity,
                     projectModel: this.models.getProjectModel(),
+                }),
+        );
+    }
+
+    public getBigqueryWorkloadIdentityService(): BigqueryWorkloadIdentityService {
+        return this.getService(
+            'bigqueryWorkloadIdentityService',
+            () =>
+                new BigqueryWorkloadIdentityService({
+                    featureFlagModel: this.models.getFeatureFlagModel(),
+                    projectModel: this.models.getProjectModel(),
+                    bigqueryWorkloadIdentityResolver:
+                        this.models.getProjectModel().bigqueryWorkloadIdentity,
                 }),
         );
     }
@@ -2231,6 +2247,18 @@ export class ServiceRepository
 
     public getScimService<ScimServiceImplT>(): ScimServiceImplT {
         return this.getService('scimService');
+    }
+
+    public getOrganizationBrandService(): OrganizationBrandService {
+        return this.getService(
+            'organizationBrandService',
+            () =>
+                new OrganizationBrandService({
+                    lightdashConfig: this.context.lightdashConfig,
+                    organizationBrandModel:
+                        this.models.getOrganizationBrandModel(),
+                }),
+        );
     }
 
     public getReleaseHighlightsService<ServiceImplT>(): ServiceImplT {

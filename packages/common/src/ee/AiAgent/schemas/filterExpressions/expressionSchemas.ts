@@ -113,13 +113,16 @@ export const filterExpressionInputSchema = z
 export const filterExpressionsSchema = z
     .object({
         dimensions: filterExpressionInputSchema
-            .nullable()
+            .nullish()
+            .default(null)
             .describe('Flat filter expression for dimension fields.'),
         metrics: filterExpressionInputSchema
-            .nullable()
+            .nullish()
+            .default(null)
             .describe('Flat filter expression for metric fields.'),
         tableCalculations: filterExpressionInputSchema
-            .nullable()
+            .nullish()
+            .default(null)
             .describe('Flat filter expression for table calculations.'),
     })
     .strict()

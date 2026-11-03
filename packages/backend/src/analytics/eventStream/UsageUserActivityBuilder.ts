@@ -162,33 +162,65 @@ export class UsageUserActivityBuilder extends S3BaseClient {
     }
 
     /** Discover stored partitions directly; empty organizations require no requests. */
-    async runAll(now: Date, orgIds: string[]): Promise<UserActivitySummary> {
+    async runAll(
+        now: Date,
+        orgIds: string[],
+        onOrganizationFinished?: (
+            organizationUuid: string,
+            summary: UserActivitySummary,
+            completed: boolean,
+        ) => void,
+    ): Promise<UserActivitySummary> {
         const summary = emptySummary();
         try {
-            // eslint-disable-next-line no-restricted-syntax
-            for await (const { orgId, stream, date } of this.closedPartitions(
-                now,
-                orgIds,
-            )) {
-                if (
-                    summary.published + summary.failed >=
-                    MAX_PARTITIONS_PER_RUN
-                ) {
-                    Logger.warn(
-                        `User activity refresh reached its ${MAX_PARTITIONS_PER_RUN}-partition work limit; remaining partitions will be retried on the next run`,
-                    );
-                    summary.limitReached = true;
-                    break;
-                }
+            for (const orgId of orgIds) {
+                const organizationSummary = emptySummary();
+                let completed = false;
                 try {
-                    // eslint-disable-next-line no-await-in-loop
-                    const outcome = await this.refresh(orgId, stream, date);
-                    summary[outcome] += 1;
-                } catch {
-                    summary.failed += 1;
-                    // Native/SDK error messages can include credentials or SQL data.
-                    Logger.error(
-                        `User activity failed for org_id=${orgId}/stream=${stream}/dt=${date}; previous output retained`,
+                    if (summary.limitReached) {
+                        organizationSummary.limitReached = true;
+                    } else {
+                        // eslint-disable-next-line no-restricted-syntax, no-await-in-loop
+                        for await (const {
+                            stream,
+                            date,
+                        } of this.closedPartitions(now, [orgId])) {
+                            if (
+                                summary.published + summary.failed >=
+                                MAX_PARTITIONS_PER_RUN
+                            ) {
+                                Logger.warn(
+                                    `User activity refresh reached its ${MAX_PARTITIONS_PER_RUN}-partition work limit; remaining partitions will be retried on the next run`,
+                                );
+                                summary.limitReached = true;
+                                organizationSummary.limitReached = true;
+                                break;
+                            }
+                            try {
+                                // eslint-disable-next-line no-await-in-loop
+                                const outcome = await this.refresh(
+                                    orgId,
+                                    stream,
+                                    date,
+                                );
+                                summary[outcome] += 1;
+                                organizationSummary[outcome] += 1;
+                            } catch {
+                                summary.failed += 1;
+                                organizationSummary.failed += 1;
+                                // Native/SDK errors can include credentials or SQL data.
+                                Logger.error(
+                                    `User activity failed for org_id=${orgId}/stream=${stream}/dt=${date}; previous output retained`,
+                                );
+                            }
+                        }
+                        completed = true;
+                    }
+                } finally {
+                    onOrganizationFinished?.(
+                        orgId,
+                        organizationSummary,
+                        completed,
                     );
                 }
             }

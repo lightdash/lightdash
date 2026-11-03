@@ -481,6 +481,10 @@ import {
 } from '../database/entities/sshKeyPairs';
 import { TagsTable, TagsTableName } from '../database/entities/tags';
 import {
+    UsageProcessingStatusTable,
+    UsageProcessingStatusTableName,
+} from '../database/entities/usageProcessingStatus';
+import {
     GroupUserAttributesTable,
     GroupUserAttributeTable,
     OrganizationMemberUserAttributesTable,
@@ -746,6 +750,10 @@ import {
     MobilePushInstallationTable,
 } from '../ee/database/entities/mobilePushNotifications';
 import {
+    OrganizationBrandLogoFilesTable,
+    OrganizationBrandLogoFilesTableName,
+} from '../ee/database/entities/organizationBrand';
+import {
     OrganizationHomepageSettingsTable,
     OrganizationHomepageSettingsTableName,
 } from '../ee/database/entities/organizationHomepageSettings';
@@ -991,6 +999,7 @@ declare module 'knex/types/tables' {
         [WarehouseAvailableTablesTableName]: WarehouseAvailableTablesTable;
         [WarehouseConnectCodeTableName]: WarehouseConnectCodeTable;
         [AiUsageLedgerTableName]: AiUsageLedgerTable;
+        [UsageProcessingStatusTableName]: UsageProcessingStatusTable;
         [AiCreditRateCardTableName]: AiCreditRateCardTable;
         [AiCreditContractsTableName]: AiCreditContractsTable;
         [AiCreditHoldsTableName]: AiCreditHoldsTable;
@@ -1010,6 +1019,7 @@ declare module 'knex/types/tables' {
         [OrganizationColorPaletteTableName]: OrganizationColorPaletteTable;
         [OrganizationDesignsTableName]: OrganizationDesignsTable;
         [OrganizationDesignFilesTableName]: OrganizationDesignFilesTable;
+        [OrganizationBrandLogoFilesTableName]: OrganizationBrandLogoFilesTable;
         [OrganizationWarehouseCredentialsTableName]: OrganizationWarehouseCredentialsTable;
         [QueryHistoryTableName]: QueryHistoryTable;
         [PreAggregateDefinitionsTableName]: PreAggregateDefinitionsTable;

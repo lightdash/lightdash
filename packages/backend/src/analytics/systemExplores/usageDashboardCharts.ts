@@ -476,7 +476,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         name: 'Content creation by month',
         description:
             'Creation dates of items in the latest inventory, including soft-deleted items; not complete historical inventory.',
-        explore: 'content_health',
+        explore: 'content_inventory',
         dimensions: ['content_health_created_at_month'],
         metrics: ['content_health_total_content'],
         limit: 500,
@@ -495,7 +495,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         name: 'Content ownership · current snapshot',
         description:
             'Owner status reflects current application membership, not verified employment status.',
-        explore: 'content_health',
+        explore: 'content_inventory',
         dimensions: ['content_health_owner_status'],
         metrics: ['content_health_total_content'],
         limit: 30,

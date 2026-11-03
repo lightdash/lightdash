@@ -74,6 +74,7 @@ import { AiAccessCallout } from './AiAccessCallout';
 import { getAiAccessRefusal } from './aiAccessRefusal';
 import { AiArtifactInline } from './AiArtifactInline';
 import AiDocumentCards from './AiDocumentCards';
+import { AiSnowflakeReauthenticationCallout } from './AiSnowflakeReauthenticationCallout';
 import { AiArtifactButton } from './ArtifactButton/AiArtifactButton';
 import { ContentLink, type SqlRunnerLinkState } from './ContentLink';
 import {
@@ -94,6 +95,7 @@ import {
 import { MessageTimingIndicator } from './MessageTimingIndicator';
 import { isContentType, rehypeAiAgentContentLinks } from './rehypeContentLinks';
 import { rehypeMemoryCitationIndices } from './rehypeMemoryCitations';
+import { requiresSnowflakeReauthentication } from './requiresSnowflakeReauthentication';
 import { StreamRecoveryAlert } from './StreamRecoveryAlert';
 import { AiEditDbtProjectToolCall } from './ToolCalls/AiEditDbtProjectToolCall';
 import { AiEditRepoToolCall } from './ToolCalls/AiEditRepoToolCall';
@@ -516,11 +518,21 @@ const AssistantBubbleContent: FC<{
         ...message.toolResults.map(getAiAccessRefusal),
     ].find((refusal) => refusal !== null);
 
+    const showSnowflakeReauthentication =
+        (streamingState?.parts ?? []).some(
+            (part) =>
+                part.type === 'toolCall' &&
+                requiresSnowflakeReauthentication(part.toolResult),
+        ) || message.toolResults.some(requiresSnowflakeReauthentication);
+
     const showAccessRefusal =
         agentIdentityFlag?.enabled === true && !!aiAccessRefusal;
 
     return (
         <>
+            {showSnowflakeReauthentication && (
+                <AiSnowflakeReauthenticationCallout />
+            )}
             {showAccessRefusal && aiAccessRefusal && (
                 <AiAccessCallout
                     projectUuid={projectUuid}

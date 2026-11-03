@@ -5,14 +5,14 @@ import {
     type DashboardFilterableField,
     type DashboardFilterRule,
 } from '@lightdash/common';
-import { screen } from '@testing-library/react';
+import { fireEvent, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createDashboardTestStore } from '../../testing/dashboardStore';
 import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
 import { renderWithProviders } from '../../testing/testUtils';
 import { FilterSettings } from './FilterSettings';
 
-// The value settings are not mocked: this is about the headings they render
+// The value settings are not mocked: this is about what they render
 const mockDashboardContext = vi.hoisted(() => ({
     current: {} as Record<string, unknown>,
 }));
@@ -48,6 +48,14 @@ const amount: DashboardFilterableField = {
     hidden: false,
 };
 
+const status: DashboardFilterableField = {
+    ...amount,
+    type: DimensionType.STRING,
+    name: 'status',
+    label: 'Status',
+    sql: '${TABLE}.status',
+};
+
 const rule = (
     overrides: Partial<DashboardFilterRule>,
 ): DashboardFilterRule => ({
@@ -59,14 +67,17 @@ const rule = (
     ...overrides,
 });
 
-const renderSettings = (filterRule: DashboardFilterRule) =>
+const renderSettings = (
+    filterRule: DashboardFilterRule,
+    field: DashboardFilterableField = amount,
+) =>
     renderWithProviders(
         <DashboardStoreTestProvider
             store={createDashboardTestStore({ parameterValues: {} })}
         >
             <FilterSettings
                 rule={filterRule}
-                field={amount}
+                field={field}
                 onChange={vi.fn()}
                 view="value"
                 onViewChange={vi.fn()}
@@ -113,5 +124,30 @@ describe('FilterSettings headings', () => {
             screen.queryByText('Provide default value'),
         ).not.toBeInTheDocument();
         expect(screen.queryByText('Preview value')).not.toBeInTheDocument();
+    });
+
+    it('focuses a string value input with its list shut, ArrowDown opens it', () => {
+        mockDashboardContext.current.allFilterableFieldsMap = {
+            orders_status: { ...status, suggestions: ['completed'] },
+        };
+        renderSettings(
+            rule({
+                target: { fieldId: 'orders_status', tableName: 'orders' },
+                values: [],
+            }),
+            status,
+        );
+
+        const active = document.activeElement;
+        expect(active?.tagName).toBe('INPUT');
+        expect(active).toHaveAttribute('aria-haspopup', 'listbox');
+        // The typed value input, not the read-only operator select
+        expect(active).not.toHaveAttribute('readonly');
+        expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+
+        fireEvent.keyDown(active!, { key: 'ArrowDown', code: 'ArrowDown' });
+        expect(
+            screen.getByRole('option', { name: 'completed' }),
+        ).toBeInTheDocument();
     });
 });

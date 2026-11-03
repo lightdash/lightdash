@@ -100,6 +100,7 @@ import {
     getAiExecutionCredentialUuid,
     getAvailableParametersFromTables,
     getBigqueryKeyfileCredentials,
+    getCatalogTableNativeTypes,
     getColumnTimezone,
     getCompiledModels,
     getCustomSqlFieldKey,
@@ -107,6 +108,7 @@ import {
     getDashboardFilterRulesForTables,
     getDashboardTileParameterOverrides,
     getDbtEnvironmentVariableKeyError,
+    getDefaultStartOfWeek,
     getDimensions,
     getEffectiveParameterDefinitions,
     getErrorMessage,
@@ -121,6 +123,7 @@ import {
     getMetrics,
     getModelInventoryFromManifest,
     getModelsFromManifest,
+    getNextResultsCacheClearAt,
     getParameterReferences,
     getPersonSignIn,
     getPreAggregateExploreName,
@@ -193,6 +196,7 @@ import {
     omitDisallowedParameterValues,
     OpenIdIdentityIssuerType,
     ParameterError,
+    parseResultsCacheClearCron,
     parseTableCalculationFunctions,
     PersonSignInProvider,
     PivotChartData,
@@ -252,6 +256,7 @@ import {
     SupportedDbtAdapter,
     supportsConnectionDatabaseListing,
     TablesConfiguration,
+    TimeFrames,
     TooManyRequestsError,
     UnexpectedServerError,
     UpdateAgentSqlScope,
@@ -261,6 +266,7 @@ import {
     UpdateProjectDetails,
     UpdateProjectMember,
     UpdateQueryTimezoneSettings,
+    UpdateResultsCacheClearSchedule,
     UpdateResultsCacheProjectSettings,
     UpdateSchedulerSettings,
     UpdateVirtualViewPayload,
@@ -270,6 +276,7 @@ import {
     UserWarehouseCredentials,
     UserWarehouseCredentialsWithSecrets,
     usesAwsWebIdentity,
+    usesBigqueryWorkloadIdentity,
     validateMergeQuery,
     VizAggregationOptions,
     VizColumn,
@@ -279,6 +286,7 @@ import {
     WarehouseConnectionTestResults,
     WarehouseCredentials,
     WarehouseDatabaseListing,
+    WarehouseTables,
     WarehouseTablesCatalog,
     WarehouseTableSchema,
     WarehouseTypes,
@@ -329,6 +337,7 @@ import v8 from 'v8';
 import { Worker } from 'worker_threads';
 import { gzip } from 'zlib';
 import {
+    ANONYMOUS_TRACKING_UUID,
     LightdashAnalytics,
     MetricQueryExecutionProperties,
     ProjectEvent,
@@ -2572,6 +2581,10 @@ export class ProjectService
                 rawArgs.warehouseConnection,
             ),
         };
+        await this.assertWarehouseIdentityAllowed(
+            args.warehouseConnection,
+            organizationUuid,
+        );
         // If using organization credentials, load them from the organization table
         const organizationWarehouseCredentialsUuid =
             args.organizationWarehouseCredentialsUuid ||
@@ -5293,11 +5306,6 @@ export class ProjectService
             newProjectData.warehouseConnection,
             internalProvisioning,
         );
-        await this.assertAwsWebIdentityAudienceBelongsTo(
-            newProjectData.warehouseConnection,
-            user.organizationUuid,
-        );
-
         const createProject: CreateProjectOptionalCredentials =
             hasWarehouseCredentials(newProjectData)
                 ? await this._resolveWarehouseClientCredentials(
@@ -5618,8 +5626,11 @@ export class ProjectService
             data.warehouseConnection,
         );
         ProjectService.assertSupportedBigqueryKeyfile(data.warehouseConnection);
-        await this.assertAwsWebIdentityAudienceBelongsTo(
+        const warehouseConnection = normalizeWarehouseCredentials(
             data.warehouseConnection,
+        );
+        await this.assertWarehouseIdentityAllowed(
+            warehouseConnection,
             user.organizationUuid,
         );
 
@@ -5633,7 +5644,7 @@ export class ProjectService
         let encryptedData: string;
         try {
             encryptedData = this.encryptionUtil
-                .encrypt(JSON.stringify(data))
+                .encrypt(JSON.stringify({ ...data, warehouseConnection }))
                 .toString('base64');
         } catch {
             throw new UnexpectedServerError('Failed to load project data');
@@ -6318,11 +6329,21 @@ export class ProjectService
         }
     }
 
-    /** Refuses web identity audiences generated for another organization. */
-    private async assertAwsWebIdentityAudienceBelongsTo(
+    /**
+     * Refuses web identity audiences generated for another organization.
+     * Also validates BigQuery workload identity settings and the organization's flag.
+     */
+    private async assertWarehouseIdentityAllowed(
         credentials: CreateWarehouseCredentials | undefined,
         organizationUuid: string,
     ): Promise<void> {
+        if (usesBigqueryWorkloadIdentity(credentials)) {
+            ProjectService.assertSupportedBigqueryKeyfile(credentials);
+            await this.projectModel.bigqueryWorkloadIdentity.assertAllowedFor(
+                credentials,
+                organizationUuid,
+            );
+        }
         if (!usesAwsWebIdentity(credentials)) return;
         await this.projectModel.awsWebIdentity.assertAudienceBelongsTo(
             credentials,
@@ -6387,13 +6408,25 @@ export class ProjectService
     }
 
     /*
-    Checks the BigQuery key file sent with a request. Empty key files are
-    skipped here because saved secrets or the Google sign-in fill them in
-    before validateConfigSecrets runs.
+    Checks the BigQuery key file sent with a request. Workload identity
+    federation allows only an omitted or empty key file, normalized to {} on
+    write. For keyfile authentication, empty key files are skipped here because
+    saved secrets or the Google sign-in fill them in before validateConfigSecrets.
     */
     private static assertSupportedBigqueryKeyfile(
         credentials: CreateWarehouseCredentials | undefined,
     ): void {
+        if (usesBigqueryWorkloadIdentity(credentials)) {
+            if (
+                credentials.keyfileContents &&
+                Object.keys(credentials.keyfileContents).length > 0
+            ) {
+                throw new ParameterError(
+                    'BigQuery workload identity federation does not accept a keyfile.',
+                );
+            }
+            return;
+        }
         if (
             credentials?.type !== WarehouseTypes.BIGQUERY ||
             credentials.authenticationType === BigqueryAuthenticationType.ADC
@@ -6460,6 +6493,11 @@ export class ProjectService
                             );
                         }
                         assertValidPersistedBigquerySsoKeyfile(keyFileContents);
+                        break;
+                    case BigqueryAuthenticationType.WORKLOAD_IDENTITY_FEDERATION:
+                        ProjectService.assertSupportedBigqueryKeyfile(
+                            project.warehouseConnection,
+                        );
                         break;
                     case BigqueryAuthenticationType.ADC:
                         if (keyFileContents) {
@@ -6539,10 +6577,6 @@ export class ProjectService
         const savedProject =
             await this.projectModel.getWithSensitiveFields(projectUuid);
         ProjectService.assertConnectionIsNotManagedInternally(savedProject);
-        await this.assertAwsWebIdentityAudienceBelongsTo(
-            data.warehouseConnection,
-            savedProject.organizationUuid,
-        );
         const auditedAbility = this.createAuditedAbility(account);
         if (
             auditedAbility.cannot(
@@ -6600,10 +6634,6 @@ export class ProjectService
                 account,
                 savedProject,
                 updateData,
-            );
-            await this.assertAwsWebIdentityAudienceBelongsTo(
-                updateData.warehouseConnection,
-                savedProject.organizationUuid,
             );
         }
 
@@ -6794,10 +6824,6 @@ export class ProjectService
         const savedProject =
             await this.projectModel.getWithSensitiveFields(projectUuid);
         ProjectService.assertConnectionIsNotManagedInternally(savedProject);
-        await this.assertAwsWebIdentityAudienceBelongsTo(
-            data.warehouseConnection,
-            savedProject.organizationUuid,
-        );
         const auditedAbility = this.createAuditedAbility(account);
         if (
             auditedAbility.cannot(
@@ -15115,17 +15141,11 @@ export class ProjectService
                         })),
                     );
 
-                if (credentials.userWarehouseCredentialsUuid) {
-                    await this.warehouseAvailableTablesModel.createAvailableTablesForUserWarehouseCredentials(
-                        credentials.userWarehouseCredentialsUuid,
-                        warehouseTables,
-                    );
-                } else {
-                    await this.warehouseAvailableTablesModel.createAvailableTablesForProjectWarehouseCredentials(
-                        projectUuid,
-                        warehouseTables,
-                    );
-                }
+                await this.saveWarehouseTables(
+                    projectUuid,
+                    credentials.userWarehouseCredentialsUuid ?? null,
+                    warehouseTables,
+                );
 
                 return catalog;
             },
@@ -15157,37 +15177,66 @@ export class ProjectService
         );
         if (agentExecutionContext.getStore()?.agentConnectionExecution)
             await this.assertConnectionDiscovery(user, projectUuid);
-        if (
-            bound ||
-            isAiAccessQueryContext(context ?? QueryExecutionContext.SQL_RUNNER)
-        ) {
-            return this.warehouseClientFactory.withWarehouseClient(
+        const queryContext = context ?? QueryExecutionContext.SQL_RUNNER;
+        if (bound || isAiAccessQueryContext(queryContext)) {
+            const bindingRef = {
+                kind: 'binding',
+                projectUuid,
+                binding: { kind: 'connection', warehouseConnectionUuid: null },
+            } as const;
+            const connectionContext = connectionContextFromUser(
+                { userUuid: user.userUuid, isRegisteredUser: true },
                 {
-                    kind: 'binding',
-                    projectUuid,
-                    binding: {
-                        kind: 'connection',
-                        warehouseConnectionUuid: null,
-                    },
+                    organizationUuid,
+                    queryContext,
+                    surface:
+                        querySurface === undefined
+                            ? undefined
+                            : connectionSurfaceFromQuerySurface(
+                                  querySurface,
+                                  context ?? null,
+                              ),
                 },
-                connectionContextFromUser(
-                    { userUuid: user.userUuid, isRegisteredUser: true },
-                    {
-                        organizationUuid,
-                        queryContext:
-                            context ?? QueryExecutionContext.SQL_RUNNER,
-                        surface:
-                            querySurface === undefined
-                                ? undefined
-                                : connectionSurfaceFromQuerySurface(
-                                      querySurface,
-                                      context ?? null,
-                                  ),
-                    },
-                ),
+            );
+            let liveRef: WarehouseClientRef = bindingRef;
+            let savedListKey: {
+                userWarehouseCredentialsUuid: UUID | null;
+            } | null = null;
+            if (!bound) {
+                const resolution =
+                    await this.warehouseClientFactory.resolveWarehouseCredentials(
+                        bindingRef,
+                        connectionContext,
+                    );
+                // Agents running as the person see what the SQL runner sees
+                if (
+                    resolution.aiPlan === null ||
+                    resolution.aiPlan.identity === 'marked_person'
+                ) {
+                    savedListKey = {
+                        userWarehouseCredentialsUuid:
+                            resolution.warehouseCredentials
+                                .userWarehouseCredentialsUuid ?? null,
+                    };
+                    const saved = await this.getSavedWarehouseTables(
+                        projectUuid,
+                        savedListKey.userWarehouseCredentialsUuid,
+                    );
+                    if (saved) return saved;
+                }
+                liveRef = {
+                    kind: 'resolved',
+                    projectUuid,
+                    credentials: resolution.warehouseCredentials,
+                    aiPlan: resolution.aiPlan,
+                    warehouseConnectionUuid: resolution.warehouseConnectionUuid,
+                    connectionRoute: resolution.connectionRoute,
+                };
+            }
+            return this.warehouseClientFactory.withWarehouseClient(
+                liveRef,
+                connectionContext,
                 async ({ warehouseClient }) => {
-                    const queryContext =
-                        context ?? QueryExecutionContext.SQL_RUNNER;
                     const tables = await warehouseClient.getAllTables(
                         undefined,
                         withAgentMarkerTag({ query_context: queryContext }),
@@ -15197,6 +15246,12 @@ export class ProjectService
                             ?.agentConnectionExecution
                     )
                         await this.assertConnectionDiscovery(user, projectUuid);
+                    if (savedListKey)
+                        await this.saveWarehouseTables(
+                            projectUuid,
+                            savedListKey.userWarehouseCredentialsUuid,
+                            tables,
+                        );
                     return WarehouseAvailableTablesModel.toWarehouseCatalog(
                         tables.map((table) => ({
                             ...table,
@@ -15216,32 +15271,44 @@ export class ProjectService
                 isRegisteredUser: true,
             });
 
-        let catalog: WarehouseTablesCatalog | null = null;
-        // Check the cache for catalog
-        if (credentials.userWarehouseCredentialsUuid) {
-            catalog =
-                await this.warehouseAvailableTablesModel.getTablesForUserWarehouseCredentials(
-                    credentials.userWarehouseCredentialsUuid,
-                );
-        } else {
-            catalog =
-                await this.warehouseAvailableTablesModel.getTablesForProjectWarehouseCredentials(
-                    projectUuid,
-                );
-        }
-
-        // If there was no cached catalog, generate it
-        if (!catalog || Object.keys(catalog).length === 0) {
-            catalog = await this.populateWarehouseTablesCache(
-                user,
+        return (
+            (await this.getSavedWarehouseTables(
                 projectUuid,
+                credentials.userWarehouseCredentialsUuid ?? null,
+            )) ?? this.populateWarehouseTablesCache(user, projectUuid)
+        );
+    }
+
+    private async getSavedWarehouseTables(
+        projectUuid: UUID,
+        userWarehouseCredentialsUuid: UUID | null,
+    ): Promise<WarehouseTablesCatalog | null> {
+        const catalog = userWarehouseCredentialsUuid
+            ? await this.warehouseAvailableTablesModel.getTablesForUserWarehouseCredentials(
+                  userWarehouseCredentialsUuid,
+              )
+            : await this.warehouseAvailableTablesModel.getTablesForProjectWarehouseCredentials(
+                  projectUuid,
+              );
+        return catalog && Object.keys(catalog).length > 0 ? catalog : null;
+    }
+
+    private async saveWarehouseTables(
+        projectUuid: UUID,
+        userWarehouseCredentialsUuid: UUID | null,
+        tables: WarehouseTables,
+    ): Promise<void> {
+        if (userWarehouseCredentialsUuid) {
+            await this.warehouseAvailableTablesModel.createAvailableTablesForUserWarehouseCredentials(
+                userWarehouseCredentialsUuid,
+                tables,
+            );
+        } else {
+            await this.warehouseAvailableTablesModel.createAvailableTablesForProjectWarehouseCredentials(
+                projectUuid,
+                tables,
             );
         }
-
-        if (!catalog) {
-            throw new NotFoundError('Warehouse tables not found');
-        }
-        return catalog;
     }
 
     async getWarehouseFields(
@@ -15252,7 +15319,10 @@ export class ProjectService
         schemaName?: string,
         databaseName?: string,
         querySurface?: QuerySurface,
-    ): Promise<WarehouseTableSchema> {
+    ): Promise<{
+        fields: WarehouseTableSchema;
+        nativeTypes: Record<string, string>;
+    }> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
         const auditedAbility = this.createAuditedAbility(user);
@@ -15335,7 +15405,17 @@ export class ProjectService
                             ?.agentConnectionExecution
                     )
                         await this.assertConnectionDiscovery(user, projectUuid);
-                    return warehouseCatalog[database][schemaName][tableName];
+                    return {
+                        fields: warehouseCatalog[database][schemaName][
+                            tableName
+                        ],
+                        nativeTypes: getCatalogTableNativeTypes(
+                            warehouseCatalog,
+                            database,
+                            schemaName,
+                            tableName,
+                        ),
+                    };
                 } catch (error) {
                     this.logger.error('Error fetching warehouse fields', {
                         error,
@@ -15892,15 +15972,7 @@ export class ProjectService
         ) {
             throw new ForbiddenError();
         }
-        const { cacheTtlSeconds, lastInvalidatedAt } =
-            await this.projectModel.getResultsCacheSettings(projectUuid);
-        return {
-            projectUuid,
-            cacheTtlSeconds,
-            instanceDefaultTtlSeconds:
-                this.lightdashConfig.results.cacheStateTimeSeconds,
-            lastInvalidatedAt,
-        };
+        return this.buildResultsCacheProjectSettings(projectUuid);
     }
 
     async updateProjectResultsCacheSettings(
@@ -15946,14 +16018,33 @@ export class ProjectService
         await this.projectModel.updateResultsCacheSettings(projectUuid, {
             cacheTtlSeconds,
         });
-        const { lastInvalidatedAt } =
-            await this.projectModel.getResultsCacheSettings(projectUuid);
+        return this.buildResultsCacheProjectSettings(projectUuid);
+    }
+
+    private async buildResultsCacheProjectSettings(
+        projectUuid: string,
+    ): Promise<ResultsCacheProjectSettings> {
+        const {
+            cacheTtlSeconds,
+            lastInvalidatedAt,
+            clearCron,
+            clearNextRunAt,
+            schedulerTimezone,
+        } = await this.projectModel.getResultsCacheSettings(projectUuid);
         return {
             projectUuid,
             cacheTtlSeconds,
             instanceDefaultTtlSeconds:
                 this.lightdashConfig.results.cacheStateTimeSeconds,
             lastInvalidatedAt,
+            clearSchedule: clearCron
+                ? {
+                      cron: clearCron,
+                      enabled: clearNextRunAt !== null,
+                      nextRunAt: clearNextRunAt,
+                  }
+                : null,
+            schedulerTimezone,
         };
     }
 
@@ -16006,6 +16097,90 @@ export class ProjectService
         return { projectUuid, invalidatedAt };
     }
 
+    async updateProjectResultsCacheClearSchedule(
+        user: SessionUser,
+        projectUuid: string,
+        { cron, enabled }: UpdateResultsCacheClearSchedule,
+    ): Promise<ResultsCacheProjectSettings> {
+        const { organizationUuid } = await this.assertCanInvalidateResultsCache(
+            user,
+            projectUuid,
+        );
+        if (parseResultsCacheClearCron(cron) === null) {
+            throw new ParameterError(
+                'Schedule must run daily or weekly at one or more hours, on the hour',
+            );
+        }
+        const { schedulerTimezone } =
+            await this.projectModel.getResultsCacheSettings(projectUuid);
+        await this.projectModel.updateResultsCacheClearSchedule(projectUuid, {
+            cron,
+            nextRunAt: enabled
+                ? getNextResultsCacheClearAt(
+                      cron,
+                      schedulerTimezone,
+                      new Date(),
+                  )
+                : null,
+        });
+        this.analytics.track({
+            event: 'results_cache.clear_schedule_updated',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                enabled,
+                cron,
+            },
+        });
+        return this.buildResultsCacheProjectSettings(projectUuid);
+    }
+
+    /** Runs from the hourly scheduler task. A failed project stays due and retries on the next sweep. */
+    async clearDueResultsCaches(now: Date = new Date()): Promise<void> {
+        const dueClears = await this.projectModel.getDueResultsCacheClears(now);
+        await Promise.all(
+            dueClears.map(async (due) => {
+                try {
+                    const { enabled: clear } = await this.featureFlagModel.get({
+                        user: { organizationUuid: due.organizationUuid },
+                        featureFlagId: FeatureFlags.ResultsCacheEnabled,
+                    });
+                    const claimed =
+                        await this.projectModel.claimDueResultsCacheClear(
+                            due.projectUuid,
+                            {
+                                expectedNextRunAt: due.nextRunAt,
+                                nextRunAt: getNextResultsCacheClearAt(
+                                    due.cron,
+                                    due.schedulerTimezone,
+                                    now,
+                                ),
+                                clear,
+                            },
+                        );
+                    if (claimed && clear) {
+                        this.analytics.track({
+                            event: 'results_cache.invalidated',
+                            userId: ANONYMOUS_TRACKING_UUID,
+                            properties: {
+                                organizationId: due.organizationUuid,
+                                projectId: due.projectUuid,
+                                scope: 'project',
+                                contentUuid: null,
+                                trigger: 'schedule',
+                            },
+                        });
+                    }
+                } catch (error) {
+                    this.logger.error(
+                        `Failed to run scheduled results cache clear for project ${due.projectUuid}: ${getErrorMessage(error)}`,
+                    );
+                }
+            }),
+        );
+    }
+
     async updatePreviewExpiresAt(
         user: SessionUser,
         projectUuid: string,
@@ -16049,6 +16224,38 @@ export class ProjectService
         }
         await this.projectModel.updateExpiresAt(projectUuid, expiresAt);
         return { projectUuid, expiresAt };
+    }
+
+    async getFilterableDimensionsForExplore(
+        projectUuid: string,
+        explore: Explore,
+    ): Promise<FilterableDimension[]> {
+        const filters = getDimensions(explore).filter(
+            (field) => isFilterableDimension(field) && !field.hidden,
+        );
+        if (!filters.some((field) => field.timeInterval === TimeFrames.WEEK)) {
+            return filters;
+        }
+
+        const settings = await this.getWarehouseSqlBuilderSettings(
+            projectUuid,
+            {
+                kind: 'explore',
+                exploreName: explore.name,
+            },
+        );
+        const warehouseType =
+            explore.type === ExploreType.EXTERNAL_SOURCE
+                ? WarehouseTypes.DUCKDB
+                : settings.type;
+        const filterStartOfWeek =
+            settings.startOfWeek ?? getDefaultStartOfWeek(warehouseType);
+
+        return filters.map((field) =>
+            field.timeInterval === TimeFrames.WEEK
+                ? { ...field, filterStartOfWeek }
+                : field,
+        );
     }
 
     async getAvailableFiltersForSavedQuery(
@@ -16103,8 +16310,9 @@ export class ProjectService
                     savedChart.tableName,
                 );
 
-                const filters = getDimensions(explore).filter(
-                    (field) => isFilterableDimension(field) && !field.hidden,
+                const filters = await this.getFilterableDimensionsForExplore(
+                    savedChart.projectUuid,
+                    explore,
                 );
                 return this.cannotViewEmbedCompiledSql(
                     account,
@@ -16122,7 +16330,7 @@ export class ProjectService
     ): Promise<DashboardAvailableFilters> {
         type ChartFilters = {
             uuid: string;
-            filters: CompiledDimension[];
+            filters: FilterableDimension[];
             metricFilters: Metric[];
             hiddenFieldIds: string[];
         };
@@ -16211,45 +16419,59 @@ export class ProjectService
                     savedCharts[0].projectUuid,
                 );
 
-                return savedCharts.map((savedChart) => {
-                    if (!chartAccess.get(savedChart.uuid)) {
+                const filtersByExplore = new Map<
+                    string,
+                    Promise<FilterableDimension[]>
+                >();
+                return Promise.all(
+                    savedCharts.map(async (savedChart) => {
+                        if (!chartAccess.get(savedChart.uuid)) {
+                            return {
+                                uuid: savedChart.uuid,
+                                filters: [],
+                                metricFilters: [],
+                                hiddenFieldIds: [],
+                            };
+                        }
+
+                        const cachedExplore = exploresMap[savedChart.tableName];
+                        const explore =
+                            shouldRedactSql &&
+                            cachedExplore &&
+                            !isExploreError(cachedExplore)
+                                ? redactExploreSql(cachedExplore)
+                                : cachedExplore;
+
+                        let filters: FilterableDimension[] = [];
+                        let metricFilters: Metric[] = [];
+                        let hiddenFieldIds: string[] = [];
+                        if (explore && !isExploreError(explore)) {
+                            const filtersPromise =
+                                filtersByExplore.get(savedChart.tableName) ??
+                                this.getFilterableDimensionsForExplore(
+                                    savedChart.projectUuid,
+                                    explore,
+                                );
+                            filtersByExplore.set(
+                                savedChart.tableName,
+                                filtersPromise,
+                            );
+                            filters = await filtersPromise;
+                            metricFilters = getMetrics(explore).filter(
+                                (field) => !field.hidden,
+                            );
+                            hiddenFieldIds =
+                                getHiddenFilterableFieldIds(explore);
+                        }
+
                         return {
                             uuid: savedChart.uuid,
-                            filters: [],
-                            metricFilters: [],
-                            hiddenFieldIds: [],
+                            filters,
+                            metricFilters,
+                            hiddenFieldIds,
                         };
-                    }
-
-                    const cachedExplore = exploresMap[savedChart.tableName];
-                    const explore =
-                        shouldRedactSql &&
-                        cachedExplore &&
-                        !isExploreError(cachedExplore)
-                            ? redactExploreSql(cachedExplore)
-                            : cachedExplore;
-
-                    let filters: CompiledDimension[] = [];
-                    let metricFilters: Metric[] = [];
-                    let hiddenFieldIds: string[] = [];
-                    if (explore && !isExploreError(explore)) {
-                        filters = getDimensions(explore).filter(
-                            (field) =>
-                                isFilterableDimension(field) && !field.hidden,
-                        );
-                        metricFilters = getMetrics(explore).filter(
-                            (field) => !field.hidden,
-                        );
-                        hiddenFieldIds = getHiddenFilterableFieldIds(explore);
-                    }
-
-                    return {
-                        uuid: savedChart.uuid,
-                        filters,
-                        metricFilters,
-                        hiddenFieldIds,
-                    };
-                });
+                    }),
+                );
             },
         );
 
@@ -18362,6 +18584,21 @@ export class ProjectService
         );
 
         if (settings.schedulerTimezone !== undefined) {
+            const { clearCron, clearNextRunAt } =
+                await this.projectModel.getResultsCacheSettings(projectUuid);
+            if (clearCron && clearNextRunAt) {
+                await this.projectModel.updateResultsCacheClearSchedule(
+                    projectUuid,
+                    {
+                        cron: clearCron,
+                        nextRunAt: getNextResultsCacheClearAt(
+                            clearCron,
+                            settings.schedulerTimezone,
+                            new Date(),
+                        ),
+                    },
+                );
+            }
             this.analytics.track({
                 event: 'default_scheduler_timezone.updated',
                 userId: user.userUuid,

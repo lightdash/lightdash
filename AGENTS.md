@@ -14,7 +14,7 @@ Use the repository's mapped triage vocabulary. See `docs/agents/triage-labels.md
 
 ### Domain docs
 
-This is a multi-context repository rooted at `CONTEXT-MAP.md`. See `docs/agents/domain.md`.
+Multi-context repo rooted at `CONTEXT-MAP.md`. Before working in a feature area, read `docs/agents/domain.md`.
 
 ## Area guides
 
@@ -23,10 +23,12 @@ These live next to the code and load when Claude works there. Read the linked fi
 - **Formula package**: never read files in `packages/formula-tests/`; dev loop in `packages/formula/AGENTS.md`.
 - **Release safety**: `Release-safety preview` is required on `main`; before declaring a break, read `docs/release-safety.md`.
 - **Merge freeze**: agents never freeze or unfreeze merges; ask a human. Details in `docs/merge-freeze.md`.
+- **CI workflows**: cache keys, the single pnpm store writer, and when the heavy E2E and CLI suites run; see `.github/workflows/AGENTS.md`.
 - **dbt YAML schemas**: two schemas must stay in sync when field types change; see `packages/common/src/dbt/AGENTS.md`.
 - **Warehouse credentials**: new sensitive credential fields go in `sensitiveCredentialsFieldNames`; see `packages/common/src/types/AGENTS.md`.
 - **LIGHTDASH_SECRET-derived state** must register for rotation; see `packages/backend/AGENTS.md`.
 - **Slugs and uuid-or-slug params**: rules in `packages/backend/AGENTS.md`.
+- **Native warehouse types** that `DimensionType` collapses (e.g. BigQuery `DATETIME` vs `TIMESTAMP`): see `packages/warehouses/src/warehouseClients/AGENTS.md`.
 
 ## Architecture
 
@@ -54,13 +56,6 @@ The backend uses two S3 endpoint settings:
 -   `S3_PUBLIC_ENDPOINT` — browser-facing endpoint used when minting presigned URLs that the browser fetches directly (e.g. presigned PUT for app image uploads). In local dev, the Docker hostname `minio` is unreachable from the browser, so this must be set to `http://localhost:9000`. In production with real S3/GCS, omit this — the internal endpoint is already publicly resolvable.
 
 When the backend creates a presigned URL for browser-direct upload, it uses `S3_PUBLIC_ENDPOINT` (falling back to `S3_ENDPOINT`) as the signing endpoint. See `parseBaseS3Config()` in `packages/backend/src/config/parseConfig.ts`.
-
-## Domain Glossaries
-
-`CONTEXT-MAP.md` lists per-feature glossaries of canonical domain terms (e.g.
-pre-aggregates). Before writing code, docs, or UI copy for a feature area that
-has a glossary, read it and use the canonical terms — never the `_Avoid_`
-aliases.
 
 ## Common Development Commands
 

@@ -95,6 +95,7 @@ import {
     KnexPaginateArgs,
     KnexPaginatedData,
     LightdashError,
+    MAX_RESULTS_CACHE_INVALIDATION_EXPLORES,
     MAX_RESULTS_CACHE_TTL_SECONDS,
     MergeQuery,
     MetricQuery,
@@ -141,6 +142,7 @@ import {
     type ApiExecuteAsyncFieldValueSearchResults,
     type ApiExecuteAsyncMergeQueryResults,
     type ApiExecuteAsyncMetricQueryResults,
+    type ApiExecuteAsyncSavedChartQueryResults,
     type ApiGetAsyncQueryResults,
     type ApiQueryHistoryListResponse,
     type ApiSourcePayload,
@@ -163,8 +165,10 @@ import {
     type ExecuteAsyncQueryRequestParams,
     type ExecuteAsyncSavedChartRequestParams,
     type ExecuteAsyncUnderlyingDataRequestParams,
+    type ExploresResultsCacheInvalidation,
     type ExternalSourceTableReference,
     type Filters,
+    type InvalidateExploresResultsCache,
     type MergeQueryChart,
     type MergeQueryExecutionMode,
     type Organization,
@@ -186,6 +190,7 @@ import {
     type ResultsCacheInvalidation,
     type RunQueryTags,
     type SavedChartDAO,
+    type SavedChartVisualization,
     type SavedMergeDefinition,
     type SessionUser,
     type SpaceSummaryBase,
@@ -253,7 +258,10 @@ import type { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { traceSpan, type TraceSpan } from '../../tracing/tracing';
 import { wrapSentryTransaction } from '../../utils';
 import { isAiServiceAccountPermissionError } from '../../utils/aiServiceAccountErrors';
-import { metricQueryWithLimit as applyMetricQueryLimit } from '../../utils/csvLimitUtils';
+import {
+    metricQueryWithLimit as applyMetricQueryLimit,
+    isCellLimitTruncated,
+} from '../../utils/csvLimitUtils';
 import {
     getDuckdbPreAggregateSqlTable,
     getJsonlReferenceSelect,
@@ -3421,8 +3429,37 @@ export class AsyncQueryService extends ProjectService {
                       warehouseGrandTotals: undefined,
                   };
 
+        // Flat exports stream the stored results file as-is, so a cell-limit
+        // cap applied as the query's row limit has to be read from history.
+        const withCellLimitTruncation = async <
+            T extends { truncated: boolean },
+        >(
+            result: T,
+        ): Promise<T> => {
+            if (
+                result.truncated ||
+                queryHistory.metricQuery.exploreName ===
+                    SQL_QUERY_MOCK_EXPLORER_NAME
+            ) {
+                return result;
+            }
+            const { csvCellsLimit } = await resolveOrganizationExportLimits(
+                this.organizationSettingsModel,
+                this.lightdashConfig.query,
+                organizationUuid,
+            );
+            return {
+                ...result,
+                truncated: isCellLimitTruncated({
+                    metricQuery: queryHistory.metricQuery,
+                    totalRowCount: queryHistory.totalRowCount,
+                    csvCellsLimit,
+                }),
+            };
+        };
+
         switch (type) {
-            case DownloadFileType.CSV:
+            case DownloadFileType.CSV: {
                 // Check if this is a pivot table download
                 if (
                     downloadPivotConfig &&
@@ -3457,7 +3494,7 @@ export class AsyncQueryService extends ProjectService {
                         timezone: displayTimezone ?? undefined,
                     });
                 }
-                return this.downloadAsyncQueryResultsAsFormattedFile(
+                const csv = await this.downloadAsyncQueryResultsAsFormattedFile(
                     resultsFileName,
                     queryHistory.context,
                     resultFields,
@@ -3489,6 +3526,8 @@ export class AsyncQueryService extends ProjectService {
                     },
                     displayTimezone ?? undefined,
                 );
+                return withCellLimitTruncation(csv);
+            }
             case DownloadFileType.XLSX: {
                 // Check if this is a pivot table download
                 const isPivotXlsx =
@@ -3582,10 +3621,13 @@ export class AsyncQueryService extends ProjectService {
                             source: 'async_query',
                         },
                     );
+                const { truncated } = isPivotXlsx
+                    ? xlsxResult
+                    : await withCellLimitTruncation(xlsxResult);
                 return {
                     fileUrl: xlsxPersistentUrl,
                     s3FileUrl: xlsxResult.fileUrl,
-                    truncated: xlsxResult.truncated,
+                    truncated,
                 };
             }
             case undefined:
@@ -6840,6 +6882,14 @@ export class AsyncQueryService extends ProjectService {
                                 account.user.id,
                                 resultsCache.resultProducer,
                             );
+                        // Before results land, so the row is never a live hit
+                        if (resultsCache.queryUuid) {
+                            await this.queryHistoryModel.inheritCacheInvalidation(
+                                queryHistoryUuid,
+                                resultsCache.queryUuid,
+                                projectUuid,
+                            );
+                        }
                         trackQueryExecuted();
                         if (this.lightdashConfig.natsWorker.enabled) {
                             await this.queryHistoryModel.updateStatusToExecuting(
@@ -8663,6 +8713,88 @@ export class AsyncQueryService extends ProjectService {
         });
     }
 
+    async invalidateExploresResultsCache(
+        user: SessionUser,
+        projectUuid: string,
+        {
+            exploreNames,
+            includeJoinedExplores = false,
+        }: InvalidateExploresResultsCache,
+    ): Promise<ExploresResultsCacheInvalidation> {
+        const { organizationUuid } = await this.assertCanInvalidateResultsCache(
+            user,
+            projectUuid,
+        );
+        const uniqueExploreNames = [...new Set(exploreNames)];
+        if (uniqueExploreNames.length === 0) {
+            throw new ParameterError('Provide at least one explore name');
+        }
+        if (
+            uniqueExploreNames.length > MAX_RESULTS_CACHE_INVALIDATION_EXPLORES
+        ) {
+            throw new ParameterError(
+                `Provide at most ${MAX_RESULTS_CACHE_INVALIDATION_EXPLORES} explore names`,
+            );
+        }
+        const knownExploreNames = new Set(
+            await this.projectModel.findExistingExploreNames(
+                projectUuid,
+                uniqueExploreNames,
+            ),
+        );
+        const unknownExploreNames = uniqueExploreNames.filter(
+            (exploreName) => !knownExploreNames.has(exploreName),
+        );
+        if (unknownExploreNames.length > 0) {
+            throw new NotFoundError(
+                `Explores not found: ${unknownExploreNames.join(', ')}`,
+                { exploreNames: unknownExploreNames },
+            );
+        }
+        const exploreNamesToInvalidate = includeJoinedExplores
+            ? [
+                  ...new Set([
+                      ...uniqueExploreNames,
+                      ...(await this.projectModel.findExploreNamesReadingBaseTables(
+                          projectUuid,
+                          uniqueExploreNames,
+                      )),
+                  ]),
+              ]
+            : uniqueExploreNames;
+        const invalidatedAt = new Date();
+        await this.queryHistoryModel.invalidateCachedResultsForExplores(
+            projectUuid,
+            exploreNamesToInvalidate,
+            this.getResultsCacheInvalidationWindowStart(invalidatedAt),
+        );
+        this.analytics.track({
+            event: 'results_cache.invalidated',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                scope: 'explores',
+                contentUuid: null,
+                exploreNames: exploreNamesToInvalidate,
+            },
+        });
+        return {
+            projectUuid,
+            invalidatedAt,
+            exploreNames: exploreNamesToInvalidate,
+        };
+    }
+
+    // Wide enough that a later TTL increase cannot revive older results
+    private getResultsCacheInvalidationWindowStart(invalidatedAt: Date): Date {
+        const maxTtlSeconds = Math.max(
+            this.lightdashConfig.results.cacheStateTimeSeconds,
+            MAX_RESULTS_CACHE_TTL_SECONDS,
+        );
+        return new Date(invalidatedAt.getTime() - maxTtlSeconds * 1000);
+    }
+
     private async invalidateContentResultsCache(
         user: SessionUser,
         {
@@ -8678,15 +8810,10 @@ export class AsyncQueryService extends ProjectService {
         },
     ): Promise<ResultsCacheInvalidation> {
         const invalidatedAt = new Date();
-        // Wide enough that a later TTL increase cannot revive older results
-        const maxTtlSeconds = Math.max(
-            this.lightdashConfig.results.cacheStateTimeSeconds,
-            MAX_RESULTS_CACHE_TTL_SECONDS,
-        );
         await this.queryHistoryModel.invalidateCachedResultsForContent(
             projectUuid,
             content,
-            new Date(invalidatedAt.getTime() - maxTtlSeconds * 1000),
+            this.getResultsCacheInvalidationWindowStart(invalidatedAt),
         );
         this.analytics.track({
             event: 'results_cache.invalidated',
@@ -8717,7 +8844,7 @@ export class AsyncQueryService extends ProjectService {
         schedulerFilters,
         dashboardFilters,
         userAttributeOverrides,
-    }: ExecuteAsyncSavedChartQueryArgs): Promise<ApiExecuteAsyncMetricQueryResults> {
+    }: ExecuteAsyncSavedChartQueryArgs): Promise<ApiExecuteAsyncSavedChartQueryResults> {
         // Check user is in organization
         assertIsAccountWithOrg(account);
 
@@ -8871,8 +8998,14 @@ export class AsyncQueryService extends ProjectService {
             dashboardFilters,
         };
 
+        const chartVisualization: SavedChartVisualization = {
+            chartConfig: savedChart.chartConfig,
+            pivotConfig: savedChart.pivotConfig,
+            tableConfig: savedChart.tableConfig,
+        };
+
         if (savedChart.merge) {
-            return this.executeAsyncSavedMergeQuery({
+            const mergeResults = await this.executeAsyncSavedMergeQuery({
                 account,
                 projectUuid,
                 savedChart,
@@ -8888,6 +9021,7 @@ export class AsyncQueryService extends ProjectService {
                 dashboardFilters,
                 userAttributeOverrides,
             });
+            return { ...mergeResults, chartVisualization };
         }
 
         const { maxLimit, csvCellsLimit } =
@@ -9099,6 +9233,7 @@ export class AsyncQueryService extends ProjectService {
             parameterReferences: queryComposer.getParameterReferences(),
             usedParametersValues: queryComposer.getUsedParameters(),
             resolvedTimezone: queryComposer.getDisplayTimezone(),
+            chartVisualization,
         };
     }
 

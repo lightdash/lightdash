@@ -104,7 +104,7 @@ export type WarehouseCatalogTimestampDomains = {
 
 /**
  * WARNING: a catalog may carry reserved `__lightdash*` sidecars (timestamp
- * domains, nested columns, missing entries) alongside the database keys (their
+ * domains, nested columns, missing entries, native types) alongside the database keys (their
  * values are NOT database entries).
  * Never enumerate `Object.keys(catalog)` as database names without excluding
  * them — look entries up by name, or use the sidecar accessors below.
@@ -260,6 +260,41 @@ export const setCatalogNestedColumnShape = (
     ensureRecord(ensureRecord(ensureRecord(sidecar, database), schema), table)[
         columnPath
     ] = shape;
+};
+
+// Native types `DimensionType` collapses; see packages/warehouses/src/warehouseClients/AGENTS.md
+export const WAREHOUSE_NATIVE_TYPES_KEY = '__lightdashNativeTypes';
+
+export const getCatalogTableNativeTypes = (
+    catalog: WarehouseCatalog,
+    database: string,
+    schema: string,
+    table: string,
+): Record<string, string> => {
+    const columns = [database, schema, table].reduce<unknown>(
+        (node, key) => (isPlainRecord(node) ? node[key] : undefined),
+        catalog[WAREHOUSE_NATIVE_TYPES_KEY],
+    );
+    if (!isPlainRecord(columns)) return {};
+    return Object.fromEntries(
+        Object.entries(columns).filter(
+            (entry): entry is [string, string] => typeof entry[1] === 'string',
+        ),
+    );
+};
+
+export const setCatalogNativeType = (
+    catalog: WarehouseCatalog,
+    database: string,
+    schema: string,
+    table: string,
+    column: string,
+    nativeType: string,
+): void => {
+    const sidecar = getSidecar(catalog, WAREHOUSE_NATIVE_TYPES_KEY);
+    ensureRecord(ensureRecord(ensureRecord(sidecar, database), schema), table)[
+        column
+    ] = nativeType;
 };
 
 /**

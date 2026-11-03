@@ -82,6 +82,8 @@ type Props = Omit<PillsInputProps, 'onChange' | 'ref'> & {
     placeholder?: string;
     /** Closes the list once an option is picked (default false). */
     closeOnOptionSubmit?: boolean;
+    /** Opens the list on focus (default true). */
+    openOnFocus?: boolean;
 };
 
 const RefreshIndicator: FC<{

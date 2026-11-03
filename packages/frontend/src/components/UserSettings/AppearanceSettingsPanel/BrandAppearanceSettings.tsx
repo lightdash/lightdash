@@ -10,40 +10,40 @@ import {
     Button,
     ColorInput,
     Group,
+    Paper,
     Skeleton,
     Stack,
     Text,
     TextInput,
+    Title,
     Tooltip,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import {
-    IconPlus,
-    IconRefresh,
-    IconTrash,
-    IconWand,
-    IconWorld,
-} from '@tabler/icons-react';
-import { useState, type FC } from 'react';
+import { IconPlus, IconTrash, IconWand, IconWorld } from '@tabler/icons-react';
+import { useRef, useState, type FC } from 'react';
 import {
     useColorPalettes,
     useCreateColorPalette,
 } from '../../../hooks/appearance/useOrganizationAppearance';
 import useHealth from '../../../hooks/health/useHealth';
 import {
+    findSquareBrandLogo,
+    pickBrandLogo,
+} from '../../../hooks/organization/brandLogos';
+import {
     useFetchOrganizationBrand,
     useOrganizationBrand,
     useSaveOrganizationBrand,
 } from '../../../hooks/organization/useOrganizationBrand';
+import InlineErrorState from '../../common/InlineErrorState';
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsCard } from '../../common/Settings/SettingsCard';
+import { ApplicationBrandPreview } from './ApplicationBrandPreview';
 import classes from './BrandAppearanceSettings.module.css';
+import { BrandLogoField } from './BrandLogoField';
 import { BrandPreview } from './BrandPreview';
 import { generateBrandPalette } from './generateBrandPalette';
 import { PaletteModalBase } from './PaletteModalBase';
-
-// TODO: re-enable color role editing once roles have a consumer
-// const BRAND_COLOR_TYPES = ['accent', 'brand', 'dark', 'light', 'other'];
 
 type BrandFormValues = {
     domain: string;
@@ -63,410 +63,414 @@ const brandToForm = (brand: OrganizationBrand | null): BrandFormValues => ({
     fonts: brand?.fonts ?? [],
 });
 
-// TODO: re-enable color role editing once roles have a consumer
-// const capitalize = (value: string) =>
-//     value.length > 0 ? value.charAt(0).toUpperCase() + value.slice(1) : value;
-//
-// const getColorTypeOptions = (currentType: string) =>
-//     (BRAND_COLOR_TYPES.includes(currentType)
-//         ? BRAND_COLOR_TYPES
-//         : [...BRAND_COLOR_TYPES, currentType]
-//     ).map((type) => ({ value: type, label: capitalize(type) }));
-
-// TODO: re-enable logo tiles once logos have a consumer
-// const LogoTile: FC<{
-//     label: string;
-//     dark: boolean;
-//     logo: OrganizationBrandLogo | undefined;
-//     name: string;
-// }> = ({ label, dark, logo, name }) => (
-//     <Stack gap="two" align="center">
-//         <Box className={dark ? classes.logoTileDark : classes.logoTile}>
-//             {logo ? (
-//                 <img
-//                     src={logo.url}
-//                     alt={`${name} ${label} logo`}
-//                     className={classes.logoImage}
-//                 />
-//             ) : (
-//                 <Text size="sm" c="dimmed">
-//                     No logo
-//                 </Text>
-//             )}
-//         </Box>
-//         <Text size="xs" c="dimmed">
-//             {label}
-//         </Text>
-//     </Stack>
-// );
-
-const BrandAppearanceForm: FC<{ brand: OrganizationBrand | null }> = ({
-    brand,
-}) => {
+const BrandAppearanceForm: FC<{
+    brand: OrganizationBrand | null;
+    canFetchBrand: boolean;
+    canWhiteLabel: boolean;
+    canManageColorPalette: boolean;
+}> = ({ brand, canFetchBrand, canWhiteLabel, canManageColorPalette }) => {
     const fetchMutation = useFetchOrganizationBrand();
     const saveMutation = useSaveOrganizationBrand();
     const [generatedPalette, setGeneratedPalette] = useState<string[] | null>(
         null,
     );
     const [isPaletteModalOpen, setIsPaletteModalOpen] = useState(false);
+    const [logoError, setLogoError] = useState<string | null>(null);
+    const [logoImport, setLogoImport] = useState<
+        'idle' | 'checking' | 'found' | 'missing'
+    >('idle');
+    const importRun = useRef(0);
     const { data: palettes = [] } = useColorPalettes();
     const createColorPalette = useCreateColorPalette();
-
     const form = useForm<BrandFormValues>({
         initialValues: brandToForm(brand),
+        validate: {
+            colors: {
+                hex: (value) =>
+                    /^#[0-9a-f]{6}$/i.test(value)
+                        ? null
+                        : 'Enter a valid hex color',
+            },
+        },
+    });
+    const hasValidColors =
+        form.values.colors.length > 0 &&
+        form.values.colors.every((color) => /^#[0-9a-f]{6}$/i.test(color.hex));
+
+    const handleFetch = () => {
+        importRun.current += 1;
+        const run = importRun.current;
+        setLogoImport('idle');
+        fetchMutation.mutate(
+            { domain: form.values.domain.trim() },
+            {
+                onSuccess: async (fetched) => {
+                    form.setValues({
+                        domain: fetched.domain,
+                        colors: fetched.colors,
+                    });
+                    if (!canWhiteLabel) return;
+                    setLogoImport('checking');
+                    const logo = await findSquareBrandLogo(fetched.logos);
+                    if (run !== importRun.current) return;
+                    if (logo) form.setFieldValue('logos', [logo]);
+                    setLogoImport(logo ? 'found' : 'missing');
+                },
+            },
+        );
+    };
+    const isImporting = fetchMutation.isLoading || logoImport === 'checking';
+
+    const handleSave = form.onSubmit((values) => {
+        saveMutation.mutate(values, {
+            onSuccess: (saved) => {
+                const savedValues = brandToForm(saved);
+                form.setInitialValues(savedValues);
+                form.setValues(savedValues);
+                form.resetDirty(savedValues);
+            },
+        });
     });
 
-    const savedDomain = brand?.domain ?? '';
-    const domainChanged =
-        form.values.domain.trim().toLowerCase() !== savedDomain;
-    const isDirty = form.isDirty();
-
-    const handleRefresh = async () => {
-        const domain = form.values.domain.trim();
-        if (domain.length === 0) return;
-        const fetched = await fetchMutation.mutateAsync({ domain });
-        form.setValues(brandToForm(fetched));
-    };
-
-    const handleSave = () => {
-        saveMutation.mutate({
-            domain: form.values.domain,
-            name: form.values.name,
-            description: form.values.description,
-            logos: form.values.logos,
-            colors: form.values.colors,
-            fonts: form.values.fonts,
-        });
-    };
-
-    const handleGeneratePalette = () => {
-        const palette = generateBrandPalette(
-            form.values.colors.map((color) => color.hex),
-        );
-        setGeneratedPalette(palette);
-        if (palette.length > 0) {
-            setIsPaletteModalOpen(true);
-        }
-    };
-
-    // TODO: re-enable logo tiles once logos have a consumer
-    // Brandfetch's logo `theme` describes the artwork colour, not the
-    // background it belongs on: `light` is a light/white logo (meant for dark
-    // backgrounds) and `dark` is a dark logo (meant for light backgrounds).
-    // Pair each with a contrasting tile so neither disappears into it.
-    // const logoForLightBg =
-    //     form.values.logos.find((logo) => logo.theme === 'dark') ??
-    //     form.values.logos.find((logo) => logo.theme === null) ??
-    //     form.values.logos[0];
-    // const logoForDarkBg =
-    //     form.values.logos.find((logo) => logo.theme === 'light') ??
-    //     form.values.logos[0];
-
-    const titleFont =
-        form.values.fonts.find((font) => font.type === 'title') ?? null;
-    const bodyFont =
-        form.values.fonts.find((font) => font.type === 'body') ?? null;
+    const websiteField = (
+        <Stack gap="xs">
+            <TextInput
+                label="Website"
+                placeholder="https://acme.com"
+                disabled={saveMutation.isLoading}
+                leftSection={<MantineIcon icon={IconWorld} />}
+                rightSectionWidth={canFetchBrand ? 144 : undefined}
+                rightSectionPointerEvents="all"
+                rightSection={
+                    canFetchBrand ? (
+                        <Tooltip
+                            label={
+                                canWhiteLabel
+                                    ? 'Import your logo and colors from this website. Review them before saving.'
+                                    : 'Import your brand colors from this website. Review them before saving.'
+                            }
+                            events={{ hover: true, focus: true, touch: false }}
+                            multiline
+                            w={260}
+                        >
+                            <Button
+                                variant="default"
+                                size="compact-xs"
+                                loading={isImporting}
+                                disabled={
+                                    !form.values.domain.trim() ||
+                                    saveMutation.isLoading
+                                }
+                                onClick={handleFetch}
+                            >
+                                {canWhiteLabel
+                                    ? 'Import brand identity'
+                                    : 'Import brand colors'}
+                            </Button>
+                        </Tooltip>
+                    ) : null
+                }
+                {...form.getInputProps('domain')}
+            />
+            {logoImport === 'missing' && !pickBrandLogo(form.values.logos) && (
+                <Text size="xs" c="dimmed">
+                    Colors imported. No square logo was found; you can upload
+                    one below.
+                </Text>
+            )}
+        </Stack>
+    );
 
     return (
         <Stack gap="lg">
-            <Box className={classes.grid}>
-                <Stack gap="md">
-                    <TextInput
-                        label="Brand domain"
-                        placeholder="acme.com"
-                        leftSection={<MantineIcon icon={IconWorld} />}
-                        {...form.getInputProps('domain')}
-                        rightSection={
-                            <Tooltip
-                                label="Fetch brand from this domain"
-                                position="top"
-                            >
-                                <ActionIcon
-                                    color={domainChanged ? 'blue' : 'gray'}
-                                    loading={fetchMutation.isLoading}
-                                    onClick={() => void handleRefresh()}
-                                    aria-label="Fetch brand from domain"
+            <SettingsCard>
+                <Stack gap="lg">
+                    {canWhiteLabel && (
+                        <Stack gap="lg">
+                            <Box>
+                                <Title order={5}>Brand identity</Title>
+                                <Text size="sm" c="dimmed">
+                                    Make your workspace recognizable with your
+                                    name and logo.
+                                </Text>
+                            </Box>
+                            <Box className={classes.grid}>
+                                <Stack gap="lg">
+                                    {websiteField}
+                                    <TextInput
+                                        label="Name"
+                                        placeholder="Acme Analytics"
+                                        value={form.values.name ?? ''}
+                                        disabled={saveMutation.isLoading}
+                                        onChange={(event) =>
+                                            form.setFieldValue(
+                                                'name',
+                                                event.currentTarget.value ||
+                                                    null,
+                                            )
+                                        }
+                                    />
+                                    <BrandLogoField
+                                        logos={form.values.logos}
+                                        brandName={form.values.name}
+                                        disabled={saveMutation.isLoading}
+                                        onChange={(logos) =>
+                                            form.setFieldValue('logos', logos)
+                                        }
+                                        onErrorChange={setLogoError}
+                                    />
+                                </Stack>
+                                <Stack
+                                    gap="sm"
+                                    className={classes.identityPreview}
                                 >
-                                    <MantineIcon icon={IconRefresh} />
-                                </ActionIcon>
-                            </Tooltip>
-                        }
-                    />
-
-                    {/* TODO: re-enable logo tiles once logos have a consumer
-                    <Stack gap="xs">
-                        <Text size="sm" fw={500}>
-                            Logo
-                        </Text>
-                        <Group gap="sm" grow>
-                            <LogoTile
-                                label="Light"
-                                dark={false}
-                                logo={logoForLightBg}
-                                name={form.values.name ?? 'Brand'}
-                            />
-                            <LogoTile
-                                label="Dark"
-                                dark
-                                logo={logoForDarkBg}
-                                name={form.values.name ?? 'Brand'}
-                            />
-                        </Group>
-                    </Stack>
-                    */}
-
-                    {/* TODO: re-enable font selects once fonts have a consumer
-                    <Group gap="sm" grow align="flex-start">
-                        <Select
-                            label="Title font"
-                            placeholder="—"
-                            data={titleFont ? [titleFont.name] : []}
-                            value={titleFont?.name ?? null}
-                            disabled
-                        />
-                        <Select
-                            label="Body font"
-                            placeholder="—"
-                            data={bodyFont ? [bodyFont.name] : []}
-                            value={bodyFont?.name ?? null}
-                            disabled
-                        />
-                    </Group>
-                    */}
-
-                    <Stack gap="xs">
-                        <Box>
-                            <Text size="sm" fw={500}>
-                                Brand colors
-                            </Text>
-                            <Text size="xs" c="dimmed">
-                                Colors are auto-detected from your brand. Edit
-                                any value.
-                            </Text>
-                        </Box>
-
-                        <Stack gap="xs">
-                            {form.values.colors.map((color, index) => (
-                                <Group
-                                    key={index}
-                                    gap="xs"
-                                    wrap="nowrap"
-                                    className={classes.colorRow}
-                                >
-                                    <Box className={classes.colorCombo}>
-                                        <ColorInput
-                                            value={color.hex}
-                                            onChange={(hex) =>
-                                                form.setFieldValue(
-                                                    `colors.${index}.hex`,
-                                                    hex,
-                                                )
-                                            }
-                                            format="hex"
-                                            size="xs"
-                                            variant="unstyled"
-                                            withEyeDropper={false}
-                                            className={classes.colorInput}
-                                        />
-                                        {/* TODO: re-enable color role editing once roles have a consumer
-                                        <Select
-                                            data={getColorTypeOptions(
-                                                color.type,
-                                            )}
-                                            value={color.type}
-                                            onChange={(type) =>
-                                                type &&
-                                                form.setFieldValue(
-                                                    `colors.${index}.type`,
-                                                    type,
-                                                )
-                                            }
-                                            allowDeselect={false}
-                                            size="xs"
-                                            variant="unstyled"
-                                            className={classes.colorTypeSelect}
-                                        />
-                                        */}
-                                    </Box>
-                                    <Tooltip
-                                        label="Remove color"
-                                        position="top"
-                                    >
-                                        <ActionIcon
-                                            className={classes.removeColor}
-                                            onClick={() =>
-                                                form.removeListItem(
-                                                    'colors',
-                                                    index,
-                                                )
-                                            }
-                                            aria-label="Remove color"
-                                        >
-                                            <MantineIcon icon={IconTrash} />
-                                        </ActionIcon>
-                                    </Tooltip>
-                                </Group>
-                            ))}
-
-                            <Button
-                                variant="default"
-                                leftSection={<MantineIcon icon={IconPlus} />}
-                                className={classes.addColor}
-                                onClick={() =>
-                                    form.insertListItem('colors', {
-                                        hex: '#000000',
-                                        type: 'brand',
-                                        brightness: null,
-                                    })
-                                }
-                            >
-                                Add color
-                            </Button>
+                                    <Text size="xs" fw={500} c="dimmed">
+                                        Preview
+                                    </Text>
+                                    <ApplicationBrandPreview
+                                        name={form.values.name}
+                                        logos={form.values.logos}
+                                    />
+                                </Stack>
+                            </Box>
                         </Stack>
-                    </Stack>
+                    )}
 
-                    <Stack gap="xs">
-                        <Box>
-                            <Text size="sm" fw={500}>
-                                Chart palette
-                            </Text>
-                            <Text size="xs" c="dimmed">
-                                Expand your brand colors into a full chart
-                                palette.
-                            </Text>
-                        </Box>
-                        <Button
-                            variant="default"
-                            fullWidth
-                            leftSection={<MantineIcon icon={IconWand} />}
-                            onClick={handleGeneratePalette}
-                            disabled={form.values.colors.length === 0}
-                        >
-                            Generate palette
-                        </Button>
-                        {generatedPalette && generatedPalette.length > 0 && (
-                            <Group gap={4}>
-                                {generatedPalette.map((hex, index) => (
-                                    <Tooltip
-                                        key={`${hex}-${index}`}
-                                        label={hex}
-                                        position="top"
-                                    >
-                                        <Box
-                                            className={classes.paletteSwatch}
-                                            bg={hex}
-                                        />
-                                    </Tooltip>
-                                ))}
-                            </Group>
-                        )}
-                        {generatedPalette && generatedPalette.length > 0 && (
-                            <PaletteModalBase
-                                key={generatedPalette.join('-')}
-                                opened={isPaletteModalOpen}
-                                onClose={() => setIsPaletteModalOpen(false)}
-                                onSubmit={(values) => {
-                                    if (!values.name) return;
-                                    createColorPalette.mutate({
-                                        name: values.name,
-                                        colors: values.colors,
-                                        darkColors: values.darkColors,
-                                    });
-                                }}
-                                isLoading={createColorPalette.isLoading}
-                                initialValues={{
-                                    name: '',
-                                    colors: generatedPalette,
-                                }}
-                                title="Chart palette from your brand"
-                                submitButtonText="Create palette"
-                                existingPaletteNames={palettes.map(
-                                    (palette) => palette.name,
+                    <Stack gap="lg">
+                        <Box className={classes.grid}>
+                            <Stack gap="md">
+                                {!canWhiteLabel &&
+                                    canFetchBrand &&
+                                    websiteField}
+                                <Box className={classes.colorsList}>
+                                    <Text size="sm" fw={500}>
+                                        Colors
+                                    </Text>
+                                    {form.values.colors.map((color, index) => (
+                                        <Group
+                                            key={index}
+                                            gap={0}
+                                            wrap="nowrap"
+                                            className={classes.colorRow}
+                                        >
+                                            <Box className={classes.colorCombo}>
+                                                <ColorInput
+                                                    aria-label={`Brand color ${index + 1}`}
+                                                    format="hex"
+                                                    withEyeDropper={false}
+                                                    size="xs"
+                                                    variant="unstyled"
+                                                    className={
+                                                        classes.colorInput
+                                                    }
+                                                    disabled={
+                                                        saveMutation.isLoading
+                                                    }
+                                                    {...form.getInputProps(
+                                                        `colors.${index}.hex`,
+                                                    )}
+                                                />
+                                            </Box>
+                                            <Tooltip label="Remove color">
+                                                <ActionIcon
+                                                    className={
+                                                        classes.removeColor
+                                                    }
+                                                    aria-label={`Remove brand color ${index + 1}`}
+                                                    disabled={
+                                                        saveMutation.isLoading
+                                                    }
+                                                    onClick={() =>
+                                                        form.removeListItem(
+                                                            'colors',
+                                                            index,
+                                                        )
+                                                    }
+                                                >
+                                                    <MantineIcon
+                                                        icon={IconTrash}
+                                                    />
+                                                </ActionIcon>
+                                            </Tooltip>
+                                        </Group>
+                                    ))}
+                                </Box>
+                                {form.values.colors.length === 0 && (
+                                    <Paper variant="dotted" p="md">
+                                        <Text size="sm" c="dimmed">
+                                            Add your first brand color to get
+                                            started.
+                                        </Text>
+                                    </Paper>
                                 )}
-                            />
-                        )}
+                                <Button
+                                    variant="default"
+                                    className={classes.addColor}
+                                    leftSection={
+                                        <MantineIcon icon={IconPlus} />
+                                    }
+                                    disabled={saveMutation.isLoading}
+                                    onClick={() =>
+                                        form.insertListItem('colors', {
+                                            hex: '#000000',
+                                            type: 'brand',
+                                            brightness: null,
+                                        })
+                                    }
+                                >
+                                    Add color
+                                </Button>
+                                {canManageColorPalette && (
+                                    <>
+                                        <Text size="sm" c="dimmed">
+                                            Turn these colors into a balanced
+                                            palette for your charts. You can
+                                            review it before adding it.
+                                        </Text>
+                                        <Button
+                                            variant="default"
+                                            className={classes.inlineButton}
+                                            leftSection={
+                                                <MantineIcon icon={IconWand} />
+                                            }
+                                            disabled={!hasValidColors}
+                                            onClick={() => {
+                                                setGeneratedPalette(
+                                                    generateBrandPalette(
+                                                        form.values.colors.map(
+                                                            (color) =>
+                                                                color.hex,
+                                                        ),
+                                                    ),
+                                                );
+                                                setIsPaletteModalOpen(true);
+                                            }}
+                                        >
+                                            Generate palette
+                                        </Button>
+                                    </>
+                                )}
+                            </Stack>
+                            <Stack gap="sm" className={classes.previewColumn}>
+                                <Text size="xs" fw={500} c="dimmed">
+                                    Chart color preview
+                                </Text>
+                                <BrandPreview
+                                    name={null}
+                                    logos={[]}
+                                    colors={form.values.colors}
+                                    titleFont={null}
+                                    bodyFont={null}
+                                    paletteColors={form.values.colors
+                                        .map((color) => color.hex)
+                                        .filter((hex) =>
+                                            /^#[0-9a-f]{6}$/i.test(hex),
+                                        )}
+                                />
+                            </Stack>
+                        </Box>
                     </Stack>
-                </Stack>
 
-                <Stack gap="xs">
-                    <Text size="sm" c="dimmed">
-                        Preview
-                    </Text>
-                    <BrandPreview
-                        name={form.values.name}
-                        logos={form.values.logos}
-                        colors={form.values.colors}
-                        titleFont={titleFont}
-                        bodyFont={bodyFont}
-                        paletteColors={generatedPalette}
-                    />
+                    {form.isDirty() && (
+                        <Group
+                            justify="space-between"
+                            className={classes.footer}
+                            role="status"
+                        >
+                            <Group gap="xs">
+                                <Box className={classes.unsavedDot} />
+                                <Text size="sm" c="yellow.7" fw={500}>
+                                    Unsaved changes
+                                </Text>
+                            </Group>
+                            <Group gap="sm">
+                                <Button
+                                    variant="default"
+                                    onClick={() => form.reset()}
+                                    disabled={saveMutation.isLoading}
+                                >
+                                    Revert
+                                </Button>
+                                <Button
+                                    onClick={() => handleSave()}
+                                    loading={saveMutation.isLoading}
+                                    disabled={logoError !== null || isImporting}
+                                >
+                                    Save changes
+                                </Button>
+                            </Group>
+                        </Group>
+                    )}
                 </Stack>
-            </Box>
+            </SettingsCard>
 
-            {isDirty && (
-                <Group justify="space-between" className={classes.footer}>
-                    <Group gap="xs">
-                        <Box className={classes.unsavedDot} />
-                        <Text size="sm" c="yellow.7" fw={500}>
-                            Unsaved changes
-                        </Text>
-                    </Group>
-                    <Group gap="sm">
-                        <Button
-                            variant="default"
-                            onClick={() => form.reset()}
-                            disabled={saveMutation.isLoading}
-                        >
-                            Revert
-                        </Button>
-                        <Button
-                            onClick={handleSave}
-                            loading={saveMutation.isLoading}
-                        >
-                            Save changes
-                        </Button>
-                    </Group>
-                </Group>
+            {generatedPalette && (
+                <PaletteModalBase
+                    key={generatedPalette.join('-')}
+                    opened={isPaletteModalOpen}
+                    onClose={() => setIsPaletteModalOpen(false)}
+                    onSubmit={(values) => {
+                        if (!values.name) return;
+                        createColorPalette.mutate(
+                            {
+                                name: values.name,
+                                colors: values.colors,
+                                darkColors: values.darkColors,
+                            },
+                            { onSuccess: () => setIsPaletteModalOpen(false) },
+                        );
+                    }}
+                    isLoading={createColorPalette.isLoading}
+                    initialValues={{ name: '', colors: generatedPalette }}
+                    title="Chart palette from your brand"
+                    submitButtonText="Create palette"
+                    existingPaletteNames={palettes.map(
+                        (palette) => palette.name,
+                    )}
+                />
             )}
         </Stack>
     );
 };
 
-export const BrandAppearanceSettings: FC = () => {
-    const { data: brand, isInitialLoading } = useOrganizationBrand();
+export const BrandAppearanceSettings: FC<{
+    canManageColorPalette: boolean;
+}> = ({ canManageColorPalette }) => {
     const { data: health } = useHealth();
+    const canWhiteLabel = !!health?.license?.valid;
+    const canFetchBrand = !!health?.hasBrandfetch;
+    const {
+        data: brand,
+        isInitialLoading,
+        isError,
+        refetch,
+    } = useOrganizationBrand();
 
     if (isInitialLoading) {
         return (
-            <SettingsCard mb="lg">
-                <Stack gap="md">
-                    <Skeleton height={40} />
-                    <Skeleton height={200} />
-                </Stack>
+            <SettingsCard>
+                <Skeleton height={240} />
             </SettingsCard>
         );
     }
-
-    // Only show the section when brand detection is available or a brand has
-    // already been stored — otherwise there is nothing the user can do here.
-    if (!health?.hasBrandfetch && !brand) {
-        return null;
+    if (isError) {
+        return (
+            <InlineErrorState
+                message="Unable to load brand appearance"
+                onRetry={() => void refetch()}
+            />
+        );
     }
+    // Without white-labelling only the color import is left, so hide the
+    // section when Brandfetch is off and no brand was saved before
+    if (!canWhiteLabel && !canFetchBrand && !brand) return null;
 
     return (
-        <SettingsCard mb="lg">
-            <Stack gap="md">
-                <Box>
-                    <Text fw={600}>Brand appearance</Text>
-                    <Text size="sm" c="dimmed">
-                        Your brand can be used to generate color palettes.
-                    </Text>
-                </Box>
-                <BrandAppearanceForm
-                    key={brand ? String(brand.updatedAt) : 'empty'}
-                    brand={brand ?? null}
-                />
-            </Stack>
-        </SettingsCard>
+        <BrandAppearanceForm
+            brand={brand ?? null}
+            canFetchBrand={canFetchBrand}
+            canWhiteLabel={canWhiteLabel}
+            canManageColorPalette={canManageColorPalette}
+        />
     );
 };

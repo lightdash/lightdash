@@ -41,6 +41,8 @@ import {
     getUserAttributeRegex,
     isMergeMetricSource,
     lightdashVariablePattern,
+    MAX_RESULTS_CACHE_INVALIDATION_EXPLORES,
+    MAX_RESULTS_CACHE_TTL_SECONDS,
     MergeJoinType,
     MergeQueryErrorKind,
     MetricType,
@@ -209,6 +211,7 @@ import { buildComposeMergeSql } from '../../utils/QueryBuilder/composeMergeSql';
 import { applyMergeTerminalWrapper } from '../../utils/QueryBuilder/MergeQueryBuilder';
 import { warehouseClientMock } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
 import { QueryComposer } from '../../utils/QueryBuilder/QueryComposer';
+import { SQL_QUERY_MOCK_EXPLORER_NAME } from '../../utils/QueryBuilder/SqlQueryComposer';
 import {
     getModelAccessFingerprint,
     getResultEntitlementFingerprint,
@@ -395,10 +398,19 @@ const projectModel = {
     get: vi.fn(async () => projectWithSensitiveFields),
     getSummary: vi.fn(async () => projectSummary),
     getEffectiveResultsCacheTtlSeconds: vi.fn(async () => 86400),
+    findExistingExploreNames: vi.fn(
+        async (_projectUuid: string, exploreNames: string[]) => exploreNames,
+    ),
+    findExploreNamesReadingBaseTables: vi.fn(
+        async (_projectUuid: string, exploreNames: string[]) => exploreNames,
+    ),
     getResultsCacheSettings: vi.fn(async () => ({
         cacheTtlSeconds: null,
         cacheGeneration: 0,
         lastInvalidatedAt: null,
+        clearCron: null,
+        clearNextRunAt: null,
+        schedulerTimezone: 'UTC',
     })),
     getTablesConfiguration: vi.fn(async () => tablesConfiguration),
     updateTablesConfiguration: vi.fn(),
@@ -504,6 +516,7 @@ const inMemoryDuckdbHistory = ({
         ),
         recordAiSignInCredential: vi.fn(),
         recordResultProducer: vi.fn(),
+        inheritCacheInvalidation: vi.fn(),
         update: vi.fn(),
         ...overrides,
     };
@@ -638,6 +651,8 @@ const getMockedAsyncQueryService = (
             getDuckdbExecution: vi.fn(async () => null),
             recordAiSignInCredential: vi.fn(),
             recordResultProducer: vi.fn(),
+            inheritCacheInvalidation: vi.fn(),
+            invalidateCachedResultsForExplores: vi.fn(async () => 1),
             update: vi.fn(),
             updateStatusToError: vi.fn(async () => 1),
             updateClaimedQueryToError: vi.fn(async () => 1),
@@ -1085,6 +1100,224 @@ describe('underlying data dimension selection', () => {
 });
 
 describe('AsyncQueryService', () => {
+    describe('invalidateExploresResultsCache', () => {
+        const projectAdmin: SessionUser = {
+            ...defaultSessionUser,
+            ability: new Ability<PossibleAbilities>([
+                { subject: 'Project', action: ['manage'] },
+            ]),
+        };
+        const getCachingService = () =>
+            getMockedAsyncQueryService({
+                ...lightdashConfigMock,
+                results: {
+                    ...lightdashConfigMock.results,
+                    cacheEnabled: true,
+                },
+            });
+
+        test('marks the deduplicated explores within the max TTL window', async () => {
+            const service = getCachingService();
+            const track = vi.spyOn(analyticsMock, 'track');
+            vi.mocked(track).mockClear();
+
+            const result = await service.invalidateExploresResultsCache(
+                projectAdmin,
+                projectUuid,
+                { exploreNames: ['orders', 'payments', 'orders'] },
+            );
+
+            expect(result).toEqual({
+                projectUuid,
+                invalidatedAt: expect.any(Date),
+                exploreNames: ['orders', 'payments'],
+            });
+            const [calledProject, calledNames, createdSince] = vi.mocked(
+                service.queryHistoryModel.invalidateCachedResultsForExplores,
+            ).mock.calls[0];
+            expect(calledProject).toBe(projectUuid);
+            expect(calledNames).toEqual(['orders', 'payments']);
+            expect(
+                result.invalidatedAt.getTime() - createdSince.getTime(),
+            ).toBe(MAX_RESULTS_CACHE_TTL_SECONDS * 1000);
+            expect(track).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    event: 'results_cache.invalidated',
+                    properties: expect.objectContaining({
+                        scope: 'explores',
+                        exploreNames: ['orders', 'payments'],
+                    }),
+                }),
+            );
+        });
+
+        test('rejects users who cannot manage the project', async () => {
+            const service = getCachingService();
+
+            await expect(
+                service.invalidateExploresResultsCache(
+                    {
+                        ...defaultSessionUser,
+                        ability: new Ability<PossibleAbilities>([]),
+                    },
+                    projectUuid,
+                    { exploreNames: ['orders'] },
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            expect(
+                service.queryHistoryModel.invalidateCachedResultsForExplores,
+            ).not.toHaveBeenCalled();
+        });
+
+        test('rejects invalidation while results caching is disabled', async () => {
+            const service = getMockedAsyncQueryService({
+                ...lightdashConfigMock,
+                results: {
+                    ...lightdashConfigMock.results,
+                    cacheEnabled: false,
+                },
+            });
+
+            await expect(
+                service.invalidateExploresResultsCache(
+                    projectAdmin,
+                    projectUuid,
+                    { exploreNames: ['orders'] },
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            expect(
+                service.queryHistoryModel.invalidateCachedResultsForExplores,
+            ).not.toHaveBeenCalled();
+        });
+
+        test.each([
+            ['an empty list', []],
+            [
+                'too many explores',
+                Array.from(
+                    { length: MAX_RESULTS_CACHE_INVALIDATION_EXPLORES + 1 },
+                    (_, index) => `explore_${index}`,
+                ),
+            ],
+        ])('rejects %s', async (_name, exploreNames) => {
+            const service = getCachingService();
+
+            await expect(
+                service.invalidateExploresResultsCache(
+                    projectAdmin,
+                    projectUuid,
+                    { exploreNames },
+                ),
+            ).rejects.toThrow(ParameterError);
+            expect(
+                service.queryHistoryModel.invalidateCachedResultsForExplores,
+            ).not.toHaveBeenCalled();
+        });
+
+        test('expands to explores reading the same table only when asked', async () => {
+            const service = getCachingService();
+            const findReaders = vi.mocked(
+                projectModel.findExploreNamesReadingBaseTables,
+            );
+            findReaders.mockClear();
+            findReaders.mockResolvedValueOnce(['orders', 'customers']);
+
+            await expect(
+                service.invalidateExploresResultsCache(
+                    projectAdmin,
+                    projectUuid,
+                    { exploreNames: ['orders'], includeJoinedExplores: true },
+                ),
+            ).resolves.toMatchObject({
+                exploreNames: ['orders', 'customers'],
+            });
+            expect(
+                vi.mocked(
+                    service.queryHistoryModel
+                        .invalidateCachedResultsForExplores,
+                ).mock.calls[0][1],
+            ).toEqual(['orders', 'customers']);
+
+            findReaders.mockClear();
+            await expect(
+                service.invalidateExploresResultsCache(
+                    projectAdmin,
+                    projectUuid,
+                    { exploreNames: ['orders'] },
+                ),
+            ).resolves.toMatchObject({ exploreNames: ['orders'] });
+            expect(findReaders).not.toHaveBeenCalled();
+        });
+
+        test('clears nothing when any explore is unknown', async () => {
+            const service = getCachingService();
+            vi.mocked(
+                projectModel.findExistingExploreNames,
+            ).mockResolvedValueOnce(['orders']);
+
+            await expect(
+                service.invalidateExploresResultsCache(
+                    projectAdmin,
+                    projectUuid,
+                    { exploreNames: ['orders', 'renamed'] },
+                ),
+            ).rejects.toThrow('Explores not found: renamed');
+            expect(
+                service.queryHistoryModel.invalidateCachedResultsForExplores,
+            ).not.toHaveBeenCalled();
+        });
+    });
+
+    test('a cache hit inherits the invalidation of its source before landing', async () => {
+        const service = getMockedAsyncQueryService(lightdashConfigMock);
+        vi.spyOn(service, 'findResultsCache').mockResolvedValue({
+            queryUuid: 'source-query',
+            resultProducer: null,
+            cacheHit: true,
+            cacheGeneration: 0,
+            cacheKey: 'cache',
+            totalRowCount: 10,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            expiresAt: new Date(),
+            fileName: 'file',
+            columns: expectedColumns,
+            originalColumns: expectedColumns,
+            pivotValuesColumns: null,
+            pivotTotalColumnCount: null,
+        });
+
+        await service['executeAsyncQuery'](
+            {
+                inheritedFromProjectUuid: null,
+                aiPrincipalUuid: null,
+                account: sessionAccount,
+                projectUuid,
+                context: QueryExecutionContext.EXPLORE,
+                queryTags: {
+                    query_context: QueryExecutionContext.EXPLORE,
+                },
+                queryComposer: createQueryComposerMock(),
+                warehouseCredentials: warehouseCredentialsMock,
+                warehouseConnectionUuid: null,
+            },
+            { query: metricQueryMock },
+        );
+
+        const inherit = vi.mocked(
+            service.queryHistoryModel.inheritCacheInvalidation,
+        );
+        expect(inherit).toHaveBeenCalledWith(
+            'queryUuid',
+            'source-query',
+            projectUuid,
+        );
+        expect(inherit.mock.invocationCallOrder[0]).toBeLessThan(
+            vi.mocked(service.queryHistoryModel.update).mock
+                .invocationCallOrder[0],
+        );
+    });
+
     test('terminal query error carries explicit single-connection dimensions', async () => {
         const service = getMockedAsyncQueryService(lightdashConfigMock);
         const track = vi.spyOn(analyticsMock, 'track');
@@ -1197,6 +1430,10 @@ describe('AsyncQueryService', () => {
                         dimensions: [],
                         metrics: [],
                         tableCalculations: [],
+                    },
+                    chartVisualization: {
+                        chartConfig: { type: ChartType.TABLE },
+                        tableConfig: { columnOrder: [] },
                     },
                 };
                 const execute =
@@ -9305,6 +9542,132 @@ describe('AsyncQueryService', () => {
                 }
             },
         );
+        describe('flat export cell-limit truncation', () => {
+            // metricQueryMock has 3 columns, so a 30-cell limit caps an
+            // "All results" export at floor(30 / 3) = 10 rows.
+            const csvCellsLimit = 30;
+            const cellCappedRows = 10;
+
+            const downloadFlat = async ({
+                type,
+                limit,
+                totalRowCount,
+                exploreName = metricQueryMock.exploreName,
+            }: {
+                type: DownloadFileType;
+                limit: number;
+                totalRowCount: number;
+                exploreName?: string;
+            }) => {
+                const exportStorage = {
+                    isEnabled: () => true,
+                    createUploadStream: () => ({
+                        writeStream: new Writable({
+                            write(_chunk, _encoding, callback) {
+                                callback();
+                            },
+                        }),
+                        close: async () => undefined,
+                    }),
+                    getFileUrl: async () => 'export-url',
+                    uploadExcel: async () => 'export-url',
+                } as unknown as FileStorageClient;
+                const service = getMockedAsyncQueryService(
+                    lightdashConfigMock,
+                    {
+                        exportsStorageClient: exportStorage,
+                        fileStorageClient: exportStorage,
+                        persistentDownloadFileService: {
+                            createPersistentUrl: async () => 'download-url',
+                        } as unknown as PersistentDownloadFileService,
+                        organizationSettingsModel: {
+                            get: vi.fn(async () => ({
+                                queryLimit: null,
+                                csvCellsLimit,
+                            })),
+                        } as unknown as OrganizationSettingsModel,
+                    },
+                );
+                service.queryHistoryModel.get = vi.fn().mockResolvedValue(
+                    baseReadyQueryHistory({
+                        metricQuery: { ...metricQueryMock, exploreName, limit },
+                        totalRowCount,
+                    }),
+                );
+                vi.mocked(
+                    service.resultsStorageClient.getDownloadStream,
+                ).mockResolvedValue(
+                    Readable.from(['{"a_dim1":"x","a_met1":1,"tc":1}']),
+                );
+
+                return service.download({
+                    account: sessionAccount,
+                    accessMode:
+                        PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
+                    projectUuid,
+                    queryUuid: 'test-query-uuid',
+                    type,
+                    columnOrder: ['a_dim1', 'a_met1', 'tc'],
+                });
+            };
+
+            it.each([DownloadFileType.CSV, DownloadFileType.XLSX])(
+                'flags a flat %s export truncated when the results filled the cell-limit row cap',
+                async (type) => {
+                    await expect(
+                        downloadFlat({
+                            type,
+                            limit: cellCappedRows,
+                            totalRowCount: cellCappedRows,
+                        }),
+                    ).resolves.toMatchObject({ truncated: true });
+                },
+            );
+
+            it.each([DownloadFileType.CSV, DownloadFileType.XLSX])(
+                'does not flag a flat %s export whose results fit under the cell-limit row cap',
+                async (type) => {
+                    await expect(
+                        downloadFlat({
+                            type,
+                            limit: cellCappedRows,
+                            totalRowCount: cellCappedRows - 3,
+                        }),
+                    ).resolves.toMatchObject({ truncated: false });
+                },
+            );
+
+            it.each([DownloadFileType.CSV, DownloadFileType.XLSX])(
+                'does not flag a flat %s export of a query whose own limit was not the cell cap',
+                async (type) => {
+                    // A table-rows download reuses the chart query as-is: its
+                    // file holds every row the chart limit returned.
+                    await expect(
+                        downloadFlat({
+                            type,
+                            limit: 501,
+                            totalRowCount: 501,
+                        }),
+                    ).resolves.toMatchObject({ truncated: false });
+                },
+            );
+
+            it.each([DownloadFileType.CSV, DownloadFileType.XLSX])(
+                'does not flag a flat %s export of SQL runner results',
+                async (type) => {
+                    // SQL runner queries keep the user's own SQL limit; the
+                    // cell limit never caps them.
+                    await expect(
+                        downloadFlat({
+                            type,
+                            limit: cellCappedRows,
+                            totalRowCount: cellCappedRows,
+                            exploreName: SQL_QUERY_MOCK_EXPLORER_NAME,
+                        }),
+                    ).resolves.toMatchObject({ truncated: false });
+                },
+            );
+        });
     });
 
     describe('analytics cached-result boundaries', () => {
@@ -13907,6 +14270,7 @@ describe('AsyncQueryService', () => {
             parameters: undefined,
             pivotConfig: { columns: [pivotColumn] },
             chartConfig: { type: ChartType.BIG_NUMBER },
+            tableConfig: { columnOrder: [] },
         };
 
         test.each([false, true])(
@@ -14078,7 +14442,7 @@ describe('AsyncQueryService', () => {
             });
             service['executeAsyncQuery'] = executeAsyncQuery;
 
-            await service.executeAsyncSavedChartQuery({
+            const result = await service.executeAsyncSavedChartQuery({
                 account: authorizedAccount,
                 projectUuid,
                 chartUuid: bigNumberChart.uuid,
@@ -14088,6 +14452,12 @@ describe('AsyncQueryService', () => {
                 pivotConfiguration,
             });
 
+            // Data apps render saved charts from the stored config.
+            expect(result.chartVisualization).toEqual({
+                chartConfig: bigNumberChart.chartConfig,
+                pivotConfig: bigNumberChart.pivotConfig,
+                tableConfig: bigNumberChart.tableConfig,
+            });
             expect(prepareSpy).toHaveBeenCalledWith(
                 expect.objectContaining({ pivotConfiguration }),
             );

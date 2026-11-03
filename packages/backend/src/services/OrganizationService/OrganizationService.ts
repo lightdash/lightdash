@@ -17,14 +17,9 @@ import {
     KnexPaginateArgs,
     KnexPaginatedData,
     LightdashMode,
-    MissingConfigError,
     NotFoundError,
     OnbordingRecord,
     Organization,
-    OrganizationBrand,
-    OrganizationBrandColor,
-    OrganizationBrandFont,
-    OrganizationBrandLogo,
     OrganizationColorPalette,
     OrganizationColorPaletteWithIsActive,
     OrganizationMemberProfile,
@@ -36,10 +31,7 @@ import {
     ParameterError,
     ProjectType,
     resolveEffectiveOrganizationSettings,
-    SaveOrganizationBrandRequest,
     SessionUser,
-    TooManyRequestsError,
-    UnexpectedServerError,
     UpdateAllowedEmailDomains,
     UpdateColorPalette,
     UpdateOrganization,
@@ -48,7 +40,6 @@ import {
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { groupBy } from 'lodash';
-import fetch from 'node-fetch';
 import {
     LightdashAnalytics,
     OnboardingFlow,
@@ -74,33 +65,6 @@ import { assertHumanManagedMutation } from '../AgentPermissionService/assertHuma
 import { BaseService } from '../BaseService';
 import { getOrganizationSettingsInstanceDefaults } from '../OrganizationSettingsService/getInstanceDefaults';
 import { isAnalyticsProjectEnabled } from '../ProjectService/analyticsProject/analyticsProjectClient';
-
-const BRANDFETCH_API_URL = 'https://api.brandfetch.io/v2/brands';
-
-// Subset of the Brandfetch Brand API response we care about
-// https://docs.brandfetch.com/reference/brand-api
-type BrandfetchBrandResponse = {
-    name?: string | null;
-    description?: string | null;
-    logos?: Array<{
-        type?: string | null;
-        theme?: string | null;
-        formats?: Array<{
-            src?: string | null;
-            format?: string | null;
-        }> | null;
-    }> | null;
-    colors?: Array<{
-        hex?: string | null;
-        type?: string | null;
-        brightness?: number | null;
-    }> | null;
-    fonts?: Array<{
-        name?: string | null;
-        type?: string | null;
-        origin?: string | null;
-    }> | null;
-};
 
 export type OrganizationServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -288,224 +252,6 @@ export class OrganizationService extends BaseService {
                     data.defaultProjectUuid !== undefined,
             },
         });
-    }
-
-    async getBrand(account: Account): Promise<OrganizationBrand | null> {
-        assertIsAccountWithOrg(account);
-        const { organizationUuid } = account.organization;
-        const auditedAbility = this.createAuditedAbility(account);
-        if (
-            auditedAbility.cannot(
-                'view',
-                subject('Organization', { organizationUuid }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-        const brand = await this.organizationModel.findBrand(organizationUuid);
-        return brand ?? null;
-    }
-
-    private static normalizeBrandDomain(domain: string): string {
-        // Accept full URLs ("https://acme.com/about") or bare domains ("acme.com")
-        const withoutProtocol = domain
-            .trim()
-            .toLowerCase()
-            .replace(/^[a-z]+:\/\//, '');
-        const hostname = withoutProtocol.split(/[/?#:]/)[0];
-        if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9-]+)+$/.test(hostname)) {
-            throw new ParameterError(`Invalid domain: ${domain}`);
-        }
-        return hostname;
-    }
-
-    private static mapBrandfetchResponse(
-        data: BrandfetchBrandResponse,
-    ): Pick<
-        OrganizationBrand,
-        'name' | 'description' | 'logos' | 'colors' | 'fonts'
-    > {
-        const logos = (data.logos ?? []).flatMap((logo) =>
-            (logo?.formats ?? []).reduce<OrganizationBrandLogo[]>(
-                (acc, format) => {
-                    if (format?.src) {
-                        acc.push({
-                            type: logo?.type ?? 'other',
-                            theme: logo?.theme ?? null,
-                            url: format.src,
-                            format: format.format ?? null,
-                        });
-                    }
-                    return acc;
-                },
-                [],
-            ),
-        );
-        const colors = (data.colors ?? []).reduce<OrganizationBrandColor[]>(
-            (acc, color) => {
-                if (color?.hex) {
-                    acc.push({
-                        hex: color.hex,
-                        type: color.type ?? 'other',
-                        brightness: color.brightness ?? null,
-                    });
-                }
-                return acc;
-            },
-            [],
-        );
-        const fonts = (data.fonts ?? []).reduce<OrganizationBrandFont[]>(
-            (acc, font) => {
-                if (font?.name) {
-                    acc.push({
-                        name: font.name,
-                        type: font.type ?? 'other',
-                        origin: font.origin ?? null,
-                    });
-                }
-                return acc;
-            },
-            [],
-        );
-        return {
-            name: data.name ?? null,
-            description: data.description ?? null,
-            logos,
-            colors,
-            fonts,
-        };
-    }
-
-    /**
-     * Fetch a brand profile from Brandfetch for the given domain WITHOUT
-     * persisting it. Used to populate the appearance form so the user can
-     * review and edit before saving (and revert if they change their mind).
-     */
-    async fetchBrandFromDomain(
-        account: Account,
-        domain: string,
-    ): Promise<OrganizationBrand> {
-        assertIsAccountWithOrg(account);
-        const { organizationUuid } = account.organization;
-        const auditedAbility = this.createAuditedAbility(account);
-        if (
-            auditedAbility.cannot(
-                'update',
-                subject('Organization', { organizationUuid }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-
-        const apiKey = this.lightdashConfig.brandfetch?.apiKey;
-        if (!apiKey) {
-            throw new MissingConfigError(
-                'Brandfetch is not configured. Set BRANDFETCH_API_KEY to enable fetching brand profiles.',
-            );
-        }
-
-        const normalizedDomain =
-            OrganizationService.normalizeBrandDomain(domain);
-
-        const response = await fetch(
-            `${BRANDFETCH_API_URL}/${encodeURIComponent(normalizedDomain)}`,
-            {
-                method: 'GET',
-                headers: {
-                    Authorization: `Bearer ${apiKey}`,
-                },
-            },
-        );
-
-        if (response.status === 404) {
-            throw new NotFoundError(
-                `No brand found for domain "${normalizedDomain}"`,
-            );
-        }
-        if (response.status === 429) {
-            this.logger.warn('Brandfetch rate limit reached', {
-                organizationUuid,
-                domain: normalizedDomain,
-            });
-            throw new TooManyRequestsError(
-                'Brand lookup is rate limited right now — try again shortly',
-            );
-        }
-        if (!response.ok) {
-            this.logger.error('Brandfetch request failed', {
-                organizationUuid,
-                domain: normalizedDomain,
-                status: response.status,
-            });
-            throw new UnexpectedServerError(
-                `Brandfetch request failed with status ${response.status}`,
-            );
-        }
-
-        let data: BrandfetchBrandResponse;
-        try {
-            data = (await response.json()) as BrandfetchBrandResponse;
-        } catch {
-            throw new UnexpectedServerError(
-                'Brandfetch returned an invalid response',
-            );
-        }
-
-        this.logger.info('Fetched organization brand from Brandfetch', {
-            organizationUuid,
-            domain: normalizedDomain,
-        });
-
-        return {
-            organizationUuid,
-            domain: normalizedDomain,
-            ...OrganizationService.mapBrandfetchResponse(data),
-            updatedAt: new Date(),
-        };
-    }
-
-    /**
-     * Persist the brand appearance exactly as edited by the user. Does not call
-     * Brandfetch — stores the provided colors, logos, fonts and domain as-is.
-     */
-    async saveBrand(
-        account: Account,
-        request: SaveOrganizationBrandRequest,
-    ): Promise<OrganizationBrand> {
-        assertIsAccountWithOrg(account);
-        const { organizationUuid } = account.organization;
-        const auditedAbility = this.createAuditedAbility(account);
-        if (
-            auditedAbility.cannot(
-                'update',
-                subject('Organization', { organizationUuid }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-
-        const normalizedDomain = OrganizationService.normalizeBrandDomain(
-            request.domain,
-        );
-
-        const brand = await this.organizationModel.updateBrand(
-            organizationUuid,
-            {
-                domain: normalizedDomain,
-                name: request.name,
-                description: request.description,
-                logos: request.logos,
-                colors: request.colors,
-                fonts: request.fonts,
-            },
-        );
-
-        this.logger.info('Saved organization brand', {
-            organizationUuid,
-            domain: normalizedDomain,
-        });
-
-        return brand;
     }
 
     async delete(organizationUuid: string, user: SessionUser): Promise<void> {

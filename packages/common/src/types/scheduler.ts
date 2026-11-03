@@ -150,6 +150,11 @@ export type SchedulerBase = {
      * unaffected.
      */
     plainTextEmail: boolean;
+    /**
+     * Read query results from the results cache when a valid entry exists,
+     * instead of always running a fresh warehouse query.
+     */
+    useCachedResults: boolean;
     projectUuid?: string | null;
     projectName?: string | null;
 };
@@ -351,10 +356,13 @@ export type CreateSchedulerAndTargets = Omit<
     | 'dashboardName'
     | 'savedSqlName'
     | 'plainTextEmail'
+    | 'useCachedResults'
 > & {
     // Optional on the wire so existing API clients keep working; absent means
     // the branded HTML email, which is what they already get.
     plainTextEmail?: boolean;
+    // Absent means a fresh query on every run.
+    useCachedResults?: boolean;
     slug?: string;
     targets: CreateSchedulerTarget[];
     // Transient: carries the AI augmentation for an unsaved "send now" so the
@@ -442,6 +450,7 @@ export type UpdateSchedulerAndTargets = Pick<
     | 'includeLinks'
 > & {
     plainTextEmail?: boolean;
+    useCachedResults?: boolean;
     filters?: SchedulerFilters;
     parameters?: ParametersValuesMap;
     customViewportWidth?: number;

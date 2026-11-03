@@ -19,6 +19,8 @@ export type FilterPopoverProps = {
     onClose?: () => void;
     /** Closes a value list once an option is picked (default: stays open). */
     closeListOnPick?: boolean;
+    /** Opens a value list on focus (default: opens). */
+    openListOnFocus?: boolean;
 };
 
 export type FiltersContext<T extends DefaultFieldsMap = DefaultFieldsMap> = {

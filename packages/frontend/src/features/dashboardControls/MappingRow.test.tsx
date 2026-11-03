@@ -65,8 +65,20 @@ const REGION = { fieldId: 'orders_region', tableName: 'orders' };
 const STATUS_KEY = 'orders_status::Orders::Status';
 const REGION_KEY = 'orders_region::Orders::Region';
 
-const tile = (uuid: string, tabUuid?: string) =>
-    ({ uuid, tabUuid, type: DashboardTileTypes.SAVED_CHART }) as DashboardTile;
+const tile = (uuid: string, tabUuid?: string): DashboardTile => ({
+    uuid,
+    tabUuid,
+    type: DashboardTileTypes.SAVED_CHART,
+    x: 0,
+    y: 0,
+    w: 6,
+    h: 3,
+    properties: {
+        savedChartUuid: `chart-${uuid}`,
+        title: uuid,
+        belongsToDashboard: false,
+    },
+});
 
 const rule = (
     tileTargets?: DashboardFilterRule['tileTargets'],

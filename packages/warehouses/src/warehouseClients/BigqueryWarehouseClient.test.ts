@@ -8,7 +8,9 @@ import {
     BigqueryAuthenticationType,
     BigqueryTokenError,
     DimensionType,
+    getBigqueryWorkloadIdentityStsAudience,
     getCatalogNestedColumnShape,
+    getCatalogTableNativeTypes,
     setCatalogNestedColumnShape,
     setCatalogTimestampDomain,
     WarehouseConnectionError,
@@ -21,6 +23,7 @@ import type { Mock, MockInstance } from 'vitest';
 import {
     BigquerySqlBuilder,
     BigqueryWarehouseClient,
+    type BigqueryExternalAccountCredentials,
 } from './BigqueryWarehouseClient';
 import {
     createJobResponse,
@@ -35,6 +38,81 @@ import {
 } from './WarehouseClient.mock';
 
 describe('BigqueryWarehouseClient', () => {
+    describe('workload identity federation', () => {
+        const wifCredentials: CreateBigqueryCredentials = {
+            ...credentials,
+            authenticationType:
+                BigqueryAuthenticationType.WORKLOAD_IDENTITY_FEDERATION,
+            workloadIdentityProvider:
+                'projects/123/locations/global/workloadIdentityPools/pool-id/providers/provider-id',
+            keyfileContents: {},
+        };
+
+        test('passes the supplier through the real BigQuery auth library without using a keyfile or ADC', async () => {
+            const getSubjectToken = vi.fn(async (): Promise<string> => {
+                throw new WarehouseConnectionError('supplier invoked');
+            });
+            const external: BigqueryExternalAccountCredentials = {
+                type: 'external_account',
+                audience:
+                    getBigqueryWorkloadIdentityStsAudience(wifCredentials),
+                subject_token_type: 'urn:ietf:params:oauth:token-type:jwt',
+                token_url: 'https://sts.googleapis.com/v1/token',
+                subject_token_supplier: { getSubjectToken },
+            };
+            const warehouse = new BigqueryWarehouseClient(
+                {
+                    ...wifCredentials,
+                    keyfileContents: {
+                        type: 'service_account',
+                        private_key: 'ignored',
+                    },
+                },
+                { bigqueryExternalAccount: external },
+            );
+            expect(warehouse.client.authClient.jsonContent).toEqual(external);
+            const auth = await warehouse.client.authClient.getClient();
+            expect(auth.constructor.name).toBe('IdentityPoolClient');
+            await expect(auth.getAccessToken()).rejects.toThrow(
+                'supplier invoked',
+            );
+            expect(getSubjectToken).toHaveBeenCalledOnce();
+        });
+
+        test.each<CreateBigqueryCredentials['keyfileContents']>([
+            {},
+            { type: 'authorized_user', refresh_token: 'ignored' },
+        ])(
+            'rejects missing injection without falling back to other credentials: %j',
+            (keyfileContents) => {
+                expect(
+                    () =>
+                        new BigqueryWarehouseClient({
+                            ...wifCredentials,
+                            keyfileContents,
+                        }),
+                ).toThrow(WarehouseConnectionError);
+                expect(
+                    () =>
+                        new BigqueryWarehouseClient({
+                            ...wifCredentials,
+                            keyfileContents,
+                        }),
+                ).toThrow(
+                    'workload identity federation credentials are unavailable',
+                );
+            },
+        );
+
+        test('keeps ADC without injected credentials', () => {
+            const warehouse = new BigqueryWarehouseClient({
+                ...credentials,
+                authenticationType: BigqueryAuthenticationType.ADC,
+            });
+            expect(warehouse.client.authClient.jsonContent).toBeNull();
+        });
+    });
+
     it('expect query rows with mapped values', async () => {
         const warehouse = new BigqueryWarehouseClient(credentials);
 
@@ -231,6 +309,38 @@ describe('BigqueryWarehouseClient', () => {
                 'myStringColumn',
             ),
         ).toBeUndefined();
+    });
+    it('expect getFields to record native types that collapse into timestamp', async () => {
+        const schemaFields = [
+            { name: 'created_at_local', type: 'DATETIME' },
+            { name: 'departure_at', type: 'TIMESTAMP' },
+            { name: 'pickup_time', type: 'TIME' },
+            { name: 'trip_date', type: 'DATE' },
+            { name: 'name', type: 'STRING' },
+        ];
+        Dataset.prototype.table = vi.fn(() => ({
+            id: 'trips',
+            bigQuery: { projectId: 'myDatabase' },
+            getMetadata: vi.fn(() => [{ schema: { fields: schemaFields } }]),
+        })) as never;
+        const warehouse = new BigqueryWarehouseClient(credentials);
+        const fields = await warehouse.getFields(
+            'trips',
+            'mySchema',
+            'myDatabase',
+        );
+        expect(
+            getCatalogTableNativeTypes(
+                fields,
+                'myDatabase',
+                'mySchema',
+                'trips',
+            ),
+        ).toEqual({
+            created_at_local: 'DATETIME',
+            departure_at: 'TIMESTAMP',
+            pickup_time: 'TIME',
+        });
     });
 });
 

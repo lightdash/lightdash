@@ -376,6 +376,10 @@ export const getFieldScope = (
     };
 };
 
+// The tiles an apply would change
+export const getChangeCount = (scope: FieldScope) =>
+    scope.unfiltered + scope.replaced;
+
 const withTileTargets = (
     rule: DashboardFilterRule,
     tileTargets: NonNullable<DashboardFilterRule['tileTargets']>,

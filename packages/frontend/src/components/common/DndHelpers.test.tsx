@@ -50,6 +50,20 @@ describe('DroppableArea', () => {
         expect(line).toHaveAttribute('data-side', side);
     });
 
+    it('draws no line for a dragged item from outside the list', () => {
+        mockDroppable.current = { activeId: 'section-x', overId: 'b' };
+        const { container } = render(
+            <MantineProvider env="test">
+                <DndContext>
+                    <DroppableArea id="b" orderedKeys={['a', 'b']}>
+                        <span>b</span>
+                    </DroppableArea>
+                </DndContext>
+            </MantineProvider>,
+        );
+        expect(container.querySelector('[class*="dropLine"]')).toBeNull();
+    });
+
     it('draws no line with nothing over it', () => {
         const { container } = render(
             <MantineProvider env="test">

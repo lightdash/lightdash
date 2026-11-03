@@ -8,7 +8,6 @@ import { useHasMetricsInCatalog } from '../../features/metricsCatalog/hooks/useM
 import Omnibar from '../../features/omnibar';
 import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
 import useApp from '../../providers/App/useApp';
-import Logo from '../../svgs/logo-icon.svg?react';
 import { AutopilotNavButton } from './AutopilotNavButton';
 import BrowseMenu from './BrowseMenu';
 import ExploreMenu from './ExploreMenu';
@@ -16,6 +15,7 @@ import HeadwayMenuItem from './HeadwayMenuItem';
 import HelpMenu from './HelpMenu';
 import classes from './MainNavBarContent.module.css';
 import { MetricsLink } from './MetricsLink';
+import { NavBarLogo } from './NavBarLogo';
 import {
     MOBILE_NAVIGATION_PORTAL_TARGET,
     NavBarPortalContext,
@@ -92,7 +92,7 @@ export const MainNavBarContent: FC<Props> = ({
                         title="Home"
                         className={classes.logoButton}
                     >
-                        <Logo />
+                        <NavBarLogo />
                     </ActionIcon>
                 )}
 
@@ -202,7 +202,7 @@ export const MainNavBarContent: FC<Props> = ({
                     size="lg"
                     className={classes.logoButton}
                 >
-                    <Logo />
+                    <NavBarLogo />
                 </ActionIcon>
                 <Group className={classes.compactActions} gap={0} wrap="nowrap">
                     {activeProjectUuid && (

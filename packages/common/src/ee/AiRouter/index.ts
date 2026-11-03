@@ -1,4 +1,5 @@
 import { type ApiSuccess, type ApiSuccessEmpty } from '../../types/api/success';
+import { type AiPromptContextInput } from '../AiAgent/requestTypes';
 
 export type AiRouter = {
     routerUuid: string;
@@ -45,6 +46,8 @@ export type AiRouterDecision = {
 export type AiRouterRouteRequest = {
     prompt: string;
     projectUuid: string;
+    /** Content pinned to the prompt, so the router knows where the question is asked from. */
+    context?: AiPromptContextInput;
 };
 
 export type AiRouterRouteNextAction = 'create_thread' | 'show_picker';

@@ -267,6 +267,7 @@ import time
 STARTED = time.perf_counter()
 
 import importlib.util
+import inspect
 import json
 import math
 import re
@@ -306,28 +307,26 @@ def load_input(name, spec):
                 lambda value: pd.NA if pd.isna(value) else bool(value)
             ).astype("boolean")
         elif kind in ("date", "timestamp"):
-            parsed = pd.to_datetime(frame[column], errors="coerce", utc=True)
+            parsed = pd.to_datetime(frame[column], errors="coerce", utc=True).dt.tz_localize(None)
             if kind == "date":
-                # tz-naive so user code can compare against naive Timestamps and date_range()
-                parsed = parsed.dt.tz_localize(None).dt.normalize()
+                parsed = parsed.dt.normalize()
             frame[column] = parsed
         else:
             frame[column] = frame[column].astype("string")
     return frame
 
 
-def column_type(series):
+def column_type(series, is_timestamp_input):
     dtype = series.dtype
     if pd.api.types.is_bool_dtype(dtype):
         return "boolean"
     if pd.api.types.is_numeric_dtype(dtype):
         return "number"
     if pd.api.types.is_datetime64_any_dtype(dtype):
+        if is_timestamp_input or getattr(dtype, "tz", None) is not None:
+            return "timestamp"
         non_null = series.dropna()
-        is_naive = getattr(dtype, "tz", None) is None
-        if is_naive and bool((non_null == non_null.dt.normalize()).all()):
-            return "date"
-        return "timestamp"
+        return "date" if bool((non_null == non_null.dt.normalize()).all()) else "timestamp"
     return "string"
 
 
@@ -339,8 +338,7 @@ def to_json_value(value, kind):
     if value is pd.NaT:
         return None
     if isinstance(value, (pd.Timestamp,)):
-        if value.tzinfo is None:
-            value = value.tz_localize("UTC")
+        value = value.tz_localize("UTC") if value.tzinfo is None else value.tz_convert("UTC")
         return value.isoformat()
     if isinstance(value, np.generic):
         value = value.item()
@@ -376,11 +374,15 @@ def main():
     if not callable(run):
         fail("Python code must define run(inputs, params)")
 
+    arity = len(inspect.signature(run).parameters)
+    if arity == 0 or arity > 2:
+        fail("run() must take (inputs, params) or (inputs)")
+
     timed("loadCodeMs", started)
 
     started = time.perf_counter()
     try:
-        result = run(inputs, meta.get("params", {}))
+        result = run(inputs) if arity == 1 else run(inputs, meta.get("params", {}))
     except Exception:
         fail("run() raised:\\n" + traceback.format_exc())
     timed("runMs", started)
@@ -406,7 +408,13 @@ def main():
     if truncated:
         result = result.iloc[:limit]
 
-    kinds = {name: column_type(result[name]) for name in names}
+    timestamp_inputs = {
+        column
+        for spec in meta["inputs"].values()
+        for column, kind in spec["columns"].items()
+        if kind == "timestamp"
+    }
+    kinds = {name: column_type(result[name], name in timestamp_inputs) for name in names}
     records = result.to_dict(orient="records")
     with open(f"{OUT_DIR}/result.jsonl", "w", encoding="utf-8") as handle:
         for record in records:

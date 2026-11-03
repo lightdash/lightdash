@@ -161,13 +161,6 @@ export enum FeatureFlags {
     OrganizationTrialBlock = 'organization-trial-block',
 
     /**
-     * Gate the org-level export Limits settings panel (per-org query max rows
-     * and CSV cells limit). Backend enforcement of any stored overrides is
-     * always on; this flag only controls who can see/configure the panel.
-     */
-    ProLimits = 'pro-limits',
-
-    /**
      * Show the coding-agent project onboarding flow. This gates only the UI;
      * the CLI, APIs, and installed skills remain available independently.
      */
@@ -307,6 +300,11 @@ export enum FeatureFlags {
      * instances whose pods run as their own Google service account.
      */
     AthenaWebIdentityAuth = 'athena-web-identity-auth',
+    /**
+     * Organization-scoped, off by default: BigQuery workload identity federation.
+     * Only enable on instances whose pods run as their own Google service account.
+     */
+    BigqueryWorkloadIdentityAuth = 'bigquery-workload-identity-auth',
     /**
      * Organization-scoped: org admins can bring their own AI provider keys,
      * restrict model visibility, and route those keys through a custom base

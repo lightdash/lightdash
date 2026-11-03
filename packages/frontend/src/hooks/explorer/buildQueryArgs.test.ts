@@ -112,4 +112,46 @@ describe('buildQueryArgs', () => {
             }),
         );
     });
+
+    describe('invalidateCache', () => {
+        const build = (
+            overrides: Partial<Parameters<typeof buildQueryArgs>[0]>,
+        ) =>
+            buildQueryArgs({
+                activeFields: new Set(['orders_created_date']),
+                tableName: 'orders',
+                projectUuid: 'project-uuid',
+                explore,
+                computedMetricQuery: metricQuery,
+                parameters: undefined,
+                isEditMode: false,
+                viewModeQueryArgs: { chartUuid: 'chart-uuid' },
+                minimal: true,
+                savedChart,
+                ...overrides,
+            });
+
+        it('forces a fresh query for minimal renders by default', () => {
+            expect(build({})?.invalidateCache).toBe(true);
+        });
+
+        it('reads from cache when the delivery opted in', () => {
+            expect(build({ useCachedResults: true })?.invalidateCache).toBe(
+                false,
+            );
+        });
+
+        it('reads from cache for deliveries with filter overrides', () => {
+            expect(
+                build({ useCachedResults: true, isEditMode: true })
+                    ?.invalidateCache,
+            ).toBe(false);
+        });
+
+        it('keeps explore edit mode reruns fresh', () => {
+            expect(
+                build({ isEditMode: true, minimal: false })?.invalidateCache,
+            ).toBe(true);
+        });
+    });
 });

@@ -208,6 +208,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     projectModel: models.getProjectModel(),
                     projectService: repository.getProjectService(),
                     userModel: models.getUserModel(),
+                    usageProcessingModel: models.getUsageProcessingModel(),
                 }),
             licenseService: () =>
                 new EnterpriseLicenseService({
@@ -937,6 +938,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     aiRouterModel: models.getAiRouterModel<AiRouterModel>(),
                     aiAgentService:
                         repository.getAiAgentService<AiAgentService>(),
+                    dashboardService: repository.getDashboardService(),
+                    savedChartService: repository.getSavedChartService(),
                     orgAiCopilotConfigResolver: new OrgAiCopilotConfigResolver({
                         lightdashConfig: context.lightdashConfig,
                         featureFlagModel: models.getFeatureFlagModel(),
@@ -1841,6 +1844,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 agentActionLogModel: context.models.getAgentActionLogModel(),
                 usageDimensionsModel: context.models.getUsageDimensionsModel(),
                 usageHistoryModel: context.models.getUsageHistoryModel(),
+                usageProcessingModel: context.models.getUsageProcessingModel(),
                 featureFlagModel: context.models.getFeatureFlagModel(),
                 lightdashConfig: context.lightdashConfig,
                 analytics: context.analytics,

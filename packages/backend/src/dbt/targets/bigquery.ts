@@ -4,6 +4,8 @@ import {
     BigqueryAuthenticationType,
     CreateWarehouseCredentials,
     getBigqueryKeyfileCredentials,
+    getBigqueryWorkloadIdentityStsAudience,
+    getBigqueryWorkloadIdentityTokenAudience,
     ParameterError,
     WarehouseTypes,
 } from '@lightdash/common';
@@ -11,6 +13,7 @@ import type {
     DbtTargetPolicy,
     DbtTargetResult,
 } from '../../services/WarehouseClientFactory/CredentialResolver';
+import { getGcpMetadataIdentityRequest } from '../../utils/googleIdentity/googleIdentityTokenSource';
 import {
     ambientIdentityTarget,
     DEFAULT_THREADS,
@@ -91,6 +94,37 @@ export const bigqueryTarget = (
             // With oauth method and no keyfile contents, dbt will use the
             // application default credentials (ADC) to authenticate
             bqResult.target.method = 'oauth';
+            return bqResult;
+        case BigqueryAuthenticationType.WORKLOAD_IDENTITY_FEDERATION:
+            // Warehouse-client acquisition enforces the organization flag before building an adapter.
+            if (!credentials.workloadIdentityProvider) {
+                throw new ParameterError(
+                    'BigQuery workload identity federation requires a workload identity provider.',
+                );
+            }
+            bqResult.target.method = 'oauth';
+            bqResult.files = [
+                {
+                    name: 'bigquery-workload-identity.json',
+                    environmentVariable: 'GOOGLE_APPLICATION_CREDENTIALS',
+                    content: JSON.stringify({
+                        type: 'external_account',
+                        audience:
+                            getBigqueryWorkloadIdentityStsAudience(credentials),
+                        subject_token_type:
+                            'urn:ietf:params:oauth:token-type:jwt',
+                        token_url: 'https://sts.googleapis.com/v1/token',
+                        credential_source: {
+                            ...getGcpMetadataIdentityRequest(
+                                getBigqueryWorkloadIdentityTokenAudience(
+                                    credentials,
+                                ),
+                            ),
+                            format: { type: 'text' },
+                        },
+                    }),
+                },
+            ];
             return bqResult;
         default:
             const { authenticationType } = credentials;

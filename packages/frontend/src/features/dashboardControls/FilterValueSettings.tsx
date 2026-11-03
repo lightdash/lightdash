@@ -97,7 +97,8 @@ export const FilterValueSettings: FC<Props> = ({
                     withDefaultValueSwitch={false}
                     // Save keeps a required filter's value as its default
                     withRequiredSaveNote={false}
-                    // An open list would cover the popover's own Apply
+                    // An open list would cover the popover's own Apply: shut on
+                    // focus and closed on pick
                     isListClosedOnPick
                     onChangeFilterRule={handleChange}
                 />

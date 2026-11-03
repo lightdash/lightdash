@@ -119,10 +119,18 @@ export interface DbtTargetPolicy {
     explicitCredentials: boolean;
 }
 
+export type DbtTargetFile = {
+    name: string;
+    content: string;
+    environmentVariable: string;
+};
+
 export type DbtTargetResult =
     | {
           kind: 'target';
           target: Record<string, unknown>;
           environment: Record<string, string>;
+          // Optional for existing target builders; profileFromTarget binds file paths into environment.
+          files?: DbtTargetFile[];
       }
     | { kind: 'none'; reason: string };

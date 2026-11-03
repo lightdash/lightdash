@@ -230,6 +230,10 @@ const SavedChartsHeader: FC = () => {
         savedChart?.uuid,
     );
     const chartViewStats = useChartViewStats(savedChart?.uuid);
+    const managedFromRepository = savedChart?.managedFromRepository && {
+        contentType: 'chart' as const,
+        source: savedChart.managedFromRepository,
+    };
 
     const schedulerDeepLink = useSchedulerDeepLink();
 
@@ -566,6 +570,9 @@ const SavedChartsHeader: FC = () => {
                                             title={savedChart.name}
                                             description={savedChart.description}
                                             slug={savedChart.slug}
+                                            managedFromRepository={
+                                                managedFromRepository
+                                            }
                                             updatedAt={savedChart.updatedAt}
                                             spaceName={savedChart.spaceName}
                                             spaceUuid={savedChart.spaceUuid}
@@ -815,6 +822,7 @@ const SavedChartsHeader: FC = () => {
                         title={savedChart.name}
                         description={savedChart.description}
                         slug={savedChart.slug}
+                        managedFromRepository={managedFromRepository}
                         updatedAt={savedChart.updatedAt}
                         spaceName={savedChart.spaceName}
                         spaceUuid={savedChart.spaceUuid}

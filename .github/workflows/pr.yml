@@ -2,7 +2,7 @@ name: PR Checks
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch:
 
 concurrency:
@@ -123,6 +123,10 @@ jobs:
         with:
           egress-policy: audit
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      # The one job that writes the pnpm store cache. pnpm/setup v3 keys every
+      # save by run id, so a save per job wrote ~9GB of cache per PR run (12 jobs x 730MB)
+      # that nothing ever restored. Every other call site sets
+      # save-cache: false and restores the freshest lockfile match this job wrote.
       - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
         with:
           cache: true
@@ -191,6 +195,7 @@ jobs:
       - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
         with:
           cache: true
+          save-cache: false
           install: false
       - name: Install packages
         run: pnpm install --frozen-lockfile --prefer-offline --network-concurrency=16
@@ -213,6 +218,7 @@ jobs:
       - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
         with:
           cache: true
+          save-cache: false
           install: false
 
       - name: Install packages
@@ -235,6 +241,7 @@ jobs:
       - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
         with:
           cache: true
+          save-cache: false
           install: false
 
       - name: Install packages
@@ -264,6 +271,7 @@ jobs:
       - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
         with:
           cache: true
+          save-cache: false
           install: false
 
       - name: Install packages
@@ -278,16 +286,16 @@ jobs:
   # ============================================================================
   files-changed:
     name: Select Tests to Run
-    runs-on: depot-ubuntu-24.04-4
+    runs-on: ubuntu-latest
     outputs:
       # Rainbow builds a preview for same-repo PRs only; forks get no preview
       # and no E2E suites (they would have no secrets anyway).
-      preview: ${{ github.event.pull_request.head.repo.full_name == github.repository && ((steps.changes.outputs.preview == 'true' && github.event.pull_request.user.login != 'lightdash-renovate-bot[bot]' && !startsWith(github.event.pull_request.title, 'docs')) || contains(github.event.pull_request.body, 'deploy-preview') || contains(github.event.pull_request.body, 'test-all')) }}
-      frontend: ${{ steps.changes.outputs.frontend == 'true' || contains(github.event.pull_request.body, 'test-frontend') || contains(github.event.pull_request.body, 'test-all') }}
-      backend: ${{ steps.changes.outputs.backend == 'true' || contains(github.event.pull_request.body, 'test-backend') || contains(github.event.pull_request.body, 'test-all') }}
+      preview: ${{ (github.event.pull_request.draft != true || contains(github.event.pull_request.body, 'test-all')) && (github.event.pull_request.head.repo.full_name == github.repository && ((steps.changes.outputs.preview == 'true' && github.event.pull_request.user.login != 'lightdash-renovate-bot[bot]' && !startsWith(github.event.pull_request.title, 'docs')) || contains(github.event.pull_request.body, 'deploy-preview') || contains(github.event.pull_request.body, 'test-all'))) }}
+      frontend: ${{ (github.event.pull_request.draft != true || contains(github.event.pull_request.body, 'test-all')) && (steps.changes.outputs.frontend == 'true' || contains(github.event.pull_request.body, 'test-frontend') || contains(github.event.pull_request.body, 'test-all')) }}
+      backend: ${{ (github.event.pull_request.draft != true || contains(github.event.pull_request.body, 'test-all')) && (steps.changes.outputs.backend == 'true' || contains(github.event.pull_request.body, 'test-backend') || contains(github.event.pull_request.body, 'test-all')) }}
       api_schema: ${{ steps.changes.outputs.api_schema == 'true' }}
-      timezone: ${{ steps.changes.outputs.timezone == 'true' || contains(github.event.pull_request.body, 'test-timezone') || contains(github.event.pull_request.body, 'test-all') }}
-      cli: ${{ steps.changes.outputs.cli == 'true' || contains(github.event.pull_request.body, 'test-cli') || contains(github.event.pull_request.body, 'test-all') }}
+      timezone: ${{ (github.event.pull_request.draft != true || contains(github.event.pull_request.body, 'test-all')) && (steps.changes.outputs.timezone == 'true' || contains(github.event.pull_request.body, 'test-timezone') || contains(github.event.pull_request.body, 'test-all')) }}
+      cli: ${{ (github.event.pull_request.draft != true || contains(github.event.pull_request.body, 'test-all')) && (steps.changes.outputs.cli == 'true' || contains(github.event.pull_request.body, 'test-cli') || contains(github.event.pull_request.body, 'test-all')) }}
     steps:
       - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
@@ -323,6 +331,7 @@ jobs:
         with:
           runtime: node@${{ steps.node-version.outputs.version }}
           cache: true
+          save-cache: false
           install: false
 
       - name: Generate base OpenAPI schema
@@ -351,7 +360,7 @@ jobs:
 
   post-test-selection-comment:
     name: Post Test Selection Comment
-    runs-on: depot-ubuntu-24.04-4
+    runs-on: ubuntu-latest
     needs: files-changed
     steps:
       - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
@@ -363,6 +372,7 @@ jobs:
           script: |
             const marker = '<!-- test-selection-comment -->';
 
+            const draftSkip = ${{ github.event.pull_request.draft == true && !contains(github.event.pull_request.body, 'test-all') }};
             const tests = [
               {
                 name: 'Preview Environment',
@@ -411,7 +421,9 @@ jobs:
             }
 
             if (unselectedTests.length > 0) {
-              body += `### ⏭️ Tests skipped (no relevant file changes detected)\n`;
+              body += draftSkip
+                ? `### ⏭️ Tests skipped (draft PR: they run once it is marked ready for review)\n`
+                : `### ⏭️ Tests skipped (no relevant file changes detected)\n`;
               body += `| Test | How to trigger manually |\n|------|-------------------------|\n`;
               for (const test of unselectedTests) {
                 body += `| ${test.name} | Add \`${test.trigger}\` to PR description |\n`;
@@ -448,8 +460,12 @@ jobs:
   preview:
     timeout-minutes: 45
     name: Deploy Preview
-    runs-on: depot-ubuntu-24.04-4
-    needs: files-changed
+    runs-on: ubuntu-latest
+    # Fail fast: every E2E and CLI job needs this one, so waiting here for
+    # lint, types and unit tests means a push that breaks any of them never
+    # starts those suites. Rainbow builds the preview in parallel regardless,
+    # so this rarely delays them: the preview is usually still building.
+    needs: [files-changed, build-and-lint, unit-tests]
     if: needs.files-changed.outputs.preview == 'true'
     outputs:
       url: ${{ steps.preview-url.outputs.url }}
@@ -531,6 +547,7 @@ jobs:
       - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
         with:
           cache: true
+          save-cache: false
           install: false
 
       - name: Install packages

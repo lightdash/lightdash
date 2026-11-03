@@ -27,6 +27,7 @@ import { SettingsCard } from '../common/Settings/SettingsCard';
 import { SettingsPage } from '../common/Settings/SettingsPage';
 import AnalyticsDashboardCard from './AnalyticsDashboardCard';
 import AnalyticsHistoryBackfill from './AnalyticsHistoryBackfill';
+import AnalyticsProcessingSummary from './AnalyticsProcessingSummary';
 
 const LightdashAnalyticsPanel = ({
     activeProjectUuid,
@@ -86,14 +87,6 @@ const LightdashAnalyticsPanel = ({
                                     : 'Create a dedicated project with built-in AI usage and query event models. No connection setup is needed.'}
                             </Text>
                         </Stack>
-                        {analyticsProject && (
-                            <Text fz="xs" c="dimmed">
-                                Created{' '}
-                                {new Date(
-                                    analyticsProject.createdAt,
-                                ).toLocaleString()}
-                            </Text>
-                        )}
                         {createProject.isError && (
                             <Callout
                                 variant="danger"
@@ -167,6 +160,11 @@ const LightdashAnalyticsPanel = ({
                                 </Button>
                             )}
                         </Group>
+                        {analyticsProject && (
+                            <AnalyticsProcessingSummary
+                                processing={analyticsProject.processing}
+                            />
+                        )}
                         {installSampleContent.isError && (
                             <Callout
                                 variant="danger"

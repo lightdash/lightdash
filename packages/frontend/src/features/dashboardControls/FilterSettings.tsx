@@ -1,4 +1,5 @@
 import {
+    FilterType,
     interpolateUiString,
     type DashboardFilterableField,
     type DashboardFilterRule,
@@ -59,26 +60,31 @@ export type EditorView = 'value' | 'settings';
 
 // The value input after the operator select, else the first enabled input or
 // control; without scrolling, as the popover is still being placed
-const focusValueOnMount = (node: HTMLElement | null) => {
+const focusValue = (node: HTMLElement | null, isListShutOnFocus: boolean) => {
     const inputs = [
         ...(node?.querySelectorAll<HTMLInputElement>(
             'input:not([type="hidden"])',
         ) ?? []),
     ];
-    // A typed input that owns a list opens it on focus, over the footer: it
-    // waits for a click, typing or ArrowDown, and the operator takes focus
+    // Any other typed input that owns a list opens it on focus, over the
+    // footer: the operator takes focus instead
     const input =
         [inputs[1], ...inputs].find(
             (candidate) =>
                 candidate !== undefined &&
                 !candidate.disabled &&
-                (candidate.readOnly ||
+                (isListShutOnFocus ||
+                    candidate.readOnly ||
                     candidate.closest('[aria-haspopup]') === null),
         ) ?? node?.querySelector<HTMLElement>('button:not(:disabled)');
     // For the popover's focus trap, which focuses it once it is placed
     input?.setAttribute('data-autofocus', '');
     input?.focus({ preventScroll: true });
 };
+const focusValueOnMount = (node: HTMLElement | null) => focusValue(node, false);
+// A string value's list stays shut on focus (`isListClosedOnPick`)
+const focusStringValueOnMount = (node: HTMLElement | null) =>
+    focusValue(node, true);
 
 // The pill's place on the bar, as Alt with an arrow on it. An end stays
 // focusable, so a press that reaches it keeps the focus
@@ -241,7 +247,11 @@ export const FilterSettings: FC<Props> = ({
                         <Box
                             data-controls-value
                             className={classes.content}
-                            ref={focusValueOnMount}
+                            ref={
+                                filterType === FilterType.STRING
+                                    ? focusStringValueOnMount
+                                    : focusValueOnMount
+                            }
                         >
                             <FilterValueSettings
                                 isEditMode={!isViewer}

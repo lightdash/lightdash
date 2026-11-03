@@ -220,6 +220,7 @@ export {
     DbtProjectType,
     DbtVersionOptionLatest,
     usesAwsWebIdentity,
+    usesBigqueryWorkloadIdentity,
     DefaultSupportedDbtVersion,
     DuckdbConnectionType,
     DucklakeCatalogType,
@@ -255,6 +256,7 @@ export {
     stripDucklakeNestedSensitive,
     SupportedDbtVersions,
     supportsOptionalUserCredentials,
+    USER_CREATABLE_PROJECT_TYPES,
     allowsOptionalUserCredentials,
     WAREHOUSE_TYPES_WITH_OPTIONAL_USER_CREDENTIALS,
     WarehouseTypes,
@@ -381,6 +383,7 @@ export * from './types/spotlightTableConfig';
 export * from './types/sqlRunner';
 export * from './types/SshKeyPair';
 export * from './types/awsWebIdentity';
+export * from './types/bigqueryWorkloadIdentity';
 export * from './types/sshTunnel';
 export * from './types/table';
 export * from './types/tags';
@@ -407,6 +410,7 @@ export * from './utils/api';
 export { default as assertUnreachable } from './utils/assertUnreachable';
 export * from './utils/bigNumber';
 export * from './utils/awsWebIdentity';
+export * from './utils/bigqueryWorkloadIdentity';
 export * from './utils/bigqueryKeyfile';
 export * from './utils/charts';
 export * from './utils/cellUrls';
@@ -439,6 +443,7 @@ export * from './utils/mergeQueryItems';
 export * from './utils/mergeTotals';
 export * from './utils/queryHistoryList';
 export * from './utils/resultColumns';
+export * from './utils/resultsCacheClearSchedule';
 export * from './utils/learnSandbox';
 export * from './utils/learnYamlKeyTypos';
 export * from './utils/loadLightdashProjectConfig';

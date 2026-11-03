@@ -65,7 +65,7 @@ Openings (optional props, defaults are today's behaviour):
 - `dashboardTabs/Tab.tsx`: `hasQuietActions`; the tab `maw` reads
   `--dashboard-tab-max-width` first (also in the embed's tabs).
 - `DashboardFiltersBar`: `filterArea`, `isCompactDrawerSuppressed`,
-  `filtersAlign`.
+  `filtersAlign`, `isParametersColumn`.
 - `AddFilterButton`: `editModeAction`.
 - `FilterRequirements/FilterRequirementsButton`: `renderTarget` (must take a
   ref; the popover anchors on it).
@@ -84,12 +84,11 @@ Openings (optional props, defaults are today's behaviour):
   the default, and Save keeps a required filter's value), and
   `isListClosedOnPick` (the editor passes `true`: an open value list would
   cover its Apply). It reaches the string inputs as `popoverProps.closeListOnPick`
-  and `MultiSelectCombobox` as `closeOnOptionSubmit`.
+  and `popoverProps.openListOnFocus: false`, and `MultiSelectCombobox` as
+  `closeOnOptionSubmit` and `openOnFocus` (default `true`): the list waits
+  for typing, a click or ArrowDown.
 - `FilterConfiguration/utils`: `getFilterRuleWithRequired` takes
   `savedDefaultRule` (only the editor passes it).
-- Chart tiles (`DashboardChartTile`, `EmbeddedDashboardChartInteractions`)
-  and table cells (`ScrollableTable/BodyCell`) open their menu through
-  `useWhenAnswered`, which opens at once without the provider.
 - Embed: `EmbedDashboardFilterBar` and `EmbedDashboardHeader` take
   `isControlsEnabled`; with it the filter bar sits in `MappingSwap`.
 

@@ -23,6 +23,7 @@ import {
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
+    IconArrowAutofitHeight,
     IconBolt,
     IconCircleCheck,
     IconCircleCheckFilled,
@@ -158,6 +159,9 @@ type DashboardHeaderProps = {
     onMoveToSpace: (spaceUuid: string) => void;
     onExport: () => void;
     onToggleFullscreen: () => void;
+    isFitToScreen: boolean;
+    isFitToScreenAvailable: boolean;
+    onToggleFitToScreen: () => void;
     setAddingTab: (value: React.SetStateAction<boolean>) => void;
     onEditClicked: () => void;
     className?: string;
@@ -189,6 +193,9 @@ const DashboardHeader = memo(
         onMoveToSpace,
         onExport,
         onToggleFullscreen,
+        isFitToScreen,
+        isFitToScreenAvailable,
+        onToggleFitToScreen,
         setAddingTab,
         onEditClicked,
         className,
@@ -822,6 +829,36 @@ const DashboardHeader = memo(
                                 }
                             />
                         )}
+                        {!isEditMode && !compact && isFitToScreenAvailable && (
+                            <Tooltip
+                                label={
+                                    isFitToScreen
+                                        ? 'Exit fit to screen'
+                                        : 'Fit to screen'
+                                }
+                                position="bottom"
+                                openDelay={200}
+                                transitionProps={{
+                                    transition: 'fade',
+                                    duration: 150,
+                                }}
+                            >
+                                <ActionIcon
+                                    variant={
+                                        isFitToScreen ? 'light' : 'default'
+                                    }
+                                    size="md"
+                                    aria-label="Fit to screen"
+                                    aria-pressed={isFitToScreen}
+                                    onClick={onToggleFitToScreen}
+                                >
+                                    <MantineIcon
+                                        icon={IconArrowAutofitHeight}
+                                        size="md"
+                                    />
+                                </ActionIcon>
+                            </Tooltip>
+                        )}
                         {!isEditMode &&
                             (!compact || isFullscreen) &&
                             document.fullscreenEnabled &&
@@ -1049,6 +1086,24 @@ const DashboardHeader = memo(
                                                 onClick={onToggleFullscreen}
                                             >
                                                 Enter fullscreen
+                                            </Menu.Item>
+                                        )}
+                                    {compact &&
+                                        !isEditMode &&
+                                        isFitToScreenAvailable && (
+                                            <Menu.Item
+                                                leftSection={
+                                                    <MantineIcon
+                                                        icon={
+                                                            IconArrowAutofitHeight
+                                                        }
+                                                    />
+                                                }
+                                                onClick={onToggleFitToScreen}
+                                            >
+                                                {isFitToScreen
+                                                    ? 'Exit fit to screen'
+                                                    : 'Fit to screen'}
                                             </Menu.Item>
                                         )}
                                     <AskAiAgentMenuItem

@@ -289,6 +289,10 @@ host = "api.anthropic.com"          # Ask AI, data apps
 port = 443
 
 [[egress.allow]]
+host = "api.openai.com"             # Ask AI on OpenAI models (OPENAI_API_KEY)
+port = 443
+
+[[egress.allow]]
 host = "api.typesafe.ai"            # Jev decisions (JEV_API_KEY)
 port = 443
 
@@ -400,6 +404,7 @@ WAREHOUSE_TRINO_HOST = "host"
 # Integrations, in the order of the [[egress.allow]] list. Each is optional:
 # with no value stored the variable is absent and the feature stays off.
 ANTHROPIC_API_KEY = "api-key"
+OPENAI_API_KEY = "api-key"
 BRANDFETCH_API_KEY = "api-key"
 E2B_API_KEY = "api-key"
 E2B_TEMPLATE_TAG = "config"            # data-app sandbox template; defaults to the app version

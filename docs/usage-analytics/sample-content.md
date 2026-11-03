@@ -45,6 +45,15 @@ keeps its existing content and slugs. Space slugs are explicit and stable so a
 dashboard title change does not create a new space. Sync removes the former
 overview's query tiles without deleting their saved history or custom copies.
 
+Content creation by month and Content ownership · current snapshot use the
+**Content inventory** Explore, reading the latest inventory without preparing
+unrelated usage history. Their counts still include soft-deleted items and items
+without activity; ownership and creation dates reflect the current snapshot.
+**Sync content** refreshes the models and updates these two managed charts in
+place, retaining their UUIDs, slugs, field IDs and existing filter targets. Existing Content health fields and custom
+charts remain available. Sync does not refresh inventory data or alter capture,
+history or compaction.
+
 Project creation and **Sync content** in organization analytics settings both install
 the current definitions: system explores first, then managed charts and dashboards.
 This makes newly shipped explores, dimensions and metrics available in existing
@@ -153,6 +162,30 @@ without refreshing the data snapshot. Missing/deleted projects retain their
 events and render as unknown, with the project ID available for attribution.
 No tenant IDs, project names, credentials or internal issue links are embedded in
 the managed content.
+
+## Embed
+
+The managed `lightdash-analytics-embed` dashboard is installed by project creation
+and **Sync content**. Its **Audience** tab shows observed dashboard loads,
+distinct supplied external viewer IDs, active dashboards, daily and weekly trends,
+popular dashboards and viewer-ID coverage. **Query health** shows query volume,
+errors, outcomes, caching and median/P95 successful request-start response time.
+Number, line, bar and donut charts summarize usage; a custom ranking chart keeps
+long dashboard IDs in tooltips while leaving room for the bars. The Date filter maps
+to both models and defaults to the last 30 completed UTC days.
+
+Loads represent observed authorized embedded-dashboard fetches, not successful
+browser rendering or billed visits. Repeat fetches count, browser-cached views can
+be absent, and dashboard tiles can generate multiple queries. External IDs are
+supplied by the embedding application; missing IDs and token issuers do not become
+viewers. Unidentified loads remain in the totals and have a separate coverage
+segment. Latest captured dashboard names retain their IDs so equal names do not merge.
+
+Load capture starts with this version and has no historical backfill. Existing
+query history can cover a different period. Missing query timing is excluded from
+latency; missing cache flags remain unknown. This dashboard does not infer tenants
+from user attributes, reconcile invoices or provide a complete embed dependency
+inventory. Absence of observed usage is not evidence that content is safe to delete.
 
 ## Future work
 

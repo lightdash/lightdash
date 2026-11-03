@@ -1,0 +1,97 @@
+.window {
+    overflow: hidden;
+    container-type: inline-size;
+}
+
+.chrome {
+    padding: var(--mantine-spacing-sm) var(--mantine-spacing-sm) 0;
+    background: var(--mantine-color-ldGray-1);
+    border-bottom: 1px solid var(--mantine-color-default-border);
+}
+
+.tab {
+    width: 80%;
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+    border-radius: var(--mantine-radius-sm) var(--mantine-radius-sm) 0 0;
+    background: var(--mantine-color-body);
+}
+
+.favicon,
+.navLogo {
+    display: flex;
+    flex-shrink: 0;
+}
+
+.favicon svg,
+.favicon img {
+    width: 16px;
+    height: 16px;
+    object-fit: contain;
+}
+
+.nav {
+    --preview-control-height: 28px;
+
+    height: 48px;
+    background: var(--mantine-color-dark-7);
+    color: var(--mantine-color-white);
+    overflow: hidden;
+}
+
+.navContent {
+    height: 48px;
+    padding-inline: var(--mantine-spacing-sm);
+}
+
+.navButtons {
+    height: var(--preview-control-height);
+    flex-shrink: 0;
+    border: 1px solid var(--mantine-color-dark-4);
+    border-radius: var(--mantine-radius-sm);
+    overflow: hidden;
+}
+
+.navItem {
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-xs);
+    height: 100%;
+    padding-inline: var(--mantine-spacing-xs);
+    white-space: nowrap;
+    background: var(--mantine-color-dark-6);
+}
+
+.navButtons > :not(:last-child) {
+    border-right: 1px solid var(--mantine-color-dark-4);
+}
+
+@container (max-width: 22em) {
+    .projectLabel {
+        display: none;
+    }
+}
+
+.navLogo svg,
+.navLogo img {
+    width: var(--preview-control-height);
+    height: var(--preview-control-height);
+    object-fit: contain;
+}
+
+.content {
+    padding: var(--mantine-spacing-lg);
+}
+
+.placeholderLine {
+    height: 6px;
+    width: 65%;
+    border-radius: var(--mantine-radius-sm);
+    background: var(--mantine-color-ldGray-1);
+}
+
+.placeholderCard {
+    height: 48px;
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-sm);
+    background: var(--ld-color-page);
+}

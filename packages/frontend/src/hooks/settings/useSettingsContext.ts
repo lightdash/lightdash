@@ -99,11 +99,6 @@ export const useSettingsContext = (): SettingsContext => {
     );
     const isResultsCacheEnabled = resultsCacheFlag?.enabled ?? false;
 
-    const { data: proLimitsFlag } = useServerFeatureFlag(
-        FeatureFlags.ProLimits,
-    );
-    const isProLimitsEnabled = proLimitsFlag?.enabled ?? false;
-
     // The roadmap proxy is only registered behind a validated enterprise license.
     const isOrganizationRoadmapEnabled = health?.license?.valid === true;
     const isServiceAccountsEnabled = health?.license?.valid === true;
@@ -228,7 +223,6 @@ export const useSettingsContext = (): SettingsContext => {
         project,
         showImpersonationPanel,
         isCustomRolesEnabled,
-        isProLimitsEnabled,
         canAccessAnalyticsSettings,
         isAnalyticsProjectFlagLoading,
         isOrganizationRoadmapEnabled,

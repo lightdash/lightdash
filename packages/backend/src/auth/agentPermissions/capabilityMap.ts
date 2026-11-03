@@ -348,6 +348,9 @@ export const REST_OPERATION_CAPABILITIES = {
     'AiAgentController.listMcpServers': [AgentCapability.ReadDiscover],
     'AiAgentController.listProjectThreads': [AgentCapability.ReadDiscover],
     'AiAgentController.pinAgentThread': [AgentCapability.ContentWrite],
+    'AiAgentController.previewVisualizeSlackChart': [
+        AgentCapability.Administration,
+    ],
     'AiAgentController.refreshMcpServerTools': [AgentCapability.Administration],
     'AiAgentController.renameMcpServer': [AgentCapability.Administration],
     'AiAgentController.restoreAgentThreadDataAppVersion': [
@@ -1129,7 +1132,7 @@ export const REST_OPERATION_CAPABILITIES = {
         AgentCapability.DeployUpload,
         AgentCapability.Administration,
     ],
-    'OrganizationController.fetchOrganizationBrand': [
+    'OrganizationBrandController.fetchOrganizationBrand': [
         AgentCapability.Administration,
     ],
     'OrganizationController.getColorPalettes': [AgentCapability.ReadDiscover],
@@ -1138,7 +1141,10 @@ export const REST_OPERATION_CAPABILITIES = {
     ],
     'OrganizationController.getLearnAccess': [AgentCapability.ReadDiscover],
     'OrganizationController.getOrganization': [AgentCapability.ReadDiscover],
-    'OrganizationController.getOrganizationBrand': [
+    'OrganizationBrandController.getOrganizationBrand': [
+        AgentCapability.ReadDiscover,
+    ],
+    'OrganizationBrandController.getOrganizationBrandLogo': [
         AgentCapability.ReadDiscover,
     ],
     'OrganizationController.getOrganizationMemberByEmail': [
@@ -1166,7 +1172,7 @@ export const REST_OPERATION_CAPABILITIES = {
     'OrganizationController.reassignUserSchedulers': [
         AgentCapability.Administration,
     ],
-    'OrganizationController.saveOrganizationBrand': [
+    'OrganizationBrandController.saveOrganizationBrand': [
         AgentCapability.Administration,
     ],
     'OrganizationController.setActiveColorPalette': [
@@ -1179,6 +1185,9 @@ export const REST_OPERATION_CAPABILITIES = {
         AgentCapability.Administration,
     ],
     'OrganizationController.updateOrganizationMember': [
+        AgentCapability.Administration,
+    ],
+    'OrganizationBrandController.uploadOrganizationBrandLogo': [
         AgentCapability.Administration,
     ],
     'OrganizationDesignController.clearDefaultDesign': [
@@ -1452,7 +1461,13 @@ export const REST_OPERATION_CAPABILITIES = {
         AgentCapability.DbtWriteback,
         AgentCapability.ContentWrite,
     ],
+    'ProjectCoderController.pruneContentAsCodeSnapshots': [
+        AgentCapability.Administration,
+    ],
     'ProjectCoderController.rebaseContentDraft': [AgentCapability.ContentWrite],
+    'ProjectCoderController.releaseContentAsCodeSnapshot': [
+        AgentCapability.Administration,
+    ],
     'ProjectCoderController.renameContentSlug': [AgentCapability.ContentWrite],
     'ProjectCoderController.reopenContentDraft': [AgentCapability.ContentWrite],
     'ProjectCoderController.stampContentAsCodeSettings': [
@@ -1603,7 +1618,13 @@ export const REST_OPERATION_CAPABILITIES = {
     'ProjectController.updateProjectResultsCacheSettings': [
         AgentCapability.Administration,
     ],
+    'ProjectController.invalidateExploresResultsCache': [
+        AgentCapability.Administration,
+    ],
     'ProjectController.invalidateProjectResultsCache': [
+        AgentCapability.Administration,
+    ],
+    'ProjectController.updateProjectResultsCacheClearSchedule': [
         AgentCapability.Administration,
     ],
     'ProjectController.updateQueryTimezoneSettings': [

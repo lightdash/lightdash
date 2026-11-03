@@ -16,7 +16,6 @@ import {
     selectIsDateZoomAppliedToTile,
     useDashboardSelector,
 } from '../../features/dashboard/store';
-import { useWhenAnswered } from '../../features/dashboardControls/useControlsSidebar';
 import { FilterDashboardTo } from '../../features/dashboardFilters/FilterDashboardTo';
 import { type DashboardChartReadyQuery } from '../../hooks/dashboard/useDashboardChartReadyQuery';
 import { useContextMenuPermissions } from '../../hooks/useContextMenuPermissions';
@@ -67,7 +66,6 @@ const EmbeddedDashboardChartInteractions: FC<Props> = ({
     interactions,
     children,
 }) => {
-    const whenAnswered = useWhenAnswered();
     const [contextMenuIsOpen, setContextMenuIsOpen] = useState(false);
     const [contextMenuTargetOffset, setContextMenuTargetOffset] = useState<{
         left: number;
@@ -143,13 +141,13 @@ const EmbeddedDashboardChartInteractions: FC<Props> = ({
             }
 
             setContextMenuOptions(options);
-            whenAnswered(() => setContextMenuIsOpen(true));
+            setContextMenuIsOpen(true);
             setContextMenuTargetOffset({
                 left: event.event.event.pageX,
                 top: event.event.event.pageY,
             });
         },
-        [canViewUnderlyingData, chart, explore, interactions, whenAnswered],
+        [canViewUnderlyingData, chart, explore, interactions],
     );
 
     return (

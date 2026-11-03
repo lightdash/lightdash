@@ -2,8 +2,6 @@ import { FilterOperator } from '@lightdash/common';
 import { screen } from '@testing-library/react';
 import { type ComponentProps, type ReactElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import DashboardContext from '../../providers/Dashboard/context';
-import { type DashboardContextType } from '../../providers/Dashboard/types';
 import {
     createDashboardTestStore,
     seedDashboardEditState,
@@ -71,17 +69,16 @@ vi.mock('./MappingRow', () => ({
 vi.mock('./FilterPills', () => ({
     FilterPills: () => <div data-testid="filter-pills" />,
 }));
-// Reads the context the bar provides, as the real one does: no capsules on a first load
+// Reads the override the bar provides over the context, as the real one does: no capsules on a first load
 vi.mock('./SectionedFilters', async () => {
-    const { useContextSelector } = await import('use-context-selector');
-    const { default: DashboardContext } =
-        await import('../../providers/Dashboard/context');
+    const { useContext } = await import('react');
+    const { FilterFieldsOverrideContext } =
+        await import('../../providers/Dashboard/filterFieldsOverride');
     return {
         SectionedFilters: () => {
-            const isFirstLoad = useContextSelector(
-                DashboardContext,
-                (c) => c?.isLoadingDashboardFilters,
-            );
+            const override = useContext(FilterFieldsOverrideContext);
+            const isFirstLoad = (override ?? mockDashboardContext.current)
+                .isLoadingDashboardFilters;
             return (
                 <div data-testid="sectioned-filters">
                     {!isFirstLoad && <div data-testid="capsules" />}
@@ -372,17 +369,10 @@ describe('ControlsBar', () => {
         };
         mockDashboardContext.current = loaded;
         const store = createDashboardTestStore();
-        // The page's provider, which the bar's filter area reads below it
         const bar = () => (
-            <DashboardContext.Provider
-                value={
-                    mockDashboardContext.current as unknown as DashboardContextType
-                }
-            >
-                <DashboardStoreTestProvider store={store}>
-                    <ControlsBar {...baseProps} isEditMode />
-                </DashboardStoreTestProvider>
-            </DashboardContext.Provider>
+            <DashboardStoreTestProvider store={store}>
+                <ControlsBar {...baseProps} isEditMode />
+            </DashboardStoreTestProvider>
         );
         const { rerender } = renderWithAppProviders(bar());
         expect(screen.getByTestId('capsules')).toBeInTheDocument();

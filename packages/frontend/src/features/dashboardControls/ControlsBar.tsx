@@ -34,6 +34,8 @@ export const ControlsBar: FC<Props> = (props) => {
             filtersAlign={
                 hasSections || props.isEditMode ? 'flex-start' : 'center'
             }
+            // The sectioned flow spans several lines: parameters wrap beside it
+            isParametersColumn={hasSections || props.isEditMode}
             filterArea={
                 <SettledFilterFields>
                     {/* An editor's bar is always sectioned: its selection starts the first section */}

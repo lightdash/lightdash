@@ -43,7 +43,10 @@ import { createLightdashApi } from '../src/api';
 import SuboptimalState from '../src/components/common/SuboptimalState/SuboptimalState';
 import { AiAgentsCoreProvider } from '../src/ee/features/aiCopilot/components/Launcher/AiAgentsCoreProvider';
 import { AgentContainerWidthContext } from '../src/ee/features/aiCopilot/hooks/useAgentMaxWidth';
-import { type SdkFilter } from '../src/ee/features/embed/EmbedDashboard/types';
+import {
+    type ChartSaveDestination,
+    type SdkFilter,
+} from '../src/ee/features/embed/EmbedDashboard/types';
 import {
     LightdashEventType,
     type LightdashEvent,
@@ -139,6 +142,9 @@ type DashboardProps = BaseProps & {
     paletteUuid?: string;
     isEditMode?: boolean;
     onEditModeChange?: (isEditMode: boolean) => void;
+    // Where "New chart" and "Save as new chart" save. Defaults to
+    // ['dashboard']; list both to let the user choose.
+    chartSaveDestinations?: ChartSaveDestination[];
 };
 
 type DashboardBuilderProps = DashboardProps & {
@@ -658,6 +664,7 @@ const Dashboard: FC<DashboardProps> = ({
     paletteUuid,
     isEditMode,
     onEditModeChange,
+    chartSaveDestinations,
 }) => {
     const tokenContext = useEmbedTokenContext(
         instanceUrl,
@@ -707,6 +714,7 @@ const Dashboard: FC<DashboardProps> = ({
                         )}
                         isEditMode={isEditMode}
                         onEditModeChange={onEditModeChange}
+                        chartSaveDestinations={chartSaveDestinations}
                     />
                 )}
             </EmbedProvider>
@@ -724,7 +732,14 @@ const DashboardBuilderContent: FC<{
     isEditMode?: boolean;
     onEditModeChange?: (isEditMode: boolean) => void;
     onDashboardReady?: (dashboard: EmbedDashboardType) => void;
-}> = ({ containerStyles, isEditMode, onEditModeChange, onDashboardReady }) => {
+    chartSaveDestinations?: ChartSaveDestination[];
+}> = ({
+    containerStyles,
+    isEditMode,
+    onEditModeChange,
+    onDashboardReady,
+    chartSaveDestinations,
+}) => {
     const { content, embedToken, projectUuid, writeActions } = useEmbed();
     const defaultWriteSpaceUuid = getEmbedDefaultWriteSpaceUuid(writeActions);
     const [dashboard, setDashboard] = useState<EmbedDashboardType>();
@@ -814,6 +829,7 @@ const DashboardBuilderContent: FC<{
             containerStyles={containerStyles}
             isEditMode={isEditMode}
             onEditModeChange={onEditModeChange}
+            chartSaveDestinations={chartSaveDestinations}
         />
     );
 };
@@ -833,6 +849,7 @@ const DashboardBuilder: FC<DashboardBuilderProps> = ({
     isEditMode,
     onEditModeChange,
     onDashboardReady,
+    chartSaveDestinations,
 }) => {
     const tokenContext = useEmbedTokenContext(
         instanceUrl,
@@ -883,6 +900,7 @@ const DashboardBuilder: FC<DashboardBuilderProps> = ({
                         isEditMode={isEditMode}
                         onEditModeChange={onEditModeChange}
                         onDashboardReady={onDashboardReady}
+                        chartSaveDestinations={chartSaveDestinations}
                     />
                 )}
             </EmbedProvider>
@@ -1539,6 +1557,7 @@ export {
 };
 export type {
     AiThreadBinding,
+    ChartSaveDestination,
     MetricsCatalogFilter,
     LightdashEvent,
     LightdashEventHandler,

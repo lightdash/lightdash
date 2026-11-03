@@ -67,6 +67,7 @@ import {
     ApiAiAgentThreadMessageCreateResponse,
     ApiAiAgentThreadMessageVizQuery,
     ApiAiAgentThreadShareResponse,
+    ApiAiAgentVisualizeSlackPreviewRequest,
     ApiAiMcpOAuthCredentialRequest,
     ApiAppendEvaluationRequest,
     ApiCreateAiAgent,
@@ -83,6 +84,7 @@ import {
     buildAgentIdentityClaim,
     CatalogType,
     CommercialFeatureFlags,
+    composerBuiltinChartVizConfigSchemaV1,
     composerNodeContextKey,
     ConflictError,
     ContentType,
@@ -231,6 +233,7 @@ import {
     type ToolComposerQueriesSuccessMetadata,
     type ToolGenerateDataAppTerminalResult,
     type ToolRunQueryArgsTransformed,
+    type UUID,
     type VerifiedContentListItem,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
@@ -643,6 +646,7 @@ import { getSlackBigNumbers } from '../ai/utils/slackBigNumbers';
 import { getSlackSelectedCardArtifacts } from '../ai/utils/slackChartSelection';
 import {
     getSlackTableBlocks,
+    splitSlackTableMessage,
     type SlackTableQueryResults,
 } from '../ai/utils/slackTableBlocks';
 import { getSlackTablePreviews } from '../ai/utils/slackTablePreviews';
@@ -842,6 +846,11 @@ const GITHUB_MCP_UNAVAILABLE_STATUS =
 const isGithubMcpBearerServer = (
     server: Pick<AiMcpServer, 'url' | 'authType'>,
 ) => isGithubMcpServerUrl(server.url) && server.authType === 'bearer';
+
+// runQuery saves a data answer (purpose 'answer') as a chart version without a chartConfig.
+const isDataAnswerVersion = (version: AiArtifact) =>
+    version.chartConfig?.source === 'semantic' &&
+    !version.chartConfig.config.chartConfig;
 
 type GenerateAgentExecutionOptions =
     | {
@@ -2480,6 +2489,54 @@ export class AiAgentService extends BaseService {
             });
             return null;
         }
+    }
+
+    /** Debug harness: draws caller-provided rows exactly as the Slack composer chart image. */
+    public async previewVisualizeSlackChart(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        {
+            title,
+            columns,
+            rows,
+            vizConfig,
+        }: ApiAiAgentVisualizeSlackPreviewRequest,
+    ): Promise<Buffer> {
+        if (!(await this.getIsCopilotEnabled(toSessionUser(account)))) {
+            throw new ForbiddenError('Copilot is not enabled');
+        }
+        const project = await this.projectModel.getSummary(projectUuid);
+        if (
+            project.organizationUuid !==
+                account.organization.organizationUuid ||
+            this.createAuditedAbility(account).cannot(
+                'manage',
+                subject('AiAgent', {
+                    organizationUuid: project.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        const parsed =
+            composerBuiltinChartVizConfigSchemaV1.safeParse(vizConfig);
+        if (!parsed.success) {
+            throw new ParameterError(
+                `Invalid vizConfig: ${parsed.error.message}`,
+            );
+        }
+        const options = await getComposerSlackEchartsConfig({
+            columns,
+            rows,
+            vizConfig: parsed.data,
+            metadata: { title, description: '' },
+            getPivotedResults,
+        });
+        if (!options) {
+            throw new ParameterError('This chart has no Slack image');
+        }
+        return renderEcharts(options);
     }
 
     private async uploadSlackAgentCardImage(
@@ -14830,6 +14887,13 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         ]);
         if (latest?.chartConfig?.source !== 'semantic') return null;
         if (promptContext.get(prompt.promptUuid)?.length) return null;
+        // A data answer saved over a chart leaves "this" ambiguous, so only the agent can tell which to edit.
+        if (
+            isDataAnswerVersion(latest) &&
+            (await this.hasEarlierChartVersion(latest))
+        ) {
+            return null;
+        }
         const artifact = await this.getArtifact(
             user,
             prompt.projectUuid,
@@ -14876,6 +14940,21 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 filterRules: getFilterRules(chartConfig) ?? [],
             }),
         };
+    }
+
+    private async hasEarlierChartVersion(
+        version: AiArtifact,
+    ): Promise<boolean> {
+        const previous = await this.aiAgentModel.getPreviousArtifactVersion(
+            version.artifactUuid,
+            version.versionNumber,
+        );
+        if (!previous) {
+            return false;
+        }
+        return isDataAnswerVersion(previous)
+            ? this.hasEarlierChartVersion(previous)
+            : true;
     }
 
     private async assertFastChartQuery(user: SessionUser, projectUuid: string) {
@@ -18541,6 +18620,48 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         };
     }
 
+    // Always ≥1 message so the stream closes. With native tables, the tables and
+    // every block after them (cards, feedback) post as their own last message.
+    private static getSlackAnswerMessages({
+        slackResponse,
+        trailingBlocks,
+        threadUrl,
+    }: {
+        slackResponse: string | null;
+        trailingBlocks: (Block | KnownBlock)[];
+        threadUrl: string;
+    }): (Block | KnownBlock)[][] {
+        const { withAnswer, tableMessage } =
+            splitSlackTableMessage(trailingBlocks);
+        const { messages, truncated } =
+            slackResponse === null
+                ? { messages: [], truncated: false }
+                : splitMarkdownIntoMessages(
+                      slackResponse,
+                      undefined,
+                      withAnswer.length + 1,
+                  );
+        const answerMessages = messages.length > 0 ? messages : [[]];
+        const lastIndex = answerMessages.length - 1;
+        const composed = [
+            ...answerMessages.slice(0, lastIndex),
+            [
+                ...answerMessages[lastIndex],
+                ...withAnswer,
+                ...(truncated
+                    ? [
+                          AiAgentService.slackLinkSection(
+                              ':scroll: This answer was too long to show in full here.',
+                              threadUrl,
+                          ),
+                      ]
+                    : []),
+            ],
+            ...(tableMessage ? [tableMessage] : []),
+        ].filter((blocks) => blocks.length > 0);
+        return composed.length > 0 ? composed : [[]];
+    }
+
     private static readonly SLACK_PROMPT_RETRY_ACTION_ID = 'ai_prompt_retry';
 
     // Generation failures already store their error; this covers failures
@@ -18605,30 +18726,13 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         accessRefusalState: SlackAiAccessRefusalState;
         deliveryGuard: AgentDeliveryGuard;
     }): Promise<void> {
-        const { messages: answerMessages, truncated } =
-            accessRefusalState.selected !== null
-                ? { messages: [], truncated: false }
-                : splitMarkdownIntoMessages(
-                      slackResponse,
-                      undefined,
-                      trailingBlocks.length + 1,
-                  );
-        // Always ≥1 message so the stream closes and trailing cards attach.
-        const messages = answerMessages.length > 0 ? answerMessages : [[]];
         const threadUrl = this.getAgentThreadUrl(slackPrompt, agentUuid);
-
-        // Cards + feedback + any truncation notice ride on the last message only.
-        const lastExtraBlocks: (Block | KnownBlock)[] = [
-            ...trailingBlocks,
-            ...(truncated
-                ? [
-                      AiAgentService.slackLinkSection(
-                          ':scroll: This answer was too long to show in full here.',
-                          threadUrl,
-                      ),
-                  ]
-                : []),
-        ];
+        const messages = AiAgentService.getSlackAnswerMessages({
+            slackResponse:
+                accessRefusalState.selected === null ? slackResponse : null,
+            trailingBlocks,
+            threadUrl,
+        });
         const linkFallbackBlocks: (Block | KnownBlock)[] = [
             ...(accessRefusalState.selected === null
                 ? [
@@ -18660,10 +18764,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 chunks: [
                     {
                         type: 'blocks',
-                        blocks: [
-                            ...messages[0],
-                            ...(isLast(0) ? lastExtraBlocks : []),
-                        ],
+                        blocks: messages[0],
                     },
                 ],
             });
@@ -18703,10 +18804,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                         channel: slackPrompt.slackChannelId,
                         thread_ts: threadTs,
                         text: notificationText,
-                        blocks: [
-                            ...messages[index],
-                            ...(isLast(index) ? lastExtraBlocks : []),
-                        ],
+                        blocks: messages[index],
                         unfurl_links: false,
                         ...(agentName ? { username: agentName } : {}),
                     });
@@ -18769,30 +18867,13 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         accessRefusalState: SlackAiAccessRefusalState;
         deliveryGuard: AgentDeliveryGuard;
     }): Promise<void> {
-        const { messages: answerMessages, truncated } =
-            accessRefusalState.selected !== null
-                ? { messages: [], truncated: false }
-                : splitMarkdownIntoMessages(
-                      slackResponse,
-                      undefined,
-                      trailingBlocks.length + 1,
-                  );
-        // Always ≥1 message so trailing cards attach even to an empty answer.
-        const messages = answerMessages.length > 0 ? answerMessages : [[]];
         const threadUrl = this.getAgentThreadUrl(slackPrompt, agentUuid);
-
-        // Cards + feedback + any truncation notice ride on the last message only.
-        const lastExtraBlocks: (Block | KnownBlock)[] = [
-            ...trailingBlocks,
-            ...(truncated
-                ? [
-                      AiAgentService.slackLinkSection(
-                          ':scroll: This answer was too long to show in full here.',
-                          threadUrl,
-                      ),
-                  ]
-                : []),
-        ];
+        const messages = AiAgentService.getSlackAnswerMessages({
+            slackResponse:
+                accessRefusalState.selected === null ? slackResponse : null,
+            trailingBlocks,
+            threadUrl,
+        });
         const linkFallbackBlocks: (Block | KnownBlock)[] = [
             ...(accessRefusalState.selected === null
                 ? [
@@ -18825,10 +18906,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                         channel: slackPrompt.slackChannelId,
                         thread_ts: threadTs,
                         text: notificationText,
-                        blocks: [
-                            ...messages[index],
-                            ...(isLast(index) ? lastExtraBlocks : []),
-                        ],
+                        blocks: messages[index],
                         unfurl_links: false,
                         ...(agentName ? { username: agentName } : {}),
                     });
@@ -21753,6 +21831,10 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
 
         // Only respond in the designated multi-agent channel
         if (!isMultiAgentChannel) {
+            return;
+        }
+
+        if (slackSettings.aiMultiAgentRequireMention) {
             return;
         }
 

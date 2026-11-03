@@ -19,6 +19,7 @@ import {
     useUpdateAiOrganizationSettings,
 } from '../../../hooks/useAiOrganizationSettings';
 import { McpAccessSettingsCard } from './McpAccessSettingsCard';
+import { McpProjectAccessSettingsCard } from './McpProjectAccessSettingsCard';
 
 export const McpGeneralSettingsPage = ({
     showAgentsPageLink,
@@ -61,6 +62,7 @@ export const McpGeneralSettingsPage = ({
             ) : (
                 <>
                     <McpAccessSettingsCard />
+                    <McpProjectAccessSettingsCard />
                     {!mcpEnabled && (
                         <Callout
                             variant="warning"
