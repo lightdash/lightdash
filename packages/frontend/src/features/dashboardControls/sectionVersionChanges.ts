@@ -30,6 +30,7 @@ const sectionLabel = (
     return [
         `"${section.name}"`,
         ...(position === -1 ? [] : [`position ${position + 1}`]),
+        ...(section.inline ? ['on the line of the section before'] : []),
         ...(isCollapsedByDefault(section, memberCount)
             ? ['collapsed by default']
             : []),

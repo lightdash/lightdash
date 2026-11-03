@@ -29,6 +29,7 @@ import {
     Text,
     Tooltip,
     UnstyledButton,
+    VisuallyHidden,
 } from '@mantine/core';
 import {
     IconChevronDown,
@@ -288,6 +289,7 @@ const SectionCapsule: FC<CapsuleProps> = ({
                         className={classes.name}
                         data-section-name={section.id}
                         inert={actions.isLocked || undefined}
+                        aria-keyshortcuts="Alt+ArrowLeft Alt+ArrowRight Alt+ArrowUp Alt+ArrowDown"
                         onClick={() => setIsRenaming(true)}
                         onKeyDown={(event) => {
                             const direction = MOVE_KEYS[event.key];
@@ -599,6 +601,7 @@ export const SectionedFilters: FC<Props> = ({
     const { track } = useTracking();
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
     const sections = useDashboardSelector(selectControlSections);
+    const [moveStatus, setMoveStatus] = useState('');
     const savedSections = useDashboardContext(
         (c) => c.dashboard?.config?.controlSections,
     );
@@ -834,15 +837,25 @@ export const SectionedFilters: FC<Props> = ({
                     ? null
                     : {
                           isLocked: isEditing,
-                          onMove: (direction) =>
-                              arrange(
+                          onMove: (direction) => {
+                              const next = moveSectionBy(
+                                  sections,
                                   section.id,
-                                  moveSectionBy(
-                                      sections,
-                                      section.id,
-                                      direction,
-                                  ),
-                              ),
+                                  direction,
+                              );
+                              if (next === sections) return;
+                              const nextLines = groupSectionsIntoLines(next);
+                              const line = nextLines.findIndex((members) =>
+                                  members.some(({ id }) => id === section.id),
+                              );
+                              const place = nextLines[line].findIndex(
+                                  ({ id }) => id === section.id,
+                              );
+                              setMoveStatus(
+                                  `${section.name} moved to line ${line + 1}, position ${place + 1}`,
+                              );
+                              arrange(section.id, next);
+                          },
                           onOwnLine: () => {
                               const index = lines.findIndex((line) =>
                                   line.some(({ id }) => id === section.id),
@@ -1253,6 +1266,9 @@ export const SectionedFilters: FC<Props> = ({
                         {barEnd}
                     </Box>
                 </BarSpace>
+                <VisuallyHidden role="status" aria-live="polite">
+                    {moveStatus}
+                </VisuallyHidden>
                 {/* On the body, so the bar's overflow doesn't clip the copy */}
                 {createPortal(
                     <DragOverlay>

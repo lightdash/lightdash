@@ -2275,11 +2275,20 @@ describe('SectionedFilters', () => {
                 altKey: true,
             });
             expect(lines()).toEqual(['c', '+a', '+b']);
+            expect(
+                screen.getByText('Dates moved to line 1, position 2'),
+            ).toBeInTheDocument();
+            expect(
+                screen.getByRole('button', { name: 'Dates' }),
+            ).toHaveAttribute('aria-keyshortcuts');
             fireEvent.keyDown(screen.getByRole('button', { name: 'Dates' }), {
                 key: 'ArrowDown',
                 altKey: true,
             });
             expect(lines()).toEqual(['c', '+b', 'a']);
+            expect(
+                screen.getByText('Dates moved to line 2, position 1'),
+            ).toBeInTheDocument();
         });
 
         it('draws a line on the side a dragged capsule would land, or across a gap between lines, never a pill line', () => {
