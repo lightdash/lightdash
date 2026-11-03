@@ -4,16 +4,16 @@
     width: 100%;
     height: 100%;
     pointer-events: none;
-    color: var(--mantine-color-ldGray-4);
-    opacity: 0.55;
+    color: var(--mantine-color-ldGray-3);
+    opacity: 0.45;
     animation: fadeIn 600ms ease both;
 }
 
-.field circle {
+.field rect {
     fill: currentColor;
 }
 
-.field[data-celebrate='true'] circle {
+.field[data-celebrate='true'] rect {
     transform-box: fill-box;
     transform-origin: center;
     animation: ripple 900ms cubic-bezier(0.22, 1, 0.36, 1) both;
@@ -35,7 +35,7 @@
 
 @media (prefers-reduced-motion: reduce) {
     .field,
-    .field[data-celebrate='true'] circle {
+    .field[data-celebrate='true'] rect {
         animation: none;
     }
 }
