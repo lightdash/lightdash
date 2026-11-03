@@ -14,7 +14,6 @@ import {
     user as baseUser,
     defaultProject,
 } from '../../../services/ProjectService/ProjectService.mock';
-import { VERSION } from '../../../version';
 import { getAnalyticsContentHash } from './analyticsContentHash';
 import { AnalyticsProjectService } from './AnalyticsProjectService';
 
@@ -66,16 +65,13 @@ describe('AnalyticsProjectService', () => {
     const getUsageHistoryBackfillJob = vi.fn();
     const scheduleUsageHistoryBackfill = vi.fn();
     const scheduleAnalyticsContentSync = vi.fn();
-    const getSyncState = vi.fn();
-    const getProjectsPage = vi.fn();
-    const getSyncProject = vi.fn();
-    const getOrCreateSystemUser = vi.fn();
-    const markSynced = vi.fn();
+    const getSnapshot = vi.fn();
+    const saveSnapshot = vi.fn();
+    const getOrganizationAdmins = vi.fn();
+    const findSessionUserAndOrgByUuid = vi.fn();
     const getFeatureFlag = vi.fn();
-    const hash = getAnalyticsContentHash(
-        analyticsExplores.createAnalyticsExplores(),
-        analyticsContentAsCode,
-    );
+    const getOrganizations = vi.fn();
+    const hash = getAnalyticsContentHash(analyticsExplores.createAnalyticsExplores(), analyticsContentAsCode);
     const service = new AnalyticsProjectService({
         lightdashConfig: {
             usageEvents: {
@@ -91,7 +87,9 @@ describe('AnalyticsProjectService', () => {
             scheduleUsageHistoryBackfill,
             scheduleAnalyticsContentSync,
         },
-        contentAsCodeSnapshotModel: { get: getSyncState, upsert: markSynced },
+        contentAsCodeSnapshotModel: { get: getSnapshot, upsert: saveSnapshot },
+        organizationMemberProfileModel: { getOrganizationAdmins },
+        usageDimensionsModel: { getOrganizations },
         featureFlagModel: { get: getFeatureFlag },
         coderService: { upsertChart, upsertDashboard },
         contentVerificationModel: { getByContentUuids: getVerifications },
@@ -99,8 +97,6 @@ describe('AnalyticsProjectService', () => {
         savedChartModel: { get: getChart, find: findCharts },
         spaceModel: { get: getSpace, find: findSpaces },
         projectModel: {
-            getAnalyticsProject: getSyncProject,
-            getAnalyticsProjectsPage: getProjectsPage,
             getAllByOrganizationUuid,
             saveExploresToCache,
             getAnalyticsModelCounts,
@@ -117,32 +113,16 @@ describe('AnalyticsProjectService', () => {
             ensureAnalyticsProject,
             delete: deleteProject,
         },
-        userModel: {
-            invalidateSessionUserCache,
-            getOrCreateAnalyticsSystemUser: getOrCreateSystemUser,
-        },
+        userModel: { invalidateSessionUserCache, findSessionUserAndOrgByUuid },
     });
 
     beforeEach(() => {
         vi.restoreAllMocks();
         vi.resetAllMocks();
-        getSyncState.mockResolvedValue({
-            snapshotHash: hash,
-            snapshot: { appliedVersion: VERSION },
-        });
-        getSyncProject.mockResolvedValue({
-            projectUuid: analyticsProject.projectUuid,
-            organizationUuid: user.organizationUuid,
-            organizationName: user.organizationName,
-        });
-        getProjectsPage.mockResolvedValue([]);
+        getSnapshot.mockResolvedValue({ snapshotHash: hash });
         getFeatureFlag.mockResolvedValue({ enabled: true });
-        getOrCreateSystemUser.mockResolvedValue({
-            userUuid: 'system-user',
-            userId: 42,
-            createdAt: new Date('2026-01-01'),
-            updatedAt: new Date('2026-01-01'),
-        });
+        getOrganizationAdmins.mockResolvedValue([{ userUuid: user.userUuid, isActive: true, isPending: false }]);
+        findSessionUserAndOrgByUuid.mockResolvedValue({ ...user, isActive: true, isPending: false });
         findDashboard.mockResolvedValue([
             { uuid: 'existing-dashboard', spaceUuid: 'existing-space' },
         ]);
@@ -170,209 +150,71 @@ describe('AnalyticsProjectService', () => {
         ]);
     });
 
-    describe('automatic managed content updates', () => {
-        const target = {
-            organizationUuid: 'org',
-            projectUuid: 'analytics-project',
-        };
-        const enabledService = () =>
-            new AnalyticsProjectService({
-                ...service['dependencies'],
-                lightdashConfig: {
-                    usageEvents: {
-                        ...service['dependencies'].lightdashConfig.usageEvents,
-                        enabled: true,
-                        s3: {
-                            endpoint: 'http://localhost:9000',
-                            bucket: 'test',
-                            region: 'local',
-                            accessKey: 'test',
-                            secretKey: 'test',
-                        },
-                    },
-                },
+    describe('automatic synchronization', () => {
+        const configured = () => new AnalyticsProjectService({
+            ...service['dependencies'],
+            lightdashConfig: { usageEvents: {
+                ...service['dependencies'].lightdashConfig.usageEvents,
+                enabled: true,
+                s3: { bucket: 'test', region: 'test', accessKey: 'test', secretKey: 'test', endpoint: 'http://localhost:9000' },
+            } },
+        });
+
+        it('queues independent jobs from the existing organization iterator', async () => {
+            getOrganizations.mockImplementation(async function* () {
+                yield { organization_uuid: 'one' };
+                yield { organization_uuid: 'two' };
             });
-        const completeInventory = () =>
-            findDashboard.mockResolvedValue(
-                analyticsContentAsCode.map(({ dashboard }) => ({
-                    uuid: dashboard.slug,
-                    slug: dashboard.slug,
-                })),
-            );
-
-        it('detects a changed definition even when model and dashboard counts are unchanged', async () => {
-            completeInventory();
-            getSyncState.mockResolvedValue({
-                snapshotHash: 'old-definition',
-                snapshot: { appliedVersion: VERSION },
-            });
-            expect(
-                (await service.getStatus(user)).project?.hasContentUpdates,
-            ).toBe(true);
-        });
-
-        it('updates all managed models and dashboards with an internal principal, then records success', async () => {
-            getSyncState.mockResolvedValue(null);
-            await enabledService().syncContent(target);
-            expect(assertAnalyticsProjectAdministration).not.toHaveBeenCalled();
-            expect(getOrCreateSystemUser).toHaveBeenCalledExactlyOnceWith(
-                target.projectUuid,
-            );
-            expect(saveExploresToCache).toHaveBeenCalledWith(
-                target.projectUuid,
-                analyticsExplores.createAnalyticsExplores(),
-                true,
-            );
-            expect(upsertChart).toHaveBeenCalledTimes(
-                analyticsContentAsCode.flatMap(({ charts }) => charts).length,
-            );
-            expect(upsertDashboard).toHaveBeenCalledTimes(
-                analyticsContentAsCode.length,
-            );
-            for (const [actor, projectUuid] of upsertDashboard.mock.calls) {
-                expect(actor.userUuid).toBe('system-user');
-                expect(projectUuid).toBe(target.projectUuid);
-            }
-            expect(markSynced).toHaveBeenCalledExactlyOnceWith({
-                projectUuid: target.projectUuid,
-                contentType: 'analytics_bundle',
-                slug: 'managed-content',
-                snapshotHash: hash,
-                snapshot: { appliedVersion: VERSION },
-                appliedByUserUuid: 'system-user',
-                filePath: null,
-            });
-            expect(markSynced.mock.invocationCallOrder[0]).toBeGreaterThan(
-                upsertDashboard.mock.invocationCallOrder.at(-1)!,
-            );
-            expect(ensureAnalyticsProject).not.toHaveBeenCalled();
-            expect(scheduleUsageHistoryBackfill).not.toHaveBeenCalled();
-        });
-
-        it('does not rewrite unchanged definitions or create an unused principal', async () => {
-            completeInventory();
-            await enabledService().syncContent(target);
-            expect(getOrCreateSystemUser).not.toHaveBeenCalled();
-            expect(saveExploresToCache).not.toHaveBeenCalled();
-            expect(upsertDashboard).not.toHaveBeenCalled();
-            expect(markSynced).not.toHaveBeenCalled();
-        });
-
-        it('does not record a partially applied bundle and can retry the same targets', async () => {
-            getSyncState.mockResolvedValue(null);
-            upsertDashboard.mockRejectedValueOnce(new Error('upload failed'));
-            const configured = enabledService();
-            await expect(configured.syncContent(target)).rejects.toThrow(
-                'upload failed',
-            );
-            expect(markSynced).not.toHaveBeenCalled();
-            await configured.syncContent(target);
-            expect(markSynced).toHaveBeenCalledOnce();
-        });
-
-        it('prevents an older worker or API from downgrading a newer successful installation', async () => {
-            getSyncState.mockResolvedValue({
-                snapshotHash: 'future-definition',
-                snapshot: { appliedVersion: '9999.0.0' },
-            });
-            await enabledService().syncContent(target);
-            expect(
-                (await service.getStatus(user)).project?.hasContentUpdates,
-            ).toBe(false);
-            await expect(service.installSampleContent(user)).rejects.toThrow(
-                'newer server version',
-            );
-            expect(saveExploresToCache).not.toHaveBeenCalled();
-            expect(upsertDashboard).not.toHaveBeenCalled();
-        });
-
-        it('rechecks the project and flag while holding the organization lock', async () => {
-            getSyncProject
-                .mockResolvedValueOnce({
-                    ...target,
-                    organizationName: 'Example',
-                })
-                .mockResolvedValueOnce(null);
-            await enabledService().syncContent(target);
-            expect(lock).toHaveBeenCalledWith('org');
-            expect(upsertDashboard).not.toHaveBeenCalled();
-            getFeatureFlag.mockResolvedValue({ enabled: false });
-            await enabledService().syncContent(target);
-            expect(upsertDashboard).not.toHaveBeenCalled();
-            expect(getOrCreateSystemUser).not.toHaveBeenCalled();
-        });
-
-        it('ignores deleted, unmarked, or cross-organization targets', async () => {
-            getSyncProject.mockResolvedValueOnce(null).mockResolvedValueOnce({
-                ...target,
-                organizationUuid: 'other-org',
-            });
-            await enabledService().syncContent(target);
-            await enabledService().syncContent(target);
-            expect(lock).not.toHaveBeenCalled();
-            expect(upsertDashboard).not.toHaveBeenCalled();
-        });
-
-        it('does no background work when analytics storage is disabled', async () => {
-            await service.syncContent(target);
             await service.reconcileContent({ organizationUuid: null });
-            expect(getSyncProject).not.toHaveBeenCalled();
-            expect(getProjectsPage).not.toHaveBeenCalled();
-        });
-
-        it('pages existing projects and enqueues only feature-enabled organizations', async () => {
-            getProjectsPage
-                .mockResolvedValueOnce([
-                    { ...target, organizationName: 'Example' },
-                    {
-                        organizationUuid: 'disabled',
-                        projectUuid: 'disabled-project',
-                        organizationName: 'Disabled',
-                    },
-                ])
-                .mockResolvedValueOnce([]);
-            getFeatureFlag
-                .mockResolvedValueOnce({ enabled: true })
-                .mockResolvedValueOnce({ enabled: false });
-            await enabledService().reconcileContent({ organizationUuid: null });
-            expect(
-                scheduleAnalyticsContentSync,
-            ).toHaveBeenCalledExactlyOnceWith(target);
-            expect(getProjectsPage).toHaveBeenLastCalledWith({
-                organizationUuid: null,
-                afterProjectUuid: 'disabled-project',
-                limit: 100,
-            });
+            expect(scheduleAnalyticsContentSync.mock.calls).toEqual([
+                [{ organizationUuid: 'one' }], [{ organizationUuid: 'two' }],
+            ]);
             expect(upsertDashboard).not.toHaveBeenCalled();
         });
 
-        it('continues enqueuing other projects after a failure and leaves reconciliation retryable', async () => {
-            getProjectsPage
-                .mockResolvedValueOnce([
-                    { ...target, organizationName: 'Example' },
-                    {
-                        ...target,
-                        projectUuid: 'second-project',
-                        organizationName: 'Example',
-                    },
-                ])
-                .mockResolvedValueOnce([]);
-            scheduleAnalyticsContentSync.mockRejectedValueOnce(
-                new Error('queue unavailable'),
-            );
-            await expect(
-                enabledService().reconcileContent({ organizationUuid: 'org' }),
-            ).rejects.toThrow('Failed to enqueue 1');
-            expect(scheduleAnalyticsContentSync).toHaveBeenCalledTimes(2);
-            expect(scheduleAnalyticsContentSync).toHaveBeenLastCalledWith({
-                organizationUuid: 'org',
-                projectUuid: 'second-project',
-            });
-            expect(getProjectsPage).toHaveBeenCalledWith({
-                organizationUuid: 'org',
-                afterProjectUuid: null,
-                limit: 100,
-            });
+        it('calls the existing sync method with a freshly authorized admin', async () => {
+            const background = configured();
+            const install = vi.spyOn(background, 'installSampleContent').mockResolvedValue();
+            await background.syncContent({ organizationUuid: 'org' });
+            expect(findSessionUserAndOrgByUuid).toHaveBeenCalledWith(user.userUuid, 'org');
+            expect(install).toHaveBeenCalledWith(expect.objectContaining({ userUuid: user.userUuid }));
+            expect(assertAnalyticsProjectAdministration).toHaveBeenCalled();
+        });
+
+        it('skips unchanged content and still detects definition-only changes', async () => {
+            findDashboard.mockResolvedValue(analyticsContentAsCode.map(({ dashboard }) => ({ uuid: dashboard.slug })));
+            await configured().syncContent({ organizationUuid: 'org' });
+            expect(upsertDashboard).not.toHaveBeenCalled();
+            getSnapshot.mockResolvedValue({ snapshotHash: 'old-definition' });
+            await configured().syncContent({ organizationUuid: 'org' });
+            expect(upsertDashboard).toHaveBeenCalledTimes(analyticsContentAsCode.length);
+            expect(saveSnapshot).toHaveBeenCalledWith(expect.objectContaining({ snapshotHash: hash, appliedByUserUuid: user.userUuid }));
+        });
+
+        it('leaves failed sync retryable without marking the bundle complete', async () => {
+            upsertChart.mockRejectedValueOnce(new Error('upload failed'));
+            await expect(configured().syncContent({ organizationUuid: 'org' })).rejects.toThrow('upload failed');
+            expect(saveSnapshot).not.toHaveBeenCalled();
+            await configured().syncContent({ organizationUuid: 'org' });
+            expect(saveSnapshot).toHaveBeenCalledOnce();
+        });
+
+        it.each([{ isActive: false, isPending: false }, { isActive: true, isPending: true }])('rechecks admin eligibility: %j', async (status) => {
+            findSessionUserAndOrgByUuid.mockResolvedValue({ ...user, ...status });
+            await expect(configured().syncContent({ organizationUuid: 'org' })).rejects.toThrow('no longer active');
+            expect(upsertDashboard).not.toHaveBeenCalled();
+        });
+
+        it('does no writes for disabled, unprovisioned or unauthorized organizations', async () => {
+            getFeatureFlag.mockResolvedValueOnce({ enabled: false });
+            await configured().syncContent({ organizationUuid: 'org' });
+            assertAnalyticsProjectAdministration.mockRejectedValueOnce(new ForbiddenError('Not allowed'));
+            await expect(configured().syncContent({ organizationUuid: 'org' })).rejects.toThrow('Not allowed');
+            getAllByOrganizationUuid.mockResolvedValue([]);
+            await configured().syncContent({ organizationUuid: 'org' });
+            getOrganizationAdmins.mockResolvedValue([]);
+            await expect(configured().syncContent({ organizationUuid: 'org' })).rejects.toThrow('No active organization administrator');
+            expect(upsertDashboard).not.toHaveBeenCalled();
         });
     });
 

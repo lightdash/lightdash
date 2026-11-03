@@ -283,12 +283,6 @@ export type PushToPreview = (args: {
     previousUpstreamCredentials: CreateWarehouseCredentials;
 }) => CreateWarehouseCredentials | null;
 
-export type AnalyticsSyncProject = {
-    projectUuid: string;
-    organizationUuid: string;
-    organizationName: string;
-};
-
 export type PreviewCredentialsPush =
     | { kind: 'skipped' }
     | { kind: 'pushed'; previewProjectUuids: string[] }
@@ -888,56 +882,6 @@ export class ProjectModel {
         if (updatedProjects.length === 0) {
             throw new NotFoundError('Project not found');
         }
-    }
-
-    private analyticsProjectsQuery() {
-        return this.database(ProjectTableName)
-            .join(
-                OrganizationTableName,
-                `${ProjectTableName}.organization_id`,
-                `${OrganizationTableName}.organization_id`,
-            )
-            .where(`${ProjectTableName}.provisioning_source`, 'analytics')
-            .select<AnalyticsSyncProject[]>(
-                `${ProjectTableName}.project_uuid as projectUuid`,
-                `${OrganizationTableName}.organization_uuid as organizationUuid`,
-                `${OrganizationTableName}.organization_name as organizationName`,
-            );
-    }
-
-    async getAnalyticsProject(
-        projectUuid: string,
-    ): Promise<AnalyticsSyncProject | null> {
-        const project = await this.analyticsProjectsQuery()
-            .where(`${ProjectTableName}.project_uuid`, projectUuid)
-            .first();
-        return project ?? null;
-    }
-
-    async getAnalyticsProjectsPage({
-        organizationUuid,
-        afterProjectUuid,
-        limit,
-    }: {
-        organizationUuid: string | null;
-        afterProjectUuid: string | null;
-        limit: number;
-    }): Promise<AnalyticsSyncProject[]> {
-        const query = this.analyticsProjectsQuery()
-            .orderBy(`${ProjectTableName}.project_uuid`)
-            .limit(limit);
-        if (organizationUuid !== null)
-            query.where(
-                `${OrganizationTableName}.organization_uuid`,
-                organizationUuid,
-            );
-        if (afterProjectUuid !== null)
-            query.where(
-                `${ProjectTableName}.project_uuid`,
-                '>',
-                afterProjectUuid,
-            );
-        return query;
     }
 
     async getAllByOrganizationUuid(

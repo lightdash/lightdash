@@ -9,8 +9,7 @@ processing; see [automatic content updates](content-sync.md).
 New built-in dashboards are created together in the **Default dashboards** space.
 Create and Sync content automatically apply the existing **Verified** badge after
 each dashboard's charts and layout are installed. Verification is attributed to
-the admin for manual installation or the inactive internal Analytics system user
-for automatic installation; it identifies the supplied content, not the health
+the applying administrator for manual and automatic installation; it identifies the supplied content, not the health
 or completeness of that organization's captured data. Normal sync preserves an
 existing verification; restoration re-verifies after the layout is installed.
 Custom dashboards and copies are not automatically verified.
@@ -196,9 +195,7 @@ inventory. Absence of observed usage is not evidence that content is safe to del
 
 The installed definition hash includes models, chart definitions and dashboard
 layouts, so formula and label changes are detected even when field and chart
-counts are unchanged. The installed release and hash are recorded only after a
-complete successful sync. Existing UUIDs and saved versions remain stable.
-Older worker releases cannot overwrite a newer successful installation.
+counts are unchanged. The installed hash is recorded only after a complete successful sync. Existing UUIDs and saved versions remain stable.
 
 Keep bundle/chart keys stable when changing metrics or dimensions. The system
 explores now expose a joined Users table with **User name**; Query Events also

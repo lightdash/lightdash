@@ -47,7 +47,6 @@ import {
 import bcrypt from 'bcrypt';
 import { Knex } from 'knex';
 import NodeCache from 'node-cache';
-import { v5 as uuidv5 } from 'uuid';
 import { LightdashConfig } from '../config/parseConfig';
 import {
     createEmail,
@@ -94,14 +93,6 @@ import Transaction = Knex.Transaction;
 
 const DUMMY_PASSWORD_HASH =
     '$2b$10$a.FcCmXh5HpTV62l7zh1b.yhpfcv/L5F/.8u2DMzar5eH1Qtrltvy';
-const ANALYTICS_SYSTEM_USER_NAMESPACE = 'f9b2e742-e933-4b2f-b854-6367b9c86e01';
-
-export type AnalyticsSyncSystemUser = {
-    userUuid: string;
-    userId: number;
-    createdAt: Date;
-    updatedAt: Date;
-};
 
 export type CreatePasswordlessUserArgs = {
     firstName: string;
@@ -457,57 +448,6 @@ export class UserModel {
     async hasUsers(): Promise<boolean> {
         const results = await userDetailsQueryBuilder(this.database);
         return results.length > 0;
-    }
-
-    async getOrCreateAnalyticsSystemUser(
-        projectUuid: string,
-    ): Promise<AnalyticsSyncSystemUser> {
-        return this.database.transaction(async (trx) => {
-            const project = await trx(ProjectTableName)
-                .where({
-                    project_uuid: projectUuid,
-                    provisioning_source: 'analytics',
-                })
-                .select('project_uuid')
-                .forKeyShare()
-                .first();
-            if (!project)
-                throw new NotFoundError('Analytics project not found');
-            const userUuid = uuidv5(
-                project.project_uuid,
-                ANALYTICS_SYSTEM_USER_NAMESPACE,
-            );
-            await trx(UserTableName)
-                .insert({
-                    user_uuid: userUuid,
-                    first_name: 'Analytics system',
-                    last_name: '',
-                    is_internal: true,
-                    is_active: false,
-                    is_setup_complete: true,
-                    is_marketing_opted_in: false,
-                    is_tracking_anonymized: false,
-                })
-                .onConflict('user_uuid')
-                .ignore();
-            const user = await trx(UserTableName)
-                .where('user_uuid', userUuid)
-                .first();
-            if (
-                !user ||
-                !user.is_internal ||
-                user.is_active ||
-                user.first_name !== 'Analytics system' ||
-                user.last_name !== ''
-            )
-                throw new InvalidUser('Analytics system user is invalid');
-            return {
-                userUuid: user.user_uuid,
-                userId: user.user_id,
-                createdAt: user.created_at,
-                updatedAt: user.updated_at,
-            };
-        });
     }
 
     async getIsTrackingAnonymizedByUserUuids(
