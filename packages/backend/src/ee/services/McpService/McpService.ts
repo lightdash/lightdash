@@ -1602,6 +1602,7 @@ export class McpService extends BaseService {
             scopeName: 'session',
             enablePythonNodes: true,
             apiConnections: [],
+            enableFunnelNodes: false,
             canRunSql: await this.isRunSqlEnabled(user, projectUuid),
             sqlDisabledMessage:
                 'This pipeline contains "sql" nodes but run_sql is not allowed here. Rebuild the pipeline without sql nodes (semanticLayer and duckdb nodes are still available).',

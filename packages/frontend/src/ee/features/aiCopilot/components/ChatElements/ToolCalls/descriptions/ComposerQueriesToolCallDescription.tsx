@@ -1,4 +1,5 @@
 import {
+    friendlyName,
     QuerySourceType,
     type ToolComposerQueriesArgs,
     type ToolComposerQueryNode,
@@ -19,6 +20,7 @@ import {
     IconChevronRight,
     IconDatabase,
     IconFileSpreadsheet,
+    IconFilter,
     IconGitMerge,
     IconSitemap,
 } from '@tabler/icons-react';
@@ -114,6 +116,12 @@ const getNodePresentation = (
                 badge: 'Live data source',
                 detail: '',
             } as const;
+        case QuerySourceType.FUNNEL:
+            return {
+                icon: IconFilter,
+                badge: 'Funnel',
+                detail: `${friendlyName(node.exploreName)} · ${node.steps.join(' → ')}`,
+            } as const;
     }
 };
 
@@ -145,6 +153,18 @@ const NodeBody: FC<{ node: ToolComposerQueryNode }> = ({ node }) => {
                     }}
                 />
             </Box>
+        );
+    }
+    if (node.sourceType === QuerySourceType.FUNNEL) {
+        return (
+            <Group gap={4} wrap="wrap">
+                <Text size="xs" c="dimmed">
+                    {node.exploreName}
+                </Text>
+                {node.steps.map((step, index) => (
+                    <ToolCallChip key={`${index}-${step}`}>{step}</ToolCallChip>
+                ))}
+            </Group>
         );
     }
     if (node.sourceType === QuerySourceType.API) {

@@ -1,6 +1,8 @@
 import {
     buildComposerArtifactPipeline,
     COMPOSER_QUERY_PREVIEW_ROW_LIMIT,
+    getDimensions,
+    getItemId,
     getSourceQueryLimit,
     getSourceQueryResultReferences,
     hasReachedSourceQueryLimit,
@@ -22,6 +24,7 @@ import {
     type ThreadComposerQueryNode,
     type ToolComposerQueriesArgs,
     type ToolComposerQueriesStructuredContent,
+    type ToolComposerQueryNode,
     type ToolRunQueryAppliedParameters,
 } from '@lightdash/common';
 import { stringify } from 'csv-stringify/sync';
@@ -75,6 +78,30 @@ export const resolveTerminalNodeId = (
     return terminalNodeId;
 };
 
+/** Why a funnel node cannot run against the explores; null when its fields exist. */
+const getFunnelNodeFieldError = (
+    node: Extract<
+        ToolComposerQueryNode,
+        { sourceType: QuerySourceType.FUNNEL }
+    >,
+    explores: Explore[],
+): string | null => {
+    const explore = explores.find(({ name }) => name === node.exploreName);
+    if (!explore) {
+        return `Node "${node.nodeId}" reads explore "${node.exploreName}", which is not available. Use one of the available explores.`;
+    }
+    const dimensionIds = new Set(getDimensions(explore).map(getItemId));
+    const missing = [
+        node.userIdFieldId,
+        node.timestampFieldId,
+        node.eventNameFieldId,
+        ...(node.breakdownDimensionId ? [node.breakdownDimensionId] : []),
+    ].find((fieldId) => !dimensionIds.has(fieldId));
+    return missing === undefined
+        ? null
+        : `Node "${node.nodeId}" names "${missing}", which is not a dimension of explore "${node.exploreName}". Use dimension field ids from that explore's schema.`;
+};
+
 export type ComposerAppliedParameters = ToolRunQueryAppliedParameters & {
     nodeId: string;
 };
@@ -99,6 +126,7 @@ export const buildComposerQueryPipeline = ({
     scopeName = 'thread',
     enablePythonNodes,
     apiConnections,
+    enableFunnelNodes,
     canRunSql,
     sqlDisabledMessage,
 }: {
@@ -109,6 +137,7 @@ export const buildComposerQueryPipeline = ({
     scopeName?: ComposerNodeScopeName;
     enablePythonNodes: boolean;
     apiConnections: ComposerApiConnection[];
+    enableFunnelNodes: boolean;
     canRunSql: boolean;
     sqlDisabledMessage: string;
 }): { pipeline: ComposerQueryPipeline } | { error: string } => {
@@ -188,6 +217,24 @@ export const buildComposerQueryPipeline = ({
             error: 'This pipeline contains "api" nodes but api queries are not enabled. Rebuild the pipeline without them.',
         };
     }
+
+    if (
+        !enableFunnelNodes &&
+        queries.some((node) => node.sourceType === QuerySourceType.FUNNEL)
+    ) {
+        return {
+            error: 'This pipeline contains "funnel" nodes but funnel queries are not enabled. Rebuild the pipeline with semanticLayer and duckdb nodes instead.',
+        };
+    }
+
+    const funnelFieldError = queryNodes
+        .map((node) =>
+            node.sourceType === QuerySourceType.FUNNEL
+                ? getFunnelNodeFieldError(node, explores)
+                : null,
+        )
+        .find((error) => error !== null);
+    if (funnelFieldError) return { error: funnelFieldError };
 
     const unknownConnectionNode = queries.find(
         (node) =>

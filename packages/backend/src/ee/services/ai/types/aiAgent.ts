@@ -302,6 +302,8 @@ export type AiAgentArgs = AnyAiModel & {
     enableComposerQueries: boolean;
     // Project API connections composer api nodes may query; empty disables them.
     composerApiConnections: ComposerApiConnection[];
+    // Composer funnel nodes: composer queries on and the funnel builder enabled.
+    enableFunnelNodes: boolean;
     // Whether the user can save a generated dashboard anywhere in the project.
     // Gates generateDashboard so the agent does not build one the user is then
     // refused permission to keep.

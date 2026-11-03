@@ -560,6 +560,21 @@ describe('getSystemPromptV2 composer queries', () => {
         },
     );
 
+    test.each([true, false])(
+        'with funnel nodes %s, directs step conversion questions to a funnel node',
+        (enableComposerFunnelNodes) => {
+            const content = promptText({
+                availableExplores: [],
+                promptSections: composerSections(),
+                enableComposerFunnelNodes,
+            });
+
+            expect(content.includes('with a funnel node')).toBe(
+                enableComposerFunnelNodes,
+            );
+        },
+    );
+
     test('keeps the standalone runSql wording for the classic query path', () => {
         const content = promptText({
             availableExplores: [],

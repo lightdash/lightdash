@@ -246,12 +246,14 @@ describe('python composer nodes', () => {
             getToolComposerQueriesDescription({
                 enablePythonNodes: false,
                 apiConnections: [],
+                enableFunnelNodes: false,
             }),
         ).not.toContain('"python"');
         expect(
             getToolComposerQueriesDescription({
                 enablePythonNodes: true,
                 apiConnections: [],
+                enableFunnelNodes: false,
             }),
         ).toContain('"python"');
     });
@@ -339,11 +341,13 @@ describe('composer api nodes', () => {
             getToolComposerQueriesDescription({
                 enablePythonNodes: false,
                 apiConnections: [],
+                enableFunnelNodes: false,
             }),
         ).not.toContain('"api"');
         const description = getToolComposerQueriesDescription({
             enablePythonNodes: false,
             apiConnections: [postHogConnection],
+            enableFunnelNodes: false,
         });
         expect(description).toContain('"api"');
         expect(description).toContain(
@@ -405,6 +409,149 @@ describe('composer api nodes', () => {
     });
 });
 
+describe('composer funnel nodes', () => {
+    const funnelNode = {
+        sourceType: QuerySourceType.FUNNEL,
+        nodeId: 'signup_funnel',
+        title: 'Signup funnel',
+        description: 'Counts users from visit to purchase.',
+        exploreName: 'events',
+        userIdFieldId: 'events_user_id',
+        timestampFieldId: 'events_event_timestamp',
+        eventNameFieldId: 'events_event_name',
+        steps: ['visit', 'signup', 'purchase'],
+        dateRange: { type: 'preset', preset: 'last_30_days' },
+        conversionWindow: { value: 7, unit: 'days' },
+        breakdownDimensionId: null,
+    };
+    const args = {
+        title: null,
+        description: null,
+        terminalNodeId: null,
+        queries: [funnelNode],
+    };
+
+    it('offers the funnel node only when enabled', () => {
+        expect(toolComposerQueriesArgsSchema.safeParse(args).success).toBe(
+            false,
+        );
+        expect(
+            createToolComposerQueriesArgsSchema({
+                enableFunnelNodes: true,
+            }).safeParse(args).success,
+        ).toBe(true);
+    });
+
+    it('rejects a funnel with fewer than two steps or a malformed custom range', () => {
+        const schema = createToolComposerQueriesArgsSchema({
+            enableFunnelNodes: true,
+        });
+        expect(
+            schema.safeParse({
+                ...args,
+                queries: [{ ...funnelNode, steps: ['visit'] }],
+            }).success,
+        ).toBe(false);
+        expect(
+            schema.safeParse({
+                ...args,
+                queries: [
+                    {
+                        ...funnelNode,
+                        dateRange: {
+                            type: 'custom',
+                            start: '2026-01-01T00:00:00Z',
+                            end: '2026-02-01',
+                        },
+                    },
+                ],
+            }).success,
+        ).toBe(false);
+    });
+
+    it('keeps persisted funnel calls parseable', () => {
+        expect(
+            toolComposerQueriesArgsSchemaPersisted.safeParse(args).success,
+        ).toBe(true);
+    });
+
+    it('describes funnel nodes only when enabled', () => {
+        const options = { enablePythonNodes: false, apiConnections: [] };
+        expect(
+            getToolComposerQueriesDescription({
+                ...options,
+                enableFunnelNodes: false,
+            }),
+        ).not.toContain('"funnel"');
+        expect(
+            getToolComposerQueriesDescription({
+                ...options,
+                enableFunnelNodes: true,
+            }),
+        ).toContain('"funnel"');
+    });
+
+    it('converts to a funnel source query with ordered steps', () => {
+        const [node] = createToolComposerQueriesArgsSchema({
+            enableFunnelNodes: true,
+        }).parse(args).queries;
+        if (node.sourceType !== QuerySourceType.FUNNEL) {
+            throw new Error('expected a funnel node');
+        }
+        expect(toolComposerQueryNodeToSourceQuery(node)).toEqual({
+            sourceType: QuerySourceType.FUNNEL,
+            nodeId: 'signup_funnel',
+            title: 'Signup funnel',
+            description: 'Counts users from visit to purchase.',
+            exploreName: 'events',
+            userIdFieldId: 'events_user_id',
+            timestampFieldId: 'events_event_timestamp',
+            eventNameFieldId: 'events_event_name',
+            steps: [
+                { stepOrder: 1, eventName: 'visit' },
+                { stepOrder: 2, eventName: 'signup' },
+                { stepOrder: 3, eventName: 'purchase' },
+            ],
+            dateRange: { type: 'preset', preset: 'last_30_days' },
+            conversionWindow: { value: 7, unit: 'days' },
+            breakdownDimensionId: undefined,
+            limit: DEFAULT_COMPOSER_QUERY_LIMIT,
+        });
+    });
+
+    it('renders a partially streamed funnel node', () => {
+        expect(
+            parsePartialToolComposerQueriesArgs({
+                queries: [
+                    {
+                        sourceType: QuerySourceType.FUNNEL,
+                        nodeId: 'signup_funnel',
+                        exploreName: 'events',
+                        steps: ['visit', 1],
+                        dateRange: { type: 'pre' },
+                    },
+                ],
+            })?.queries,
+        ).toEqual([
+            {
+                sourceType: QuerySourceType.FUNNEL,
+                nodeId: 'signup_funnel',
+                title: 'signup_funnel',
+                description: null,
+                exploreName: 'events',
+                userIdFieldId: '',
+                timestampFieldId: '',
+                eventNameFieldId: '',
+                steps: ['visit'],
+                dateRange: { type: 'preset', preset: 'last_30_days' },
+                conversionWindow: null,
+                breakdownDimensionId: null,
+                limit: DEFAULT_COMPOSER_QUERY_LIMIT,
+            },
+        ]);
+    });
+});
+
 describe('composer node references', () => {
     const duckdbArgs = (references: unknown) => ({
         title: null,
@@ -447,6 +594,7 @@ describe('composer node references', () => {
             getToolComposerQueriesDescription({
                 enablePythonNodes: true,
                 apiConnections: [postHogConnection],
+                enableFunnelNodes: false,
             }),
         ).not.toMatch(/query ?uuid|query id/i);
     });

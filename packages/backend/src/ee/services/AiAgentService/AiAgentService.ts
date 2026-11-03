@@ -16883,6 +16883,9 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                           prompt.projectUuid,
                       )
                     : [];
+                const enableFunnelNodes =
+                    enableComposerQueries &&
+                    this.lightdashConfig.funnelBuilder.enabled;
                 const { enabled: filterExpressionsEnabled } =
                     await this.featureFlagService.get({
                         user,
@@ -17365,6 +17368,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     canRunSql,
                     enableComposerQueries,
                     composerApiConnections,
+                    enableFunnelNodes,
                     canCreateDashboards,
                     canCreateScheduledDeliveries,
                     autoApproveSql:

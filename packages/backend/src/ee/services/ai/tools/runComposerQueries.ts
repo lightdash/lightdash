@@ -90,6 +90,8 @@ type Dependencies = {
     enablePythonNodes: boolean;
     // Project API connections api nodes may query; empty disables api nodes.
     apiConnections: ComposerApiConnection[];
+    // Funnel nodes need the funnel builder enabled on the instance.
+    enableFunnelNodes: boolean;
     autoApproveSql?: boolean;
     autoApproveSqlUserUuid?: string | null;
     useSlackStreamCard?: boolean;
@@ -188,6 +190,7 @@ export const getRunComposerQueries = ({
     canRunSql,
     enablePythonNodes,
     apiConnections,
+    enableFunnelNodes,
     autoApproveSql = false,
     autoApproveSqlUserUuid = null,
     useSlackStreamCard = false,
@@ -218,12 +221,14 @@ export const getRunComposerQueries = ({
         maxLimit: maxQueryLimit,
         enablePythonNodes,
         enableApiNodes,
+        enableFunnelNodes,
     });
 
     return tool({
         description: getToolComposerQueriesDescription({
             enablePythonNodes,
             apiConnections,
+            enableFunnelNodes,
         }),
         inputSchema,
         outputSchema: toolDefinition.outputSchema,
@@ -264,6 +269,7 @@ export const getRunComposerQueries = ({
                     reusableNodes: threadNodes,
                     enablePythonNodes,
                     apiConnections,
+                    enableFunnelNodes,
                     canRunSql,
                     sqlDisabledMessage:
                         'This pipeline contains "sql" nodes but SQL execution is not enabled for this agent. Rebuild the pipeline without sql nodes (semanticLayer and duckdb nodes are still available).',

@@ -2,6 +2,11 @@ import { z } from 'zod';
 import { DimensionType, MetricType } from '../../../../types/field';
 import { type Filters } from '../../../../types/filter';
 import {
+    FUNNEL_DATE_PRESETS,
+    type FunnelDatePreset,
+    type FunnelStep,
+} from '../../../../types/funnel';
+import {
     type AdditionalMetric,
     type MetricQueryRequest,
     type SortField,
@@ -13,6 +18,7 @@ import {
     type ApiSourceQuery,
     type DuckdbSourceQuery,
     type ExternalSourceQuery,
+    type FunnelSourceQuery,
     type PythonSourceQuery,
     type QueryNodeId,
     type SemanticLayerSourceQuery,
@@ -86,6 +92,7 @@ export type ComposerApiConnection = {
 type ComposerQueriesDescriptionOptions = {
     enablePythonNodes: boolean;
     apiConnections: ComposerApiConnection[];
+    enableFunnelNodes: boolean;
 };
 
 const DUCKDB_ALIAS_GUIDANCE =
@@ -94,6 +101,7 @@ const DUCKDB_ALIAS_GUIDANCE =
 const getComposerNodeKindsDescription = ({
     enablePythonNodes,
     apiConnections,
+    enableFunnelNodes,
     sqlNote,
 }: ComposerQueriesDescriptionOptions & { sqlNote: string }) => `Node kinds:
 - "semanticLayer": a metric query against an explore. Result columns are the requested field ids.
@@ -114,6 +122,11 @@ const getComposerNodeKindsDescription = ({
               )
               .join(', ')}.`
         : ''
+}${
+    enableFunnelNodes
+        ? `
+- "funnel": a conversion funnel over the event rows of an explore, compiled to warehouse SQL. One row per step, per breakdown value when a breakdown is set, with fixed columns step_order, step_name, total_users, conversion_rate (% of step 1), step_conversion_rate (% of the previous step), median_time_to_convert (seconds from the previous step, null on step 1) and breakdown_value when a breakdown is set. It reads no other results; join its rows with a duckdb node.`
+        : ''
 }
 
 A node reads only the rows its references returned, so a referenced result that reached its limit is incomplete: before totalling, averaging or ranking over it, give that node a limit that holds its whole population, or aggregate there.`;
@@ -121,6 +134,7 @@ A node reads only the rows its references returned, so a referenced result that 
 export const getToolComposerQueriesDescription = ({
     enablePythonNodes,
     apiConnections,
+    enableFunnelNodes,
 }: ComposerQueriesDescriptionOptions) => `Run a pipeline: one or more nodes submitted together, where ${
     enablePythonNodes ? 'duckdb and python' : 'duckdb'
 } nodes join or transform other nodes' results. One call returns one node's rows, the terminal node's, so exactly one submitted node may go unread by the others: to get several results, combine them in one duckdb node (UNION ALL or JOIN) or submit them in separate calls. Every other submitted node is listed with its columns and first rows.
@@ -128,6 +142,7 @@ export const getToolComposerQueriesDescription = ({
 ${getComposerNodeKindsDescription({
     enablePythonNodes,
     apiConnections,
+    enableFunnelNodes,
     sqlNote: 'may need user approval',
 })}
 
@@ -140,6 +155,7 @@ One call returns one node's rows, so exactly one submitted node may go unread by
 ${getComposerNodeKindsDescription({
     enablePythonNodes: true,
     apiConnections: [],
+    enableFunnelNodes: false,
     sqlNote: 'available only when run_sql is',
 })}
 
@@ -153,6 +169,7 @@ export const TOOL_COMPOSER_QUERIES_DESCRIPTION =
     getToolComposerQueriesDescription({
         enablePythonNodes: false,
         apiConnections: [],
+        enableFunnelNodes: false,
     });
 
 const nodeIdSchema = z
@@ -287,6 +304,29 @@ const referencesSchema = z.union([
     z.record(z.string(), referencedNodeIdSchema),
 ]);
 
+const funnelDatePresets = FUNNEL_DATE_PRESETS.map(({ value }) => value).filter(
+    (value): value is Exclude<FunnelDatePreset, 'custom'> => value !== 'custom',
+) as [
+    Exclude<FunnelDatePreset, 'custom'>,
+    ...Exclude<FunnelDatePreset, 'custom'>[],
+];
+
+const isoDateSchema = z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Dates use YYYY-MM-DD');
+
+const funnelDateRangeSchema = z.discriminatedUnion('type', [
+    z.object({
+        type: z.literal('preset'),
+        preset: z.enum(funnelDatePresets),
+    }),
+    z.object({
+        type: z.literal('custom'),
+        start: isoDateSchema.describe('First day, YYYY-MM-DD, inclusive.'),
+        end: isoDateSchema.describe('Last day, YYYY-MM-DD, inclusive.'),
+    }),
+]);
+
 type CreateToolComposerQueriesArgsSchemaOptions = {
     maxLimit?: number;
     defaultLimit?: number;
@@ -296,6 +336,8 @@ type CreateToolComposerQueriesArgsSchemaOptions = {
     persisted?: boolean;
     /** Offers the api node; only when an api connector is enabled and configured. */
     enableApiNodes?: boolean;
+    /** Offers the funnel node; only when the funnel builder is enabled. */
+    enableFunnelNodes?: boolean;
 };
 
 export const createToolComposerQueriesArgsSchemaV1 = ({
@@ -304,6 +346,7 @@ export const createToolComposerQueriesArgsSchemaV1 = ({
     enablePythonNodes = false,
     persisted = false,
     enableApiNodes = false,
+    enableFunnelNodes = false,
 }: CreateToolComposerQueriesArgsSchemaOptions = {}) => {
     const nodeMetaSchema = {
         title: nodeTitleSchema,
@@ -444,6 +487,57 @@ export const createToolComposerQueriesArgsSchemaV1 = ({
         limit: limitSchema,
     });
 
+    const funnelNodeSchema = z.object({
+        sourceType: z.literal(QuerySourceType.FUNNEL),
+        nodeId: nodeIdSchema,
+        ...nodeMetaSchema,
+        exploreName: z
+            .string()
+            .describe(
+                'The explore whose rows are the events, one row per event.',
+            ),
+        userIdFieldId: z
+            .string()
+            .describe(
+                "Dimension field id identifying who moves through the funnel, from the explore's schema, e.g. a user or account id.",
+            ),
+        timestampFieldId: z
+            .string()
+            .describe(
+                "Timestamp dimension field id holding when each event happened, from the explore's schema.",
+            ),
+        eventNameFieldId: z
+            .string()
+            .describe(
+                "Dimension field id whose values are the event names, from the explore's schema.",
+            ),
+        steps: z
+            .array(z.string())
+            .min(2)
+            .describe(
+                'Event names in funnel order, at least two: exact values of eventNameFieldId, not field ids. When unsure which values exist, list the distinct values with a semanticLayer node first. A user counts at a step only after completing every earlier step, each within conversionWindow of the previous one.',
+            ),
+        dateRange: funnelDateRangeSchema.describe(
+            'Events on timestampFieldId outside this range are not read: a preset counting back from today, or a custom range.',
+        ),
+        conversionWindow: z
+            .object({
+                value: z.coerce.number().int().positive(),
+                unit: z.enum(['hours', 'days', 'weeks']),
+            })
+            .nullish()
+            .describe(
+                'How long after the previous step a user has to reach the next one. Null uses 30 days.',
+            ),
+        breakdownDimensionId: z
+            .string()
+            .nullish()
+            .describe(
+                'Dimension field id splitting every step by its value, adding breakdown_value; a user converts only within the same value. Null for one funnel.',
+            ),
+        limit: limitSchema,
+    });
+
     const baseNodeSchemas = [
         semanticLayerNodeSchema,
         sqlNodeSchema,
@@ -454,6 +548,7 @@ export const createToolComposerQueriesArgsSchemaV1 = ({
         ...baseNodeSchemas,
         ...(enablePythonNodes ? [pythonNodeSchema] : []),
         ...(enableApiNodes ? [apiNodeSchema] : []),
+        ...(enableFunnelNodes ? [funnelNodeSchema] : []),
     ]);
 
     return createToolSchema()
@@ -527,6 +622,7 @@ export const toolComposerQueriesArgsSchemaPersisted = z.preprocess(
     createToolComposerQueriesArgsSchemaV1({
         enablePythonNodes: true,
         enableApiNodes: true,
+        enableFunnelNodes: true,
         maxLimit: Number.MAX_SAFE_INTEGER,
         persisted: true,
     }),
@@ -573,6 +669,7 @@ export type SubmittedSourceQuery = (
     | ExternalSourceQuery
     | PythonSourceQuery
     | ApiSourceQuery
+    | FunnelSourceQuery
 ) & { nodeId: QueryNodeId };
 
 export const toolComposerQueryNodeToSourceQuery = (
@@ -647,6 +744,27 @@ export const toolComposerQueryNodeToSourceQuery = (
                 payload: node.payload,
                 limit: node.limit,
             };
+        case QuerySourceType.FUNNEL: {
+            const steps: FunnelStep[] = node.steps.map((eventName, index) => ({
+                stepOrder: index + 1,
+                eventName,
+            }));
+            const funnel: FunnelSourceQuery & { nodeId: QueryNodeId } = {
+                sourceType: node.sourceType,
+                nodeId: node.nodeId,
+                ...toSourceQueryNodeMeta(node),
+                exploreName: node.exploreName,
+                userIdFieldId: node.userIdFieldId,
+                timestampFieldId: node.timestampFieldId,
+                eventNameFieldId: node.eventNameFieldId,
+                steps,
+                dateRange: node.dateRange,
+                conversionWindow: node.conversionWindow ?? undefined,
+                breakdownDimensionId: node.breakdownDimensionId ?? undefined,
+                limit: node.limit,
+            };
+            return funnel;
+        }
         default:
             return assertUnreachable(node, 'Unknown composer query node');
     }
@@ -778,6 +896,33 @@ export const parsePartialToolComposerQueriesArgs = (
                                     ? payload.query
                                     : '',
                         },
+                        limit: DEFAULT_COMPOSER_QUERY_LIMIT,
+                    },
+                ];
+            }
+            case QuerySourceType.FUNNEL: {
+                const asString = (value: unknown) =>
+                    typeof value === 'string' ? value : '';
+                const dateRange = funnelDateRangeSchema.safeParse(
+                    node.dateRange,
+                );
+                return [
+                    {
+                        sourceType: QuerySourceType.FUNNEL,
+                        ...meta,
+                        exploreName: asString(node.exploreName),
+                        userIdFieldId: asString(node.userIdFieldId),
+                        timestampFieldId: asString(node.timestampFieldId),
+                        eventNameFieldId: asString(node.eventNameFieldId),
+                        steps: asStringArray(node.steps),
+                        dateRange: dateRange.success
+                            ? dateRange.data
+                            : { type: 'preset', preset: 'last_30_days' },
+                        conversionWindow: null,
+                        breakdownDimensionId:
+                            typeof node.breakdownDimensionId === 'string'
+                                ? node.breakdownDimensionId
+                                : null,
                         limit: DEFAULT_COMPOSER_QUERY_LIMIT,
                     },
                 ];

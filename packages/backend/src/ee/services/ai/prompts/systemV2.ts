@@ -187,6 +187,8 @@ export const getSystemPromptV2 = (
         enableComposerPythonNodes?: boolean;
         // Api nodes in query; only meaningful for the composer base.
         enableComposerApiNodes?: boolean;
+        // Funnel nodes in query; only meaningful for the composer base.
+        enableComposerFunnelNodes?: boolean;
         unauthenticatedMcpServerNames?: string[];
         mcpServers?: Array<{ name: string; toolNames: string[] }>;
     },
@@ -211,6 +213,7 @@ export const getSystemPromptV2 = (
         canRunQuery = false,
         enableComposerPythonNodes = false,
         enableComposerApiNodes = false,
+        enableComposerFunnelNodes = false,
         unauthenticatedMcpServerNames = [],
         deferredSections = new Set<DeferredPromptSection>(),
         mcpServers = [],
@@ -238,6 +241,7 @@ export const getSystemPromptV2 = (
               queryLanguageSections: getQueryingComposerSection({
                   enablePythonNodes: enableComposerPythonNodes,
                   enableApiNodes: enableComposerApiNodes,
+                  enableFunnelNodes: enableComposerFunnelNodes,
                   canRunSql,
                   slackChannelId,
               }),

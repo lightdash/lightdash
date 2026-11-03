@@ -19325,6 +19325,7 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
                           "external",
                           "python",
                           "api",
+                          "funnel",
                         ],
                         "type": "string",
                       },

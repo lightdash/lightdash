@@ -22,11 +22,13 @@ ${
 export const getQueryingComposerSection = ({
     enablePythonNodes,
     enableApiNodes,
+    enableFunnelNodes,
     canRunSql,
     slackChannelId,
 }: {
     enablePythonNodes: boolean;
     enableApiNodes: boolean;
+    enableFunnelNodes: boolean;
     canRunSql: boolean;
     slackChannelId: string | null;
 }): string =>
@@ -49,6 +51,11 @@ export const getQueryingComposerSection = ({
         ...(enableApiNodes
             ? [
                   '- Answer questions about product usage tracked in PostHog (events, users, sessions) with an api node running HogQL, and prefer an explore when one already models that data. Join api rows with semanticLayer rows in a duckdb node, matching their grain and date truncation first.',
+              ]
+            : []),
+        ...(enableFunnelNodes
+            ? [
+                  '- Answer questions about users doing A, then B, then C, and conversion or drop-off between steps, with a funnel node over the explore holding the events, never with sql. When unsure which event names exist, list the distinct values of its event name dimension with a semanticLayer node first. Reshape or join its rows in a duckdb node.',
               ]
             : []),
         '- Build an answer that takes several queries, or a computation over their results, as one pipeline in one query call, whose terminal node is the result that answers the question.',

@@ -332,6 +332,7 @@ const makeTool = ({
     canRunSql = true,
     enablePythonNodes = false,
     apiConnections = [],
+    enableFunnelNodes = false,
     enableDataAccess = true,
     waitForSqlApproval = vi.fn().mockResolvedValue('approved'),
     prompt = makePrompt(),
@@ -347,6 +348,7 @@ const makeTool = ({
     canRunSql?: boolean;
     enablePythonNodes?: boolean;
     apiConnections?: ComposerApiConnection[];
+    enableFunnelNodes?: boolean;
     enableDataAccess?: boolean;
     waitForSqlApproval?: import('vitest').Mock;
     prompt?: AiWebAppPrompt | SlackPrompt;
@@ -401,6 +403,7 @@ const makeTool = ({
         canRunSql,
         enablePythonNodes,
         apiConnections,
+        enableFunnelNodes,
         autoApproveSql,
         autoApproveSqlUserUuid,
         useSlackStreamCard,
@@ -1797,6 +1800,93 @@ describe('api composer nodes', () => {
 
         expect(output.metadata?.status).toBe('error');
         expect(output.result).toContain('"api"');
+        expect(dependencies.runComposerQueries).not.toHaveBeenCalled();
+    });
+});
+
+describe('funnel composer nodes', () => {
+    const funnelNode: ComposerNode = {
+        sourceType: QuerySourceType.FUNNEL,
+        nodeId: 'order_funnel',
+        title: 'Order funnel',
+        description: 'Counts customers from first to repeat order.',
+        exploreName: mockOrdersExplore.name,
+        userIdFieldId: 'orders_customer_name',
+        timestampFieldId: 'orders_order_date',
+        eventNameFieldId: 'orders_product_category',
+        steps: ['books', 'games'],
+        dateRange: { type: 'preset', preset: 'last_30_days' },
+        conversionWindow: null,
+        breakdownDimensionId: null,
+        limit: 500,
+    };
+    const funnelArgs = (node: ComposerNode = funnelNode) =>
+        makeArgs({ queries: [node] });
+
+    it('offers the funnel node in the input schema and description only when enabled', () => {
+        const accepts = (enableFunnelNodes: boolean) =>
+            (
+                makeTool({ enableFunnelNodes }).tool.inputSchema as ZodType
+            ).safeParse(funnelArgs()).success;
+        expect(accepts(false)).toBe(false);
+        expect(accepts(true)).toBe(true);
+        expect(makeTool().tool.description).not.toContain('"funnel"');
+        expect(
+            makeTool({ enableFunnelNodes: true }).tool.description,
+        ).toContain('"funnel"');
+    });
+
+    it('runs a funnel pipeline without SQL approval', async () => {
+        const { tool, dependencies } = makeTool({ enableFunnelNodes: true });
+
+        await executeTool(tool, funnelArgs());
+
+        expect(dependencies.waitForSqlApproval).not.toHaveBeenCalled();
+        expect(dependencies.runComposerQueries).toHaveBeenCalledWith(
+            expect.objectContaining({
+                terminalNodeId: 'order_funnel',
+                queries: [
+                    expect.objectContaining({
+                        sourceType: QuerySourceType.FUNNEL,
+                        steps: [
+                            { stepOrder: 1, eventName: 'books' },
+                            { stepOrder: 2, eventName: 'games' },
+                        ],
+                    }),
+                ],
+            }),
+        );
+    });
+
+    it.each([
+        ['an unknown explore', { exploreName: 'missing' }, '"missing"'],
+        [
+            'a field that is not a dimension',
+            { breakdownDimensionId: 'orders_unknown' },
+            '"orders_unknown"',
+        ],
+    ])('refuses a funnel node naming %s', async (_, overrides, named) => {
+        const { tool, dependencies } = makeTool({
+            enableFunnelNodes: true,
+        });
+
+        const output = await executeTool(
+            tool,
+            funnelArgs({ ...funnelNode, ...overrides } as ComposerNode),
+        );
+
+        expect(output.metadata?.status).toBe('error');
+        expect(output.result).toContain(named);
+        expect(dependencies.runComposerQueries).not.toHaveBeenCalled();
+    });
+
+    it('refuses funnel nodes when funnel queries are disabled', async () => {
+        const { tool, dependencies } = makeTool();
+
+        const output = await executeTool(tool, funnelArgs());
+
+        expect(output.metadata?.status).toBe('error');
+        expect(output.result).toContain('"funnel"');
         expect(dependencies.runComposerQueries).not.toHaveBeenCalled();
     });
 });

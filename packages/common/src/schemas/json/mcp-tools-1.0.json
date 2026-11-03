@@ -3768,7 +3768,8 @@
                                         "duckdb",
                                         "external",
                                         "python",
-                                        "api"
+                                        "api",
+                                        "funnel"
                                     ],
                                     "type": "string"
                                 },
