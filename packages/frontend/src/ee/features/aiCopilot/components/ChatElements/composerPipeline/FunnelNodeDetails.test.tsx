@@ -115,7 +115,7 @@ describe('FunnelNodeDetails', () => {
     it('sentence: leads with the steps and splits only with a breakdown', () => {
         const { unmount } = renderDetails(funnel, 'sentence');
         expect(texts('funnel-sentence')).toEqual([
-            'Of users who did Page view, how many went on to Add to cart and Checkout completed, in that order, each within 7 days of the step before, over Last 30 days, split by Product events device type.',
+            'Of users who did Page view, how many went on to Add to cart and Checkout completed, in that order, each within 7 days of the step before, over last 30 days, split by Product events device type.',
         ]);
         unmount();
         renderDetails(

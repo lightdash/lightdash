@@ -43,6 +43,11 @@ export const FunnelNodeSentence: FC<{
     const getUiString = useUiStrings();
     const windowPhrase = useWindowPhrase();
     const rangeLabel = useRangeLabel();
+    // Preset labels are title case ("Last 30 days"); mid-sentence they are not.
+    const inSentence = (label: string) =>
+        query.dateRange.type === 'preset'
+            ? label.charAt(0).toLowerCase() + label.slice(1)
+            : label;
     const [first, ...rest] = sortedFunnelSteps(query);
     const listAnd = getUiString('aiAgent.composer.funnelNode.sentence.listAnd');
     const restList = rest.map((step, index) => (
@@ -66,7 +71,9 @@ export const FunnelNodeSentence: FC<{
                     getUiString('aiAgent.composer.funnelNode.sentence.rule'),
                     {
                         window: <Em>{windowPhrase(query)}</Em>,
-                        range: <Em>{rangeLabel(query.dateRange)}</Em>,
+                        range: (
+                            <Em>{inSentence(rangeLabel(query.dateRange))}</Em>
+                        ),
                     },
                 )}
                 {query.breakdownDimensionId &&

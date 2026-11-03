@@ -97,7 +97,7 @@ export const FunnelNodeSpine: FC<{
                     />
                     <FunnelRangeChip query={query} />
                     {query.breakdownDimensionId && (
-                        <>
+                        <Group gap={4} wrap="nowrap" miw={0}>
                             <FieldChip
                                 fieldId={query.breakdownDimensionId}
                                 fieldsMap={fieldsMap}
@@ -108,7 +108,7 @@ export const FunnelNodeSpine: FC<{
                                     'aiAgent.composer.funnelNode.breakdownNote',
                                 )}
                             </Text>
-                        </>
+                        </Group>
                     )}
                 </Group>
                 <Text fz="xs" c="dimmed">
