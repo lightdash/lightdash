@@ -43,6 +43,13 @@ export const canConnectToPostgresDatabaseName = (database: string): boolean =>
 export const unopenablePostgresDatabaseMessage = (database: string) =>
     `Database "${database}" cannot be opened: its name contains one of ; / ? : @ & = + $ , #`;
 
+declare module 'pg' {
+    interface ClientBase {
+        // Backend process ID from BackendKeyData, set once connected
+        processID: number | null;
+    }
+}
+
 types.setTypeParser(types.builtins.NUMERIC, (value) => parseFloat(value));
 types.setTypeParser(types.builtins.INT8, BigInt);
 
@@ -263,6 +270,22 @@ export class PostgresSqlBuilder extends WarehouseBaseSqlBuilder {
     }
 }
 
+export type PostgresStreamQueryOptions = {
+    values?: AnyType[];
+    tags?: Record<string, string>;
+    timezone?: string;
+    recoverStalledQuery?: boolean;
+    onPhaseTiming?: (phase: WarehouseQueryPhase, durationMs: number) => void;
+};
+
+export type PostgresQueryAttempt = {
+    getBackendPid: () => number | null;
+    hasSentQuery: () => boolean;
+    hasReceivedRow: () => boolean;
+    /** Fails the attempt unless a row was already streamed; returns whether it did. */
+    abort: (error: WarehouseQueryError) => boolean;
+};
+
 type CatalogQueryFilters = {
     databaseFilters: string[];
     schemaFilters: string[];
@@ -372,20 +395,24 @@ export class PostgresClient<
     async streamQuery(
         sql: string,
         streamCallback: (data: WarehouseResults) => void | Promise<void>,
-        options: {
-            values?: AnyType[];
-            tags?: Record<string, string>;
-            timezone?: string;
-            onPhaseTiming?: (
-                phase: WarehouseQueryPhase,
-                durationMs: number,
-            ) => void;
-        },
+        options: PostgresStreamQueryOptions,
+    ): Promise<void> {
+        return this.streamQueryAttempt(sql, streamCallback, options, null);
+    }
+
+    protected async streamQueryAttempt(
+        sql: string,
+        streamCallback: (data: WarehouseResults) => void | Promise<void>,
+        options: PostgresStreamQueryOptions,
+        onAttemptStart: ((attempt: PostgresQueryAttempt) => void) | null,
     ): Promise<void> {
         let pool: pg.Pool | undefined;
         let closeClient: (() => void) | undefined;
         let activeStream: QueryStream | undefined;
         let clientTimeout: ReturnType<typeof setTimeout> | undefined;
+        let backendPid: number | null = null;
+        let sentQuery = false;
+        let receivedRow = false;
 
         const reportPhase = options.onPhaseTiming;
 
@@ -410,6 +437,18 @@ export class PostgresClient<
                 activeStream?.destroy(timeoutError);
                 reject(timeoutError);
             }, clientTimeoutMs);
+
+            onAttemptStart?.({
+                getBackendPid: () => backendPid,
+                hasSentQuery: () => sentQuery,
+                hasReceivedRow: () => receivedRow,
+                abort: (error) => {
+                    if (receivedRow) return false;
+                    activeStream?.destroy(error);
+                    reject(error);
+                    return true;
+                },
+            });
 
             pool = new pg.Pool({
                 ...this.config,
@@ -445,6 +484,7 @@ export class PostgresClient<
                     return;
                 }
                 reportPhase?.('connect', performance.now() - connectStart);
+                backendPid = client.processID;
 
                 client.on('error', (e) => {
                     console.error(
@@ -466,6 +506,7 @@ export class PostgresClient<
                 const runQuery = () => {
                     const queryStart = performance.now();
                     let fetchStart: number | undefined;
+                    sentQuery = true;
                     // CodeQL: This will raise a security warning because user defined raw SQL is being passed into the database module.
                     //         In this case this is exactly what we want to do. We're hitting the user's warehouse not the application's database.
                     activeStream = client.query(
@@ -493,6 +534,7 @@ export class PostgresClient<
                             encoding,
                             callback,
                         ) {
+                            receivedRow = true;
                             try {
                                 if (cachedFields === null) {
                                     cachedFields =
