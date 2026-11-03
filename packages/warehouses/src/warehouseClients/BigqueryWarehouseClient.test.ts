@@ -1441,20 +1441,20 @@ describe('BigqueryWarehouseClient.getTablePartitioning', () => {
             getMetadata: async () => [metadata],
         }));
         return new BigqueryWarehouseClient(credentials).getTablePartitioning(
-            'rides',
             'analytics',
-            'acme-prod',
+            'analytics',
+            'example-project',
         );
     };
 
     it('reads a time-unit column partition and its granularity', async () => {
         await expect(
             partitioningFor({
-                timePartitioning: { type: 'DAY', field: 'created_at_utc' },
+                timePartitioning: { type: 'DAY', field: 'created_at' },
             }),
         ).resolves.toEqual({
             partitionColumn: {
-                field: 'created_at_utc',
+                field: 'created_at',
                 partitionType: PartitionType.DATE,
             },
             granularity: PartitionGranularity.DAY,

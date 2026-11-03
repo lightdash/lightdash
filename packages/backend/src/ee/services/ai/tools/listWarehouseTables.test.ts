@@ -335,33 +335,33 @@ describe('warehouse table partitions', () => {
             enabled: false,
             limit: 10,
             catalog: {
-                'acme-prod': {
-                    rides: {
-                        fact_ride_request: {
+                'example-project': {
+                    analytics: {
+                        fact_orders: {
                             partitionColumn: {
-                                field: 'created_at_utc',
+                                field: 'created_at',
                                 partitionType: PartitionType.DATE,
                             },
                         },
-                        dim_driver: {},
+                        dim_customer: {},
                     },
                 },
             },
         });
 
         expect(result.result).toContain(
-            '  - acme-prod.rides.fact_ride_request (partitioned by created_at_utc)',
+            '  - example-project.analytics.fact_orders (partitioned by created_at)',
         );
         expect(result.result.split('\n')).toContain(
-            '  - acme-prod.rides.dim_driver',
+            '  - example-project.analytics.dim_customer',
         );
         expect(result.structuredContent).toMatchObject({
             tables: [
                 {
-                    table: 'fact_ride_request',
-                    partitionColumn: 'created_at_utc',
+                    table: 'fact_orders',
+                    partitionColumn: 'created_at',
                 },
-                { table: 'dim_driver', partitionColumn: null },
+                { table: 'dim_customer', partitionColumn: null },
             ],
         });
     });

@@ -559,11 +559,11 @@ describe('getMetadata warehouse tables', () => {
     const exploreWithJoins = () => {
         const explore = makeExplore({});
         explore.tables.orders.sqlTable =
-            '`acme-prod`.`rides`.`fact_ride_request`';
+            '`example-project`.`analytics`.`fact_orders`';
         explore.tables.users = {
             ...explore.tables.orders,
             name: 'users',
-            sqlTable: '"analytics"."public"."dim_driver"',
+            sqlTable: '"analytics"."public"."dim_customer"',
         };
         explore.tables.trips = {
             ...explore.tables.orders,
@@ -584,10 +584,10 @@ describe('getMetadata warehouse tables', () => {
         ]);
 
         expect(output.result).toContain(
-            '  base table: orders\n  warehouse table: acme-prod.rides.fact_ride_request\n',
+            '  base table: orders\n  warehouse table: example-project.analytics.fact_orders\n',
         );
         expect(output.result).toContain(
-            ': users (analytics.public.dim_driver), trips (custom SQL source)',
+            ': users (analytics.public.dim_customer), trips (custom SQL source)',
         );
         expect(output.structuredContent).toMatchObject({
             explores: [
@@ -595,11 +595,12 @@ describe('getMetadata warehouse tables', () => {
                     warehouseTables: [
                         {
                             table: 'orders',
-                            warehouseTable: 'acme-prod.rides.fact_ride_request',
+                            warehouseTable:
+                                'example-project.analytics.fact_orders',
                         },
                         {
                             table: 'users',
-                            warehouseTable: 'analytics.public.dim_driver',
+                            warehouseTable: 'analytics.public.dim_customer',
                         },
                         { table: 'trips', warehouseTable: null },
                     ],

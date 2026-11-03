@@ -16,17 +16,17 @@ const describeWith = async (
     const tool = getDescribeWarehouseTable({
         describeWarehouseTable: async () => ({
             columns: [
-                { name: 'ride_id', type: 'string', nativeType: null },
-                { name: 'created_at_utc', type: 'timestamp', nativeType: null },
+                { name: 'order_id', type: 'string', nativeType: null },
+                { name: 'created_at', type: 'timestamp', nativeType: null },
             ],
-            resolvedSchema: 'rides',
-            resolvedDatabase: 'acme-prod',
+            resolvedSchema: 'analytics',
+            resolvedDatabase: 'example-project',
             partitioning,
             warehouseType,
         }),
     });
     const output = await tool.execute!(
-        { table: 'fact_ride_request' },
+        { table: 'fact_orders' },
         { toolCallId: 'test', messages: [], context: {} },
     );
     return toolDescribeWarehouseTableOutputSchema.parse(output);
@@ -34,7 +34,7 @@ const describeWith = async (
 
 const dayPartitioned: TablePartitioning = {
     partitionColumn: {
-        field: 'created_at_utc',
+        field: 'created_at',
         partitionType: PartitionType.DATE,
     },
     granularity: PartitionGranularity.DAY,
@@ -47,10 +47,10 @@ describe('describeWarehouseTable partitioning', () => {
 
         expect(output.result).toBe(
             [
-                'Columns for `acme-prod.rides.fact_ride_request` (2):',
-                'Partitioned by `created_at_utc` (DAY). Filter `created_at_utc` directly against constant bounds (literals, or CURRENT_DATE()/CURRENT_TIMESTAMP() expressions) so BigQuery reads only the partitions you need; without that filter it reads and bills every partition.',
-                '  - ride_id: string',
-                '  - created_at_utc: timestamp',
+                'Columns for `example-project.analytics.fact_orders` (2):',
+                'Partitioned by `created_at` (DAY). Filter `created_at` directly against constant bounds (literals, or CURRENT_DATE()/CURRENT_TIMESTAMP() expressions) so BigQuery reads only the partitions you need; without that filter it reads and bills every partition.',
+                '  - order_id: string',
+                '  - created_at: timestamp',
             ].join('\n'),
         );
         expect(output.structuredContent).toMatchObject({
@@ -95,7 +95,7 @@ describe('describeWarehouseTable partitioning', () => {
         );
 
         expect(output.result.split('\n')[1]).toBe(
-            'Partitioned by `created_at_utc` (DAY).',
+            'Partitioned by `created_at` (DAY).',
         );
     });
 
@@ -104,9 +104,9 @@ describe('describeWarehouseTable partitioning', () => {
 
         expect(output.result).toBe(
             [
-                'Columns for `acme-prod.rides.fact_ride_request` (2):',
-                '  - ride_id: string',
-                '  - created_at_utc: timestamp',
+                'Columns for `example-project.analytics.fact_orders` (2):',
+                '  - order_id: string',
+                '  - created_at: timestamp',
             ].join('\n'),
         );
         expect(output.structuredContent).toMatchObject({ partitioning: null });
