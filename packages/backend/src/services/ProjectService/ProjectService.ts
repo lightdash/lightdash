@@ -447,6 +447,7 @@ import {
 } from '../../projectAdapters/CompileGroup';
 import { DbtBaseProjectAdapter } from '../../projectAdapters/dbtBaseProjectAdapter';
 import { assertGithubInstallationResolved } from '../../projectAdapters/githubAuthorization';
+import type { GitCheckoutMode } from '../../projectAdapters/gitRepository';
 import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
 import {
     isFatalSourceFailure,
@@ -7008,6 +7009,7 @@ export class ProjectService
                 dbtVersionOption,
                 dbtPartialParse,
                 dbtTargetPolicy,
+                gitCheckout,
             } = await this.jobModel.tryJobStep(
                 job.jobUuid,
                 JobStepType.TESTING_ADAPTOR,
@@ -7065,6 +7067,7 @@ export class ProjectService
                                 dbtVersionOption,
                                 dbtPartialParse,
                                 dbtTargetPolicy,
+                                gitCheckout,
                             };
                             if (
                                 (await this.projectModel.getConnectionRoute(
@@ -7383,6 +7386,7 @@ export class ProjectService
         dbtVersionOption: DbtVersionOption;
         dbtPartialParse: boolean;
         dbtTargetPolicy: DbtTargetPolicy;
+        gitCheckout: GitCheckoutMode;
     }> {
         const onboardingFlow = await this.getOnboardingFlow(user);
         const testedConnectionProperties = {
@@ -7485,6 +7489,7 @@ export class ProjectService
             const dbtTargetPolicy = await this.getDbtTargetPolicy(
                 projectOrganizationUuid ?? user.organizationUuid,
             );
+            const gitCheckout = 'full';
             const resolvedLease = lease;
             adapter = await projectAdapterFromConfig(
                 dbtConnection,
@@ -7508,6 +7513,7 @@ export class ProjectService
                     policy: dbtTargetPolicy,
                 },
                 this.analytics,
+                { gitCheckout },
             );
             await adapter.test();
             if (usesAwsWebIdentity(warehouseCredentials)) {
@@ -7548,6 +7554,7 @@ export class ProjectService
                 dbtVersionOption,
                 dbtPartialParse,
                 dbtTargetPolicy,
+                gitCheckout,
             };
         } catch (error) {
             const errorType =
@@ -8297,6 +8304,7 @@ export class ProjectService
             dbtVersionOption: DbtVersionOption;
             dbtPartialParse: boolean;
             dbtTargetPolicy: DbtTargetPolicy;
+            gitCheckout: GitCheckoutMode;
         }) => Promise<T>,
         manifestFetchAdapters: ProjectAdapter[],
     ): Promise<T> {
@@ -8311,6 +8319,7 @@ export class ProjectService
         const dbtTargetPolicy = await this.getDbtTargetPolicy(
             project.organizationUuid,
         );
+        const gitCheckout = 'full';
         if (agentExecutionContext.getStore()?.agentConnectionExecution)
             await this.assertAgentConnectionEffect(
                 projectUuid,
@@ -8349,6 +8358,7 @@ export class ProjectService
                         policy: dbtTargetPolicy,
                     },
                     this.analytics,
+                    { gitCheckout },
                 );
                 try {
                     return await fn({
@@ -8359,6 +8369,7 @@ export class ProjectService
                         dbtVersionOption,
                         dbtPartialParse,
                         dbtTargetPolicy,
+                        gitCheckout,
                     });
                 } finally {
                     await this.destroyPrimaryCompileAdapter(
@@ -8405,6 +8416,7 @@ export class ProjectService
         },
         partialParseBaselinePath: string | null,
         dbtTargetPolicy: DbtTargetPolicy,
+        gitCheckout: GitCheckoutMode,
     ): Promise<ProjectAdapter> {
         const resolvedConnection =
             await this.resolveDbtConnectionInstallationId(
@@ -8432,6 +8444,7 @@ export class ProjectService
                 policy: dbtTargetPolicy,
             },
             this.analytics,
+            { gitCheckout },
         );
     }
 
@@ -8650,6 +8663,7 @@ export class ProjectService
             dbtVersionOption: DbtVersionOption;
             dbtPartialParse: boolean;
             dbtTargetPolicy: DbtTargetPolicy;
+            gitCheckout: GitCheckoutMode;
         };
         sources: ProjectDbtSource[];
         manifestFetchAdapters: ProjectAdapter[];
@@ -8837,6 +8851,7 @@ export class ProjectService
                                       })
                                     : null,
                                 primary.dbtTargetPolicy,
+                                primary.gitCheckout,
                             );
                             sourceAdapterBuilds.add(build);
                             try {
@@ -9153,6 +9168,7 @@ export class ProjectService
             dbtVersionOption: DbtVersionOption;
             dbtPartialParse: boolean;
             dbtTargetPolicy: DbtTargetPolicy;
+            gitCheckout: GitCheckoutMode;
         };
         manifestFetchAdapters: ProjectAdapter[];
         trackingParams: TrackingParams;
@@ -9199,6 +9215,7 @@ export class ProjectService
                           })
                         : null,
                     primary.dbtTargetPolicy,
+                    primary.gitCheckout,
                 );
                 sourceAdapterBuilds.add(build);
                 try {
@@ -9316,6 +9333,7 @@ export class ProjectService
             dbtVersionOption: DbtVersionOption;
             dbtPartialParse: boolean;
             dbtTargetPolicy: DbtTargetPolicy;
+            gitCheckout: GitCheckoutMode;
         };
         manifestFetchAdapters: ProjectAdapter[];
         onDbtSourceCount?: (dbtSourceCount: number) => void;

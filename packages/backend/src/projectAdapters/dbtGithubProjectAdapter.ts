@@ -15,6 +15,7 @@ import type { DbtTargetResult } from '../services/WarehouseClientFactory/Credent
 import { CachedWarehouse } from '../types';
 import { DEFAULT_GITHUB_HOST_DOMAIN } from '../utils/credentialDestination';
 import { DbtGitProjectAdapter } from './dbtGitProjectAdapter';
+import { sparseCheckoutDirectory, type GitCheckoutMode } from './gitRepository';
 
 type DbtGithubProjectAdapterArgs = {
     warehouseClient: WarehouseClient;
@@ -31,6 +32,7 @@ type DbtGithubProjectAdapterArgs = {
     environmentVariableAllowlist: string[];
     cachedWarehouse: CachedWarehouse;
     dbtVersion: SupportedDbtVersions;
+    gitCheckout?: GitCheckoutMode;
     selector?: string;
     analytics?: LightdashAnalytics;
     partialParseBaselinePath: string | null;
@@ -46,6 +48,7 @@ export class DbtGithubProjectAdapter extends DbtGitProjectAdapter {
         githubInstallationId,
         githubRepository,
         projectDirectorySubPath,
+        gitCheckout = 'full',
         dbtTarget,
         explicitCredentials,
         hostDomain,
@@ -66,6 +69,11 @@ export class DbtGithubProjectAdapter extends DbtGitProjectAdapter {
         }
 
         const githubHost = hostDomain || DEFAULT_GITHUB_HOST_DOMAIN;
+        const effectiveCheckout =
+            githubHost === DEFAULT_GITHUB_HOST_DOMAIN ? gitCheckout : 'full';
+        if (effectiveCheckout === 'sparse') {
+            sparseCheckoutDirectory(projectDirectorySubPath);
+        }
         const gitCredentialFiles = createGithubGitCredentialFiles({
             host: githubHost,
             token: githubPersonalAccessToken,
@@ -77,6 +85,7 @@ export class DbtGithubProjectAdapter extends DbtGitProjectAdapter {
             warehouseClient,
             remoteRepositoryUrl,
             projectDirectorySubPath,
+            gitCheckout: effectiveCheckout,
             dbtTarget,
             explicitCredentials,
             repository: githubRepository,

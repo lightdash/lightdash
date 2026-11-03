@@ -214,6 +214,7 @@ import { WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/
 import { WarehouseConnectionTablesModel } from '../../models/WarehouseConnectionTablesModel/WarehouseConnectionTablesModel';
 import { DbtBaseProjectAdapter } from '../../projectAdapters/dbtBaseProjectAdapter';
 import { GITHUB_APP_NOT_INSTALLED_MESSAGE } from '../../projectAdapters/githubAuthorization';
+import type { GitCheckoutMode } from '../../projectAdapters/gitRepository';
 import * as projectAdapterModule from '../../projectAdapters/projectAdapter';
 import {
     CompileInterruptedError,
@@ -9964,6 +9965,7 @@ describe('ProjectService', () => {
                 dbtVersionOption: DefaultSupportedDbtVersion,
                 dbtPartialParse: false,
                 dbtTargetPolicy: { explicitCredentials: false },
+                gitCheckout: 'full',
             });
             vi.spyOn(internals, 'resolveCompileAdapter').mockResolvedValue({
                 adapter,
@@ -10152,6 +10154,7 @@ describe('ProjectService', () => {
                     dbtVersionOption: DefaultSupportedDbtVersion,
                     dbtPartialParse: false,
                     dbtTargetPolicy: { explicitCredentials: false },
+                    gitCheckout: 'full',
                 });
                 vi.spyOn(
                     internals,
@@ -15395,6 +15398,7 @@ type ResolveCompileAdapterArgs = {
         dbtVersionOption: DbtVersionOptionLatest;
         dbtPartialParse: boolean;
         dbtTargetPolicy: { explicitCredentials: boolean };
+        gitCheckout: GitCheckoutMode;
     };
     manifestFetchAdapters: ProjectAdapter[];
 };
@@ -15485,7 +15489,8 @@ describe('ProjectService.resolveCompileAdapter (single-source regression firewal
         dbtVersionOption: DbtVersionOptionLatest.LATEST,
         dbtPartialParse: false,
         dbtTargetPolicy: { explicitCredentials: false },
-    };
+        gitCheckout: 'full',
+    } satisfies ResolveCompileAdapterArgs['primary'];
     const baseArgs: ResolveCompileAdapterArgs = {
         projectUuid: 'project-uuid',
         organizationUuid: 'org-uuid',
@@ -16722,6 +16727,7 @@ describe('ProjectService.resolveCompileAdapter (single-source regression firewal
             }),
             null,
             primary.dbtTargetPolicy,
+            primary.gitCheckout,
         );
         expect(buildSourceAdapter.mock.calls[1][2]).toBe('org-uuid');
         expect(buildSourceAdapter.mock.calls[1][5]).toBe(
@@ -16742,6 +16748,7 @@ describe('ProjectService.resolveCompileAdapter (single-source regression firewal
             primary,
             null,
             primary.dbtTargetPolicy,
+            primary.gitCheckout,
         );
 
         expect(warehouseClientFromCredentials).toHaveBeenCalledWith(
@@ -22937,6 +22944,7 @@ describe('compile adapter connection credentials', () => {
                     },
                     null,
                     { explicitCredentials: false },
+                    'full',
                 );
                 const expected = {
                     ...ducklakeCredentials,
@@ -23007,6 +23015,7 @@ describe('compile adapter connection credentials', () => {
                         dbtVersionOption: DbtVersionOptionLatest.LATEST,
                         dbtPartialParse: false,
                         dbtTargetPolicy: { explicitCredentials: false },
+                        gitCheckout: 'full',
                     },
                 });
                 expect(derive).toHaveBeenCalledWith(ducklakeCredentials);
