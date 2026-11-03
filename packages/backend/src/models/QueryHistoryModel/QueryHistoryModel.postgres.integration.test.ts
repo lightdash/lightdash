@@ -577,17 +577,13 @@ describe('QueryHistoryModel (PostgreSQL)', () => {
             });
 
             it('keeps a cache hit of results that were not cleared', async () => {
-                const createdAt = new Date();
+                // Earlier than the hit, so a same-millisecond insert can't tie
                 const source = await insertExploreRun(
                     'orders',
                     'orders-key',
-                    new Date(createdAt.getTime() - 1000),
+                    new Date(Date.now() - 1000),
                 );
-                const hit = await insertExploreRun(
-                    'orders',
-                    'orders-key',
-                    createdAt,
-                );
+                const hit = await insertExploreRun('orders', 'orders-key');
 
                 await model.inheritCacheInvalidation(hit, source, projectUuid);
 
