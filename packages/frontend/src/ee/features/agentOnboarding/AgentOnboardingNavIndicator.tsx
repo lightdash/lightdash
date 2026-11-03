@@ -1,5 +1,6 @@
 import {
     Anchor,
+    Box,
     Button,
     Group,
     Loader,
@@ -8,19 +9,22 @@ import {
     Text,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { IconArrowRight } from '@tabler/icons-react';
+import { IconArrowRight, IconCheck } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link } from 'react-router';
 import { AI_NAME } from '../../../components/common/aiName';
 import MantineIcon from '../../../components/common/MantineIcon';
 import AppColorSchemeScope from '../../../components/NavBar/AppColorSchemeScope';
-import { AgentOnboardingProgress } from './AgentOnboardingProgress';
+import classes from './AgentOnboardingNavIndicator.module.css';
 import { RunRecentSteps } from './AgentOnboardingRunChanges';
 import { useAuroraRun } from './hooks/useAuroraRun';
 import {
     AGENT_ONBOARDING_STAGE_ACTIVE_LABELS,
+    AGENT_ONBOARDING_STAGE_LABELS,
+    formatStageDuration,
     getAgentOnboardingProgressStageTimings,
     getAgentOnboardingRunUrl,
+    getStageStates,
 } from './utils';
 
 /** A quiet navbar handle on the setup run, so progress is one click away from anywhere */
@@ -32,6 +36,7 @@ export const AgentOnboardingNavIndicator: FC<{ projectUuid: string }> = ({
     if (!run || !isLive) return null;
 
     const timings = getAgentOnboardingProgressStageTimings(run);
+    const states = getStageStates(run, timings);
     const activeIndex = Math.max(
         timings.findIndex(({ state }) => state === 'active'),
         0,
@@ -70,8 +75,44 @@ export const AgentOnboardingNavIndicator: FC<{ projectUuid: string }> = ({
                                 {stageLabel}. You can keep working.
                             </Text>
                         </Stack>
-                        <AgentOnboardingProgress run={run} />
-                        <RunRecentSteps run={run} />
+                        <Box component="ol" className={classes.stages}>
+                            {timings.map(({ stage, durationMs }, index) => (
+                                <Box
+                                    component="li"
+                                    key={stage}
+                                    className={classes.stage}
+                                    data-state={states[index]}
+                                >
+                                    <Box className={classes.marker}>
+                                        {states[index] === 'completed' && (
+                                            <MantineIcon
+                                                icon={IconCheck}
+                                                size={10}
+                                                stroke={2.5}
+                                            />
+                                        )}
+                                    </Box>
+                                    <Text fz="sm" className={classes.label}>
+                                        {AGENT_ONBOARDING_STAGE_LABELS[stage]}
+                                    </Text>
+                                    {states[index] !== 'not_started' &&
+                                        durationMs !== null && (
+                                            <Text
+                                                fz="xs"
+                                                c="dimmed"
+                                                className={classes.duration}
+                                            >
+                                                {formatStageDuration(
+                                                    durationMs,
+                                                )}
+                                            </Text>
+                                        )}
+                                </Box>
+                            ))}
+                        </Box>
+                        <Box className={classes.recent}>
+                            <RunRecentSteps run={run} />
+                        </Box>
                         <Group justify="flex-end">
                             <Anchor
                                 component={Link}

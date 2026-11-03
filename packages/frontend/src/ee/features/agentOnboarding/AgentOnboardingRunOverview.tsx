@@ -8,18 +8,11 @@ import { RunRecentSteps } from './AgentOnboardingRunChanges';
 import classes from './AgentOnboardingRunPage.module.css';
 import {
     AGENT_ONBOARDING_PROGRESS_STAGES,
+    AGENT_ONBOARDING_STAGE_LABELS,
     formatStageDuration,
     getAgentOnboardingProgressStageTimings,
     getStageStates,
-    type AgentOnboardingProgressStage,
 } from './utils';
-
-const STAGE_LABELS: Record<AgentOnboardingProgressStage, string> = {
-    explore: 'Read your warehouse',
-    semantic_layer: 'Define metrics',
-    dashboard: 'Draft a dashboard',
-    ready: 'Check and hand off',
-};
 
 export const RunJourney: FC<{ run: AgentOnboardingRun; now: number }> = ({
     run,
@@ -55,7 +48,7 @@ export const RunJourney: FC<{ run: AgentOnboardingRun; now: number }> = ({
                                 justify="space-between"
                             >
                                 <Text fz="sm" fw={500} truncate>
-                                    {STAGE_LABELS[stage]}
+                                    {AGENT_ONBOARDING_STAGE_LABELS[stage]}
                                 </Text>
                                 {durationMs !== null && (
                                     <Text

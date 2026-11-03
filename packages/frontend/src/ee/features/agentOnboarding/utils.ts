@@ -38,6 +38,16 @@ export const AGENT_ONBOARDING_PROGRESS_STAGES = [
 export type AgentOnboardingProgressStage =
     (typeof AGENT_ONBOARDING_PROGRESS_STAGES)[number]['stage'];
 
+export const AGENT_ONBOARDING_STAGE_LABELS: Record<
+    AgentOnboardingProgressStage,
+    string
+> = {
+    explore: 'Read your warehouse',
+    semantic_layer: 'Define metrics',
+    dashboard: 'Draft a dashboard',
+    ready: 'Check and hand off',
+};
+
 export type AgentOnboardingProgressStageTiming = {
     stage: AgentOnboardingProgressStage;
     state: AgentOnboardingStageTiming['state'];
