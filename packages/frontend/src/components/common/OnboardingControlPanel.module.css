@@ -11,3 +11,13 @@
     box-shadow: 0 12px 32px -12px rgb(0 0 0 / 0.25);
     view-transition-name: onboarding-control-panel;
 }
+
+/* Sits beside the React Query devtools button */
+.collapsed {
+    position: fixed;
+    bottom: 13px;
+    left: 60px;
+    z-index: 200;
+    box-shadow: 0 8px 20px -10px rgb(0 0 0 / 0.3);
+    view-transition-name: onboarding-control-panel;
+}

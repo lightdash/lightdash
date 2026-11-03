@@ -1,5 +1,6 @@
 import { ProjectType } from '@lightdash/common';
 import {
+    ActionIcon,
     Box,
     Button,
     Group,
@@ -7,12 +8,18 @@ import {
     Select,
     Text,
 } from '@mantine/core';
+import { useLocalStorage } from '@mantine/hooks';
+import {
+    IconAdjustmentsHorizontal,
+    IconChevronDown,
+} from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
 import { type FC } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { useProjects } from '../../hooks/useProjects';
 import useLogoutMutation from '../../hooks/user/useUserLogoutMutation';
 import useApp from '../../providers/App/useApp';
+import MantineIcon from './MantineIcon';
 import classes from './OnboardingControlPanel.module.css';
 import { ONBOARDING_VARIANTS, useOnboardingVariant } from './onboardingVariant';
 
@@ -39,7 +46,12 @@ const screensFor = (projectUuid: string | null) => [
 ];
 
 // Keeps the variant and theme so a fresh run starts in the same comparison
-const KEPT_STORAGE_KEYS = ['ld.onboarding.variant', 'color-scheme'];
+const COLLAPSED_KEY = 'ld.onboarding.controlsCollapsed';
+const KEPT_STORAGE_KEYS = [
+    'ld.onboarding.variant',
+    'color-scheme',
+    COLLAPSED_KEY,
+];
 
 const clearBrowserState = () => {
     for (const key of Object.keys(localStorage)) {
@@ -57,6 +69,11 @@ const OnboardingControlPanel: FC = () => {
         enabled: !!user.data?.organizationUuid,
     });
     const [variant, setVariant] = useOnboardingVariant();
+    const [isCollapsed, setIsCollapsed] = useLocalStorage({
+        key: COLLAPSED_KEY,
+        defaultValue: false,
+        getInitialValueInEffect: false,
+    });
     const logout = useLogoutMutation({
         onSettled: () => {
             clearBrowserState();
@@ -77,6 +94,21 @@ const OnboardingControlPanel: FC = () => {
         projects?.find(({ type }) => type === ProjectType.DEFAULT)
             ?.projectUuid ??
         null;
+    if (isCollapsed) {
+        return (
+            <ActionIcon
+                className={classes.collapsed}
+                variant="default"
+                size="lg"
+                radius="xl"
+                aria-label="Show onboarding controls"
+                onClick={() => setIsCollapsed(false)}
+            >
+                <MantineIcon icon={IconAdjustmentsHorizontal} />
+            </ActionIcon>
+        );
+    }
+
     return (
         <Box className={classes.panel}>
             <Group gap="sm" wrap="nowrap">
@@ -113,6 +145,14 @@ const OnboardingControlPanel: FC = () => {
                 >
                     Start fresh
                 </Button>
+                <ActionIcon
+                    variant="subtle"
+                    color="gray"
+                    aria-label="Hide onboarding controls"
+                    onClick={() => setIsCollapsed(true)}
+                >
+                    <MantineIcon icon={IconChevronDown} />
+                </ActionIcon>
             </Group>
             {reset.error && (
                 <Text fz="xs" c="red" mt={4}>
