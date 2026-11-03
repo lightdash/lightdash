@@ -48,6 +48,34 @@ export const DEFAULT_COMPOSER_QUERY_MAX_LIMIT = 5000;
 export const COMPOSER_QUERY_PREVIEW_ROW_LIMIT = 50;
 export const COMPOSER_NODE_SAMPLE_ROW_LIMIT = 5;
 
+/** Libraries preinstalled in the python sandbox, pinned in sandboxes/python-runner/e2b.Dockerfile. */
+export const PYTHON_SANDBOX_LIBRARIES = [
+    { name: 'pandas', version: '2.2.3' },
+    { name: 'numpy', version: '2.2.4' },
+    { name: 'scipy', version: '1.15.2' },
+    { name: 'pyarrow', version: '19.0.1' },
+    { name: 'scikit-learn', version: '1.9.1' },
+    { name: 'polars', version: '1.44.2' },
+] as const;
+
+const PYTHON_SANDBOX_LIBRARIES_DESCRIPTION = PYTHON_SANDBOX_LIBRARIES.map(
+    ({ name, version }) =>
+        `${name} ${version.split('.').slice(0, 2).join('.')}`,
+).join(', ');
+
+const PYTHON_CODE_DESCRIPTION = `Python defining run(inputs, params) -> pandas.DataFrame. Shape every node like this:
+
+import pandas as pd
+
+def run(inputs, params):
+    df = inputs["orders"]                           # one DataFrame per reference, columns already typed
+    cutoff = pd.Timestamp("2026-01-01", tz="UTC")   # timestamps are tz-aware UTC, dates tz-naive midnight
+    out = df[df["created_at"] >= cutoff].groupby("customer_id", as_index=False)["revenue"].sum()
+    return out                                      # unique [A-Za-z_][A-Za-z0-9_]* column names, index dropped
+
+Imports aside, all code inside run(). Read columns as df["col"], never df.col. Check df.dtypes before sum/astype.
+Rows past "limit" are dropped, so aggregate here. Libraries: ${PYTHON_SANDBOX_LIBRARIES_DESCRIPTION}. No network, no installs.`;
+
 /** A project connection an api node can query. */
 export type ComposerApiConnection = {
     connectionUuid: string;
@@ -387,11 +415,7 @@ export const createToolComposerQueriesArgsSchemaV1 = ({
         sourceType: z.literal(QuerySourceType.PYTHON),
         nodeId: nodeIdSchema,
         ...nodeMetaSchema,
-        code: z
-            .string()
-            .describe(
-                `Python defining \`def run(inputs: dict[str, pandas.DataFrame], params: dict) -> pandas.DataFrame\`. inputs[name] is the referenced node's full result up to that node's limit, with its column ids as column names and every column already typed, so use them without re-parsing: numbers numeric, booleans nullable boolean, strings string, dates tz-naive datetime64 at midnight, timestamps tz-aware UTC datetime64. Return one DataFrame with unique column names matching ^[A-Za-z_][A-Za-z0-9_]{0,62}$. The index is dropped; a tz-naive datetime column holding only midnights is returned as dates, any other datetime column as timestamps; NaN, infinity and NaT become null. Rows past "limit" are dropped, so aggregate in Python when the output would be large. stdout is discarded; on an exception the traceback is returned. Libraries: pandas, numpy, scipy, pyarrow, scikit-learn, polars (convert results back with .to_pandas()). No network access and no package installs.`,
-            ),
+        code: z.string().describe(PYTHON_CODE_DESCRIPTION),
         references: referencesSchema.describe(
             'Which nodes the code reads, at least one, by node id: an array (each exposed as inputs[nodeId]), or a map of {inputName: nodeId} to alias them.',
         ),

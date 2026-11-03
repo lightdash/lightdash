@@ -183,6 +183,36 @@ def run(inputs, params):
     },
 );
 
+describe.skipIf(!hasPythonDependencies)(
+    'Python harness run() signature',
+    () => {
+        it.each([
+            { name: 'inputs only', signature: 'inputs' },
+            { name: 'inputs and params', signature: 'inputs, params' },
+        ])('calls run() taking $name', ({ signature }) => {
+            const { rows } = runHarness({
+                columns: { n: 'number' },
+                rows: [{ n: 1 }],
+                code: `def run(${signature}):\n    return inputs["orders"]\n`,
+            });
+            expect(rows).toEqual([{ n: 1 }]);
+        });
+
+        it.each(['', 'inputs, params, extra'])(
+            'rejects run(%s)',
+            (signature) => {
+                expect(() =>
+                    runHarness({
+                        columns: { n: 'number' },
+                        rows: [{ n: 1 }],
+                        code: `def run(${signature}):\n    return None\n`,
+                    }),
+                ).toThrow(/run\(\) must take \(inputs, params\) or \(inputs\)/);
+            },
+        );
+    },
+);
+
 const timings = {
     importMs: 120,
     loadInputsMs: 3,
