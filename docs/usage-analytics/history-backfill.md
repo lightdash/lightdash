@@ -163,9 +163,17 @@ worker slot cannot run both jobs concurrently.
 
 DB exports use 1,000-row keyset pages and read-only transactions with 10-second
 statement/one-second lock timeouts. Connections are released between pages.
+Query history walks the full retained range in hourly, half-open time windows,
+using the existing creation-time index. Empty windows advance to the next hour;
+dense windows retain timestamp/UUID pagination. A statement timeout narrows the
+remaining window before retrying, down to a one-millisecond range. The exact
+cutoff and PostgreSQL microsecond cursor remain unchanged. This adds no index or
+startup migration, but trades more small queries for bounded scans.
 Sources run serially; temp files are cleaned up. Storage limits fail closed.
 Jobs have one execution attempt; failures require a manual retry rather than
 automatically repeating the import or waiting for the nightly schedule.
+Worker errors identify the dataset and whether reading the database, checking
+storage, reconciling history, publishing history or publishing completion failed.
 
 Each source atomically publishes queryable Parquet at
 `events/compacted/org_id=<org>/history=<stream>/history.parquet`. No additional
