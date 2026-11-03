@@ -49,6 +49,7 @@ export type ApiConnectorRequest = {
     method: 'GET' | 'POST';
     /** Path on the API's origin, e.g. /api/projects/1/query/ */
     path: string;
+    query?: Record<string, string>;
     body: unknown;
 };
 

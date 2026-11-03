@@ -8764,6 +8764,80 @@ export class ProjectModel {
         });
     }
 
+    /**
+     * Replaces every explore of one live data source. Sources are soft
+     * deleted and explores have no foreign key, so explores are always
+     * written and removed per source.
+     */
+    async replaceApiSourceExplores(
+        projectUuid: string,
+        connectionUuid: string,
+        explores: Explore[],
+    ): Promise<void> {
+        await this.database.transaction(async (trx) => {
+            await ProjectModel.lockAndEnsureCachedExplores(trx, projectUuid);
+            const clashing = await trx(CachedExploreTableName)
+                .select('name')
+                .where('project_uuid', projectUuid)
+                .whereIn(
+                    'name',
+                    explores.map(({ name }) => name),
+                )
+                .whereRaw(
+                    "(explore->>'type' IS DISTINCT FROM ? OR explore->'apiSource'->>'connectionUuid' IS DISTINCT FROM ?)",
+                    [ExploreType.API_SOURCE, connectionUuid],
+                );
+            if (clashing.length > 0) {
+                throw new AlreadyExistsError(
+                    `Explore "${clashing[0].name}" already exists`,
+                );
+            }
+            await ProjectModel.deleteApiSourceExploreRows(
+                trx,
+                projectUuid,
+                connectionUuid,
+            );
+            if (explores.length > 0) {
+                await trx(CachedExploreTableName).insert(
+                    explores.map((explore) => ({
+                        project_uuid: projectUuid,
+                        name: explore.name,
+                        table_names: Object.keys(explore.tables),
+                        explore,
+                    })),
+                );
+            }
+        });
+    }
+
+    async deleteApiSourceExplores(
+        projectUuid: string,
+        connectionUuid: string,
+    ): Promise<void> {
+        await this.database.transaction(async (trx) => {
+            await ProjectModel.lockAndEnsureCachedExplores(trx, projectUuid);
+            await ProjectModel.deleteApiSourceExploreRows(
+                trx,
+                projectUuid,
+                connectionUuid,
+            );
+        });
+    }
+
+    private static async deleteApiSourceExploreRows(
+        trx: Transaction,
+        projectUuid: string,
+        connectionUuid: string,
+    ): Promise<void> {
+        await trx(CachedExploreTableName)
+            .where('project_uuid', projectUuid)
+            .whereRaw("explore->>'type' = ?", [ExploreType.API_SOURCE])
+            .whereRaw("explore->'apiSource'->>'connectionUuid' = ?", [
+                connectionUuid,
+            ])
+            .delete();
+    }
+
     static async lockAndEnsureCachedExplores(
         trx: Transaction,
         projectUuid: string,

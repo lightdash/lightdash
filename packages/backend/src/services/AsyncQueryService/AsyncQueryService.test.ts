@@ -7,6 +7,7 @@ import {
     AiAccessRefusalReason,
     AiAccessRefusedError,
     AnyType,
+    ApiConnectorType,
     assertUnreachable,
     BIGQUERY_TOKEN_ERROR_MESSAGE_MARKER,
     BigqueryAuthenticationType,
@@ -35,6 +36,7 @@ import {
     getAiExecutionCredentialUuid,
     getFilterRulesFromGroup,
     getIntrinsicUserAttributeRegex,
+    getItemMap,
     getParsedReference,
     getReferencedDimension,
     getReferencedMetric,
@@ -264,6 +266,7 @@ import {
     tablesConfiguration,
     validExplore,
 } from '../ProjectService/ProjectService.mock';
+import { buildApiSourceExplores } from '../QuerySourceService/api/apiSourceExplores';
 import { QuerySourceRegistry } from '../QuerySourceService/QuerySourceRegistry';
 import { QuerySourceService } from '../QuerySourceService/QuerySourceService';
 import { SemanticLayerQuerySource } from '../QuerySourceService/sources/SemanticLayerQuerySource';
@@ -1847,6 +1850,128 @@ describe('AsyncQueryService', () => {
                 }),
                 sessionAccount,
             );
+        });
+    });
+
+    describe('metric queries on live data source explores', () => {
+        const CONNECTION_UUID = '03386598-7a51-45b2-b1f9-5ef55bd09016';
+        const [apiExplore] = buildApiSourceExplores({
+            connectionUuid: CONNECTION_UUID,
+            name: 'Marketing site',
+            apiSource: { connector: ApiConnectorType.GA4, propertyId: '123' },
+            scan: {},
+        });
+        const channel = `${apiExplore.name}_session_default_channel_group`;
+        const sessions = `${apiExplore.name}_sessions`;
+        const apiMetricQuery: MetricQuery = {
+            exploreName: apiExplore.name,
+            dimensions: [channel],
+            metrics: [sessions],
+            filters: {},
+            sorts: [{ fieldId: sessions, descending: true }],
+            limit: 10,
+            tableCalculations: [],
+        };
+
+        const setup = (composer: Partial<QueryComposer> = {}) => {
+            const connector = { describe: vi.fn() };
+            const getApiSourceConnector = vi.fn(async () => connector);
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                getApiSourceConnector,
+                featureFlagModel: {
+                    get: vi.fn(async ({ featureFlagId }) => ({
+                        id: featureFlagId,
+                        enabled: featureFlagId === FeatureFlags.ApiQuerySources,
+                    })),
+                } as unknown as FeatureFlagModel,
+            } as never);
+            (service as AnyType).assertOrganizationNotBlocked = vi.fn();
+            const submitApiQuery = vi.fn(async () => ({
+                queryUuid: 'live-query-uuid',
+                reusable: null,
+            }));
+            (service as AnyType).submitApiQuery = submitApiQuery;
+            const queryComposer = {
+                ...createQueryComposerMock({
+                    explore: apiExplore,
+                    metricQuery: apiMetricQuery,
+                    fields: getItemMap(apiExplore),
+                    timezone: 'UTC',
+                }),
+                ...composer,
+            } as QueryComposer;
+            const execute = () =>
+                (service as AnyType).executePreparedAsyncQuery(
+                    {
+                        account: sessionAccount,
+                        projectUuid,
+                        context: QueryExecutionContext.EXPLORE,
+                        queryComposer,
+                    },
+                    {},
+                    'org-uuid',
+                );
+            return {
+                execute,
+                getApiSourceConnector,
+                connector,
+                submitApiQuery,
+            };
+        };
+
+        test('answers the query with one request to the integration instead of the warehouse', async () => {
+            const {
+                execute,
+                getApiSourceConnector,
+                connector,
+                submitApiQuery,
+            } = setup();
+
+            await expect(execute()).resolves.toEqual({
+                queryUuid: 'live-query-uuid',
+                cacheMetadata: {
+                    cacheHit: false,
+                    cacheUpdatedTime: undefined,
+                    cacheExpiresAt: undefined,
+                },
+            });
+
+            expect(getApiSourceConnector).toHaveBeenCalledExactlyOnceWith(
+                sessionAccount,
+                projectUuid,
+                CONNECTION_UUID,
+            );
+            const [[submitted]] = submitApiQuery.mock.calls as AnyType;
+            expect(submitted.connector).toBe(connector);
+            expect(JSON.parse(submitted.payload.query)).toMatchObject({
+                dimensions: [{ name: 'sessionDefaultChannelGroup' }],
+                metrics: [{ name: 'sessions' }],
+            });
+            expect(JSON.parse(submitted.cacheKeySql).connectionUuid).toBe(
+                CONNECTION_UUID,
+            );
+            expect(
+                submitted.toResult({
+                    rows: [
+                        { sessionDefaultChannelGroup: 'Direct', sessions: 5 },
+                    ],
+                    columns: [],
+                }).rows,
+            ).toEqual([{ [channel]: 'Direct', [sessions]: 5 }]);
+        });
+
+        test('refuses a pivot before calling the integration', async () => {
+            const { execute, getApiSourceConnector } = setup({
+                getPivotConfiguration: () => ({
+                    indexColumn: undefined,
+                    valuesColumns: [],
+                    groupByColumns: [],
+                    sortBy: undefined,
+                }),
+            } as never);
+
+            await expect(execute()).rejects.toThrow(ParameterError);
+            expect(getApiSourceConnector).not.toHaveBeenCalled();
         });
     });
 

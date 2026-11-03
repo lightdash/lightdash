@@ -538,6 +538,7 @@ import {
 } from '../MultiConnectionCompiler/MultiConnectionCompiler';
 import { resolveOrganizationExportLimits } from '../OrganizationSettingsService/resolveExportLimits';
 import { type PermissionsService } from '../PermissionsService/PermissionsService';
+import { compileApiSourceMetricQuery } from '../QuerySourceService/api/apiSourceExplores';
 import { resolveCliPreviewDeploy } from '../resolveCliPreviewDeploy';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import {
@@ -9838,8 +9839,16 @@ export class ProjectService
         exploreName: string;
         usePreAggregateCache?: boolean;
     }): Promise<ApiCompiledQueryResults> {
+        const explore = await this.getExplore(
+            args.account,
+            args.projectUuid,
+            args.exploreName,
+        );
+        if (explore.type === ExploreType.API_SOURCE) {
+            return this.compileApiSourceQueryForResponse({ ...args, explore });
+        }
         const { parameterReferences, query, pivotQuery } =
-            await this.compileQuery(args);
+            await this.compileQuery({ ...args, explore });
         if (this.cannotViewEmbedCompiledSql(args.account, args.projectUuid)) {
             return { query: '', parameterReferences };
         }
@@ -9848,6 +9857,39 @@ export class ProjectService
             parameterReferences,
             ...(pivotQuery && { pivotQuery }),
         };
+    }
+
+    /** The request a live data source explore sends its integration, shown where SQL would be. */
+    private async compileApiSourceQueryForResponse({
+        account,
+        projectUuid,
+        explore,
+        body: { parameters, pivotConfiguration, ...metricQuery },
+    }: {
+        account: Account;
+        projectUuid: string;
+        explore: Explore;
+        body: MetricQuery & {
+            parameters?: ParametersValuesMap;
+            pivotConfiguration?: PivotConfiguration;
+        };
+    }): Promise<ApiCompiledQueryResults> {
+        const timezone = resolveQueryTimezone({
+            sessionTimezone: null,
+            metricQuery,
+            projectTimezone: await this.getQueryTimezoneForProject(projectUuid),
+            userTimezone: getAccountUserTimezone(account),
+        });
+        const { query } = compileApiSourceMetricQuery({
+            explore,
+            metricQuery,
+            timezone,
+            now: new Date(),
+        });
+        if (this.cannotViewEmbedCompiledSql(account, projectUuid)) {
+            return { query: '', parameterReferences: [] };
+        }
+        return { query, parameterReferences: [] };
     }
 
     async compileQuery(
@@ -9898,6 +9940,11 @@ export class ProjectService
             'explore' in args
                 ? args.explore
                 : await this.getExplore(account, projectUuid, args.exploreName);
+        if (sourceExplore.type === ExploreType.API_SOURCE) {
+            throw new ParameterError(
+                `"${sourceExplore.label}" is a live data source; its queries run on its integration, not as SQL.`,
+            );
+        }
         auditMetricQueryAttributeAccess({
             account,
             projectUuid,
