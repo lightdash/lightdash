@@ -83,6 +83,7 @@ import {
 import { UserWarehouseCredentialsTableName } from '../database/entities/userWarehouseCredentials';
 import Logger from '../logging/logger';
 import { deprecatedHash, hashWithSecret } from '../utils/hash';
+import { getMissingUserNames } from '../utils/missingUserNames';
 import {
     CachedPatSessionUser,
     PatSessionCache,
@@ -1866,19 +1867,15 @@ export class UserModel {
         activateUser: ActivateUser | OpenIdUser | null,
     ): Promise<LightdashUser> {
         await this.database.transaction(async (trx) => {
+            const names = await UserModel.getInvitedUserNames(
+                trx,
+                userUuid,
+                activateUser,
+            );
             const [user] = await trx(UserTableName)
                 .where('user_uuid', userUuid)
                 .update<DbUserUpdate>({
-                    ...(activateUser
-                        ? {
-                              first_name: isOpenIdUser(activateUser)
-                                  ? activateUser.openId.firstName
-                                  : activateUser.firstName,
-                              last_name: isOpenIdUser(activateUser)
-                                  ? activateUser.openId.lastName
-                                  : activateUser.lastName,
-                          }
-                        : {}),
+                    ...names,
                     updated_at: new Date(),
                 })
                 .returning('*');
@@ -1904,6 +1901,42 @@ export class UserModel {
             }
         });
         return this.getUserDetailsByUuid(userUuid);
+    }
+
+    /**
+     * An invite can reach an account that already has names (a returning user),
+     * so only names typed while accepting overwrite them; an identity provider
+     * fills blanks and a one-click accept leaves them as they are.
+     */
+    private static async getInvitedUserNames(
+        trx: Transaction,
+        userUuid: string,
+        activateUser: ActivateUser | OpenIdUser | null,
+    ): Promise<Pick<DbUserUpdate, 'first_name' | 'last_name'>> {
+        if (!activateUser) {
+            return {};
+        }
+        if (!isOpenIdUser(activateUser)) {
+            return {
+                first_name: activateUser.firstName,
+                last_name: activateUser.lastName,
+            };
+        }
+        const savedNames = await trx(UserTableName)
+            .select('first_name', 'last_name')
+            .where('user_uuid', userUuid)
+            .first();
+        const missingNames = getMissingUserNames(
+            {
+                firstName: savedNames?.first_name,
+                lastName: savedNames?.last_name,
+            },
+            activateUser.openId,
+        );
+        return {
+            first_name: missingNames?.firstName,
+            last_name: missingNames?.lastName,
+        };
     }
 
     async createUser(
