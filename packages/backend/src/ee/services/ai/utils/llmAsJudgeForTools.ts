@@ -5,7 +5,7 @@ import {
 } from '@lightdash/common';
 import { generateText, Output } from 'ai';
 import { JSONDiff } from 'autoevals';
-import { compact, differenceWith } from 'es-toolkit';
+import { compact, differenceWith } from 'es-toolkit/compat';
 import { z } from 'zod';
 import {
     emitAiUsage,

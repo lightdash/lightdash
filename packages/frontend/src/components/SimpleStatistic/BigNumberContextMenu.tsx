@@ -2,7 +2,7 @@ import { type ResultValue } from '@lightdash/common';
 import { Menu, Text } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconArrowBarToDown, IconCopy } from '@tabler/icons-react';
-import { mapValues } from 'es-toolkit';
+import { mapValues } from 'es-toolkit/compat';
 import { useMemo, type FC } from 'react';
 import { MergeSourceGate } from '../../features/mergeQuery/components/MergeSourceGate';
 import { useOrganization } from '../../hooks/organization/useOrganization';
@@ -45,8 +45,7 @@ const BigNumberContextMenu: FC<
     const isBigNumber = isBigNumberVisualizationConfig(visualizationConfig);
 
     const fieldValues: Record<string, ResultValue> = useMemo(() => {
-        const firstRow = resultsData?.rows?.[0];
-        return firstRow ? mapValues(firstRow, (col) => col.value) : {};
+        return mapValues(resultsData?.rows?.[0], (col) => col.value) ?? {};
     }, [resultsData]);
 
     const item = useMemo(() => {

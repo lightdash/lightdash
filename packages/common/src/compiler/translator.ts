@@ -1,4 +1,4 @@
-import { partition } from 'es-toolkit';
+import { merge, partition } from 'es-toolkit/compat';
 import {
     getDeferredExploreName,
     getManifestNamespaceKey,
@@ -77,7 +77,6 @@ import {
     type WarehouseTableSchema,
 } from '../types/warehouse';
 import assertUnreachable from '../utils/assertUnreachable';
-import { mergeDbtMeta } from '../utils/dbt';
 import {
     getDefaultTimeFrames,
     getTimeFramesWithProjectDefaults,
@@ -239,7 +238,7 @@ const convertDimension = (
     granularityLabels?: Partial<Record<TimeFrames, string>>,
 ): Dimension => {
     // Config block takes priority, then meta block
-    const meta = mergeDbtMeta(column.meta, column.config?.meta);
+    const meta = merge({}, column.meta, column.config?.meta);
     let type = meta.dimension?.type || column.data_type || DimensionType.STRING;
     if (!Object.values(DimensionType).includes(type)) {
         throw new MissingCatalogEntryError(
@@ -673,7 +672,7 @@ function validateSets(
 }
 
 const getColumnMeta = (column: DbtModelColumn): DbtColumnMetadata =>
-    mergeDbtMeta(column.meta, column.config?.meta);
+    merge({}, column.meta, column.config?.meta);
 
 const hasRepeatedAncestor = (column: DbtModelColumn): boolean =>
     (column.repeated_ancestors?.length ?? 0) > 0;
@@ -718,7 +717,7 @@ export const convertTable = (
     granularityLabels?: Partial<Record<TimeFrames, string>>,
 ): Omit<Table, 'lineageGraph'> => {
     // Config block takes priority, then meta block
-    const meta = mergeDbtMeta(model.meta, model.config?.meta);
+    const meta = merge({}, model.meta, model.config?.meta);
     const tableLabel = meta.label || friendlyName(model.name);
     const tableWarnings: InlineError[] = [];
 
@@ -728,7 +727,7 @@ export const convertTable = (
     ] = Object.values(model.columns).reduce(
         ([prevDimensions, prevMetrics], column, index) => {
             // Config block takes priority, then meta block
-            const columnMeta = mergeDbtMeta(column.meta, column.config?.meta);
+            const columnMeta = merge({}, column.meta, column.config?.meta);
             const routedByUnnest = !columnMeta.dimension?.sql;
             // Leaves under an array belong to the unnested table, unless
             // custom SQL made the column scalar on purpose.
@@ -1762,7 +1761,7 @@ export async function* iterateExplores(
     // eslint-disable-next-line no-restricted-syntax
     for (const [modelIndex, model] of resolvedModels.entries()) {
         // Config block takes priority, then meta block
-        const meta = mergeDbtMeta(model.meta, model.config?.meta);
+        const meta = merge({}, model.meta, model.config?.meta);
 
         // model.config.tags has type string[] | string | undefined - normalise it to string[]
         const configTags =
@@ -1951,7 +1950,7 @@ export async function* iterateExplores(
     // eslint-disable-next-line no-restricted-syntax
     for (const [modelIndex, model] of validModels.entries()) {
         // Config block takes priority, then meta block
-        const meta = mergeDbtMeta(model.meta, model.config?.meta);
+        const meta = merge({}, model.meta, model.config?.meta);
         const customMeta = Object.fromEntries(
             Object.entries(meta).filter(
                 (entry): entry is [string, CustomMetaValue] =>

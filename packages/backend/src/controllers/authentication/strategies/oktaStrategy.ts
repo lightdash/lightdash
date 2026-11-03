@@ -9,7 +9,7 @@ import {
     UnexpectedServerError,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
-import { isString } from 'es-toolkit';
+import { isString } from 'es-toolkit/compat';
 import { Request, RequestHandler } from 'express';
 import { generators, Issuer, UserinfoResponse } from 'openid-client';
 import { Strategy } from 'passport-strategy';

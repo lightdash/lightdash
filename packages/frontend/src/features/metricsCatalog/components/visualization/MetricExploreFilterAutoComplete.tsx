@@ -9,7 +9,7 @@ import {
     type PillsInputProps,
 } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
-import { uniq } from 'es-toolkit';
+import { uniq } from 'es-toolkit/compat';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import MultiValuePastePopover from '../../../../components/common/Filters/FilterInputs/MultiValuePastePopover';
 import MantineIcon from '../../../../components/common/MantineIcon';

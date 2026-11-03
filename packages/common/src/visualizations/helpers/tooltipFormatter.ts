@@ -5,6 +5,7 @@ import {
     type LineSeriesOption,
     type TooltipComponentFormatterCallback,
 } from 'echarts';
+import { toNumber } from 'es-toolkit/compat';
 import {
     isField,
     isTableCalculation,
@@ -695,7 +696,7 @@ export function transformToPercentageStacking<
 
         yFieldRefs.forEach((yField) => {
             if (row[yField] === undefined) return;
-            const value = Number(row[yField]) || 0;
+            const value = toNumber(row[yField]) || 0;
             total += value;
 
             // Store original value
@@ -717,7 +718,7 @@ export function transformToPercentageStacking<
 
         yFieldRefs.forEach((yField) => {
             if (row[yField] === undefined) return;
-            const value = Number(row[yField]) || 0;
+            const value = toNumber(row[yField]) || 0;
             (newRow as Record<string, unknown>)[yField] = (value / total) * 100;
         });
 
@@ -873,7 +874,7 @@ const sortTooltipParams = (
             } else {
                 idx = flipAxes ? 0 : 1;
             }
-            const numVal = Number(value[idx]);
+            const numVal = toNumber(value[idx]);
             if (!Number.isNaN(numVal)) return numVal;
         }
 
@@ -889,13 +890,13 @@ const sortTooltipParams = (
 
             if (dim) {
                 const val = (value as Record<string, unknown>)[dim];
-                const numVal = Number(val);
+                const numVal = toNumber(val);
                 if (!Number.isNaN(numVal)) return numVal;
             }
 
             // Fallback: find any numeric value
             for (const v of Object.values(value as Record<string, unknown>)) {
-                const numVal = Number(v);
+                const numVal = toNumber(v);
                 if (!Number.isNaN(numVal)) return numVal;
             }
         }

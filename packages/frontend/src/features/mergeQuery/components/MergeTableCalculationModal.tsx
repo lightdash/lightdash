@@ -13,7 +13,7 @@ import { extractColumnRefs, parse } from '@lightdash/formula';
 import { Stack, Text, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconCalculator, IconPencil } from '@tabler/icons-react';
-import { omit } from 'es-toolkit';
+import { omit } from 'es-toolkit/compat';
 import { useMemo, useState, type FC } from 'react';
 import MantineModal from '../../../components/common/MantineModal';
 import { type FieldSuggestionItem } from '../../../components/common/SuggestionList';
@@ -54,7 +54,7 @@ const withFormat = (
     format: CustomFormat,
 ): MergeTableCalculation =>
     format.type === CustomFormatType.DEFAULT
-        ? omit(calculation, ['format'])
+        ? omit(calculation, 'format')
         : { ...calculation, format };
 
 const withFormulaPrefix = (formula: string) =>

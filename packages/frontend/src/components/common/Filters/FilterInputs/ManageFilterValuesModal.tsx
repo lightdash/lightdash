@@ -18,7 +18,7 @@ import {
     IconSettings,
 } from '@tabler/icons-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { uniq } from 'es-toolkit';
+import { uniq } from 'es-toolkit/compat';
 import {
     useCallback,
     useEffect,

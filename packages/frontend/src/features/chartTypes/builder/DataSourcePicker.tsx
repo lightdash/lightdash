@@ -23,7 +23,7 @@ import {
     IconSparkles,
     IconTable,
 } from '@tabler/icons-react';
-import { uniqBy } from 'es-toolkit';
+import { uniqBy } from 'es-toolkit/compat';
 import {
     useCallback,
     useEffect,
@@ -239,7 +239,7 @@ const PickerBody: FC<BodyProps> = ({
             savedChartSource
                 ? uniqBy(
                       chartPages?.pages.flatMap((page) => page.data) ?? [],
-                      (item) => item.uuid,
+                      'uuid',
                   )
                 : [],
         [savedChartSource, chartPages?.pages],

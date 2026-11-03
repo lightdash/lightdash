@@ -111,7 +111,7 @@ import {
     type MetricQuery,
     type SpaceSummaryBase,
 } from '@lightdash/common';
-import { isEqual, isPlainObject } from 'es-toolkit';
+import { isEqual, isPlainObject } from 'es-toolkit/compat';
 import type { Knex } from 'knex';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';

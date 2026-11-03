@@ -7,6 +7,7 @@ import {
     InputWrapper,
 } from '@mantine/core';
 import { IconHelpCircle, IconPlus, IconTrash } from '@tabler/icons-react';
+import { get } from 'es-toolkit/compat';
 import { useState, type ReactNode } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import MantineIcon from '../../common/MantineIcon';
@@ -31,7 +32,7 @@ export const MultiKeyValuePairsInput = ({
     const form = useFormContext();
 
     const values: { id: string; key: string; value: string }[] =
-        form.getInputProps(name).value ?? [];
+        get(form.values, name) ?? [];
     const error = form.errors[name];
 
     const addValue = () => {

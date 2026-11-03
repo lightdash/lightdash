@@ -30,7 +30,7 @@ import {
 } from '@lightdash/common';
 import archiver from 'archiver';
 import { stringify } from 'csv-stringify';
-import { isNil } from 'es-toolkit';
+import { isNil } from 'es-toolkit/compat';
 import * as fs from 'fs';
 import * as fsPromise from 'fs/promises';
 import moment from 'moment';

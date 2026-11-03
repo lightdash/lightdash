@@ -1,4 +1,4 @@
-import { intersectionBy } from 'es-toolkit';
+import { intersectionBy } from 'es-toolkit/compat';
 import { getFirstIndexColumns } from '../pivot/utils';
 import { type AnyType } from '../types/any';
 import {
@@ -186,7 +186,7 @@ export class CartesianChartDataModel {
             intersectionBy(
                 existingConfig?.fieldConfig?.y || [],
                 newDefaultLayout?.y || [],
-                (item) => item.reference,
+                'reference',
             ).length > 0;
 
         let mergedLayout: PivotChartLayout | undefined =

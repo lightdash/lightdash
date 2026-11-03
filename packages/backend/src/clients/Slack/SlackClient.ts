@@ -40,7 +40,7 @@ import {
     WebClient,
     type FilesUploadV2Arguments,
 } from '@slack/web-api';
-import { throttle, without } from 'es-toolkit';
+import { throttle, without } from 'es-toolkit/compat';
 import { Express } from 'express';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig, LoggingLevel } from '../../config/parseConfig';
@@ -116,7 +116,7 @@ const createThrottledSlackExecutor = () => {
             lastCallTime = Date.now();
         },
         THROTTLE_MIN_DELAY_MS,
-        { edges: ['leading'] },
+        { leading: true, trailing: false },
     );
 
     return async <T>(

@@ -32,7 +32,7 @@ import {
     IconTableAlias,
     IconTrash,
 } from '@tabler/icons-react';
-import { groupBy } from 'es-toolkit';
+import { groupBy } from 'es-toolkit/compat';
 import { memo, useEffect, useMemo, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -150,7 +150,7 @@ const ChangesReviewModal: FC<
                 (error): error is ValidationErrorChartResponse =>
                     isChartValidationError(error),
             ),
-            (item) => String(item.chartUuid),
+            'chartUuid',
         );
     }, [chartValidationErrors]);
 

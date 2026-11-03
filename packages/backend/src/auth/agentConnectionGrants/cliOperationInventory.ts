@@ -519,27 +519,27 @@ export const CLI_GRANT_OPERATION_INVENTORY: readonly CliGrantOperationInventoryE
             'Queued validation needs reviewed content selectors and project-scoped job polling contracts.',
         ),
         allowed(
-            'handlers/download.ts:3888',
+            'handlers/download.ts:3889',
             'GET',
             '`/api/v1/projects/${projectUuid}/code/upload-advisory`',
             ['ProjectCoderController.getContentAsCodeUploadAdvisory'],
         ),
         refused(
-            'handlers/download.ts:3963',
+            'handlers/download.ts:3964',
             'POST',
             '`/api/v1/projects/${projectId}/code/snapshots/prune`',
             ['ProjectCoderController.pruneContentAsCodeSnapshots'],
             'This releases content from Git management; v1 refuses sync configuration changes.',
         ),
         refused(
-            'handlers/download.ts:4153',
+            'handlers/download.ts:4154',
             'POST',
             '`/api/v1/projects/${projectId}/code/sync-settings`',
             ['ProjectCoderController.stampContentAsCodeSettings'],
             'This changes the project Git sync configuration; v1 refuses sync configuration changes.',
         ),
         allowed(
-            'handlers/download.ts:4506',
+            'handlers/download.ts:4507',
             'GET',
             "`/api/v1/ee/projects/${projectId}/apps${\n                            phase.isChartTypes ? '/chart-types' : ''\n                        }`",
             [
@@ -548,13 +548,13 @@ export const CLI_GRANT_OPERATION_INVENTORY: readonly CliGrantOperationInventoryE
             ],
         ),
         allowed(
-            'handlers/download.ts:4536',
+            'handlers/download.ts:4537',
             'GET',
             '`/api/v1/projects/${projectId}/spaces`',
             ['ProjectController.getSpacesInProject'],
         ),
         refused(
-            'handlers/download.ts:4809',
+            'handlers/download.ts:4810',
             'POST',
             '`/api/v1/ee/projects/${projectId}/apps/upload`',
             ['AppGenerateController.importAppCode'],

@@ -19,7 +19,7 @@ import {
     type ReadyQueryResultsPage,
     type TableChart,
 } from '@lightdash/common';
-import { isEqual, uniq } from 'es-toolkit';
+import { isEqual, uniq } from 'es-toolkit/compat';
 import { type VisualizationResults } from '../types';
 import {
     resolvePivotRowFieldIds,

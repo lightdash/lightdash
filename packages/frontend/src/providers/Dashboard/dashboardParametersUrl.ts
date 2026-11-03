@@ -3,7 +3,7 @@ import {
     type ParametersValuesMap,
     type ParameterValue,
 } from '@lightdash/common';
-import { isEqual } from 'es-toolkit';
+import { isEqual } from 'es-toolkit/compat';
 
 const isParameterValue = (value: unknown): value is ParameterValue => {
     if (typeof value === 'string') return true;

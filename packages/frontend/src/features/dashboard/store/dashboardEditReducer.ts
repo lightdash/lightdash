@@ -9,7 +9,7 @@ import {
     type DateZoomConfig,
 } from '@lightdash/common';
 import { createAction, type UnknownAction } from '@reduxjs/toolkit';
-import { isEqual, sortBy } from 'es-toolkit';
+import { isEqual, sortBy } from 'es-toolkit/compat';
 import { removeSectionKeepingLines } from '../../dashboardControls/sections';
 
 /**
@@ -205,7 +205,7 @@ export const dashboardEditReducer = (
         return set(state, 'haveTilesChanged', action.payload);
     }
     if (dashboardEditActions.setTabs.match(action)) {
-        return { ...state, tabs: sortBy(action.payload, ['order']) };
+        return { ...state, tabs: sortBy(action.payload, 'order') };
     }
     if (dashboardEditActions.setHaveTabsChanged.match(action)) {
         return set(state, 'haveTabsChanged', action.payload);

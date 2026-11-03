@@ -5,7 +5,7 @@ import {
     useTree,
     type TreeNodeData,
 } from '@mantine/core';
-import { isEqual } from 'es-toolkit';
+import { isEqual } from 'es-toolkit/compat';
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { type FuzzyMatches } from '../../../hooks/useFuzzySearch';
 import classes from './Tree.module.css';

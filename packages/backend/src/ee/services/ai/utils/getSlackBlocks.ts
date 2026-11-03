@@ -25,7 +25,7 @@ import {
     type Explore,
 } from '@lightdash/common';
 import { Block, KnownBlock } from '@slack/bolt';
-import { partition } from 'es-toolkit';
+import { partition } from 'es-toolkit/compat';
 import type { SlackStreamChunk } from '../../../../clients/Slack/SlackClient';
 import { stripMemoryCitations } from './memoryCitation';
 import { populateCustomMetricsSQL } from './populateCustomMetricsSQL';

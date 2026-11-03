@@ -10,7 +10,7 @@ import {
     type AiServiceAccountSlot,
     type AiServiceAccountTestResult,
 } from '@lightdash/common';
-import { isEqual } from 'es-toolkit';
+import { isEqual } from 'es-toolkit/compat';
 import { type Knex } from 'knex';
 import { createPrivateKey, randomUUID } from 'node:crypto';
 import { z } from 'zod';

@@ -324,7 +324,7 @@ import {
 } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
 import { createHmac, timingSafeEqual } from 'crypto';
-import { isEqual, uniq } from 'es-toolkit';
+import { isEqual, uniq } from 'es-toolkit/compat';
 import * as fs from 'fs';
 import { GoogleAuth } from 'google-auth-library';
 import * as yaml from 'js-yaml';

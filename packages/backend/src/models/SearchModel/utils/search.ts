@@ -1,5 +1,5 @@
 import { CompiledField, CompiledTable } from '@lightdash/common';
-import { compact, escapeRegExp } from 'es-toolkit';
+import { compact, escapeRegExp } from 'es-toolkit/compat';
 import { Knex } from 'knex';
 
 // Exact/prefix name boosts sit above typical ts_rank_cd values (0–1) so a

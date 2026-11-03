@@ -17,7 +17,7 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { isEqual } from 'es-toolkit';
+import { isEqual } from 'es-toolkit/compat';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../../components/common/MantineIcon';

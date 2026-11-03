@@ -8,7 +8,7 @@ import {
     type ScopeName,
 } from '@lightdash/common';
 import { Text } from '@mantine/core';
-import { startCase } from 'es-toolkit';
+import { startCase } from 'es-toolkit/compat';
 import { Fragment, type ReactNode } from 'react';
 
 export const systemRolesOrder: string[] = Object.values(OrganizationMemberRole);

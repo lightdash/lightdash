@@ -1,4 +1,4 @@
-import { shuffle } from 'es-toolkit';
+import { shuffle } from 'es-toolkit/compat';
 
 export const jobTitles = [
     ...shuffle([

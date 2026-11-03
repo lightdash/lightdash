@@ -1,5 +1,6 @@
 import { type CacheMetadata } from '@lightdash/common';
 import { createAction, type UnknownAction } from '@reduxjs/toolkit';
+import { min } from 'es-toolkit/compat';
 import { type SqlChartTileMetadata } from '../../../providers/Dashboard/types';
 
 /** One chart/SQL tile's query, published for AI analysis sources. */
@@ -122,9 +123,7 @@ export const dashboardTileStatusReducer = (
         const oldestCacheTime =
             state.oldestCacheTime === undefined
                 ? newTime
-                : newTime < state.oldestCacheTime
-                  ? newTime
-                  : state.oldestCacheTime;
+                : min([state.oldestCacheTime, newTime])!;
         return oldestCacheTime === state.oldestCacheTime
             ? state
             : { ...state, oldestCacheTime };

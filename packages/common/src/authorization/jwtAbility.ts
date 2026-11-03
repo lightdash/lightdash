@@ -1,5 +1,5 @@
 import { subject, type AbilityBuilder } from '@casl/ability';
-import { flow } from 'es-toolkit';
+import { flow } from 'es-toolkit/compat';
 import { isChartContent, isDashboardContent, type CreateEmbedJwt } from '../ee';
 import type { EmbedContent, OssEmbed } from '../types/auth';
 import assertUnreachable from '../utils/assertUnreachable';
@@ -438,7 +438,7 @@ export function applyEmbeddedAbility(
         throw new Error('Content is required');
     }
 
-    const applyAbilities = flow(...getEmbeddedAbilitiesForType(content.type));
+    const applyAbilities = flow(getEmbeddedAbilitiesForType(content.type));
 
     applyAbilities({
         embedUser,

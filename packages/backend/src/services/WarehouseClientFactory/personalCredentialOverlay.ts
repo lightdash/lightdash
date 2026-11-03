@@ -17,7 +17,7 @@ import {
     type StrictPersonalWarehouseCredentials,
     type UserWarehouseCredentialsWithSecrets,
 } from '@lightdash/common';
-import { pick } from 'es-toolkit';
+import { pick } from 'es-toolkit/compat';
 import { normalizeDatabricksHostLenient } from '../../controllers/authentication/strategies/databricksStrategy';
 import { copyWarehouseCredentialVersions } from '../../utils/warehouseCredentialVersion';
 
@@ -285,15 +285,6 @@ type ConnectionFields<T, Classification> = Pick<
     }[keyof T]
 >;
 
-// Identity fields can exist at runtime beyond what the narrowed type declares.
-const pickIdentityFields = <T extends object>(
-    personal: T,
-    fields: readonly string[],
-): Partial<T> =>
-    Object.fromEntries(
-        Object.entries(personal).filter(([key]) => fields.includes(key)),
-    ) as Partial<T>;
-
 const omitConnectionAuthFields = <
     T extends object,
     Classification extends Record<keyof T, FieldClass>,
@@ -350,7 +341,7 @@ export const projectPersonalWarehouseCredentials = (
     });
     if (stored.type === WarehouseTypes.BIGQUERY) {
         projected.keyfileContents = pick(
-            stored.keyfileContents ?? {},
+            stored.keyfileContents,
             Object.keys(
                 strictBigqueryPersonalCredentialsSchema.shape.keyfileContents
                     .shape,
@@ -437,7 +428,7 @@ const composePersonalWarehouseCredentialsWithoutVersions = (
                     connection,
                     personalCredentialFieldClassification[personal.type],
                 ),
-                ...pickIdentityFields(
+                ...pick(
                     personal,
                     personalCredentialIdentityFields[personal.type],
                 ),
@@ -463,7 +454,7 @@ const composePersonalWarehouseCredentialsWithoutVersions = (
                     connection,
                     personalCredentialFieldClassification[personal.type],
                 ),
-                ...pickIdentityFields(
+                ...pick(
                     personal,
                     personalCredentialIdentityFields[personal.type],
                 ),

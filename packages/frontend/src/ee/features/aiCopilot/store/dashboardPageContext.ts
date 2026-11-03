@@ -9,7 +9,7 @@ import {
     type DateZoom,
     type ParametersValuesMap,
 } from '@lightdash/common';
-import { isEqual } from 'es-toolkit';
+import { isEqual } from 'es-toolkit/compat';
 import { type LauncherCurrentDashboard } from './aiAgentLauncherSlice';
 
 type DashboardContextInput = Extract<

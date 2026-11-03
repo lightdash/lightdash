@@ -1,4 +1,4 @@
-import { camelCase, upperFirst } from 'es-toolkit';
+import { camelCase, upperFirst } from 'es-toolkit/compat';
 import { type ScopeModifer, type ScopeName } from '../types/scopes';
 import { getAllScopeMap } from './scopes';
 import { type AbilityAction, type CaslSubjectNames } from './types';

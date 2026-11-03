@@ -11,7 +11,7 @@ import {
 } from '@mantine/core';
 import { getHotkeyHandler, useClipboard, useId } from '@mantine/hooks';
 import { clsx } from 'clsx';
-import { debounce } from 'es-toolkit';
+import { debounce } from 'es-toolkit/compat';
 import { darken } from 'polished';
 import {
     createContext,
@@ -140,7 +140,10 @@ const TableProvider: FC<
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
     const handleDebouncedToggleCell = useMemo(() => {
-        return debounce(handleToggleCell, 300, { edges: ['leading'] });
+        return debounce(handleToggleCell, 300, {
+            leading: true,
+            trailing: false,
+        });
     }, [handleToggleCell]);
 
     return (

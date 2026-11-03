@@ -7,7 +7,7 @@ import {
     type Scope,
     type ScopeName,
 } from '@lightdash/common';
-import { startCase } from 'es-toolkit';
+import { startCase } from 'es-toolkit/compat';
 import {
     agentCapabilityGroups,
     getAgentScopeLabel,

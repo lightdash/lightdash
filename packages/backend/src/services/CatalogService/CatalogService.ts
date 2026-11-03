@@ -56,7 +56,7 @@ import {
     type MetricsTreeWithDetails,
     type PrevMetricsTreeNode,
 } from '@lightdash/common';
-import { uniqBy } from 'es-toolkit';
+import { uniqBy } from 'es-toolkit/compat';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { fromSession } from '../../auth/account/account';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -1302,9 +1302,7 @@ export class CatalogService<
         const explores = await this.projectModel.findExploresFromCache(
             projectUuid,
             'name',
-            uniqBy(metrics, (metric) => metric.tableName).map(
-                (m) => m.tableName,
-            ),
+            uniqBy(metrics, 'tableName').map((m) => m.tableName),
         );
 
         const filteredExplores = Object.fromEntries(

@@ -37,7 +37,7 @@ import {
     type RegisteredAccount,
     type UpdateExternalConnection,
 } from '@lightdash/common';
-import { isEqual } from 'es-toolkit';
+import { isEqual } from 'es-toolkit/compat';
 import { createHash, randomBytes } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';

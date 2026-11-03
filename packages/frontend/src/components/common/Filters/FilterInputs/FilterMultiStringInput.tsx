@@ -1,7 +1,7 @@
 import { interpolateUiString } from '@lightdash/common';
 import { Group, Text, type ComboboxProps } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
-import { uniq } from 'es-toolkit';
+import { uniq } from 'es-toolkit/compat';
 import {
     useCallback,
     useMemo,

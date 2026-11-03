@@ -1,6 +1,6 @@
 import { type RoleLevel, type RoleWithScopes } from '@lightdash/common';
 import { Center, Loader, Select, Stack } from '@mantine/core';
-import { startCase } from 'es-toolkit';
+import { startCase } from 'es-toolkit/compat';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import PageBreadcrumbs from '../../../components/common/PageBreadcrumbs';

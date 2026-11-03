@@ -261,7 +261,7 @@ import {
 import { createCanvas, loadImage } from 'canvas';
 import { randomBytes, randomUUID } from 'crypto';
 import { type EChartsOption } from 'echarts';
-import { isEqual, uniq } from 'es-toolkit';
+import { isEqual, uniq } from 'es-toolkit/compat';
 import { EventEmitter } from 'events';
 import fs from 'fs/promises';
 import { nanoid as nanoidGenerator } from 'nanoid';

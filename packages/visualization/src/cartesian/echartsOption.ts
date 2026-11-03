@@ -91,7 +91,7 @@ import {
     type TooltipComponentFormatterCallback,
     type TooltipComponentOption,
 } from 'echarts';
-import { groupBy, uniq } from 'es-toolkit';
+import { groupBy, toNumber, uniq } from 'es-toolkit/compat';
 import { type SeriesLike } from '../colors/series';
 import { sanitizeEchartsFontFamily } from '../fonts';
 import {
@@ -2145,7 +2145,7 @@ const getEchartAxes = ({
 
         // Explicit bounds render as-is; otherwise ECharts rounds to a nice tick
         const parseBound = (bound: string | undefined, fallback: number) => {
-            const parsed = bound ? Number(bound) : NaN;
+            const parsed = bound ? toNumber(bound) : NaN;
             return Number.isFinite(parsed) ? parsed : fallback;
         };
         const tickMax = parseBound(axisBounds?.max, getNiceTickBound(dataMax));
@@ -2930,7 +2930,7 @@ const calculateStackTotal = (
             Object.hasOwn(selectedLegendNames, legendName)
                 ? selectedLegendNames[legendName]
                 : true;
-        const numberValue = hash && selected ? Number(row[hash]) : 0;
+        const numberValue = hash && selected ? toNumber(row[hash]) : 0;
         return Number.isNaN(numberValue) ? acc : acc + numberValue;
     }, 0);
 };
@@ -3109,9 +3109,7 @@ export const getStackTotalSeries = (
     // User-configured max per value axis, used to clamp overflowing totals
     valueAxisMaxes?: (number | undefined)[],
 ) => {
-    const seriesGroupedByStack = groupBy(seriesWithStack, (item) =>
-        String(item.stack),
-    );
+    const seriesGroupedByStack = groupBy(seriesWithStack, 'stack');
     return Object.entries(seriesGroupedByStack).reduce<EChartsSeries[]>(
         (acc, [stack, series]) => {
             // A series can land at index 0 without a `stackLabel` config (e.g.
@@ -4255,9 +4253,7 @@ export const buildCartesianLegendState = (
         );
 
         // Group by stack and calculate max formatted label width
-        const seriesGroupedByStack = groupBy(seriesWithStack, (item) =>
-            String(item.stack),
-        );
+        const seriesGroupedByStack = groupBy(seriesWithStack, 'stack');
         let maxCharCount = 0;
 
         Object.entries(seriesGroupedByStack).forEach(([stack, stackSeries]) => {

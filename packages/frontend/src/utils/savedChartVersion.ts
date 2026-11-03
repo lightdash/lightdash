@@ -1,5 +1,5 @@
 import { type SavedChart } from '@lightdash/common';
-import { pick } from 'es-toolkit';
+import { pick } from 'es-toolkit/compat';
 
 const savedChartVersionKeys = [
     'tableName',
@@ -14,4 +14,4 @@ const savedChartVersionKeys = [
 
 /** The fields a saved chart version defines, without server metadata like name or pins. */
 export const pickSavedChartVersion = (chart: SavedChart | undefined) =>
-    chart ? pick(chart, savedChartVersionKeys) : {};
+    pick(chart, savedChartVersionKeys);

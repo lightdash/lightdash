@@ -1,6 +1,6 @@
 import { type ChartSimilarityContext } from '@lightdash/common';
 import { generateText, Output } from 'ai';
-import { isEqual } from 'es-toolkit';
+import { isEqual } from 'es-toolkit/compat';
 import { z } from 'zod';
 import {
     emitAiUsage,

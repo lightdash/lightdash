@@ -8,7 +8,7 @@ import {
     HoverCard,
 } from '@mantine/core';
 import { IconChevronRight } from '@tabler/icons-react';
-import { intersection, uniq } from 'es-toolkit';
+import { intersectionBy } from 'es-toolkit/compat';
 import { memo, useCallback, useMemo, type FC } from 'react';
 import { useToggle } from 'react-use';
 import {
@@ -67,9 +67,7 @@ const TreeGroupNodeComponent: FC<Props> = ({ node }) => {
     );
 
     const selectedChildrenCount = useMemo(
-        () =>
-            uniq(intersection(allChildrenKeys, Array.from(selectedItems)))
-                .length,
+        () => intersectionBy(allChildrenKeys, Array.from(selectedItems)).length,
         [allChildrenKeys, selectedItems],
     );
 

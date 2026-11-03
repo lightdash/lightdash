@@ -4,7 +4,7 @@ import {
     getErrorMessage,
     type AiCreditPeriod,
 } from '@lightdash/common';
-import { groupBy } from 'es-toolkit';
+import { groupBy } from 'es-toolkit/compat';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
 import Logger from '../../../logging/logger';
 import { type NotificationsModel } from '../../../models/NotificationsModel/NotificationsModel';

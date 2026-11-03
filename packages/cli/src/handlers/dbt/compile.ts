@@ -6,7 +6,7 @@ import {
     ParseError,
     SupportedDbtVersions,
 } from '@lightdash/common';
-import { xor } from 'es-toolkit';
+import { xor } from 'es-toolkit/compat';
 import execa from 'execa';
 import { promises as fs } from 'fs';
 import * as path from 'path';

@@ -13,7 +13,7 @@ import {
 import { Menu, Text } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconCopy, IconStack } from '@tabler/icons-react';
-import { mapValues } from 'es-toolkit';
+import { mapValues } from 'es-toolkit/compat';
 import { useCallback, useMemo, type FC } from 'react';
 import {
     NOT_ON_LIVE_SOURCES,

@@ -1,5 +1,5 @@
 import { LightdashMode } from '@lightdash/common';
-import { noop } from 'es-toolkit';
+import { noop } from 'es-toolkit/compat';
 import {
     memo,
     useCallback,

@@ -1,6 +1,6 @@
 import { type ApiError } from '@lightdash/common';
 import { useQuery, type QueryKey } from '@tanstack/react-query';
-import { omit } from 'es-toolkit';
+import { omit } from 'es-toolkit/compat';
 import * as yaml from 'js-yaml';
 import { useMemo } from 'react';
 
@@ -33,13 +33,10 @@ export const useContentAsCode = <Results>({
         const document = selectDocument(query.data);
         if (!document) return undefined;
 
-        return yaml.dump(
-            omit(document as Record<string, unknown>, fieldsToOmit),
-            {
-                quotingType: '"',
-                sortKeys: true,
-            },
-        );
+        return yaml.dump(omit(document, fieldsToOmit), {
+            quotingType: '"',
+            sortKeys: true,
+        });
     }, [fieldsToOmit, query.data, selectDocument]);
 
     return { ...query, contentYaml };

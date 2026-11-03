@@ -45,7 +45,7 @@ import {
     type UUID,
     type UuidOrSlug,
 } from '@lightdash/common';
-import { isEqual } from 'es-toolkit';
+import { isEqual } from 'es-toolkit/compat';
 import type { Knex } from 'knex';
 import pLimit from 'p-limit';
 import { validate as isUuid } from 'uuid';

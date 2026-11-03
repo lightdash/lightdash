@@ -1,4 +1,4 @@
-import { snakeCase } from 'es-toolkit';
+import { snakeCase } from 'es-toolkit/compat';
 import { type z } from 'zod';
 import { createAgentInputSchema } from './agentInputSchema';
 import {

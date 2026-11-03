@@ -1,4 +1,4 @@
-import { isPlainObject } from 'es-toolkit';
+import { isPlainObject } from 'es-toolkit/compat';
 
 /** Deterministic JSON stringify: object keys sorted recursively so
  *  field-order-permuted payloads hash identically. Mirrors JSON.stringify's

@@ -6,7 +6,7 @@ import {
     type PieChartValueOptions,
 } from '@lightdash/common';
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
-import { mapValues, omitBy } from 'es-toolkit';
+import { isEmpty, mapValues, omitBy } from 'es-toolkit/compat';
 import {
     editorCaseReducers,
     renamedFieldId,
@@ -173,7 +173,7 @@ const pieEditorSlice = createSlice({
                 { ...state.groupValueOptionOverrides[label], ...value },
                 (option) => option === undefined,
             );
-            if (Object.keys(nextOptions).length === 0) {
+            if (isEmpty(nextOptions)) {
                 delete state.groupValueOptionOverrides[label];
                 return;
             }

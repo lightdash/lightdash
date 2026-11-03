@@ -14,7 +14,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconPencil } from '@tabler/icons-react';
-import { omit } from 'es-toolkit';
+import { omit } from 'es-toolkit/compat';
 import {
     useCallback,
     useMemo,
@@ -73,7 +73,7 @@ const SectionSelect: FC<{ rule: DashboardFilterRule }> = ({ rule }) => {
                 if (next === null || next === value) return;
                 updateFilter(
                     next === NO_SECTION
-                        ? omit(rule, ['sectionId'])
+                        ? omit(rule, 'sectionId')
                         : { ...rule, sectionId: next },
                 );
             }}

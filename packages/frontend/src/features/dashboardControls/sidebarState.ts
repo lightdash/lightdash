@@ -2,7 +2,7 @@ import {
     type DashboardFilterRule,
     type DashboardFilters,
 } from '@lightdash/common';
-import { isEqual, isUndefined, omit, omitBy } from 'es-toolkit';
+import { isEqual, isUndefined, omit, omitBy } from 'es-toolkit/compat';
 import { hasFilterValueSet } from '../dashboardFilters/FilterConfiguration/utils';
 import { type ControlsSidebarContextValue } from './useControlsSidebar';
 
@@ -137,7 +137,7 @@ export const withSectionOf = (
 ): DashboardFilterRule => {
     if (saved.sectionId === now.sectionId) return saved;
     return now.sectionId === undefined
-        ? omit(saved, ['sectionId'])
+        ? omit(saved, 'sectionId')
         : { ...saved, sectionId: now.sectionId };
 };
 
@@ -228,7 +228,7 @@ export const withFilterRuleLabel = (
     if (label !== '') return { ...rule, label };
     return hadLabelKey
         ? { ...rule, label: undefined }
-        : (omit(rule, ['label']) as DashboardFilterRule);
+        : (omit(rule, 'label') as DashboardFilterRule);
 };
 
 /** A default that is switched on but has no value the shipped form accepts. */

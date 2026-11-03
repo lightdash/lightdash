@@ -4,7 +4,7 @@ import {
     type ExploreError,
     type ExplorePostProcessor,
 } from '@lightdash/common';
-import { attempt, isError } from 'es-toolkit';
+import { attempt, isError } from 'es-toolkit/compat';
 import { lightdashConfig } from '../../config/lightdashConfig';
 import { generatePreAggregateExplores } from './generatePreAggregateExplores';
 
@@ -12,11 +12,13 @@ export const preAggregatePostProcessor: ExplorePostProcessor = (
     compiledExplores,
     { model, meta, startOfWeek },
 ) => {
-    const [error, parsedPreAggregates] = attempt(() =>
-        parseDbtPreAggregates(meta.pre_aggregates, model.name),
+    const parsedPreAggregates = attempt(
+        parseDbtPreAggregates,
+        meta.pre_aggregates,
+        model.name,
     );
 
-    if (parsedPreAggregates === null) {
+    if (isError(parsedPreAggregates)) {
         return compiledExplores.map(
             (explore) =>
                 ({
@@ -30,7 +32,7 @@ export const preAggregatePostProcessor: ExplorePostProcessor = (
                         {
                             type: InlineErrorType.METADATA_PARSE_ERROR,
                             message:
-                                (isError(error) && error.message) ||
+                                parsedPreAggregates.message ||
                                 `Could not parse pre-aggregates for model "${model.name}"`,
                         },
                     ],

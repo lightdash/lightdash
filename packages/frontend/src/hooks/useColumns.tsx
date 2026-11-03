@@ -32,7 +32,7 @@ import {
 import { Group, Skeleton, Text, Tooltip } from '@mantine/core';
 import { IconExclamationCircle, IconKey } from '@tabler/icons-react';
 import { type CellContext } from '@tanstack/react-table';
-import { omit } from 'es-toolkit';
+import { omit } from 'es-toolkit/compat';
 import { useMemo } from 'react';
 import { JsonCellPreview } from '../components/common/JsonViewer/JsonCellViewer';
 import {
@@ -611,10 +611,10 @@ export const useColumns = (): TableColumn[] => {
                 const override = resolvedMetricOverrides[key];
                 if (!override) return [key, value];
 
-                const itemWithoutLegacyFormat = omit(
-                    value as Record<string, unknown>,
-                    ['format', 'round'],
-                );
+                const itemWithoutLegacyFormat = omit(value, [
+                    'format',
+                    'round',
+                ]);
                 return [
                     key,
                     {

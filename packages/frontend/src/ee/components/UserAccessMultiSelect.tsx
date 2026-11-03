@@ -13,6 +13,7 @@ import {
 } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconInfoCircle } from '@tabler/icons-react';
+import { isEmpty } from 'es-toolkit/compat';
 import { useCallback, useMemo, useRef, useState, type FC } from 'react';
 import { LightdashUserAvatar } from '../../components/Avatar';
 import MantineIcon from '../../components/common/MantineIcon';
@@ -117,7 +118,7 @@ export const UserAccessMultiSelect: FC<UserAccessMultiSelectProps> = ({
         item: ComboboxLikeRenderOptionInput<ComboboxItem>,
     ) => React.ReactNode = useCallback(
         ({ option }) => {
-            if (currentSearchResults.length === 0) {
+            if (isEmpty(currentSearchResults)) {
                 return (
                     <Text size="sm" c="dimmed">
                         No users found

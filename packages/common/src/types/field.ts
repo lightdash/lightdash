@@ -1,3 +1,4 @@
+import { words } from 'es-toolkit/compat';
 import type {
     AdditionalMetric,
     currencies,
@@ -1159,6 +1160,7 @@ export const friendlyName = (text: string): string => {
         return '';
     }
 
+    // Use lodash's words function with a safe custom pattern
     // Pattern explanation (avoids backtracking):
     // - [A-Z][a-z]+: Uppercase letter followed by 1+ lowercase (avoids * quantifier)
     // - [a-z]+: One or more lowercase letters
@@ -1166,7 +1168,7 @@ export const friendlyName = (text: string): string => {
     // - [0-9]+: Just digits
     // - [A-Z]+: Multiple uppercase letters
     const safePattern = /[A-Z][a-z]+|[a-z]+|[0-9]+[a-z]+|[0-9]+|[A-Z]+/g;
-    const extractedWords = text.match(safePattern) ?? [];
+    const extractedWords = words(text, safePattern);
 
     if (extractedWords.length === 0) {
         return '';

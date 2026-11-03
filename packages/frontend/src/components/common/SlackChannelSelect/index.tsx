@@ -15,7 +15,7 @@ import {
 } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconRefresh, IconX } from '@tabler/icons-react';
-import { compact, uniq } from 'es-toolkit';
+import { compact, uniq } from 'es-toolkit/compat';
 import { useMemo, useState, type FC } from 'react';
 import {
     useSlackChannelLookup,

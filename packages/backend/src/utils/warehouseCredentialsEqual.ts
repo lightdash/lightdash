@@ -5,7 +5,7 @@ import {
     WarehouseTypes,
     type CreateWarehouseCredentials,
 } from '@lightdash/common';
-import { isEqual } from 'es-toolkit';
+import { isEqual } from 'es-toolkit/compat';
 import { stripWarehouseCredentialVersion } from './warehouseCredentialVersion';
 
 const bindingCredentials = (credentials: CreateWarehouseCredentials) => {

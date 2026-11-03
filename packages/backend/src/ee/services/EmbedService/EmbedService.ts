@@ -85,6 +85,7 @@ import {
     type SavedChartDAO,
     type SessionUser,
 } from '@lightdash/common';
+import { isArray } from 'es-toolkit/compat';
 import { nanoid as nanoidGenerator } from 'nanoid';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
 import { fromJwt, getEmbedActorChartSpaceUuids } from '../../../auth/account';
@@ -1072,7 +1073,7 @@ export class EmbedService extends BaseService {
                           sanitizedValue = [
                               escapeEmbedJwtUserAttributeValue(value),
                           ];
-                      } else if (Array.isArray(value)) {
+                      } else if (isArray(value)) {
                           sanitizedValue = (value as unknown[]).map((v) =>
                               escapeEmbedJwtUserAttributeValue(
                                   typeof v === 'string' ? v : JSON.stringify(v),

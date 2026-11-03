@@ -11,7 +11,7 @@ import {
     NotFoundError,
     SessionUser,
 } from '@lightdash/common';
-import { memoize } from 'es-toolkit';
+import { memoize } from 'es-toolkit/compat';
 import { UsageHistoryBackfill } from '../../../analytics/eventStream/UsageHistoryBackfill';
 import {
     analyticsContentAsCode,

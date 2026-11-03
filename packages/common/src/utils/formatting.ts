@@ -1,6 +1,6 @@
 import dayjs from 'dayjs';
 import dayjsTimezone from 'dayjs/plugin/timezone';
-import { isPlainObject } from 'es-toolkit';
+import { isPlainObject } from 'es-toolkit/compat';
 import moment, { type MomentInput } from 'moment-timezone';
 import {
     addLocale,

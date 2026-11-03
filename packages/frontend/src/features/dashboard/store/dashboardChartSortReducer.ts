@@ -1,6 +1,6 @@
 import { type SortField } from '@lightdash/common';
 import { createAction, type UnknownAction } from '@reduxjs/toolkit';
-import { isEqual } from 'es-toolkit';
+import { isEqual } from 'es-toolkit/compat';
 
 export type DashboardChartSortState = {
     /** Viewer-chosen sorts per chart tile; absent means the chart's saved sort */

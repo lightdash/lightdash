@@ -9,7 +9,7 @@ import {
     repairPieMetricId,
 } from '@lightdash/visualization/editor';
 import { createSelector } from '@reduxjs/toolkit';
-import { isEqual } from 'es-toolkit';
+import { isEqual } from 'es-toolkit/compat';
 import { type VisualizationStoreState } from '.';
 import {
     inputsColorPalette,

@@ -1,5 +1,5 @@
 import { Group, Stack, Text, type TextInputProps } from '@mantine/core';
-import { isNil } from 'es-toolkit';
+import { isNil } from 'es-toolkit/compat';
 import { type FC } from 'react';
 import z from 'zod';
 import { useUiStrings } from '../../../../ee/providers/Embed/useUiStrings';

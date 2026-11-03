@@ -1,6 +1,6 @@
 import { Box, Center, Loader } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
-import { debounce } from 'es-toolkit';
+import { debounce, isEmpty } from 'es-toolkit/compat';
 import { type editor } from 'monaco-editor';
 import { useCallback, useEffect, useMemo, useRef, type FC } from 'react';
 import { type TourEditable } from '../../../components/common/GuidedTour/GuidedTour';
@@ -97,8 +97,7 @@ export const SqlEditor: FC<SqlEditorProps> = (props) => {
     });
 
     const transformedData: EditorTables | undefined = useMemo(() => {
-        if (!tablesData || Object.keys(tablesData).length === 0)
-            return undefined;
+        if (!tablesData || isEmpty(tablesData)) return undefined;
         const [database] = Object.keys(tablesData);
         if (!database) return undefined;
 
