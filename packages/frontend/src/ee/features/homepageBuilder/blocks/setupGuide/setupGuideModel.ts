@@ -204,7 +204,9 @@ const semanticLayerRow = ({
             ...common,
             status: 'done',
             evidence: evidence(
-                `${plural(semanticModelCount, 'model')} ready to explore`,
+                completedRun
+                    ? `${plural(semanticModelCount, 'model')} built by ${AI_NAME}`
+                    : `${plural(semanticModelCount, 'model')} ready to explore`,
             ),
             action: {
                 label: 'Review',

@@ -23,6 +23,7 @@ import {
     useAgentOnboardingRun,
     useLatestAgentOnboardingRun,
 } from '../../../agentOnboarding/hooks/useAgentOnboarding';
+import { getAgentOnboardingRunUrl } from '../../../agentOnboarding/utils';
 import { useCanManageProject } from '../../hooks/useHomepageAbilities';
 import { type RecommendedActionsState } from '../useRecommendedActions';
 import { buildSetupGuide } from './setupGuideModel';
@@ -121,6 +122,8 @@ export const useSetupGuide = (
                 (query) => query.isInitialLoading,
             ));
 
+    const completedRun =
+        latestRun.data?.status === 'completed' ? latestRun.data : null;
     const sections = buildSetupGuide({
         projectUuid,
         statuses: actions.statuses,
@@ -128,8 +131,7 @@ export const useSetupGuide = (
         skippedActions: actions.skippedActions,
         semanticModelCount: countSemanticModels(explores.data ?? []),
         activeRun: run && !isRunTerminal ? run : null,
-        completedRun:
-            latestRun.data?.status === 'completed' ? latestRun.data : null,
+        completedRun,
         appSourceNames: [
             ...(connections.data ?? [])
                 .filter(({ kind }) => kind === 'live_source')
@@ -150,6 +152,12 @@ export const useSetupGuide = (
         isEligible,
         isLoading,
         sections,
+        completedRunUrl: completedRun
+            ? getAgentOnboardingRunUrl(
+                  completedRun.agentOnboardingRunUuid,
+                  completedRun.projectUuid,
+              )
+            : null,
         isDismissed: isDismissed === true,
         setIsDismissed: (next: boolean) => setIsDismissed(next),
         skipAction: actions.skipAction,

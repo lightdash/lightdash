@@ -3,6 +3,7 @@ import { useDisclosure, useLocalStorage } from '@mantine/hooks';
 import { IconExternalLink, IconLayersLinked, IconX } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { Link } from 'react-router';
+import { AI_NAME } from '../../../../../components/common/aiName';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
 import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
@@ -16,9 +17,10 @@ import { StepArt } from './StepArt';
 
 const SEMANTIC_LAYER_DOCS_URL = 'https://docs.lightdash.com/semantic-layer';
 
-export const SemanticLayerCard: FC<{ projectUuid: string }> = ({
-    projectUuid,
-}) => {
+export const SemanticLayerCard: FC<{
+    projectUuid: string;
+    buildRunUrl: string | null;
+}> = ({ projectUuid, buildRunUrl }) => {
     const isEmbedded = useIsEmbedded();
     const [isModalOpen, { open, close }] = useDisclosure(false);
     const [step, setStep] = useState(0);
@@ -45,7 +47,16 @@ export const SemanticLayerCard: FC<{ projectUuid: string }> = ({
                     Your semantic layer is ready
                 </Text>
                 <Text fz="xs" c="dimmed">
-                    One definition behind every chart and answer.
+                    {buildRunUrl ? (
+                        <>
+                            Built by {AI_NAME} from your tables.{' '}
+                            <Anchor component={Link} to={buildRunUrl} fz="xs">
+                                See how
+                            </Anchor>
+                        </>
+                    ) : (
+                        'One definition behind every chart and answer.'
+                    )}
                 </Text>
                 <Group justify="space-between" wrap="nowrap" mt="auto" pt="sm">
                     <Button

@@ -632,6 +632,7 @@ export const SetupGuide: FC<{
                     <SemanticLayerCard
                         key="semantic-layer"
                         projectUuid={projectUuid}
+                        buildRunUrl={guide.completedRunUrl}
                     />
                 ),
                 showStarterDashboard && (
