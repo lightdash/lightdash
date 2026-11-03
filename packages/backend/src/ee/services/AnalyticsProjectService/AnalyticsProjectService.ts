@@ -23,6 +23,7 @@ import { type DashboardModel } from '../../../models/DashboardModel/DashboardMod
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { type SavedChartModel } from '../../../models/SavedChartModel';
 import { type SpaceModel } from '../../../models/SpaceModel';
+import type { UsageProcessingModel } from '../../../models/UsageProcessingModel';
 import { UserModel } from '../../../models/UserModel';
 import type { SchedulerClient } from '../../../scheduler/SchedulerClient';
 import { BaseService } from '../../../services/BaseService';
@@ -61,6 +62,7 @@ type Dependencies = {
         | 'delete'
     >;
     userModel: Pick<UserModel, 'invalidateSessionUserCache'>;
+    usageProcessingModel: Pick<UsageProcessingModel, 'find'>;
 };
 
 // Definitions are static for the running release; compile once, not per status request.
@@ -185,7 +187,7 @@ export class AnalyticsProjectService extends BaseService {
         const chartSlugs = analyticsContentAsCode.flatMap(({ charts }) =>
             charts.map(({ slug }) => slug),
         );
-        const [models, dashboards, charts] = await Promise.all([
+        const [models, dashboards, charts, processing] = await Promise.all([
             this.dependencies.projectModel.getAnalyticsModelCounts(
                 project.projectUuid,
                 analyticsExploreNames,
@@ -198,6 +200,7 @@ export class AnalyticsProjectService extends BaseService {
                 projectUuid: project.projectUuid,
                 slugs: chartSlugs,
             }),
+            this.dependencies.usageProcessingModel.find(organizationUuid),
         ]);
         const verifications =
             await this.dependencies.contentVerificationModel.getByContentUuids(
@@ -225,6 +228,7 @@ export class AnalyticsProjectService extends BaseService {
                     dashboards.length !== dashboardSlugs.length ||
                     charts.length !== chartSlugs.length ||
                     dashboards.some(({ uuid }) => !verifications.has(uuid)),
+                processing,
             },
         };
     }
