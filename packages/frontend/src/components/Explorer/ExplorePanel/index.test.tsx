@@ -10,6 +10,8 @@ import { renderWithProviders } from '../../../testing/testUtils';
 import ExplorePanel from './index';
 
 const testState = vi.hoisted(() => ({
+    canClearCache: false,
+    invalidateExplores: vi.fn(),
     merge: undefined as
         | {
               isMerging: boolean;
@@ -50,6 +52,17 @@ vi.mock(
 );
 vi.mock('../../../providers/Tracking/useTracking', () => ({
     default: () => ({ track: vi.fn() }),
+}));
+
+vi.mock('../../ProjectResultsCache/useCanClearCachedResults', () => ({
+    useCanClearCachedResults: vi.fn(() => testState.canClearCache),
+}));
+vi.mock('../../../hooks/useProjectResultsCacheSettings', () => ({
+    useInvalidateContentResultsCache: vi.fn(),
+    useInvalidateExploresResultsCache: vi.fn(() => ({
+        mutate: testState.invalidateExplores,
+        isLoading: false,
+    })),
 }));
 
 const mockUseExplore = vi.mocked(useExplore);
@@ -292,5 +305,67 @@ describe('ExplorePanel query options', () => {
         await user.click(mergeItem);
 
         expect(addSource).toHaveBeenCalledOnce();
+    });
+});
+
+describe('ExplorePanel clear cache', () => {
+    beforeEach(() => {
+        mockUseExplore.mockReset();
+        mockUseExplore.mockReturnValue(exploreQuery({ data: mockExplore }));
+        testState.merge = undefined;
+        testState.canClearCache = true;
+        testState.invalidateExplores = vi.fn();
+    });
+    afterEach(() => {
+        testState.canClearCache = false;
+    });
+
+    const openModal = async (user: ReturnType<typeof userEvent.setup>) => {
+        await user.click(screen.getByRole('button', { name: 'Query options' }));
+        await user.click(
+            screen.getByRole('menuitem', { name: 'Clear cache for everyone' }),
+        );
+    };
+
+    it('hides the action without permission', () => {
+        testState.canClearCache = false;
+        renderPanel();
+
+        expect(
+            screen.queryByRole('button', { name: 'Query options' }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('clears only this explore by default', async () => {
+        const user = userEvent.setup();
+        renderPanel();
+        await openModal(user);
+        await user.click(
+            screen.getByRole('button', { name: 'Clear for everyone' }),
+        );
+
+        expect(testState.invalidateExplores).toHaveBeenCalledWith(
+            { exploreNames: ['orders'], includeJoinedExplores: false },
+            expect.anything(),
+        );
+    });
+
+    it('includes explores using the table when ticked', async () => {
+        const user = userEvent.setup();
+        renderPanel();
+        await openModal(user);
+        await user.click(
+            screen.getByRole('checkbox', {
+                name: /Also clear explores that use this table/,
+            }),
+        );
+        await user.click(
+            screen.getByRole('button', { name: 'Clear for everyone' }),
+        );
+
+        expect(testState.invalidateExplores).toHaveBeenCalledWith(
+            { exploreNames: ['orders'], includeJoinedExplores: true },
+            expect.anything(),
+        );
     });
 });
