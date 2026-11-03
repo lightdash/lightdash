@@ -1858,34 +1858,32 @@ export class UserModel {
     async activateUserWithoutPassword(
         userUuid: string,
     ): Promise<LightdashUser> {
-        return this.activateInvitedUser(userUuid, {
-            firstName: '',
-            lastName: '',
-        });
+        return this.activateInvitedUser(userUuid, null);
     }
 
     private async activateInvitedUser(
         userUuid: string,
-        activateUser:
-            | ActivateUser
-            | OpenIdUser
-            | Pick<ActivateUser, 'firstName' | 'lastName'>,
+        activateUser: ActivateUser | OpenIdUser | null,
     ): Promise<LightdashUser> {
         await this.database.transaction(async (trx) => {
             const [user] = await trx(UserTableName)
                 .where('user_uuid', userUuid)
                 .update<DbUserUpdate>({
-                    first_name: isOpenIdUser(activateUser)
-                        ? activateUser.openId.firstName
-                        : activateUser.firstName,
-                    last_name: isOpenIdUser(activateUser)
-                        ? activateUser.openId.lastName
-                        : activateUser.lastName,
+                    ...(activateUser
+                        ? {
+                              first_name: isOpenIdUser(activateUser)
+                                  ? activateUser.openId.firstName
+                                  : activateUser.firstName,
+                              last_name: isOpenIdUser(activateUser)
+                                  ? activateUser.openId.lastName
+                                  : activateUser.lastName,
+                          }
+                        : {}),
                     updated_at: new Date(),
                 })
                 .returning('*');
 
-            if (!isOpenIdUser(activateUser) && 'password' in activateUser) {
+            if (activateUser && !isOpenIdUser(activateUser)) {
                 await UserModel.createPasswordLogin(trx, {
                     user_id: user.user_id,
                     password_hash: await bcrypt.hash(
@@ -1893,7 +1891,7 @@ export class UserModel {
                         await bcrypt.genSalt(),
                     ),
                 });
-            } else if (isOpenIdUser(activateUser)) {
+            } else if (activateUser && isOpenIdUser(activateUser)) {
                 await trx(OpenIdIdentitiesTableName)
                     .insert({
                         issuer_type: activateUser.openId.issuerType,

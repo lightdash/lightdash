@@ -7,11 +7,9 @@ describeContentAsCodeSchemaContract({
     skippedModelFields: [
         'avatarGradient',
         'avatarUrl',
-        'firstName',
         'isActive',
         'isInviteExpired',
         'isPending',
-        'lastName',
         'hasMultipleRoles',
         'organizationUuid',
         'roleUuid',

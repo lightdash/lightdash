@@ -112,6 +112,37 @@ describe('users as code', () => {
         });
     });
 
+    it('round-trips profile names through downloaded YAML and upload', async () => {
+        const namedUser = user('person@example.com', {
+            firstName: 'José',
+            lastName: 'Müller',
+        });
+        vi.mocked(lightdashApi).mockResolvedValueOnce({
+            users: [namedUser],
+        } as never);
+
+        await downloadUsers('organization-uuid', tmpDir);
+        const documents = await readUserFiles(tmpDir);
+        expect(documents).toStrictEqual([namedUser]);
+
+        vi.mocked(lightdashApi)
+            .mockResolvedValueOnce({ users: [] } as never)
+            .mockResolvedValueOnce({
+                action: PromotionAction.CREATE,
+                lifecycle: UserAsCodeLifecycleStatus.AWAITING_AUTHENTICATION,
+                invitation: UserAsCodeInvitationStatus.NOT_REQUESTED,
+            } as never);
+
+        const summary = await uploadUsers('organization-uuid', tmpDir);
+
+        expect(summary.failed).toBe(0);
+        expect(lightdashApi).toHaveBeenNthCalledWith(3, {
+            method: 'POST',
+            url: '/api/v2/orgs/organization-uuid/code/users',
+            body: JSON.stringify(documents[0]),
+        });
+    });
+
     it('rejects case-insensitive duplicate emails before upload', async () => {
         await writeUser('one.yml', user('duplicate@example.com'));
         await writeUser('two.yml', user('DUPLICATE@example.com'));

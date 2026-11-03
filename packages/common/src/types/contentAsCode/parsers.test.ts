@@ -69,6 +69,59 @@ describe('content-as-code parsers', () => {
         ).toThrow('additionalRoles may only contain custom roles');
     });
 
+    it.each([
+        {},
+        { firstName: 'José' },
+        { lastName: 'Müller' },
+        { firstName: '', lastName: '' },
+        { firstName: 'José', lastName: 'Müller' },
+    ])('preserves optional user name fields: %j', (names) => {
+        const document = {
+            version: 1,
+            email: 'user@example.com',
+            disabled: false,
+            role: { type: 'system', name: 'viewer' },
+            ...names,
+        };
+        expect(parseUserAsCode(document, 'user.yml')).toStrictEqual(document);
+    });
+
+    it('trims supplied user names', () => {
+        expect(
+            parseUserAsCode(
+                {
+                    version: 1,
+                    email: 'user@example.com',
+                    disabled: false,
+                    role: { type: 'system', name: 'viewer' },
+                    firstName: '  José  ',
+                    lastName: '   ',
+                },
+                'user.yml',
+            ),
+        ).toMatchObject({ firstName: 'José', lastName: '' });
+    });
+
+    it.each(['firstName', 'lastName'] as const)(
+        'rejects invalid %s values before upload',
+        (field) => {
+            for (const value of [null, 1, {}, [], '<b>Alex</b>']) {
+                expect(() =>
+                    parseUserAsCode(
+                        {
+                            version: 1,
+                            email: 'user@example.com',
+                            disabled: false,
+                            role: { type: 'system', name: 'viewer' },
+                            [field]: value,
+                        },
+                        'user.yml',
+                    ),
+                ).toThrow(`user.yml": ${field} must be a string`);
+            }
+        },
+    );
+
     it('rejects unsupported versions with the source filename', () => {
         expect(() =>
             parseGroupAsCode(
