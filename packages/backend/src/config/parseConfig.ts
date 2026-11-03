@@ -1854,6 +1854,16 @@ export type LightdashConfig = {
                 maxBatches: number;
             };
         };
+        appStateHistory: {
+            cleanup: {
+                enabled: boolean;
+                retentionDays: number;
+                keepVersions: number;
+                batchSize: number;
+                delayMs: number;
+                maxBatches: number;
+            };
+        };
     };
     groups: {
         enabled: boolean | undefined;
@@ -3961,6 +3971,33 @@ export const parseConfig = (): LightdashConfig => {
                     maxBatches:
                         getIntegerFromEnvironmentVariable(
                             'SCIM_REQUEST_LOG_CLEANUP_MAX_BATCHES',
+                        ) ?? 100,
+                },
+            },
+            appStateHistory: {
+                cleanup: {
+                    enabled:
+                        process.env.APP_STATE_HISTORY_CLEANUP_ENABLED !==
+                        'false', // true by default
+                    retentionDays:
+                        getIntegerFromEnvironmentVariable(
+                            'APP_STATE_HISTORY_RETENTION_DAYS',
+                        ) ?? 90,
+                    keepVersions:
+                        getIntegerFromEnvironmentVariable(
+                            'APP_STATE_HISTORY_KEEP_VERSIONS',
+                        ) ?? 50,
+                    batchSize:
+                        getIntegerFromEnvironmentVariable(
+                            'APP_STATE_HISTORY_CLEANUP_BATCH_SIZE',
+                        ) ?? 1000,
+                    delayMs:
+                        getIntegerFromEnvironmentVariable(
+                            'APP_STATE_HISTORY_CLEANUP_DELAY_MS',
+                        ) ?? 100,
+                    maxBatches:
+                        getIntegerFromEnvironmentVariable(
+                            'APP_STATE_HISTORY_CLEANUP_MAX_BATCHES',
                         ) ?? 100,
                 },
             },
