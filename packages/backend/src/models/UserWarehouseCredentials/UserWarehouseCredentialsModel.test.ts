@@ -12,7 +12,6 @@ import knex, { Knex } from 'knex';
 import { getTracker, MockClient } from 'knex-mock-client';
 import { lightdashConfigWithGoogleOAuthMock } from '../../config/lightdashConfig.mock';
 import { DbUserWarehouseCredentials } from '../../database/entities/userWarehouseCredentials';
-import { toolErrorOutput } from '../../ee/services/ai/utils/toolErrorHandler';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { UserWarehouseCredentialsModel } from './UserWarehouseCredentialsModel';
 
@@ -1593,17 +1592,15 @@ describe('strict personal overlay (agent-identity on)', () => {
     });
 });
 
-test('preserves personal chat recovery for an invalid stored Snowflake sign-in', () => {
+test('marks an invalid stored Snowflake sign-in for personal reauthentication', () => {
     const error = UserWarehouseCredentialsModel.getQueryTimeValidationError({
         type: WarehouseTypes.SNOWFLAKE,
         authenticationType: SnowflakeAuthenticationType.SSO,
         user: 'person',
         refreshToken: '',
     });
-    expect(error).toMatchObject({ name: 'SnowflakeTokenError' });
-    expect(
-        toolErrorOutput(error, 'Error running query.').metadata,
-    ).toMatchObject({
-        requiresSnowflakeReauthentication: true,
+    expect(error).toMatchObject({
+        name: 'SnowflakeTokenError',
+        data: { requiresUserReauthentication: true },
     });
 });

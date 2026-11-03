@@ -12,7 +12,6 @@ import {
     OAUTH_REQUEST_TIMEOUT_MS,
     OAuthRequestTimeoutError,
 } from '../../../auth/oauthRequestDeadline';
-import { toolErrorOutput } from '../../../ee/services/ai/utils/toolErrorHandler';
 import {
     createDatabase,
     deferred,
@@ -689,7 +688,7 @@ test.each([
     'warehouseConnection',
     null,
 ] as const)(
-    'offers personal chat recovery only for a personal credential owner (%s)',
+    'marks reauthentication only for a personal credential owner (%s)',
     async (kind) => {
         const f = setup();
         f.exchange.mockRejectedValue({
@@ -712,13 +711,11 @@ test.each([
         const error = await f.resolver
             .resolve({ ...selection(), owner })
             .catch((caught: unknown) => caught);
-        expect(error).toBeInstanceOf(SnowflakeTokenError);
-        const output = toolErrorOutput(error, 'Error running query.');
-        expect(output.metadata.requiresSnowflakeReauthentication).toBe(
+        if (!(error instanceof SnowflakeTokenError)) {
+            throw new Error('Expected a Snowflake token failure');
+        }
+        expect(error.data.requiresUserReauthentication).toBe(
             kind === 'user' ? true : undefined,
         );
-        if (kind !== 'user') {
-            expect(output.result).not.toContain('your own Snowflake account');
-        }
     },
 );

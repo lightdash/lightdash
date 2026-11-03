@@ -80,7 +80,9 @@ export const toolErrorHandler = (
     if (isPersonalSnowflakeTokenError(error)) {
         const errorMessage =
             'Your Snowflake sign-in has expired. Reauthenticate with your own Snowflake account, then send your question again. Do not retry the query or ask an admin to reconnect on your behalf.';
-        Logger.error(`[AiAgent][Tool Error Handler] ${errorMessage}`);
+        Logger.warn(
+            '[AiAgent][Tool Error Handler] Personal Snowflake sign-in requires reauthentication',
+        );
         return errorMessage;
     }
 

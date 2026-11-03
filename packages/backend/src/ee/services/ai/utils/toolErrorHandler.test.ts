@@ -15,6 +15,7 @@ import {
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import Logger from '../../../../logging/logger';
 import {
     isAgentRecoverableError,
     toolErrorHandler,
@@ -29,7 +30,7 @@ vi.mock('@sentry/node', () => ({
 
 vi.mock('../../../../logging/logger', () => ({
     __esModule: true,
-    default: { error: vi.fn(), info: vi.fn(), debug: vi.fn() },
+    default: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
 }));
 
 const captureException = Sentry.captureException as import('vitest').Mock;
@@ -213,6 +214,8 @@ test('appends plain additional requirements and See why without changing the fir
 });
 
 test('preserves personal Snowflake reauthentication through tool metadata parsing', () => {
+    vi.mocked(Logger.error).mockClear();
+    vi.mocked(Logger.warn).mockClear();
     const output = toolErrorOutput(
         new SnowflakeTokenError('Error refreshing snowflake token', {
             requiresUserReauthentication: true,
@@ -227,6 +230,10 @@ test('preserves personal Snowflake reauthentication through tool metadata parsin
     });
     expect(output.result).toContain('Your Snowflake sign-in has expired');
     expect(output.result).not.toContain('Try again');
+    expect(Logger.warn).toHaveBeenCalledWith(
+        '[AiAgent][Tool Error Handler] Personal Snowflake sign-in requires reauthentication',
+    );
+    expect(Logger.error).not.toHaveBeenCalled();
 });
 
 test('does not offer personal reauthentication for an expired shared project sign-in', () => {
