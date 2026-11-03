@@ -106,6 +106,57 @@ describe('initial usage processing', () => {
     });
 });
 
+describe('analytics content scheduling', () => {
+    beforeEach(() => graphileAddJob.mockClear());
+
+    it.each([null, ORG_UUID])(
+        'deduplicates reconciliation for scope %s separately from compaction',
+        async (organizationUuid) => {
+            await makeClient(true).scheduleAnalyticsContentReconciliation(
+                organizationUuid,
+            );
+            expect(graphileAddJob).toHaveBeenCalledExactlyOnceWith(
+                SCHEDULER_TASKS.RECONCILE_ANALYTICS_CONTENT,
+                { organizationUuid },
+                {
+                    queueName: 'analytics-content-reconciliation',
+                    jobKey: `analytics-content-reconciliation:${organizationUuid ?? 'all'}`,
+                    jobKeyMode: 'unsafe_dedupe',
+                    maxAttempts: 3,
+                    priority: JobPriority.LOW,
+                },
+            );
+        },
+    );
+
+    it('deduplicates full content sync per project on its own retryable queue', async () => {
+        const client = makeClient(true);
+        const payload = {
+            organizationUuid: ORG_UUID,
+            projectUuid: 'project-1',
+        };
+        await client.scheduleAnalyticsContentSync(payload);
+        expect(graphileAddJob).toHaveBeenCalledWith(
+            SCHEDULER_TASKS.SYNC_ANALYTICS_CONTENT,
+            payload,
+            {
+                queueName: 'analytics-content-sync',
+                jobKey: 'analytics-content-sync:project-1',
+                jobKeyMode: 'unsafe_dedupe',
+                maxAttempts: 3,
+                priority: JobPriority.LOW,
+            },
+        );
+        await client.scheduleAnalyticsContentSync({
+            ...payload,
+            projectUuid: 'project-2',
+        });
+        expect(graphileAddJob.mock.calls[1][2].jobKey).toBe(
+            'analytics-content-sync:project-2',
+        );
+    });
+});
+
 describe('query history backfill scheduling', () => {
     afterEach(() => vi.restoreAllMocks());
 

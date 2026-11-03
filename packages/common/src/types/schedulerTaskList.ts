@@ -188,7 +188,18 @@ export type LearnSandboxCommandPayload = TraceTaskBase & {
     userUuid: string;
 };
 
+export type ReconcileAnalyticsContentPayload = {
+    organizationUuid: string | null;
+};
+
+export type SyncAnalyticsContentPayload = {
+    organizationUuid: string;
+    projectUuid: string;
+};
+
 export const EE_SCHEDULER_TASKS = {
+    RECONCILE_ANALYTICS_CONTENT: 'reconcileAnalyticsContent',
+    SYNC_ANALYTICS_CONTENT: 'syncAnalyticsContent',
     SLACK_AI_PROMPT: 'slackAiPrompt',
     SLACK_AI_ARTIFACT_IMAGES: 'slackAiArtifactImages',
     SWEEP_SLACK_AI_ARTIFACT_IMAGES: 'sweepSlackAiArtifactImages',
@@ -295,6 +306,8 @@ export const ALL_TASK_NAMES: SchedulerTaskName[] =
 
 // Map each task to its payload type
 export interface TaskPayloadMap {
+    [SCHEDULER_TASKS.RECONCILE_ANALYTICS_CONTENT]: ReconcileAnalyticsContentPayload;
+    [SCHEDULER_TASKS.SYNC_ANALYTICS_CONTENT]: SyncAnalyticsContentPayload;
     [SCHEDULER_TASKS.HANDLE_SCHEDULED_DELIVERY]: ScheduledDeliveryPayload;
     // Legacy individual notification tasks (deprecated)
     [SCHEDULER_TASKS.SEND_SLACK_NOTIFICATION]: SlackNotificationPayload;
@@ -392,6 +405,8 @@ export interface TaskPayloadMap {
 }
 
 export interface EETaskPayloadMap {
+    [EE_SCHEDULER_TASKS.RECONCILE_ANALYTICS_CONTENT]: ReconcileAnalyticsContentPayload;
+    [EE_SCHEDULER_TASKS.SYNC_ANALYTICS_CONTENT]: SyncAnalyticsContentPayload;
     [EE_SCHEDULER_TASKS.SLACK_AI_PROMPT]: SlackPromptJobPayload;
     [EE_SCHEDULER_TASKS.SLACK_AI_ARTIFACT_IMAGES]: SlackPromptJobPayload;
     [EE_SCHEDULER_TASKS.SWEEP_SLACK_AI_ARTIFACT_IMAGES]: TraceTaskBase;

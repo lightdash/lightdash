@@ -40,6 +40,7 @@ import { AiAgentService } from '../services/AiAgentService/AiAgentService';
 import { type AiDeepResearchService } from '../services/AiDeepResearchService/AiDeepResearchService';
 import type { AiThreadFileService } from '../services/AiThreadFileService';
 import type { AiWritebackService } from '../services/AiWritebackService/AiWritebackService';
+import type { AnalyticsProjectService } from '../services/AnalyticsProjectService/AnalyticsProjectService';
 import { AppGenerateService } from '../services/AppGenerateService/AppGenerateService';
 import type { DataAppAnalysisService } from '../services/DataAppAnalysisService/DataAppAnalysisService';
 import type { EmbedService } from '../services/EmbedService/EmbedService';
@@ -120,6 +121,10 @@ export const cleanAiDeepResearchReports = async ({
 };
 
 type CommercialSchedulerWorkerArguments = SchedulerWorkerArguments & {
+    analyticsProjectService: Pick<
+        AnalyticsProjectService,
+        'reconcileContent' | 'syncContent'
+    >;
     aiAgentService: AiAgentService;
     dataAppAnalysisService: DataAppAnalysisService;
     aiAgentMemoryService: AiAgentMemoryService;
@@ -166,6 +171,8 @@ type CommercialSchedulerWorkerArguments = SchedulerWorkerArguments & {
 };
 
 export class CommercialSchedulerWorker extends SchedulerWorker {
+    protected readonly analyticsProjectService: CommercialSchedulerWorkerArguments['analyticsProjectService'];
+
     protected readonly aiAgentService: AiAgentService;
 
     protected readonly dataAppAnalysisService: DataAppAnalysisService;
@@ -234,6 +241,7 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
 
     constructor(args: CommercialSchedulerWorkerArguments) {
         super(args);
+        this.analyticsProjectService = args.analyticsProjectService;
         this.aiAgentService = args.aiAgentService;
         this.dataAppAnalysisService = args.dataAppAnalysisService;
         this.aiAgentMemoryService = args.aiAgentMemoryService;
@@ -464,6 +472,14 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
 
         return {
             ...super.getFullTaskList(),
+            [EE_SCHEDULER_TASKS.RECONCILE_ANALYTICS_CONTENT]: async (
+                payload,
+            ) => {
+                await this.analyticsProjectService.reconcileContent(payload);
+            },
+            [EE_SCHEDULER_TASKS.SYNC_ANALYTICS_CONTENT]: async (payload) => {
+                await this.analyticsProjectService.syncContent(payload);
+            },
             [EE_SCHEDULER_TASKS.SLACK_AI_PROMPT]: async (payload, _helpers) => {
                 await this.aiAgentService.replyToSlackPrompt(
                     payload.slackPromptUuid,
