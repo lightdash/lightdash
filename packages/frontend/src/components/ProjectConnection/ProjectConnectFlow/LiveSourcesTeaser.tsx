@@ -28,22 +28,17 @@ const useLiveSourcesEnabled = () =>
 export const LiveSourcesCard: FC = () => {
     if (!useLiveSourcesEnabled()) return null;
     return (
-        <Stack gap="xs">
-            <Text size="sm" fw={500}>
-                After setup
-            </Text>
-            <Group gap="sm" wrap="nowrap" className={classes.infoCard}>
-                <TeaserIcons />
-                <Stack gap={0} className={classes.shortcutText}>
-                    <Text fw={500} size="sm">
-                        Live data sources
-                    </Text>
-                    <Text size="xs" c="dimmed">
-                        Connect PostHog, GA4 and more.
-                    </Text>
-                </Stack>
-            </Group>
-        </Stack>
+        <Group gap="sm" wrap="nowrap" className={classes.infoCard}>
+            <TeaserIcons />
+            <Stack gap={0} className={classes.shortcutText}>
+                <Text fw={500} size="sm">
+                    You can also connect PostHog, GA4 and Search Console
+                </Text>
+                <Text size="xs" c="dimmed">
+                    Right after you connect your warehouse.
+                </Text>
+            </Stack>
+        </Group>
     );
 };
 

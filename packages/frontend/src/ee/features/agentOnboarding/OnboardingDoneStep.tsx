@@ -110,6 +110,7 @@ export const OnboardingDoneStep: FC<{ projectUuid: string }> = ({
     useEffect(markHomepageTourSeen, []);
     const [variant] = useOnboardingVariant();
     const ask = useAskAurora(projectUuid);
+    const { isLive } = useAuroraRun(projectUuid);
     const { data: project } = useProject(projectUuid);
     const { data: connections = [] } = useExternalConnections(projectUuid);
 
@@ -179,15 +180,24 @@ export const OnboardingDoneStep: FC<{ projectUuid: string }> = ({
                             projectUuid={projectUuid}
                             variant="grouped"
                         />
-                        <Button
-                            size="md"
-                            fullWidth
-                            onClick={() => ask(FIRST_QUESTION)}
-                            rightSection={<MantineIcon icon={IconArrowRight} />}
-                            className={classes.primary}
-                        >
-                            Ask your first question
-                        </Button>
+                        <Stack gap="xs">
+                            {isLive && (
+                                <Text fz="sm" fw={500}>
+                                    While you wait
+                                </Text>
+                            )}
+                            <Button
+                                size="md"
+                                fullWidth
+                                onClick={() => ask(FIRST_QUESTION)}
+                                rightSection={
+                                    <MantineIcon icon={IconArrowRight} />
+                                }
+                                className={classes.primary}
+                            >
+                                Ask your first question
+                            </Button>
+                        </Stack>
                     </Box>
                     <Button
                         size="md"

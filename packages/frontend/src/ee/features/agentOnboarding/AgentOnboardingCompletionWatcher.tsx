@@ -19,6 +19,8 @@ import {
 } from './watchedRunStore';
 
 const toastedRunUuids = new Set<string>();
+// Closing the progress toast lets the run finish quietly; completion still announces itself
+const dismissedRunUuids = new Set<string>();
 
 const runToastKey = (runUuid: string) => `agent-onboarding-run-${runUuid}`;
 
@@ -60,10 +62,12 @@ export const AgentOnboardingCompletionWatcher: FC = () => {
     useEffect(() => {
         if (!run || !activeStage || isShownInline) return;
         const { agentOnboardingRunUuid, projectUuid } = run;
+        if (dismissedRunUuids.has(agentOnboardingRunUuid)) return;
         showToastInfo({
             key: runToastKey(agentOnboardingRunUuid),
             autoClose: false,
             loading: true,
+            onClose: () => dismissedRunUuids.add(agentOnboardingRunUuid),
             title: `${AI_NAME} is drafting your workspace`,
             subtitle: `${AGENT_ONBOARDING_STAGE_ACTIVE_LABELS[activeStage]}…`,
             action: {

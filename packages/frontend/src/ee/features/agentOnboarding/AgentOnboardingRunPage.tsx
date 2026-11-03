@@ -1,83 +1,128 @@
 import {
-    assertUnreachable,
     isAgentOnboardingRunTerminal,
     type AgentOnboardingRun,
     type AgentOnboardingRunStatus,
 } from '@lightdash/common';
 import {
+    ActionIcon,
     Alert,
     Box,
     Button,
     Group,
+    Menu,
     Paper,
     Stack,
     Text,
     Title,
+    UnstyledButton,
 } from '@mantine/core';
 import {
     IconAlertCircle,
+    IconAlertTriangle,
     IconArrowRight,
+    IconChevronRight,
+    IconDots,
     IconPlayerStop,
     IconRefresh,
 } from '@tabler/icons-react';
-import { useEffect, useState, type FC } from 'react';
+import { useEffect, useId, useState, type FC } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
+import { AI_NAME } from '../../../components/common/aiName';
 import ErrorState from '../../../components/common/ErrorState';
 import MantineIcon from '../../../components/common/MantineIcon';
 import Page from '../../../components/common/Page/Page';
+import PageBreadcrumbs from '../../../components/common/PageBreadcrumbs';
 import PageSpinner from '../../../components/PageSpinner';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { AgentOnboardingActivityPanel } from './AgentOnboardingActivity';
 import { AgentOnboardingDemoOffer } from './AgentOnboardingDemoOffer';
 import { AgentOnboardingFileBrowser } from './AgentOnboardingFileBrowser';
-import { AgentOnboardingProgress } from './AgentOnboardingProgress';
+import {
+    RunJourney,
+    RunNotes,
+    RunOutcomes,
+} from './AgentOnboardingRunOverview';
 import classes from './AgentOnboardingRunPage.module.css';
 import {
     useAgentOnboardingRun,
     useCancelAgentOnboardingRun,
     useStartAgentOnboardingRun,
 } from './hooks/useAgentOnboarding';
+import { useNow } from './hooks/useNow';
 import {
+    formatStageDuration,
+    getActiveStageLabel,
     getAgentOnboardingDashboardUrl,
     getAgentOnboardingRunUrl,
 } from './utils';
 import { setWatchedAgentOnboardingRun } from './watchedRunStore';
 
-const STATUS_LABELS: Record<AgentOnboardingRunStatus, string> = {
-    queued: 'Queued',
-    running: 'Running',
-    completed: 'Complete',
-    failed: 'Needs attention',
-    cancelled: 'Cancelled',
+const RUN_COPY: Record<
+    AgentOnboardingRunStatus,
+    { pill: string; title: string; subtitle: string }
+> = {
+    queued: {
+        pill: 'Queued',
+        title: 'Getting ready to build your project',
+        subtitle: `${AI_NAME} will start in a moment. You can leave this page, setup keeps going and home shows its progress.`,
+    },
+    running: {
+        pill: 'Building',
+        title: 'Building your project',
+        subtitle:
+            'This usually takes a few minutes. You can leave this page, setup keeps going and home shows its progress.',
+    },
+    completed: {
+        pill: 'Ready',
+        title: 'Your project is ready',
+        subtitle:
+            'Metrics, charts and a starter dashboard are live. Everything below is yours to edit.',
+    },
+    failed: {
+        pill: 'Stopped',
+        title: 'Setup stopped',
+        subtitle:
+            'Anything already built is kept. Try again and it starts from the top.',
+    },
+    cancelled: {
+        pill: 'Cancelled',
+        title: 'Setup cancelled',
+        subtitle:
+            'Nothing else will run. Anything already built is kept, and you can start again anytime.',
+    },
 };
 
-const RunStatus: FC<{ status: AgentOnboardingRunStatus }> = ({ status }) => (
-    <Group gap={6} wrap="nowrap" pt={4}>
-        <span className={classes.statusDot} data-status={status} />
-        <Text fz="sm" fw={500} c="dimmed">
-            {STATUS_LABELS[status]}
-        </Text>
-    </Group>
-);
+const getElapsedMs = (run: AgentOnboardingRun, now: number): number | null => {
+    const startedAt = Date.parse(run.startedAt ?? '');
+    if (!Number.isFinite(startedAt)) return null;
+    const endedAt = Date.parse(run.completedAt ?? '');
+    return (Number.isFinite(endedAt) ? endedAt : now) - startedAt;
+};
 
-const getStatusMessage = (run: AgentOnboardingRun): string => {
-    switch (run.status) {
-        case 'queued':
-            return 'Your setup is queued and will begin shortly.';
-        case 'running':
-            return 'You can leave this page and return at any time.';
-        case 'completed':
-            return 'Your semantic layer and starter dashboard are ready.';
-        case 'failed':
-            return (
-                run.errorMessage ??
-                'The setup run could not be completed. You can try again.'
-            );
-        case 'cancelled':
-            return 'This setup run was cancelled. You can start a new run.';
-        default:
-            return assertUnreachable(run.status, 'Unknown onboarding status');
-    }
+const RunPill: FC<{
+    run: AgentOnboardingRun;
+    now: number;
+    isStopping: boolean;
+}> = ({ run, now, isStopping }) => {
+    const elapsedMs = getElapsedMs(run, now);
+    const label = isStopping
+        ? 'Stopping'
+        : run.status === 'running'
+          ? (getActiveStageLabel(run, now) ?? RUN_COPY.running.pill)
+          : RUN_COPY[run.status].pill;
+    return (
+        <Group gap={8} wrap="nowrap" className={classes.pill}>
+            <span className={classes.statusDot} data-status={run.status} />
+            <Text fz="xs" fw={500}>
+                {label}
+            </Text>
+            {elapsedMs !== null && (
+                <Text fz="xs" c="dimmed" className={classes.tabular}>
+                    {formatStageDuration(elapsedMs)}
+                </Text>
+            )}
+        </Group>
+    );
 };
 
 const RunActions: FC<{
@@ -99,58 +144,129 @@ const RunActions: FC<{
 }) => {
     if (!isAgentOnboardingRunTerminal(run.status)) {
         return (
-            <Group gap="xs">
+            <Group gap="xs" wrap="nowrap">
                 <Button
-                    variant="light"
-                    color="red"
-                    leftSection={<MantineIcon icon={IconPlayerStop} />}
-                    onClick={() => void onCancel()}
-                    loading={isCancelling}
+                    variant="default"
+                    component={Link}
+                    to={`/projects/${run.projectUuid}/home`}
                 >
-                    {isCancelling ? 'Cancelling…' : 'Cancel setup'}
+                    Back to home
                 </Button>
-                <Button
-                    variant="subtle"
-                    color="gray"
-                    onClick={() => void onSkip()}
-                    disabled={isCancelling}
-                >
-                    Skip to project
-                </Button>
+                <Menu position="bottom-end" withinPortal>
+                    <Menu.Target>
+                        <ActionIcon
+                            variant="default"
+                            size="lg"
+                            aria-label="More setup options"
+                            loading={isCancelling}
+                        >
+                            <MantineIcon icon={IconDots} />
+                        </ActionIcon>
+                    </Menu.Target>
+                    <Menu.Dropdown>
+                        <Menu.Item onClick={() => void onSkip()}>
+                            Stop and open the project
+                        </Menu.Item>
+                        <Menu.Item
+                            color="red"
+                            leftSection={<MantineIcon icon={IconPlayerStop} />}
+                            onClick={() => void onCancel()}
+                        >
+                            Cancel setup
+                        </Menu.Item>
+                    </Menu.Dropdown>
+                </Menu>
             </Group>
         );
     }
 
     if (run.status === 'completed') {
         return (
-            <Group gap="xs">
+            <Group gap="xs" wrap="nowrap">
+                <Button
+                    variant="default"
+                    component={Link}
+                    to={`/projects/${run.projectUuid}/tables`}
+                >
+                    Explore metrics
+                </Button>
                 <Button
                     component={Link}
                     to={getAgentOnboardingDashboardUrl(run.projectUuid)}
                     rightSection={<MantineIcon icon={IconArrowRight} />}
                 >
-                    View dashboard
-                </Button>
-                <Button variant="default" onClick={onOpenProject}>
-                    Open project
+                    Open starter dashboard
                 </Button>
             </Group>
         );
     }
 
     return (
-        <Group gap="xs">
+        <Group gap="xs" wrap="nowrap">
+            <Button variant="default" onClick={onOpenProject}>
+                Open project
+            </Button>
             <Button
                 leftSection={<MantineIcon icon={IconRefresh} />}
                 onClick={() => void onRetry()}
                 loading={isRetrying}
             >
-                Try again
-            </Button>
-            <Button variant="default" onClick={onOpenProject}>
-                Open project
+                {run.status === 'failed' ? 'Try again' : 'Start again'}
             </Button>
         </Group>
+    );
+};
+
+const TechnicalDetails: FC<{ run: AgentOnboardingRun }> = ({ run }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const panelId = useId();
+    return (
+        <Box>
+            <UnstyledButton
+                className={classes.detailsToggle}
+                aria-expanded={isOpen}
+                aria-controls={panelId}
+                onClick={() => setIsOpen((value) => !value)}
+            >
+                <MantineIcon
+                    icon={IconChevronRight}
+                    size={14}
+                    className={classes.detailsChevron}
+                    data-open={isOpen}
+                />
+                <Text fz="sm" fw={500}>
+                    Files and log
+                </Text>
+                <Text fz="xs" c="dimmed">
+                    {run.files.length === 1
+                        ? '1 file'
+                        : `${run.files.length} files`}
+                    {' · '}
+                    {run.events.length === 1
+                        ? '1 event'
+                        : `${run.events.length} events`}
+                </Text>
+            </UnstyledButton>
+            {isOpen && (
+                <Box id={panelId} className={classes.workspace}>
+                    <Paper className={classes.panel}>
+                        <AgentOnboardingFileBrowser
+                            projectUuid={run.projectUuid}
+                            runUuid={run.agentOnboardingRunUuid}
+                            files={run.files}
+                            isLive={!isAgentOnboardingRunTerminal(run.status)}
+                            latestActivity={run.events.at(-1)?.message ?? null}
+                        />
+                    </Paper>
+                    <Paper className={classes.panel}>
+                        <AgentOnboardingActivityPanel
+                            key={run.agentOnboardingRunUuid}
+                            events={run.events}
+                        />
+                    </Paper>
+                </Box>
+            )}
+        </Box>
     );
 };
 
@@ -165,6 +281,7 @@ const AgentOnboardingRunPage: FC = () => {
     const startMutation = useStartAgentOnboardingRun();
 
     const runStatus = runQuery.data?.status;
+    const now = useNow(!!runStatus && !isAgentOnboardingRunTerminal(runStatus));
     const runUuid = runQuery.data?.agentOnboardingRunUuid;
     const runProjectUuid = runQuery.data?.projectUuid;
 
@@ -240,45 +357,46 @@ const AgentOnboardingRunPage: FC = () => {
         }
     };
 
+    const isLive = !isAgentOnboardingRunTerminal(run.status);
+    const isStopping = isCancellationRequested && isLive;
+    const copy = RUN_COPY[run.status];
+
     return (
-        <Page
-            title="Building your Lightdash project"
-            withPaddedContent
-            fullPageScroll
-        >
-            <Box
-                className={classes.page}
-                mx="calc(-1 * var(--mantine-spacing-md))"
-                my="calc(-1 * var(--mantine-spacing-md))"
-                p="lg"
-            >
-                <Stack gap="md" className={classes.content}>
-                    <Group justify="space-between" align="flex-start">
-                        <Stack gap={4}>
-                            <Group gap="sm" align="flex-start">
-                                <Title order={2}>
-                                    Building your Lightdash project
-                                </Title>
-                                <RunStatus status={run.status} />
-                            </Group>
-                            {run.status !== 'failed' ? (
-                                <Text c="dimmed" fz="sm">
-                                    {isCancellationRequested &&
-                                    !isAgentOnboardingRunTerminal(run.status)
-                                        ? 'Stopping the setup run…'
-                                        : getStatusMessage(run)}
-                                    {!isAgentOnboardingRunTerminal(
-                                        run.status,
-                                    ) && !isCancellationRequested ? (
-                                        <>
-                                            {' '}
-                                            <AgentOnboardingDemoOffer
-                                                run={run}
-                                            />
-                                        </>
-                                    ) : null}
-                                </Text>
-                            ) : null}
+        <Page title="Project setup" withPaddedContent fullPageScroll>
+            <Box className={classes.page}>
+                <Box className={classes.column}>
+                    <PageBreadcrumbs
+                        size="sm"
+                        items={[
+                            {
+                                title: 'Home',
+                                to: `/projects/${run.projectUuid}/home`,
+                            },
+                            { title: 'Project setup', active: true },
+                        ]}
+                    />
+
+                    <Box className={classes.header}>
+                        <Stack gap="sm" className={classes.headerText}>
+                            <RunPill
+                                run={run}
+                                now={now}
+                                isStopping={isStopping}
+                            />
+                            <Title order={2} className={classes.title}>
+                                {copy.title}
+                            </Title>
+                            <Text c="dimmed" fz="sm" maw={560}>
+                                {isStopping
+                                    ? 'Stopping the setup run…'
+                                    : copy.subtitle}
+                                {isLive && !isStopping && (
+                                    <>
+                                        {' '}
+                                        <AgentOnboardingDemoOffer run={run} />
+                                    </>
+                                )}
+                            </Text>
                         </Stack>
                         <RunActions
                             run={run}
@@ -287,62 +405,45 @@ const AgentOnboardingRunPage: FC = () => {
                             onRetry={retry}
                             onOpenProject={openProject}
                             isCancelling={
-                                cancelMutation.isLoading ||
-                                isCancellationRequested
+                                cancelMutation.isLoading || isStopping
                             }
                             isRetrying={startMutation.isLoading}
                         />
-                    </Group>
-
-                    {run.status === 'failed' ? (
-                        <Alert
-                            color="red"
-                            icon={<MantineIcon icon={IconAlertCircle} />}
-                            title="Setup stopped"
-                        >
-                            {getStatusMessage(run)}
-                        </Alert>
-                    ) : null}
-
-                    <Box className={classes.workspace}>
-                        <Paper className={classes.panel}>
-                            <Box className={classes.panelHeader}>
-                                <Title order={5}>Progress</Title>
-                            </Box>
-                            <AgentOnboardingProgress run={run} />
-                            <AgentOnboardingActivityPanel
-                                key={run.agentOnboardingRunUuid}
-                                events={run.events}
-                            />
-                        </Paper>
-
-                        <Paper className={classes.panel}>
-                            <Box className={classes.panelHeader}>
-                                <Title order={5}>Generated files</Title>
-                                <Text c="dimmed" fz="xs">
-                                    {run.files.length === 1
-                                        ? '1 file'
-                                        : `${run.files.length} files`}
-                                </Text>
-                            </Box>
-                            <Box className={classes.panelBody}>
-                                <AgentOnboardingFileBrowser
-                                    projectUuid={run.projectUuid}
-                                    runUuid={run.agentOnboardingRunUuid}
-                                    files={run.files}
-                                    isLive={
-                                        !isAgentOnboardingRunTerminal(
-                                            run.status,
-                                        )
-                                    }
-                                    latestActivity={
-                                        run.events.at(-1)?.message ?? null
-                                    }
-                                />
-                            </Box>
-                        </Paper>
                     </Box>
-                </Stack>
+
+                    {run.status === 'failed' && (
+                        <Paper className={classes.problem}>
+                            <MantineIcon
+                                icon={IconAlertTriangle}
+                                size={16}
+                                className={classes.problemIcon}
+                            />
+                            <Text fz="sm">
+                                {run.errorMessage ??
+                                    'The setup run could not be completed.'}
+                            </Text>
+                        </Paper>
+                    )}
+
+                    <RunJourney run={run} now={now} />
+
+                    <Stack gap="sm">
+                        <Text fz="sm" fw={500}>
+                            {run.status === 'completed'
+                                ? 'What was built'
+                                : isLive
+                                  ? 'What you will get'
+                                  : 'Built so far'}
+                        </Text>
+                        <RunOutcomes run={run} />
+                    </Stack>
+
+                    {run.status === 'completed' && run.handoff?.summary && (
+                        <RunNotes summary={run.handoff.summary} />
+                    )}
+
+                    <TechnicalDetails run={run} />
+                </Box>
             </Box>
         </Page>
     );

@@ -16,6 +16,7 @@ import {
 } from '@mantine/core';
 import {
     IconArrowRight,
+    IconArrowsMaximize,
     IconBrandSlack,
     IconCheck,
     IconChevronDown,
@@ -28,6 +29,7 @@ import {
     IconListCheck,
     IconPalette,
     IconPlugConnected,
+    IconSparkles,
     IconUsers,
     IconX,
     type Icon,
@@ -37,11 +39,14 @@ import { createPortal } from 'react-dom';
 import { Link } from 'react-router';
 import { AI_NAME } from '../../../../../components/common/aiName';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import MantineModal from '../../../../../components/common/MantineModal';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
+import { AgentOnboardingActivityPanel } from '../../../agentOnboarding/AgentOnboardingActivity';
 import { AgentOnboardingProgress } from '../../../agentOnboarding/AgentOnboardingProgress';
+import { getAgentOnboardingRunUrl } from '../../../agentOnboarding/utils';
 import { type RecommendedActionsState } from '../useRecommendedActions';
-import { SemanticLayerCard } from './SemanticLayerCard';
+import { SemanticLayerCard, StarterDashboardCard } from './SemanticLayerCard';
 import classes from './SetupGuide.module.css';
 import {
     countProgress,
@@ -189,8 +194,10 @@ const NextStepCard: FC<{ row: SetupGuideRow } & RowHandlers> = ({
         <Box className={classes.next}>
             <StepArt id={row.id} badge={`Next up, ${copy.time}`} size="lg" />
             <Box className={classes.nextBody}>
-                <Text fw={600}>{row.title}</Text>
-                <Text fz="sm" c="dimmed">
+                <Text fz="sm" fw={600}>
+                    {row.title}
+                </Text>
+                <Text fz="xs" c="dimmed">
                     {copy.pitch}
                 </Text>
                 <Group gap={4} wrap="nowrap" mt="auto" pt="sm">
@@ -267,7 +274,7 @@ const StepCard: FC<{ row: SetupGuideRow } & RowHandlers> = ({
 };
 
 const AuroraLiveCard: FC<{ rows: SetupGuideRow[] }> = ({ rows }) => {
-    const [isExpanded, setIsExpanded] = useState(false);
+    const [isModalOpen, setIsModalOpen] = useState(false);
     const run = rows.find(({ preview }) => preview?.kind === 'agent-run')
         ?.preview?.run;
     const drafting = listFormat.format(
@@ -287,40 +294,57 @@ const AuroraLiveCard: FC<{ rows: SetupGuideRow[] }> = ({ rows }) => {
                         this runs in the background.
                     </Text>
                 </Box>
-                {run && (
+                {run ? (
                     <Button
-                        variant="subtle"
-                        color="gray"
-                        size="compact-xs"
-                        aria-expanded={isExpanded}
-                        rightSection={
-                            <MantineIcon
-                                icon={IconChevronDown}
-                                size={12}
-                                className={classes.chevron}
-                                data-expanded={isExpanded}
-                            />
-                        }
-                        onClick={() => setIsExpanded((value) => !value)}
-                    >
-                        {isExpanded ? 'Hide steps' : 'Show steps'}
-                    </Button>
-                )}
-                {action && (
-                    <Button
-                        component={Link}
-                        to={action.to}
                         variant="default"
                         size="compact-sm"
+                        onClick={() => setIsModalOpen(true)}
                     >
                         Watch
                     </Button>
+                ) : (
+                    action && (
+                        <Button
+                            component={Link}
+                            to={action.to}
+                            variant="default"
+                            size="compact-sm"
+                        >
+                            Watch
+                        </Button>
+                    )
                 )}
             </Group>
-            {isExpanded && run && (
-                <Box pt="sm">
-                    <AgentOnboardingProgress run={run} />
-                </Box>
+            {run && (
+                <MantineModal
+                    opened={isModalOpen}
+                    onClose={() => setIsModalOpen(false)}
+                    title={`${AI_NAME} is setting up your project`}
+                    icon={IconSparkles}
+                    size="lg"
+                    cancelLabel={false}
+                    headerActions={
+                        <Tooltip label="Open full view">
+                            <ActionIcon
+                                component={Link}
+                                to={getAgentOnboardingRunUrl(
+                                    run.agentOnboardingRunUuid,
+                                    run.projectUuid,
+                                )}
+                                variant="subtle"
+                                color="gray"
+                                aria-label="Open full view"
+                            >
+                                <MantineIcon icon={IconArrowsMaximize} />
+                            </ActionIcon>
+                        </Tooltip>
+                    }
+                >
+                    <Stack gap="md">
+                        <AgentOnboardingProgress run={run} />
+                        <AgentOnboardingActivityPanel events={run.events} />
+                    </Stack>
+                </MantineModal>
             )}
         </Box>
     );
@@ -430,7 +454,7 @@ export const SetupGuideView: FC<SetupGuideViewProps> = ({
                         highlight={highlight}
                         {...handlers}
                     />
-                    <Group justify="flex-end" pt="sm">
+                    <Group justify="flex-end" className={classes.popoverFooter}>
                         <Button
                             variant="subtle"
                             color="gray"
@@ -453,7 +477,9 @@ export const SetupGuideView: FC<SetupGuideViewProps> = ({
     const buildingRows = rows.filter((row) => row.status === 'building');
     const todoRows = rows.filter((row) => row.status === 'suggested');
     const skippedRows = rows.filter((row) => row.status === 'skipped');
-    const [nextRow, ...laterRows] = todoRows;
+    // Connecting dbt is for teams that already have it, so it never takes the big slot
+    const nextRow = todoRows.find(({ id }) => id !== 'source-control');
+    const laterRows = todoRows.filter((row) => row !== nextRow);
 
     return (
         <Paper p="md" className={classes.guide}>
@@ -582,21 +608,28 @@ export const SetupGuide: FC<{
     const rows = guide.sections.flatMap((section) => section.rows);
     const semanticLayer = rows.find(({ id }) => id === 'semantic-layer');
     const starterDashboard = rows.find(({ id }) => id === 'starter-dashboard');
+    const showSemanticLayer = semanticLayer?.status === 'done';
+    const showStarterDashboard =
+        starterDashboard !== undefined &&
+        isCompletedStatus(starterDashboard.status);
     return (
         <SetupGuideView
             sections={guide.sections}
             isDismissed={guide.isDismissed}
             onDismissedChange={guide.setIsDismissed}
             highlight={
-                semanticLayer?.status === 'done' ? (
-                    <SemanticLayerCard
-                        projectUuid={projectUuid}
-                        semanticLayer={semanticLayer}
-                        hasStarterDashboard={
-                            starterDashboard !== undefined &&
-                            isCompletedStatus(starterDashboard.status)
-                        }
-                    />
+                showSemanticLayer || showStarterDashboard ? (
+                    <>
+                        {showSemanticLayer && (
+                            <SemanticLayerCard projectUuid={projectUuid} />
+                        )}
+                        {showStarterDashboard && (
+                            <StarterDashboardCard
+                                projectUuid={projectUuid}
+                                starterDashboard={starterDashboard}
+                            />
+                        )}
+                    </>
                 ) : null
             }
             onSkip={(actionKey) => {

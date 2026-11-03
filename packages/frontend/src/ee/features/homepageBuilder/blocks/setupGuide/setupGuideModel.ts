@@ -309,19 +309,7 @@ export const buildSetupGuide = (
             id: 'semantic-layer',
             title: 'Your semantic layer',
             why: 'Define revenue once and reuse it in charts and answers.',
-            rows: [
-                semanticLayerRow(facts),
-                ...(isVisible('connect-source-control')
-                    ? [
-                          checklistRow(
-                              facts,
-                              'connect-source-control',
-                              'source-control',
-                              'Already use dbt? Connect it',
-                          ),
-                      ]
-                    : []),
-            ],
+            rows: [semanticLayerRow(facts)],
         },
         {
             id: 'starter-content',
@@ -335,6 +323,16 @@ export const buildSetupGuide = (
             why: 'Teammates can answer their own questions, here or in Slack.',
             rows: [
                 inviteTeamRow(facts),
+                ...(isVisible('connect-source-control')
+                    ? [
+                          checklistRow(
+                              facts,
+                              'connect-source-control',
+                              'source-control',
+                              'Already use dbt? Connect it',
+                          ),
+                      ]
+                    : []),
                 ...(isVisible('connect-slack')
                     ? [
                           checklistRow(

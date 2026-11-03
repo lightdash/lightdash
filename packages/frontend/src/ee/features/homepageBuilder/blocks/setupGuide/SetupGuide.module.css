@@ -11,6 +11,17 @@
     overflow-y: auto;
 }
 
+/* Cancels the dropdown padding so the footer pins flush to its bottom edge */
+.popoverFooter {
+    position: sticky;
+    bottom: calc(-1 * var(--mantine-spacing-sm));
+    margin: var(--mantine-spacing-sm) calc(-1 * var(--mantine-spacing-md))
+        calc(-1 * var(--mantine-spacing-sm));
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-md);
+    border-top: 1px solid var(--mantine-color-default-border);
+    background: var(--mantine-color-body);
+}
+
 .grow {
     flex: 1;
     min-width: 0;
@@ -18,7 +29,7 @@
 
 .top {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
     gap: var(--mantine-spacing-sm);
 }
 
@@ -37,7 +48,8 @@
     flex: 1;
     flex-direction: column;
     gap: 2px;
-    padding: var(--mantine-spacing-md);
+    padding: var(--mantine-spacing-sm) var(--mantine-spacing-md)
+        var(--mantine-spacing-md);
 }
 
 .cards {

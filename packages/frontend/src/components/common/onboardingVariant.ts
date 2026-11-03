@@ -38,12 +38,12 @@ const COPY: Record<
     tools: {
         default: {
             title: 'Bring in your other tools',
-            subtitle: 'Ask AI can combine these with your metrics.',
+            subtitle: 'Optional. You can add these later from settings.',
         },
         explained: {
-            title: "Add the data your warehouse doesn't have",
+            title: 'Connect your other tools',
             subtitle:
-                'Ask AI can combine these with your metrics, like signups by campaign.',
+                'Each query reads from the tool directly, so nothing is copied into your warehouse. You can add these later from settings.',
         },
     },
     team: {

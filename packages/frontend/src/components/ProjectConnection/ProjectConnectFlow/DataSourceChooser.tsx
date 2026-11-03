@@ -297,20 +297,6 @@ export const DataSourceChooser: FC = () => {
                 </Text>
             )}
 
-            {usesDbt && canUseSampleWorkspace && (
-                <Text size="sm" c="dimmed">
-                    Using something else?{' '}
-                    <Anchor
-                        component="button"
-                        type="button"
-                        inherit
-                        onClick={() => selectWarehouse(OtherWarehouse.Other)}
-                    >
-                        Tell us your warehouse
-                    </Anchor>
-                </Text>
-            )}
-
             {canInvite && (
                 <Text size="sm" c="dimmed">
                     Don't have the warehouse details?{' '}

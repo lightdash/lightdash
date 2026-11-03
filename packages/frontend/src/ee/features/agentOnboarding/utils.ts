@@ -207,6 +207,31 @@ export const getAgentOnboardingProgressStageTimings = (
     });
 };
 
+export type StageState =
+    | AgentOnboardingProgressStageTiming['state']
+    | 'stopped';
+
+// A cancelled or failed run leaves its last started stage unfinished
+export const getStageStates = (
+    run: AgentOnboardingRun | undefined,
+    timings: AgentOnboardingProgressStageTiming[] | undefined,
+): StageState[] => {
+    if (!run || !timings || run.status === 'queued') {
+        return AGENT_ONBOARDING_PROGRESS_STAGES.map(() => 'not_started');
+    }
+    if (run.status === 'completed') {
+        return AGENT_ONBOARDING_PROGRESS_STAGES.map(() => 'completed');
+    }
+    const states: StageState[] = timings.map(({ state }) => state);
+    if (run.status === 'cancelled' || run.status === 'failed') {
+        const lastStartedIndex = states.findLastIndex(
+            (state) => state !== 'not_started',
+        );
+        if (lastStartedIndex >= 0) states[lastStartedIndex] = 'stopped';
+    }
+    return states;
+};
+
 export const formatStageDuration = (durationMs: number | null): string => {
     if (durationMs === null) return '—';
     const totalSeconds = Math.max(0, Math.floor(durationMs / 1_000));
@@ -305,6 +330,16 @@ export const AGENT_ONBOARDING_STAGE_ACTIVE_LABELS: Record<
     ready: 'Verifying and handing off',
 };
 
+export const getActiveStageLabel = (
+    run: AgentOnboardingRun,
+    now: number,
+): string | null => {
+    const active = getAgentOnboardingProgressStageTimings(run, now).find(
+        ({ state }) => state === 'active',
+    );
+    return active ? AGENT_ONBOARDING_STAGE_ACTIVE_LABELS[active.stage] : null;
+};
+
 const humanizeSlug = (slug: string): string => {
     const words = slug.replace(/^agent-starter-/, '').replace(/[-_]+/g, ' ');
     return words.charAt(0).toUpperCase() + words.slice(1);
@@ -343,6 +378,32 @@ export const describeAgentOnboardingEvent = (
     return null;
 };
 
+export type AgentOnboardingRunArtifacts = {
+    tables: string[];
+    models: string[];
+    charts: string[];
+};
+
+/** What the run has produced so far, named the way a person would say it */
+export const collectAgentOnboardingArtifacts = (
+    events: AgentOnboardingRunEvent[],
+): AgentOnboardingRunArtifacts => {
+    const collect = (pattern: RegExp) => [
+        ...new Set(
+            events
+                .map(({ message }) => message.match(pattern)?.[1])
+                .filter((match): match is string => !!match),
+        ),
+    ];
+    return {
+        tables: collect(/warehouse-catalog.*--table\s+(\S+)/),
+        models: collect(/^Write: \S*models\/(\S+)$/).map(fileName),
+        charts: collect(/^Write: \S*charts\/(\S+)$/).map((chart) =>
+            humanizeSlug(fileName(chart)),
+        ),
+    };
+};
+
 export type AgentOnboardingRunSummary = {
     tables: number;
     models: number;
@@ -352,15 +413,10 @@ export type AgentOnboardingRunSummary = {
 export const summarizeAgentOnboardingEvents = (
     events: AgentOnboardingRunEvent[],
 ): AgentOnboardingRunSummary => {
-    const collect = (pattern: RegExp) =>
-        new Set(
-            events
-                .map(({ message }) => message.match(pattern)?.[1])
-                .filter((match): match is string => !!match),
-        ).size;
+    const { tables, models, charts } = collectAgentOnboardingArtifacts(events);
     return {
-        tables: collect(/warehouse-catalog.*--table\s+(\S+)/),
-        models: collect(/^Write: \S*models\/(\S+)$/),
-        charts: collect(/^Write: \S*charts\/(\S+)$/),
+        tables: tables.length,
+        models: models.length,
+        charts: charts.length,
     };
 };

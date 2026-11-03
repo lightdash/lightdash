@@ -135,7 +135,8 @@ const ToolRow: FC<{
 const LiveSourceReadyRow: FC<{
     projectUuid: string;
     connection: ExternalConnectionListItem;
-}> = ({ projectUuid, connection }) => {
+    showName: boolean;
+}> = ({ projectUuid, connection, showName }) => {
     const { data: explores, isError } = useLiveSourceExplores({
         projectUuid,
         connectionUuid: connection.externalConnectionUuid,
@@ -149,34 +150,28 @@ const LiveSourceReadyRow: FC<{
         ])
         .filter((field) => !field.hidden).length;
 
+    const status = isError
+        ? 'Fields are still being prepared'
+        : explore
+          ? `${fieldCount} fields ready to explore`
+          : 'Preparing fields…';
+
     return (
-        <Group justify="space-between" wrap="nowrap" gap="md" p="md">
-            <Group gap="sm" wrap="nowrap" miw={0}>
-                {connection.apiSource && (
-                    <LiveSourceIcon
-                        connector={connection.apiSource.connector}
-                        size={20}
-                    />
-                )}
-                <Stack gap={0} miw={0}>
-                    <Text fz="sm" fw={500} truncate>
-                        {connection.name}
-                    </Text>
-                    <Text fz="xs" c="dimmed">
-                        {isError
-                            ? 'Fields are still being prepared'
-                            : explore
-                              ? `${fieldCount} fields ready to explore`
-                              : 'Preparing fields…'}
-                    </Text>
-                </Stack>
-            </Group>
+        <Group
+            justify="space-between"
+            wrap="nowrap"
+            gap="md"
+            className={classes.readyPanel}
+        >
+            <Text fz="xs" c="dimmed" truncate>
+                {showName ? `${connection.name}: ${status}` : status}
+            </Text>
             {explore ? (
                 <Button
                     component={Link}
                     to={`/projects/${projectUuid}/tables/${explore.name}`}
                     target="_blank"
-                    size="xs"
+                    size="compact-xs"
                     variant="subtle"
                     rightSection={<MantineIcon icon={IconArrowUpRight} />}
                 >
@@ -189,6 +184,19 @@ const LiveSourceReadyRow: FC<{
     );
 };
 
+const ReadyPanels: FC<{
+    projectUuid: string;
+    connections: ExternalConnectionListItem[];
+}> = ({ projectUuid, connections }) =>
+    connections.map((connection) => (
+        <LiveSourceReadyRow
+            key={connection.externalConnectionUuid}
+            projectUuid={projectUuid}
+            connection={connection}
+            showName={connections.length > 1}
+        />
+    ));
+
 const ToolGroup: FC<{ title: string | null; children: ReactNode }> = ({
     title,
     children,
@@ -199,7 +207,7 @@ const ToolGroup: FC<{ title: string | null; children: ReactNode }> = ({
                 {title}
             </Text>
         )}
-        <Paper p={0}>
+        <Paper p={0} className={classes.toolGroup}>
             <Stack gap={0}>{children}</Stack>
         </Paper>
     </Stack>
@@ -393,8 +401,19 @@ const TeamStep: FC<{
                                     : null
                             }
                             action={
-                                !isGithubInstalled &&
-                                connectButton('/api/v1/github/install', false)
+                                !isGithubInstalled && (
+                                    // Same tab, so GitHub brings the user back to this step
+                                    <Button
+                                        size="xs"
+                                        variant="default"
+                                        component="a"
+                                        href={`/api/v1/github/install?redirect=${encodeURIComponent(
+                                            `/onboarding/tools/${projectUuid}?step=team`,
+                                        )}`}
+                                    >
+                                        Connect
+                                    </Button>
+                                )
                             }
                         />
                     )}
@@ -570,6 +589,10 @@ const OnboardingToolsContent: FC<{
                                 )
                             }
                         />
+                        <ReadyPanels
+                            projectUuid={projectUuid}
+                            connections={postHogConnections}
+                        />
                         {isPostHogOpen && (
                             <PostHogInlineConnect
                                 projectUuid={projectUuid}
@@ -630,25 +653,13 @@ const OnboardingToolsContent: FC<{
                                             </Button>
                                         }
                                     />
+                                    <ReadyPanels
+                                        projectUuid={projectUuid}
+                                        connections={connected}
+                                    />
                                 </Box>
                             );
                         })}
-                    </ToolGroup>
-                )}
-
-                {hasConnected && (
-                    <ToolGroup title="Ready to explore">
-                        {connections
-                            .filter(({ kind }) => kind === 'live_source')
-                            .map((connection, index) => (
-                                <Box key={connection.externalConnectionUuid}>
-                                    {index > 0 && <Divider />}
-                                    <LiveSourceReadyRow
-                                        projectUuid={projectUuid}
-                                        connection={connection}
-                                    />
-                                </Box>
-                            ))}
                     </ToolGroup>
                 )}
 

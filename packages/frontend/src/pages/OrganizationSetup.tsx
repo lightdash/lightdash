@@ -445,13 +445,38 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                                 )}
 
                                 {canEnableEmailDomainAccess && (
-                                    <Checkbox
-                                        label={`Teammates who sign up with @${emailDomain} join this organization as viewers`}
-                                        {...form.getInputProps(
-                                            'enableEmailDomainAccess',
-                                            { type: 'checkbox' },
-                                        )}
-                                    />
+                                    <Group gap={4} wrap="nowrap">
+                                        <Checkbox
+                                            label={
+                                                <>
+                                                    Let anyone with an{' '}
+                                                    <Text span inherit fw={600}>
+                                                        @{emailDomain}
+                                                    </Text>{' '}
+                                                    email join
+                                                </>
+                                            }
+                                            {...form.getInputProps(
+                                                'enableEmailDomainAccess',
+                                                { type: 'checkbox' },
+                                            )}
+                                        />
+                                        <Tooltip
+                                            label="They join as viewers. You can change this later in settings."
+                                            multiline
+                                            maw={280}
+                                        >
+                                            <ActionIcon
+                                                aria-label="About joining by email domain"
+                                                size="sm"
+                                            >
+                                                <MantineIcon
+                                                    icon={IconInfoCircle}
+                                                    size={16}
+                                                />
+                                            </ActionIcon>
+                                        </Tooltip>
+                                    </Group>
                                 )}
 
                                 {canUseBranding && (
@@ -518,11 +543,10 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                                     </>
                                 )}
 
-                                <Group>
+                                <Group justify="flex-end" mt="md">
                                     <Button
                                         type="submit"
                                         size="md"
-                                        fullWidth
                                         disabled={
                                             !form.values.organizationName.trim()
                                         }

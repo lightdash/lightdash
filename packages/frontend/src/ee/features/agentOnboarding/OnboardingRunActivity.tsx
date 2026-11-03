@@ -19,6 +19,7 @@ import { useEffect, useId, useRef, useState, type FC } from 'react';
 import { AI_NAME } from '../../../components/common/aiName';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useAuroraRun } from './hooks/useAuroraRun';
+import { useNow } from './hooks/useNow';
 import classes from './OnboardingRunActivity.module.css';
 import {
     AGENT_ONBOARDING_PROGRESS_STAGES,
@@ -30,17 +31,7 @@ import {
     summarizeAgentOnboardingEvents,
 } from './utils';
 
-const RECENT_STEPS = 3;
-
-const useNow = (isLive: boolean) => {
-    const [now, setNow] = useState(Date.now());
-    useEffect(() => {
-        if (!isLive) return;
-        const timer = window.setInterval(() => setNow(Date.now()), 1_000);
-        return () => window.clearInterval(timer);
-    }, [isLive]);
-    return now;
-};
+const RECENT_STEPS = 1;
 
 const plural = (count: number, word: string) =>
     `${count} ${word}${count === 1 ? '' : 's'}`;
@@ -113,18 +104,20 @@ const InspectFeed: FC<{ steps: Step[]; isLive: boolean; id: string }> = ({
     );
 };
 
-type Variant = 'dock' | 'grouped';
+type Variant = 'toast' | 'grouped';
 
 /** The drafting run, shown inside the setup steps so nobody leaves them to watch it */
 export const OnboardingRunActivity: FC<{
     projectUuid: string;
     variant?: Variant;
-}> = ({ projectUuid, variant = 'dock' }) => {
+}> = ({ projectUuid, variant = 'toast' }) => {
     const { run, isLive } = useAuroraRun(projectUuid);
     const now = useNow(isLive);
     const [isInspecting, setIsInspecting] = useState(false);
     const feedId = useId();
     if (!run || run.status === 'cancelled') return null;
+    // Home's setup guide owns the retry, so a failure stays out of the setup steps
+    if (variant === 'toast' && run.status === 'failed') return null;
 
     const isDone = run.status === 'completed';
     const isFailed = run.status === 'failed';
@@ -210,7 +203,7 @@ export const OnboardingRunActivity: FC<{
             {isInspecting ? (
                 <InspectFeed steps={steps} isLive={isLive} id={feedId} />
             ) : (
-                variant === 'dock' &&
+                variant === 'toast' &&
                 steps.length > 0 && (
                     <StepList
                         steps={steps.slice(-RECENT_STEPS)}
@@ -220,21 +213,23 @@ export const OnboardingRunActivity: FC<{
                 )
             )}
 
-            <UnstyledButton
-                className={classes.inspect}
-                aria-expanded={isInspecting}
-                aria-controls={feedId}
-                onClick={() => setIsInspecting((open) => !open)}
-            >
-                {isInspecting
-                    ? 'Hide steps'
-                    : `Inspect all ${steps.length} steps`}
-                <MantineIcon
-                    icon={IconChevronDown}
-                    size={12}
-                    className={classes.chevron}
-                />
-            </UnstyledButton>
+            {variant === 'toast' && (
+                <UnstyledButton
+                    className={classes.inspect}
+                    aria-expanded={isInspecting}
+                    aria-controls={feedId}
+                    onClick={() => setIsInspecting((open) => !open)}
+                >
+                    {isInspecting
+                        ? 'Hide steps'
+                        : `Inspect all ${steps.length} steps`}
+                    <MantineIcon
+                        icon={IconChevronDown}
+                        size={12}
+                        className={classes.chevron}
+                    />
+                </UnstyledButton>
+            )}
         </Box>
     );
 };

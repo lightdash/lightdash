@@ -17,9 +17,9 @@ import {
     AGENT_ONBOARDING_PROGRESS_STAGES,
     AGENT_ONBOARDING_STAGE_ACTIVE_LABELS,
     formatStageDuration,
+    getStageStates,
     getAgentOnboardingProgressStageTimings,
     type AgentOnboardingProgressStage,
-    type AgentOnboardingProgressStageTiming,
 } from './utils';
 
 const STAGE_CONFIG: Record<
@@ -46,29 +46,6 @@ const STAGE_CONFIG: Record<
         description: 'Checks everything works and opens the project.',
         icon: IconCheck,
     },
-};
-
-type StageState = AgentOnboardingProgressStageTiming['state'] | 'stopped';
-
-// A cancelled or failed run leaves its last started stage unfinished
-const getStageStates = (
-    run: AgentOnboardingRun | undefined,
-    timings: AgentOnboardingProgressStageTiming[] | undefined,
-): StageState[] => {
-    if (!run || !timings) {
-        return AGENT_ONBOARDING_PROGRESS_STAGES.map(() => 'not_started');
-    }
-    if (run.status === 'completed') {
-        return AGENT_ONBOARDING_PROGRESS_STAGES.map(() => 'completed');
-    }
-    const states: StageState[] = timings.map(({ state }) => state);
-    if (run.status === 'cancelled' || run.status === 'failed') {
-        const lastStartedIndex = states.findLastIndex(
-            (state) => state !== 'not_started',
-        );
-        if (lastStartedIndex >= 0) states[lastStartedIndex] = 'stopped';
-    }
-    return states;
 };
 
 export const AgentOnboardingProgress: FC<{ run?: AgentOnboardingRun }> = ({

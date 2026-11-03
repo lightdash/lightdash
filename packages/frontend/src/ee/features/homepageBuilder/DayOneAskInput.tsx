@@ -5,7 +5,8 @@ import {
     type AiRouter,
 } from '@lightdash/common';
 import { Anchor, Skeleton, Text } from '@mantine/core';
-import { IconArrowUpRight } from '@tabler/icons-react';
+import { useLocalStorage } from '@mantine/hooks';
+import { IconArrowUpRight, IconChartBar } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
     useCallback,
@@ -322,6 +323,9 @@ const SuggestionPills: FC<{
     );
 };
 
+const isChartChip = (chip: AgentSuggestion) =>
+    chip.kind === 'prompt' && chip.tool === 'generateVisualization';
+
 // The exact composer used on real agent threads — reused here so day-0's ask
 // experience looks and feels identical, not a lookalike. Selecting a
 // different agent from the built-in AgentSelector navigates to that agent's
@@ -358,6 +362,12 @@ const DayOneAskInputInner: FC<Props> = ({
         projectUuid,
         selectedAgent,
         createAgentThread,
+    });
+    const [composerValue, setComposerValue] = useState('');
+    const [hasAsked, setHasAsked] = useLocalStorage({
+        key: 'ld.home.hasAsked',
+        defaultValue: false,
+        getInitialValueInEffect: false,
     });
     const suggestions = useHomepageSuggestionChips({
         projectUuid,
@@ -420,6 +430,7 @@ const DayOneAskInputInner: FC<Props> = ({
                 hasProject: !!projectUuid,
             },
         });
+        setHasAsked(true);
         submitPrompt(prompt, toolHints, context, optimisticContext);
     };
 
@@ -445,8 +456,17 @@ const DayOneAskInputInner: FC<Props> = ({
             void navigate(chip.url);
             return;
         }
+        setHasAsked(true);
         submitPrompt(chip.label, [chip.tool]);
     };
+
+    // Before the first question, a chart prompt sits inside the empty composer as the way in
+    const starterIndex =
+        hasAsked || composerValue.trim() !== ''
+            ? -1
+            : suggestions.chips.findIndex(isChartChip);
+    const starterChip =
+        starterIndex >= 0 ? suggestions.chips[starterIndex] : null;
 
     if (hasNoAgents) {
         return (
@@ -478,6 +498,21 @@ const DayOneAskInputInner: FC<Props> = ({
                     selectedAgent={composerSelection}
                     placeholder={composerPlaceholder(activeSelection)}
                     onSubmit={handleSubmit}
+                    onValueChange={setComposerValue}
+                    toolbarStart={
+                        starterChip && (
+                            <button
+                                type="button"
+                                className={classes.starter}
+                                onClick={() =>
+                                    handleChipPick(starterChip, starterIndex)
+                                }
+                            >
+                                <MantineIcon icon={IconChartBar} size={12} />
+                                Try “{starterChip.label}”
+                            </button>
+                        )
+                    }
                     onStartDeepResearch={onStartDeepResearch}
                     {...composerSqlModeProps}
                     loading={isCreatingThread}

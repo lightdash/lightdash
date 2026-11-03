@@ -6,7 +6,6 @@ import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
 import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
-import { getAgentOnboardingDashboardUrl } from '../../../agentOnboarding/utils';
 import { SemanticLayerExplainer } from './SemanticLayerExplainer';
 import classes from './SetupGuide.module.css';
 import { type SetupGuideRow } from './setupGuideModel';
@@ -14,11 +13,9 @@ import { StepArt } from './StepArt';
 
 const SEMANTIC_LAYER_DOCS_URL = 'https://docs.lightdash.com/semantic-layer';
 
-export const SemanticLayerCard: FC<{
-    projectUuid: string;
-    semanticLayer: SetupGuideRow;
-    hasStarterDashboard: boolean;
-}> = ({ projectUuid, semanticLayer, hasStarterDashboard }) => {
+export const SemanticLayerCard: FC<{ projectUuid: string }> = ({
+    projectUuid,
+}) => {
     const isEmbedded = useIsEmbedded();
     const [isModalOpen, { open, close }] = useDisclosure(false);
     const [isDismissed, setIsDismissed] = useLocalStorage({
@@ -29,11 +26,7 @@ export const SemanticLayerCard: FC<{
     if (isDismissed) return null;
     return (
         <Box className={classes.next} pos="relative">
-            <StepArt
-                id="semantic-layer"
-                badge={semanticLayer.evidence?.text ?? 'Ready'}
-                size="lg"
-            />
+            <StepArt id="semantic-layer" badge={null} size="lg" />
             <ActionIcon
                 size="sm"
                 aria-label="Dismiss"
@@ -43,36 +36,28 @@ export const SemanticLayerCard: FC<{
                 <MantineIcon icon={IconX} size={14} />
             </ActionIcon>
             <Box className={classes.nextBody}>
-                <Text fw={600}>Your semantic layer is ready</Text>
-                <Text fz="sm" c="dimmed">
-                    Metrics are defined once, so every chart and answer uses the
-                    same numbers.{' '}
-                    <Anchor component="button" fz="sm" onClick={open}>
-                        How it works
-                    </Anchor>
+                <Text fz="sm" fw={600}>
+                    Your semantic layer is ready
                 </Text>
-                <Group gap={4} wrap="nowrap" mt="auto" pt="sm">
+                <Text fz="xs" c="dimmed">
+                    One definition behind every chart and answer.
+                </Text>
+                <Group justify="space-between" wrap="nowrap" mt="auto" pt="sm">
                     <Button
                         size="xs"
                         component={Link}
-                        to={
-                            semanticLayer.action?.to ??
-                            `/projects/${projectUuid}/tables`
-                        }
+                        to={`/projects/${projectUuid}/metrics`}
                     >
-                        Explore your metrics
+                        Explore
                     </Button>
-                    {hasStarterDashboard && (
-                        <Button
-                            size="xs"
-                            variant="subtle"
-                            color="gray"
-                            component={Link}
-                            to={getAgentOnboardingDashboardUrl(projectUuid)}
-                        >
-                            Open starter dashboard
-                        </Button>
-                    )}
+                    <Button
+                        size="xs"
+                        variant="subtle"
+                        color="gray"
+                        onClick={open}
+                    >
+                        Learn
+                    </Button>
                 </Group>
             </Box>
             <MantineModal
@@ -102,6 +87,49 @@ export const SemanticLayerCard: FC<{
             >
                 <SemanticLayerExplainer />
             </MantineModal>
+        </Box>
+    );
+};
+
+export const StarterDashboardCard: FC<{
+    projectUuid: string;
+    starterDashboard: SetupGuideRow;
+}> = ({ projectUuid, starterDashboard }) => {
+    const [isDismissed, setIsDismissed] = useLocalStorage({
+        key: `ld.setupGuide.starterDashboard.${projectUuid}`,
+        defaultValue: false,
+        getInitialValueInEffect: false,
+    });
+    if (isDismissed || !starterDashboard.action) return null;
+    return (
+        <Box className={classes.next} pos="relative">
+            <StepArt id="starter-dashboard" badge={null} size="lg" />
+            <ActionIcon
+                size="sm"
+                aria-label="Dismiss"
+                className={classes.lessonDismiss}
+                onClick={() => setIsDismissed(true)}
+            >
+                <MantineIcon icon={IconX} size={14} />
+            </ActionIcon>
+            <Box className={classes.nextBody}>
+                <Text fz="sm" fw={600}>
+                    Your starter dashboard is ready
+                </Text>
+                <Text fz="xs" c="dimmed">
+                    Charts on your new metrics, ready to share.
+                </Text>
+                <Group gap={4} wrap="nowrap" mt="auto" pt="sm">
+                    <Button
+                        size="xs"
+                        variant="default"
+                        component={Link}
+                        to={starterDashboard.action.to}
+                    >
+                        Open
+                    </Button>
+                </Group>
+            </Box>
         </Box>
     );
 };

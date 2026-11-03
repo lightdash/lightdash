@@ -6,12 +6,13 @@
     text-align: left;
 }
 
-.root[data-variant='dock'] {
-    padding: var(--mantine-spacing-lg);
+.root[data-variant='toast'] {
+    gap: var(--mantine-spacing-sm);
+    padding: var(--mantine-spacing-md);
     border: 1px solid var(--mantine-color-default-border);
-    border-radius: var(--mantine-radius-md);
+    border-radius: var(--mantine-radius-lg);
     background: var(--mantine-color-body);
-    box-shadow: var(--mantine-shadow-xs);
+    box-shadow: var(--mantine-shadow-lg);
 }
 
 .glyph {
@@ -100,8 +101,8 @@
     mask-image: linear-gradient(to bottom, transparent, #000 rem(24px));
 }
 
-.root[data-variant='dock'] .feed {
-    max-height: calc(100dvh - rem(320px));
+.root[data-variant='toast'] .feed {
+    max-height: min(rem(320px), calc(100dvh - rem(240px)));
 }
 
 .steps {

@@ -2,6 +2,9 @@ import { ApiConnectorType, WarehouseTypes } from '@lightdash/common';
 import { Box, Group, Image, Text } from '@mantine/core';
 import {
     IconBrandGithub,
+    IconArrowUpRight,
+    IconCalendarTime,
+    IconCircleCheckFilled,
     IconDatabase,
     IconGitPullRequest,
 } from '@tabler/icons-react';
@@ -87,8 +90,8 @@ const TABLES: [string, string][] = [
 
 const WarehouseVisual: FC = () => (
     <Figure
-        title="Build anything on your own tables"
-        body="Every chart, dashboard and answer runs on your warehouse."
+        title="Your data stays where it is"
+        body="Charts, dashboards and answers query your warehouse directly. Nothing gets copied."
     >
         <Box className={classes.card} __vars={{ '--i': '0' }}>
             <Group gap={8} wrap="nowrap" className={classes.cardHeader}>
@@ -160,8 +163,8 @@ export const ToolsVisual: FC<{ warehouse: WarehouseTypes | null }> = ({
     const warehouseLogo = warehouse ? getWarehouseLogo(warehouse) : null;
     return (
         <Figure
-            title="Add what your warehouse is missing"
-            body="Ask AI can combine product events and traffic with your tables."
+            title="PostHog, GA4 and Search Console"
+            body="Each query reads from the tool directly. Nothing is copied into your warehouse."
         >
             <Box className={classes.sourcePair}>
                 <Box className={classes.card} __vars={{ '--i': '0' }}>
@@ -255,43 +258,73 @@ export const ToolsVisual: FC<{ warehouse: WarehouseTypes | null }> = ({
 };
 
 const TeamVisual: FC = () => (
-    <Figure title={null} body={null}>
+    <Figure
+        title={null}
+        body="Anyone can ask in a thread. New metrics only go live after you approve the pull request."
+    >
         <Box className={classes.card} __vars={{ '--i': '0' }}>
-            <Group gap={6} className={classes.cardHeader}>
+            <Group gap={6} wrap="nowrap" className={classes.cardHeader}>
                 <SlackSvg width={14} height={14} />
                 <Text fz="xs" fw={500}>
                     #growth
                 </Text>
+                <Box className={classes.tag}>
+                    <MantineIcon icon={IconCalendarTime} size={10} />
+                    Mondays 9:00
+                </Box>
             </Group>
             <Box className={classes.message}>
-                <Box className={classes.avatar}>S</Box>
-                <Text fz="xs">
-                    <b>Sam</b>{' '}
-                    <Box component="span" className={classes.mention}>
-                        <Box component="span" className={classes.auroraDot} />
-                        {AI_NAME}
-                    </Box>{' '}
-                    how did signups do last week?
-                </Text>
-            </Box>
-            <Box className={classes.message} data-reply __vars={{ '--i': '2' }}>
+                <AuroraMark />
                 <Box className={classes.grow}>
                     <Text fz="xs">
-                        <b>{AI_NAME}</b> Up 18% to 2,740, mostly from the spring
-                        launch.
+                        <b>{AI_NAME}</b>{' '}
+                        <Text span inherit c="dimmed">
+                            Weekly revenue is ready
+                        </Text>
                     </Text>
-                    <Bars heights={[40, 55, 48, 70, 88]} delay={3} />
+                    <Box className={classes.attachment}>
+                        <Group justify="space-between" wrap="nowrap">
+                            <Text fz="xs" fw={500}>
+                                Weekly revenue
+                            </Text>
+                            <Text fz="xs" c="green" fw={500}>
+                                +12%
+                            </Text>
+                        </Group>
+                        <Text className={classes.figureNumber} fw={600}>
+                            $184,200
+                        </Text>
+                        <Bars
+                            heights={[46, 58, 52, 66, 61, 74, 90]}
+                            delay={2}
+                        />
+                    </Box>
+                </Box>
+            </Box>
+            <Box className={classes.thread}>
+                <Box className={classes.message} data-reply>
+                    <Box className={classes.avatar}>S</Box>
+                    <Text fz="xs">
+                        <b>Sam</b>{' '}
+                        <Box component="span" className={classes.mention}>
+                            <Box
+                                component="span"
+                                className={classes.auroraDot}
+                            />
+                            {AI_NAME}
+                        </Box>{' '}
+                        what drove the jump?
+                    </Text>
+                </Box>
+                <Box className={classes.message} data-reply data-late>
+                    <AuroraMark />
+                    <Text fz="xs">
+                        <b>{AI_NAME}</b> Mostly the spring launch: annual plans
+                        are up 31% week over week.
+                    </Text>
                 </Box>
             </Box>
         </Box>
-        <Text
-            fz="xs"
-            c="dimmed"
-            className={classes.cardNote}
-            __vars={{ '--i': '1' }}
-        >
-            Mention {AI_NAME} in any channel and it replies in the thread.
-        </Text>
         <Box className={classes.card} __vars={{ '--i': '5' }}>
             <Group gap={6} wrap="nowrap" className={classes.cardHeader}>
                 <MantineIcon icon={IconBrandGithub} size={14} />
@@ -311,15 +344,32 @@ const TeamVisual: FC = () => (
                     {'+       total_revenue: { type: sum }'}
                 </span>
             </Box>
+            <Box className={classes.checks}>
+                <Group gap={6} wrap="nowrap">
+                    <MantineIcon
+                        icon={IconCircleCheckFilled}
+                        size={12}
+                        color="green"
+                    />
+                    <Text fz="xs">Validation passed</Text>
+                    <Text fz="xs" c="dimmed">
+                        0 errors
+                    </Text>
+                </Group>
+                <Group gap={6} wrap="nowrap">
+                    <MantineIcon
+                        icon={IconCircleCheckFilled}
+                        size={12}
+                        color="green"
+                    />
+                    <Text fz="xs">Preview ready</Text>
+                    <Box className={classes.previewLink}>
+                        Open preview
+                        <MantineIcon icon={IconArrowUpRight} size={10} />
+                    </Box>
+                </Group>
+            </Box>
         </Box>
-        <Text
-            fz="xs"
-            c="dimmed"
-            className={classes.cardNote}
-            __vars={{ '--i': '6' }}
-        >
-            Metric changes arrive as pull requests you review.
-        </Text>
     </Figure>
 );
 

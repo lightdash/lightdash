@@ -4,3 +4,14 @@
     margin: 0 auto;
     padding: 0;
 }
+
+.toolGroup {
+    overflow: hidden;
+}
+
+.readyPanel {
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-md);
+    padding-left: calc(var(--mantine-spacing-md) + rem(36px));
+    border-top: 1px solid var(--mantine-color-default-border);
+    background: var(--ld-color-page);
+}
