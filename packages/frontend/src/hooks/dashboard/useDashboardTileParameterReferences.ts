@@ -1,5 +1,6 @@
 import {
     FeatureFlags,
+    getErrorMessage,
     type ApiError,
     type DashboardTileParameterReferences,
     type DashboardTileParameterReferencesTile,
@@ -53,7 +54,8 @@ export const useDashboardTileParameterReferences = ({
             projectUuid,
             tilesKey,
         ],
-        // The endpoint takes at most 200 tiles a request; larger dashboards go in turns
+        // The endpoint takes at most 200 tiles a request; larger dashboards go
+        // in turns, and a failed request fails only its own tiles
         queryFn: () =>
             chunk(tiles, TILES_PER_REQUEST).reduce<
                 Promise<DashboardTileParameterReferences[]>
@@ -65,7 +67,13 @@ export const useDashboardTileParameterReferences = ({
                         version: 'v2',
                         method: 'POST',
                         body: JSON.stringify({ tiles: batch }),
-                    })),
+                    }).catch((e: unknown) =>
+                        batch.map(({ tileUuid }) => ({
+                            tileUuid,
+                            parameterReferences: null,
+                            error: getErrorMessage(e),
+                        })),
+                    )),
                 ],
                 Promise.resolve([]),
             ),

@@ -167,6 +167,45 @@ describe('useDashboardTileParameterReferences', () => {
         ).toEqual([200, 200, 50]);
     });
 
+    it('keeps the batches that succeed when one batch fails', async () => {
+        const manyTiles = Array.from({ length: 450 }, (_, index) =>
+            tile(
+                `tile-${index}`,
+                'tab-1',
+                DashboardTileTypes.SAVED_CHART,
+                `chart-${index}`,
+            ),
+        );
+        mockApi.mockImplementation(async ({ body }: { body: string }) => {
+            const batch = (
+                JSON.parse(body) as { tiles: { tileUuid: string }[] }
+            ).tiles;
+            if (batch[0].tileUuid === 'tile-200') {
+                throw new Error('Request failed');
+            }
+            return batch.map(({ tileUuid }) => ({
+                tileUuid,
+                parameterReferences: ['orders.region'],
+                error: null,
+            }));
+        });
+
+        const store = setup(undefined, manyTiles);
+
+        await waitFor(() =>
+            expect(
+                Object.keys(
+                    store.getState().parameters.tileParameterReferences,
+                ),
+            ).toHaveLength(250),
+        );
+        const listed =
+            store.getState().parameters.tileListedParameterReferences;
+        expect(listed['tile-199']).toEqual(['orders.region']);
+        expect(listed['tile-200']).toBeUndefined();
+        expect(listed['tile-449']).toEqual(['orders.region']);
+    });
+
     it("requests through the embed's API client, which sends its token", async () => {
         const embedApi = vi.fn().mockResolvedValue([
             {
