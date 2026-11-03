@@ -39,16 +39,18 @@ repair and installations that have not configured the worker.
 
 ## Idempotency, attribution and failures
 
-The installed model/content hash and release are stored per project in
-`analytics_content_sync`. Unchanged definitions with intact managed inventory are
+The installed model/content hash and release reuse the existing
+`content_as_code_snapshots` table, under an internal `analytics_bundle` type.
+No schema migration or new storage service is needed. Unchanged definitions with intact managed inventory are
 skipped. Missing managed models or content can be repaired. A successful new
 release is not overwritten by an older worker during a rolling deployment.
 
 Manual and automatic updates share the organization provisioning lock, collision
 checks, model-before-chart ordering and existing space/access preservation.
-Background updates use a persisted, inactive internal user named Analytics system
+Background updates reuse one inactive internal user named Analytics system
 with authority scoped to the resolved analytics project. It has no email,
-password, sign-in identity, API token, or organization membership.
+password, sign-in identity, API token, or organization membership. Its UUID is
+derived from the project, so retries reuse the same row without a new registry.
 
 Reconciliation and project updates have independent deduplicated jobs with bounded
 retries. An enqueue or content failure never retries compaction. Other project

@@ -14,13 +14,17 @@ import {
     SessionUser,
 } from '@lightdash/common';
 import memoize from 'lodash/memoize';
+import { z } from 'zod';
 import { UsageHistoryBackfill } from '../../../analytics/eventStream/UsageHistoryBackfill';
 import {
     analyticsContentAsCode,
     analyticsDefaultSpace,
 } from '../../../analytics/systemExplores/sampleContent';
 import type { LightdashConfig } from '../../../config/parseConfig';
-import type { AnalyticsContentSyncModel } from '../../../models/AnalyticsContentSyncModel';
+import {
+    ANALYTICS_BUNDLE_SNAPSHOT_TYPE,
+    type ContentAsCodeSnapshotModel,
+} from '../../../models/ContentAsCodeSnapshotModel';
 import { type ContentVerificationModel } from '../../../models/ContentVerificationModel';
 import { type DashboardModel } from '../../../models/DashboardModel/DashboardModel';
 import type { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
@@ -49,14 +53,7 @@ type Dependencies = {
         | 'scheduleUsageHistoryBackfill'
         | 'scheduleAnalyticsContentSync'
     >;
-    analyticsContentSyncModel: Pick<
-        AnalyticsContentSyncModel,
-        | 'get'
-        | 'getProjectsPage'
-        | 'getProject'
-        | 'getOrCreateSystemUser'
-        | 'markSynced'
-    >;
+    contentAsCodeSnapshotModel: Pick<ContentAsCodeSnapshotModel, 'get' | 'upsert'>;
     featureFlagModel: Pick<FeatureFlagModel, 'get'>;
     coderService: Pick<CoderService, 'upsertChart' | 'upsertDashboard'>;
     contentVerificationModel: Pick<
@@ -70,6 +67,8 @@ type Dependencies = {
         ProjectModel,
         | 'getAllByOrganizationUuid'
         | 'getAnalyticsModelCounts'
+        | 'getAnalyticsProject'
+        | 'getAnalyticsProjectsPage'
         | 'runInAnalyticsProvisioningLock'
         | 'saveExploresToCache'
     >;
@@ -79,7 +78,10 @@ type Dependencies = {
         | 'ensureAnalyticsProject'
         | 'delete'
     >;
-    userModel: Pick<UserModel, 'invalidateSessionUserCache'>;
+    userModel: Pick<
+        UserModel,
+        'invalidateSessionUserCache' | 'getOrCreateAnalyticsSystemUser'
+    >;
 };
 
 // Definitions are static for the running release; compile once, not per status request.
@@ -101,7 +103,9 @@ const contentHash = memoize(() =>
     getAnalyticsContentHash(createAnalyticsExplores(), analyticsContentAsCode),
 );
 
-type SyncState = Awaited<ReturnType<AnalyticsContentSyncModel['get']>>;
+const bundleSnapshotSlug = 'managed-content';
+const bundleSnapshotSchema = z.object({ appliedVersion: z.string() });
+type SyncState = { appliedHash: string; appliedVersion: string } | null;
 
 const installedByNewerRelease = (state: SyncState): boolean =>
     state?.appliedVersion != null &&
@@ -110,6 +114,21 @@ const installedByNewerRelease = (state: SyncState): boolean =>
 export class AnalyticsProjectService extends BaseService {
     constructor(private readonly dependencies: Dependencies) {
         super();
+    }
+
+    private async getSyncState(projectUuid: string): Promise<SyncState> {
+        const stored = await this.dependencies.contentAsCodeSnapshotModel.get(
+            projectUuid,
+            ANALYTICS_BUNDLE_SNAPSHOT_TYPE,
+            bundleSnapshotSlug,
+        );
+        if (!stored) return null;
+        const parsed = bundleSnapshotSchema.safeParse(stored.snapshot);
+        if (!parsed.success) return null;
+        return {
+            appliedHash: stored.snapshotHash,
+            appliedVersion: parsed.data.appliedVersion,
+        };
     }
 
     private async authorize(user: SessionUser): Promise<string> {
@@ -208,7 +227,7 @@ export class AnalyticsProjectService extends BaseService {
         );
         if (!project) return { project: null };
 
-        const state = await this.dependencies.analyticsContentSyncModel.get(
+        const state = await this.getSyncState(
             project.projectUuid,
         );
         return {
@@ -322,7 +341,7 @@ export class AnalyticsProjectService extends BaseService {
                 if (!project)
                     throw new NotFoundError('Analytics project not found');
                 const state =
-                    await this.dependencies.analyticsContentSyncModel.get(
+                    await this.getSyncState(
                         project.projectUuid,
                     );
                 if (installedByNewerRelease(state)) {
@@ -456,13 +475,15 @@ export class AnalyticsProjectService extends BaseService {
             );
         }
         /* eslint-enable no-await-in-loop */
-        await this.dependencies.analyticsContentSyncModel.markSynced(
+        await this.dependencies.contentAsCodeSnapshotModel.upsert({
             projectUuid,
-            {
-                hash: contentHash(),
-                version: VERSION,
-            },
-        );
+            contentType: ANALYTICS_BUNDLE_SNAPSHOT_TYPE,
+            slug: bundleSnapshotSlug,
+            snapshot: { appliedVersion: VERSION },
+            snapshotHash: contentHash(),
+            appliedByUserUuid: user.userUuid,
+            filePath: null,
+        });
     }
 
     async reconcileContent({
@@ -480,7 +501,7 @@ export class AnalyticsProjectService extends BaseService {
         /* eslint-disable no-await-in-loop */
         while (true) {
             const projects =
-                await this.dependencies.analyticsContentSyncModel.getProjectsPage(
+                await this.dependencies.projectModel.getAnalyticsProjectsPage(
                     {
                         organizationUuid,
                         afterProjectUuid,
@@ -537,7 +558,7 @@ export class AnalyticsProjectService extends BaseService {
         )
             return;
         const target =
-            await this.dependencies.analyticsContentSyncModel.getProject(
+            await this.dependencies.projectModel.getAnalyticsProject(
                 projectUuid,
             );
         if (!target || target.organizationUuid !== organizationUuid) return;
@@ -545,7 +566,7 @@ export class AnalyticsProjectService extends BaseService {
             organizationUuid,
             async () => {
                 const project =
-                    await this.dependencies.analyticsContentSyncModel.getProject(
+                    await this.dependencies.projectModel.getAnalyticsProject(
                         projectUuid,
                     );
                 if (
@@ -558,12 +579,12 @@ export class AnalyticsProjectService extends BaseService {
                 )
                     return;
                 const state =
-                    await this.dependencies.analyticsContentSyncModel.get(
+                    await this.getSyncState(
                         projectUuid,
                     );
                 if (!(await this.hasContentUpdates(projectUuid, state))) return;
                 const systemUser =
-                    await this.dependencies.analyticsContentSyncModel.getOrCreateSystemUser(
+                    await this.dependencies.userModel.getOrCreateAnalyticsSystemUser(
                         projectUuid,
                     );
                 const user = createAnalyticsSyncUser({

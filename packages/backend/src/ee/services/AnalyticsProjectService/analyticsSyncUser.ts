@@ -1,6 +1,6 @@
 import { Ability, AbilityBuilder } from '@casl/ability';
 import { type MemberAbility, type SessionUser } from '@lightdash/common';
-import { type AnalyticsSyncSystemUser } from '../../../models/AnalyticsContentSyncModel';
+import { type AnalyticsSyncSystemUser } from '../../../models/UserModel';
 
 export const createAnalyticsSyncUser = ({
     userUuid,

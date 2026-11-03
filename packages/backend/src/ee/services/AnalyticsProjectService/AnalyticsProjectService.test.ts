@@ -91,13 +91,7 @@ describe('AnalyticsProjectService', () => {
             scheduleUsageHistoryBackfill,
             scheduleAnalyticsContentSync,
         },
-        analyticsContentSyncModel: {
-            get: getSyncState,
-            getProjectsPage,
-            getProject: getSyncProject,
-            getOrCreateSystemUser,
-            markSynced,
-        },
+        contentAsCodeSnapshotModel: { get: getSyncState, upsert: markSynced },
         featureFlagModel: { get: getFeatureFlag },
         coderService: { upsertChart, upsertDashboard },
         contentVerificationModel: { getByContentUuids: getVerifications },
@@ -105,6 +99,8 @@ describe('AnalyticsProjectService', () => {
         savedChartModel: { get: getChart, find: findCharts },
         spaceModel: { get: getSpace, find: findSpaces },
         projectModel: {
+            getAnalyticsProject: getSyncProject,
+            getAnalyticsProjectsPage: getProjectsPage,
             getAllByOrganizationUuid,
             saveExploresToCache,
             getAnalyticsModelCounts,
@@ -121,15 +117,18 @@ describe('AnalyticsProjectService', () => {
             ensureAnalyticsProject,
             delete: deleteProject,
         },
-        userModel: { invalidateSessionUserCache },
+        userModel: {
+            invalidateSessionUserCache,
+            getOrCreateAnalyticsSystemUser: getOrCreateSystemUser,
+        },
     });
 
     beforeEach(() => {
         vi.restoreAllMocks();
         vi.resetAllMocks();
         getSyncState.mockResolvedValue({
-            appliedHash: hash,
-            appliedVersion: VERSION,
+            snapshotHash: hash,
+            snapshot: { appliedVersion: VERSION },
         });
         getSyncProject.mockResolvedValue({
             projectUuid: analyticsProject.projectUuid,
@@ -204,8 +203,8 @@ describe('AnalyticsProjectService', () => {
         it('detects a changed definition even when model and dashboard counts are unchanged', async () => {
             completeInventory();
             getSyncState.mockResolvedValue({
-                appliedHash: 'old-definition',
-                appliedVersion: VERSION,
+                snapshotHash: 'old-definition',
+                snapshot: { appliedVersion: VERSION },
             });
             expect(
                 (await service.getStatus(user)).project?.hasContentUpdates,
@@ -234,10 +233,15 @@ describe('AnalyticsProjectService', () => {
                 expect(actor.userUuid).toBe('system-user');
                 expect(projectUuid).toBe(target.projectUuid);
             }
-            expect(markSynced).toHaveBeenCalledExactlyOnceWith(
-                target.projectUuid,
-                { hash, version: VERSION },
-            );
+            expect(markSynced).toHaveBeenCalledExactlyOnceWith({
+                projectUuid: target.projectUuid,
+                contentType: 'analytics_bundle',
+                slug: 'managed-content',
+                snapshotHash: hash,
+                snapshot: { appliedVersion: VERSION },
+                appliedByUserUuid: 'system-user',
+                filePath: null,
+            });
             expect(markSynced.mock.invocationCallOrder[0]).toBeGreaterThan(
                 upsertDashboard.mock.invocationCallOrder.at(-1)!,
             );
@@ -268,8 +272,8 @@ describe('AnalyticsProjectService', () => {
 
         it('prevents an older worker or API from downgrading a newer successful installation', async () => {
             getSyncState.mockResolvedValue({
-                appliedHash: 'future-definition',
-                appliedVersion: '9999.0.0',
+                snapshotHash: 'future-definition',
+                snapshot: { appliedVersion: '9999.0.0' },
             });
             await enabledService().syncContent(target);
             expect(
