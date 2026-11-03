@@ -1,12 +1,83 @@
+import { ParameterError } from '@lightdash/common';
 import execa from 'execa';
 import * as fs from 'fs-extra';
 import { GitError, type SimpleGit } from 'simple-git';
-import { GitRepository } from './gitRepository';
+import { GitRepository, sparseCheckoutDirectory } from './gitRepository';
 
 vi.mock('execa');
 vi.mock('fs-extra', () => ({ access: vi.fn(), emptyDir: vi.fn() }));
 
 beforeEach(() => vi.clearAllMocks());
+
+it('normalizes a stored dbt subdirectory for cone checkout', () => {
+    expect(sparseCheckoutDirectory('/analytics//./dbt/')).toBe('analytics/dbt');
+});
+
+it.each(['', '/', '.', './', '//./'])(
+    'keeps root path %j on full checkout',
+    (directory) => {
+        expect(sparseCheckoutDirectory(directory)).toBeNull();
+    },
+);
+
+it.each(['../dbt', '/analytics/../dbt', 'a/../b', '..', '/..', '//./../dbt'])(
+    'rejects parent traversal in sparse directory %j',
+    (directory) => {
+        expect(() => sparseCheckoutDirectory(directory)).toThrow(
+            ParameterError,
+        );
+        expect(() => sparseCheckoutDirectory(directory)).toThrow(
+            'Project subdirectory must stay within the Git repository',
+        );
+    },
+);
+
+it.each([
+    'analytics\\dbt',
+    'dbt\nother',
+    'dbt\u0000',
+    'dbt\u007f',
+    'a*b',
+    'a?b',
+    'a[b',
+    'a]b',
+    '/analytics/*/dbt/',
+    '!x',
+    '/!x/',
+    '/./!x/',
+    '  a/b  ',
+    '/ leading/',
+    '/trailing /',
+    '/.// leading/./',
+    '/.//trailing /./',
+    ' /dbt',
+    'dbt ',
+    ' ',
+    '/ /',
+])('rejects unsupported sparse directory %j', (directory) => {
+    expect(() => sparseCheckoutDirectory(directory)).toThrow(ParameterError);
+    expect(() => sparseCheckoutDirectory(directory)).toThrow(
+        'Project subdirectory contains characters that sparse checkout does not support',
+    );
+});
+
+it.each([
+    ['/analytics/dbt project/', 'analytics/dbt project'],
+    ['/#x/', '#x'],
+    ['/-x/', '-x'],
+    ['/"x"/', '"x"'],
+    ['/a /b/', 'a /b'],
+    ['/a/ /b/', 'a/ /b'],
+    ['/a/!b/', 'a/!b'],
+    ['/analytics/..dbt/', 'analytics/..dbt'],
+    ['/analytics/dbt@v2 + model (copy)/', 'analytics/dbt@v2 + model (copy)'],
+    ['/分析/проект/', '分析/проект'],
+    ['/\u00a0dbt/', '\u00a0dbt'],
+    ['/dbt\u00a0/', 'dbt\u00a0'],
+    ['/\ufeffdbt/', '\ufeffdbt'],
+])('preserves literal repository directory %j', (input, expected) => {
+    expect(sparseCheckoutDirectory(input)).toBe(expected);
+});
 
 it('uses only the existing git environment and pull arguments with a signal', async () => {
     vi.mocked(execa).mockReturnValue(
