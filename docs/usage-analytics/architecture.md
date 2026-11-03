@@ -139,6 +139,14 @@ engine limit, and streams uploads with one 8 MB part in flight. See
 for resource limits, retries and operational caveats. Reader resource settings
 below apply to interactive queries, not this background export.
 
+Scheduled processing skips organizations with no projects. Any project qualifies,
+including preview, playground and managed Analytics projects; feature-flag checks
+still apply. This avoids storage listings and empty snapshots for unprovisioned
+organizations. Raw event capture is unchanged, but captured events for projectless
+organizations are not processed by scheduled runs. Explicit organization-scoped
+runs remain available, and creating a project makes the organization eligible for
+the next scheduled run within the existing processing window.
+
 ### Project creation and models
 
 [`ProjectService.ensureAnalyticsProject`](../../packages/backend/src/services/ProjectService/ProjectService.ts)
