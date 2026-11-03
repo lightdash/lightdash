@@ -3,22 +3,26 @@ import {
     ActionIcon,
     Box,
     Button,
+    Collapse,
     Group,
     Menu,
     Paper,
     Popover,
     Progress,
+    SegmentedControl,
     Skeleton,
     Stack,
     Text,
     Tooltip,
     UnstyledButton,
 } from '@mantine/core';
+import { useLocalStorage } from '@mantine/hooks';
 import {
     IconArrowRight,
     IconBrandSlack,
     IconCheck,
     IconChevronDown,
+    IconChevronRight,
     IconDatabase,
     IconDots,
     IconGitBranch,
@@ -363,6 +367,97 @@ const CompactRow: FC<{ row: SetupGuideRow } & RowHandlers> = ({
     );
 };
 
+const ChecklistBody: FC<{ rows: SetupGuideRow[] } & RowHandlers> = ({
+    rows,
+    ...handlers
+}) => {
+    const [openId, setOpenId] = useState<SetupGuideRowId | null>(
+        () => rows.find((row) => !isCompletedStatus(row.status))?.id ?? null,
+    );
+    const sorted = [
+        ...rows.filter((row) => isCompletedStatus(row.status)),
+        ...rows.filter((row) => !isCompletedStatus(row.status)),
+    ];
+    return (
+        <Box className={classes.checklist}>
+            {sorted.map((row) => {
+                const copy = ROW_COPY[row.id];
+                const isDone = isCompletedStatus(row.status);
+                const isOpen = openId === row.id;
+                return (
+                    <Box key={row.id} className={classes.checkRow}>
+                        <UnstyledButton
+                            className={classes.checkHead}
+                            aria-expanded={isOpen}
+                            onClick={() => setOpenId(isOpen ? null : row.id)}
+                        >
+                            <Box
+                                className={classes.checkCircle}
+                                data-done={isDone}
+                            >
+                                {isDone && (
+                                    <MantineIcon icon={IconCheck} size={12} />
+                                )}
+                            </Box>
+                            <Text
+                                fz="sm"
+                                fw={isOpen ? 500 : 400}
+                                c={isDone ? 'dimmed' : undefined}
+                                td={isDone ? 'line-through' : undefined}
+                                className={classes.grow}
+                            >
+                                {row.title}
+                            </Text>
+                            {row.status === 'skipped' && (
+                                <Text fz="xs" c="dimmed">
+                                    Skipped
+                                </Text>
+                            )}
+                            <MantineIcon
+                                icon={
+                                    isOpen ? IconChevronDown : IconChevronRight
+                                }
+                                size={14}
+                                color="dimmed"
+                            />
+                        </UnstyledButton>
+                        <Collapse expanded={isOpen}>
+                            <Box className={classes.checkBody}>
+                                <Stack gap="sm" className={classes.grow}>
+                                    <Text fz="sm" c="dimmed">
+                                        {copy.pitch}
+                                    </Text>
+                                    {row.evidence && (
+                                        <Text fz="xs" c="dimmed">
+                                            {row.evidence.text}
+                                        </Text>
+                                    )}
+                                    <Group gap={4} wrap="nowrap">
+                                        <RowAction
+                                            row={row}
+                                            variant={
+                                                isDone ? 'default' : 'filled'
+                                            }
+                                        />
+                                        <RowMenu row={row} {...handlers} />
+                                    </Group>
+                                </Stack>
+                                <Box className={classes.checkArt}>
+                                    <StepArt
+                                        id={row.id}
+                                        badge={isDone ? null : copy.time}
+                                        size="lg"
+                                    />
+                                </Box>
+                            </Box>
+                        </Collapse>
+                    </Box>
+                );
+            })}
+        </Box>
+    );
+};
+
 type SetupGuideViewProps = {
     sections: SetupGuideSection[];
     isDismissed: boolean;
@@ -379,6 +474,11 @@ export const SetupGuideView: FC<SetupGuideViewProps> = ({
 }) => {
     const [isDoneOpen, setIsDoneOpen] = useState(false);
     const [isPopoverOpen, setIsPopoverOpen] = useState(false);
+    const [layout, setLayout] = useLocalStorage<'cards' | 'checklist'>({
+        key: 'ld.setupGuide.layout',
+        defaultValue: 'cards',
+        getInitialValueInEffect: false,
+    });
     const [cornerSlot, setCornerSlot] = useState<HTMLElement | null>(null);
     useEffect(() => {
         setCornerSlot(document.getElementById(SETUP_GUIDE_CORNER_SLOT_ID));
@@ -458,6 +558,19 @@ export const SetupGuideView: FC<SetupGuideViewProps> = ({
             <Group justify="space-between" wrap="nowrap">
                 <Text fw={600}>Set up your workspace</Text>
                 <Group gap="xs" wrap="nowrap">
+                    <SegmentedControl
+                        size="xs"
+                        value={layout}
+                        onChange={(value) =>
+                            setLayout(
+                                value === 'checklist' ? 'checklist' : 'cards',
+                            )
+                        }
+                        data={[
+                            { value: 'cards', label: 'Cards' },
+                            { value: 'checklist', label: 'Checklist' },
+                        ]}
+                    />
                     <Text fz="xs" c="dimmed">
                         {completed} of {total} done
                     </Text>
@@ -480,72 +593,80 @@ export const SetupGuideView: FC<SetupGuideViewProps> = ({
                 aria-label={`${completed} of ${total} setup steps done`}
             />
 
-            <Stack gap="sm">
-                {buildingRows.length > 0 && (
-                    <AuroraLiveCard rows={buildingRows} />
-                )}
-                {(highlight || nextRow) && (
-                    <Box className={classes.top}>
-                        {highlight}
-                        {nextRow && (
-                            <NextStepCard row={nextRow} {...handlers} />
-                        )}
-                    </Box>
-                )}
+            {layout === 'checklist' ? (
+                <ChecklistBody rows={rows} {...handlers} />
+            ) : (
+                <Stack gap="sm">
+                    {buildingRows.length > 0 && (
+                        <AuroraLiveCard rows={buildingRows} />
+                    )}
+                    {(highlight || nextRow) && (
+                        <Box className={classes.top}>
+                            {highlight}
+                            {nextRow && (
+                                <NextStepCard row={nextRow} {...handlers} />
+                            )}
+                        </Box>
+                    )}
 
-                {(laterRows.length > 0 || skippedRows.length > 0) && (
-                    <Box className={classes.cards}>
-                        {[...laterRows, ...skippedRows].map((row) => (
-                            <StepCard key={row.id} row={row} {...handlers} />
-                        ))}
-                    </Box>
-                )}
+                    {(laterRows.length > 0 || skippedRows.length > 0) && (
+                        <Box className={classes.cards}>
+                            {[...laterRows, ...skippedRows].map((row) => (
+                                <StepCard
+                                    key={row.id}
+                                    row={row}
+                                    {...handlers}
+                                />
+                            ))}
+                        </Box>
+                    )}
 
-                {doneRows.length > 0 && (
-                    <Box>
-                        <UnstyledButton
-                            className={classes.doneLine}
-                            aria-expanded={isDoneOpen}
-                            onClick={() => setIsDoneOpen((value) => !value)}
-                        >
-                            <Box className={classes.glyph} data-done>
-                                <MantineIcon icon={IconCheck} size={10} />
-                            </Box>
-                            <Text
-                                fz="xs"
-                                c="dimmed"
-                                title={capitalize(
-                                    listFormat.format(
-                                        doneRows.map(
-                                            ({ id }) => ROW_COPY[id].short,
-                                        ),
-                                    ),
-                                )}
+                    {doneRows.length > 0 && (
+                        <Box>
+                            <UnstyledButton
+                                className={classes.doneLine}
+                                aria-expanded={isDoneOpen}
+                                onClick={() => setIsDoneOpen((value) => !value)}
                             >
-                                {doneRows.length} done
-                            </Text>
-                            <MantineIcon
-                                icon={IconChevronDown}
-                                size={12}
-                                color="dimmed"
-                                className={classes.chevron}
-                                data-expanded={isDoneOpen}
-                            />
-                        </UnstyledButton>
-                        {isDoneOpen && (
-                            <Box className={classes.list} mt="xs">
-                                {doneRows.map((row) => (
-                                    <CompactRow
-                                        key={row.id}
-                                        row={row}
-                                        {...handlers}
-                                    />
-                                ))}
-                            </Box>
-                        )}
-                    </Box>
-                )}
-            </Stack>
+                                <Box className={classes.glyph} data-done>
+                                    <MantineIcon icon={IconCheck} size={10} />
+                                </Box>
+                                <Text
+                                    fz="xs"
+                                    c="dimmed"
+                                    title={capitalize(
+                                        listFormat.format(
+                                            doneRows.map(
+                                                ({ id }) => ROW_COPY[id].short,
+                                            ),
+                                        ),
+                                    )}
+                                >
+                                    {doneRows.length} done
+                                </Text>
+                                <MantineIcon
+                                    icon={IconChevronDown}
+                                    size={12}
+                                    color="dimmed"
+                                    className={classes.chevron}
+                                    data-expanded={isDoneOpen}
+                                />
+                            </UnstyledButton>
+                            {isDoneOpen && (
+                                <Box className={classes.list} mt="xs">
+                                    {doneRows.map((row) => (
+                                        <CompactRow
+                                            key={row.id}
+                                            row={row}
+                                            {...handlers}
+                                        />
+                                    ))}
+                                </Box>
+                            )}
+                        </Box>
+                    )}
+                </Stack>
+            )}
         </Paper>
     );
 };
