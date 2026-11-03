@@ -1,3 +1,10 @@
+## [3.134.1](https://github.com/lightdash/lightdash/compare/3.134.0...3.134.1) (2026-11-03)
+
+
+### Bug Fixes
+
+* **sql-runner:** check estimate setting before column discovery ([#31996](https://github.com/lightdash/lightdash/issues/31996)) ([4c4fdb2](https://github.com/lightdash/lightdash/commit/4c4fdb28b5e9afdf4cdf34a16e07d666f887ebe8))
+
 # [3.134.0](https://github.com/lightdash/lightdash/compare/3.133.1...3.134.0) (2026-11-03)
 
 
