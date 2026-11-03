@@ -1,3 +1,10 @@
+# [3.140.0](https://github.com/lightdash/lightdash/compare/3.139.0...3.140.0) (2026-11-03)
+
+
+### Features
+
+* **backend:** compile PostHog metric queries to HogQL ([#32010](https://github.com/lightdash/lightdash/issues/32010)) ([21ecb6a](https://github.com/lightdash/lightdash/commit/21ecb6a97018095225a6ff92476d04fc620c6118)), closes [#32009](https://github.com/lightdash/lightdash/issues/32009)
+
 # [3.139.0](https://github.com/lightdash/lightdash/compare/3.138.0...3.139.0) (2026-11-03)
 
 
