@@ -54,10 +54,10 @@ export class UsageDimensionsModel {
                             query.whereExists(
                                 this.database('projects')
                                     .select(this.database.raw('1'))
-                                    .whereColumn(
+                                    .whereRaw('?? = ??', [
                                         'projects.organization_id',
                                         'organizations.organization_id',
-                                    ),
+                                    ]),
                             );
                     })
                     .orderBy('organization_id')
