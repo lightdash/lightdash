@@ -264,6 +264,18 @@ export class OnboardingAgentService extends BaseService {
         return run ? toRun(run) : null;
     }
 
+    async getLatestRun(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<AgentOnboardingRun | null> {
+        await this.assertCanViewProject(user, projectUuid);
+        const run =
+            await this.agentOnboardingRunModel.findLatestRunForProject(
+                projectUuid,
+            );
+        return run ? toRun(run) : null;
+    }
+
     private async findOrganizationScopedRun(
         user: SessionUser,
         agentOnboardingRunUuid: string,

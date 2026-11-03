@@ -76,6 +76,7 @@ const fresh: SetupGuideFacts = {
     skippedActions: [],
     semanticModelCount: 0,
     activeRun: null,
+    completedRun: null,
     appSourceNames: [],
     starterDashboard: null,
     brand: null,

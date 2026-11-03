@@ -7,6 +7,7 @@ import {
 } from '@lightdash/common';
 import { type ReactNode } from 'react';
 import { AI_NAME } from '../../../../../components/common/aiName';
+import { getAgentOnboardingRunUrl } from '../../../agentOnboarding/utils';
 import { type ActionStatus } from '../useRecommendedActions';
 
 /** The homepage corner toolbar slot a hidden guide portals its popover button into */
@@ -63,6 +64,8 @@ export type SetupGuideFacts = {
     skippedActions: HomepageRecommendedActionKey[];
     semanticModelCount: number;
     activeRun: AgentOnboardingRun | null;
+    // Its run page shows what was built, so review lands there
+    completedRun: AgentOnboardingRun | null;
     appSourceNames: string[];
     starterDashboard: { uuid: string; name: string } | null;
     brand: OrganizationBrand | null;
@@ -178,6 +181,7 @@ const semanticLayerRow = ({
     statuses,
     skippedActions,
     activeRun,
+    completedRun,
     semanticModelCount,
 }: SetupGuideFacts): SetupGuideRow => {
     const { url, ctaLabel } = statuses['add-semantic-layer'];
@@ -202,7 +206,15 @@ const semanticLayerRow = ({
             evidence: evidence(
                 `${plural(semanticModelCount, 'model')} ready to explore`,
             ),
-            action: { label: 'Review', to: `/projects/${projectUuid}/tables` },
+            action: {
+                label: 'Review',
+                to: completedRun
+                    ? getAgentOnboardingRunUrl(
+                          completedRun.agentOnboardingRunUuid,
+                          completedRun.projectUuid,
+                      )
+                    : `/projects/${projectUuid}/tables`,
+            },
             preview: null,
         };
     }

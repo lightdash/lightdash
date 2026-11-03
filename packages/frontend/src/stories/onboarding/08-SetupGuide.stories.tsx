@@ -61,6 +61,7 @@ const Guide = ({ state }: { state: GuideState }) => {
         skippedActions,
         semanticModelCount: state === 'mostly-done' ? 3 : 0,
         activeRun: state === 'building' ? storyAgentRun(false) : null,
+        completedRun: null,
         appSourceNames:
             state === 'mostly-done' ? ['PostHog', 'Wholesale accounts'] : [],
         starterDashboard:

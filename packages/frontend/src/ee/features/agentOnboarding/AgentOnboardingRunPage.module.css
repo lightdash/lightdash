@@ -338,6 +338,15 @@
     }
 }
 
+.journey {
+    display: flex;
+    flex-direction: column;
+    gap: var(--mantine-spacing-md);
+    padding: var(--mantine-spacing-md);
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-lg);
+}
+
 .journeySteps {
     margin-top: var(--mantine-spacing-md);
 }

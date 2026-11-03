@@ -81,38 +81,6 @@
     }
 }
 
-.inspect {
-    display: inline-flex;
-    align-self: flex-start;
-    flex-shrink: 0;
-    align-items: center;
-    gap: 2px;
-    font-size: var(--mantine-font-size-xs);
-    font-weight: 500;
-    color: var(--mantine-color-dimmed);
-}
-
-.inspect:hover {
-    color: var(--mantine-color-text);
-}
-
-.chevron {
-    transition: transform 150ms ease;
-}
-
-.inspect[aria-expanded='true'] .chevron {
-    transform: rotate(180deg);
-}
-
-.feed {
-    max-height: rem(220px);
-    mask-image: linear-gradient(to bottom, transparent, #000 rem(24px));
-}
-
-.root[data-variant='toast'] .feed {
-    max-height: min(rem(320px), calc(100dvh - rem(240px)));
-}
-
 .steps {
     display: flex;
     flex-direction: column;

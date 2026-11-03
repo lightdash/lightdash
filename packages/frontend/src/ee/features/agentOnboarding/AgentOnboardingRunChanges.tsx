@@ -31,6 +31,8 @@ export const RunRecentSteps: FC<{ run: AgentOnboardingRun }> = ({ run }) => {
             const label = describeAgentOnboardingEvent(message);
             return label ? [{ label, createdAt }] : [];
         })
+        // The agent often repeats a step, which reads as a stutter
+        .filter(({ label }, index, steps) => steps[index + 1]?.label !== label)
         .slice(-RECENT_STEPS)
         .reverse();
     if (recent.length === 0 && !isLive) return null;

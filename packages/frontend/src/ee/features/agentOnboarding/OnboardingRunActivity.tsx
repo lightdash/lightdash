@@ -2,20 +2,9 @@ import {
     isAgentOnboardingRunTerminal,
     type AgentOnboardingRun,
 } from '@lightdash/common';
-import {
-    Box,
-    Group,
-    Loader,
-    ScrollArea,
-    Text,
-    UnstyledButton,
-} from '@mantine/core';
-import {
-    IconAlertTriangle,
-    IconCheck,
-    IconChevronDown,
-} from '@tabler/icons-react';
-import { useEffect, useId, useRef, useState, type FC } from 'react';
+import { Box, Group, Loader, Text } from '@mantine/core';
+import { IconAlertTriangle, IconCheck } from '@tabler/icons-react';
+import { type FC } from 'react';
 import { AI_NAME } from '../../../components/common/aiName';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useAuroraRun } from './hooks/useAuroraRun';
@@ -27,7 +16,6 @@ import {
     describeAgentOnboardingEvent,
     formatStageDuration,
     getAgentOnboardingProgressStageTimings,
-    sanitizeTerminalText,
     summarizeAgentOnboardingEvents,
 } from './utils';
 
@@ -36,21 +24,20 @@ const RECENT_STEPS = 1;
 const plural = (count: number, word: string) =>
     `${count} ${word}${count === 1 ? '' : 's'}`;
 
-type Step = { label: string; message: string; createdAt: string };
+type Step = { label: string; createdAt: string };
 
 const getSteps = (run: AgentOnboardingRun): Step[] =>
     run.events.flatMap(({ message, createdAt }) => {
         const label = describeAgentOnboardingEvent(message);
-        return label ? [{ label, message, createdAt }] : [];
+        return label ? [{ label, createdAt }] : [];
     });
 
 const StepList: FC<{
     steps: Step[];
     isLive: boolean;
-    withCommands: boolean;
-}> = ({ steps, isLive, withCommands }) => (
+}> = ({ steps, isLive }) => (
     <Box component="ol" className={classes.steps}>
-        {steps.map(({ label, message, createdAt }, index) => {
+        {steps.map(({ label, createdAt }, index) => {
             const isCurrent = isLive && index === steps.length - 1;
             return (
                 <Box
@@ -66,43 +53,14 @@ const StepList: FC<{
                             <MantineIcon icon={IconCheck} size={12} />
                         )}
                     </Box>
-                    <Box miw={0}>
-                        <Text fz="xs" truncate>
-                            {label}
-                        </Text>
-                        {withCommands && (
-                            <Text fz={11} c="dimmed" ff="monospace" truncate>
-                                {sanitizeTerminalText(message)}
-                            </Text>
-                        )}
-                    </Box>
+                    <Text fz="xs" truncate miw={0}>
+                        {label}
+                    </Text>
                 </Box>
             );
         })}
     </Box>
 );
-
-const InspectFeed: FC<{ steps: Step[]; isLive: boolean; id: string }> = ({
-    steps,
-    isLive,
-    id,
-}) => {
-    const viewportRef = useRef<HTMLDivElement>(null);
-    useEffect(() => {
-        viewportRef.current?.scrollTo({
-            top: viewportRef.current.scrollHeight,
-        });
-    }, [steps.length]);
-    return (
-        <ScrollArea.Autosize
-            id={id}
-            viewportRef={viewportRef}
-            className={classes.feed}
-        >
-            <StepList steps={steps} isLive={isLive} withCommands />
-        </ScrollArea.Autosize>
-    );
-};
 
 type Variant = 'toast' | 'grouped';
 
@@ -113,8 +71,6 @@ export const OnboardingRunActivity: FC<{
 }> = ({ projectUuid, variant = 'toast' }) => {
     const { run, isLive } = useAuroraRun(projectUuid);
     const now = useNow(isLive);
-    const [isInspecting, setIsInspecting] = useState(false);
-    const feedId = useId();
     if (!run || run.status === 'cancelled') return null;
     // Home's setup guide owns the retry, so a failure stays out of the setup steps
     if (variant === 'toast' && run.status === 'failed') return null;
@@ -153,7 +109,6 @@ export const OnboardingRunActivity: FC<{
             className={classes.root}
             data-variant={variant}
             data-state={run.status}
-            data-inspecting={isInspecting}
             data-run-activity
         >
             <Group gap="sm" wrap="nowrap" align="flex-start">
@@ -200,35 +155,8 @@ export const OnboardingRunActivity: FC<{
                 </Box>
             )}
 
-            {isInspecting ? (
-                <InspectFeed steps={steps} isLive={isLive} id={feedId} />
-            ) : (
-                variant === 'toast' &&
-                steps.length > 0 && (
-                    <StepList
-                        steps={steps.slice(-RECENT_STEPS)}
-                        isLive={isLive}
-                        withCommands={false}
-                    />
-                )
-            )}
-
-            {variant === 'toast' && (
-                <UnstyledButton
-                    className={classes.inspect}
-                    aria-expanded={isInspecting}
-                    aria-controls={feedId}
-                    onClick={() => setIsInspecting((open) => !open)}
-                >
-                    {isInspecting
-                        ? 'Hide steps'
-                        : `Inspect all ${steps.length} steps`}
-                    <MantineIcon
-                        icon={IconChevronDown}
-                        size={12}
-                        className={classes.chevron}
-                    />
-                </UnstyledButton>
+            {variant === 'toast' && steps.length > 0 && (
+                <StepList steps={steps.slice(-RECENT_STEPS)} isLive={isLive} />
             )}
         </Box>
     );

@@ -21,6 +21,7 @@ import useApp from '../../../../../providers/App/useApp';
 import {
     useActiveAgentOnboardingRun,
     useAgentOnboardingRun,
+    useLatestAgentOnboardingRun,
 } from '../../../agentOnboarding/hooks/useAgentOnboarding';
 import { useCanManageProject } from '../../hooks/useHomepageAbilities';
 import { type RecommendedActionsState } from '../useRecommendedActions';
@@ -81,6 +82,7 @@ export const useSetupGuide = (
     );
     const run = watchedRun.data ?? activeRun.data ?? null;
     const isRunTerminal = !!run && isAgentOnboardingRunTerminal(run.status);
+    const latestRun = useLatestAgentOnboardingRun(projectUuid, enabled);
     const queryClient = useQueryClient();
     useEffect(() => {
         if (!isRunTerminal) return;
@@ -89,6 +91,9 @@ export const useSetupGuide = (
         });
         void queryClient.invalidateQueries({
             queryKey: ['dashboards', projectUuid],
+        });
+        void queryClient.invalidateQueries({
+            queryKey: ['agent-onboarding-latest-run', projectUuid],
         });
     }, [isRunTerminal, projectUuid, queryClient]);
     // These hooks take no enabled option; an undefined project keeps them idle
@@ -123,6 +128,8 @@ export const useSetupGuide = (
         skippedActions: actions.skippedActions,
         semanticModelCount: countSemanticModels(explores.data ?? []),
         activeRun: run && !isRunTerminal ? run : null,
+        completedRun:
+            latestRun.data?.status === 'completed' ? latestRun.data : null,
         appSourceNames: [
             ...(connections.data ?? [])
                 .filter(({ kind }) => kind === 'live_source')

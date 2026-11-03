@@ -111,6 +111,17 @@ export class AgentOnboardingRunModel {
             .first();
     }
 
+    async findLatestRunForProject(
+        projectUuid: string,
+    ): Promise<DbAgentOnboardingRun | undefined> {
+        return this.database<AgentOnboardingRunsTable>(
+            AgentOnboardingRunsTableName,
+        )
+            .where('project_uuid', projectUuid)
+            .orderBy('created_at', 'desc')
+            .first();
+    }
+
     async hasActiveRunForOrganization(
         organizationUuid: string,
     ): Promise<boolean> {

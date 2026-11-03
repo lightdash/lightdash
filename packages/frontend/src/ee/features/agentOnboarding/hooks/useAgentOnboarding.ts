@@ -55,6 +55,13 @@ const getActiveRun = async (lightdashApi: LightdashApi, projectUuid: string) =>
         body: undefined,
     });
 
+const getLatestRun = async (lightdashApi: LightdashApi, projectUuid: string) =>
+    lightdashApi<ApiAgentOnboardingActiveRunResponse['results']>({
+        url: `/ee/projects/${projectUuid}/agent-onboarding/latest`,
+        method: 'GET',
+        body: undefined,
+    });
+
 const startRun = async (lightdashApi: LightdashApi, projectUuid: string) =>
     lightdashApi<ApiAgentOnboardingRunResponse['results']>({
         url: `/ee/projects/${projectUuid}/agent-onboarding`,
@@ -118,6 +125,21 @@ export const useActiveAgentOnboardingRun = (
         // A run can start or finish elsewhere in the app, so this must not be
         // served stale on remount (e.g. after a back navigation)
         staleTime: 0,
+    });
+};
+
+export const useLatestAgentOnboardingRun = (
+    projectUuid: string | undefined,
+    options?: Pick<
+        UseQueryOptions<AgentOnboardingRun | null, ApiError>,
+        'enabled'
+    >,
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<AgentOnboardingRun | null, ApiError>({
+        queryKey: ['agent-onboarding-latest-run', projectUuid],
+        queryFn: () => getLatestRun(lightdashApi, projectUuid!),
+        enabled: !!projectUuid && (options?.enabled ?? true),
     });
 };
 

@@ -423,12 +423,15 @@ const AgentOnboardingRunPage: FC = () => {
                         </Paper>
                     )}
 
-                    <RunJourney run={run} now={now} />
+                    <Paper className={classes.journey}>
+                        <RunJourney run={run} now={now} />
+                        {run.status !== 'completed' && (
+                            <RunChanges run={run} withModels={false} />
+                        )}
+                    </Paper>
 
-                    {run.status === 'completed' ? (
+                    {run.status === 'completed' && (
                         <RunSummary run={run} onViewCode={viewFile} />
-                    ) : (
-                        <RunChanges run={run} withModels={false} />
                     )}
 
                     <RunSemanticLayer
