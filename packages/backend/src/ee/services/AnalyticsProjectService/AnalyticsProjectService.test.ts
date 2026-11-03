@@ -179,10 +179,12 @@ describe('AnalyticsProjectService', () => {
             });
 
         it('queues independent jobs from the existing organization iterator', async () => {
-            getOrganizations.mockImplementation(async function* organizations() {
-                yield { organization_uuid: 'one' };
-                yield { organization_uuid: 'two' };
-            });
+            getOrganizations.mockImplementation(
+                async function* organizations() {
+                    yield { organization_uuid: 'one' };
+                    yield { organization_uuid: 'two' };
+                },
+            );
             await service.reconcileContent({ organizationUuid: null });
             expect(scheduleAnalyticsContentSync.mock.calls).toEqual([
                 [{ organizationUuid: 'one' }],
