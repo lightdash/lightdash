@@ -1,3 +1,15 @@
+# [3.134.0](https://github.com/lightdash/lightdash/compare/3.133.1...3.134.0) (2026-11-03)
+
+
+### Bug Fixes
+
+* **test:** drop removed organization owner from snowflake oauth test ([#31999](https://github.com/lightdash/lightdash/issues/31999)) ([9720357](https://github.com/lightdash/lightdash/commit/97203576727da082616ba6bdae022985b6748506))
+
+
+### Features
+
+* show warehouse tables and BigQuery partition columns to the AI agent ([#31988](https://github.com/lightdash/lightdash/issues/31988)) ([902c4ea](https://github.com/lightdash/lightdash/commit/902c4ea2b56484abc5e6f7917ba28d90ca71d298))
+
 ## [3.133.1](https://github.com/lightdash/lightdash/compare/3.133.0...3.133.1) (2026-11-03)
 
 
