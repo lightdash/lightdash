@@ -10753,6 +10753,30 @@ export class AsyncQueryService extends ProjectService {
             );
         }
 
+        // Column discovery runs the user's SQL, so check the setting first
+        const { warehouseCredentials: connectionCredentials } =
+            await this.warehouseClientFactory.resolveWarehouseCredentials(
+                {
+                    kind: 'binding',
+                    projectUuid,
+                    binding: {
+                        kind: 'connection',
+                        warehouseConnectionUuid:
+                            requestedConnectionUuid ?? null,
+                    },
+                },
+                connectionContextFromAccount(account, {
+                    organizationUuid,
+                    queryContext: context,
+                }),
+            );
+        if (
+            !getQueryCostEstimateSettings(connectionCredentials)
+                ?.estimateQueryBytes
+        ) {
+            return { status: 'unavailable' };
+        }
+
         const {
             warehouseCredentials,
             warehouseConnectionUuid,

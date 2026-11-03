@@ -12758,6 +12758,25 @@ describe('AsyncQueryService', () => {
         });
     });
 
+    describe('estimateAsyncSqlQuery', () => {
+        it('returns unavailable without column discovery when estimates are off', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const warehouse = vi.spyOn(
+                service.warehouseClientFactory,
+                'acquireUnscoped',
+            );
+
+            await expect(
+                service.estimateAsyncSqlQuery({
+                    account: sessionAccount,
+                    projectUuid,
+                    sql: 'SELECT 1',
+                }),
+            ).resolves.toEqual({ status: 'unavailable' });
+            expect(warehouse).not.toHaveBeenCalled();
+        });
+    });
+
     describe('executeAsyncSqlQuery', () => {
         it('rejects managed analytics SQL before accessing the warehouse', async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock);
