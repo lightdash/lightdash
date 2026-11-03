@@ -1,3 +1,10 @@
+# [3.130.0](https://github.com/lightdash/lightdash/compare/3.129.0...3.130.0) (2026-11-03)
+
+
+### Features
+
+* **results-cache:** invalidate cached results for a list of explores ([#31946](https://github.com/lightdash/lightdash/issues/31946)) ([d5de31a](https://github.com/lightdash/lightdash/commit/d5de31ae03773842c805fd4cb3c325f786ce987c))
+
 # [3.129.0](https://github.com/lightdash/lightdash/compare/3.128.7...3.129.0) (2026-11-03)
 
 

@@ -61181,6 +61181,58 @@
             "ApiResultsCacheInvalidationResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_ResultsCacheInvalidation_"
             },
+            "ExploresResultsCacheInvalidation": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ResultsCacheInvalidation"
+                    },
+                    {
+                        "properties": {
+                            "exploreNames": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["exploreNames"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiSuccess_ExploresResultsCacheInvalidation_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ExploresResultsCacheInvalidation"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiExploresResultsCacheInvalidationResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_ExploresResultsCacheInvalidation_"
+            },
+            "InvalidateExploresResultsCache": {
+                "properties": {
+                    "includeJoinedExplores": {
+                        "type": "boolean",
+                        "description": "Also invalidate every explore that reads the base table of a listed\nexplore, for example by joining it. Defaults to false."
+                    },
+                    "exploreNames": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["exploreNames"],
+                "type": "object"
+            },
             "PreviewExpiresAt": {
                 "properties": {
                     "expiresAt": {
@@ -74981,7 +75033,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.129.0",
+        "version": "3.130.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -104464,6 +104516,57 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/results-cache/invalidate/explores": {
+            "post": {
+                "operationId": "invalidateExploresResultsCache",
+                "responses": {
+                    "200": {
+                        "description": "Invalidated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiExploresResultsCacheInvalidationResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Invalidate the cached query results of the listed explores. The next run\nof each query against them executes against the warehouse, and results\nfrom other explores stay cached. Queries that share a cache key are\ninvalidated too. Query history and existing result files are kept.\nRequires project admin access.\n\nOnly the listed explores are cleared by default. Set\nincludeJoinedExplores to also clear every explore that reads the base\ntable of a listed explore, for example by joining it. The response lists\nevery explore that was cleared. Pre-aggregates are not rebuilt: refresh\nthem as well, or queries routed to them keep returning the same data.\n\nCall this from a data pipeline once a load finishes, e.g.\n`curl -X POST -H \"Authorization: ApiKey $LIGHTDASH_API_KEY\"\n-H \"Content-Type: application/json\"\n-d '{\"exploreNames\":[\"orders\",\"payments\"]}'\n\"$LIGHTDASH_URL/api/v1/projects/$PROJECT_UUID/results-cache/invalidate/explores\"`",
+                "summary": "Invalidate explores results cache",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/InvalidateExploresResultsCache"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/projects/{projectUuid}/preview-expiration": {
