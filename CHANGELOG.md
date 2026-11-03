@@ -1,3 +1,10 @@
+# [3.135.0](https://github.com/lightdash/lightdash/compare/3.134.1...3.135.0) (2026-11-03)
+
+
+### Features
+
+* prepare recent analytics first and load retained event history automatically ([#31982](https://github.com/lightdash/lightdash/issues/31982)) ([7128b0e](https://github.com/lightdash/lightdash/commit/7128b0e2b5060efa38f737d9edb8f602850b766f))
+
 ## [3.134.1](https://github.com/lightdash/lightdash/compare/3.134.0...3.134.1) (2026-11-03)
 
 
