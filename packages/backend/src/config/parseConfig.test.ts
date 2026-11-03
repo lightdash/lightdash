@@ -2486,12 +2486,6 @@ describe('process.env.LIGHTDASH_CORS_ENABLED', () => {
 });
 
 describe('parseAndSanitizeSchedulerTasks', () => {
-    const defaultSchedulerTasks = ALL_TASK_NAMES.filter(
-        (task) =>
-            task !== SCHEDULER_TASKS.RECONCILE_ANALYTICS_CONTENT &&
-            task !== SCHEDULER_TASKS.SYNC_ANALYTICS_CONTENT,
-    );
-
     beforeEach(() => {
         // Clear scheduler environment variables before each test
         delete process.env.SCHEDULER_INCLUDE_TASKS;
@@ -2505,21 +2499,21 @@ describe('parseAndSanitizeSchedulerTasks', () => {
     });
 
     describe('Default behavior', () => {
-        test('excludes dedicated analytics content tasks when task lists are unset or empty', () => {
+        test('includes analytics content tasks when task lists are unset or empty', () => {
             // Test with no environment variables set
             const config1 = parseConfig();
-            expect(config1.scheduler.tasks).toEqual(defaultSchedulerTasks);
+            expect(config1.scheduler.tasks).toEqual(ALL_TASK_NAMES);
 
             // Test with empty string
             process.env.SCHEDULER_INCLUDE_TASKS = '';
             process.env.SCHEDULER_EXCLUDE_TASKS = '';
             const config2 = parseConfig();
-            expect(config2.scheduler.tasks).toEqual(defaultSchedulerTasks);
+            expect(config2.scheduler.tasks).toEqual(ALL_TASK_NAMES);
         });
     });
 
     describe('Include tasks validation', () => {
-        test('explicitly includes only the dedicated analytics content tasks', () => {
+        test('can explicitly include only analytics content tasks', () => {
             process.env.SCHEDULER_INCLUDE_TASKS =
                 'reconcileAnalyticsContent,syncAnalyticsContent';
             expect(parseConfig().scheduler.tasks).toEqual([
@@ -2558,11 +2552,23 @@ describe('parseAndSanitizeSchedulerTasks', () => {
     });
 
     describe('Exclude tasks validation', () => {
-        test('keeps dedicated analytics tasks excluded when other tasks are excluded', () => {
+        test('keeps analytics content tasks enabled when other tasks are excluded', () => {
             process.env.SCHEDULER_EXCLUDE_TASKS = 'appGeneratePipeline';
             expect(parseConfig().scheduler.tasks).toEqual(
-                defaultSchedulerTasks.filter(
+                ALL_TASK_NAMES.filter(
                     (task) => task !== SCHEDULER_TASKS.APP_GENERATE_PIPELINE,
+                ),
+            );
+        });
+
+        test('can explicitly exclude analytics content tasks', () => {
+            process.env.SCHEDULER_EXCLUDE_TASKS =
+                'reconcileAnalyticsContent,syncAnalyticsContent';
+            expect(parseConfig().scheduler.tasks).toEqual(
+                ALL_TASK_NAMES.filter(
+                    (task) =>
+                        task !== SCHEDULER_TASKS.RECONCILE_ANALYTICS_CONTENT &&
+                        task !== SCHEDULER_TASKS.SYNC_ANALYTICS_CONTENT,
                 ),
             );
         });
@@ -2573,7 +2579,7 @@ describe('parseAndSanitizeSchedulerTasks', () => {
             const config = parseConfig();
             expect(config.scheduler.tasks).toEqual(
                 expect.arrayContaining(
-                    defaultSchedulerTasks.filter(
+                    ALL_TASK_NAMES.filter(
                         (task) =>
                             task !== 'sendEmailNotification' &&
                             task !== 'uploadGsheets',

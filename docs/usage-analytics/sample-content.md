@@ -2,8 +2,8 @@
 
 The backend-owned bundle in `packages/backend/src/analytics/systemExplores/sampleContent.ts`
 defines managed dashboards using system explores, including AI usage, Query activity
-and AI tokens and billing coverage. It is compiled with the backend. A dedicated
-analytics content worker installs new model and dashboard definitions after nightly
+and AI tokens and billing coverage. It is compiled with the backend. A background
+job on the existing scheduler installs new model and dashboard definitions after nightly
 processing; see [automatic content updates](content-sync.md).
 
 New built-in dashboards are created together in the **Default dashboards** space.
