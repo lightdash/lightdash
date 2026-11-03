@@ -1,3 +1,10 @@
+# [3.131.0](https://github.com/lightdash/lightdash/compare/3.130.1...3.131.0) (2026-11-03)
+
+
+### Features
+
+* **dashboard:** arrange filter sections on lines, with drag, rename … ([#31943](https://github.com/lightdash/lightdash/issues/31943)) ([43c0790](https://github.com/lightdash/lightdash/commit/43c0790add210347040f7ffa9148c009118989d1))
+
 ## [3.130.1](https://github.com/lightdash/lightdash/compare/3.130.0...3.130.1) (2026-11-03)
 
 
