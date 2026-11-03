@@ -1,12 +1,18 @@
-import { type DashboardControlSection, type WeekDay } from '@lightdash/common';
+import {
+    type Dashboard,
+    type DashboardControlSection,
+    type WeekDay,
+} from '@lightdash/common';
 import { Box } from '@mantine/core';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { useState, type FC, type PropsWithChildren } from 'react';
 import { MemoryRouter } from 'react-router';
 import { action } from 'storybook/actions';
 import FiltersProvider from '../../components/common/Filters/FiltersProvider';
-import DashboardContext from '../../providers/Dashboard/context';
-import { type DashboardContextType } from '../../providers/Dashboard/types';
+import {
+    FilterFieldsOverrideContext,
+    type FilterFieldsOverride,
+} from '../../providers/Dashboard/filterFieldsOverride';
 import { LightdashApiContext } from '../../providers/LightdashApi/LightdashApiContext';
 import { createQueryClient } from '../../providers/ReactQuery/createQueryClient';
 import TrackingContext from '../../providers/Tracking/context';
@@ -27,19 +33,18 @@ import {
     tiles,
 } from './fixtures';
 
-// Only what the Settings view's shipped `ViewerControls` and
-// `RequiredFilterCard` read from the dashboard
-const dashboardContext = {
-    dashboard: {
-        uuid: DASHBOARD_UUID,
-        filters: dashboardFilters,
-    },
+// The filter fields the Settings view's shipped `ViewerControls` and
+// `RequiredFilterCard` read; the rest of the dashboard comes from the store
+const filterFields: FilterFieldsOverride = {
     allFilterableFieldsMap: itemsMap,
     allFilterableMetricsMap: {},
+    allFilterableFields: undefined,
+    allFilterableMetrics: undefined,
     filterableFieldsByTileUuid: undefined,
-    updateDimensionDashboardFilter: action('updateDimensionDashboardFilter'),
-    updateMetricDashboardFilter: action('updateMetricDashboardFilter'),
-} as unknown as DashboardContextType;
+    hiddenFilterableFieldIds: undefined,
+    isLoadingDashboardFilters: false,
+    isFetchingDashboardFilters: false,
+} as unknown as FilterFieldsOverride;
 
 const tracking = {
     data: {},
@@ -50,7 +55,16 @@ const tracking = {
 
 const createStore = (sections: DashboardControlSection[]) =>
     seedDashboardEditState(
-        createDashboardTestStore({ dashboardFilters, isEditMode: true }),
+        createDashboardTestStore({
+            dashboardFilters,
+            isEditMode: true,
+            source: {
+                queryDashboard: {
+                    uuid: DASHBOARD_UUID,
+                    filters: dashboardFilters,
+                } as unknown as Dashboard,
+            },
+        }),
         {
             dashboard: {
                 config: {
@@ -86,7 +100,9 @@ const DashboardControlsProviders: FC<FrameProps> = ({
             <QueryClientProvider client={queryClient}>
                 <LightdashApiContext.Provider value={storyLightdashApi}>
                     <TrackingContext.Provider value={tracking}>
-                        <DashboardContext.Provider value={dashboardContext}>
+                        <FilterFieldsOverrideContext.Provider
+                            value={filterFields}
+                        >
                             <DashboardStoreTestProvider store={store}>
                                 <FiltersProvider
                                     projectUuid={PROJECT_UUID}
@@ -103,7 +119,7 @@ const DashboardControlsProviders: FC<FrameProps> = ({
                                     {children}
                                 </FiltersProvider>
                             </DashboardStoreTestProvider>
-                        </DashboardContext.Provider>
+                        </FilterFieldsOverrideContext.Provider>
                     </TrackingContext.Provider>
                 </LightdashApiContext.Provider>
             </QueryClientProvider>
