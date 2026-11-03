@@ -33,6 +33,24 @@ export const DetailsRow: FC<{
     </Group>
 );
 
+/** Muted text sitting on a chip line, e.g. a qualifier after chips. */
+export const RowText: FC<{ children: string }> = ({ children }) => (
+    <Text component="span" fz="xs" c="dimmed" className={styles.rowText}>
+        {children}
+    </Text>
+);
+
+/** A result column name, muted so it reads as an output rather than a field. */
+export const OutputChip: FC<{ children: string }> = ({ children }) => (
+    <Box
+        component="span"
+        className={styles.outputChip}
+        data-testid="funnel-node-column"
+    >
+        {children}
+    </Box>
+);
+
 export const FieldChip: FC<{
     fieldId: string;
     fieldsMap: ItemsMap;

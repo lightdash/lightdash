@@ -13,6 +13,7 @@ import {
 } from './funnelNodeLabels';
 import { FunnelEventFieldChips } from './FunnelNodeParts';
 import styles from './FunnelNodeSentence.module.css';
+import { RowText } from './NodeDetailsRow';
 import { nodeFieldLabel } from './nodeFieldLabel';
 
 /** Interpolates `{token}`s with nodes, keeping each node's markup. */
@@ -96,13 +97,13 @@ export const FunnelNodeSentence: FC<{
             </Text>
             <Group gap={4}>
                 <FunnelEventFieldChips query={query} fieldsMap={fieldsMap} />
-                <Text component="span" fz="xs" c="dimmed">
+                <RowText>
                     {getUiString(
                         query.breakdownDimensionId
                             ? 'aiAgent.composer.funnelNode.returnsNoteBreakdown'
                             : 'aiAgent.composer.funnelNode.returnsNote',
                     )}
-                </Text>
+                </RowText>
             </Group>
         </Stack>
     );

@@ -23,7 +23,7 @@ const FUNNEL_METRIC_COLUMNS = [
 ];
 
 /** Per-step measures of a funnel result, plus breakdown_value when split. */
-export const funnelMetricColumnsOf = (query: FunnelSourceQuery) => [
+const funnelMetricColumnsOf = (query: FunnelSourceQuery) => [
     ...FUNNEL_METRIC_COLUMNS,
     ...(query.breakdownDimensionId ? ['breakdown_value'] : []),
 ];

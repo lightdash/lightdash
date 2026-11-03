@@ -29,13 +29,7 @@ import {
 import { FunnelEventFieldChips, FunnelRangeChip } from './FunnelNodeParts';
 import { FunnelNodeSentence } from './FunnelNodeSentence';
 import { FunnelNodeSpine } from './FunnelNodeSpine';
-import { DetailsRow, FieldChip } from './NodeDetailsRow';
-
-const RowText: FC<{ children: string }> = ({ children }) => (
-    <Text component="span" fz="xs" c="dimmed" className={styles.rowText}>
-        {children}
-    </Text>
-);
+import { DetailsRow, FieldChip, OutputChip, RowText } from './NodeDetailsRow';
 
 const StepChip: FC<{ position: number; eventName: string }> = ({
     position,
@@ -143,7 +137,7 @@ const FunnelNodeRows: FC<Props> = ({ query, fieldsMap }) => {
                 icon={IconTableExport}
                 label={getUiString('aiAgent.composer.funnelNode.returns')}
             >
-                <Group gap={4}>
+                <Stack gap={4}>
                     <RowText>
                         {getUiString(
                             query.breakdownDimensionId
@@ -151,17 +145,12 @@ const FunnelNodeRows: FC<Props> = ({ query, fieldsMap }) => {
                                 : 'aiAgent.composer.funnelNode.returnsNote',
                         )}
                     </RowText>
-                    {funnelResultColumnsOf(query).map((column) => (
-                        <Box
-                            key={column}
-                            component="span"
-                            className={styles.outputChip}
-                            data-testid="funnel-node-column"
-                        >
-                            {column}
-                        </Box>
-                    ))}
-                </Group>
+                    <Group gap={4}>
+                        {funnelResultColumnsOf(query).map((column) => (
+                            <OutputChip key={column}>{column}</OutputChip>
+                        ))}
+                    </Group>
+                </Stack>
             </DetailsRow>
         </Stack>
     );

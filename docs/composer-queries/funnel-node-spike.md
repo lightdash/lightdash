@@ -94,9 +94,14 @@ event fields as chips beneath, and the returned shape as a short note.
 
 ### Result strip (any variant)
 
-After a run the results toggle opens a per-step strip instead of a raw table:
-users, bar share of step 1, and "% of previous". Breakdown values are summed
-per step; the raw rows stay available in the full results view.
+After a run the results toggle opens a per-step strip instead of a raw table.
+It follows the conventions every funnel tool shares (see "Reference
+conventions"): a headline with total conversion (last step ÷ first) and the
+largest drop, then one column per step with users, the share of step 1 as a
+bar whose lighter remainder is the drop-off, that share as a number, and
+"% of previous" beneath. Breakdown values are summed per step; the raw rows
+stay available in the full results view. Median time to convert is not
+aggregated across breakdown values, so the strip omits it.
 
 ![B. Spine with the result strip](images/funnel-node-spike/b-spine-results-strip.png)
 
@@ -120,6 +125,36 @@ Recommendation: ship **B (spine) plus the result strip** as the funnel cell.
 Keep A's field-chip and row primitives (they are shared with the semantic
 cell). Keep C's sentence as the cell's one-line summary candidate for the
 collapsed/graph node tooltip rather than as the details body.
+
+## Reference conventions
+
+How Mixpanel, Amplitude, PostHog, Statsig, Kissmetrics and June present
+funnels, so the cell reads as a funnel to anyone who has used one:
+
+- Steps are an ordered, numbered vertical list; each step is an event name
+  plus optional filter chips. Criteria read as one sentence under the steps:
+  "uniques converting within 7 days in this order"
+  (Mixpanel: https://docs.mixpanel.com/docs/reports/funnels/funnels-advanced,
+  PostHog: https://posthog.com/docs/product-analytics/funnels).
+- Order vocabulary is a 3-way: this order (default), exact order, any order.
+  The funnel builder only supports "this order", so the cell states it once.
+- Results are one column per step; drop-off is a lighter remainder in the
+  same hue, never red (Amplitude:
+  https://amplitude.com/docs/analytics/charts/funnel-analysis/funnel-analysis-interpret).
+- Two percentages per step: overall (vs step 1) and relative (vs previous).
+  One is the big number, the other secondary text; step 1 is always 100%
+  (Statsig: https://docs.statsig.com/product-analytics/funnels, Kissmetrics:
+  https://support.kissmetrics.io/docs/funnel-report-1).
+- A headline of total conversion, often with "largest drop-off step" and
+  "slowest step" (Amplitude's Takeaway strip).
+- Breakdown renders as grouped bars per step plus a table with an "Overall"
+  control row; steps still own the axis.
+
+Taken into the cell: numbered steps with the window stated between or after
+them (spine, rows), the one-sentence criteria (sentence), the headline and
+two-percentage columns (strip). Not taken: colour per breakdown value and
+the time-to-convert histogram, both of which belong to a chart over the
+node's rows rather than to the cell.
 
 ## Out of scope, in order of value
 

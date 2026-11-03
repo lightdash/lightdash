@@ -106,10 +106,9 @@ describe('FunnelNodeDetails', () => {
             'then, within 7 days',
         ]);
         expect(
-            screen.getByText(
-                'Returns one row per step and breakdown value: total_users, conversion_rate, step_conversion_rate, median_time_to_convert, breakdown_value',
-            ),
+            screen.getByText('One row per step and breakdown value'),
         ).toBeInTheDocument();
+        expect(texts('funnel-node-column')).toHaveLength(7);
     });
 
     it('sentence: leads with the steps and splits only with a breakdown', () => {

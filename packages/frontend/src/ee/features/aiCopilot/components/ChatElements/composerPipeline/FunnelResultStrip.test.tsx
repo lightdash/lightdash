@@ -27,9 +27,12 @@ describe('FunnelResultStrip', () => {
             .getAllByTestId('funnel-strip-step')
             .map((el) => el.textContent);
         expect(steps).toEqual([
-            `1Page view${(1600).toLocaleString()}users`,
-            '2Add to cart80050.0% of previous',
-            '3Checkout20025.0% of previous',
+            `1Page view${(1600).toLocaleString()}100.0%users`,
+            '2Add to cart80050.0%50.0% of previous',
+            '3Checkout20012.5%25.0% of previous',
         ]);
+        expect(screen.getByTestId('funnel-strip-headline').textContent).toBe(
+            `12.5% converted${(1600).toLocaleString()} → 200 users · largest drop at Checkout (−75.0%)`,
+        );
     });
 });

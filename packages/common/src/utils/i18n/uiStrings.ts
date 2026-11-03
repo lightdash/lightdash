@@ -532,10 +532,6 @@ export const DEFAULT_UI_STRINGS = {
     'aiAgent.composer.funnelNode.returnsNoteBreakdown':
         'One row per step and breakdown value',
     'aiAgent.composer.funnelNode.spine.then': 'then, within {window}',
-    'aiAgent.composer.funnelNode.spine.returns':
-        'Returns one row per step: {columns}',
-    'aiAgent.composer.funnelNode.spine.returnsBreakdown':
-        'Returns one row per step and breakdown value: {columns}',
     'aiAgent.composer.funnelNode.sentence.lead':
         'Of users who did {first}, how many went on to {rest}',
     'aiAgent.composer.funnelNode.sentence.rule':
@@ -544,6 +540,10 @@ export const DEFAULT_UI_STRINGS = {
     'aiAgent.composer.funnelNode.sentence.listAnd': ' and ',
     'aiAgent.composer.funnelNode.strip.ofPrevious': '{percent}% of previous',
     'aiAgent.composer.funnelNode.strip.users': 'users',
+    'aiAgent.composer.funnelNode.strip.converted': '{percent}% converted',
+    'aiAgent.composer.funnelNode.strip.firstToLast': '{first} → {last} users',
+    'aiAgent.composer.funnelNode.strip.largestDrop':
+        'largest drop at {step} ({percent}%)',
     'aiAgent.thread.boundDashboard': 'Linked dashboard',
     'aiAgent.thread.boundDashboardUnavailable': 'Dashboard no longer available',
     'aiAgent.thread.boundChart': 'Linked chart',

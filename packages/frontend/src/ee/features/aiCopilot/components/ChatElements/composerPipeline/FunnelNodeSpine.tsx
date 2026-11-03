@@ -10,13 +10,13 @@ import { type FC } from 'react';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { useUiStrings } from '../../../../../providers/Embed/useUiStrings';
 import {
-    funnelMetricColumnsOf,
+    funnelResultColumnsOf,
     sortedFunnelSteps,
     useWindowPhrase,
 } from './funnelNodeLabels';
 import { FunnelEventFieldChips, FunnelRangeChip } from './FunnelNodeParts';
 import styles from './FunnelNodeSpine.module.css';
-import { FieldChip } from './NodeDetailsRow';
+import { FieldChip, OutputChip, RowText } from './NodeDetailsRow';
 
 /** Steps as a numbered spine, stating the window between each pair. */
 export const FunnelNodeSpine: FC<{
@@ -103,24 +103,28 @@ export const FunnelNodeSpine: FC<{
                                 fieldsMap={fieldsMap}
                                 data-testid="funnel-node-breakdown"
                             />
-                            <Text component="span" fz="xs" c="dimmed">
+                            <RowText>
                                 {getUiString(
                                     'aiAgent.composer.funnelNode.breakdownNote',
                                 )}
-                            </Text>
+                            </RowText>
                         </Group>
                     )}
                 </Group>
-                <Text fz="xs" c="dimmed">
-                    {interpolateUiString(
-                        getUiString(
+                <Group gap={4}>
+                    <RowText>
+                        {getUiString(
                             query.breakdownDimensionId
-                                ? 'aiAgent.composer.funnelNode.spine.returnsBreakdown'
-                                : 'aiAgent.composer.funnelNode.spine.returns',
-                        ),
-                        { columns: funnelMetricColumnsOf(query).join(', ') },
-                    )}
-                </Text>
+                                ? 'aiAgent.composer.funnelNode.returnsNoteBreakdown'
+                                : 'aiAgent.composer.funnelNode.returnsNote',
+                        )}
+                    </RowText>
+                </Group>
+                <Group gap={4}>
+                    {funnelResultColumnsOf(query).map((column) => (
+                        <OutputChip key={column}>{column}</OutputChip>
+                    ))}
+                </Group>
             </Stack>
         </Box>
     );
