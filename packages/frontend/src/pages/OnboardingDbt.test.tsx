@@ -101,7 +101,7 @@ describe('OnboardingDbt', () => {
         renderAt('/onboarding/dbt');
 
         expect(
-            await screen.findByText("Let's get you set up!"),
+            await screen.findByText('Connect your dbt project'),
         ).toBeInTheDocument();
         expect(screen.getByText('Using your CLI')).toBeInTheDocument();
         expect(screen.getByText('with lightdash deploy')).toBeInTheDocument();
@@ -198,7 +198,7 @@ describe('OnboardingDbt', () => {
         renderAt('/onboarding/dbt/nonsense');
 
         expect(
-            await screen.findByText("Let's get you set up!"),
+            await screen.findByText('Connect your dbt project'),
         ).toBeInTheDocument();
     });
 });

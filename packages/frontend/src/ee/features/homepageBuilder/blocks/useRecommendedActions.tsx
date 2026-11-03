@@ -174,12 +174,14 @@ const sourceControlAnnotation = (
 };
 
 const sourceControlStatus = ({
+    projectUuid,
     hasGithub,
     hasGitlab,
     isGithubConnected,
     isGitlabConnected,
     dbtConnection,
 }: {
+    projectUuid: string | null;
     hasGithub: boolean;
     hasGitlab: boolean;
     isGithubConnected: boolean;
@@ -197,7 +199,9 @@ const sourceControlStatus = ({
         dbtConnection,
     ),
     doneIcon: null,
-    url: '/onboarding/dbt',
+    url: projectUuid
+        ? `/generalSettings/projectManagement/${projectUuid}/settings`
+        : '/onboarding/dbt',
     ctaLabel: DEFAULT_CTA_LABEL,
 });
 
@@ -298,6 +302,7 @@ const useActionStatuses = (
                 hasAgentSemanticLayerEntry,
             }),
             'connect-source-control': sourceControlStatus({
+                projectUuid,
                 hasGithub,
                 hasGitlab,
                 isGithubConnected,

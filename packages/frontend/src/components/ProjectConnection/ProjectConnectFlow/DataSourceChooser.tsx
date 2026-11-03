@@ -9,7 +9,12 @@ import {
     UnstyledButton,
 } from '@mantine/core';
 import { captureException } from '@sentry/react';
-import { IconChevronRight, IconUserPlus, type Icon } from '@tabler/icons-react';
+import {
+    IconChevronRight,
+    IconGitBranch,
+    IconUserPlus,
+    type Icon,
+} from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
@@ -208,6 +213,13 @@ export const DataSourceChooser: FC = () => {
                     warehouse.
                 </Text>
             )}
+
+            <ShortcutCard
+                icon={IconGitBranch}
+                title="Already use dbt?"
+                description="Connect your dbt project and we'll use the models you have"
+                onClick={() => onboardingNavigate('/onboarding/dbt')}
+            />
 
             {canInvite && (
                 <ShortcutCard

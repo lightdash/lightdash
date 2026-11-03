@@ -8,6 +8,9 @@ import {
 import { type ReactNode } from 'react';
 import { type ActionStatus } from '../useRecommendedActions';
 
+/** The homepage corner toolbar slot a hidden guide portals its popover button into */
+export const SETUP_GUIDE_CORNER_SLOT_ID = 'homepage-setup-guide-slot';
+
 export type SetupGuideStatus =
     | 'done'
     | 'ready'
@@ -153,7 +156,7 @@ const appDataRow = ({
     projectUuid,
     appSourceNames,
 }: SetupGuideFacts): SetupGuideRow => {
-    const to = `/onboarding/tools/${projectUuid}`;
+    const to = `/generalSettings/projectManagement/${projectUuid}/liveDataSources`;
     const hasSources = appSourceNames.length > 0;
     return {
         id: 'app-data',
@@ -313,7 +316,7 @@ export const buildSetupGuide = (
                               facts,
                               'connect-source-control',
                               'source-control',
-                              'Connect your dbt project',
+                              'Already use dbt? Connect it',
                           ),
                       ]
                     : []),

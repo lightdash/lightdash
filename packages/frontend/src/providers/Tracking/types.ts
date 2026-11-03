@@ -944,6 +944,7 @@ export type OnboardingScreen =
     | 'meet_aurora'
     | 'choose_source'
     | 'warehouse_form'
+    | 'dbt'
     | 'tools'
     | 'team'
     | 'done';

@@ -6,6 +6,7 @@ import {
 import {
     Anchor,
     Box,
+    Button,
     Group,
     Loader,
     Paper,
@@ -27,6 +28,9 @@ import CodeBlock from '../components/common/CodeBlock/CodeBlock';
 import { DocumentTitle } from '../components/common/DocumentTitle';
 import MantineIcon from '../components/common/MantineIcon';
 import OnboardingLayout from '../components/common/OnboardingLayout';
+import { ONBOARDING_DATA_STEPS } from '../components/common/onboardingSteps';
+import { StepVisual } from '../components/common/OnboardingVisuals';
+import { useOnboardingNavigate } from '../components/common/viewTransition';
 import useToaster from '../hooks/toaster/useToaster';
 import { useActiveProjectUuid } from '../hooks/useActiveProject';
 import { useExplores } from '../hooks/useExplores';
@@ -97,10 +101,10 @@ const DbtMethodPicker: FC = () => {
         <Box className={classes.column}>
             <Stack align="center" gap="xs">
                 <Title order={1} ta="center">
-                    Let's get you set up!
+                    Connect your dbt project
                 </Title>
                 <Text size="md" c="dimmed" ta="center">
-                    Choose how you want to upload your dbt project.
+                    We'll read the models and metrics you already have.
                 </Text>
             </Stack>
 
@@ -341,19 +345,48 @@ const DbtCliWaiting: FC = () => {
 
 const OnboardingDbtContent: FC = () => {
     const { method } = useParams<{ method?: string }>();
+    const onboardingNavigate = useOnboardingNavigate();
 
     if (method && method !== CLI_ROUTE_PARAM) {
         return <Navigate to="/onboarding/dbt" replace />;
     }
 
     return (
-        <OnboardingLayout>
-            <DocumentTitle title="Set up your dbt" />
+        <OnboardingLayout
+            screen="dbt"
+            journey={{ currentStep: 1, steps: ONBOARDING_DATA_STEPS }}
+            stackDepth={method === CLI_ROUTE_PARAM ? 2 : 1}
+            aside={<StepVisual step="warehouse" />}
+        >
+            <DocumentTitle title="Connect your dbt project" />
             {method === CLI_ROUTE_PARAM ? (
                 <DbtCliWaiting />
             ) : (
                 <DbtMethodPicker />
             )}
+            <Group justify="space-between" mt="xl">
+                <Button
+                    variant="subtle"
+                    color="gray"
+                    onClick={() =>
+                        onboardingNavigate(
+                            method === CLI_ROUTE_PARAM
+                                ? '/onboarding/dbt'
+                                : '/onboarding/data-source',
+                        )
+                    }
+                >
+                    Back
+                </Button>
+                <Button
+                    variant="default"
+                    onClick={() =>
+                        onboardingNavigate('/onboarding/data-source')
+                    }
+                >
+                    No dbt? Connect a warehouse
+                </Button>
+            </Group>
         </OnboardingLayout>
     );
 };

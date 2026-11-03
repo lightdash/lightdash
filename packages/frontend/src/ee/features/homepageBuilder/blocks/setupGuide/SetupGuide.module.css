@@ -6,6 +6,11 @@
     align-self: center;
 }
 
+.popover {
+    max-height: calc(100dvh - var(--navbar-height) - 96px);
+    overflow-y: auto;
+}
+
 .progress {
     margin-block: var(--mantine-spacing-xs) var(--mantine-spacing-md);
 }
@@ -198,12 +203,17 @@
 }
 
 .doneLine {
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    gap: var(--mantine-spacing-sm);
-    width: 100%;
-    padding: 4px var(--mantine-spacing-sm);
-    border-radius: var(--mantine-radius-sm);
+    gap: 6px;
+    padding: 2px 10px 2px 4px;
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-xl);
+}
+
+.doneLine .glyph {
+    width: 14px;
+    height: 14px;
 }
 
 .doneLine:hover {

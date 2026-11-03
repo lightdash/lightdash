@@ -6,6 +6,7 @@ import {
     Group,
     Menu,
     Paper,
+    Popover,
     Progress,
     Skeleton,
     Stack,
@@ -30,7 +31,8 @@ import {
     IconX,
     type Icon,
 } from '@tabler/icons-react';
-import { useState, type FC, type ReactNode } from 'react';
+import { useEffect, useState, type FC, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import useTracking from '../../../../../providers/Tracking/useTracking';
@@ -41,6 +43,7 @@ import { SemanticLayerCard } from './SemanticLayerCard';
 import classes from './SetupGuide.module.css';
 import {
     countProgress,
+    SETUP_GUIDE_CORNER_SLOT_ID,
     isCompletedStatus,
     isSkippableRow,
     type SetupGuideRow,
@@ -375,21 +378,72 @@ export const SetupGuideView: FC<SetupGuideViewProps> = ({
     ...handlers
 }) => {
     const [isDoneOpen, setIsDoneOpen] = useState(false);
+    const [isPopoverOpen, setIsPopoverOpen] = useState(false);
+    const [cornerSlot, setCornerSlot] = useState<HTMLElement | null>(null);
+    useEffect(() => {
+        setCornerSlot(document.getElementById(SETUP_GUIDE_CORNER_SLOT_ID));
+    }, []);
     const rows = sections.flatMap((section) => section.rows);
     const { completed, total } = countProgress(rows);
     // Skipped rows are out of the total, so this means nothing is left to do
     if (completed === total) return highlight;
     if (isDismissed) {
-        return (
-            <Button
-                variant="subtle"
-                size="compact-sm"
-                className={classes.reopen}
-                leftSection={<MantineIcon icon={IconListCheck} />}
-                onClick={() => onDismissedChange(false)}
+        const reopenLabel = `Setup guide, ${completed} of ${total} done`;
+        if (!cornerSlot) {
+            return (
+                <Button
+                    variant="subtle"
+                    size="compact-sm"
+                    className={classes.reopen}
+                    leftSection={<MantineIcon icon={IconListCheck} />}
+                    onClick={() => onDismissedChange(false)}
+                >
+                    {reopenLabel}
+                </Button>
+            );
+        }
+        return createPortal(
+            <Popover
+                opened={isPopoverOpen}
+                onChange={setIsPopoverOpen}
+                position="bottom-end"
+                width={760}
             >
-                Setup guide, {completed} of {total} done
-            </Button>
+                <Popover.Target>
+                    <Button
+                        variant="default"
+                        size="sm"
+                        aria-label={reopenLabel}
+                        leftSection={<MantineIcon icon={IconListCheck} />}
+                        onClick={() => setIsPopoverOpen((open) => !open)}
+                    >
+                        Setup {completed}/{total}
+                    </Button>
+                </Popover.Target>
+                <Popover.Dropdown className={classes.popover}>
+                    <SetupGuideView
+                        sections={sections}
+                        isDismissed={false}
+                        onDismissedChange={() => setIsPopoverOpen(false)}
+                        highlight={highlight}
+                        {...handlers}
+                    />
+                    <Group justify="flex-end" pt="sm">
+                        <Button
+                            variant="subtle"
+                            color="gray"
+                            size="compact-xs"
+                            onClick={() => {
+                                setIsPopoverOpen(false);
+                                onDismissedChange(false);
+                            }}
+                        >
+                            Show on homepage
+                        </Button>
+                    </Group>
+                </Popover.Dropdown>
+            </Popover>,
+            cornerSlot,
         );
     }
 
@@ -455,21 +509,24 @@ export const SetupGuideView: FC<SetupGuideViewProps> = ({
                             onClick={() => setIsDoneOpen((value) => !value)}
                         >
                             <Box className={classes.glyph} data-done>
-                                <MantineIcon icon={IconCheck} size={12} />
+                                <MantineIcon icon={IconCheck} size={10} />
                             </Box>
-                            <Text fz="sm" c="dimmed" className={classes.grow}>
-                                {capitalize(
+                            <Text
+                                fz="xs"
+                                c="dimmed"
+                                title={capitalize(
                                     listFormat.format(
                                         doneRows.map(
                                             ({ id }) => ROW_COPY[id].short,
                                         ),
                                     ),
-                                )}{' '}
-                                {doneRows.length === 1 ? 'is' : 'are'} done
+                                )}
+                            >
+                                {doneRows.length} done
                             </Text>
                             <MantineIcon
                                 icon={IconChevronDown}
-                                size={14}
+                                size={12}
                                 color="dimmed"
                                 className={classes.chevron}
                                 data-expanded={isDoneOpen}
