@@ -1160,7 +1160,7 @@ export const friendlyName = (text: string): string => {
         return '';
     }
 
-    // Use lodash's words function with a safe custom pattern
+    // Use words() with a safe custom pattern
     // Pattern explanation (avoids backtracking):
     // - [A-Z][a-z]+: Uppercase letter followed by 1+ lowercase (avoids * quantifier)
     // - [a-z]+: One or more lowercase letters

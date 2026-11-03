@@ -122,7 +122,7 @@ export default defineConfig({
                         },
                         {
                             name: 'modules',
-                            test: /node_modules[\\/](jspdf|lodash|colorjs\.io|zod)/,
+                            test: /node_modules[\\/](jspdf|lodash|es-toolkit|colorjs\.io|zod)/,
                             priority: 15,
                         },
                         {

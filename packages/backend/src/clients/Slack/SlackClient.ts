@@ -103,7 +103,7 @@ const THROTTLE_MIN_DELAY_MS = Math.ceil(
 
 /**
  * Creates a throttled executor for Slack API calls.
- * Uses lodash throttle pattern to proactively stay within 60% of Tier 2 rate limits.
+ * Uses a leading-edge throttle to proactively stay within 60% of Tier 2 rate limits.
  * This prevents rate limit errors instead of reacting to them.
  * Includes a simple retry as safety net for unexpected rate limits (e.g., from other integrations).
  */
