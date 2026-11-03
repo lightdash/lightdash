@@ -25292,10 +25292,94 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "AnalyticsProcessingStats": {
+                "properties": {
+                    "limitReached": {
+                        "type": "boolean"
+                    },
+                    "userPartitionsDeferred": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "userPartitionsFailed": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "dimensionsFailed": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "rawObjectsDeleted": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "partitionsFailed": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "partitionsCompacted": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "partitionsDiscovered": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": [
+                    "limitReached",
+                    "userPartitionsDeferred",
+                    "userPartitionsFailed",
+                    "dimensionsFailed",
+                    "rawObjectsDeleted",
+                    "partitionsFailed",
+                    "partitionsCompacted",
+                    "partitionsDiscovered"
+                ],
+                "type": "object"
+            },
+            "AnalyticsProcessingStatus": {
+                "properties": {
+                    "stats": {
+                        "$ref": "#/components/schemas/AnalyticsProcessingStats"
+                    },
+                    "lastSuccessfulAt": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "finishedAt": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "startedAt": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["running", "success", "partial", "failed"]
+                    }
+                },
+                "required": [
+                    "stats",
+                    "lastSuccessfulAt",
+                    "finishedAt",
+                    "startedAt",
+                    "status"
+                ],
+                "type": "object"
+            },
             "AnalyticsProjectStatus": {
                 "properties": {
                     "project": {
                         "properties": {
+                            "processing": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/AnalyticsProcessingStatus"
+                                    }
+                                ],
+                                "nullable": true
+                            },
                             "hasContentUpdates": {
                                 "type": "boolean",
                                 "description": "Checks counts and dashboard verification, not edits to existing definitions."
@@ -34433,6 +34517,10 @@
                                                     },
                                                     {
                                                         "properties": {
+                                                            "requiresSnowflakeReauthentication": {
+                                                                "type": "boolean",
+                                                                "enum": [true]
+                                                            },
                                                             "refusal": {
                                                                 "properties": {
                                                                     "projectUuid": {
@@ -34783,6 +34871,10 @@
                                                     },
                                                     {
                                                         "properties": {
+                                                            "requiresSnowflakeReauthentication": {
+                                                                "type": "boolean",
+                                                                "enum": [true]
+                                                            },
                                                             "refusal": {
                                                                 "properties": {
                                                                     "projectUuid": {
@@ -35101,6 +35193,10 @@
                                                     },
                                                     {
                                                         "properties": {
+                                                            "requiresSnowflakeReauthentication": {
+                                                                "type": "boolean",
+                                                                "enum": [true]
+                                                            },
                                                             "refusal": {
                                                                 "properties": {
                                                                     "projectUuid": {
@@ -35252,6 +35348,10 @@
                                                     },
                                                     {
                                                         "properties": {
+                                                            "requiresSnowflakeReauthentication": {
+                                                                "type": "boolean",
+                                                                "enum": [true]
+                                                            },
                                                             "refusal": {
                                                                 "properties": {
                                                                     "projectUuid": {
@@ -35719,6 +35819,10 @@
                                                     },
                                                     {
                                                         "properties": {
+                                                            "requiresSnowflakeReauthentication": {
+                                                                "type": "boolean",
+                                                                "enum": [true]
+                                                            },
                                                             "refusal": {
                                                                 "properties": {
                                                                     "projectUuid": {
@@ -35987,6 +36091,10 @@
                                                     },
                                                     {
                                                         "properties": {
+                                                            "requiresSnowflakeReauthentication": {
+                                                                "type": "boolean",
+                                                                "enum": [true]
+                                                            },
                                                             "refusal": {
                                                                 "properties": {
                                                                     "projectUuid": {
@@ -36238,6 +36346,10 @@
                                                     },
                                                     {
                                                         "properties": {
+                                                            "requiresSnowflakeReauthentication": {
+                                                                "type": "boolean",
+                                                                "enum": [true]
+                                                            },
                                                             "refusal": {
                                                                 "properties": {
                                                                     "projectUuid": {
@@ -36360,6 +36472,10 @@
                                                     },
                                                     {
                                                         "properties": {
+                                                            "requiresSnowflakeReauthentication": {
+                                                                "type": "boolean",
+                                                                "enum": [true]
+                                                            },
                                                             "refusal": {
                                                                 "properties": {
                                                                     "projectUuid": {
@@ -36480,6 +36596,10 @@
                                                     },
                                                     {
                                                         "properties": {
+                                                            "requiresSnowflakeReauthentication": {
+                                                                "type": "boolean",
+                                                                "enum": [true]
+                                                            },
                                                             "refusal": {
                                                                 "properties": {
                                                                     "projectUuid": {
@@ -36617,6 +36737,10 @@
                                                     },
                                                     {
                                                         "properties": {
+                                                            "requiresSnowflakeReauthentication": {
+                                                                "type": "boolean",
+                                                                "enum": [true]
+                                                            },
                                                             "refusal": {
                                                                 "properties": {
                                                                     "projectUuid": {
@@ -36852,6 +36976,10 @@
                                                     },
                                                     {
                                                         "properties": {
+                                                            "requiresSnowflakeReauthentication": {
+                                                                "type": "boolean",
+                                                                "enum": [true]
+                                                            },
                                                             "refusal": {
                                                                 "properties": {
                                                                     "projectUuid": {
@@ -74853,7 +74981,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.128.5",
+        "version": "3.129.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"

@@ -30,6 +30,7 @@ import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { type SavedChartModel } from '../../../models/SavedChartModel';
 import { type SpaceModel } from '../../../models/SpaceModel';
 import type { UsageDimensionsModel } from '../../../models/UsageDimensionsModel';
+import type { UsageProcessingModel } from '../../../models/UsageProcessingModel';
 import { UserModel } from '../../../models/UserModel';
 import type { SchedulerClient } from '../../../scheduler/SchedulerClient';
 import { BaseService } from '../../../services/BaseService';
@@ -85,6 +86,7 @@ type Dependencies = {
         UserModel,
         'invalidateSessionUserCache' | 'findSessionUserAndOrgByUuid'
     >;
+    usageProcessingModel: Pick<UsageProcessingModel, 'find'>;
 };
 
 // Definitions are static for the running release; compile once, not per status request.
@@ -214,7 +216,7 @@ export class AnalyticsProjectService extends BaseService {
         const chartSlugs = analyticsContentAsCode.flatMap(({ charts }) =>
             charts.map(({ slug }) => slug),
         );
-        const [models, dashboards, charts, snapshot] = await Promise.all([
+        const [models, dashboards, charts, snapshot, processing] = await Promise.all([
             this.dependencies.projectModel.getAnalyticsModelCounts(
                 project.projectUuid,
                 analyticsExploreNames,
@@ -232,6 +234,7 @@ export class AnalyticsProjectService extends BaseService {
                 ANALYTICS_BUNDLE_SNAPSHOT_TYPE,
                 bundleSnapshotSlug,
             ),
+            this.dependencies.usageProcessingModel.find(organizationUuid),
         ]);
         const verifications =
             await this.dependencies.contentVerificationModel.getByContentUuids(
@@ -260,6 +263,7 @@ export class AnalyticsProjectService extends BaseService {
                     dashboards.length !== dashboardSlugs.length ||
                     charts.length !== chartSlugs.length ||
                     dashboards.some(({ uuid }) => !verifications.has(uuid)),
+                processing,
             },
         };
     }
