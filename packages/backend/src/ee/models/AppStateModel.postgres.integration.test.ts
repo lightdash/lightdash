@@ -11,6 +11,18 @@ describe('AppStateModel.cleanupHistoryBatch (PostgreSQL)', () => {
     const daysAgo = (days: number) =>
         new Date(Date.now() - days * 24 * 3600 * 1000);
 
+    // The temp table shadows the registered knex table type, which forbids
+    // explicit created_at inserts.
+    type HistoryRow = {
+        app_uuid: string;
+        key: string;
+        version: number;
+        value: string;
+        author_kind: string;
+        author_user_uuid: string | null;
+        created_at: Date;
+    };
+
     const insertHistory = async ({
         app = appUuid,
         key,
@@ -22,7 +34,7 @@ describe('AppStateModel.cleanupHistoryBatch (PostgreSQL)', () => {
         version: number;
         createdAt: Date;
     }) => {
-        await tx('app_shared_state_history').insert({
+        await tx<HistoryRow>('app_shared_state_history').insert({
             app_uuid: app,
             key,
             version,
@@ -35,7 +47,7 @@ describe('AppStateModel.cleanupHistoryBatch (PostgreSQL)', () => {
 
     const versionsOf = async (key: string, app = appUuid) =>
         (
-            await tx<{ version: number }>('app_shared_state_history')
+            await tx<HistoryRow>('app_shared_state_history')
                 .select('version')
                 .where({ app_uuid: app, key })
                 .orderBy('version', 'asc')
@@ -164,6 +176,27 @@ describe('AppStateModel.cleanupHistoryBatch (PostgreSQL)', () => {
         expect(await versionsOf('a')).toEqual([4, 5]);
         expect(await versionsOf('b')).toEqual([4, 5]);
         expect(await versionsOf('a', otherApp)).toEqual([4, 5]);
+    });
+
+    it('always keeps at least one version so a recreated key continues the counter', async () => {
+        await Promise.all(
+            Array.from({ length: 5 }, (_, i) =>
+                insertHistory({
+                    key: 'deleted-key',
+                    version: i + 1,
+                    createdAt: daysAgo(100),
+                }),
+            ),
+        );
+
+        const result = await model.cleanupHistoryBatch(
+            daysAgo(90),
+            0,
+            generous,
+        );
+
+        expect(result.totalDeleted).toBe(4);
+        expect(await versionsOf('deleted-key')).toEqual([5]);
     });
 
     it('stops at the batch cap and reports an incomplete run', async () => {
