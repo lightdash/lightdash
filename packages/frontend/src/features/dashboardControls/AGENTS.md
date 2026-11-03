@@ -47,7 +47,9 @@ Gated on the flag:
 - `features/dashboardTabs/index.tsx`: `ControlsBar` instead of
   `DashboardFiltersBar`; `hasQuietActions` on each `DraggableTab`.
 - `components/common/Dashboard/DashboardHeader.tsx`: the indigo "Editing"
-  badge before the name in edit mode, for users who can manage the dashboard.
+  badge before the name in edit mode, for users who can manage the dashboard;
+  the `save` class, outlined by `DashboardHeader.module.css` under the guard's
+  `[data-dashboard-header-guard][inert]`.
 - `ee/features/embed/EmbedDashboard/components/EmbedDashboard.tsx`:
   `isEmbedFilterRailEnabled` (flag on, and not an embed editor in edit mode)
   turns on `isControlsEnabled` for the header and filter bar, and

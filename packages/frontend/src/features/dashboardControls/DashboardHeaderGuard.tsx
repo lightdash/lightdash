@@ -17,6 +17,7 @@ export const DashboardHeaderGuard: FC<Props> = (props) => {
         <div
             // The shared dimming of what is inert while a filter is edited
             className={`${classes.guard} ${pillClasses.inert}`}
+            data-dashboard-header-guard
             inert={isLocked || undefined}
         >
             <DashboardHeader {...props} />
